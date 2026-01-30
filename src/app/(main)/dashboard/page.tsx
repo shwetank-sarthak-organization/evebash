@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -68,7 +68,7 @@ const PLACEHOLDER_IMAGES = [
     "https://images.unsplash.com/photo-1549413187-0521e7cebcba?q=80&w=2070&auto=format&fit=crop"
 ];
 
-export default function UserDashboard() {
+function DashboardContent() {
     const { user, loading, logout } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -2104,6 +2104,18 @@ export default function UserDashboard() {
                 />
             </main >
         </div >
+    );
+}
+
+export default function UserDashboard() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-stone-50">
+                <Loader2 className="w-10 h-10 animate-spin text-royal-gold" />
+            </div>
+        }>
+            <DashboardContent />
+        </Suspense>
     );
 }
 
