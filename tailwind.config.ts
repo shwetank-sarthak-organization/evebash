@@ -34,6 +34,21 @@ const config: Config = {
                     800: "#1e293b", // Slate 800 - Headings
                     900: "#0f172a",
                 },
+                royal: {
+                    maroon: "#4A0E0E", // Deeper, browner maroon per reference
+                    gold: "#D4AF37",
+                    cream: "#FFFDD0",
+                    green: "#005D4B",
+                },
+                gold: {
+                    100: "#F9F1D8",
+                    200: "#F0DEAA",
+                    300: "#E6CB7D",
+                    400: "#DDB853",
+                    500: "#D4A52A", // Primary Gold
+                    600: "#AA8422",
+                    700: "#806319",
+                },
             },
             fontFamily: {
                 serif: ["var(--font-playfair)", "serif"],
