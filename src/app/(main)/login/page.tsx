@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Lock } from "lucide-react";
 
-export default function LoginPage() {
+function LoginContent() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -144,8 +144,8 @@ export default function LoginPage() {
                                 setError("");
                             }}
                             className={`flex-1 py-1.5 px-4 text-xs font-bold uppercase tracking-widest rounded-full transition-all duration-300 ${loginMethod === "phone"
-                                    ? "bg-white text-slate-900 shadow-sm"
-                                    : "text-slate-500 hover:text-slate-700"
+                                ? "bg-white text-slate-900 shadow-sm"
+                                : "text-slate-500 hover:text-slate-700"
                                 }`}
                         >
                             Phone
@@ -156,8 +156,8 @@ export default function LoginPage() {
                                 setError("");
                             }}
                             className={`flex-1 py-1.5 px-4 text-xs font-bold uppercase tracking-widest rounded-full transition-all duration-300 ${loginMethod === "email"
-                                    ? "bg-white text-slate-900 shadow-sm"
-                                    : "text-slate-500 hover:text-slate-700"
+                                ? "bg-white text-slate-900 shadow-sm"
+                                : "text-slate-500 hover:text-slate-700"
                                 }`}
                         >
                             Email
@@ -311,5 +311,17 @@ export default function LoginPage() {
                 </div>
             </motion.div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-royal-cream">
+                <div className="h-10 w-10 border-4 border-royal-maroon border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        }>
+            <LoginContent />
+        </Suspense>
     );
 }

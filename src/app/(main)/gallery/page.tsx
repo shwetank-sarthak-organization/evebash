@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { getUserEvents, Event } from "@/lib/firestore";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Camera, ArrowRight, Loader2, Image as ImageIcon, ChevronLeft, Share2 } from "lucide-react";
