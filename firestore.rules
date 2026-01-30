@@ -31,12 +31,20 @@ service cloud.firestore {
         : null;
     }
 
+    // Check if the current user is a global Premium user (allowed to create events)
+    function isPremiumUser() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "premium" || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin");
+    }
+
     // Check if the current user is any type of admin
     function isAdmin() {
       return isKnownAdmin() || (
         isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin"
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == "admin"
       );
     }
 
@@ -45,8 +53,8 @@ service cloud.firestore {
       return isKnownAdmin() || (
         isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin" && 
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('delegatedBy', null) == null || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('delegatedBy', '') == "")
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == "admin" && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('delegatedBy', '') == '')
       );
     }
 
@@ -55,12 +63,14 @@ service cloud.firestore {
       return isKnownAdmin() || (
         isAuthenticated() && (
           isUser(ownerId) || 
-          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin" && (
-             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('delegatedBy', null) == null || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('delegatedBy', '') == "") || 
-             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('delegatedBy', null) == ownerId && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('roleType', '') == "primary")
-           )
-          )
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+             // 1. Global Platform Admin (Self-created)
+             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin" && 
+              (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('delegatedBy', null) == null || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('delegatedBy', '') == "")) || 
+             // 2. Delegated Primary Admin (Management right given by owner, role-agnostic)
+             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('delegatedBy', null) == ownerId && 
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('roleType', '') == "primary")
+          ))
         )
       );
     }
@@ -70,7 +80,6 @@ service cloud.firestore {
       return isKnownAdmin() || (
         isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin" && 
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('assignedEvents', []).hasAny([eventId])
       );
     }
@@ -87,8 +96,8 @@ service cloud.firestore {
       
       allow create: if isAuthenticated() && (
         isKnownAdmin() ||
-        // 1. Root Event: Allow if setting self (UID or Email) as creator
-        (request.resource.data.get('parentId', null) == null && isUser(getDocOwnerId(request.resource.data))) ||
+        // 1. Root Event: ONLY allow if user is an Admin/Premium and setting self as creator
+        (request.resource.data.get('parentId', null) == null && isPremiumUser() && isUser(getDocOwnerId(request.resource.data))) ||
         // 2. Sub Event: Authorized for the parent's creator ID
         (request.resource.data.get('parentId', null) != null && 
          exists(/databases/$(database)/documents/events/$(request.resource.data.parentId)) &&
@@ -114,13 +123,43 @@ service cloud.firestore {
     }
 
     match /guests/{logId} {
+      // 1. Read: Anyone can check their status if they know the document ID
+      allow get: if true;
+      
+      // 2. Create: New guest requests allowed
       allow create: if true;
-      allow read: if isKnownAdmin() || isAdmin();
-      allow update: if isKnownAdmin() || (isAdmin() && isManagementAuthorized(resource.data.get('parentEventOwnerId', '')));
+      
+      // 3. Update: Visitors can only refresh their record if their status remains exactly the same
+      // (This allows loginAt updates but prevents self-approval)
+      allow update: if (request.resource.data.get('status', 'pending') == resource.data.get('status', 'pending')) ||
+                     isManagementAuthorized(resource.data.get('parentEventOwnerId', ''));
+      
+      // 4. Admin Ops: Listing and deletion are restricted to authorized management
+      // Note: We allow users to list THEIR OWN records if they filter by their identifier (phone/email)
+      allow list: if isAuthenticated() && (
+        isAdmin() || 
+        isKnownAdmin() || 
+        (request.query.filters.get('phone', []) == [request.auth.token.email]) ||
+        (request.query.filters.get('phone', []) == [request.auth.token.phone_number]) ||
+        isManagementAuthorized(request.query.filters.get('parentEventOwnerId', ''))
+      );
+      allow delete: if isManagementAuthorized(resource.data.get('parentEventOwnerId', ''));
+    }
+
+    // --- SOCIAL INTERACTIONS (Likes & Comments) ---
+    match /likes/{id} {
+      allow read, list: if true;
+      allow create, delete: if isAuthenticated() || request.resource.data.userId != null;
+    }
+    
+    match /comments/{id} {
+      allow read, list: if true;
+      allow create: if isAuthenticated() || request.resource.data.userId != null;
+      allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.userId);
     }
 
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      allow read, list: if isAuthenticated();
       allow create: if isAuthenticated() && request.auth.uid == userId;
       allow update: if isAuthenticated() && (request.auth.uid == userId || isKnownAdmin() || isAdmin());
       allow delete: if isSuperAdmin();

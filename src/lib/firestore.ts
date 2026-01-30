@@ -1,5 +1,5 @@
 import { db } from "./firebase";
-import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, addDoc, setDoc, deleteDoc, updateDoc, deleteField } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, addDoc, setDoc, deleteDoc, updateDoc, deleteField, onSnapshot, serverTimestamp, limit } from "firebase/firestore";
 
 // --- Types ---
 
@@ -39,6 +39,23 @@ export interface FaceRecord {
     width: number;
     height: number;
     createdAt?: any;
+}
+export interface Like {
+    id: string;
+    photoId: string;
+    userId: string;
+    userName: string;
+    createdAt: any;
+}
+
+export interface Comment {
+    id: string;
+    photoId: string;
+    userId: string;
+    userName: string;
+    text: string;
+    parentId?: string; // ID of the comment being replied to
+    createdAt: any;
 }
 
 // --- Functions ---
@@ -197,6 +214,10 @@ export async function logGuestLogin(name: string, phone: string, eventId?: strin
         const logId = eventId ? `${phone}_${eventId}` : phone;
         const docRef = doc(db, "guests", logId);
 
+        // Check for existing status to avoid resetting approvals
+        const existingDoc = await getDoc(docRef);
+        const existingStatus = existingDoc.exists() ? existingDoc.data().status : null;
+
         await setDoc(docRef, {
             name,
             phone,
@@ -205,7 +226,7 @@ export async function logGuestLogin(name: string, phone: string, eventId?: strin
             parentEventOwnerId: ownerId || null,
             eventTitle: eventTitle || "General Access",
             loginAt: Timestamp.now(),
-            status: 'pending' // Default to pending for approval workflow
+            status: existingStatus === 'approved' ? 'approved' : 'pending'
         }, { merge: true });
     } catch (error) {
         console.error("Error logging guest login:", error);
@@ -227,16 +248,34 @@ export async function updateGuestStatus(logId: string, status: 'pending' | 'appr
 }
 
 /**
+ * Deletes a guest log from the system.
+ */
+export async function deleteGuest(logId: string) {
+    try {
+        const docRef = doc(db, "guests", logId);
+        await deleteDoc(docRef);
+        return true;
+    } catch (error) {
+        console.error("Error deleting guest:", error);
+        return false;
+    }
+}
+
+/**
  * Listens for changes in a guest's status.
  */
 export function onGuestStatusChange(logId: string, callback: (status: string) => void) {
-    const { onSnapshot } = require("firebase/firestore");
     const docRef = doc(db, "guests", logId);
-    return onSnapshot(docRef, (doc: any) => {
-        if (doc.exists()) {
-            callback(doc.data().status);
+    return onSnapshot(docRef,
+        (doc: any) => {
+            if (doc.exists()) {
+                callback(doc.data().status);
+            }
+        },
+        (error: any) => {
+            console.error("Error listening for guest status change:", error);
         }
-    });
+    );
 }
 
 /**
@@ -390,7 +429,7 @@ export async function denyRequest(phone: string) {
 /**
  * Creates or updates a user profile in the 'users' collection.
  */
-export async function createUserProfile(uid: string, name: string, email: string, role: string = "admin") {
+export async function createUserProfile(uid: string, name: string, email: string, phone: string = "", role: string = "user") {
     try {
         const docRef = doc(db, "users", uid);
         const docSnap = await getDoc(docRef);
@@ -401,6 +440,7 @@ export async function createUserProfile(uid: string, name: string, email: string
         await setDoc(docRef, {
             name,
             email,
+            phone: existingData.phone || phone,
             role: existingData.role || role,
             roleType: existingData.roleType || (existingData.delegatedBy ? 'event' : 'primary'),
             createdAt: existingData.createdAt || Timestamp.now(),
@@ -442,6 +482,24 @@ export async function getUsers(): Promise<any[]> {
     } catch (error) {
         console.error("Error fetching users:", error);
         return [];
+    }
+}
+
+/**
+ * Fetches a single user document by its UID.
+ */
+export async function getUserById(uid: string): Promise<any | null> {
+    if (!uid) return null;
+    try {
+        const docRef = doc(db, "users", uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            return { id: docSnap.id, ...docSnap.data() };
+        }
+        return null;
+    } catch (error) {
+        console.error("Error fetching user by ID:", error);
+        return null;
     }
 }
 
@@ -546,23 +604,25 @@ export async function getSubEvents(parentId: string, legacyParentId?: string): P
 }
 
 /**
- * Updates a user's role in Firestore, tracking who Delegated the role.
+ * Updates a user's role and delegation metadata in Firestore.
  */
-export async function updateUserRole(uid: string, newRole: string, delegatedBy?: string, roleType?: 'primary' | 'event', assignedEvents?: string[]) {
+export async function updateUserRole(uid: string, newRole: string | null, delegatedBy?: string, roleType?: 'primary' | 'event', assignedEvents?: string[]) {
     if (!uid) {
         console.warn("[Firestore] updateUserRole: uid is missing.");
         return false;
     }
     try {
         const docRef = doc(db, "users", uid);
-        const updateData: any = { role: newRole };
+        const updateData: any = {};
 
-        if (newRole === "admin") {
-            if (delegatedBy) updateData.delegatedBy = delegatedBy;
+        if (newRole) updateData.role = newRole;
+
+        if (delegatedBy) {
+            updateData.delegatedBy = delegatedBy;
             if (roleType) updateData.roleType = roleType;
             if (assignedEvents) updateData.assignedEvents = assignedEvents;
         } else {
-            // Cleanup on demotion
+            // Revoke delegation
             updateData.delegatedBy = deleteField();
             updateData.roleType = deleteField();
             updateData.assignedEvents = deleteField();
@@ -772,12 +832,15 @@ export async function updateEvent(eventId: string, data: Partial<Event>): Promis
 }
 
 /**
- * Calculates the total size of all photos uploaded by a specific user.
+ * Calculates the total size of all photos uploaded by a specific user or group of identifiers.
  */
-export async function getUserTotalStorage(userId: string): Promise<number> {
+export async function getUserTotalStorage(identifiers: string | string[]): Promise<number> {
     try {
         const photosCol = collection(db, "photos");
-        const q = query(photosCol, where("userId", "==", userId));
+        const ids = Array.isArray(identifiers) ? identifiers : [identifiers];
+
+        // Use 'in' operator to match any identifier (UID or Email)
+        const q = query(photosCol, where("userId", "in", ids));
         const snapshot = await getDocs(q);
 
         let totalSize = 0;
@@ -793,3 +856,172 @@ export async function getUserTotalStorage(userId: string): Promise<number> {
     }
 }
 
+
+/**
+ * Toggles a like for a photo.
+ */
+export async function toggleLike(photoId: string, userId: string, userName: string) {
+    try {
+        const likeId = `${userId.replace(/[^a-zA-Z0-9]/g, '_')}_${photoId}`;
+        const likeRef = doc(db, "likes", likeId);
+        const likeDoc = await getDoc(likeRef);
+
+        if (likeDoc.exists()) {
+            await deleteDoc(likeRef);
+            return { liked: false };
+        } else {
+            await setDoc(likeRef, {
+                photoId,
+                userId,
+                userName,
+                createdAt: serverTimestamp()
+            });
+            return { liked: true };
+        }
+    } catch (error) {
+        console.error("Error toggling like:", error);
+        throw error;
+    }
+}
+
+/**
+ * Adds a comment (or reply) to a photo.
+ */
+export async function addComment(photoId: string, userId: string, userName: string, text: string, parentId?: string) {
+    try {
+        const commentsCol = collection(db, "comments");
+        await addDoc(commentsCol, {
+            photoId,
+            userId,
+            userName,
+            text,
+            parentId: parentId || null,
+            createdAt: serverTimestamp()
+        });
+        return true;
+    } catch (error) {
+        console.error("Error adding comment:", error);
+        return false;
+    }
+}
+
+/**
+ * Listens for likes and comments for a specific photo.
+ */
+export function onPhotoInteractions(photoId: string, callback: (data: { likes: any[], comments: any[] }) => void) {
+    const likesQuery = query(collection(db, "likes"), where("photoId", "==", photoId));
+    const commentsQuery = query(collection(db, "comments"), where("photoId", "==", photoId));
+
+    let currentLikes: any[] = [];
+    let currentComments: any[] = [];
+
+    const unsubLikes = onSnapshot(likesQuery, (snapshot) => {
+        currentLikes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Sort in-memory to avoid index requirement for now
+        currentLikes.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        callback({ likes: currentLikes, comments: currentComments });
+    }, (error) => {
+        console.error("[Firestore] likes listener error:", error);
+    });
+
+    const unsubComments = onSnapshot(commentsQuery, (snapshot) => {
+        currentComments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Sort in-memory to avoid index requirement for now
+        currentComments.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        callback({ likes: currentLikes, comments: currentComments });
+    }, (error) => {
+        console.error("[Firestore] comments listener error:", error);
+    });
+
+    return () => {
+        unsubLikes();
+        unsubComments();
+    };
+}
+
+/**
+ * Deletes a comment.
+ */
+export async function deletePhotoComment(commentId: string) {
+    try {
+        const commentRef = doc(db, "comments", commentId);
+        await deleteDoc(commentRef);
+        return true;
+    } catch (error) {
+        console.error("Error deleting comment:", error);
+        return false;
+    }
+}
+
+/**
+ * Fetches events visited by a specific user (based on email/phone stored in guests collection).
+ */
+export async function getUserVisits(email: string): Promise<any[]> {
+    try {
+        const guestsCol = collection(db, "guests");
+        const q = query(
+            guestsCol,
+            where("phone", "==", email),
+            limit(20)
+        );
+        const snapshot = await getDocs(q);
+        // Filter for approved status and sort in memory to avoid index issues for now
+        return snapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as any))
+            .filter(v => v.status === "approved")
+            .sort((a, b) => (b.loginAt?.seconds || 0) - (a.loginAt?.seconds || 0));
+    } catch (error) {
+        console.error("Error fetching user visits:", error);
+        return [];
+    }
+}
+
+/**
+ * Searches for a name associated with a phone number in the guests collection.
+ */
+export async function findGuestNameByPhone(phone: string): Promise<string | null> {
+    try {
+        const guestsCol = collection(db, "guests");
+        const q = query(
+            guestsCol,
+            where("phone", "==", phone),
+            limit(5)
+        );
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) return null;
+
+        // Return the first valid name found
+        for (const doc of snapshot.docs) {
+            const data = doc.data();
+            if (data.name && data.name.trim()) {
+                return data.name;
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error("Error finding guest name:", error);
+        return null;
+    }
+}
+
+/**
+ * Fetches all likes by a specific user.
+ */
+export async function getUserLikes(userId: string): Promise<any[]> {
+    try {
+        const likesCol = collection(db, "likes");
+        const q = query(
+            likesCol,
+            where("userId", "==", userId),
+            orderBy("createdAt", "desc")
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+    } catch (error) {
+        console.error("Error fetching user likes:", error);
+        return [];
+    }
+}

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { getGuestLogs, getEvents, getUsers, updateUserRole, deleteUser, deleteEvent } from "@/lib/firestore";
+import { getGuestLogs, deleteGuest, getEvents, getUsers, updateUserRole, deleteUser, deleteEvent } from "@/lib/firestore";
 import { deleteUserCompletely, syncAllAuthUsers } from "@/app/actions/userActions";
 import { LogOut, Users, ShieldCheck, Calendar, Trash2, ChevronRight, ChevronDown, Folder, User, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -11,11 +11,12 @@ import { cn } from "@/lib/utils";
 export default function Dashboard() {
     const { user, loading, logout } = useAuth();
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState<"users" | "admins" | "events">("users");
+    const [activeTab, setActiveTab] = useState<"users" | "admins" | "events" | "guests">("users");
 
     // Data State
     const [users, setUsers] = useState<any[]>([]);
     const [events, setEvents] = useState<any[]>([]);
+    const [guests, setGuests] = useState<any[]>([]);
     const [loadingData, setLoadingData] = useState(false);
 
     // Accordion State
@@ -35,12 +36,14 @@ export default function Dashboard() {
 
     const fetchInitialData = async () => {
         setLoadingData(true);
-        const [eventData, userData] = await Promise.all([
+        const [eventData, userData, guestData] = await Promise.all([
             getEvents(),
-            getUsers()
+            getUsers(),
+            getGuestLogs() // Fetch all guests for super admin
         ]);
         setEvents(eventData);
         setUsers(userData);
+        setGuests(guestData);
         setLoadingData(false);
     };
 
@@ -109,6 +112,19 @@ export default function Dashboard() {
         } else {
             alert("Failed to delete event. Please try again.");
         }
+    };
+
+    const handleDeleteGuest = async (logId: string, guestName: string) => {
+        if (!confirm(`Are you sure you want to delete guest log for "${guestName}"? This action cannot be undone.`)) return;
+
+        setLoadingData(true);
+        const success = await deleteGuest(logId);
+        if (success) {
+            setGuests(prev => prev.filter(g => g.id !== logId));
+        } else {
+            alert("Failed to delete guest log.");
+        }
+        setLoadingData(false);
     };
 
     const toggleCreator = (email: string) => {
@@ -213,6 +229,18 @@ export default function Dashboard() {
                         <ShieldCheck className="w-4 h-4 mr-2" />
                         Admins
                     </button>
+                    <button
+                        onClick={() => setActiveTab("guests")}
+                        className={cn(
+                            "flex-1 flex items-center justify-center py-2.5 text-sm font-medium rounded-lg transition-all",
+                            activeTab === "guests"
+                                ? "bg-white text-slate-900 shadow-sm"
+                                : "text-slate-500 hover:text-slate-700"
+                        )}
+                    >
+                        <Users className="w-4 h-4 mr-2" />
+                        Guests
+                    </button>
                 </div>
 
                 {/* Content */}
@@ -248,39 +276,67 @@ export default function Dashboard() {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
-                                            {users.map((u) => (
-                                                <tr key={u.id} className="hover:bg-slate-50/50">
-                                                    <td className="px-6 py-4 font-medium text-slate-900">{u.name}</td>
-                                                    <td className="px-6 py-4 text-slate-500">{u.email}</td>
-                                                    <td className="px-6 py-4">
-                                                        <select
-                                                            value={u.role || "user"}
-                                                            onChange={(e) => handleUpdateRole(u.id, e.target.value)}
-                                                            className={cn(
-                                                                "bg-transparent border-none text-[10px] font-bold uppercase tracking-wider focus:ring-0 cursor-pointer transition-colors outline-none",
-                                                                u.role === "admin" ? "text-amber-600" : "text-sky-600"
+                                            {users.map((u) => {
+                                                const isCollaborator = !!u.delegatedBy;
+                                                const owningUser = isCollaborator ? users.find(owner => owner.id === u.delegatedBy) : null;
+                                                const isHybrid = u.role === "premium" && isCollaborator;
+
+                                                return (
+                                                    <tr key={u.id} className="hover:bg-slate-50/50">
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex flex-col">
+                                                                <span className="font-medium text-slate-900">{u.name}</span>
+                                                                {isCollaborator && (
+                                                                    <div className="flex items-center mt-1 space-x-1">
+                                                                        <div className="w-1 h-1 rounded-full bg-indigo-400"></div>
+                                                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">
+                                                                            Collaborating for: {owningUser?.email || "Unknown Owner"}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-slate-500">{u.email}</td>
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex flex-col items-start space-y-1">
+                                                                {isHybrid ? (
+                                                                    <div className="flex items-center space-x-2">
+                                                                        <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black uppercase tracking-widest rounded border border-amber-100 italic">
+                                                                            Premium Collaborator
+                                                                        </span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <select
+                                                                        value={u.role || "user"}
+                                                                        onChange={(e) => handleUpdateRole(u.id, e.target.value)}
+                                                                        className={cn(
+                                                                            "bg-transparent border-none text-[10px] font-bold uppercase tracking-wider focus:ring-0 cursor-pointer transition-colors outline-none p-0",
+                                                                            u.role === "admin" ? "text-rose-600" : (u.role === "premium" ? "text-amber-600" : "text-sky-600")
+                                                                        )}
+                                                                        title="Change user role"
+                                                                        disabled={u.email === user?.email}
+                                                                    >
+                                                                        <option value="user">Normal User</option>
+                                                                        <option value="premium">Premium User</option>
+                                                                        <option value="admin">Admin</option>
+                                                                    </select>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right">
+                                                            {u.email !== user?.email && (
+                                                                <button
+                                                                    onClick={() => handleDeleteUser(u.id, u.email)}
+                                                                    className="text-slate-300 hover:text-rose-500 transition-colors"
+                                                                    title="Delete User"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
                                                             )}
-                                                            title="Change user role"
-                                                            disabled={u.email === user?.email}
-                                                        >
-                                                            <option value="user">User</option>
-                                                            <option value="editor">Editor</option>
-                                                            <option value="admin">Admin</option>
-                                                        </select>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right">
-                                                        {u.email !== user?.email && (
-                                                            <button
-                                                                onClick={() => handleDeleteUser(u.id, u.email)}
-                                                                className="text-slate-300 hover:text-rose-500 transition-colors"
-                                                                title="Delete User"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
@@ -492,6 +548,87 @@ export default function Dashboard() {
                                                     </td>
                                                 </tr>
                                             ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === "guests" && (
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-lg font-serif font-bold text-slate-800">Global Guest Traffic</h2>
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{guests.length} Total Visits</span>
+                            </div>
+
+                            {loadingData ? (
+                                <p>Loading guests...</p>
+                            ) : guests.length === 0 ? (
+                                <p className="text-slate-400 italic">No guest traffic logged yet.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="text-xs text-slate-400 uppercase bg-slate-50 border-b border-slate-100">
+                                            <tr>
+                                                <th className="px-6 py-3 font-medium">Guest</th>
+                                                <th className="px-6 py-3 font-medium">Event</th>
+                                                <th className="px-6 py-3 font-medium">Client (Owner)</th>
+                                                <th className="px-6 py-3 font-medium text-center">Status</th>
+                                                <th className="px-6 py-3 font-medium text-center">Action</th>
+                                                <th className="px-6 py-3 font-medium text-right">Time</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {[...guests].sort((a, b) => (b.loginAt?.seconds || 0) - (a.loginAt?.seconds || 0)).map((g) => {
+                                                const owner = users.find(u => u.id === g.parentEventOwnerId);
+                                                return (
+                                                    <tr key={g.id} className="hover:bg-slate-50/50">
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex items-center space-x-3">
+                                                                <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-[10px]">
+                                                                    {(g.name || 'G').charAt(0)}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-bold text-slate-900">{g.name}</p>
+                                                                    <p className="text-[10px] text-slate-400 font-mono">{g.phone}</p>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <div className="max-w-[150px] truncate">
+                                                                <p className="font-medium text-slate-700">{g.eventTitle || 'General'}</p>
+                                                                <p className="text-[10px] text-slate-400 uppercase tracking-tighter">ID: {g.eventId?.slice(0, 8)}...</p>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-slate-500">
+                                                            {owner ? owner.email : (g.parentEventOwnerId || 'System')}
+                                                        </td>
+                                                        <td className="px-6 py-4 text-center">
+                                                            <span className={cn(
+                                                                "px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider",
+                                                                g.status === 'approved' ? "bg-emerald-50 text-emerald-600" :
+                                                                    g.status === 'rejected' ? "bg-rose-50 text-rose-600" :
+                                                                        "bg-amber-50 text-amber-600"
+                                                            )}>
+                                                                {g.status || 'pending'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-center">
+                                                            <button
+                                                                onClick={() => handleDeleteGuest(g.id, g.name)}
+                                                                className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
+                                                                title="Delete Access Record"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-slate-400 text-right text-xs">
+                                                            {g.loginAt ? new Date(g.loginAt.seconds * 1000).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : 'N/A'}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>

@@ -101,7 +101,7 @@ export function DashboardHeader({
                             </button>
                         </Tooltip>
                     )}
-                    {user?.role === "admin" && (
+                    {user?.role === "admin" && !user.delegatedBy && (
                         <Tooltip text={pathname === "/dashboard" ? "Switch to Admin Panel" : "Switch to Profile Dashboard"}>
                             <button
                                 onClick={() => router.push(pathname === "/dashboard" ? "/admin/dashboard" : "/dashboard")}

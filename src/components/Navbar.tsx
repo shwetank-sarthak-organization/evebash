@@ -57,30 +57,44 @@ export default function Navbar() {
                                     <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
                                         <UserIcon className="w-4 h-4 text-slate-500" />
                                     </div>
-                                    <span className="text-sm font-medium">Hi, {user.name}</span>
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-bold leading-tight">Hi, {user.name}</span>
+                                        <span className="text-[10px] text-slate-400 font-sans leading-tight">{user.email}</span>
+                                    </div>
                                 </div>
                                 <div className="flex items-center space-x-3">
                                     <Link
-                                        href="/gallery"
-                                        className="text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors"
-                                    >
-                                        My Gallery
-                                    </Link>
-                                    <Link
-                                        href={user.role === "admin" ? (pathname === "/dashboard" ? "/admin/dashboard" : "/dashboard") : "/dashboard"}
+                                        href="/profile"
                                         className={cn(
-                                            "px-6 py-2 rounded-full text-sm font-bold transition-all shadow-sm active:scale-95 flex items-center space-x-2",
-                                            user.role === "admin" && pathname === "/dashboard"
-                                                ? "bg-sky-600 text-white hover:bg-sky-700 shadow-sky-100"
-                                                : "text-sky-600 hover:text-sky-800"
+                                            "text-sm font-medium transition-colors hover:text-slate-900 border-b-2",
+                                            pathname === "/profile" ? "text-slate-900 border-slate-900" : "text-slate-500 border-transparent"
                                         )}
                                     >
-                                        <span>
-                                            {user.role === "admin"
-                                                ? (pathname === "/dashboard" ? "Admin Dashboard" : "Profile Dashboard")
-                                                : "My Dashboard"}
-                                        </span>
+                                        My Profile
                                     </Link>
+                                    {(user.role === "admin" || user.role === "premium" || !!user.delegatedBy) && (
+                                        <Link
+                                            href="/dashboard"
+                                            className={cn(
+                                                "px-6 py-2 rounded-full text-sm font-bold transition-all shadow-sm active:scale-95 flex items-center space-x-2",
+                                                pathname.startsWith("/dashboard") || pathname.startsWith("/admin/dashboard")
+                                                    ? "bg-sky-600 text-white hover:bg-sky-700 shadow-sky-100"
+                                                    : "text-sky-600 hover:text-sky-800"
+                                            )}
+                                        >
+                                            <span>
+                                                {pathname === "/dashboard" ? (user.role === "admin" && !user.delegatedBy ? "Admin Dashboard" : "Manage Galleries") : "Manage Galleries"}
+                                            </span>
+                                        </Link>
+                                    )}
+                                    {user.role === "admin" && !user.delegatedBy && pathname === "/dashboard" && (
+                                        <Link
+                                            href="/admin/dashboard"
+                                            className="px-4 py-2 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-widest rounded-full hover:bg-slate-200 transition-colors"
+                                        >
+                                            Switch to Admin
+                                        </Link>
+                                    )}
                                     <button
                                         onClick={logout}
                                         className="px-5 py-2 border border-slate-200 text-slate-600 text-sm font-medium rounded-full hover:bg-slate-50 transition-colors shadow-sm"
@@ -148,21 +162,27 @@ export default function Navbar() {
                                     </div>
                                 </div>
                                 <Link
-                                    href="/gallery"
+                                    href="/profile"
                                     onClick={() => setIsOpen(false)}
-                                    className="block w-full text-center px-4 py-3 text-slate-700 rounded-lg text-lg font-medium hover:bg-slate-50 transition-colors"
+                                    className={cn(
+                                        "block w-full text-center px-4 py-3 rounded-lg text-lg font-medium transition-colors",
+                                        pathname === "/profile" ? "bg-slate-100 text-slate-900" : "text-slate-700 hover:bg-slate-50"
+                                    )}
                                 >
-                                    My Gallery
+                                    My Profile
                                 </Link>
-                                <Link
-                                    href={user.role === "admin" ? (pathname === "/dashboard" ? "/admin/dashboard" : "/dashboard") : "/dashboard"}
-                                    onClick={() => setIsOpen(false)}
-                                    className="block w-full text-center px-4 py-3 bg-sky-50 text-sky-600 rounded-lg text-lg font-medium hover:bg-sky-100 transition-colors"
-                                >
-                                    {user.role === "admin"
-                                        ? (pathname === "/dashboard" ? "Admin Dashboard" : "Profile Dashboard")
-                                        : "My Dashboard"}
-                                </Link>
+                                {(user.role === "admin" || user.role === "premium" || !!user.delegatedBy) && (
+                                    <Link
+                                        href="/dashboard"
+                                        onClick={() => setIsOpen(false)}
+                                        className={cn(
+                                            "block w-full text-center px-4 py-3 rounded-lg text-lg font-medium transition-colors",
+                                            pathname === "/dashboard" ? "bg-sky-100 text-sky-600" : "bg-sky-50 text-sky-600 hover:bg-sky-100"
+                                        )}
+                                    >
+                                        Manage Galleries
+                                    </Link>
+                                )}
                                 <button
                                     onClick={() => {
                                         setIsOpen(false);

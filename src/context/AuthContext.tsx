@@ -19,6 +19,7 @@ interface AuthContextType {
     signup: (email: string, password: string, name: string) => Promise<boolean>;
     loginWithGoogle: () => Promise<boolean>;
     resetPassword: (email: string) => Promise<boolean>;
+    loginWithPhoneSimple: (name: string, phone: string) => Promise<boolean>;
     logout: () => void;
     loading: boolean;
 }
@@ -43,9 +44,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         let unsubscribe: () => void;
 
         const initAuth = async () => {
-            const { onAuthStateChanged } = await import("firebase/auth");
+            const { onAuthStateChanged, setPersistence, browserSessionPersistence } = await import("firebase/auth");
             const { auth } = await import("@/lib/firebase");
             const { getUserProfile, createUserProfile } = await import("@/lib/firestore");
+
+            // Set persistence to session (wiped on tab close)
+            await setPersistence(auth, browserSessionPersistence);
 
             unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
                 if (firebaseUser) {
@@ -62,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         uid: firebaseUser.uid,
                         name: profile?.name || name,
                         phone: profile?.phone || "No Phone",
-                        role: profile?.role || "admin",
+                        role: profile?.role || "user",
                         roleType: profile?.roleType || (profile?.delegatedBy ? "event" : "primary"),
                         assignedEvents: profile?.assignedEvents || [],
                         email: firebaseUser.email,
@@ -70,11 +74,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     };
 
                     setUser(userData);
-                    localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
+                    sessionStorage.setItem("wedding_guest_user", JSON.stringify(userData));
                 } else {
                     console.log("[Auth] Live state changed: No user found");
                     setUser(null);
-                    localStorage.removeItem("wedding_guest_user");
+                    sessionStorage.removeItem("wedding_guest_user");
                 }
                 setLoading(false);
             });
@@ -115,14 +119,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 uid: userCredential.user.uid,
                 name: profile ? profile.name : "Wedding User",
                 phone: profile ? profile.phone : "No Phone",
-                role: profile ? (profile.role || "admin") : "admin",
+                role: profile ? (profile.role || "user") : "user",
                 roleType: profile ? (profile.roleType || "primary") : ("primary" as const),
                 assignedEvents: profile ? profile.assignedEvents : [],
                 email: userCredential.user.email,
                 delegatedBy: profile ? profile.delegatedBy : undefined
             };
             setUser(userData);
-            localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
+            sessionStorage.setItem("wedding_guest_user", JSON.stringify(userData));
             return true;
         } catch (error: any) {
             console.error("Login Error:", error);
@@ -171,12 +175,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 uid: user.uid,
                 name: name,
                 phone: "",
-                role: "admin",
+                role: "user",
                 roleType: "primary" as const,
                 email: user.email
             };
             setUser(userData);
-            localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
+            sessionStorage.setItem("wedding_guest_user", JSON.stringify(userData));
             console.log("Signup flow complete, navigating...");
             return true;
         } catch (error: any) {
@@ -215,14 +219,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             // Sync to Firestore and ensure they have a role.
             // We default to 'admin' to preserve access for the project owner.
-            await createUserProfile(googleUser.uid, googleUser.displayName || "Admin", googleUser.email || "", "admin");
+            await createUserProfile(googleUser.uid, googleUser.displayName || "User", googleUser.email || "", "user");
             const profile = await getUserProfile(googleUser.uid) as any;
 
             const userData = {
                 uid: result.user.uid,
                 name: result.user.displayName || "Wedding Guest",
                 phone: profile ? profile.phone : "No Phone",
-                role: profile ? (profile.role || "admin") : "admin",
+                role: profile ? (profile.role || "user") : "user",
                 roleType: profile ? (profile.roleType || "primary") : ("primary" as const),
                 assignedEvents: profile ? (profile.assignedEvents || []) : [],
                 email: result.user.email,
@@ -230,7 +234,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             };
 
             setUser(userData);
-            localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
+            sessionStorage.setItem("wedding_guest_user", JSON.stringify(userData));
             return true;
         } catch (error: any) {
             if (error.code === "auth/cancelled-popup-request" || error.code === "auth/popup-closed-by-user") {
@@ -267,14 +271,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+
+    const loginWithPhoneSimple = async (name: string, phone: string) => {
+        try {
+            // Generate a stable UID for the phone user (non-firebase-auth)
+            // We use 'phone_' prefix to distinguish from email users
+            const phoneUid = `phone_${phone.replace(/\D/g, "")}`;
+
+            // Sync to Firestore
+            await createUserProfile(phoneUid, name, "", phone);
+
+            // Fetch full profile (in case they have a different name in DB)
+            const profile = await getUserProfile(phoneUid) as any;
+
+            const userData = {
+                uid: phoneUid,
+                name: profile?.name || name,
+                phone: profile?.phone || phone,
+                role: profile?.role || "user",
+                roleType: profile?.roleType || (profile?.delegatedBy ? "event" : "primary") as any,
+                assignedEvents: profile?.assignedEvents || [],
+                email: null,
+                delegatedBy: profile?.delegatedBy
+            };
+
+            setUser(userData);
+            sessionStorage.setItem("wedding_guest_user", JSON.stringify(userData));
+            return true;
+        } catch (error: any) {
+            console.error("Simple Phone Login Error:", error);
+            alert(`Login failed: ${error.message}`);
+            return false;
+        }
+    };
+
     const logout = () => {
         setUser(null);
-        localStorage.removeItem("wedding_guest_user");
+        sessionStorage.removeItem("wedding_guest_user");
         router.push("/login"); // Fixed recursion if already on login, but push is fine.
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, signup, loginWithGoogle, resetPassword, logout, loading }}>
+        <AuthContext.Provider value={{ user, login, signup, loginWithGoogle, resetPassword, loginWithPhoneSimple, logout, loading }}>
             {children}
         </AuthContext.Provider>
     );

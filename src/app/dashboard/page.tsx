@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
     LayoutDashboard,
     Eye,
@@ -47,7 +47,8 @@ import {
     getGuestLogs,
     getEventLogs,
     getSubEvents,
-    updateGuestStatus
+    updateGuestStatus,
+    getUserById
 } from "@/lib/firestore";
 import { uploadEventImage } from "@/lib/storage";
 import { DashboardHeader } from "@/components/DashboardHeader";
@@ -55,6 +56,8 @@ import { Tooltip } from "@/components/Tooltip";
 import { v4 as uuidv4 } from "uuid";
 import { Timestamp } from "firebase/firestore";
 import { syncCloudinaryToFirestore } from "@/app/actions/sync";
+
+import { Lightbox } from "@/components/ui/Lightbox";
 
 // Placeholder images for new events
 const PLACEHOLDER_IMAGES = [
@@ -67,11 +70,12 @@ const PLACEHOLDER_IMAGES = [
 export default function UserDashboard() {
     const { user, loading, logout } = useAuth();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [view, setView] = useState<"main" | "manage" | "permissions">("main");
     const [manageMode, setManageMode] = useState<"list" | "add-event" | "add-image">("list");
     const [manageLevel, setManageLevel] = useState<"events" | "galleries" | "photos">("events");
     const [selectedMainEvent, setSelectedMainEvent] = useState<Event | null>(null);
-    const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [viewingPhoto, setViewingPhoto] = useState<any | null>(null);
     const [galleryViewMode, setGalleryViewMode] = useState<"grid" | "list">("grid");
 
     // Data State
@@ -80,6 +84,7 @@ export default function UserDashboard() {
     const [currentEventPhotos, setCurrentEventPhotos] = useState<Photo[]>([]);
     const [loadingPhotos, setLoadingPhotos] = useState(false);
     const [totalStorage, setTotalStorage] = useState<number>(0);
+    const [workspaceOwner, setWorkspaceOwner] = useState<any | null>(null);
 
     // Permissions State
     const [allUsers, setAllUsers] = useState<any[]>([]);
@@ -104,6 +109,33 @@ export default function UserDashboard() {
     const [renamingEvent, setRenamingEvent] = useState<Event | null>(null);
     const [newTitle, setNewTitle] = useState("");
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+
+    useEffect(() => {
+        // Allow Super Admins, Premium users, and anyone acting as a Delegated Collaborator
+        const isAuthorized = user && (user.role === "admin" || user.role === "premium" || !!user.delegatedBy);
+        if (!loading && user && !isAuthorized) {
+            router.push("/profile");
+        }
+    }, [user, loading, router]);
+
+    // Auto-select event from query params
+    useEffect(() => {
+        const viewParam = searchParams.get("view");
+        const eventIdParam = searchParams.get("eventId");
+
+        if (viewParam === "manage") {
+            setView("manage");
+            if (eventIdParam && userEvents.length > 0) {
+                const targetEvent = userEvents.find(e => e.id === eventIdParam);
+                if (targetEvent) {
+                    setSelectedMainEvent(targetEvent);
+                    setManageLevel("photos");
+                    setSelectedEventId(targetEvent.id);
+                    setSelectedEventName(targetEvent.title);
+                }
+            }
+        }
+    }, [searchParams, userEvents.length]);
 
     useEffect(() => {
         if (user && user.uid && view === "manage") {
@@ -181,6 +213,7 @@ export default function UserDashboard() {
         const identifiers = [user.uid];
         if (user.email) identifiers.push(user.email);
         if (user.delegatedBy) identifiers.push(user.delegatedBy);
+        if (workspaceOwner?.email) identifiers.push(workspaceOwner.email);
 
         if (type === "sub" && parentId) {
             // ... existing complex sub-event logic ...
@@ -262,7 +295,12 @@ export default function UserDashboard() {
 
     const fetchStorageStats = async () => {
         if (!user) return;
-        const total = await getUserTotalStorage(user.email || "anonymous");
+
+        // Identity Pool for storage calculation (accounts for both UID and Email tags)
+        const identifiers = [user.uid];
+        if (user.email) identifiers.push(user.email);
+
+        const total = await getUserTotalStorage(identifiers);
         setTotalStorage(total);
     };
 
@@ -316,25 +354,35 @@ export default function UserDashboard() {
     const handleUpdateUserRole = async (targetUid: string, currentRole: string, roleType: 'primary' | 'event' = 'primary', assignedEvents: string[] = []) => {
         if (!user) return;
 
-        const isPromoting = currentRole !== "admin";
+        const targetUser = allUsers.find(u => u.id === targetUid);
+        // We are revoking if the user is currently delegated by the active user
+        const isRevoking = !!(targetUser?.delegatedBy === user.uid);
+        const isPromoting = !isRevoking;
 
         if (isPromoting && delegatedCount >= 2) {
-            setMessage("You can only have a maximum of 2 delegated admins.");
+            setMessage("You can only have a maximum of 2 delegated managers.");
             setStatus("error");
             setTimeout(() => setStatus("idle"), 3000);
             return;
         }
 
-        const newRole = isPromoting ? "admin" : "user";
-        const success = await updateUserRole(targetUid, newRole, user.uid, roleType, assignedEvents);
+        // When promoting: Set delegation fields, but DO NOT flip global role to 'admin'
+        // When revoking: Remove delegation fields. Signature: (uid, newRole, delegatedBy, roleType, assignedEvents)
+        const success = await updateUserRole(
+            targetUid,
+            null, // Do not change global role
+            isPromoting ? user.uid : undefined,
+            isPromoting ? roleType : undefined,
+            isPromoting ? assignedEvents : undefined
+        );
 
         if (success) {
-            setMessage(`User successfully ${isPromoting ? "promoted to Admin" : "demoted to User"}.`);
+            setMessage(`User successfully ${isPromoting ? "authorized as Manager" : "access revoked"}.`);
             setStatus("success");
             fetchUsersList();
             fetchDelegatedCount();
         } else {
-            setMessage("Failed to update user role.");
+            setMessage("Failed to update user authorizations.");
             setStatus("error");
         }
         setTimeout(() => setStatus("idle"), 3000);
@@ -354,6 +402,36 @@ export default function UserDashboard() {
         }
         setTimeout(() => setStatus("idle"), 3000);
     };
+
+    // Fetch workspace owner if current user is delegated
+    useEffect(() => {
+        const fetchWorkspaceOwner = async () => {
+            if (user?.delegatedBy) {
+                try {
+                    const ownerData = await getUserById(user.delegatedBy);
+                    if (ownerData) {
+                        setWorkspaceOwner(ownerData);
+                    }
+                } catch (error) {
+                    console.error("Error fetching workspace owner:", error);
+                }
+            } else {
+                setWorkspaceOwner(null);
+            }
+        };
+
+        if (user) {
+            fetchWorkspaceOwner();
+        }
+    }, [user?.delegatedBy, user?.uid]);
+
+    // Re-fetch events once workspace owner email is available
+    useEffect(() => {
+        if (workspaceOwner?.email) {
+            console.log("[Dashboard] Workspace owner loaded, re-fetching events for attribution...");
+            fetchUserEvents();
+        }
+    }, [workspaceOwner?.email]);
 
     useEffect(() => {
         if (!loading && !user) {
@@ -442,8 +520,9 @@ export default function UserDashboard() {
 
                 if (index === 0) firstUploadedUrl = uploadResult.url;
 
+                const uniqueId = uploadResult.publicId.replace(/\//g, '_');
                 const photo: Photo = {
-                    id: uuidv4(),
+                    id: uniqueId,
                     eventId: selectedEventId,
                     cloudinaryPublicId: uploadResult.publicId,
                     url: uploadResult.url,
@@ -750,141 +829,174 @@ export default function UserDashboard() {
                             </div>
 
                             {manageMode === "list" && (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                                    {loadingEvents ? (
-                                        Array.from({ length: 3 }).map((_, i) => (
-                                            <div key={i} className="animate-pulse bg-white aspect-[4/5] rounded-3xl" />
-                                        ))
-                                    ) : userEvents.length === 0 ? (
-                                        <div className="col-span-full py-20 bg-white rounded-3xl border border-dashed border-stone-300 flex flex-col items-center justify-center text-center">
-                                            <div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mb-6">
-                                                <Camera className="w-10 h-10 text-stone-300" />
+                                <div className="space-y-8">
+                                    {/* Workspace Attribution Header */}
+                                    {user?.delegatedBy && workspaceOwner && (
+                                        <div className="bg-amber-50 rounded-3xl p-6 border border-amber-100 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
+                                            <div className="flex items-center space-x-4">
+                                                <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600">
+                                                    <Users size={24} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-bold text-slate-800 font-serif">Managed Workspace</h3>
+                                                    <p className="text-sm text-stone-500 font-sans">
+                                                        You are managing the account for <span className="text-amber-700 font-bold">{workspaceOwner.email}</span>
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <h3 className="text-xl font-bold mb-2">No galleries found</h3>
-                                            <p className="text-stone-500 max-w-xs mx-auto mb-8 font-sans">Create your first event by clicking the button above.</p>
+                                            <div className="hidden sm:block">
+                                                <span className="px-4 py-1.5 bg-white text-amber-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-200 shadow-sm">
+                                                    {user.roleType === 'primary' ? 'Full Manager' : 'Event Admin'}
+                                                </span>
+                                            </div>
                                         </div>
-                                    ) : (
-                                        userEvents.map((evt) => (
-                                            <motion.div
-                                                key={evt.id}
-                                                whileHover={{ y: -5 }}
-                                                onClick={() => {
-                                                    if (manageLevel === "events") {
-                                                        // For root level, we always start by showing chapters
-                                                        // or letting them jump to photos if they want.
-                                                        setSelectedMainEvent(evt);
-                                                        setManageLevel("galleries");
-                                                    } else {
-                                                        openUploadForEvent(evt.id, evt.title);
-                                                        setManageLevel("photos");
-                                                    }
-                                                }}
-                                                className="group relative bg-white aspect-[4/5] rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 border border-stone-100 cursor-pointer"
-                                            >
-                                                <img
-                                                    src={evt.coverImage || '/placeholder-event.jpg'}
-                                                    alt={evt.title}
-                                                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                                />
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent group-hover:via-black/40 transition-all" />
-
-                                                {/* Options Menu Button */}
-                                                <div className="absolute top-6 right-6 z-20">
-                                                    <Tooltip text="Options">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setActiveMenu(activeMenu === evt.id ? null : evt.id);
-                                                            }}
-                                                            className="p-2.5 bg-white/90 backdrop-blur-md shadow-lg hover:bg-white rounded-2xl text-slate-900 transition-all active:scale-95 border border-white/50"
-                                                        >
-                                                            <MoreVertical className="w-5 h-5" />
-                                                        </button>
-                                                    </Tooltip>
-
-                                                    <AnimatePresence>
-                                                        {activeMenu === evt.id && (
-                                                            <motion.div
-                                                                initial={{ opacity: 0, scale: 0.9, y: -10 }}
-                                                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                                                exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                                                                className="absolute right-0 mt-3 w-44 bg-white rounded-2xl shadow-2xl border border-stone-100 py-2 z-30 overflow-hidden"
-                                                            >
-                                                                <button
-                                                                    onClick={(e) => handleRenameClick(e, evt)}
-                                                                    className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-stone-50 transition-colors"
-                                                                    title="Rename this event"
-                                                                >
-                                                                    <Pencil className="w-4 h-4 text-blue-500" />
-                                                                    <span>Rename</span>
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        openUploadForEvent(evt.id, evt.title);
-                                                                        setManageLevel("photos");
-                                                                        setActiveMenu(null);
-                                                                    }}
-                                                                    className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-stone-50 transition-colors border-t border-stone-50"
-                                                                    title="Manage photos for this event"
-                                                                >
-                                                                    <Camera className="w-4 h-4 text-purple-500" />
-                                                                    <span>Edit Photos</span>
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        const url = `${window.location.origin}/events/${evt.id}?shared=true`;
-                                                                        navigator.clipboard.writeText(url);
-                                                                        setMessage("Share link copied! 🔗");
-                                                                        setStatus("success");
-                                                                        setTimeout(() => setStatus("idle"), 2000);
-                                                                        setActiveMenu(null);
-                                                                    }}
-                                                                    className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-stone-50 transition-colors border-t border-stone-50"
-                                                                    title="Copy shareable magic link"
-                                                                >
-                                                                    <Share2 className="w-4 h-4 text-emerald-500" />
-                                                                    <span>Share Link</span>
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setShowDeleteConfirm(evt.id);
-                                                                        setActiveMenu(null);
-                                                                    }}
-                                                                    className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-red-50 text-red-600 transition-colors border-t border-stone-50"
-                                                                    title="Permanently delete this event"
-                                                                >
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                    <span>Delete</span>
-                                                                </button>
-                                                            </motion.div>
-                                                        )}
-                                                    </AnimatePresence>
-                                                </div>
-
-                                                <div className="absolute bottom-0 left-0 p-8 text-white w-full text-left">
-                                                    <p className="text-xs font-sans font-bold uppercase tracking-[0.2em] text-royal-gold mb-3">{evt.date}</p>
-                                                    <h3 className="text-2xl font-bold italic tracking-tight mb-4">{evt.title}</h3>
-                                                    <div className="flex items-center text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-y-3 group-hover:translate-y-0 duration-300">
-                                                        {manageLevel === "events" ? (
-                                                            <>
-                                                                <Settings className="w-4 h-4 mr-2" />
-                                                                Manage Event
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <ImageIcon className="w-4 h-4 mr-2" />
-                                                                Manage Photos
-                                                            </>
-                                                        )}
-                                                        <ArrowRight className="w-4 h-4 ml-2" />
-                                                    </div>
-                                                </div>
-                                            </motion.div>
-                                        ))
                                     )}
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                                        {loadingEvents ? (
+                                            Array.from({ length: 3 }).map((_, i) => (
+                                                <div key={i} className="animate-pulse bg-white aspect-[4/5] rounded-3xl" />
+                                            ))
+                                        ) : userEvents.length === 0 ? (
+                                            <div className="col-span-full py-20 bg-white rounded-3xl border border-dashed border-stone-300 flex flex-col items-center justify-center text-center">
+                                                <div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mb-6">
+                                                    <Camera className="w-10 h-10 text-stone-300" />
+                                                </div>
+                                                <h3 className="text-xl font-bold mb-2">No galleries found</h3>
+                                                <p className="text-stone-500 max-w-xs mx-auto mb-8 font-sans">Create your first event by clicking the button above.</p>
+                                            </div>
+                                        ) : (
+                                            userEvents.map((evt) => (
+                                                <motion.div
+                                                    key={evt.id}
+                                                    whileHover={{ y: -5 }}
+                                                    onClick={() => {
+                                                        if (manageLevel === "events") {
+                                                            // For root level, we always start by showing chapters
+                                                            // or letting them jump to photos if they want.
+                                                            setSelectedMainEvent(evt);
+                                                            setManageLevel("galleries");
+                                                        } else {
+                                                            openUploadForEvent(evt.id, evt.title);
+                                                            setManageLevel("photos");
+                                                        }
+                                                    }}
+                                                    className="group relative bg-white aspect-[4/5] rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all duration-500 border border-stone-100 cursor-pointer"
+                                                >
+                                                    {/* Inner Clipping Container for Background Image */}
+                                                    <div className="absolute inset-0 overflow-hidden rounded-[2.5rem]">
+                                                        <img
+                                                            src={evt.coverImage || '/placeholder-event.jpg'}
+                                                            alt={evt.title}
+                                                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                                        />
+                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent group-hover:via-black/40 transition-all" />
+                                                    </div>
+
+                                                    {/* Options Menu Button */}
+                                                    <div className="absolute top-6 right-6 z-20">
+                                                        <Tooltip text="Options">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setActiveMenu(activeMenu === evt.id ? null : evt.id);
+                                                                }}
+                                                                className="p-2.5 bg-white/90 backdrop-blur-md shadow-lg hover:bg-white rounded-2xl text-slate-900 transition-all active:scale-95 border border-white/50"
+                                                            >
+                                                                <MoreVertical className="w-5 h-5" />
+                                                            </button>
+                                                        </Tooltip>
+
+                                                        <AnimatePresence>
+                                                            {activeMenu === evt.id && (
+                                                                <motion.div
+                                                                    initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                                                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                                    exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                                                                    className="absolute right-0 mt-3 w-44 bg-white rounded-2xl shadow-2xl border border-stone-100 py-2 z-30 overflow-hidden"
+                                                                >
+                                                                    <button
+                                                                        onClick={(e) => handleRenameClick(e, evt)}
+                                                                        className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-stone-50 transition-colors"
+                                                                        title="Rename this event"
+                                                                    >
+                                                                        <Pencil className="w-4 h-4 text-blue-500" />
+                                                                        <span>Rename</span>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            openUploadForEvent(evt.id, evt.title);
+                                                                            setManageLevel("photos");
+                                                                            setActiveMenu(null);
+                                                                        }}
+                                                                        className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-stone-50 transition-colors border-t border-stone-50"
+                                                                        title="Manage photos for this event"
+                                                                    >
+                                                                        <Camera className="w-4 h-4 text-purple-500" />
+                                                                        <span>Edit Photos</span>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            const url = `${window.location.origin}/events/${evt.id}?shared=true`;
+                                                                            navigator.clipboard.writeText(url);
+                                                                            setMessage("Share link copied! 🔗");
+                                                                            setStatus("success");
+                                                                            setTimeout(() => setStatus("idle"), 2000);
+                                                                            setActiveMenu(null);
+                                                                        }}
+                                                                        className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-stone-50 transition-colors border-t border-stone-50"
+                                                                        title="Copy shareable magic link"
+                                                                    >
+                                                                        <Share2 className="w-4 h-4 text-emerald-500" />
+                                                                        <span>Share Link</span>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setShowDeleteConfirm(evt.id);
+                                                                            setActiveMenu(null);
+                                                                        }}
+                                                                        className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-red-50 text-red-600 transition-colors border-t border-stone-50"
+                                                                        title="Permanently delete this event"
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                        <span>Delete</span>
+                                                                    </button>
+                                                                </motion.div>
+                                                            )}
+                                                        </AnimatePresence>
+                                                    </div>
+
+                                                    <div className="absolute bottom-0 left-0 p-8 text-white w-full text-left">
+                                                        {/* Ownership Badge */}
+                                                        {user?.delegatedBy && workspaceOwner && (
+                                                            <div className="mb-2 inline-flex items-center px-2 py-0.5 bg-white/20 backdrop-blur-md rounded text-[9px] font-bold uppercase tracking-widest border border-white/20">
+                                                                Managed for: {workspaceOwner.email}
+                                                            </div>
+                                                        )}
+                                                        <p className="text-xs font-sans font-bold uppercase tracking-[0.2em] text-royal-gold mb-3">{evt.date}</p>
+                                                        <h3 className="text-2xl font-bold italic tracking-tight mb-4">{evt.title}</h3>
+                                                        <div className="flex items-center text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-y-3 group-hover:translate-y-0 duration-300">
+                                                            {manageLevel === "events" ? (
+                                                                <>
+                                                                    <Settings className="w-4 h-4 mr-2" />
+                                                                    Manage Event
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <ImageIcon className="w-4 h-4 mr-2" />
+                                                                    Manage Photos
+                                                                </>
+                                                            )}
+                                                            <ArrowRight className="w-4 h-4 ml-2" />
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            ))
+                                        )}
+                                    </div>
                                 </div>
                             )}
 
@@ -1031,15 +1143,25 @@ export default function UserDashboard() {
                                                     <motion.div
                                                         key={photo.id}
                                                         layout
-                                                        className="group relative aspect-square overflow-hidden bg-stone-100 shadow-sm border border-stone-100 cursor-zoom-in"
-                                                        onClick={() => setPreviewImage(photo.url)}
+                                                        className="group relative aspect-square bg-stone-100 shadow-sm border border-stone-100 cursor-zoom-in"
+                                                        onClick={() => setViewingPhoto({
+                                                            id: photo.id,
+                                                            src: photo.url,
+                                                            cloudinaryPublicId: photo.cloudinaryPublicId,
+                                                            width: photo.width,
+                                                            height: photo.height,
+                                                            filename: photo.cloudinaryPublicId?.split('/').pop() || "photo"
+                                                        })}
                                                     >
-                                                        <img
-                                                            src={photo.url}
-                                                            alt="Gallery item"
-                                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                                        />
-                                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                        {/* Inner Clipping Container for Photo */}
+                                                        <div className="absolute inset-0 overflow-hidden">
+                                                            <img
+                                                                src={photo.url}
+                                                                alt="Gallery item"
+                                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                                            />
+                                                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                        </div>
 
                                                         {/* Set as Gallery Cover Button */}
                                                         <div className="absolute top-3 left-3 z-10">
@@ -1207,7 +1329,14 @@ export default function UserDashboard() {
                                                                         <td className="px-8 py-6">
                                                                             <div
                                                                                 className="w-32 h-32 rounded-[1.5rem] overflow-hidden cursor-zoom-in shadow-md border border-stone-100 group-hover:scale-105 transition-transform"
-                                                                                onClick={() => setPreviewImage(photo.url)}
+                                                                                onClick={() => setViewingPhoto({
+                                                                                    id: photo.id,
+                                                                                    src: photo.url,
+                                                                                    cloudinaryPublicId: photo.cloudinaryPublicId,
+                                                                                    width: photo.width,
+                                                                                    height: photo.height,
+                                                                                    filename: photo.cloudinaryPublicId?.split('/').pop() || "photo"
+                                                                                })}
                                                                             >
                                                                                 <img src={photo.url} alt="" className="w-full h-full object-cover" />
                                                                             </div>
@@ -1341,7 +1470,7 @@ export default function UserDashboard() {
                                                     activePermissionTab === "guest_user" ? "bg-white text-stone-900 shadow-sm" : "text-stone-400 hover:text-stone-600"
                                                 )}
                                             >
-                                                Guest User
+                                                Guest Users
                                             </button>
                                         </div>
                                     </div>
@@ -1352,7 +1481,7 @@ export default function UserDashboard() {
                                             <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-stone-100">
                                                 <div className="flex items-center justify-between mb-8">
                                                     <div>
-                                                        <h3 className="text-xl font-bold text-slate-800 font-serif">Primary Administrators</h3>
+                                                        <h3 className="text-xl font-bold text-slate-800 font-serif">Premium Users (Primary)</h3>
                                                         <p className="text-stone-400 text-xs font-sans uppercase tracking-widest mt-1">Full account management access</p>
                                                     </div>
                                                     <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600">
@@ -1361,8 +1490,8 @@ export default function UserDashboard() {
                                                 </div>
 
                                                 <div className="space-y-6">
-                                                    {allUsers.filter(u => u.role === 'admin' && (u.delegatedBy === user?.uid || u.id === user?.uid) && (u.roleType === 'primary' || !u.roleType)).length > 0 ? (
-                                                        allUsers.filter(u => u.role === 'admin' && (u.delegatedBy === user?.uid || u.id === user?.uid) && (u.roleType === 'primary' || !u.roleType)).map((u) => (
+                                                    {allUsers.filter(u => (u.delegatedBy === user?.uid || u.id === user?.uid) && (u.roleType === 'primary' || u.id === user?.uid)).length > 0 ? (
+                                                        allUsers.filter(u => (u.delegatedBy === user?.uid || u.id === user?.uid) && (u.roleType === 'primary' || u.id === user?.uid)).map((u) => (
                                                             <div key={u.id} className="flex items-center justify-between p-4 bg-stone-50 rounded-2xl border border-stone-100 group hover:bg-white hover:shadow-md transition-all duration-300">
                                                                 <div className="flex items-center space-x-4">
                                                                     <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-sm">
@@ -1375,7 +1504,7 @@ export default function UserDashboard() {
                                                                 </div>
                                                                 {u.id !== user?.uid && (
                                                                     <button
-                                                                        onClick={() => handleUpdateUserRole(u.id, "admin")}
+                                                                        onClick={() => handleUpdateUserRole(u.id, "revoke")}
                                                                         className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
                                                                     >
                                                                         Revoke
@@ -1385,13 +1514,13 @@ export default function UserDashboard() {
                                                         ))
                                                     ) : (
                                                         <div className="py-10 text-center border-2 border-dashed border-stone-100 rounded-3xl">
-                                                            <p className="text-stone-400 text-sm font-sans italic">No primary admins assigned.</p>
+                                                            <p className="text-stone-400 text-sm font-sans italic">No premium users assigned yet.</p>
                                                         </div>
                                                     )}
                                                 </div>
 
                                                 <div className="mt-8 pt-8 border-t border-stone-100">
-                                                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mb-4">Promote to Primary</p>
+                                                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mb-4">Promote to Premium (Full Access)</p>
                                                     <div className="flex gap-4">
                                                         <select
                                                             className="flex-1 px-4 py-3 bg-stone-100 border-none rounded-2xl text-xs font-bold font-sans outline-none focus:ring-2 focus:ring-slate-200 transition-all"
@@ -1401,7 +1530,7 @@ export default function UserDashboard() {
                                                             value=""
                                                         >
                                                             <option value="">Select a user...</option>
-                                                            {allUsers.filter(u => u.id !== user?.uid && (u.role !== 'admin' || (u.role === 'admin' && u.delegatedBy !== user?.uid))).map(u => (
+                                                            {allUsers.filter(u => u.id !== user?.uid && !u.delegatedBy).map(u => (
                                                                 <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
                                                             ))}
                                                         </select>
@@ -1425,7 +1554,6 @@ export default function UserDashboard() {
                                                     ) : userEvents.filter(e => e.type === 'main' || (!e.type && !e.parentId)).length > 0 ? (
                                                         userEvents.filter(e => e.type === 'main' || (!e.type && !e.parentId)).map(event => {
                                                             const admins = allUsers.filter(u =>
-                                                                u.role === 'admin' &&
                                                                 u.delegatedBy === user?.uid &&
                                                                 u.roleType === 'event' &&
                                                                 u.assignedEvents?.includes(event.id)
@@ -1455,7 +1583,7 @@ export default function UserDashboard() {
                                                                                     </div>
                                                                                 </div>
                                                                                 <button
-                                                                                    onClick={() => handleUpdateUserRole(admin.id, "admin")}
+                                                                                    onClick={() => handleUpdateUserRole(admin.id, "revoke")}
                                                                                     className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
                                                                                 >
                                                                                     <Trash2 size={14} />
@@ -1478,7 +1606,7 @@ export default function UserDashboard() {
 
                                                 {/* Promotion UI relocated here for Admin Details context */}
                                                 <div className="mt-10 pt-10 border-t border-stone-100">
-                                                    <h4 className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mb-6">Promote to Event Admin</h4>
+                                                    <h4 className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mb-6">Promote to Premium (Event Only)</h4>
                                                     <div className="space-y-6 bg-stone-50 p-6 rounded-[2rem] border border-stone-100">
                                                         <div className="space-y-2">
                                                             <label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest ml-1">1. Select User</label>
@@ -1488,7 +1616,7 @@ export default function UserDashboard() {
                                                                 value={selectedUserToAssign}
                                                             >
                                                                 <option value="">Select a user...</option>
-                                                                {allUsers.filter(u => u.id !== user?.uid && (u.role !== 'admin' || (u.role === 'admin' && u.delegatedBy !== user?.uid))).map(u => (
+                                                                {allUsers.filter(u => u.id !== user?.uid && !u.delegatedBy).map(u => (
                                                                     <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
                                                                 ))}
                                                             </select>
@@ -1533,11 +1661,11 @@ export default function UserDashboard() {
                                                 </div>
                                             </div>
                                         </div>
-                                    ) : (
+                                    ) : activePermissionTab === "guest_user" ? (
                                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
                                             {/* Grouping Guest Logs by Event */}
                                             {userEvents.filter(e => e.type === 'main' || (!e.type && !e.parentId)).map(event => {
-                                                const eventLogs = trafficLogs.filter(log => log.parentEventId === event.id || log.eventId === event.id);
+                                                const eventLogs = trafficLogs.filter(log => (log.parentEventId === event.id || log.eventId === event.id));
                                                 const pendingCount = eventLogs.filter(l => l.status === 'pending').length;
 
                                                 return (
@@ -1636,20 +1764,8 @@ export default function UserDashboard() {
                                                     </div>
                                                 );
                                             })}
-
-                                            {userEvents.filter(e => e.type === 'main' || (!e.type && !e.parentId)).length === 0 && (
-                                                <div className="p-20 bg-white rounded-[3rem] border-2 border-dashed border-stone-100 flex flex-col items-center justify-center text-center">
-                                                    <div className="w-16 h-16 bg-stone-50 rounded-full flex items-center justify-center text-stone-300 mb-6">
-                                                        <Users size={32} />
-                                                    </div>
-                                                    <h3 className="text-xl font-bold text-slate-800 font-serif mb-2">No Events Found</h3>
-                                                    <p className="text-stone-400 font-sans text-sm max-w-xs">
-                                                        Create an event in the "Manage Gallery" section to start tracking guests.
-                                                    </p>
-                                                </div>
-                                            )}
                                         </div>
-                                    )}
+                                    ) : null}
                                 </div>
                             )}
                         </motion.div>
@@ -1742,40 +1858,41 @@ export default function UserDashboard() {
                     )}
                 </AnimatePresence>
                 {/* Image Preview Lightbox */}
-                <AnimatePresence>
-                    {previewImage && (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setPreviewImage(null)}
-                            className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-12 bg-slate-950/90 backdrop-blur-xl cursor-zoom-out"
-                        >
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                                className="relative max-w-full max-h-full rounded-3xl overflow-hidden shadow-2xl border border-white/10"
-                            >
-                                <img
-                                    src={previewImage}
-                                    alt="Enlarged preview"
-                                    className="max-w-full max-h-[85vh] object-contain shadow-2xl"
-                                />
-                                <div className="absolute top-6 right-6">
-                                    <Tooltip text="Close preview">
-                                        <button
-                                            onClick={() => setPreviewImage(null)}
-                                            className="p-3 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white transition-all active:scale-95 border border-white/20"
-                                        >
-                                            <X className="w-6 h-6" />
-                                        </button>
-                                    </Tooltip>
-                                </div>
-                            </motion.div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                <Lightbox
+                    isOpen={!!viewingPhoto}
+                    photo={viewingPhoto}
+                    onClose={() => setViewingPhoto(null)}
+                    onNext={() => {
+                        const currentIndex = currentEventPhotos.findIndex(p => p.id === viewingPhoto?.id);
+                        if (currentIndex !== -1) {
+                            const nextIndex = (currentIndex + 1) % currentEventPhotos.length;
+                            const nextPhoto = currentEventPhotos[nextIndex];
+                            setViewingPhoto({
+                                id: nextPhoto.id,
+                                src: nextPhoto.url,
+                                cloudinaryPublicId: nextPhoto.cloudinaryPublicId,
+                                width: nextPhoto.width,
+                                height: nextPhoto.height,
+                                filename: nextPhoto.cloudinaryPublicId?.split('/').pop() || "photo"
+                            });
+                        }
+                    }}
+                    onPrev={() => {
+                        const currentIndex = currentEventPhotos.findIndex(p => p.id === viewingPhoto?.id);
+                        if (currentIndex !== -1) {
+                            const prevIndex = (currentIndex - 1 + currentEventPhotos.length) % currentEventPhotos.length;
+                            const prevPhoto = currentEventPhotos[prevIndex];
+                            setViewingPhoto({
+                                id: prevPhoto.id,
+                                src: prevPhoto.url,
+                                cloudinaryPublicId: prevPhoto.cloudinaryPublicId,
+                                width: prevPhoto.width,
+                                height: prevPhoto.height,
+                                filename: prevPhoto.cloudinaryPublicId?.split('/').pop() || "photo"
+                            });
+                        }
+                    }}
+                />
             </main >
         </div >
     );

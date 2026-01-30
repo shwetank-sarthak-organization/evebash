@@ -1,22 +1,23 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { notFound, useParams, useRouter, useSearchParams } from "next/navigation";
 import { getEvent } from "@/lib/events"; // Static Data
-import { getEventPhotos, getEventById, getSubEvents, logGuestLogin, Event, Photo as FirestorePhoto } from "@/lib/firestore"; // Live Data
+import { getEventPhotos, getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event, Photo as FirestorePhoto } from "@/lib/firestore"; // Live Data
 import { syncCloudinaryToFirestore } from "@/app/actions/sync";
 import Navbar from "@/components/Navbar";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
-import { Loader2, Image as ImageIcon, ChevronLeft, Share2, Check, Phone, ArrowRight } from "lucide-react";
+import { Loader2, Image as ImageIcon, ChevronLeft, Share2, Check, Phone, ArrowRight, Pencil } from "lucide-react";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
+import { cn } from "@/lib/utils";
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import { useRef } from "react";
 
-export default function EventPage() {
+function EventPageContent() {
     const params = useParams();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -37,6 +38,12 @@ export default function EventPage() {
     const [guestName, setGuestName] = useState("");
     const [guestPhone, setGuestPhone] = useState("");
     const [isLogging, setIsLogging] = useState(false);
+    const [hasCheckedSession, setHasCheckedSession] = useState(false);
+    const [stableIdentifier, setStableIdentifier] = useState<string | null>(null);
+    const [entryMode, setEntryMode] = useState<'guest' | 'email'>('guest');
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const { login: authLogin } = useAuth();
 
     // Parallax logic
     const containerRef = useRef(null);
@@ -54,43 +61,87 @@ export default function EventPage() {
         }
     }, [authLoading, slug]);
 
-    // Check for guest details if shared link
+    // Initial session check
     useEffect(() => {
-        if (isShared && !user && !authLoading) {
-            const savedDetails = localStorage.getItem("wedding_guest_details");
-            if (savedDetails) {
-                const { name, phone } = JSON.parse(savedDetails);
-                setGuestName(name);
-                setGuestPhone(phone);
-                const logId = `${phone}_${slug}`;
+        if (typeof window !== 'undefined' && !hasCheckedSession) {
+            const saved = sessionStorage.getItem("wedding_guest_details");
+            if (saved) {
+                const details = JSON.parse(saved);
+                setGuestName(details.name);
+                setGuestPhone(details.phone);
+                setStableIdentifier(details.phone);
+            }
+            setHasCheckedSession(true);
+        }
+    }, [hasCheckedSession]);
 
-                // Use the new listener for status
-                const { onGuestStatusChange } = require("@/lib/firestore");
-                const unsubscribe = onGuestStatusChange(logId, (status: any) => {
-                    setGuestStatus(status || 'pending'); // Default to pending if record exists but status is missing
-                    if (status === 'approved') {
+    // Check for guest details or user approval if shared link
+    useEffect(() => {
+        let unsubscribe: (() => void) | undefined;
+
+        if (isShared && !authLoading && hasCheckedSession) {
+            // Priority 1: Logged in user
+            // Priority 2: Stable guest identifier (from session or submission)
+            const ident = user ? (user.email || user.uid) : stableIdentifier;
+            const dispName = user ? (user.name || "Logged User") : (guestName || "Guest");
+
+            if (ident) {
+                const logId = `${ident}_${slug}`;
+                console.log(`[EventPage] Identification found: ${logId}. Starting listener...`);
+
+                // 1. Listen for Current Event Status
+                unsubscribe = onGuestStatusChange(logId, (status: any) => {
+                    const currentStatus = status || 'pending';
+                    console.log(`[EventPage] Listener update for ${logId}: ${currentStatus}`);
+
+                    if (currentStatus === 'approved') {
+                        setGuestStatus('approved');
                         setShowGuestModal(false);
-                    } else if (status === 'pending' || !status) {
-                        setShowGuestModal(true);
-                    } else if (status === 'rejected') {
-                        setShowGuestModal(true);
+                        return;
+                    }
+
+                    // 2. If not approved here, but we have a parent, check parent
+                    if (event?.parentId) {
+                        const parentLogId = `${ident}_${event.parentId}`;
+                        onGuestStatusChange(parentLogId, (parentStatus: any) => {
+                            if (parentStatus === 'approved') {
+                                setGuestStatus('approved');
+                                setShowGuestModal(false);
+                            } else {
+                                setGuestStatus(currentStatus);
+                                setShowGuestModal(currentStatus !== 'approved');
+                            }
+                        });
+                    } else {
+                        setGuestStatus(currentStatus);
+                        setShowGuestModal(currentStatus !== 'approved');
                     }
                 });
 
-                return () => unsubscribe();
-            } else {
+                // Proactively log access for newly logged in users
+                if (user && event && !loading && guestStatus === 'idle') {
+                    logGuestAccess(dispName, ident);
+                }
+            } else if (guestStatus === 'idle') {
+                // No ID found and not logged in - show the entry modal
                 setShowGuestModal(true);
-                setGuestStatus('idle');
             }
+        } else if (!isShared && !authLoading) {
+            setGuestStatus('approved');
+            setShowGuestModal(false);
         }
-    }, [isShared, user, authLoading, slug]);
 
-    const logGuestAccess = async (name: string, phone: string) => {
+        return () => {
+            if (unsubscribe) unsubscribe();
+        };
+    }, [isShared, user, authLoading, slug, event?.id, loading, hasCheckedSession, event?.parentId, stableIdentifier]);
+
+    const logGuestAccess = async (name: string, identifier: string) => {
         if (!slug || !event) return;
         try {
             await logGuestLogin(
                 name,
-                phone,
+                identifier,
                 slug,
                 event.parentId || event.id, // Pass self as parent if main event
                 event.title || "Shared Event",
@@ -107,14 +158,36 @@ export default function EventPage() {
 
         setIsLogging(true);
         try {
-            localStorage.setItem("wedding_guest_details", JSON.stringify({
+            sessionStorage.setItem("wedding_guest_details", JSON.stringify({
                 name: guestName,
                 phone: guestPhone
             }));
             await logGuestAccess(guestName, guestPhone);
+            setStableIdentifier(guestPhone); // This triggers the listener effect
             setGuestStatus('pending'); // Immediately set to pending after submission
         } catch (err) {
             console.error("Error logging guest:", err);
+        } finally {
+            setIsLogging(false);
+        }
+    };
+
+    const handleEmailSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!email || !password) return;
+
+        setIsLogging(true);
+        try {
+            const success = await authLogin(email, password);
+            if (success) {
+                // Log access immediately since state might not update fast enough for useEffect
+                await logGuestAccess(email.split('@')[0], email);
+                setStableIdentifier(email);
+                setGuestStatus('pending');
+            }
+        } catch (err) {
+            console.error("Login failed:", err);
+            alert("Login failed. Please check your credentials.");
         } finally {
             setIsLogging(false);
         }
@@ -286,36 +359,48 @@ export default function EventPage() {
                             {event?.parentId ? "Back to Event" : "Back to Gallery"}
                         </button>
 
-                        <button
-                            onClick={handleShare}
-                            className="flex items-center space-x-2 px-6 py-3 bg-white border border-stone-200 text-stone-600 rounded-full text-sm font-bold hover:bg-stone-50 transition-all shadow-sm hover:shadow-md group active:scale-95"
-                        >
-                            <AnimatePresence mode="wait">
-                                {copied ? (
-                                    <motion.div
-                                        key="check"
-                                        initial={{ opacity: 0, scale: 0.5 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.5 }}
-                                        className="flex items-center space-x-2 text-green-600"
-                                    >
-                                        <Check className="w-4 h-4" />
-                                        <span>Link Copied!</span>
-                                    </motion.div>
-                                ) : (
-                                    <motion.div
-                                        key="share"
-                                        initial={{ opacity: 0, scale: 0.5 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.5 }}
-                                        className="flex items-center space-x-2 group-hover:text-stone-900"
-                                    >
-                                        <Share2 className="w-4 h-4" />
-                                        <span>Share Event</span>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </button>
+                        <div className="flex items-center space-x-4">
+                            {(user?.uid === event?.createdBy || user?.role === 'admin') && (
+                                <button
+                                    onClick={() => router.push(`/dashboard?view=manage&eventId=${event.id}`)}
+                                    className="flex items-center space-x-2 px-6 py-3 bg-slate-900 text-white border border-slate-900 rounded-full text-sm font-bold hover:bg-slate-800 transition-all shadow-md active:scale-95 group"
+                                >
+                                    <Pencil className="w-4 h-4" />
+                                    <span>Manage Event</span>
+                                </button>
+                            )}
+
+                            <button
+                                onClick={handleShare}
+                                className="flex items-center space-x-2 px-6 py-3 bg-white border border-stone-200 text-stone-600 rounded-full text-sm font-bold hover:bg-stone-50 transition-all shadow-sm hover:shadow-md group active:scale-95"
+                            >
+                                <AnimatePresence mode="wait">
+                                    {copied ? (
+                                        <motion.div
+                                            key="check"
+                                            initial={{ opacity: 0, scale: 0.5 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.5 }}
+                                            className="flex items-center space-x-2 text-green-600"
+                                        >
+                                            <Check className="w-4 h-4" />
+                                            <span>Link Copied!</span>
+                                        </motion.div>
+                                    ) : (
+                                        <motion.div
+                                            key="share"
+                                            initial={{ opacity: 0, scale: 0.5 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.5 }}
+                                            className="flex items-center space-x-2 group-hover:text-stone-900"
+                                        >
+                                            <Share2 className="w-4 h-4" />
+                                            <span>Share Event</span>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </button>
+                        </div>
                     </div>
 
                     {event.type === 'main' ? (
@@ -450,53 +535,107 @@ export default function EventPage() {
                                     </>
                                 ) : (
                                     <>
-                                        <h2 className="text-3xl font-bold mb-3 font-serif text-slate-800">Welcome Guest</h2>
-                                        <p className="text-slate-500 mb-10 font-sans leading-relaxed">
-                                            Please share your details to request access to this private event gallery.
+                                        <div className="flex p-1 bg-stone-100 rounded-2xl mb-8">
+                                            <button
+                                                onClick={() => setEntryMode('guest')}
+                                                className={cn(
+                                                    "flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all",
+                                                    entryMode === 'guest' ? "bg-white text-slate-800 shadow-sm" : "text-stone-400 hover:text-stone-600"
+                                                )}
+                                            >
+                                                Guest Access
+                                            </button>
+                                            <button
+                                                onClick={() => setEntryMode('email')}
+                                                className={cn(
+                                                    "flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all",
+                                                    entryMode === 'email' ? "bg-white text-slate-800 shadow-sm" : "text-stone-400 hover:text-stone-600"
+                                                )}
+                                            >
+                                                Email Login
+                                            </button>
+                                        </div>
+
+                                        <h2 className="text-3xl font-bold mb-3 font-serif text-slate-800">
+                                            {entryMode === 'guest' ? "Welcome Guest" : "Member Login"}
+                                        </h2>
+                                        <p className="text-slate-500 mb-8 font-sans leading-relaxed text-sm">
+                                            {entryMode === 'guest'
+                                                ? "Share details to request private access."
+                                                : "Login to your account to view this event."}
                                         </p>
 
-                                        <form onSubmit={handleGuestSubmit} className="space-y-6">
-                                            <div className="space-y-4">
-                                                <div className="relative group">
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Your Full Name"
-                                                        required
-                                                        value={guestName}
-                                                        onChange={(e) => setGuestName(e.target.value)}
-                                                        className="w-full px-6 py-5 bg-stone-50 border border-stone-100 rounded-2xl text-slate-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-royal-gold/20 focus:border-royal-gold group-hover:border-stone-200 transition-all font-sans"
-                                                    />
-                                                </div>
-                                                <div className="relative group">
-                                                    <div className="absolute left-6 top-1/2 -translate-y-1/2 text-stone-400 flex items-center space-x-2">
-                                                        <Phone size={16} />
+                                        {entryMode === 'guest' ? (
+                                            <form onSubmit={handleGuestSubmit} className="space-y-6">
+                                                <div className="space-y-4 text-left">
+                                                    <div className="relative group">
+                                                        <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1 mb-2 block">Name</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Guest Name"
+                                                            required
+                                                            value={guestName}
+                                                            onChange={(e) => setGuestName(e.target.value)}
+                                                            className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-royal-gold/20 focus:border-royal-gold transition-all font-sans"
+                                                        />
                                                     </div>
-                                                    <input
-                                                        type="tel"
-                                                        placeholder="Phone Number"
-                                                        required
-                                                        value={guestPhone}
-                                                        onChange={(e) => setGuestPhone(e.target.value)}
-                                                        className="w-full pl-14 pr-6 py-5 bg-stone-50 border border-stone-100 rounded-2xl text-slate-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-royal-gold/20 focus:border-royal-gold group-hover:border-stone-200 transition-all font-sans"
-                                                    />
+                                                    <div className="relative group">
+                                                        <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1 mb-2 block">Phone</label>
+                                                        <input
+                                                            type="tel"
+                                                            placeholder="10-digit number"
+                                                            required
+                                                            value={guestPhone}
+                                                            onChange={(e) => setGuestPhone(e.target.value)}
+                                                            className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-royal-gold/20 focus:border-royal-gold transition-all font-sans"
+                                                        />
+                                                    </div>
                                                 </div>
-                                            </div>
 
-                                            <button
-                                                type="submit"
-                                                disabled={isLogging}
-                                                className="w-full py-5 bg-slate-900 text-white rounded-2xl font-bold uppercase tracking-widest transition-all hover:bg-slate-800 active:scale-95 disabled:opacity-50 shadow-xl flex items-center justify-center space-x-3"
-                                            >
-                                                {isLogging ? (
-                                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                                ) : (
-                                                    <>
-                                                        <span>Request Access</span>
-                                                        <ArrowRight size={18} />
-                                                    </>
-                                                )}
-                                            </button>
-                                        </form>
+                                                <button
+                                                    type="submit"
+                                                    disabled={isLogging}
+                                                    className="w-full py-5 bg-slate-900 text-white rounded-2xl font-bold uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 shadow-xl flex items-center justify-center space-x-3"
+                                                >
+                                                    {isLogging ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Request Access</span>}
+                                                </button>
+                                            </form>
+                                        ) : (
+                                            <form onSubmit={handleEmailSubmit} className="space-y-6">
+                                                <div className="space-y-4 text-left">
+                                                    <div className="relative group">
+                                                        <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1 mb-2 block">Email Address</label>
+                                                        <input
+                                                            type="email"
+                                                            placeholder="name@email.com"
+                                                            required
+                                                            value={email}
+                                                            onChange={(e) => setEmail(e.target.value)}
+                                                            className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-royal-gold/20 focus:border-royal-gold transition-all font-sans"
+                                                        />
+                                                    </div>
+                                                    <div className="relative group">
+                                                        <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1 mb-2 block">Password</label>
+                                                        <input
+                                                            type="password"
+                                                            placeholder="••••••••"
+                                                            required
+                                                            value={password}
+                                                            onChange={(e) => setPassword(e.target.value)}
+                                                            className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-royal-gold/20 focus:border-royal-gold transition-all font-sans"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <button
+                                                    type="submit"
+                                                    disabled={isLogging}
+                                                    className="w-full py-5 bg-sky-600 text-white rounded-2xl font-bold uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 shadow-xl flex items-center justify-center space-x-3"
+                                                >
+                                                    {isLogging ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Login & Access</span>}
+                                                </button>
+                                            </form>
+                                        )}
                                     </>
                                 )}
                             </div>
@@ -505,5 +644,17 @@ export default function EventPage() {
                 )}
             </AnimatePresence>
         </main>
+    );
+}
+
+export default function EventPage() {
+    return (
+        <Suspense fallback={
+            <main className="min-h-screen flex items-center justify-center bg-stone-50">
+                <Loader2 className="w-8 h-8 animate-spin text-royal-gold" />
+            </main>
+        }>
+            <EventPageContent />
+        </Suspense>
     );
 }
