@@ -18,6 +18,7 @@ import {
     Loader2,
     MoreVertical,
     Pencil,
+    Check,
     Trash2,
     X,
     Star,
@@ -612,27 +613,56 @@ function DashboardContent() {
         e.preventDefault();
         if (!renamingEvent || !newTitle.trim()) return;
 
-        setStatus("uploading");
-        setMessage("Updating event...");
+        // Optimistic Update
+        const updatedEvents = userEvents.map(evt =>
+            evt.id === renamingEvent.id ? { ...evt, title: newTitle } : evt
+        );
+        setUserEvents(updatedEvents);
+
+        setRenamingEvent(null);
+        setNewTitle("");
+        setMessage("Event renamed! ✍️");
+        setStatus("success");
+        setTimeout(() => setStatus("idle"), 2000);
 
         try {
-            const success = await updateEvent(renamingEvent.id, { title: newTitle });
-            if (success) {
-                setStatus("success");
-                setMessage("Event renamed! ✨");
-                setRenamingEvent(null);
-                fetchUserEvents();
-                setTimeout(() => { setStatus("idle"); setMessage(""); }, 2000);
-            } else {
-                setStatus("error");
-                setMessage("Failed to rename event.");
-            }
-        } catch (err) {
-            console.error(err);
+            await updateEvent(renamingEvent.id, { title: newTitle });
+        } catch (error) {
+            console.error("Failed to rename event:", error);
+            setMessage("Failed to save changes.");
             setStatus("error");
-            setMessage("Error updating event.");
+            // Revert
+            setUserEvents(userEvents);
         }
     };
+
+    const handleUpdateTemplate = async (templateId: string) => {
+        if (!templateTargetEvent) return;
+
+        // Optimistic Update
+        const updatedEvents = userEvents.map(evt =>
+            evt.id === templateTargetEvent.id ? { ...evt, templateId } : evt
+        );
+        setUserEvents(updatedEvents);
+
+        setShowTemplateModal(false);
+        setTemplateTargetEvent(null);
+        setMessage("Template updated! ✨");
+        setStatus("success");
+        setTimeout(() => setStatus("idle"), 2000);
+
+        try {
+            await updateEvent(templateTargetEvent.id, { templateId });
+        } catch (error) {
+            console.error("Failed to update template:", error);
+            setMessage("Failed to save changes.");
+            setStatus("error");
+            // Revert
+            setUserEvents(userEvents);
+        }
+    };
+
+
 
     const handleDeleteEvent = async (eventId: string) => {
         setStatus("uploading");
@@ -678,31 +708,7 @@ function DashboardContent() {
         }
     };
 
-    const handleTemplateUpdate = async (templateId: string) => {
-        if (!templateTargetEvent) return;
 
-        setStatus("uploading");
-        setMessage("Updating template...");
-
-        try {
-            const success = await updateEvent(templateTargetEvent.id, { templateId });
-            if (success) {
-                setStatus("success");
-                setMessage("Template updated! ✨");
-                setShowTemplateModal(false);
-                setTemplateTargetEvent(null);
-                fetchUserEvents();
-                setTimeout(() => { setStatus("idle"); setMessage(""); }, 2000);
-            } else {
-                setStatus("error");
-                setMessage("Failed to update template.");
-            }
-        } catch (err) {
-            console.error(err);
-            setStatus("error");
-            setMessage("Error updating template.");
-        }
-    };
 
     return (
         <div className="min-h-screen bg-royal-cream font-serif text-slate-800">
@@ -865,7 +871,7 @@ function DashboardContent() {
                             {manageMode === "list" && (
                                 <div className="space-y-8">
                                     {/* Workspace Attribution Header */}
-                                    {user?.delegatedBy && workspaceOwner ? (
+                                    {user?.delegatedBy && workspaceOwner && (
                                         <div className="bg-amber-50 rounded-3xl p-6 border border-amber-100 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
                                             <div className="flex items-center space-x-4">
                                                 <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600">
@@ -884,156 +890,6 @@ function DashboardContent() {
                                                 </span>
                                             </div>
                                         </div>
-                                    ) : (
-                                        userEvents.map((evt) => (
-                                            <motion.div
-                                                key={evt.id}
-                                                whileHover={{ y: -5 }}
-                                                onClick={() => {
-                                                    if (manageLevel === "events") {
-                                                        // For root level, we always start by showing chapters
-                                                        // or letting them jump to photos if they want.
-                                                        setSelectedMainEvent(evt);
-                                                        setManageLevel("galleries");
-                                                    } else {
-                                                        openUploadForEvent(evt.id, evt.title);
-                                                        setManageLevel("photos");
-                                                    }
-                                                }}
-                                                className="group relative bg-white aspect-[4/5] rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 border border-stone-100 cursor-pointer"
-                                            >
-                                                <img
-                                                    src={evt.coverImage || '/placeholder-event.jpg'}
-                                                    alt={evt.title}
-                                                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                                />
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent group-hover:via-black/40 transition-all" />
-
-                                                {/* Options Menu Button */}
-                                                <div className="absolute top-6 right-6 z-20">
-                                                    <Tooltip text="Options">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setActiveMenu(activeMenu === evt.id ? null : evt.id);
-                                                            }}
-                                                            className="p-2.5 bg-white/90 backdrop-blur-md shadow-lg hover:bg-white rounded-2xl text-slate-900 transition-all active:scale-95 border border-white/50"
-                                                        >
-                                                            <MoreVertical className="w-5 h-5" />
-                                                        </button>
-                                                    </Tooltip>
-
-                                                    <AnimatePresence>
-                                                        {activeMenu === evt.id && (
-                                                            <motion.div
-                                                                initial={{ opacity: 0, scale: 0.9, y: -10 }}
-                                                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                                                exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                                                                className="absolute right-0 mt-3 w-44 bg-white rounded-2xl shadow-2xl border border-stone-100 py-2 z-30 overflow-hidden"
-                                                            >
-                                                                <button
-                                                                    onClick={(e) => handleRenameClick(e, evt)}
-                                                                    className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-stone-50 transition-colors"
-                                                                    title="Rename this event"
-                                                                >
-                                                                    <Pencil className="w-4 h-4 text-blue-500" />
-                                                                    <span>Rename</span>
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        openUploadForEvent(evt.id, evt.title);
-                                                                        setManageLevel("photos");
-                                                                        setActiveMenu(null);
-                                                                    }}
-                                                                    className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-stone-50 transition-colors border-t border-stone-50"
-                                                                    title="Manage photos for this event"
-                                                                >
-                                                                    <Camera className="w-4 h-4 text-purple-500" />
-                                                                    <span>Edit Photos</span>
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setTemplateTargetEvent(evt);
-                                                                        setShowTemplateModal(true);
-                                                                        setActiveMenu(null);
-                                                                    }}
-                                                                    className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-stone-50 transition-colors border-t border-stone-50 text-royal-gold"
-                                                                    title="Change design template"
-                                                                >
-                                                                    <LayoutDashboard className="w-4 h-4" />
-                                                                    <span>Change Template</span>
-                                                                </button>
-                                                                {manageLevel === "events" && (
-                                                                    <a
-                                                                        href={(process.env.NEXT_PUBLIC_ROOT_DOMAIN && !process.env.NEXT_PUBLIC_ROOT_DOMAIN.includes("netlify.app")) ? `//${evt.id}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}` : `/tenant/${evt.id}`}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setActiveMenu(null);
-                                                                        }}
-                                                                        className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-stone-50 transition-colors border-t border-stone-50 text-blue-600"
-                                                                        title="Visit public website"
-                                                                    >
-                                                                        <Globe className="w-4 h-4" />
-                                                                        <span>Visit Website</span>
-                                                                    </a>
-                                                                )}
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        const url = `${window.location.origin}/events/${evt.id}?shared=true`;
-                                                                        navigator.clipboard.writeText(url);
-                                                                        setMessage("Share link copied! 🔗");
-                                                                        setStatus("success");
-                                                                        setTimeout(() => setStatus("idle"), 2000);
-                                                                        setActiveMenu(null);
-                                                                    }}
-                                                                    className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-stone-50 transition-colors border-t border-stone-50"
-                                                                    title="Copy shareable magic link"
-                                                                >
-                                                                    <Share2 className="w-4 h-4 text-emerald-500" />
-                                                                    <span>Share Link</span>
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setShowDeleteConfirm(evt.id);
-                                                                        setActiveMenu(null);
-                                                                    }}
-                                                                    className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-red-50 text-red-600 transition-colors border-t border-stone-50"
-                                                                    title="Permanently delete this event"
-                                                                >
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                    <span>Delete</span>
-                                                                </button>
-                                                            </motion.div>
-                                                        )}
-                                                    </AnimatePresence>
-                                                </div>
-
-                                                <div className="absolute bottom-0 left-0 p-8 text-white w-full text-left">
-                                                    <p className="text-xs font-sans font-bold uppercase tracking-[0.2em] text-royal-gold mb-3">{evt.date}</p>
-                                                    <h3 className="text-2xl font-bold italic tracking-tight mb-4">{evt.title}</h3>
-                                                    <div className="flex items-center text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-y-3 group-hover:translate-y-0 duration-300">
-                                                        {manageLevel === "events" ? (
-                                                            <>
-                                                                <Settings className="w-4 h-4 mr-2" />
-                                                                Manage Event
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <ImageIcon className="w-4 h-4 mr-2" />
-                                                                Manage Photos
-                                                            </>
-                                                        )}
-                                                        <ArrowRight className="w-4 h-4 ml-2" />
-                                                    </div>
-                                                </div>
-                                            </motion.div>
-                                        ))
                                     )}
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -1120,6 +976,35 @@ function DashboardContent() {
                                                                         <Camera className="w-4 h-4 text-purple-500" />
                                                                         <span>Edit Photos</span>
                                                                     </button>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setTemplateTargetEvent(evt);
+                                                                            setShowTemplateModal(true);
+                                                                            setActiveMenu(null);
+                                                                        }}
+                                                                        className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-stone-50 transition-colors border-t border-stone-50 text-royal-gold"
+                                                                        title="Change design template"
+                                                                    >
+                                                                        <LayoutDashboard className="w-4 h-4" />
+                                                                        <span>Change Template</span>
+                                                                    </button>
+                                                                    {manageLevel === "events" && (
+                                                                        <a
+                                                                            href={`/events/${evt.id}`}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setActiveMenu(null);
+                                                                            }}
+                                                                            className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-stone-50 transition-colors border-t border-stone-50 text-blue-600"
+                                                                            title="Visit public website"
+                                                                        >
+                                                                            <Globe className="w-4 h-4" />
+                                                                            <span>Visit Website</span>
+                                                                        </a>
+                                                                    )}
                                                                     <button
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
@@ -1977,6 +1862,188 @@ function DashboardContent() {
                                     ) : null}
                                 </div>
                             )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+
+                {/* Template Selection Modal */}
+                <AnimatePresence>
+                    {showTemplateModal && templateTargetEvent && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4"
+                            onClick={() => setShowTemplateModal(false)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.9, y: 20 }}
+                                animate={{ scale: 1, y: 0 }}
+                                exit={{ scale: 0.9, y: 20 }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="bg-white w-full max-w-2xl rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden"
+                            >
+                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-royal-gold to-rose-400" />
+
+                                <h2 className="text-3xl font-serif text-slate-900 mb-2">Choose Style</h2>
+                                <p className="text-slate-500 mb-8 font-sans">Select a design template for this event.</p>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[60vh] overflow-y-auto pr-2">
+                                    {[
+                                        {
+                                            id: 'hero',
+                                            label: 'PARALLAX',
+                                            title: 'Hero Dark',
+                                            desc: 'Best for Weddings',
+                                            bgClass: 'bg-slate-900',
+                                            textClass: 'text-royal-gold',
+                                            borderClass: 'border-royal-gold',
+                                            overlay: true
+                                        },
+                                        {
+                                            id: 'classic',
+                                            label: 'MINIMALIST',
+                                            title: 'Classic',
+                                            desc: 'Best for Engagements',
+                                            bgClass: 'bg-[#f8f5f2]',
+                                            textClass: 'text-rose-400',
+                                            borderClass: 'border-rose-400',
+                                            titleColor: 'text-slate-800',
+                                            subTitle: 'Light & Airy',
+                                            overlay: false
+                                        },
+                                        {
+                                            id: 'royal',
+                                            label: 'LUXURY',
+                                            title: 'Royal',
+                                            desc: 'Opulent & Elegant',
+                                            bgClass: 'bg-emerald-950',
+                                            textClass: 'text-amber-400',
+                                            borderClass: 'border-amber-400',
+                                            overlay: false
+                                        },
+                                        {
+                                            id: 'editorial',
+                                            label: 'MAGAZINE',
+                                            title: 'Editorial',
+                                            desc: 'Bold & Fashionable',
+                                            bgClass: 'bg-white',
+                                            textClass: 'text-black',
+                                            borderClass: 'border-black',
+                                            titleColor: 'text-black',
+                                            overlay: false
+                                        },
+                                        {
+                                            id: 'bohemian',
+                                            label: 'RUSTIC',
+                                            title: 'Bohemian',
+                                            desc: 'Organic & Warm',
+                                            bgClass: 'bg-[#eecfa1]',
+                                            textClass: 'text-[#8b4513]',
+                                            borderClass: 'border-[#8b4513]',
+                                            titleColor: 'text-[#5c4033]',
+                                            overlay: false
+                                        },
+                                        {
+                                            id: 'polaroid',
+                                            label: 'VINTAGE',
+                                            title: 'Polaroid',
+                                            desc: 'Nostalgic Moments',
+                                            bgClass: 'bg-stone-200',
+                                            textClass: 'text-stone-600',
+                                            borderClass: 'border-stone-600',
+                                            titleColor: 'text-stone-800',
+                                            overlay: false
+                                        },
+                                        {
+                                            id: 'cinematic',
+                                            label: 'MOODY',
+                                            title: 'Cinematic',
+                                            desc: 'Immersive Dark Mode',
+                                            bgClass: 'bg-black',
+                                            textClass: 'text-purple-400',
+                                            borderClass: 'border-purple-400',
+                                            overlay: true
+                                        },
+                                        {
+                                            id: 'museum',
+                                            label: 'GALLERY',
+                                            title: 'Museum',
+                                            desc: 'Clean & Minimal',
+                                            bgClass: 'bg-stone-50',
+                                            textClass: 'text-slate-500',
+                                            borderClass: 'border-slate-400',
+                                            titleColor: 'text-slate-900',
+                                            overlay: false
+                                        },
+                                        {
+                                            id: 'scrapbook',
+                                            label: 'PLAYFUL',
+                                            title: 'Scrapbook',
+                                            desc: 'Fun & Creative',
+                                            bgClass: 'bg-yellow-50',
+                                            textClass: 'text-orange-400',
+                                            borderClass: 'border-orange-400',
+                                            titleColor: 'text-slate-800',
+                                            overlay: false
+                                        },
+                                        {
+                                            id: 'brutalist',
+                                            label: 'MODERN ART',
+                                            title: 'Brutalist',
+                                            desc: 'Raw & Edgy',
+                                            bgClass: 'bg-zinc-900',
+                                            textClass: 'text-lime-400',
+                                            borderClass: 'border-lime-400',
+                                            titleColor: 'text-white',
+                                            overlay: false
+                                        }
+                                    ].map((template) => (
+                                        <div
+                                            key={template.id}
+                                            onClick={() => handleUpdateTemplate(template.id)}
+                                            className={`group cursor-pointer rounded-3xl overflow-hidden border-2 transition-all relative 
+                                                ${templateTargetEvent.templateId === template.id
+                                                    ? `${template.borderClass} ring-4 ring-offset-2 scale-[1.02]`
+                                                    : 'border-stone-100 hover:border-slate-300'}
+                                            `}
+                                        >
+                                            <div className={`aspect-[4/3] ${template.bgClass} relative p-6 flex flex-col ${template.overlay ? 'justify-end' : 'justify-center'} text-center`}>
+                                                {template.overlay && <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 to-transparent"></div>}
+                                                <div className="relative z-10">
+                                                    <p className={`${template.textClass} text-[10px] font-bold uppercase tracking-widest mb-1`}>{template.label}</p>
+                                                    <h3 className={`text-xl font-serif ${template.titleColor || 'text-white'}`}>{template.title}</h3>
+                                                    {template.subTitle && <p className="text-slate-400 font-serif italic text-sm">{template.subTitle}</p>}
+                                                </div>
+                                            </div>
+                                            <div className="p-4 bg-white text-center">
+                                                <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">{template.desc}</p>
+                                            </div>
+                                            {templateTargetEvent.templateId === template.id && (
+                                                <div className={`absolute top-4 right-4 ${template.textClass.replace('text-', 'bg-')} text-white p-1.5 rounded-full shadow-lg`}>
+                                                    <Check className="w-4 h-4" />
+                                                </div>
+                                            )}
+                                            {template.disabled && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[1px]">
+                                                    <span className="bg-black/70 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">Coming Soon</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <button
+                                    onClick={() => {
+                                        setShowTemplateModal(false);
+                                        setTemplateTargetEvent(null);
+                                    }}
+                                    className="mt-8 w-full py-4 text-slate-400 font-bold hover:text-slate-900 transition-colors uppercase tracking-widest text-xs"
+                                >
+                                    Cancel
+                                </button>
+                            </motion.div>
                         </motion.div>
                     )}
                 </AnimatePresence>

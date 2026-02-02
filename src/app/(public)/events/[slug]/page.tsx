@@ -7,7 +7,7 @@ import { notFound, useParams, useRouter, useSearchParams } from "next/navigation
 import { getEvent } from "@/lib/events"; // Static Data
 import { getEventPhotos, getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event, Photo as FirestorePhoto } from "@/lib/firestore"; // Live Data
 import { syncCloudinaryToFirestore } from "@/app/actions/sync";
-import Navbar from "@/components/Navbar";
+import { EventNavbar } from "@/components/EventNavbar";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { Loader2, Image as ImageIcon, ChevronLeft, Share2, Check, Phone, ArrowRight, Pencil } from "lucide-react";
@@ -16,6 +16,29 @@ import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { cn } from "@/lib/utils";
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import { useRef } from "react";
+import { TemplateHero } from "@/components/TemplateHero";
+import { TemplateClassic } from "@/components/TemplateClassic";
+import { TemplateRoyal } from "@/components/TemplateRoyal";
+import { TemplateEditorial } from "@/components/TemplateEditorial";
+import { TemplateBohemian } from "@/components/TemplateBohemian";
+import { TemplatePolaroid } from "@/components/TemplatePolaroid";
+import { TemplateCinematic } from "@/components/TemplateCinematic";
+import { TemplateMuseum } from "@/components/TemplateMuseum";
+import { TemplateScrapbook } from "@/components/TemplateScrapbook";
+import { TemplateBrutalist } from "@/components/TemplateBrutalist";
+
+const TEMPLATES: Record<string, React.ComponentType<any>> = {
+    hero: TemplateHero,
+    classic: TemplateClassic,
+    royal: TemplateRoyal,
+    editorial: TemplateEditorial,
+    bohemian: TemplateBohemian,
+    polaroid: TemplatePolaroid,
+    cinematic: TemplateCinematic,
+    museum: TemplateMuseum,
+    scrapbook: TemplateScrapbook,
+    brutalist: TemplateBrutalist
+};
 
 function EventPageContent() {
     const params = useParams();
@@ -47,13 +70,6 @@ function EventPageContent() {
 
     // Parallax logic
     const containerRef = useRef(null);
-    const { scrollYProgress } = useScroll({
-        target: containerRef,
-        offset: ["start start", "end start"]
-    });
-
-    const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
-    const heroOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
 
     useEffect(() => {
         if (!authLoading && slug) {
@@ -193,13 +209,16 @@ function EventPageContent() {
         }
     };
 
+    const [parentEvent, setParentEvent] = useState<Event | null>(null);
+
+    // ... (keep existing state)
+
     const loadEventData = async () => {
         setLoading(true);
         console.log(`[EventPage] Loading event for slug: ${slug}, isShared: ${isShared}`);
 
         try {
             // 1. Get Event Details
-            // Try Firestore first (Dynamic events)
             let eventData: Event | null = null;
             try {
                 eventData = await getEventById(slug);
@@ -234,18 +253,34 @@ function EventPageContent() {
                 // Fetch Photos (Sub-event or single gallery)
                 console.log(`[EventPage] Sub-view detected. Fetching photos for: ${eventData.id}`);
 
+                // NEW: Fetch Parent & Siblings for Navbar
+                if (eventData.parentId) {
+                    try {
+                        const pEvent = await getEventById(eventData.parentId);
+                        if (pEvent) {
+                            setParentEvent(pEvent);
+                            const siblings = await getSubEvents(pEvent.id, pEvent.legacyId);
+                            setSubEvents(siblings);
+                        }
+                    } catch (err) {
+                        console.error("Error fetching parent event context:", err);
+                    }
+                }
+
+
                 // 1. Fetch from Firestore CLIENT-SIDE (Authenticated / Rules-friendly)
                 let firestorePhotos = await getEventPhotos(eventData.id, eventData.legacyId);
 
                 // 2. If Empty, trigger server-side Sync fallback
                 if (firestorePhotos.length === 0) {
-                    console.log("[EventPage] No photos found. Triggering resilient sync...");
+                    // ... (keep sync logic)
                     const syncResult = await syncCloudinaryToFirestore(eventData.id, eventData.createdBy, eventData.legacyId);
                     if (syncResult.success && (syncResult.count || 0) > 0) {
                         firestorePhotos = await getEventPhotos(eventData.id, eventData.legacyId);
                     }
                 }
 
+                // ... (keep transformation)
                 const transformedPhotos = (firestorePhotos as FirestorePhoto[]).map(p => ({
                     id: p.id,
                     src: p.url || "",
@@ -304,192 +339,165 @@ function EventPageContent() {
         );
     }
 
-    return (
-        <main className="min-h-screen bg-stone-50 relative" ref={containerRef}>
-            {/* Premium Parallax Hero */}
-            <div className="relative h-[80vh] w-full overflow-hidden">
-                <motion.div style={{ y: heroY, opacity: heroOpacity }} className="absolute inset-0 h-[120%] -top-[10%]">
-                    <Image
-                        src={event.coverImage || "/placeholder-event.jpg"}
-                        alt={event.title}
-                        fill
-                        className="object-cover"
-                        priority
-                    />
-                </motion.div>
-                <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+    const renderContent = () => (
+        <div className="contents">
+            <div className="mb-12 flex items-center justify-between">
+                <button
+                    onClick={() => {
+                        const backUrl = event?.parentId ? `/events/${event.parentId}` : "/gallery";
+                        router.push(`${backUrl}${isShared ? "?shared=true" : ""}`);
+                    }}
+                    className="text-stone-500 hover:text-stone-900 transition-colors text-sm font-bold tracking-widest uppercase flex items-center group"
+                >
+                    <ChevronLeft className="w-5 h-5 mr-1 group-hover:-translate-x-1 transition-transform" />
+                    {event?.parentId ? "Back to Event" : "Back to Gallery"}
+                </button>
 
-                <div className="absolute inset-0 flex flex-col justify-end items-center text-center px-4 pb-20">
-                    <ScrollReveal direction="up" delay={0.3}>
-                        <h1 className="text-4xl md:text-7xl font-serif text-white drop-shadow-xl mb-6 tracking-tight">
-                            {event.title}
-                        </h1>
-                    </ScrollReveal>
-                    <ScrollReveal direction="up" delay={0.5}>
-                        <p className="text-white/90 text-lg md:text-xl max-w-2xl font-light drop-shadow-lg tracking-wide italic">
-                            {event.description || "A celebration of love and new beginnings."}
-                        </p>
-                    </ScrollReveal>
-                </div>
-
-                {/* Floating Sign Out if user logged in */}
-                {user && (
-                    <nav className="absolute top-8 right-8 z-20">
+                <div className="flex items-center space-x-4">
+                    {(user?.uid === event?.createdBy || user?.role === 'admin') && (
                         <button
-                            onClick={logout}
-                            className="px-6 py-2.5 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-full hover:bg-white/20 transition-all text-sm font-bold shadow-xl"
+                            onClick={() => router.push(`/dashboard?view=manage&eventId=${event.id}`)}
+                            className="flex items-center space-x-2 px-6 py-3 bg-slate-900 text-white border border-slate-900 rounded-full text-sm font-bold hover:bg-slate-800 transition-all shadow-md active:scale-95 group"
                         >
-                            Sign Out
+                            <Pencil className="w-4 h-4" />
+                            <span>Manage Event</span>
                         </button>
-                    </nav>
-                )}
+                    )}
+
+                    <button
+                        onClick={handleShare}
+                        className="flex items-center space-x-2 px-6 py-3 bg-white border border-stone-200 text-stone-600 rounded-full text-sm font-bold hover:bg-stone-50 transition-all shadow-sm hover:shadow-md group active:scale-95"
+                    >
+                        <AnimatePresence mode="wait">
+                            {copied ? (
+                                <motion.div
+                                    key="check"
+                                    initial={{ opacity: 0, scale: 0.5 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.5 }}
+                                    className="flex items-center space-x-2 text-green-600"
+                                >
+                                    <Check className="w-4 h-4" />
+                                    <span>Link Copied!</span>
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    key="share"
+                                    initial={{ opacity: 0, scale: 0.5 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.5 }}
+                                    className="flex items-center space-x-2 group-hover:text-stone-900"
+                                >
+                                    <Share2 className="w-4 h-4" />
+                                    <span>Share Event</span>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </button>
+                </div>
             </div>
 
-            <section className="relative z-10 -mt-12 bg-stone-50 rounded-t-[3rem] py-20 shadow-2xl shadow-black/10">
-                <div className="max-w-7xl mx-auto px-4">
-                    <div className="mb-12 flex items-center justify-between">
-                        <button
-                            onClick={() => {
-                                const backUrl = event?.parentId ? `/events/${event.parentId}` : "/gallery";
-                                router.push(`${backUrl}${isShared ? "?shared=true" : ""}`);
-                            }}
-                            className="text-stone-500 hover:text-stone-900 transition-colors text-sm font-bold tracking-widest uppercase flex items-center group"
-                        >
-                            <ChevronLeft className="w-5 h-5 mr-1 group-hover:-translate-x-1 transition-transform" />
-                            {event?.parentId ? "Back to Event" : "Back to Gallery"}
-                        </button>
+            {event.type === 'main' ? (
+                <div className="mt-12">
+                    <SectionHeader title="Event Highlights" subtitle={`${subEvents.length} Unique Galleries`} />
 
-                        <div className="flex items-center space-x-4">
-                            {(user?.uid === event?.createdBy || user?.role === 'admin') && (
-                                <button
-                                    onClick={() => router.push(`/dashboard?view=manage&eventId=${event.id}`)}
-                                    className="flex items-center space-x-2 px-6 py-3 bg-slate-900 text-white border border-slate-900 rounded-full text-sm font-bold hover:bg-slate-800 transition-all shadow-md active:scale-95 group"
-                                >
-                                    <Pencil className="w-4 h-4" />
-                                    <span>Manage Event</span>
-                                </button>
-                            )}
-
-                            <button
-                                onClick={handleShare}
-                                className="flex items-center space-x-2 px-6 py-3 bg-white border border-stone-200 text-stone-600 rounded-full text-sm font-bold hover:bg-stone-50 transition-all shadow-sm hover:shadow-md group active:scale-95"
-                            >
-                                <AnimatePresence mode="wait">
-                                    {copied ? (
-                                        <motion.div
-                                            key="check"
-                                            initial={{ opacity: 0, scale: 0.5 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0, scale: 0.5 }}
-                                            className="flex items-center space-x-2 text-green-600"
-                                        >
-                                            <Check className="w-4 h-4" />
-                                            <span>Link Copied!</span>
-                                        </motion.div>
-                                    ) : (
-                                        <motion.div
-                                            key="share"
-                                            initial={{ opacity: 0, scale: 0.5 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0, scale: 0.5 }}
-                                            className="flex items-center space-x-2 group-hover:text-stone-900"
-                                        >
-                                            <Share2 className="w-4 h-4" />
-                                            <span>Share Event</span>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </button>
-                        </div>
-                    </div>
-
-                    {event.type === 'main' ? (
-                        <div className="mt-12">
-                            <SectionHeader title="Event Highlights" subtitle={`${subEvents.length} Unique Galleries`} />
-
-                            {subEvents.length === 0 ? (
-                                <div className="py-40 text-center opacity-40">
-                                    <ImageIcon className="w-16 h-16 mx-auto mb-6 text-stone-300" />
-                                    {error === "permissions" ? (
-                                        <>
-                                            <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Access restricted...</h2>
-                                            <p className="font-sans text-stone-400">If you are the owner, please ensure your Firestore Security Rules allow public reads for events and photos.</p>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Glimpses are being curated...</h2>
-                                            <p className="font-sans text-stone-400">Galleries for this event will appear here soon.</p>
-                                        </>
-                                    )}
-                                </div>
+                    {subEvents.length === 0 ? (
+                        <div className="py-40 text-center opacity-40">
+                            <ImageIcon className="w-16 h-16 mx-auto mb-6 text-stone-300" />
+                            {error === "permissions" ? (
+                                <>
+                                    <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Access restricted...</h2>
+                                    <p className="font-sans text-stone-400">If you are the owner, please ensure your Firestore Security Rules allow public reads for events and photos.</p>
+                                </>
                             ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
-                                    {subEvents.map((sub, index) => (
-                                        <ScrollReveal
-                                            key={sub.id}
-                                            delay={index * 0.1}
-                                            className="w-full"
-                                        >
-                                            <div
-                                                onClick={() => router.push(`/events/${sub.id}${isShared ? "?shared=true" : ""}`)}
-                                                className="group relative block w-full aspect-[3/4] overflow-hidden rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all duration-500 cursor-pointer bg-stone-100"
-                                            >
-                                                <Image
-                                                    src={sub.coverImage || '/placeholder-event.jpg'}
-                                                    alt={sub.title}
-                                                    fill
-                                                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                                                    className="object-cover transition-transform duration-700 group-hover:scale-110"
-                                                    priority={index < 3}
-                                                />
-
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-300"></div>
-
-                                                <div className="absolute bottom-0 left-0 p-8 w-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                                                    <p className="text-royal-gold text-[10px] font-bold uppercase tracking-[0.2em] mb-2">
-                                                        {sub.date || "Gallery"}
-                                                    </p>
-                                                    <h3 className="text-3xl font-serif text-white mb-2 italic tracking-tight">{sub.title}</h3>
-                                                    <div className="h-[1px] w-0 bg-white/50 group-hover:w-full transition-all duration-700 ease-in-out"></div>
-                                                </div>
-                                            </div>
-                                        </ScrollReveal>
-                                    ))}
-                                </div>
+                                <>
+                                    <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Glimpses are being curated...</h2>
+                                    <p className="font-sans text-stone-400">Galleries for this event will appear here soon.</p>
+                                </>
                             )}
                         </div>
                     ) : (
-                        <div className="contents">
-                            <SectionHeader title="Gallery Collection" subtitle={`${photos.length} Precious Moments`} />
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
+                            {subEvents.map((sub, index) => (
+                                <ScrollReveal
+                                    key={sub.id}
+                                    delay={index * 0.1}
+                                    className="w-full"
+                                >
+                                    <div
+                                        onClick={() => router.push(`/events/${sub.id}${isShared ? "?shared=true" : ""}`)}
+                                        className="group relative block w-full aspect-[3/4] overflow-hidden rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all duration-500 cursor-pointer bg-stone-100"
+                                    >
+                                        <Image
+                                            src={sub.coverImage || '/placeholder-event.jpg'}
+                                            alt={sub.title}
+                                            fill
+                                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                                            className="object-cover transition-transform duration-700 group-hover:scale-110"
+                                            priority={index < 3}
+                                        />
 
-                            {photos.length > 0 ? (
-                                <div className="mt-12">
-                                    <MasonryGrid photos={photos} eventSlug={slug} disableDownload={isShared && !user} />
-                                </div>
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-300"></div>
+
+                                        <div className="absolute bottom-0 left-0 p-8 w-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                                            <p className="text-royal-gold text-[10px] font-bold uppercase tracking-[0.2em] mb-2">
+                                                {sub.date || "Gallery"}
+                                            </p>
+                                            <h3 className="text-3xl font-serif text-white mb-2 italic tracking-tight">{sub.title}</h3>
+                                            <div className="h-[1px] w-0 bg-white/50 group-hover:w-full transition-all duration-700 ease-in-out"></div>
+                                        </div>
+                                    </div>
+                                </ScrollReveal>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <div className="contents">
+                    <SectionHeader title="Gallery Collection" subtitle={`${photos.length} Precious Moments`} />
+
+                    {photos.length > 0 ? (
+                        <div className="mt-12">
+                            <MasonryGrid photos={photos} eventSlug={slug} disableDownload={isShared && !user} />
+                        </div>
+                    ) : (
+                        <div className="text-center py-40 opacity-40">
+                            <ImageIcon className="w-16 h-16 mx-auto mb-6 text-stone-300" />
+                            {error === "permissions" ? (
+                                <>
+                                    <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Moments restricted...</h2>
+                                    <p className="font-sans text-stone-400 text-sm">Owner: Check Firestore rules to enable shared access.</p>
+                                </>
                             ) : (
-                                <div className="text-center py-40 opacity-40">
-                                    <ImageIcon className="w-16 h-16 mx-auto mb-6 text-stone-300" />
-                                    {error === "permissions" ? (
-                                        <>
-                                            <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Moments restricted...</h2>
-                                            <p className="font-sans text-stone-400 text-sm">Owner: Check Firestore rules to enable shared access.</p>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Moments are being developed...</h2>
-                                            <p className="font-sans text-stone-400 text-sm">Check back soon to see the captured memories.</p>
-                                        </>
-                                    )}
-                                </div>
+                                <>
+                                    <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Moments are being developed...</h2>
+                                    <p className="font-sans text-stone-400 text-sm">Check back soon to see the captured memories.</p>
+                                </>
                             )}
                         </div>
                     )}
                 </div>
-            </section>
+            )}
+        </div>
+    );
 
-            <footer className="bg-stone-900 text-stone-400 py-12 text-center text-sm">
-                <p>© 2026 Wedding Album.</p>
-            </footer>
+    const TemplateComponent = TEMPLATES[event.templateId] || TemplateHero;
+
+    // Determine Navbar Props
+    const navMainTitle = parentEvent ? parentEvent.title : event.title;
+    const navMainId = event.parentId || event.id;
+
+    return (
+        <main className="min-h-screen relative" ref={containerRef}>
+            <EventNavbar
+                mainEventTitle={navMainTitle}
+                mainEventId={navMainId}
+                subEvents={subEvents}
+                isShared={isShared}
+            />
+            <TemplateComponent event={event}>
+                {renderContent()}
+            </TemplateComponent>
             {/* Guest Entry Modal */}
             <AnimatePresence>
                 {showGuestModal && (
