@@ -1999,7 +1999,7 @@ function DashboardContent() {
                                             titleColor: 'text-white',
                                             overlay: false
                                         }
-                                    ].map((template) => (
+                                    ].map((template: any) => (
                                         <div
                                             key={template.id}
                                             onClick={() => handleUpdateTemplate(template.id)}
