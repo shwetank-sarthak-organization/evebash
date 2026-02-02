@@ -6,4 +6,4 @@
   package = "@netlify/plugin-nextjs"
 
 [context.production.environment]
-  NEXT_PUBLIC_ROOT_DOMAIN = "wed-album-v2.netlify.app"
+  NEXT_PUBLIC_ROOT_DOMAIN = "lens-and-frame-wedding-album.netlify.app"
