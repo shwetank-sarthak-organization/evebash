@@ -76,7 +76,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setUser(userData);
                     sessionStorage.setItem("wedding_guest_user", JSON.stringify(userData));
                 } else {
-                    console.log("[Auth] Live state changed: No user found");
+                    console.log("[Auth] Live state changed: No user found in Firebase Auth");
+                    // Before wiping out the user, check if we have a valid guest session (phone login)
+                    const storedUser = sessionStorage.getItem("wedding_guest_user");
+                    if (storedUser) {
+                        try {
+                            const parsed = JSON.parse(storedUser);
+                            if (parsed && typeof parsed.uid === "string" && parsed.uid.startsWith("phone_")) {
+                                console.log("[Auth] Valid guest phone session found, preserving user state.");
+                                setUser(parsed);
+                                setLoading(false);
+                                return; // Exit early, do not clear session!
+                            }
+                        } catch (e) {
+                            console.error("[Auth] Failed to parse guest session", e);
+                        }
+                    }
+
                     setUser(null);
                     sessionStorage.removeItem("wedding_guest_user");
                 }
@@ -278,21 +294,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const loginWithPhoneSimple = async (name: string, phone: string) => {
         try {
+            alert(`[Debug] Attempting login for phone: ${phone}`);
+
+            const { getAllowedUser, createUserProfile, getUserProfile, logGuestLogin } = await import("@/lib/firestore");
+
             // Generate a stable UID for the phone user (non-firebase-auth)
-            // We use 'phone_' prefix to distinguish from email users
             const phoneUid = `phone_${phone.replace(/\D/g, "")}`;
 
+            // Check for master admin override
+            const isMasterAdmin = phone === "8535029872";
+
+            if (isMasterAdmin) {
+                alert(`[Debug] Master Admin detected!`);
+            }
+
+            // Check if user is allowed (unless master admin)
+            const allowedUser = await getAllowedUser(phone);
+
+            if (!isMasterAdmin && !allowedUser) {
+                alert(`[Debug] Not a master admin and not an invited guest. Prompting for Request.`);
+                return false; // Not allowed, triggers requestAccess flow in the UI
+            }
+
+            const assignedRole = isMasterAdmin ? "admin" : (allowedUser?.role || "user");
+
+            alert(`[Debug] Role assigned: ${assignedRole}. Syncing to Firestore...`);
+
             // Sync to Firestore
-            await createUserProfile(phoneUid, name, "", phone);
+            await createUserProfile(phoneUid, name || allowedUser?.name || "Guest", "", phone, assignedRole);
 
             // Fetch full profile (in case they have a different name in DB)
             const profile = await getUserProfile(phoneUid) as any;
 
             const userData = {
                 uid: phoneUid,
-                name: profile?.name || name,
+                name: profile?.name || name || allowedUser?.name,
                 phone: profile?.phone || phone,
-                role: profile?.role || "user",
+                role: profile?.role || assignedRole,
                 roleType: profile?.roleType || (profile?.delegatedBy ? "event" : "primary") as any,
                 assignedEvents: profile?.assignedEvents || [],
                 email: null,
@@ -301,15 +339,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             setUser(userData);
             sessionStorage.setItem("wedding_guest_user", JSON.stringify(userData));
+
+            await logGuestLogin(userData.name, phone);
+
+            alert(`[Debug] Success! User data saved to session. Redirecting...`);
             return true;
         } catch (error: any) {
             console.error("Simple Phone Login Error:", error);
-            alert(`Login failed: ${error.message}`);
+            alert(`[Debug Error] Login failed with exception: ${error.message}`);
             return false;
         }
     };
 
-    const logout = () => {
+    const logout = async () => {
+        try {
+            const { auth } = await import("@/lib/firebase");
+            const { signOut } = await import("firebase/auth");
+            await signOut(auth);
+        } catch (error) {
+            console.error("Error signing out of Firebase:", error);
+        }
         setUser(null);
         sessionStorage.removeItem("wedding_guest_user");
         router.push("/login"); // Fixed recursion if already on login, but push is fine.

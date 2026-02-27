@@ -1,5 +1,6 @@
 import { RoyalNavbar } from "@/components/RoyalNavbar";
 import EditorialNavbar from "@/components/templates/template_2/src/components/Navbar";
+import { EventNavbar } from "@/components/EventNavbar";
 import { getEventById, getSubEvents, serializeFirestoreData } from "@/lib/firestore";
 import { notFound } from "next/navigation";
 
@@ -29,27 +30,43 @@ export default async function TenantLayout({
     const serializedSubEvents = serializeFirestoreData(validSubEvents);
 
     const templateId = event.templateId || 'hero';
-    const isEditorial = templateId === 'editorial' || templateId === 'template_2';
+
+    let NavbarComponent;
+    let wrapperClass = "min-h-screen font-sans";
+
+    if (templateId === 'editorial' || templateId === 'template_2') {
+        NavbarComponent = (
+            <EditorialNavbar
+                event={event} // Pass raw event if compatible, or specialized serialized if needed
+                subEvents={validSubEvents}
+                basePath={`/tenant/${slug}`}
+            />
+        );
+        wrapperClass = "bg-editorial-white text-editorial-black font-sans min-h-screen";
+    } else if (templateId === 'royal') {
+        NavbarComponent = (
+            <RoyalNavbar
+                event={serializedEvent}
+                subEvents={serializedSubEvents}
+                basePath={`/tenant/${slug}`}
+            />
+        );
+        wrapperClass = "bg-royal-cream text-royal-maroon font-sans min-h-screen disable-scroll-x";
+    } else {
+        NavbarComponent = (
+            <EventNavbar
+                mainEventTitle={event.title}
+                mainEventId={event.id}
+                subEvents={serializedSubEvents}
+                isShared={false}
+                basePath={`/tenant/${slug}`}
+            />
+        );
+    }
 
     return (
-        <div className={isEditorial
-            ? "bg-editorial-white text-editorial-black font-sans min-h-screen"
-            : "bg-royal-cream text-royal-maroon font-sans min-h-screen disable-scroll-x"
-        }>
-            {isEditorial ? (
-                <EditorialNavbar
-                    event={event} // Pass raw event if compatible, or specialized serialized if needed. EditorialNavbar likely uses dates, check if serialized dates work.
-                    subEvents={validSubEvents}
-                    basePath={`/tenant/${slug}`}
-                />
-            ) : (
-                <RoyalNavbar
-                    event={serializedEvent}
-                    subEvents={serializedSubEvents}
-                    basePath={`/tenant/${slug}`}
-                />
-            )}
-
+        <div className={wrapperClass}>
+            {NavbarComponent}
             {/* Main Content Area */}
             {children}
         </div>

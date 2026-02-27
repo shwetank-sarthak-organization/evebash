@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import * as faceapi from "face-api.js";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
-import { getEventFaceEncodings, FaceRecord, getEventById, getSubEvents } from "@/lib/firestore";
+import { getAllFaceEncodings, FaceRecord } from "@/lib/firestore";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -15,7 +15,6 @@ export default function FindYouPage({ params }: { params: Promise<{ slug: string
     const [matchedPhotos, setMatchedPhotos] = useState<any[]>([]);
     const [statusMessage, setStatusMessage] = useState("Loading AI Models...");
     const [selfieUrl, setSelfieUrl] = useState<string | null>(null);
-    const [searchScopeIds, setSearchScopeIds] = useState<string[]>([]);
 
     // Unwrap params
     const { slug } = React.use(params);
@@ -40,33 +39,8 @@ export default function FindYouPage({ params }: { params: Promise<{ slug: string
             }
         };
 
-        const fetchScope = async () => {
-            // Fetch main event and sub-events to scope the search
-            if (!slug) return;
-            try {
-                console.log("[FindYou] Fetching scope for:", slug);
-                const mainEvent = await getEventById(slug);
-                const subEvents = await getSubEvents(slug, mainEvent?.legacyId);
-
-                const ids = [slug];
-                if (mainEvent?.legacyId) ids.push(mainEvent.legacyId);
-                subEvents.forEach(e => {
-                    ids.push(e.id);
-                    if (e.legacyId) ids.push(e.legacyId);
-                });
-
-                console.log("[FindYou] Search scope IDs:", ids);
-                setSearchScopeIds(ids);
-            } catch (error) {
-                console.error("Error fetching event scope:", error);
-                // Fallback to just slug if fetch fails
-                setSearchScopeIds([slug]);
-            }
-        };
-
         loadModels();
-        fetchScope();
-    }, [slug]);
+    }, []);
 
     const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         if (!event.target.files?.length) return;
@@ -93,13 +67,9 @@ export default function FindYouPage({ params }: { params: Promise<{ slug: string
             setProcessing(true);
             setStatusMessage("Searching database for matches...");
 
-            // 2. Fetch faces for this specific event scope
-            if (searchScopeIds.length === 0) {
-                setStatusMessage("Initializing event data... Please wait.");
-                setProcessing(false);
-                return;
-            }
-            const indexedFaces = await getEventFaceEncodings(searchScopeIds);
+            // 2. Fetch all indexed faces from Firestore
+            // This is much faster than processing images and avoids event ID mismatch issues
+            const indexedFaces = await getAllFaceEncodings();
 
             if (indexedFaces.length === 0) {
                 setStatusMessage("No photos found in database. Please ask Admin to run the Indexer.");
@@ -129,7 +99,6 @@ export default function FindYouPage({ params }: { params: Promise<{ slug: string
                 width: p.width,
                 height: p.height,
                 alt: `Found in ${p.eventId}`,
-                cloudinaryPublicId: p.imageId
             })));
 
             setStatusMessage(`Found ${uniqueMatches.length} photos of you!`);

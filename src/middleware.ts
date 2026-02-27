@@ -30,10 +30,18 @@ export default async function middleware(req: NextRequest) {
 
     // Check if we are on a custom subdomain
     // logic: if hostname is NOT the rootDomain (and not www.rootDomain)
+    // AND it's not one of our other known root domains
+    const knownRootDomains = [
+        "wed-album-v2.netlify.app",
+        "lens-and-frame-wedding-album.netlify.app",
+        "localhost"
+    ];
+
     const isCustomDomain =
         hostnameNoPort &&
         hostnameNoPort !== rootDomain &&
-        hostnameNoPort !== `www.${rootDomain}`;
+        hostnameNoPort !== `www.${rootDomain}` &&
+        !knownRootDomains.includes(hostnameNoPort);
 
     if (isCustomDomain && hostname) {
         // Extract the subdomain/slug

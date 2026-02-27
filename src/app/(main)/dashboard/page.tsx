@@ -58,6 +58,8 @@ import { Tooltip } from "@/components/Tooltip";
 import { v4 as uuidv4 } from "uuid";
 import { Timestamp } from "firebase/firestore";
 import { syncCloudinaryToFirestore } from "@/app/actions/sync";
+import * as faceapi from "face-api.js";
+import { saveFaceToIndex } from "@/lib/firestore";
 
 import { Lightbox } from "@/components/ui/Lightbox";
 
@@ -115,7 +117,7 @@ function DashboardContent() {
     // Template Selection State
     const [showTemplateModal, setShowTemplateModal] = useState(false);
     const [templateTargetEvent, setTemplateTargetEvent] = useState<Event | null>(null);
-    const [selectedTemplate, setSelectedTemplate] = useState("hero");
+    const [selectedTemplate, setSelectedTemplate] = useState("template_1");
 
     useEffect(() => {
         // Allow Super Admins, Premium users, and anyone acting as a Delegated Collaborator
@@ -516,6 +518,8 @@ function DashboardContent() {
 
         try {
             let firstUploadedUrl = "";
+            const uploadResults: { file: File, photo: Photo }[] = [];
+
             const photoPromises = Array.from(selectedFiles).map(async (file, index) => {
                 console.log(`[Dashboard] Processing file ${index + 1}/${selectedFiles.length}: ${file.name}`);
 
@@ -542,10 +546,66 @@ function DashboardContent() {
                     size: (uploadResult as any).bytes,
                     format: (uploadResult as any).format
                 };
+
                 await savePhoto(photo);
+                uploadResults.push({ file: optimizedFile, photo }); // Store for background indexing
             });
 
             await Promise.all(photoPromises);
+
+            // --- Auto Face Indexing (Background) ---
+            // After successful upload to cloud & firestore, we process the images locally in the background.
+            // We use setTimeout to defer this so the UI can quickly show "Upload Success" and update standard galleries.
+            setTimeout(async () => {
+                try {
+                    console.log(`[Dashboard] Starting background face indexing for ${uploadResults.length} new uploads...`);
+
+                    // 1. Load models if needed (we load them here to save memory up until an upload actually happens)
+                    const MODEL_URL = "/models";
+                    await Promise.all([
+                        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+                        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+                    ]);
+                    console.log("[Dashboard] Face-API Models loaded.");
+
+                    // 2. Scan each uploaded file using the exact matched DB record
+                    for (const { file, photo } of uploadResults) {
+                        try {
+                            // Create a temporary object URL for face-api to read
+                            const imageUrl = URL.createObjectURL(file);
+                            const img = await faceapi.fetchImage(imageUrl);
+
+                            // Detect all faces
+                            const detections = await faceapi.detectAllFaces(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+                                .withFaceLandmarks()
+                                .withFaceDescriptors();
+
+                            if (detections.length > 0) {
+                                console.log(`[Dashboard] Found ${detections.length} faces in ${file.name}. Saving to index...`);
+
+                                for (const detection of detections) {
+                                    await saveFaceToIndex({
+                                        imageId: photo.id,
+                                        descriptor: Array.from(detection.descriptor),
+                                        eventId: photo.eventId,
+                                        imageUrl: photo.url,
+                                        width: photo.width || 0,
+                                        height: photo.height || 0
+                                    });
+                                }
+                            }
+                            URL.revokeObjectURL(imageUrl); // clean up memory
+                        } catch (e) {
+                            console.error("[Dashboard] Error indexing face in file", file.name, e);
+                        }
+                    }
+                    console.log("[Dashboard] Background face indexing complete.");
+                } catch (e) {
+                    console.error("[Dashboard] Background indexing failed:", e);
+                }
+            }, 100);
+
             await fetchStorageStats();
 
             // Auto-update cover if it's currently a placeholder or if it's the first upload
@@ -1105,21 +1165,21 @@ function DashboardContent() {
                                             <div>
                                                 <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-500 mb-4 ml-1">Choose Style</label>
                                                 <div className="grid grid-cols-3 gap-4">
-                                                    {['hero', 'classic', 'royal', 'editorial'].map(t => (
+                                                    {Array.from({ length: 10 }, (_, i) => `template_${i + 1}`).map((t, index) => (
                                                         <div
                                                             key={t}
                                                             onClick={() => setSelectedTemplate(t)}
                                                             className={`cursor-pointer border-2 rounded-xl p-3 text-center transition-all ${selectedTemplate === t ? 'border-royal-gold bg-royal-gold/5 ring-2 ring-royal-gold/20' : 'border-stone-100 hover:border-stone-300'}`}
                                                         >
-                                                            <div className={`w-full aspect-square rounded-lg mb-2 shadow-sm ${t === 'hero' ? 'bg-slate-900 border-2 border-slate-900' : t === 'royal' ? 'bg-[#4A0E0E] border-2 border-[#4A0E0E]' : t === 'editorial' ? 'bg-black border-2 border-black' : 'bg-white border-2 border-stone-200'}`}>
+                                                            <div className={`w-full aspect-square rounded-lg mb-2 shadow-sm ${t === 'template_1' ? 'bg-slate-900 border-2 border-slate-900' : 'bg-black border-2 border-black'}`}>
                                                                 {/* Mini preview text */}
                                                                 <div className="w-full h-full flex items-center justify-center">
-                                                                    <span className={`text-[10px] font-serif ${t === 'classic' ? 'text-slate-800' : t === 'royal' ? 'text-amber-400' : 'text-white'}`}>
+                                                                    <span className={`text-[10px] font-serif ${t === 'template_1' ? 'text-white' : 'text-white'}`}>
                                                                         Aa
                                                                     </span>
                                                                 </div>
                                                             </div>
-                                                            <span className="text-xs font-bold capitalize text-slate-700">{t}</span>
+                                                            <span className="text-xs font-bold capitalize text-slate-700">Template {index + 1}</span>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -1890,116 +1950,17 @@ function DashboardContent() {
                                 <p className="text-slate-500 mb-8 font-sans">Select a design template for this event.</p>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[60vh] overflow-y-auto pr-2">
-                                    {[
-                                        {
-                                            id: 'hero',
-                                            label: 'PARALLAX',
-                                            title: 'Hero Dark',
-                                            desc: 'Best for Weddings',
-                                            bgClass: 'bg-slate-900',
-                                            textClass: 'text-royal-gold',
-                                            borderClass: 'border-royal-gold',
-                                            overlay: true
-                                        },
-                                        {
-                                            id: 'classic',
-                                            label: 'MINIMALIST',
-                                            title: 'Classic',
-                                            desc: 'Best for Engagements',
-                                            bgClass: 'bg-[#f8f5f2]',
-                                            textClass: 'text-rose-400',
-                                            borderClass: 'border-rose-400',
-                                            titleColor: 'text-slate-800',
-                                            subTitle: 'Light & Airy',
-                                            overlay: false
-                                        },
-                                        {
-                                            id: 'royal',
-                                            label: 'LUXURY',
-                                            title: 'Royal',
-                                            desc: 'Opulent & Elegant',
-                                            bgClass: 'bg-emerald-950',
-                                            textClass: 'text-amber-400',
-                                            borderClass: 'border-amber-400',
-                                            overlay: false
-                                        },
-                                        {
-                                            id: 'editorial',
-                                            label: 'MAGAZINE',
-                                            title: 'Editorial',
-                                            desc: 'Bold & Fashionable',
-                                            bgClass: 'bg-white',
-                                            textClass: 'text-black',
-                                            borderClass: 'border-black',
-                                            titleColor: 'text-black',
-                                            overlay: false
-                                        },
-                                        {
-                                            id: 'bohemian',
-                                            label: 'RUSTIC',
-                                            title: 'Bohemian',
-                                            desc: 'Organic & Warm',
-                                            bgClass: 'bg-[#eecfa1]',
-                                            textClass: 'text-[#8b4513]',
-                                            borderClass: 'border-[#8b4513]',
-                                            titleColor: 'text-[#5c4033]',
-                                            overlay: false
-                                        },
-                                        {
-                                            id: 'polaroid',
-                                            label: 'VINTAGE',
-                                            title: 'Polaroid',
-                                            desc: 'Nostalgic Moments',
-                                            bgClass: 'bg-stone-200',
-                                            textClass: 'text-stone-600',
-                                            borderClass: 'border-stone-600',
-                                            titleColor: 'text-stone-800',
-                                            overlay: false
-                                        },
-                                        {
-                                            id: 'cinematic',
-                                            label: 'MOODY',
-                                            title: 'Cinematic',
-                                            desc: 'Immersive Dark Mode',
-                                            bgClass: 'bg-black',
-                                            textClass: 'text-purple-400',
-                                            borderClass: 'border-purple-400',
-                                            overlay: true
-                                        },
-                                        {
-                                            id: 'museum',
-                                            label: 'GALLERY',
-                                            title: 'Museum',
-                                            desc: 'Clean & Minimal',
-                                            bgClass: 'bg-stone-50',
-                                            textClass: 'text-slate-500',
-                                            borderClass: 'border-slate-400',
-                                            titleColor: 'text-slate-900',
-                                            overlay: false
-                                        },
-                                        {
-                                            id: 'scrapbook',
-                                            label: 'PLAYFUL',
-                                            title: 'Scrapbook',
-                                            desc: 'Fun & Creative',
-                                            bgClass: 'bg-yellow-50',
-                                            textClass: 'text-orange-400',
-                                            borderClass: 'border-orange-400',
-                                            titleColor: 'text-slate-800',
-                                            overlay: false
-                                        },
-                                        {
-                                            id: 'brutalist',
-                                            label: 'MODERN ART',
-                                            title: 'Brutalist',
-                                            desc: 'Raw & Edgy',
-                                            bgClass: 'bg-zinc-900',
-                                            textClass: 'text-lime-400',
-                                            borderClass: 'border-lime-400',
-                                            titleColor: 'text-white',
-                                            overlay: false
-                                        }
-                                    ].map((template: any) => (
+                                    {Array.from({ length: 10 }, (_, i) => ({
+                                        id: `template_${i + 1}`,
+                                        label: `TEMPLATE ${i + 1}`,
+                                        title: `Design ${i + 1}`,
+                                        desc: 'Customizable Style',
+                                        bgClass: i % 2 === 0 ? 'bg-slate-900' : 'bg-white',
+                                        textClass: i % 2 === 0 ? 'text-royal-gold' : 'text-black',
+                                        borderClass: i % 2 === 0 ? 'border-royal-gold' : 'border-black',
+                                        titleColor: i % 2 === 0 ? 'text-white' : 'text-black',
+                                        overlay: i % 2 === 0
+                                    })).map((template: any) => (
                                         <div
                                             key={template.id}
                                             onClick={() => handleUpdateTemplate(template.id)}

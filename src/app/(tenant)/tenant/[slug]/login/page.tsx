@@ -1,27 +1,19 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import React, { useState } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { checkAndLogGuest, requestGuestAccessAction } from "@/app/actions/tenant-auth";
+import { requestAccess } from "@/lib/firestore";
 import { Heart, Lock, Clock, Sparkles } from "lucide-react";
 
 export default function TenantLoginPage() {
-    const params = useParams();
-    const slug = params?.slug as string;
-    const router = useRouter();
-
     const [name, setName] = useState("");
     const [phone, setPhone] = useState("");
     const [error, setError] = useState("");
     const [status, setStatus] = useState<"idle" | "loading" | "requested">("idle");
-
-    useEffect(() => {
-        // Clear session when visiting login page (effectively logout)
-        // And notify components (Navbar) that session has changed
-        localStorage.removeItem(`guest_session_${slug}`);
-        window.dispatchEvent(new Event("guest_session_changed"));
-    }, [slug]);
+    const { loginWithPhoneSimple } = useAuth(); // or if we adapt template 1 login, we use it
+    const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -35,28 +27,16 @@ export default function TenantLoginPage() {
         setStatus("loading");
 
         try {
-            // Use Server Action to bypass Firestore Rules
-            const result = await checkAndLogGuest(name, phone, slug);
+            // 1. Try to login
+            const success = await loginWithPhoneSimple(name, phone);
 
-            if (result.success && result.user) {
-                // Login Successful
-                const sessionData = {
-                    name: result.user.name,
-                    phone: result.user.phone,
-                    role: result.user.role,
-                    loginAt: new Date().toISOString()
-                };
-
-                localStorage.setItem(`guest_session_${slug}`, JSON.stringify(sessionData));
-                window.dispatchEvent(new Event("guest_session_changed")); // Notify Navbar
-                router.push(`/tenant/${slug}`);
-            } else if (result.status === 'needs_request') {
-                // Request Access Action
-                await requestGuestAccessAction(name, phone);
-                setStatus("requested");
+            if (success) {
+                // The RouteGuard will automatically redirect back to the /[slug] page 
+                // once the user state updates. Wait slightly or trigger hard redirect.
             } else {
-                setError(result.error || "Access denied.");
-                setStatus("idle");
+                // 2. If not allowed, automatically request access
+                await requestAccess(name, phone);
+                setStatus("requested");
             }
         } catch (err) {
             console.error(err);

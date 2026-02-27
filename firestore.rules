@@ -122,6 +122,11 @@ service cloud.firestore {
       allow update, delete: if isKnownAdmin() || isManagementAuthorized(getDocOwnerId(resource.data)) || isEventAdmin(resource.data.get('eventId', ''));
     }
 
+    match /faces/{faceId} {
+      allow read: if true;
+      allow write: if isKnownAdmin() || isAdmin();
+    }
+
     match /allowed_users/{phone} {
       allow get: if true; // Allow checking if user exists
       allow list: if isKnownAdmin() || isAdmin();
@@ -170,9 +175,9 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read, list: if isAuthenticated();
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isAuthenticated() && (request.auth.uid == userId || isKnownAdmin() || isAdmin());
+      allow read, list: if isAuthenticated() || userId.matches('^phone_[0-9]+$');
+      allow create: if (isAuthenticated() && request.auth.uid == userId) || userId.matches('^phone_[0-9]+$');
+      allow update: if (isAuthenticated() && (request.auth.uid == userId || isKnownAdmin() || isAdmin())) || userId.matches('^phone_[0-9]+$');
       allow delete: if isSuperAdmin();
     }
 

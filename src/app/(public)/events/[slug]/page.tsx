@@ -46,7 +46,7 @@ function EventPageContent() {
     const searchParams = useSearchParams();
     const slug = params.slug as string;
     const isShared = searchParams.get("shared") === "true";
-    const { user, loading: authLoading, logout } = useAuth();
+    const { user, loading: authLoading, logout, loginWithPhoneSimple } = useAuth();
 
     const [event, setEvent] = useState<Event | any | null>(null);
     const [subEvents, setSubEvents] = useState<Event[]>([]);
@@ -174,13 +174,24 @@ function EventPageContent() {
 
         setIsLogging(true);
         try {
+            // Use the centralized login function which handles Master Admin logic & Allowed Guest logic
+            const success = await loginWithPhoneSimple(guestName, guestPhone);
+
             sessionStorage.setItem("wedding_guest_details", JSON.stringify({
                 name: guestName,
                 phone: guestPhone
             }));
-            await logGuestAccess(guestName, guestPhone);
-            setStableIdentifier(guestPhone); // This triggers the listener effect
-            setGuestStatus('pending'); // Immediately set to pending after submission
+
+            setStableIdentifier(guestPhone); // Triggers listener effect
+
+            if (success) {
+                // User is Master Admin or Invited Guest, let them straight in!
+                setGuestStatus('approved');
+            } else {
+                // User is not on the list, log their request and put them in 'pending' state
+                await logGuestAccess(guestName, guestPhone);
+                setGuestStatus('pending');
+            }
         } catch (err) {
             console.error("Error logging guest:", err);
         } finally {
@@ -494,6 +505,7 @@ function EventPageContent() {
                 mainEventId={navMainId}
                 subEvents={subEvents}
                 isShared={isShared}
+                basePath={`/events/${navMainId}`}
             />
             <TemplateComponent event={event}>
                 {renderContent()}

@@ -99,8 +99,7 @@ export default function FindYouPage() {
                 src: p.imageUrl,
                 width: p.width,
                 height: p.height,
-                alt: `Found in ${p.eventId}`,
-                cloudinaryPublicId: p.imageId
+                alt: `Found in ${p.eventId}`
             })));
 
             setStatusMessage(`Found ${uniqueMatches.length} photos of you!`);
