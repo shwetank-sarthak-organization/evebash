@@ -1,0 +1,62 @@
+
+> wedding-app@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.101:3000
+- Environments: .env.local
+- Experiments (use with caution):
+  · serverActions
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 760ms
+ GET /dashboard 200 in 1997ms (compile: 1558ms, proxy.ts: 1798µs, render: 437ms)
+ GET /events/check_template-510e?shared=true 200 in 1998ms (compile: 1835ms, proxy.ts: 2ms, render: 161ms)
+ GET /events/test_event_1-c5b5/find-you 200 in 2.2s (compile: 2.0s, proxy.ts: 27ms, render: 151ms)
+ GET /events/test_event_1-c5b5 200 in 21ms (compile: 7ms, proxy.ts: 4ms, render: 11ms)
+⨯ upstream image response failed for https://images.unsplash.com/photo-1549413187-0521e7cebcba?q=80&w=2070&auto=format&fit=crop 404
+ GET /events/test_event_1-c5b5/events/haldi--bfbf 404 in 281ms (compile: 273ms, proxy.ts: 1333µs, render: 6ms)
+ GET /events/test_event_1-c5b5/events/haldi--bfbf 404 in 32ms (compile: 1972µs, proxy.ts: 1024µs, render: 29ms)
+ GET /events/test_event_1-c5b5/events/haldi--bfbf 404 in 14ms (compile: 1787µs, proxy.ts: 1244µs, render: 11ms)
+ GET /events/test_event_1-c5b5 200 in 29ms (compile: 5ms, proxy.ts: 1077µs, render: 23ms)
+⨯ upstream image response failed for https://images.unsplash.com/photo-1549413187-0521e7cebcba?q=80&w=2070&auto=format&fit=crop 404
+ GET /events/test_event_1-c5b5/events/mehandi-727f 404 in 8ms (compile: 1914µs, proxy.ts: 1203µs, render: 5ms)
+ GET /events/test_event_1-c5b5/events/mehandi-727f 404 in 12ms (compile: 1377µs, proxy.ts: 897µs, render: 10ms)
+ GET /events/test_event_1-c5b5 200 in 57ms (compile: 3ms, proxy.ts: 1087µs, render: 53ms)
+⨯ upstream image response failed for https://images.unsplash.com/photo-1549413187-0521e7cebcba?q=80&w=2070&auto=format&fit=crop 404
+ GET /events/test_event_1-c5b5/find-you 200 in 15ms (compile: 7ms, proxy.ts: 1219µs, render: 7ms)
+⨯ upstream image response failed for https://images.unsplash.com/photo-1549413187-0521e7cebcba?q=80&w=2070&auto=format&fit=crop 404
+ GET /events/test_event_1-c5b5 200 in 14ms (compile: 5ms, proxy.ts: 1464µs, render: 7ms)
+⨯ upstream image response failed for https://images.unsplash.com/photo-1549413187-0521e7cebcba?q=80&w=2070&auto=format&fit=crop 404
+ GET /events/haldi--bfbf 200 in 11ms (compile: 3ms, proxy.ts: 1344µs, render: 7ms)
+ GET /events/test_event_1-c5b5/find-you 200 in 15ms (compile: 8ms, proxy.ts: 1039µs, render: 6ms)
+[Server Action] Received upload request. Payload size: 0.57 MB
+[Server Action] Cloudinary upload success: wed_album/hcjPJJ0ndcRVP1uEq7vdHKL36D52/haldi--bfbf/f05x4kmefbhurahfrl0r
+ POST /dashboard 200 in 4.8s (compile: 7ms, proxy.ts: 5ms, render: 4.8s)
+[Server Action] Received upload request. Payload size: 1.12 MB
+[Server Action] Cloudinary upload success: wed_album/hcjPJJ0ndcRVP1uEq7vdHKL36D52/haldi--bfbf/nq7pxvjwrlezysokpfsg
+ POST /dashboard 200 in 2.0s (compile: 5ms, proxy.ts: 2ms, render: 2.0s)
+[Server Action] Received upload request. Payload size: 0.82 MB
+[Server Action] Cloudinary upload success: wed_album/hcjPJJ0ndcRVP1uEq7vdHKL36D52/haldi--bfbf/nmznwvebepl7slcupolo
+ POST /dashboard 200 in 1620ms (compile: 4ms, proxy.ts: 1589µs, render: 1614ms)
+[Server Action] Received upload request. Payload size: 1.18 MB
+[Server Action] Cloudinary upload success: wed_album/hcjPJJ0ndcRVP1uEq7vdHKL36D52/haldi--bfbf/z5evmagkpve4qk7p4yss
+ POST /dashboard 200 in 2.2s (compile: 4ms, proxy.ts: 1889µs, render: 2.2s)
+[Server Action] Received upload request. Payload size: 1.05 MB
+[Server Action] Cloudinary upload success: wed_album/hcjPJJ0ndcRVP1uEq7vdHKL36D52/haldi--bfbf/yonusv18iewls0ehnnzl
+ POST /dashboard 200 in 1861ms (compile: 3ms, proxy.ts: 1693µs, render: 1856ms)
+[Server Action] Received upload request. Payload size: 1.21 MB
+[Server Action] Cloudinary upload success: wed_album/hcjPJJ0ndcRVP1uEq7vdHKL36D52/haldi--bfbf/lh2btedkaksppt1akt4b
+ POST /dashboard 200 in 2.0s (compile: 4ms, proxy.ts: 1652µs, render: 2.0s)
+[Server Action] Received upload request. Payload size: 0.77 MB
+[Server Action] Cloudinary upload success: wed_album/hcjPJJ0ndcRVP1uEq7vdHKL36D52/haldi--bfbf/ecegdqlxfxoob54lpru4
+ POST /dashboard 200 in 1688ms (compile: 4ms, proxy.ts: 3ms, render: 1681ms)
+[Server Action] Received upload request. Payload size: 1.42 MB
+[Server Action] Cloudinary upload success: wed_album/hcjPJJ0ndcRVP1uEq7vdHKL36D52/haldi--bfbf/adlgrfpsm7np2irdj087
+ POST /dashboard 200 in 3.9s (compile: 4ms, proxy.ts: 3ms, render: 3.9s)
+✓ Compiled in 233ms
+cpu backend was already registered. Reusing existing backend factory.
+Platform node has already been set. Overwriting the platform with [object Object].
+ GET /events/test_event_1-c5b5/find-you 200 in 342ms (compile: 83ms, proxy.ts: 10ms, render: 249ms)

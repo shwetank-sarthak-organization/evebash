@@ -1,7 +1,8 @@
 "use client";
 
+import { useAuth } from "@/context/AuthContext";
 import { useRouter, usePathname, useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 interface TenantGuardProps {
     children: React.ReactNode;
@@ -9,6 +10,7 @@ interface TenantGuardProps {
 }
 
 export default function TenantGuard({ children, slug: propSlug }: TenantGuardProps) {
+    const { user, loading } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
     const params = useParams();
@@ -16,56 +18,31 @@ export default function TenantGuard({ children, slug: propSlug }: TenantGuardPro
     // Prefer prop, fallback to param
     const slug = propSlug || (params?.slug as string);
 
-    const [isAuthorized, setIsAuthorized] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-
     useEffect(() => {
-        // Skip check if we are ALREADY on the login page
-        // pathname example: /tenant/demo-event/login
-        if (pathname?.endsWith("/login")) {
-            setIsAuthorized(true);
-            setIsLoading(false);
-            return;
-        }
+        if (!loading) {
+            const isLoginPage = pathname?.endsWith("/login");
+            const isSeedPage = pathname?.endsWith("/seed"); // Just in case we need it
 
-        const storedSession = localStorage.getItem(`guest_session_${slug}`);
-
-        if (storedSession) {
-            try {
-                const session = JSON.parse(storedSession);
-                if (session && session.phone) {
-                    setIsAuthorized(true);
-                } else {
-                    // Invalid session structure
-                    localStorage.removeItem(`guest_session_${slug}`);
-                    router.push(`/tenant/${slug}/login`);
-                }
-            } catch (e) {
-                // Formatting error
-                localStorage.removeItem(`guest_session_${slug}`);
+            // Allow access to login and seed pages without user
+            if (!user && !isLoginPage && !isSeedPage) {
                 router.push(`/tenant/${slug}/login`);
+            } else if (user && isLoginPage) {
+                router.push(`/tenant/${slug}`);
             }
-        } else {
-            // No session found
-            router.push(`/tenant/${slug}/login`);
         }
+    }, [user, loading, pathname, router, slug]);
 
-        setIsLoading(false);
-    }, [slug, router, pathname]);
-
-    if (isLoading) {
+    if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-[#FDFBF7] text-[#800000]">
+            <div className="min-h-screen flex items-center justify-center bg-stone-50 text-stone-800">
                 <div className="text-xl font-serif animate-pulse">Checking Access...</div>
             </div>
         );
     }
 
-    // Don't render children if not authorized (and not on login page)
-    // The router.push above handles the redirect, but return null avoids flashing
-    if (!isAuthorized && !pathname?.endsWith("/login")) {
-        return null;
-    }
+    // Optional: Hide Navbar on login page if we want? 
+    // For now we just return children as is. 
+    // Note: If we are on /login and have a navbar around us in layout, it will show.
 
     return <>{children}</>;
 }

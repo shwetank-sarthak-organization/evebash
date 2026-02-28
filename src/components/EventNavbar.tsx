@@ -7,18 +7,21 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, ChevronRight, User } from "lucide-react";
 import { Event } from "@/lib/firestore";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 interface EventNavbarProps {
     mainEventTitle: string;
     mainEventId: string;
     subEvents: Event[];
     isShared?: boolean;
+    basePath: string;
 }
 
-export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared }: EventNavbarProps) {
+export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, basePath }: EventNavbarProps) {
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const pathname = usePathname();
+    const { user } = useAuth();
 
     useEffect(() => {
         const handleScroll = () => {
@@ -30,6 +33,19 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared }
 
     const sharedQuery = isShared ? "?shared=true" : "";
 
+    // Generate core links
+    const navLinks = [
+        ...subEvents.map(sub => ({
+            name: sub.title || sub.id,
+            href: `${basePath}/events/${sub.id}${sharedQuery}`
+        })),
+        { name: "Find You", href: `${basePath}/find-you` }
+    ];
+
+    if (user?.role === "admin") {
+        navLinks.push({ name: "Admin", href: `${basePath}/admin` });
+    }
+
     return (
         <>
             <motion.nav
@@ -38,71 +54,51 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared }
                 className={cn(
                     "fixed top-0 inset-x-0 z-50 transition-all duration-300 px-6 py-4",
                     scrolled
-                        ? "bg-white/80 backdrop-blur-md shadow-sm py-3"
+                        ? "bg-white/80 backdrop-blur-md shadow-sm py-3 border-b border-stone-100"
                         : "bg-transparent py-5"
                 )}
             >
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     {/* Left: Main Event Title */}
                     <Link
-                        href={`/events/${mainEventId}${sharedQuery}`}
+                        href={`${basePath}${sharedQuery}`}
                         className={cn(
                             "text-2xl font-serif font-bold italic tracking-tight transition-colors z-50 relative",
-                            scrolled ? "text-slate-900" : "text-slate-900 mix-blend-difference text-white"
+                            scrolled ? "text-slate-900" : "text-white mix-blend-difference"
                         )}
                     >
                         {mainEventTitle}
                     </Link>
 
                     {/* Right: Desktop Navigation */}
-                    <div className="hidden md:flex items-center space-x-1">
-                        {subEvents.map((sub) => {
-                            const isActive = pathname === `/events/${sub.id}`;
+                    <div className="hidden md:flex items-center space-x-2">
+                        {navLinks.map((link) => {
+                            // Strip query params for active check
+                            const cleanPathname = pathname.split('?')[0];
+                            const linkPath = link.href.split('?')[0];
+                            const isActive = cleanPathname === linkPath;
+
                             return (
                                 <Link
-                                    key={sub.id}
-                                    href={`/events/${sub.id}${sharedQuery}`}
+                                    key={link.name}
+                                    href={link.href}
                                     className={cn(
-                                        "px-4 py-2 rounded-full text-sm font-bold uppercase tracking-widest transition-all",
+                                        "px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all",
                                         isActive
-                                            ? "bg-royal-gold text-white shadow-md"
+                                            ? "bg-slate-900 text-white shadow-md"
                                             : scrolled
                                                 ? "text-slate-600 hover:bg-slate-100"
                                                 : "text-white/80 hover:bg-white/10 hover:text-white"
                                     )}
                                 >
-                                    {sub.title}
+                                    {link.name}
                                 </Link>
                             );
                         })}
-
-                        {/* Profile Icon (Desktop) - Links to Profile Page */}
-                        <Link
-                            href="/profile"
-                            className={cn(
-                                "ml-2 p-2 rounded-full transition-all",
-                                scrolled
-                                    ? "text-slate-600 hover:bg-slate-100"
-                                    : "text-white/80 hover:bg-white/10 hover:text-white"
-                            )}
-                        >
-                            <User className="w-5 h-5" />
-                        </Link>
                     </div>
 
                     {/* Mobile Menu Toggle */}
                     <div className="md:hidden z-50 relative flex items-center gap-2">
-                        {/* Profile Icon (Mobile) - Links to Profile Page */}
-                        <Link
-                            href="/profile"
-                            className={cn(
-                                "p-2 rounded-full transition-transform active:scale-95",
-                                scrolled ? "text-slate-900" : "text-white mix-blend-difference"
-                            )}
-                        >
-                            <User className="w-6 h-6" />
-                        </Link>
-
                         <button
                             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                             className="p-2 rounded-full active:scale-95 transition-transform"
@@ -131,33 +127,39 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared }
                             <div className="pb-6 border-b border-stone-100">
                                 <p className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-4">Main Event</p>
                                 <Link
-                                    href={`/events/${mainEventId}${sharedQuery}`}
+                                    href={`${basePath}${sharedQuery}`}
                                     onClick={() => setMobileMenuOpen(false)}
                                     className="text-3xl font-serif font-bold italic text-slate-900 flex items-center justify-between group"
                                 >
                                     <span>{mainEventTitle}</span>
-                                    <ChevronRight className="text-stone-300 group-hover:text-royal-gold transition-colors" />
+                                    <ChevronRight className="text-stone-300 group-hover:text-slate-900 transition-colors" />
                                 </Link>
                             </div>
 
                             <div>
-                                <p className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-6">Galleries</p>
+                                <p className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-6">Menu</p>
                                 <div className="space-y-4">
-                                    {subEvents.map((sub) => (
-                                        <Link
-                                            key={sub.id}
-                                            href={`/events/${sub.id}${sharedQuery}`}
-                                            onClick={() => setMobileMenuOpen(false)}
-                                            className={cn(
-                                                "block p-4 rounded-2xl text-lg font-bold transition-all border border-transparent",
-                                                pathname === `/events/${sub.id}`
-                                                    ? "bg-stone-50 border-royal-gold/20 text-royal-gold shadow-sm"
-                                                    : "hover:bg-stone-50 text-slate-600"
-                                            )}
-                                        >
-                                            {sub.title}
-                                        </Link>
-                                    ))}
+                                    {navLinks.map((link) => {
+                                        const cleanPathname = pathname.split('?')[0];
+                                        const linkPath = link.href.split('?')[0];
+                                        const isActive = cleanPathname === linkPath;
+
+                                        return (
+                                            <Link
+                                                key={link.name}
+                                                href={link.href}
+                                                onClick={() => setMobileMenuOpen(false)}
+                                                className={cn(
+                                                    "block p-4 rounded-2xl text-lg font-bold transition-all border border-transparent",
+                                                    isActive
+                                                        ? "bg-slate-900 text-white shadow-sm"
+                                                        : "hover:bg-stone-50 text-slate-600"
+                                                )}
+                                            >
+                                                {link.name}
+                                            </Link>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
