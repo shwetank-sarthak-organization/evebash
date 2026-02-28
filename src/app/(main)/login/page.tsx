@@ -204,7 +204,7 @@ function LoginContent() {
                             }
                         }}
                         disabled={status === "loading"}
-                        className="text-xs text-slate-300 hover:text-slate-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="text-xs font-bold text-slate-600 hover:text-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider"
                     >
                         {status === "loading" ? "Connecting..." : "Admin Login"}
                     </button>

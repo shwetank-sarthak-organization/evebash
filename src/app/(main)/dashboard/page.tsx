@@ -125,24 +125,66 @@ function DashboardContent() {
         }
     }, [user, loading, router]);
 
-    // Auto-select event from query params
+    // URL State Synchronization
     useEffect(() => {
         const viewParam = searchParams.get("view");
+        const levelParam = searchParams.get("level");
+        const modeParam = searchParams.get("mode");
         const eventIdParam = searchParams.get("eventId");
 
-        if (viewParam === "manage") {
-            setView("manage");
-            if (eventIdParam && userEvents.length > 0) {
-                const targetEvent = userEvents.find(e => e.id === eventIdParam);
-                if (targetEvent) {
+        // 1. View State
+        if (viewParam === "manage" || viewParam === "permissions") {
+            setView(viewParam as any);
+        } else {
+            setView("main");
+        }
+
+        // 2. Manage Level
+        if (levelParam === "galleries" || levelParam === "photos") {
+            setManageLevel(levelParam as any);
+        } else {
+            setManageLevel("events");
+        }
+
+        // 3. Manage Mode
+        if (modeParam === "add-event" || modeParam === "add-image") {
+            setManageMode(modeParam as any);
+        } else {
+            setManageMode("list");
+        }
+
+        // 4. Selected Event (for generic ID lookups)
+        if (eventIdParam && userEvents.length > 0) {
+            // Find in loaded events (may need to be robust if events aren't loaded yet)
+            // We'll trust fetchUserEvents to handle data loading, this just sets the ID.
+            const targetEvent = userEvents.find(e => e.id === eventIdParam);
+            if (targetEvent) {
+                if (levelParam === "galleries") {
                     setSelectedMainEvent(targetEvent);
-                    setManageLevel("photos");
+                } else if (levelParam === "photos") {
                     setSelectedEventId(targetEvent.id);
                     setSelectedEventName(targetEvent.title);
+                    // If it's a sub-event, we also need to set the Main Event parent
+                    if (targetEvent.parentId) {
+                        const parent = userEvents.find(e => e.id === targetEvent.parentId);
+                        if (parent) setSelectedMainEvent(parent);
+                    }
                 }
+            } else {
+                // If event events aren't loaded yet, we might need to rely on the ID alone 
+                // and let the fetch logic handle it, but for now we set the generic IDs
+                if (levelParam === "galleries") {
+                    // We need the object for some UI, but ID is enough for fetching
+                    // We'll optimistically set what we can
+                }
+                setSelectedEventId(eventIdParam);
             }
+        } else if (!eventIdParam) {
+            setSelectedEventId("");
+            setSelectedMainEvent(null);
         }
-    }, [searchParams, userEvents.length]);
+    }, [searchParams, userEvents]);
+
 
     useEffect(() => {
         if (user && user.uid && view === "manage") {
@@ -498,7 +540,13 @@ function DashboardContent() {
             setEventName("");
             setSelectedTemplate("hero"); // Reset to default
             fetchUserEvents();
-            setTimeout(() => setManageMode("list"), 1500);
+
+            // Navigate to the list view of the current level
+            setTimeout(() => {
+                const params = new URLSearchParams(searchParams);
+                params.set("mode", "list");
+                router.push(`/dashboard?${params.toString()}`);
+            }, 1500);
         } catch (err) {
             console.error(err);
             setStatus("error");
@@ -595,9 +643,17 @@ function DashboardContent() {
     };
 
     const openUploadForEvent = (eventId: string, title: string) => {
-        setSelectedEventId(eventId);
-        setSelectedEventName(title);
-        setManageMode("add-image");
+        const params = new URLSearchParams(searchParams);
+        params.set("view", "manage");
+        // Maintain current level if valid, otherwise assume photos for this specific action context? 
+        // Actually, adding images usually implies looking at photos.
+        params.set("level", "photos");
+        params.set("mode", "add-image");
+        params.set("eventId", eventId);
+
+        router.push(`/dashboard?${params.toString()}`);
+
+        // Reset UI transients
         setStatus("idle");
         setMessage("");
     };
@@ -715,19 +771,19 @@ function DashboardContent() {
             <DashboardHeader
                 user={user}
                 breadcrumbs={[
-                    { label: "Dashboard", onClick: view !== "main" ? () => setView("main") : undefined },
+                    { label: "Dashboard", onClick: view !== "main" ? () => router.push("/dashboard") : undefined },
                     ...(view === "manage" ? [
                         {
                             label: "Manage Gallery",
                             onClick: manageLevel !== "events" || manageMode !== "list"
-                                ? () => { setView("manage"); setManageLevel("events"); setManageMode("list"); }
+                                ? () => router.push("/dashboard?view=manage&level=events")
                                 : undefined
                         },
                         ...(manageLevel === "galleries" || (manageLevel === "photos" && selectedMainEvent) ? [
                             {
                                 label: selectedMainEvent?.title || "Event",
                                 onClick: manageLevel === "photos"
-                                    ? () => { setManageLevel("galleries"); setSelectedEventId(""); setManageMode("list"); }
+                                    ? () => router.push(`/dashboard?view=manage&level=galleries&eventId=${selectedMainEvent?.id}`)
                                     : undefined
                             }
                         ] : []),
@@ -744,19 +800,23 @@ function DashboardContent() {
                 ]}
                 onBack={() => {
                     if (manageMode !== "list") {
-                        setManageMode("list");
+                        // Go back to the list view of the current level
+                        const params = new URLSearchParams(searchParams);
+                        params.delete("mode"); // Remove 'add-event' or 'add-image'
+                        router.push(`/dashboard?${params.toString()}`);
                     } else if (view === "manage") {
                         if (manageLevel === "photos") {
-                            setManageLevel("galleries");
-                            setSelectedEventId("");
+                            // Back to Galleries list
+                            router.push(`/dashboard?view=manage&level=galleries&eventId=${selectedMainEvent?.id}`);
                         } else if (manageLevel === "galleries") {
-                            setManageLevel("events");
-                            setSelectedMainEvent(null);
+                            // Back to Event list
+                            router.push("/dashboard?view=manage&level=events");
                         } else {
-                            setView("main");
+                            // Back to Main Dashboard
+                            router.push("/dashboard");
                         }
                     } else if (view === "permissions") {
-                        setView("main");
+                        router.push("/dashboard");
                     } else {
                         router.push("/");
                     }
@@ -800,7 +860,7 @@ function DashboardContent() {
                                     title="Manage Gallery"
                                     description="Create events and upload photos to your galleries."
                                     icon={Settings}
-                                    onClick={() => { setView("manage"); setManageMode("list"); }}
+                                    onClick={() => router.push("/dashboard?view=manage&level=events")}
                                     color="bg-purple-50 text-purple-600"
                                     hoverBorder="hover:border-purple-200"
                                     actionTitle="Manage your events and photos"
@@ -809,7 +869,7 @@ function DashboardContent() {
                                     title="Permissions"
                                     description="Control who can access and view your private galleries."
                                     icon={ShieldCheck}
-                                    onClick={() => setView("permissions")}
+                                    onClick={() => router.push("/dashboard?view=permissions")}
                                     color="bg-emerald-50 text-emerald-600"
                                     hoverBorder="hover:border-emerald-200"
                                     actionTitle="Manage user access and roles"
@@ -858,7 +918,17 @@ function DashboardContent() {
                                 <div className="flex space-x-3">
                                     <Tooltip text={`Create new ${manageLevel === "events" ? "event" : "gallery"}`}>
                                         <button
-                                            onClick={() => { setManageMode("add-event"); setStatus("idle"); setMessage(""); setSelectedTemplate("hero"); }}
+                                            onClick={() => {
+                                                // Preserve existing params but add mode=add-event
+                                                const params = new URLSearchParams(searchParams);
+                                                params.set("mode", "add-event");
+                                                router.push(`/dashboard?${params.toString()}`);
+
+                                                // Reset generic UI state
+                                                setStatus("idle");
+                                                setMessage("");
+                                                setSelectedTemplate("hero");
+                                            }}
                                             className="flex items-center space-x-2 px-6 py-3 bg-slate-900 text-white rounded-full text-sm font-bold hover:bg-slate-800 transition-all shadow-lg hover:shadow-xl active:scale-95"
                                         >
                                             <Plus className="w-4 h-4" />
@@ -912,13 +982,11 @@ function DashboardContent() {
                                                     whileHover={{ y: -5 }}
                                                     onClick={() => {
                                                         if (manageLevel === "events") {
-                                                            // For root level, we always start by showing chapters
-                                                            // or letting them jump to photos if they want.
-                                                            setSelectedMainEvent(evt);
-                                                            setManageLevel("galleries");
+                                                            // Navigate to Galleries View for this Event
+                                                            router.push(`/dashboard?view=manage&level=galleries&eventId=${evt.id}`);
                                                         } else {
-                                                            openUploadForEvent(evt.id, evt.title);
-                                                            setManageLevel("photos");
+                                                            // Navigate to Photos View for this Sub-Event/Gallery
+                                                            router.push(`/dashboard?view=manage&level=photos&eventId=${evt.id}`);
                                                         }
                                                     }}
                                                     className="group relative bg-white aspect-[4/5] rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all duration-500 border border-stone-100 cursor-pointer"
@@ -967,7 +1035,6 @@ function DashboardContent() {
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
                                                                             openUploadForEvent(evt.id, evt.title);
-                                                                            setManageLevel("photos");
                                                                             setActiveMenu(null);
                                                                         }}
                                                                         className="w-full px-5 py-3 text-left text-sm font-bold flex items-center space-x-3 hover:bg-stone-50 transition-colors border-t border-stone-50"
@@ -1079,7 +1146,11 @@ function DashboardContent() {
                                         <h3 className="text-2xl font-bold italic tracking-tight">New Event</h3>
                                         <Tooltip text="Back to list">
                                             <button
-                                                onClick={() => setManageMode("list")}
+                                                onClick={() => {
+                                                    const params = new URLSearchParams(searchParams);
+                                                    params.set("mode", "list");
+                                                    router.push(`/dashboard?${params.toString()}`);
+                                                }}
                                                 className="text-stone-400 hover:text-stone-600 transition-colors"
                                             >
                                                 <ChevronLeft className="w-6 h-6" />
@@ -1173,28 +1244,24 @@ function DashboardContent() {
                                         </div>
                                         <div className="flex items-center space-x-3">
                                             {/* View Toggle */}
-                                            <div className="flex bg-stone-100 p-1.5 rounded-2xl mr-4 shadow-inner border border-stone-200">
-                                                <Tooltip text="View as Thumbnails">
+                                            <div className="bg-stone-50 p-1 rounded-2xl flex items-center">
+                                                <Tooltip text="Grid View">
                                                     <button
                                                         onClick={() => setGalleryViewMode("grid")}
                                                         className={cn(
-                                                            "p-2 rounded-xl transition-all active:scale-95",
-                                                            galleryViewMode === "grid"
-                                                                ? "bg-white text-slate-900 shadow-md border border-stone-100"
-                                                                : "text-stone-400 hover:text-stone-600"
+                                                            "p-2 rounded-xl transition-all",
+                                                            galleryViewMode === "grid" ? "bg-white shadow-sm text-slate-900" : "text-stone-400 hover:text-stone-600"
                                                         )}
                                                     >
                                                         <LayoutGrid className="w-5 h-5" />
                                                     </button>
                                                 </Tooltip>
-                                                <Tooltip text="View as List">
+                                                <Tooltip text="List View">
                                                     <button
                                                         onClick={() => setGalleryViewMode("list")}
                                                         className={cn(
-                                                            "p-2 rounded-xl transition-all active:scale-95",
-                                                            galleryViewMode === "list"
-                                                                ? "bg-white text-slate-900 shadow-md border border-stone-100"
-                                                                : "text-stone-400 hover:text-stone-600"
+                                                            "p-2 rounded-xl transition-all",
+                                                            galleryViewMode === "list" ? "bg-white shadow-sm text-slate-900" : "text-stone-400 hover:text-stone-600"
                                                         )}
                                                     >
                                                         <List className="w-5 h-5" />
@@ -1204,7 +1271,11 @@ function DashboardContent() {
 
                                             <Tooltip text="Back to galleries">
                                                 <button
-                                                    onClick={() => setManageMode("list")}
+                                                    onClick={() => {
+                                                        const params = new URLSearchParams(searchParams);
+                                                        params.set("mode", "list");
+                                                        router.push(`/dashboard?${params.toString()}`);
+                                                    }}
                                                     className="p-3 bg-stone-50 hover:bg-stone-100 text-stone-400 hover:text-stone-600 rounded-2xl transition-all active:scale-95"
                                                 >
                                                     <ChevronLeft className="w-6 h-6" />
