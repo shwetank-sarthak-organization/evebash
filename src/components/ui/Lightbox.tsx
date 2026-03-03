@@ -23,9 +23,10 @@ interface LightboxProps {
     onNext?: () => void;
     onPrev?: () => void;
     disableDownload?: boolean;
+    className?: string;
 }
 
-export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownload = false }: LightboxProps) {
+export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownload = false, className }: LightboxProps) {
     const { user } = useAuth();
     const [likes, setLikes] = useState<any[]>([]);
     const [comments, setComments] = useState<any[]>([]);
@@ -169,7 +170,10 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md p-0 md:p-4 overflow-hidden"
+                    className={cn(
+                        "fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md p-0 md:p-4 overflow-hidden",
+                        className
+                    )}
                 >
                     {/* Background overlay */}
                     <div className="absolute inset-0 z-0 cursor-zoom-out" onClick={onClose} />
@@ -232,7 +236,7 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 1.05 }}
                                 transition={{ duration: 0.3 }}
-                                className="relative max-w-full max-h-[85vh] flex items-center justify-center pointer-events-none"
+                                className="relative max-w-full max-h-[75vh] flex items-center justify-center pointer-events-none mb-16"
                             >
                                 {useCloudinary ? (
                                     <CldImage
@@ -241,19 +245,19 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                         height={photo.height || 1200}
                                         alt={photo.alt || "Event Photo"}
                                         preserveTransformations
-                                        className="max-w-[95vw] md:max-w-full max-h-[70vh] md:max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
+                                        className="max-w-[95vw] md:max-w-full max-h-[60vh] md:max-h-[75vh] w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
                                     />
                                 ) : (
                                     <img
                                         src={photo.src}
                                         alt={photo.alt || "Event Photo"}
-                                        className="max-w-[95vw] md:max-w-full max-h-[70vh] md:max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
+                                        className="max-w-[95vw] md:max-w-full max-h-[60vh] md:max-h-[75vh] w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
                                     />
                                 )}
                             </motion.div>
 
                             {/* MOBILE BOTTOM ACTIONS */}
-                            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center space-x-10 z-[60] md:hidden">
+                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center space-x-10 z-[60] md:hidden">
                                 <button
                                     onClick={handleToggleLike}
                                     className="flex flex-col items-center space-y-1"
@@ -272,35 +276,35 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                     <span className="text-[10px] font-bold text-white drop-shadow-md">{comments.length}</span>
                                 </button>
                             </div>
-                        </div>
 
-                        {/* DESKTOP SIDEBAR ACTIONS */}
-                        <div className="hidden md:flex flex-col items-center space-y-10 absolute right-12 top-1/2 -translate-y-1/2 z-[60]">
-                            <button
-                                onClick={handleToggleLike}
-                                className="group flex flex-col items-center space-y-2 pointer-events-auto"
-                            >
-                                <div className={cn(
-                                    "p-5 rounded-3xl border transition-all duration-400 ease-out transform group-active:scale-90",
-                                    isLiked ? "bg-rose-500/20 border-rose-500/50 text-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.3)]" : "bg-white/5 border-white/10 text-white/50 group-hover:bg-white/10 group-hover:text-white"
-                                )}>
-                                    <Heart size={28} className={cn(isLiked && "fill-current")} />
-                                </div>
-                                <span className="text-[10px] font-bold text-white/40 tracking-[0.2em]">{likes.length} LIKES</span>
-                            </button>
+                            {/* DESKTOP BOTTOM ACTIONS */}
+                            <div className="hidden md:flex flex-row items-center space-x-8 absolute bottom-6 left-1/2 -translate-x-1/2 z-[60]">
+                                <button
+                                    onClick={handleToggleLike}
+                                    className="group flex flex-col items-center space-y-2 pointer-events-auto"
+                                >
+                                    <div className={cn(
+                                        "p-4 rounded-3xl border transition-all duration-400 ease-out transform group-active:scale-90",
+                                        isLiked ? "bg-rose-500/20 border-rose-500/50 text-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.3)]" : "bg-white/5 border-white/10 text-white/50 group-hover:bg-white/10 group-hover:text-white backdrop-blur-sm"
+                                    )}>
+                                        <Heart size={24} className={cn(isLiked && "fill-current")} />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-white/60 tracking-[0.2em] drop-shadow-md">{likes.length} LIKES</span>
+                                </button>
 
-                            <button
-                                onClick={() => setShowComments(!showComments)}
-                                className="group flex flex-col items-center space-y-2 pointer-events-auto"
-                            >
-                                <div className={cn(
-                                    "p-5 rounded-3xl border transition-all duration-400 ease-out transform group-active:scale-90",
-                                    showComments ? "bg-royal-gold/20 border-royal-gold/50 text-royal-gold shadow-[0_0_20px_rgba(212,175,55,0.3)]" : "bg-white/5 border-white/10 text-white/50 group-hover:bg-white/10 group-hover:text-white"
-                                )}>
-                                    <MessageCircle size={28} />
-                                </div>
-                                <span className="text-[10px] font-bold text-white/40 tracking-[0.2em]">{comments.length} COMMENTS</span>
-                            </button>
+                                <button
+                                    onClick={() => setShowComments(!showComments)}
+                                    className="group flex flex-col items-center space-y-2 pointer-events-auto"
+                                >
+                                    <div className={cn(
+                                        "p-4 rounded-3xl border transition-all duration-400 ease-out transform group-active:scale-90",
+                                        showComments ? "bg-royal-gold/20 border-royal-gold/50 text-royal-gold shadow-[0_0_20px_rgba(212,175,55,0.3)]" : "bg-white/5 border-white/10 text-white/50 group-hover:bg-white/10 group-hover:text-white backdrop-blur-sm"
+                                    )}>
+                                        <MessageCircle size={24} />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-white/60 tracking-[0.2em] drop-shadow-md">{comments.length} COMMENTS</span>
+                                </button>
+                            </div>
                         </div>
 
                         {/* COMMENTS PANEL */}
