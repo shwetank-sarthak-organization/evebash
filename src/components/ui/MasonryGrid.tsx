@@ -20,11 +20,22 @@ interface MasonryGridProps {
     className?: string;
     eventSlug?: string;
     disableDownload?: boolean;
+    gridClassName?: string;
+    itemClassName?: string;
+    lightboxClassName?: string;
 }
 
 import { Lightbox } from "./Lightbox";
 
-export function MasonryGrid({ photos, className, eventSlug, disableDownload = false }: MasonryGridProps) {
+export function MasonryGrid({
+    photos,
+    className,
+    eventSlug,
+    disableDownload = false,
+    gridClassName,
+    itemClassName,
+    lightboxClassName
+}: MasonryGridProps) {
     // Track which photo is currently "downloading" to show a spinner
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
     // Track which photo is currently being viewed in the Lightbox
@@ -57,7 +68,7 @@ export function MasonryGrid({ photos, className, eventSlug, disableDownload = fa
 
     return (
         <div className={cn("container mx-auto px-4 py-8", className)}>
-            <div className="columns-1 sm:columns-2 md:columns-3 gap-2 space-y-2">
+            <div className={cn("columns-1 sm:columns-2 md:columns-3 gap-2 space-y-2", gridClassName)}>
                 {photos.map((photo, index) => {
                     const useCloudinary = !!photo.cloudinaryPublicId || !photo.src.startsWith("http");
                     const isDownloading = downloadingId === photo.id;
@@ -70,7 +81,10 @@ export function MasonryGrid({ photos, className, eventSlug, disableDownload = fa
                             viewport={{ once: true, margin: "-50px" }}
                             transition={{ duration: 0.6, delay: index * 0.05, ease: "easeOut" }}
                             onClick={() => setViewingPhoto(photo)}
-                            className="break-inside-avoid overflow-hidden group relative mb-2 shadow-sm hover:shadow-xl transition-shadow duration-500 bg-stone-200 cursor-pointer"
+                            className={cn(
+                                "break-inside-avoid overflow-hidden group relative mb-2 shadow-sm hover:shadow-xl transition-shadow duration-500 bg-stone-200 cursor-pointer",
+                                itemClassName
+                            )}
                         >
                             <div className="relative w-full">
                                 {useCloudinary ? (
@@ -133,6 +147,7 @@ export function MasonryGrid({ photos, className, eventSlug, disableDownload = fa
                 photo={viewingPhoto}
                 onClose={() => setViewingPhoto(null)}
                 disableDownload={disableDownload}
+                className={lightboxClassName}
                 onNext={() => {
                     const currentIndex = photos.findIndex(p => p.id === viewingPhoto?.id);
                     if (currentIndex !== -1) {

@@ -63,12 +63,24 @@ import { saveFaceToIndex } from "@/lib/firestore";
 
 import { Lightbox } from "@/components/ui/Lightbox";
 
-// Placeholder images for new events
 const PLACEHOLDER_IMAGES = [
     "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2071&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1465495910483-34a170a7bb00?q=80&w=2070&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1549413187-0521e7cebcba?q=80&w=2070&auto=format&fit=crop"
+];
+
+export const TEMPLATE_THEMES = [
+    { id: "hero", label: "Hero (Default)", desc: "Big impact cover image" },
+    { id: "classic", label: "Classic", desc: "Timeless and elegant" },
+    { id: "royal", label: "Royal", desc: "Luxurious serif typography" },
+    { id: "editorial", label: "Editorial", desc: "Magazine-style layout" },
+    { id: "bohemian", label: "Bohemian", desc: "Earthy and organic colors" },
+    { id: "polaroid", label: "Polaroid", desc: "Vintage photo frames" },
+    { id: "cinematic", label: "Cinematic", desc: "Immersive fullscreen video" },
+    { id: "museum", label: "Museum", desc: "Minimalist art gallery" },
+    { id: "scrapbook", label: "Scrapbook", desc: "Playful cut-out aesthetic" },
+    { id: "brutalist", label: "Brutalist", desc: "Raw, highly structured design" }
 ];
 
 function DashboardContent() {
@@ -117,7 +129,7 @@ function DashboardContent() {
     // Template Selection State
     const [showTemplateModal, setShowTemplateModal] = useState(false);
     const [templateTargetEvent, setTemplateTargetEvent] = useState<Event | null>(null);
-    const [selectedTemplate, setSelectedTemplate] = useState("template_1");
+    const [selectedTemplate, setSelectedTemplate] = useState("hero");
 
     useEffect(() => {
         // Allow Super Admins, Premium users, and anyone acting as a Delegated Collaborator
@@ -532,7 +544,7 @@ function DashboardContent() {
                 createdBy: user.uid, // Using secure UID for new events
                 type: isSubEvent ? "sub" : "main",
                 ...(isSubEvent && { parentId: selectedMainEvent.id }),
-                templateId: selectedTemplate // Use selected template
+                templateId: isSubEvent ? (selectedMainEvent.templateId || "hero") : selectedTemplate
             };
 
             await createEvent(newEvent);
@@ -755,26 +767,47 @@ function DashboardContent() {
     const handleUpdateTemplate = async (templateId: string) => {
         if (!templateTargetEvent) return;
 
-        // Optimistic Update
+        setStatus("uploading");
+        setMessage("Applying new theme...");
+
+        // Optimistic Update for current list
         const updatedEvents = userEvents.map(evt =>
             evt.id === templateTargetEvent.id ? { ...evt, templateId } : evt
         );
         setUserEvents(updatedEvents);
 
-        setShowTemplateModal(false);
-        setTemplateTargetEvent(null);
-        setMessage("Template updated! ✨");
-        setStatus("success");
-        setTimeout(() => setStatus("idle"), 2000);
-
         try {
+            // Update main event
             await updateEvent(templateTargetEvent.id, { templateId });
+
+            // If it's a main event, cascade the update to all its sub-events
+            if (templateTargetEvent.type === 'main') {
+                setMessage("Updating all galleries matching new theme...");
+                const subEvents = await getSubEvents(templateTargetEvent.id);
+
+                // Update all sub-events concurrently
+                const updatePromises = subEvents.map(subEvent =>
+                    updateEvent(subEvent.id, { templateId })
+                );
+
+                await Promise.all(updatePromises);
+                console.log(`[Dashboard] Cascaded template change '${templateId}' to ${subEvents.length} sub-events.`);
+            }
+
+            setShowTemplateModal(false);
+            setTemplateTargetEvent(null);
+            setMessage("Theme updated successfully! ✨");
+            setStatus("success");
+            setTimeout(() => setStatus("idle"), 2000);
+
+            // Refresh to ensure everything is synced
+            fetchUserEvents();
         } catch (error) {
             console.error("Failed to update template:", error);
             setMessage("Failed to save changes.");
             setStatus("error");
             // Revert
-            setUserEvents(userEvents);
+            fetchUserEvents(); // Re-fetch from server to guarantee correct state
         }
     };
 
@@ -1236,21 +1269,21 @@ function DashboardContent() {
                                             <div>
                                                 <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-500 mb-4 ml-1">Choose Style</label>
                                                 <div className="grid grid-cols-3 gap-4">
-                                                    {Array.from({ length: 10 }, (_, i) => `template_${i + 1}`).map((t, index) => (
+                                                    {TEMPLATE_THEMES.map((theme) => (
                                                         <div
-                                                            key={t}
-                                                            onClick={() => setSelectedTemplate(t)}
-                                                            className={`cursor-pointer border-2 rounded-xl p-3 text-center transition-all ${selectedTemplate === t ? 'border-royal-gold bg-royal-gold/5 ring-2 ring-royal-gold/20' : 'border-stone-100 hover:border-stone-300'}`}
+                                                            key={theme.id}
+                                                            onClick={() => setSelectedTemplate(theme.id)}
+                                                            className={`cursor-pointer border-2 rounded-xl p-3 text-center transition-all ${selectedTemplate === theme.id ? 'border-royal-gold bg-royal-gold/5 ring-2 ring-royal-gold/20' : 'border-stone-100 hover:border-stone-300'}`}
                                                         >
-                                                            <div className={`w-full aspect-square rounded-lg mb-2 shadow-sm ${t === 'template_1' ? 'bg-slate-900 border-2 border-slate-900' : 'bg-black border-2 border-black'}`}>
+                                                            <div className={`w-full aspect-square rounded-lg mb-2 shadow-sm ${theme.id === 'hero' ? 'bg-slate-900 border-2 border-slate-900' : 'bg-black border-2 border-black'}`}>
                                                                 {/* Mini preview text */}
                                                                 <div className="w-full h-full flex items-center justify-center">
-                                                                    <span className={`text-[10px] font-serif ${t === 'template_1' ? 'text-white' : 'text-white'}`}>
+                                                                    <span className={`text-[10px] font-serif ${theme.id === 'hero' ? 'text-white' : 'text-white'}`}>
                                                                         Aa
                                                                     </span>
                                                                 </div>
                                                             </div>
-                                                            <span className="text-xs font-bold capitalize text-slate-700">Template {index + 1}</span>
+                                                            <span className="text-xs font-bold capitalize text-slate-700">{theme.label}</span>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -2021,49 +2054,46 @@ function DashboardContent() {
                                 <p className="text-slate-500 mb-8 font-sans">Select a design template for this event.</p>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[60vh] overflow-y-auto pr-2">
-                                    {Array.from({ length: 10 }, (_, i) => ({
-                                        id: `template_${i + 1}`,
-                                        label: `TEMPLATE ${i + 1}`,
-                                        title: `Design ${i + 1}`,
-                                        desc: 'Customizable Style',
-                                        bgClass: i % 2 === 0 ? 'bg-slate-900' : 'bg-white',
-                                        textClass: i % 2 === 0 ? 'text-royal-gold' : 'text-black',
-                                        borderClass: i % 2 === 0 ? 'border-royal-gold' : 'border-black',
-                                        titleColor: i % 2 === 0 ? 'text-white' : 'text-black',
-                                        overlay: i % 2 === 0
-                                    })).map((template: any) => (
-                                        <div
-                                            key={template.id}
-                                            onClick={() => handleUpdateTemplate(template.id)}
-                                            className={`group cursor-pointer rounded-3xl overflow-hidden border-2 transition-all relative 
+                                    {TEMPLATE_THEMES.map((theme, i) => {
+                                        const template = {
+                                            id: theme.id,
+                                            label: `TEMPLATE ${i + 1}`,
+                                            title: theme.label,
+                                            desc: theme.desc,
+                                            bgClass: i % 2 === 0 ? 'bg-slate-900' : 'bg-white',
+                                            textClass: i % 2 === 0 ? 'text-royal-gold' : 'text-black',
+                                            borderClass: i % 2 === 0 ? 'border-royal-gold' : 'border-black',
+                                            titleColor: i % 2 === 0 ? 'text-white' : 'text-black',
+                                            overlay: i % 2 === 0
+                                        };
+                                        return (
+                                            <div
+                                                key={template.id}
+                                                onClick={() => handleUpdateTemplate(template.id)}
+                                                className={`group cursor-pointer rounded-3xl overflow-hidden border-2 transition-all relative 
                                                 ${templateTargetEvent.templateId === template.id
-                                                    ? `${template.borderClass} ring-4 ring-offset-2 scale-[1.02]`
-                                                    : 'border-stone-100 hover:border-slate-300'}
+                                                        ? `${template.borderClass} ring-4 ring-offset-2 scale-[1.02]`
+                                                        : 'border-stone-100 hover:border-slate-300'}
                                             `}
-                                        >
-                                            <div className={`aspect-[4/3] ${template.bgClass} relative p-6 flex flex-col ${template.overlay ? 'justify-end' : 'justify-center'} text-center`}>
-                                                {template.overlay && <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 to-transparent"></div>}
-                                                <div className="relative z-10">
-                                                    <p className={`${template.textClass} text-[10px] font-bold uppercase tracking-widest mb-1`}>{template.label}</p>
-                                                    <h3 className={`text-xl font-serif ${template.titleColor || 'text-white'}`}>{template.title}</h3>
-                                                    {template.subTitle && <p className="text-slate-400 font-serif italic text-sm">{template.subTitle}</p>}
+                                            >
+                                                <div className={`aspect-[4/3] ${template.bgClass} relative p-6 flex flex-col ${template.overlay ? 'justify-end' : 'justify-center'} text-center`}>
+                                                    {template.overlay && <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 to-transparent"></div>}
+                                                    <div className="relative z-10">
+                                                        <p className={`${template.textClass} text-[10px] font-bold uppercase tracking-widest mb-1`}>{template.label}</p>
+                                                        <h3 className={`text-xl font-serif ${template.titleColor || 'text-white'}`}>{template.title}</h3>
+                                                    </div>
                                                 </div>
+                                                <div className="p-4 bg-white text-center">
+                                                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">{template.desc}</p>
+                                                </div>
+                                                {templateTargetEvent.templateId === template.id && (
+                                                    <div className={`absolute top-4 right-4 ${template.textClass.replace('text-', 'bg-')} text-white p-1.5 rounded-full shadow-lg`}>
+                                                        <Check className="w-4 h-4" />
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="p-4 bg-white text-center">
-                                                <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">{template.desc}</p>
-                                            </div>
-                                            {templateTargetEvent.templateId === template.id && (
-                                                <div className={`absolute top-4 right-4 ${template.textClass.replace('text-', 'bg-')} text-white p-1.5 rounded-full shadow-lg`}>
-                                                    <Check className="w-4 h-4" />
-                                                </div>
-                                            )}
-                                            {template.disabled && (
-                                                <div className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[1px]">
-                                                    <span className="bg-black/70 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">Coming Soon</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
+                                        )
+                                    })}
                                 </div>
 
                                 <button

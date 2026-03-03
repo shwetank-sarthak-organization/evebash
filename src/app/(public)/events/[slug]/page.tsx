@@ -507,7 +507,23 @@ function EventPageContent() {
                 isShared={isShared}
                 basePath={`/events/${navMainId}`}
             />
-            <TemplateComponent event={event}>
+            <TemplateComponent
+                event={event}
+                subEvents={subEvents}
+                photos={photos}
+                isShared={isShared}
+                user={user}
+                onBack={() => {
+                    const backUrl = event?.parentId ? `/events/${event.parentId}` : "/gallery";
+                    router.push(`${backUrl}${isShared ? "?shared=true" : ""}`);
+                }}
+                onShare={handleShare}
+                canManage={user?.uid === event?.createdBy || user?.role === 'admin'}
+                onManage={() => router.push(`/dashboard?view=manage&eventId=${event.id}`)}
+                hasParent={!!event?.parentId}
+                copied={copied}
+                error={error}
+            >
                 {renderContent()}
             </TemplateComponent>
             {/* Guest Entry Modal */}
