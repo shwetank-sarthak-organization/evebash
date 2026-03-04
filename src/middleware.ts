@@ -52,16 +52,22 @@ export default async function middleware(req: NextRequest) {
         // If you hosted your main app on "app.domain.com", you'd handle that here.
         // For now, we assume ANY subdomain is a tenant.
 
-        // Rewrite the URL to the localized tenant dynamic route
-        // The user sees "alice.domain.com", Next.js renders "/tenant/alice"
-        const path = url.pathname;
-        const searchParams = url.searchParams.toString();
-        const queryString = searchParams.length > 0 ? `?${searchParams}` : "";
+        try {
+            // Rewrite the URL to the localized tenant dynamic route
+            // The user sees "alice.domain.com", Next.js renders "/tenant/alice"
+            const path = url.pathname;
+            const searchParams = url.searchParams.toString();
+            const queryString = searchParams.length > 0 ? `?${searchParams}` : "";
 
-        // Rewrite to the (tenant) folder logic
-        return NextResponse.rewrite(
-            new URL(`/tenant/${subdomain}${path}${queryString}`, req.url)
-        );
+            // Rewrite to the (tenant) folder logic
+            return NextResponse.rewrite(
+                new URL(`/tenant/${subdomain}${path}${queryString}`, req.url)
+            );
+        } catch (error) {
+            console.error("Middleware rewrite error:", error);
+            // Fall back to normal routing if rewrite fails
+            return NextResponse.next();
+        }
     }
 
     // If we are on the main domain, proceed as normal

@@ -2,8 +2,5 @@
   command = "npm run build"
   publish = ".next"
 
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
-
 [context.production.environment]
   NEXT_PUBLIC_ROOT_DOMAIN = "lens-and-frame-wedding-album.netlify.app"
