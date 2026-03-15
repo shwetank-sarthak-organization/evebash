@@ -49,7 +49,7 @@ export function TemplateEditorial({ event, children }: TemplateEditorialProps) {
                         src={event.coverImage}
                         alt={event.title}
                         fill
-                        className="object-cover grayscale hover:grayscale-0 transition-all duration-700"
+                        className="object-contain bg-white grayscale hover:grayscale-0 transition-all duration-700"
                         priority
                     />
                     <div className="absolute inset-0 bg-black/10" />
