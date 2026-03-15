@@ -54,13 +54,13 @@ export function TemplateCinematic({
                             src={event.coverImage}
                             alt={event.title}
                             fill
-                            className="object-cover opacity-50 block md:hidden"
+                            className="object-contain opacity-50 block md:hidden"
                             priority
                         />
                     )}
                     {event.coverImage && (
                         <div
-                            className="hidden md:block absolute inset-0 bg-cover bg-center opacity-40 will-change-transform"
+                            className="hidden md:block absolute inset-0 bg-contain bg-center opacity-40 will-change-transform"
                             style={{
                                 backgroundImage: `url(${event.coverImage})`,
                                 transform: 'scale(1.05)',
