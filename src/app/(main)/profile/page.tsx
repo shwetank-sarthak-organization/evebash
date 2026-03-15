@@ -176,7 +176,7 @@ export default function ProfilePage() {
                         >
                             <div className="relative group">
                                 <div 
-                                    className="w-32 h-32 rounded-[2rem] bg-stone-50 border border-stone-100 flex items-center justify-center mb-6 overflow-hidden ring-4 ring-white shadow-inner relative cursor-pointer"
+                                    className="w-48 h-48 rounded-[2rem] bg-stone-50 border border-stone-100 flex items-center justify-center mb-6 overflow-hidden ring-4 ring-white shadow-inner relative cursor-pointer"
                                     onClick={() => !isUploading && fileInputRef.current?.click()}
                                 >
                                     {isUploading ? (
