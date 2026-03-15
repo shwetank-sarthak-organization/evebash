@@ -51,6 +51,7 @@ export interface UserProfile {
     roleType?: 'primary' | 'event';
     delegatedBy?: string;
     assignedEvents?: string[];
+    profileImage?: string;
     createdAt?: Timestamp;
     lastLogin?: Timestamp;
 }
@@ -516,6 +517,22 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     } catch (error) {
         console.error("Error fetching user profile:", error);
         return null;
+    }
+}
+
+/**
+ * Updates just the profile image of a user in Firestore.
+ */
+export async function updateUserProfileImage(uid: string, imageUrl: string) {
+    try {
+        const docRef = doc(db, "users", uid);
+        await updateDoc(docRef, {
+            profileImage: imageUrl
+        });
+        return true;
+    } catch (error) {
+        console.error("Error updating user profile image:", error);
+        return false;
     }
 }
 

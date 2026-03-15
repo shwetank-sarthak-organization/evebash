@@ -2,6 +2,13 @@
 
 import { getAdminAuth, getAdminDb } from "@/lib/firebase-admin";
 import * as admin from 'firebase-admin';
+import { v2 as cloudinary } from 'cloudinary';
+
+cloudinary.config({
+    cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 /**
  * Server Action to delete a user's account from Firebase Auth and their profile from Firestore.
@@ -102,5 +109,39 @@ export async function syncAllAuthUsers(requesterEmail: string) {
     } catch (error: any) {
         console.error("[Server Action] Error syncing all users:", error);
         return { success: false, error: error.message || "Sync failed." };
+    }
+}
+
+/**
+ * Server Action to securely upload a base64 encoded profile image to Cloudinary.
+ * Returns the secure URL of the uploaded image.
+ */
+export async function uploadProfileImageToCloudinary(base64Image: string, uid: string) {
+    try {
+        console.log(`[Server Action] Uploading profile image for UID: ${uid}`);
+
+        // Security Check: Verify UID (this relies on the client passing the current auth context UID honestly.
+        // In a strictly secure app, we'd verify a session token here, but this matches the current Firebase client-auth pattern).
+        if (!uid) {
+            throw new Error("Unauthorized request. UID is missing.");
+        }
+
+        // Upload the image to Cloudinary
+        const uploadResponse = await cloudinary.uploader.upload(base64Image, {
+            folder: `wedding_app_profiles/${uid}`,
+            public_id: 'profile_pic',
+            overwrite: true,
+            resource_type: 'image',
+            transformation: [
+                { width: 500, height: 500, crop: "fill", gravity: "face" },
+                { quality: "auto:good" }
+            ]
+        });
+
+        console.log(`[Server Action] Profile image uploaded successfully: ${uploadResponse.secure_url}`);
+        return { success: true, url: uploadResponse.secure_url };
+    } catch (error: any) {
+        console.error("[Server Action] Error uploading profile image to Cloudinary:", error);
+        return { success: false, error: error.message || "Upload failed." };
     }
 }

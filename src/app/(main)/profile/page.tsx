@@ -15,12 +15,15 @@ import {
     Calendar,
     Loader2,
     ChevronRight,
-    Phone
+    Phone,
+    Upload
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import Navbar from "@/components/Navbar";
-import { getUserVisits, getUserLikes } from "@/lib/firestore";
+import { getUserVisits, getUserLikes, updateUserProfileImage } from "@/lib/firestore";
+import { uploadProfileImageToCloudinary } from "@/app/actions/userActions";
+import Image from "next/image";
 
 export default function ProfilePage() {
     const { user, loading: authLoading, logout } = useAuth();
@@ -31,6 +34,11 @@ export default function ProfilePage() {
     const [visits, setVisits] = useState<any[]>([]);
     const [likesCount, setLikesCount] = useState(0);
     const [loadingActivity, setLoadingActivity] = useState(true);
+
+    // Profile Image Upload State
+    const [isUploading, setIsUploading] = useState(false);
+    const [profileImage, setProfileImage] = useState<string | null>(null);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -69,8 +77,67 @@ export default function ProfilePage() {
 
         if (user) {
             fetchActivity();
+            if (user.profileImage) {
+                setProfileImage(user.profileImage);
+            }
         }
     }, [user]);
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !user?.uid) return;
+
+        // Basic validation
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+            alert('Image size should be less than 5MB');
+            return;
+        }
+
+        try {
+            setIsUploading(true);
+
+            // Convert to base64
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            
+            reader.onload = async () => {
+                const base64Image = reader.result as string;
+                
+                // 1. Upload to Cloudinary via Server Action
+                const result = await uploadProfileImageToCloudinary(base64Image, user.uid);
+                
+                if (result.success && result.url) {
+                    // 2. Update Firestore document
+                    await updateUserProfileImage(user.uid, result.url);
+                    
+                    // 3. Update local state to show new image immediately
+                    setProfileImage(result.url);
+                    
+                    // Optional: You could update the AuthContext user object here if it exposes a method for it
+                } else {
+                    console.error("Upload failed:", result.error);
+                    alert("Failed to upload image. Please try again.");
+                }
+                setIsUploading(false);
+            };
+
+            reader.onerror = () => {
+                console.error("Failed to read file");
+                alert("Failed to read file.");
+                setIsUploading(false);
+            };
+
+        } catch (error) {
+            console.error("Error handling image upload:", error);
+            alert("An error occurred during upload.");
+            setIsUploading(false);
+        }
+    };
 
     if (authLoading || !user) {
         return (
@@ -108,11 +175,40 @@ export default function ProfilePage() {
                             className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-slate-200/50 border border-stone-100 flex flex-col items-center text-center backdrop-blur-sm bg-white/95"
                         >
                             <div className="relative group">
-                                <div className="w-32 h-32 rounded-[2rem] bg-stone-50 border border-stone-100 flex items-center justify-center mb-6 overflow-hidden ring-4 ring-white shadow-inner">
-                                    <User size={64} className="text-stone-300" />
+                                <div 
+                                    className="w-32 h-32 rounded-[2rem] bg-stone-50 border border-stone-100 flex items-center justify-center mb-6 overflow-hidden ring-4 ring-white shadow-inner relative cursor-pointer"
+                                    onClick={() => !isUploading && fileInputRef.current?.click()}
+                                >
+                                    {isUploading ? (
+                                        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-20">
+                                            <Loader2 className="w-8 h-8 animate-spin text-royal-gold mb-2" />
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Uploading</span>
+                                        </div>
+                                    ) : null}
+
+                                    {profileImage ? (
+                                        <Image src={profileImage} alt={user.name} fill className="object-cover" />
+                                    ) : (
+                                        <User size={64} className="text-stone-300" />
+                                    )}
+
+                                    {/* Hover Overlay for Upload */}
+                                    <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
+                                        <Upload className="text-white mb-1" size={24} />
+                                        <span className="text-white text-[10px] uppercase font-bold tracking-widest">Change Photo</span>
+                                    </div>
+
+                                    {/* Hidden File Input */}
+                                    <input 
+                                        type="file" 
+                                        ref={fileInputRef} 
+                                        className="hidden" 
+                                        accept="image/jpeg, image/png, image/webp"
+                                        onChange={handleImageUpload}
+                                    />
                                 </div>
                                 {(user.role === "admin" || user.role === "premium") && (
-                                    <div className="absolute -top-2 -right-2 bg-royal-gold text-white p-2 rounded-xl shadow-lg ring-4 ring-white">
+                                    <div className="absolute -top-2 -right-2 bg-royal-gold text-white p-2 rounded-xl shadow-lg ring-4 ring-white z-30">
                                         <Shield size={16} />
                                     </div>
                                 )}

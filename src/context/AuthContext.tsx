@@ -12,6 +12,7 @@ interface AuthContextType {
         role?: string;
         roleType?: 'primary' | 'event';
         assignedEvents?: string[];
+        profileImage?: string;
         email?: string | null;
         delegatedBy?: string
     } | null;
@@ -34,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role?: string;
         roleType?: 'primary' | 'event';
         assignedEvents?: string[];
+        profileImage?: string;
         email?: string | null;
         delegatedBy?: string
     } | null>(null);
@@ -69,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         role: profile?.role || "user",
                         roleType: profile?.roleType || (profile?.delegatedBy ? "event" : "primary"),
                         assignedEvents: profile?.assignedEvents || [],
+                        profileImage: profile?.profileImage,
                         email: firebaseUser.email,
                         delegatedBy: profile?.delegatedBy
                     };
@@ -138,6 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 role: profile?.role || "user",
                 roleType: profile?.roleType || "primary",
                 assignedEvents: profile?.assignedEvents || [],
+                profileImage: profile?.profileImage,
                 email: userCredential.user.email,
                 delegatedBy: profile?.delegatedBy
             };
@@ -194,6 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 phone: "",
                 role: "user",
                 roleType: "primary" as const,
+                profileImage: undefined,
                 email: user.email
             };
             setUser(userData);
@@ -247,6 +252,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 role: profile?.role || "user",
                 roleType: profile?.roleType || "primary",
                 assignedEvents: profile?.assignedEvents || [],
+                profileImage: profile?.profileImage,
                 email: result.user.email,
                 delegatedBy: profile?.delegatedBy
             };
@@ -333,6 +339,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 role: profile?.role || assignedRole,
                 roleType: profile?.roleType || (profile?.delegatedBy ? "event" : "primary") as any,
                 assignedEvents: profile?.assignedEvents || [],
+                profileImage: profile?.profileImage,
                 email: null,
                 delegatedBy: profile?.delegatedBy
             };
