@@ -63,7 +63,7 @@ export function TemplateRoyal({ event, children }: TemplateRoyalProps) {
                             src={event.coverImage}
                             alt={event.title}
                             fill
-                            className="object-cover"
+                            className="object-contain bg-slate-900"
                             priority
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-60" />
