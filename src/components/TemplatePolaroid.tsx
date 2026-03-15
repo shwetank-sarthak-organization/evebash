@@ -24,7 +24,7 @@ export function TemplatePolaroid({ event, children }: TemplatePolaroidProps) {
 
                         {event.coverImage ? (
                             <div className="relative aspect-[4/3] w-full bg-stone-100 overflow-hidden grayscale-[20%] sepia-[30%]">
-                                <Image src={event.coverImage} alt={event.title} fill className="object-cover" />
+                                <Image src={event.coverImage} alt={event.title} fill className="object-contain bg-stone-900" />
                             </div>
                         ) : (
                             <div className="aspect-[4/3] w-full bg-stone-100 flex items-center justify-center text-stone-400">

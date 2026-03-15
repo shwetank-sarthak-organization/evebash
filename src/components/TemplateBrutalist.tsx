@@ -72,7 +72,7 @@ export function TemplateBrutalist({
                     <div className="relative aspect-square md:aspect-auto h-[50vh] md:h-full border-t md:border-t-0 border-lime-400 overflow-hidden grayscale hover:grayscale-0 transition-all duration-700">
                         {event.coverImage && (
                             <>
-                                <Image src={event.coverImage} fill className="object-cover" alt="" priority />
+                                <Image src={event.coverImage} fill className="object-contain bg-zinc-950" alt="" priority />
                                 <div className="absolute inset-0 bg-lime-400/20 mix-blend-overlay" />
                             </>
                         )}

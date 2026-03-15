@@ -49,7 +49,7 @@ export function TemplateScrapbook({ event, children }: TemplateScrapbookProps) {
                     <div className="absolute inset-0 bg-orange-100 transform rotate-2 rounded-3xl" />
                     <div className="absolute inset-2 bg-white p-4 shadow-xl rounded-2xl transform rotate-1">
                         <div className="relative w-full h-full rounded-xl overflow-hidden">
-                            <Image src={event.coverImage} fill className="object-cover" alt="" />
+                            <Image src={event.coverImage} fill className="object-contain bg-stone-50" alt="" />
                         </div>
                     </div>
 

@@ -57,7 +57,7 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
                                     src={event.coverImage}
                                     alt={event.title}
                                     fill
-                                    className="object-cover hover:scale-105 transition-transform duration-[2s]"
+                                    className="object-contain bg-slate-50 hover:scale-105 transition-transform duration-[2s]"
                                     priority
                                 />
                             ) : (
