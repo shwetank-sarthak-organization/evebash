@@ -311,13 +311,21 @@ export default function Dashboard() {
                                                                         onChange={(e) => handleUpdateRole(u.id, e.target.value)}
                                                                         className={cn(
                                                                             "bg-transparent border-none text-[10px] font-bold uppercase tracking-wider focus:ring-0 cursor-pointer transition-colors outline-none p-0",
-                                                                            u.role === "admin" ? "text-rose-600" : (u.role === "premium" ? "text-amber-600" : "text-sky-600")
+                                                                            u.role === "admin" ? "text-rose-600" :
+                                                                            u.role === "elite" ? "text-purple-600" :
+                                                                            u.role === "premium" ? "text-amber-600" :
+                                                                            u.role === "standard" ? "text-sky-600" :
+                                                                            u.role === "basic" ? "text-teal-600" :
+                                                                            "text-slate-500"
                                                                         )}
                                                                         title="Change user role"
                                                                         disabled={u.email === user?.email}
                                                                     >
-                                                                        <option value="user">Normal User</option>
-                                                                        <option value="premium">Premium User</option>
+                                                                        <option value="user">Free Plan User</option>
+                                                                        <option value="basic">Basic Plan User</option>
+                                                                        <option value="standard">Standard Plan User</option>
+                                                                        <option value="premium">Premium Plan User</option>
+                                                                        <option value="elite">Elite Plan User</option>
                                                                         <option value="admin">Admin</option>
                                                                     </select>
                                                                 )}
