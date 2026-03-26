@@ -51,7 +51,7 @@ function LoginContent() {
             if (isSignUp) {
                 const success = await signup(email, password, name);
                 if (success) {
-                    router.push(returnTo || "/dashboard");
+                    router.push(returnTo || "/profile");
                 } else {
                     setError("Failed to create account. Email might be in use.");
                     setStatus("idle");
@@ -59,7 +59,7 @@ function LoginContent() {
             } else {
                 const success = await login(email, password);
                 if (success) {
-                    router.push(returnTo || "/dashboard");
+                    router.push(returnTo || "/profile");
                 } else {
                     setError("Invalid email or password.");
                     setStatus("idle");
