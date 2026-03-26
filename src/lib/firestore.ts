@@ -938,6 +938,27 @@ export async function getUserTotalStorage(identifiers: string | string[]): Promi
     }
 }
 
+/**
+ * Counts how many main events a user has created.
+ * Used to enforce the Normal User 2-event limit.
+ */
+export async function getUserEventCount(uid: string): Promise<number> {
+    try {
+        const eventsCol = collection(db, "events");
+        const q = query(
+            eventsCol,
+            where("createdBy", "==", uid),
+            where("type", "==", "main")
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.size;
+    } catch (error) {
+        console.error("Error counting user events:", error);
+        return 0;
+    }
+}
+
+
 
 
 /**

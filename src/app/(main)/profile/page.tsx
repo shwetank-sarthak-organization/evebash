@@ -21,7 +21,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import Navbar from "@/components/Navbar";
-import { getUserVisits, getUserLikes, updateUserProfileImage } from "@/lib/firestore";
+import { getUserVisits, getUserLikes, updateUserProfileImage, getUserTotalStorage, getUserEventCount } from "@/lib/firestore";
 import { uploadProfileImageToCloudinary } from "@/app/actions/userActions";
 import Image from "next/image";
 
@@ -39,6 +39,10 @@ export default function ProfilePage() {
     const [isUploading, setIsUploading] = useState(false);
     const [profileImage, setProfileImage] = useState<string | null>(null);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    // Usage Stats State (Normal Users only)
+    const [storageUsed, setStorageUsed] = useState(0);
+    const [eventCount, setEventCount] = useState(0);
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -79,6 +83,18 @@ export default function ProfilePage() {
             fetchActivity();
             if (user.profileImage) {
                 setProfileImage(user.profileImage);
+            }
+            // Fetch usage stats for Normal Users
+            if (user.role !== "admin" && user.role !== "premium") {
+                const identifiers = [user.uid];
+                if (user.email) identifiers.push(user.email);
+                Promise.all([
+                    getUserTotalStorage(identifiers),
+                    getUserEventCount(user.uid)
+                ]).then(([storage, count]) => {
+                    setStorageUsed(storage);
+                    setEventCount(count);
+                });
             }
         }
     }, [user]);
@@ -250,6 +266,50 @@ export default function ProfilePage() {
                                 </button>
                             </div>
                         </motion.div>
+
+                        {/* Usage Stats Card for Normal Users */}
+                        {user.role !== "admin" && user.role !== "premium" && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.15 }}
+                                className="bg-white rounded-[2.5rem] p-6 shadow-2xl shadow-slate-200/50 border border-stone-100"
+                            >
+                                <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">Your Usage</h3>
+
+                                {/* Storage Bar */}
+                                <div className="mb-5">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-xs font-sans text-slate-500">Storage Used</span>
+                                        <span className="text-xs font-bold font-sans text-slate-700">
+                                            {(storageUsed / (1024 * 1024)).toFixed(1)} MB / 1 GB
+                                        </span>
+                                    </div>
+                                    <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full rounded-full transition-all duration-700"
+                                            style={{
+                                                width: `${Math.min((storageUsed / (1024 * 1024 * 1024)) * 100, 100)}%`,
+                                                background: storageUsed >= 900 * 1024 * 1024 ? '#ef4444' : '#b8860b'
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Event Count */}
+                                <div className="flex justify-between items-center p-3 bg-stone-50 rounded-2xl">
+                                    <span className="text-xs font-sans text-slate-500">Events Created</span>
+                                    <span className="text-xs font-bold font-sans text-slate-700">{eventCount} / 2</span>
+                                </div>
+
+                                <button
+                                    onClick={() => router.push("/pricing")}
+                                    className="mt-4 w-full py-3 bg-royal-gold/10 text-royal-gold rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-royal-gold/20 transition-all text-center"
+                                >
+                                    Upgrade to Premium →
+                                </button>
+                            </motion.div>
+                        )}
 
                         {/* Upgrade CTA for Normal Users */}
                         {user.role === "user" && (

@@ -45,6 +45,7 @@ import {
     updateUserRole,
     deleteUser,
     getUserTotalStorage,
+    getUserEventCount,
     getDelegatedAdminsCount,
     getGuestLogs,
     getEventLogs,
@@ -132,8 +133,8 @@ function DashboardContent() {
     const [selectedTemplate, setSelectedTemplate] = useState("hero");
 
     useEffect(() => {
-        // Allow Super Admins, Premium users, and anyone acting as a Delegated Collaborator
-        const isAuthorized = user && (user.role === "admin" || user.role === "premium" || !!user.delegatedBy);
+        // Allow Super Admins, Premium users, Normal Users, and anyone acting as a Delegated Collaborator
+        const isAuthorized = user && (user.role === "admin" || user.role === "premium" || user.role === "user" || !!user.delegatedBy);
         if (!loading && user && !isAuthorized) {
             router.push("/profile");
         }
@@ -524,6 +525,18 @@ function DashboardContent() {
             return;
         }
 
+        // --- ROLE-BASED LIMIT: Normal User can only create 2 main events ---
+        const isCreatingMainEvent = manageLevel !== "galleries";
+        if (isCreatingMainEvent && user.role !== "admin" && user.role !== "premium" && !user.delegatedBy) {
+            const eventCount = await getUserEventCount(user.uid);
+            if (eventCount >= 2) {
+                setMessage("You've reached your 2-event limit. Upgrade to Premium to create unlimited events.");
+                setStatus("error");
+                setTimeout(() => setStatus("idle"), 5000);
+                return;
+            }
+        }
+
         setStatus("uploading");
         setMessage("Creating event...");
 
@@ -571,6 +584,20 @@ function DashboardContent() {
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFiles = e.target.files;
         if (!selectedFiles || selectedFiles.length === 0 || !selectedEventId) return;
+
+        // --- ROLE-BASED LIMIT: Normal User has a 1GB storage cap ---
+        if (user.role !== "admin" && user.role !== "premium" && !user.delegatedBy) {
+            const ONE_GB = 1 * 1024 * 1024 * 1024; // 1GB in bytes
+            const identifiers = [user.uid];
+            if (user.email) identifiers.push(user.email);
+            const currentUsage = await getUserTotalStorage(identifiers);
+            if (currentUsage >= ONE_GB) {
+                setMessage("You've reached your 1GB storage limit. Upgrade to Premium for unlimited storage.");
+                setStatus("error");
+                setTimeout(() => setStatus("idle"), 5000);
+                return;
+            }
+        }
 
         setStatus("uploading");
         setMessage(`Uploading ${selectedFiles.length} images...`);
