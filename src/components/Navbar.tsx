@@ -20,6 +20,17 @@ export default function Navbar() {
     const pathname = usePathname();
     const { user, logout } = useAuth();
 
+    const getPlanLabel = (role?: string) => {
+        switch (role) {
+            case "admin":    return "Super Admin";
+            case "elite":    return "Elite Plan";
+            case "premium":  return "Premium Plan";
+            case "standard": return "Standard Plan";
+            case "basic":    return "Basic Plan";
+            default:         return "Free Plan";
+        }
+    };
+
     return (
         <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -59,7 +70,7 @@ export default function Navbar() {
                                     </div>
                                     <div className="flex flex-col">
                                         <span className="text-sm font-bold leading-tight">Hi, {user.name}</span>
-                                        <span className="text-[10px] text-slate-400 font-sans leading-tight">{user.email}</span>
+                                        <span className="text-[10px] text-slate-400 font-sans leading-tight">{getPlanLabel(user.role)}</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-3">
@@ -158,7 +169,7 @@ export default function Navbar() {
                                     </div>
                                     <div>
                                         <p className="text-sm font-bold text-slate-900">{user.name}</p>
-                                        <p className="text-xs text-slate-500">{user.email}</p>
+                                        <p className="text-xs text-slate-500">{getPlanLabel(user.role)}</p>
                                     </div>
                                 </div>
                                 <Link
