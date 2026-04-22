@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Check, Info } from "lucide-react";
+import { Check, Info, X } from "lucide-react";
 
 const packages = [
     {
@@ -11,11 +11,12 @@ const packages = [
         description: "Get started and explore the platform at no cost.",
         features: [
             "2 Events",
-            "2 GB Storage",
-            "10 Templates",
+            "1 GB Storage",
+            "1 Standard Template Only",
             "Guest Sharing via Link",
             "Basic Gallery View",
             "Watermark on Images",
+            "No Authorized Guest Sign-In",
         ],
         cta: "Get Started",
         ctaHref: "/login",
@@ -34,6 +35,7 @@ const packages = [
             "5 Events",
             "15 GB Storage",
             "All Templates",
+            "Authorized Guest Sign-In",
             "Guest Approval System",
             "Face Recognition Search",
             "Standard Support",
@@ -56,6 +58,7 @@ const packages = [
             "20 Events",
             "60 GB Storage",
             "All Templates",
+            "Authorized Guest Sign-In",
             "Guest Approval + Traffic Logs",
             "Face Recognition Search",
             "Custom Subdomain",
@@ -79,6 +82,7 @@ const packages = [
             "Unlimited Events",
             "200 GB Storage",
             "All Templates",
+            "Authorized Guest Sign-In",
             "Guest Approval + Traffic Logs",
             "Face Recognition Search",
             "Custom Subdomain",
@@ -104,6 +108,7 @@ const packages = [
             "Unlimited Events",
             "1 TB Storage",
             "All Templates",
+            "Authorized Guest Sign-In",
             "Guest Approval + Traffic Logs",
             "Face Recognition Search",
             "Custom Subdomain",
@@ -161,14 +166,24 @@ export default function Pricing() {
                                 <div className="w-full h-px bg-slate-100 mb-4" />
 
                                 <ul className="space-y-2.5 mb-6 flex-1">
-                                    {pkg.features.map((feature, idx) => (
-                                        <li key={idx} className="flex items-start group">
-                                            <div className={`p-1 rounded-full mr-2 shrink-0 mt-px ${pkg.checkClass}`}>
-                                                <Check className="w-2.5 h-2.5" />
-                                            </div>
-                                            <span className="text-xs text-slate-600 group-hover:text-slate-900 transition-colors leading-snug">{feature}</span>
-                                        </li>
-                                    ))}
+                                    {pkg.features.map((feature, idx) => {
+                                        const isRestriction = feature.startsWith("No ");
+                                        return (
+                                            <li key={idx} className="flex items-start group">
+                                                <div className={`p-1 rounded-full mr-2 shrink-0 mt-px ${
+                                                    isRestriction ? "bg-red-50 text-red-400" : pkg.checkClass
+                                                }`}>
+                                                    {isRestriction
+                                                        ? <X className="w-2.5 h-2.5" />
+                                                        : <Check className="w-2.5 h-2.5" />
+                                                    }
+                                                </div>
+                                                <span className={`text-xs leading-snug transition-colors ${
+                                                    isRestriction ? "text-red-400 line-through" : "text-slate-600 group-hover:text-slate-900"
+                                                }`}>{feature}</span>
+                                            </li>
+                                        );
+                                    })}
                                 </ul>
 
                                 <Link href={pkg.ctaHref} className="block w-full mt-auto">
