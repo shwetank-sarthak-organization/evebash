@@ -139,12 +139,12 @@ export default function ProfilePage() {
 
     const getPlanLabel = (role?: string) => {
         switch (role) {
-            case "admin":    return "Super Admin";
-            case "elite":    return "Elite Plan";
-            case "premium":  return "Premium Plan";
+            case "admin": return "Super Admin";
+            case "elite": return "Elite Plan";
+            case "premium": return "Premium Plan";
             case "standard": return "Standard Plan";
-            case "basic":    return "Basic Plan";
-            default:         return "Free Plan";
+            case "basic": return "Basic Plan";
+            default: return "Free Plan";
         }
     };
 
@@ -221,12 +221,12 @@ export default function ProfilePage() {
                             <div className="mt-4">
                                 <span className={cn(
                                     "px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border",
-                                    user.role === "admin"    ? "bg-rose-50 text-rose-600 border-rose-100" :
-                                    user.role === "elite"   ? "bg-purple-50 text-purple-600 border-purple-100" :
-                                    user.role === "premium" ? "bg-amber-50 text-amber-600 border-amber-100" :
-                                    user.role === "standard"? "bg-sky-50 text-sky-600 border-sky-100" :
-                                    user.role === "basic"   ? "bg-teal-50 text-teal-600 border-teal-100" :
-                                    "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                    user.role === "admin" ? "bg-rose-50 text-rose-600 border-rose-100" :
+                                        user.role === "elite" ? "bg-purple-50 text-purple-600 border-purple-100" :
+                                            user.role === "premium" ? "bg-amber-50 text-amber-600 border-amber-100" :
+                                                user.role === "standard" ? "bg-sky-50 text-sky-600 border-sky-100" :
+                                                    user.role === "basic" ? "bg-teal-50 text-teal-600 border-teal-100" :
+                                                        "bg-emerald-50 text-emerald-600 border-emerald-100"
                                 )}>
                                     {getPlanLabel(user.role)}
                                 </span>
@@ -332,7 +332,7 @@ export default function ProfilePage() {
                                             )}
                                         >
                                             <Images size={14} />
-                                            Your Created Galleries
+                                            My Galleries
                                             {!loadingGalleries && (
                                                 <span className={cn(
                                                     "ml-1 px-2 py-0.5 rounded-full text-[9px]",
