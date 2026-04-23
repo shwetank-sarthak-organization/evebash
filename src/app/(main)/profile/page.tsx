@@ -332,7 +332,7 @@ export default function ProfilePage() {
                                             )}
                                         >
                                             <Images size={14} />
-                                            My Galleries
+                                            Your Created Galleries
                                             {!loadingGalleries && (
                                                 <span className={cn(
                                                     "ml-1 px-2 py-0.5 rounded-full text-[9px]",
