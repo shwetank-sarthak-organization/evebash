@@ -379,7 +379,7 @@ export default function ProfilePage() {
                                                 <div className="space-y-3">
                                                     <div className="flex items-center justify-between mb-6 border-b border-stone-50 pb-4">
                                                         <div>
-                                                            <h3 className="text-xl font-bold text-slate-800 font-serif">My Galleries</h3>
+                                                            <h3 className="text-xl font-bold text-slate-800 font-serif">Your Created Galleries</h3>
                                                             <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Events you have created</p>
                                                         </div>
                                                         <div className="hidden sm:flex w-10 h-10 bg-slate-50 rounded-full items-center justify-center text-slate-400">
