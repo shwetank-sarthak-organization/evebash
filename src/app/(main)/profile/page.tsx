@@ -295,7 +295,7 @@ export default function ProfilePage() {
                                 onClick={() => setActiveTab("activity")}
                                 className={cn(
                                     "px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all",
-                                    activeTab === "activity" ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                    activeTab === "activity" ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:bg-white/70 hover:text-slate-800 hover:shadow-sm"
                                 )}
                             >
                                 My Galleries
@@ -304,7 +304,7 @@ export default function ProfilePage() {
                                 onClick={() => setActiveTab("settings")}
                                 className={cn(
                                     "px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all",
-                                    activeTab === "settings" ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                    activeTab === "settings" ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:bg-white/70 hover:text-slate-800 hover:shadow-sm"
                                 )}
                             >
                                 Account Settings
@@ -325,10 +325,10 @@ export default function ProfilePage() {
                                         <button
                                             onClick={() => setGalleryTab("my")}
                                             className={cn(
-                                                "flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all border",
+                                                "flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all border cursor-pointer",
                                                 galleryTab === "my"
                                                     ? "bg-slate-900 text-white border-slate-900 shadow-md"
-                                                    : "bg-white text-slate-500 border-stone-100 hover:border-slate-300"
+                                                    : "bg-white text-slate-500 border-stone-100 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-300 hover:shadow-sm"
                                             )}
                                         >
                                             <Images size={14} />
@@ -345,10 +345,10 @@ export default function ProfilePage() {
                                         <button
                                             onClick={() => setGalleryTab("shared")}
                                             className={cn(
-                                                "flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all border",
+                                                "flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all border cursor-pointer",
                                                 galleryTab === "shared"
                                                     ? "bg-slate-900 text-white border-slate-900 shadow-md"
-                                                    : "bg-white text-slate-500 border-stone-100 hover:border-slate-300"
+                                                    : "bg-white text-slate-500 border-stone-100 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-300 hover:shadow-sm"
                                             )}
                                         >
                                             <Share2 size={14} />
