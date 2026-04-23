@@ -1060,19 +1060,29 @@ export async function deletePhotoComment(commentId: string) {
 /**
  * Fetches events visited by a specific user (based on email/phone stored in guests collection).
  */
-export async function getUserVisits(email: string): Promise<any[]> {
+export async function getUserVisits(identifier: string): Promise<any[]> {
     try {
         const guestsCol = collection(db, "guests");
-        const q = query(
-            guestsCol,
-            where("phone", "==", email),
-            limit(20)
-        );
-        const snapshot = await getDocs(q);
-        // Filter for approved status and sort in memory to avoid index issues for now
-        return snapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() } as any))
-            .filter(v => v.status === "approved")
+
+        // Try both phone and email fields so both login types work
+        const [phoneSnap, emailSnap] = await Promise.all([
+            getDocs(query(guestsCol, where("phone", "==", identifier), limit(20))),
+            getDocs(query(guestsCol, where("email", "==", identifier), limit(20))),
+        ]);
+
+        const allDocs = [
+            ...phoneSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)),
+            ...emailSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)),
+        ];
+
+        // Deduplicate by doc id, filter approved
+        const seen = new Set<string>();
+        return allDocs
+            .filter(v => {
+                if (seen.has(v.id)) return false;
+                seen.add(v.id);
+                return v.status === "approved";
+            })
             .sort((a, b) => (b.loginAt?.seconds || 0) - (a.loginAt?.seconds || 0));
     } catch (error) {
         console.error("Error fetching user visits:", error);

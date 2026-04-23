@@ -27,7 +27,7 @@ import {
     getUserEventCount,
     getUserEvents,
     getUserVisits,
-    Event,
+    Event as FirestoreEvent,
 } from "@/lib/firestore";
 import { uploadProfileImageToCloudinary } from "@/app/actions/userActions";
 import Image from "next/image";
@@ -50,7 +50,7 @@ export default function ProfilePage() {
     const [eventCount, setEventCount] = useState(0);
 
     // Gallery data
-    const [myGalleries, setMyGalleries] = useState<Event[]>([]);
+    const [myGalleries, setMyGalleries] = useState<FirestoreEvent[]>([]);
     const [sharedGalleries, setSharedGalleries] = useState<any[]>([]);
     const [loadingGalleries, setLoadingGalleries] = useState(true);
 
