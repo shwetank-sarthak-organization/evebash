@@ -67,7 +67,7 @@ export default function YourEventsScreen() {
       key={event.id}
       style={styles.eventCard}
       activeOpacity={0.85}
-      onPress={() => router.push(`/events/${event.id}`)}
+      onPress={() => router.push(`/events/${event.id}?mode=visitor`)}
     >
       <ExpoImage
         source={{ uri: event.coverImage }}

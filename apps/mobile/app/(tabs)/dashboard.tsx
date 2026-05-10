@@ -219,7 +219,7 @@ export default function DashboardScreen() {
                   <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                     <TouchableOpacity
                       style={styles.viewAllPill}
-                      onPress={() => router.push('/(tabs)/gallery')}
+                      onPress={() => router.push('/your-events')}
                     >
                       <Text style={styles.viewAllLabel}>View All</Text>
                     </TouchableOpacity>
