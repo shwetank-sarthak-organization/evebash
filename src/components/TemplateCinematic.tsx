@@ -7,6 +7,7 @@ import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { useRouter } from "next/navigation";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
 import { Play, Film } from "lucide-react";
+import { navigateWithModifierClick } from "@/lib/navigation";
 
 interface TemplateCinematicProps {
     event: Event;
@@ -88,7 +89,7 @@ export function TemplateCinematic({
                         </ScrollReveal>
 
                         <ScrollReveal delay={0.4}>
-                            <p className="text-lg md:text-2xl text-gray-400 font-light max-w-2xl leading-relaxed mt-6">
+                            <p className="text-lg md:text-2xl text-gray-600 font-light max-w-2xl leading-relaxed mt-6">
                                 {event.description}
                             </p>
                         </ScrollReveal>
@@ -97,7 +98,7 @@ export function TemplateCinematic({
                     <ScrollReveal delay={0.6} className="hidden md:block">
                         <div className="flex flex-col items-center space-y-4">
                             <div className="w-px h-24 bg-gradient-to-b from-transparent via-purple-500 to-transparent" />
-                            <span className="text-xs uppercase tracking-[0.3em] font-bold text-gray-500 [writing-mode:vertical-rl] rotate-180">Scroll to Explore</span>
+                            <span className="text-xs uppercase tracking-[0.3em] font-bold text-gray-700 [writing-mode:vertical-rl] rotate-180">Scroll to Explore</span>
                         </div>
                     </ScrollReveal>
                 </div>
@@ -110,14 +111,14 @@ export function TemplateCinematic({
                     <div className="max-w-[100rem] mx-auto">
                         <div className="flex items-center justify-between mb-16 border-b border-gray-800 pb-6">
                             <h2 className="text-2xl md:text-4xl font-light tracking-widest text-white uppercase">Scenes</h2>
-                            <span className="text-sm text-gray-500 font-mono">01 // {String(subEvents.length).padStart(2, '0')}</span>
+                            <span className="text-sm text-gray-700 font-mono">01 // {String(subEvents.length).padStart(2, '0')}</span>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 md:gap-8">
                             {subEvents.map((sub, idx) => (
                                 <ScrollReveal key={sub.id} delay={idx * 0.1}>
                                     <div
-                                        onClick={() => router.push(`/events/${sub.id}${isShared ? "?shared=true" : ""}`)}
+                                        onClick={(e) => navigateWithModifierClick(e, `/events/${sub.id}${isShared ? "?shared=true" : ""}`, router.push)}
                                         className="group cursor-pointer block"
                                     >
                                         <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl shadow-2xl mb-6 bg-gray-900 border border-gray-800 group-hover:border-purple-500/50 transition-colors duration-500">
@@ -165,7 +166,7 @@ export function TemplateCinematic({
                     <div className="max-w-[100rem] mx-auto">
                         <div className="flex items-center justify-between mb-16 border-b border-gray-800 pb-6">
                             <h2 className="text-2xl md:text-4xl font-light tracking-widest text-white uppercase">Reel</h2>
-                            <span className="text-sm text-gray-500 font-mono">FRAMES // {String(photos.length).padStart(3, '0')}</span>
+                            <span className="text-sm text-gray-700 font-mono">FRAMES // {String(photos.length).padStart(3, '0')}</span>
                         </div>
 
                         <MasonryGrid
@@ -174,7 +175,7 @@ export function TemplateCinematic({
                             disableDownload={isShared && !user}
                             gridClassName="gap-3 md:gap-6 lg:px-12"
                             itemClassName="bg-[#0a0a0a] rounded-xl border border-white/5 opacity-80 hover:opacity-100 hover:scale-[1.02] hover:shadow-[0_20px_40px_-15px_rgba(168,85,247,0.3)] hover:z-10 transition-all duration-500 ease-out"
-                            lightboxClassName="bg-black/98 backdrop-blur-3xl font-mono [&_.bg-white]:bg-gray-900 [&_.text-slate-900]:text-white [&_.text-stone-600]:text-gray-400 [&_.border-stone-100]:border-gray-800 [&_input]:bg-black [&_input]:text-white [&_input]:border-gray-800 [&_button.bg-slate-900]:bg-purple-600 [&_button.bg-slate-900]:hover:bg-purple-500"
+                            lightboxClassName="bg-black/98 backdrop-blur-3xl font-mono [&_.bg-white]:bg-gray-900 [&_.text-slate-900]:text-white [&_.text-stone-600]:text-gray-600 [&_.border-stone-100]:border-gray-800 [&_input]:bg-black [&_input]:text-white [&_input]:border-gray-800 [&_button.bg-slate-900]:bg-purple-600 [&_button.bg-slate-900]:hover:bg-purple-500"
                         />
                     </div>
                 )}
@@ -190,7 +191,7 @@ export function TemplateCinematic({
 
             <footer className="bg-[#050505] pt-20 pb-24 text-center text-gray-600 relative z-10">
                 <div className="w-24 h-px bg-gradient-to-r from-transparent via-gray-600 to-transparent mx-auto mb-8" />
-                <p className="text-[10px] font-mono uppercase tracking-[0.5em] text-gray-500">
+                <p className="text-[10px] font-mono uppercase tracking-[0.5em] text-gray-700">
                     A Wedding_OS Production
                 </p>
                 <style dangerouslySetInnerHTML={{

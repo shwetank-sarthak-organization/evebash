@@ -14,13 +14,13 @@ export default function FindMePage() {
 
             <div className="flex-1 flex flex-col items-center justify-center px-4 py-20 text-center">
                 <div className="space-y-4 mb-10 text-stone-100">
-                    <p className="text-gold-400 tracking-[0.3em] text-sm uppercase font-semibold">
+                    <p className="text-gold-600 tracking-[0.3em] text-sm uppercase font-semibold">
                         AI Photo Search
                     </p>
                     <h1 className="font-serif text-4xl md:text-5xl font-bold">
                         Find Your Photos
                     </h1>
-                    <p className="text-stone-300 max-w-md mx-auto">
+                    <p className="text-stone-600 max-w-md mx-auto">
                         Upload a clear selfie, and our AI will magically find all your photos from the wedding events.
                     </p>
                 </div>

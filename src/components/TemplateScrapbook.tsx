@@ -69,7 +69,7 @@ export function TemplateScrapbook({ event, children }: TemplateScrapbookProps) {
                 </main>
             )}
 
-            <footer className="text-center py-12 font-bold text-slate-400 uppercase tracking-widest text-xs">
+            <footer className="text-center py-12 font-bold text-slate-600 uppercase tracking-widest text-xs">
                 Handmade with ❤️
             </footer>
         </div>

@@ -10,11 +10,10 @@ import { syncCloudinaryToFirestore } from "@/app/actions/sync";
 import { EventNavbar } from "@/components/EventNavbar";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
-import { Loader2, Image as ImageIcon, ChevronLeft, Share2, Check, Phone, ArrowRight, Pencil } from "lucide-react";
-import { DashboardHeader } from "@/components/DashboardHeader";
+import { Loader2, Image as ImageIcon, ChevronLeft, Share2, Check, Pencil } from "lucide-react";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { cn } from "@/lib/utils";
-import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useRef } from "react";
 import { TemplateHero } from "@/components/TemplateHero";
 import { TemplateClassic } from "@/components/TemplateClassic";
@@ -26,6 +25,7 @@ import { TemplateCinematic } from "@/components/TemplateCinematic";
 import { TemplateMuseum } from "@/components/TemplateMuseum";
 import { TemplateScrapbook } from "@/components/TemplateScrapbook";
 import { TemplateBrutalist } from "@/components/TemplateBrutalist";
+import { navigateWithModifierClick } from "@/lib/navigation";
 
 const TEMPLATES: Record<string, React.ComponentType<any>> = {
     hero: TemplateHero,
@@ -46,7 +46,7 @@ function EventPageContent() {
     const searchParams = useSearchParams();
     const slug = params.slug as string;
     const isShared = searchParams.get("shared") === "true";
-    const { user, loading: authLoading, logout, loginWithPhoneSimple } = useAuth();
+    const { user, loading: authLoading, login, signup, authWithPhone } = useAuth();
 
     const [event, setEvent] = useState<Event | any | null>(null);
     const [subEvents, setSubEvents] = useState<Event[]>([]);
@@ -63,10 +63,13 @@ function EventPageContent() {
     const [isLogging, setIsLogging] = useState(false);
     const [hasCheckedSession, setHasCheckedSession] = useState(false);
     const [stableIdentifier, setStableIdentifier] = useState<string | null>(null);
-    const [entryMode, setEntryMode] = useState<'guest' | 'email'>('guest');
+    const [entryMode, setEntryMode] = useState<'phone' | 'email'>('phone');
+    const [isSignUp, setIsSignUp] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const { login: authLogin } = useAuth();
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [authError, setAuthError] = useState("");
+
 
     // Parallax logic
     const containerRef = useRef(null);
@@ -96,6 +99,22 @@ function EventPageContent() {
         let unsubscribe: (() => void) | undefined;
 
         if (isShared && !authLoading && hasCheckedSession) {
+            // --- VIP BYPASS CHECK ---
+            const isVIP = user && event && (
+                user.role === 'admin' ||
+                user.uid === event.createdBy ||
+                (user.delegatedBy === event.createdBy && user.roleType === 'primary') ||
+                user.assignedEvents?.includes(event.id) ||
+                (event.parentId && user.assignedEvents?.includes(event.parentId))
+            );
+
+            if (isVIP) {
+                console.log("[EventPage] VIP Access Granted. Bypassing guest logs.");
+                setGuestStatus('approved');
+                setShowGuestModal(false);
+                return;
+            }
+
             // Priority 1: Logged in user
             // Priority 2: Stable guest identifier (from session or submission)
             const ident = user ? (user.email || user.uid) : stableIdentifier;
@@ -168,53 +187,67 @@ function EventPageContent() {
         }
     };
 
-    const handleGuestSubmit = async (e: React.FormEvent) => {
+    const getPhoneLoginEmail = (phoneNumber: string) => `${phoneNumber.replace(/\D/g, "")}@phone-login.local`;
+
+    const handleGuestAuthSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!guestName || !guestPhone) return;
+        setAuthError("");
 
-        setIsLogging(true);
-        try {
-            // Use the centralized login function which handles Master Admin logic & Allowed Guest logic
-            const success = await loginWithPhoneSimple(guestName, guestPhone);
+        const isPhoneMode = entryMode === 'phone';
+        const identifier = isPhoneMode ? guestPhone.trim() : email.trim();
 
-            sessionStorage.setItem("wedding_guest_details", JSON.stringify({
-                name: guestName,
-                phone: guestPhone
-            }));
-
-            setStableIdentifier(guestPhone); // Triggers listener effect
-
-            if (success) {
-                // User is Master Admin or Invited Guest, let them straight in!
-                setGuestStatus('approved');
-            } else {
-                // User is not on the list, log their request and put them in 'pending' state
-                await logGuestAccess(guestName, guestPhone);
-                setGuestStatus('pending');
-            }
-        } catch (err) {
-            console.error("Error logging guest:", err);
-        } finally {
-            setIsLogging(false);
+        if (!identifier || !password.trim()) {
+            setAuthError(isPhoneMode ? "Please enter phone number and password." : "Please enter email and password.");
+            return;
         }
-    };
 
-    const handleEmailSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!email || !password) return;
+        if (password.length < 6) {
+            setAuthError("Password should be at least 6 characters.");
+            return;
+        }
+
+        if (isSignUp) {
+            if (!guestName.trim()) {
+                setAuthError("Please enter your name.");
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                setAuthError("Passwords do not match.");
+                return;
+            }
+        }
 
         setIsLogging(true);
         try {
-            const success = await authLogin(email, password);
+            let success = false;
+            let stableId = identifier;
+
+            if (isSignUp) {
+                success = isPhoneMode
+                    ? await authWithPhone(guestName, guestPhone, password)
+                    : await signup(email, password, guestName);
+            } else {
+                const loginId = isPhoneMode ? getPhoneLoginEmail(guestPhone) : email;
+                stableId = loginId;
+                success = await login(loginId, password);
+            }
+
             if (success) {
-                // Log access immediately since state might not update fast enough for useEffect
-                await logGuestAccess(email.split('@')[0], email);
-                setStableIdentifier(email);
-                setGuestStatus('pending');
+                const sessionDetails = {
+                    name: guestName || email || guestPhone,
+                    phone: stableId
+                };
+
+                sessionStorage.setItem("wedding_guest_details", JSON.stringify(sessionDetails));
+                setStableIdentifier(stableId);
+                setShowGuestModal(false);
+            } else {
+                setAuthError(isSignUp ? "Failed to create account. Please check your details." : "Invalid login details.");
             }
         } catch (err) {
-            console.error("Login failed:", err);
-            alert("Login failed. Please check your credentials.");
+            console.error("Guest auth failed:", err);
+            setAuthError("Something went wrong. Please try again.");
         } finally {
             setIsLogging(false);
         }
@@ -337,7 +370,7 @@ function EventPageContent() {
         return (
             <main className="min-h-screen flex flex-col items-center justify-center bg-stone-50 px-4 text-center relative" ref={containerRef}>
                 <h2 className="text-2xl font-bold mb-4">Access Denied</h2>
-                <p className="text-stone-500 mb-8 max-w-md">
+                <p className="text-stone-700 mb-8 max-w-md">
                     This gallery is private. Please log in to view your memories.
                 </p>
                 <button
@@ -358,7 +391,7 @@ function EventPageContent() {
                         const backUrl = event?.parentId ? `/events/${event.parentId}` : "/gallery";
                         router.push(`${backUrl}${isShared ? "?shared=true" : ""}`);
                     }}
-                    className="text-stone-500 hover:text-stone-900 transition-colors text-sm font-bold tracking-widest uppercase flex items-center group"
+                    className="text-stone-700 hover:text-stone-900 transition-colors text-sm font-bold tracking-widest uppercase flex items-center group"
                 >
                     <ChevronLeft className="w-5 h-5 mr-1 group-hover:-translate-x-1 transition-transform" />
                     {event?.parentId ? "Back to Event" : "Back to Gallery"}
@@ -414,16 +447,16 @@ function EventPageContent() {
 
                     {subEvents.length === 0 ? (
                         <div className="py-40 text-center opacity-40">
-                            <ImageIcon className="w-16 h-16 mx-auto mb-6 text-stone-300" />
+                            <ImageIcon className="w-16 h-16 mx-auto mb-6 text-stone-600" />
                             {error === "permissions" ? (
                                 <>
                                     <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Access restricted...</h2>
-                                    <p className="font-sans text-stone-400">If you are the owner, please ensure your Firestore Security Rules allow public reads for events and photos.</p>
+                                    <p className="font-sans text-stone-600">If you are the owner, please ensure your Firestore Security Rules allow public reads for events and photos.</p>
                                 </>
                             ) : (
                                 <>
                                     <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Glimpses are being curated...</h2>
-                                    <p className="font-sans text-stone-400">Galleries for this event will appear here soon.</p>
+                                    <p className="font-sans text-stone-600">Galleries for this event will appear here soon.</p>
                                 </>
                             )}
                         </div>
@@ -436,7 +469,7 @@ function EventPageContent() {
                                     className="w-full"
                                 >
                                     <div
-                                        onClick={() => router.push(`/events/${sub.id}${isShared ? "?shared=true" : ""}`)}
+                                        onClick={(e) => navigateWithModifierClick(e, `/events/${sub.id}${isShared ? "?shared=true" : ""}`, router.push)}
                                         className="group relative block w-full aspect-[3/4] overflow-hidden rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all duration-500 cursor-pointer bg-stone-100"
                                     >
                                         <Image
@@ -473,16 +506,16 @@ function EventPageContent() {
                         </div>
                     ) : (
                         <div className="text-center py-40 opacity-40">
-                            <ImageIcon className="w-16 h-16 mx-auto mb-6 text-stone-300" />
+                            <ImageIcon className="w-16 h-16 mx-auto mb-6 text-stone-600" />
                             {error === "permissions" ? (
                                 <>
                                     <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Moments restricted...</h2>
-                                    <p className="font-sans text-stone-400 text-sm">Owner: Check Firestore rules to enable shared access.</p>
+                                    <p className="font-sans text-stone-600 text-sm">Owner: Check Firestore rules to enable shared access.</p>
                                 </>
                             ) : (
                                 <>
                                     <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Moments are being developed...</h2>
-                                    <p className="font-sans text-stone-400 text-sm">Check back soon to see the captured memories.</p>
+                                    <p className="font-sans text-stone-600 text-sm">Check back soon to see the captured memories.</p>
                                 </>
                             )}
                         </div>
@@ -548,18 +581,18 @@ function EventPageContent() {
                                 {guestStatus === 'pending' ? (
                                     <>
                                         <h2 className="text-3xl font-bold mb-3 font-serif text-slate-800">Hang Tight, {guestName.split(' ')[0]}! ✨</h2>
-                                        <p className="text-slate-500 mb-8 font-sans leading-relaxed">
-                                            We've sent your request to the event admin. You'll be admitted as soon as they grant access.
+                                        <p className="text-slate-700 mb-8 font-sans leading-relaxed">
+                                            We have sent your request to the event admin. You will be admitted as soon as they grant access.
                                         </p>
                                         <div className="p-4 bg-stone-50 rounded-2xl border border-stone-100 flex items-center justify-center space-x-3">
                                             <div className="w-2 h-2 rounded-full bg-royal-gold animate-pulse" />
-                                            <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Waiting for approval</span>
+                                            <span className="text-xs font-bold uppercase tracking-widest text-stone-600">Waiting for approval</span>
                                         </div>
                                     </>
                                 ) : guestStatus === 'rejected' ? (
                                     <>
                                         <h2 className="text-3xl font-bold mb-3 font-serif text-slate-800">Access Restricted</h2>
-                                        <p className="text-slate-500 mb-8 font-sans leading-relaxed">
+                                        <p className="text-slate-700 mb-8 font-sans leading-relaxed">
                                             The admin has declined this access request. Please contact the host for support.
                                         </p>
                                         <button
@@ -573,19 +606,25 @@ function EventPageContent() {
                                     <>
                                         <div className="flex p-1 bg-stone-100 rounded-2xl mb-8">
                                             <button
-                                                onClick={() => setEntryMode('guest')}
+                                                onClick={() => {
+                                                    setEntryMode('phone');
+                                                    setAuthError("");
+                                                }}
                                                 className={cn(
                                                     "flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all",
-                                                    entryMode === 'guest' ? "bg-white text-slate-800 shadow-sm" : "text-stone-400 hover:text-stone-600"
+                                                    entryMode === 'phone' ? "bg-white text-slate-800 shadow-sm" : "text-stone-600 hover:text-stone-600"
                                                 )}
                                             >
-                                                Guest Access
+                                                Phone Login
                                             </button>
                                             <button
-                                                onClick={() => setEntryMode('email')}
+                                                onClick={() => {
+                                                    setEntryMode('email');
+                                                    setAuthError("");
+                                                }}
                                                 className={cn(
                                                     "flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all",
-                                                    entryMode === 'email' ? "bg-white text-slate-800 shadow-sm" : "text-stone-400 hover:text-stone-600"
+                                                    entryMode === 'email' ? "bg-white text-slate-800 shadow-sm" : "text-stone-600 hover:text-stone-600"
                                                 )}
                                             >
                                                 Email Login
@@ -593,30 +632,31 @@ function EventPageContent() {
                                         </div>
 
                                         <h2 className="text-3xl font-bold mb-3 font-serif text-slate-800">
-                                            {entryMode === 'guest' ? "Welcome Guest" : "Member Login"}
+                                            {isSignUp ? "Create Account" : "Welcome Back"}
                                         </h2>
-                                        <p className="text-slate-500 mb-8 font-sans leading-relaxed text-sm">
-                                            {entryMode === 'guest'
-                                                ? "Share details to request private access."
-                                                : "Login to your account to view this event."}
+                                        <p className="text-slate-700 mb-8 font-sans leading-relaxed text-sm">
+                                            {isSignUp ? "Sign up to request access to this private event." : "Log in to request access to this private event."}
                                         </p>
 
-                                        {entryMode === 'guest' ? (
-                                            <form onSubmit={handleGuestSubmit} className="space-y-6">
-                                                <div className="space-y-4 text-left">
+                                        <form onSubmit={handleGuestAuthSubmit} className="space-y-6">
+                                            <div className="space-y-4 text-left">
+                                                {isSignUp && (
                                                     <div className="relative group">
-                                                        <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1 mb-2 block">Name</label>
+                                                        <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1 mb-2 block">Name</label>
                                                         <input
                                                             type="text"
-                                                            placeholder="Guest Name"
+                                                            placeholder="Your Name"
                                                             required
                                                             value={guestName}
                                                             onChange={(e) => setGuestName(e.target.value)}
                                                             className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-royal-gold/20 focus:border-royal-gold transition-all font-sans"
                                                         />
                                                     </div>
+                                                )}
+
+                                                {entryMode === 'phone' ? (
                                                     <div className="relative group">
-                                                        <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1 mb-2 block">Phone</label>
+                                                        <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1 mb-2 block">Phone Number</label>
                                                         <input
                                                             type="tel"
                                                             placeholder="10-digit number"
@@ -626,21 +666,9 @@ function EventPageContent() {
                                                             className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-royal-gold/20 focus:border-royal-gold transition-all font-sans"
                                                         />
                                                     </div>
-                                                </div>
-
-                                                <button
-                                                    type="submit"
-                                                    disabled={isLogging}
-                                                    className="w-full py-5 bg-slate-900 text-white rounded-2xl font-bold uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 shadow-xl flex items-center justify-center space-x-3"
-                                                >
-                                                    {isLogging ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Request Access</span>}
-                                                </button>
-                                            </form>
-                                        ) : (
-                                            <form onSubmit={handleEmailSubmit} className="space-y-6">
-                                                <div className="space-y-4 text-left">
+                                                ) : (
                                                     <div className="relative group">
-                                                        <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1 mb-2 block">Email Address</label>
+                                                        <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1 mb-2 block">Email Address</label>
                                                         <input
                                                             type="email"
                                                             placeholder="name@email.com"
@@ -650,28 +678,64 @@ function EventPageContent() {
                                                             className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-royal-gold/20 focus:border-royal-gold transition-all font-sans"
                                                         />
                                                     </div>
+                                                )}
+
+                                                <div className="relative group">
+                                                    <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1 mb-2 block">Password</label>
+                                                    <input
+                                                        type="password"
+                                                        placeholder="••••••••"
+                                                        required
+                                                        value={password}
+                                                        onChange={(e) => setPassword(e.target.value)}
+                                                        className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-royal-gold/20 focus:border-royal-gold transition-all font-sans"
+                                                    />
+                                                </div>
+
+                                                {isSignUp && (
                                                     <div className="relative group">
-                                                        <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1 mb-2 block">Password</label>
+                                                        <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1 mb-2 block">Confirm Password</label>
                                                         <input
                                                             type="password"
                                                             placeholder="••••••••"
                                                             required
-                                                            value={password}
-                                                            onChange={(e) => setPassword(e.target.value)}
+                                                            value={confirmPassword}
+                                                            onChange={(e) => setConfirmPassword(e.target.value)}
                                                             className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-royal-gold/20 focus:border-royal-gold transition-all font-sans"
                                                         />
                                                     </div>
-                                                </div>
+                                                )}
+                                            </div>
 
+                                            {authError && (
+                                                <div className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-2xl border border-red-100">
+                                                    {authError}
+                                                </div>
+                                            )}
+
+                                            <button
+                                                type="submit"
+                                                disabled={isLogging}
+                                                className="w-full py-5 bg-slate-900 text-white rounded-2xl font-bold uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 shadow-xl flex items-center justify-center space-x-3"
+                                            >
+                                                {isLogging ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>{isSignUp ? "Sign Up & Access" : "Login & Access"}</span>}
+                                            </button>
+                                        </form>
+
+                                        <div className="mt-8 text-center pt-6 border-t border-stone-100">
+                                            <p className="text-slate-700 text-sm">
+                                                {isSignUp ? "Already have an account?" : "Do not have an account?"}
                                                 <button
-                                                    type="submit"
-                                                    disabled={isLogging}
-                                                    className="w-full py-5 bg-sky-600 text-white rounded-2xl font-bold uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 shadow-xl flex items-center justify-center space-x-3"
+                                                    onClick={() => {
+                                                        setIsSignUp(!isSignUp);
+                                                        setAuthError("");
+                                                    }}
+                                                    className="ml-2 font-bold text-sky-600 hover:text-sky-800 transition-colors underline decoration-2 underline-offset-4"
                                                 >
-                                                    {isLogging ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Login & Access</span>}
+                                                    {isSignUp ? "Login here" : "Sign Up"}
                                                 </button>
-                                            </form>
-                                        )}
+                                            </p>
+                                        </div>
                                     </>
                                 )}
                             </div>

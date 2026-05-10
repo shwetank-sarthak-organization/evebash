@@ -39,7 +39,7 @@ export default function SampleGalleries() {
                             <div className="p-8">
                                 <div className="flex justify-between items-center mb-3">
                                     <span className="text-sky-600 text-sm font-bold uppercase tracking-widest">{album.category}</span>
-                                    <span className="text-slate-500 text-sm font-serif italic">{album.year}</span>
+                                    <span className="text-slate-700 text-sm font-serif italic">{album.year}</span>
                                 </div>
                                 <h3 className="text-2xl font-serif text-slate-800 mb-2 group-hover:text-sky-600 transition-colors">{album.name}</h3>
                                 <div className="flex items-center text-slate-600 text-base font-medium mt-4 group-hover:translate-x-2 transition-transform duration-300">

@@ -31,7 +31,7 @@ export function Hero() {
                     transition={{ duration: 1, ease: "easeOut" }}
                     className="space-y-6"
                 >
-                    <div className="flex items-center justify-center gap-4 text-gold-400 tracking-[0.4em] text-sm md:text-base uppercase font-semibold">
+                    <div className="flex items-center justify-center gap-4 text-gold-600 tracking-[0.4em] text-sm md:text-base uppercase font-semibold">
                         <span className="w-8 h-[1px] bg-gold-400/50" />
                         We Are Getting Married
                         <span className="w-8 h-[1px] bg-gold-400/50" />

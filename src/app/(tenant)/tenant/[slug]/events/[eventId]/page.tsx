@@ -67,8 +67,8 @@ export default async function SubEventPage({ params }: { params: Promise<{ slug:
                 <MasonryGrid photos={photos} eventSlug={slug} />
             ) : (
                 <div className="text-center py-20 bg-black/5 rounded-2xl mx-4 border border-dashed border-black/20">
-                    <p className="text-stone-500 mb-2 font-serif italic text-xl">No photos found in database.</p>
-                    <p className="text-sm text-stone-400 font-mono uppercase tracking-widest">
+                    <p className="text-stone-700 mb-2 font-serif italic text-xl">No photos found in database.</p>
+                    <p className="text-sm text-stone-600 font-mono uppercase tracking-widest">
                         Wait for photos to be uploaded.
                     </p>
                 </div>
@@ -115,7 +115,7 @@ export default async function SubEventPage({ params }: { params: Promise<{ slug:
                             <div className="absolute inset-0 bg-black/40" />
                         </div>
                         <div className="relative z-10 text-center text-white p-4">
-                            <p className="text-gold-400 tracking-[0.3em] text-sm uppercase font-semibold mb-2">
+                            <p className="text-gold-600 tracking-[0.3em] text-sm uppercase font-semibold mb-2">
                                 {subEvent.description || "A Beautiful Celebration"}
                             </p>
                             <h1 className="font-serif text-5xl md:text-7xl font-bold tracking-tight">
@@ -124,7 +124,7 @@ export default async function SubEventPage({ params }: { params: Promise<{ slug:
                         </div>
                     </div>
                     {galleryBlock}
-                    <footer className="bg-stone-900 text-stone-400 py-12 text-center text-sm border-t border-stone-800">
+                    <footer className="bg-stone-900 text-stone-600 py-12 text-center text-sm border-t border-stone-800">
                         <p>© {new Date().getFullYear()} Wedding Album.</p>
                     </footer>
                 </>

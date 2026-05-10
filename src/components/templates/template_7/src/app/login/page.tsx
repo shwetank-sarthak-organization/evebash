@@ -109,7 +109,7 @@ export default function LoginPage() {
                         <Lock className="w-5 h-5" />
                     </div>
                     <h1 className="text-4xl font-serif text-royal-maroon mb-3 tracking-wide">Welcome</h1>
-                    <p className="text-gray-500 font-light">Enter your details to access the memories.</p>
+                    <p className="text-gray-700 font-light">Enter your details to access the memories.</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -166,7 +166,7 @@ export default function LoginPage() {
                     </button>
                 </form>
 
-                <p className="text-center text-xs text-gray-400 mt-8 font-light">
+                <p className="text-center text-xs text-gray-600 mt-8 font-light">
                     Protected with ❤️ for Samarth & Jyoti
                 </p>
             </motion.div>

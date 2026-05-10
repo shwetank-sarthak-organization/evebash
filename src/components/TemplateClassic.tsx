@@ -61,7 +61,7 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
                                     priority
                                 />
                             ) : (
-                                <div className="w-full h-full bg-slate-200 flex items-center justify-center text-slate-400">
+                                <div className="w-full h-full bg-slate-200 flex items-center justify-center text-slate-600">
                                     No Cover Image
                                 </div>
                             )}
@@ -97,7 +97,7 @@ export function TemplateClassic({ event, children }: TemplateClassicProps) {
             )}
 
             {/* Footer */}
-            <footer className="py-12 text-center text-slate-400 text-sm uppercase tracking-widest bg-[#f8f5f2]">
+            <footer className="py-12 text-center text-slate-600 text-sm uppercase tracking-widest bg-[#f8f5f2]">
                 {event.title} — {new Date().getFullYear()}
             </footer>
         </div>

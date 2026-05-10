@@ -98,7 +98,7 @@ export default function TenantAdminDashboard() {
                     </div>
 
                     {loadingReqs ? (
-                        <div className="p-12 text-center text-stone-400 font-light">Loading requests...</div>
+                        <div className="p-12 text-center text-stone-600 font-light">Loading requests...</div>
                     ) : requests.length === 0 ? (
                         <div className="p-12 text-center flex flex-col items-center">
                             <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mb-4 text-green-600">
@@ -107,7 +107,7 @@ export default function TenantAdminDashboard() {
                                 </svg>
                             </div>
                             <p className="text-stone-600 font-medium">All caught up!</p>
-                            <p className="text-stone-400 text-sm mt-1">No pending requests at the moment.</p>
+                            <p className="text-stone-600 text-sm mt-1">No pending requests at the moment.</p>
                         </div>
                     ) : (
                         <ul className="divide-y divide-gray-100">
@@ -121,7 +121,7 @@ export default function TenantAdminDashboard() {
                                     <div>
                                         <p className="font-serif text-xl text-[#800000] mb-1">{req.name}</p>
                                         <p className="text-stone-600 font-mono text-sm tracking-wide bg-stone-100 inline-block px-2 py-1 rounded">{req.phone}</p>
-                                        <p className="text-xs text-stone-400 mt-2 flex items-center gap-1">
+                                        <p className="text-xs text-stone-600 mt-2 flex items-center gap-1">
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
                                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clipRule="evenodd" />
                                             </svg>

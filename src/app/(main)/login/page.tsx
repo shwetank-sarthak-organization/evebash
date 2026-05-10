@@ -8,24 +8,27 @@ import { Lock } from "lucide-react";
 
 function LoginContent() {
     const [email, setEmail] = useState("");
+    const [phone, setPhone] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [name, setName] = useState("");
     const [error, setError] = useState("");
     const [status, setStatus] = useState<"idle" | "loading">("idle");
     const [isSignUp, setIsSignUp] = useState(false);
+    const [authMethod, setAuthMethod] = useState<"email" | "phone">("email");
 
-    const { login, signup, loginWithGoogle } = useAuth();
+    const { login, signup, authWithPhone, loginWithGoogle } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
     const returnTo = searchParams.get("returnTo");
+    const isPhoneAuth = authMethod === "phone";
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
 
-        if (!email.trim() || !password.trim()) {
-            setError("Please enter both email and password ✨");
+        if (!password.trim()) {
+            setError("Please enter your password.");
             return;
         }
 
@@ -34,9 +37,19 @@ function LoginContent() {
             return;
         }
 
+        if (isPhoneAuth && !phone.trim()) {
+            setError("Please enter your phone number.");
+            return;
+        }
+
+        if (!isPhoneAuth && !email.trim()) {
+            setError("Please enter your email address.");
+            return;
+        }
+
         if (isSignUp) {
             if (!name.trim()) {
-                setError("Please enter your name ✨");
+                setError("Please enter your name.");
                 return;
             }
             if (password !== confirmPassword) {
@@ -49,19 +62,26 @@ function LoginContent() {
 
         try {
             if (isSignUp) {
-                const success = await signup(email, password, name);
+                const success = isPhoneAuth
+                    ? await authWithPhone(name, phone, password)
+                    : await signup(email, password, name);
+
                 if (success) {
                     router.push(returnTo || "/profile");
                 } else {
-                    setError("Failed to create account. Email might be in use.");
+                    setError("Failed to create account. Please check your details.");
                     setStatus("idle");
                 }
             } else {
-                const success = await login(email, password);
+                const loginId = isPhoneAuth
+                    ? `${phone.replace(/\D/g, "")}@phone-login.local`
+                    : email;
+                const success = await login(loginId, password);
+
                 if (success) {
                     router.push(returnTo || "/profile");
                 } else {
-                    setError("Invalid email or password.");
+                    setError(isPhoneAuth ? "Invalid phone number or password." : "Invalid email or password.");
                     setStatus("idle");
                 }
             }
@@ -90,12 +110,35 @@ function LoginContent() {
                         {isSignUp ? "Join Us" : "Welcome Back"}
                     </h1>
                     <p className="text-slate-600 font-light">
-                        {isSignUp ? "Create an account to access the gallery." : "Enter your credentials to access."}
+                        {isSignUp ? "Create an account to access the gallery." : "Enter your details to access."}
                     </p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-6">
+                        <div className="grid grid-cols-2 gap-2 rounded-lg bg-white/40 p-1 border border-stone-200 shadow-sm">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setAuthMethod("email");
+                                    setError("");
+                                }}
+                                className={`rounded-md px-3 py-2 text-sm font-bold uppercase tracking-widest transition-all ${!isPhoneAuth ? "bg-slate-900 text-white shadow" : "text-slate-600 hover:bg-white/70"}`}
+                            >
+                                Email
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setAuthMethod("phone");
+                                    setError("");
+                                }}
+                                className={`rounded-md px-3 py-2 text-sm font-bold uppercase tracking-widest transition-all ${isPhoneAuth ? "bg-slate-900 text-white shadow" : "text-slate-600 hover:bg-white/70"}`}
+                            >
+                                Phone
+                            </button>
+                        </div>
+
                         {isSignUp && (
                             <div className="space-y-1">
                                 <label className="block text-sm uppercase tracking-widest font-bold text-slate-600 ml-1">Your Name</label>
@@ -110,17 +153,31 @@ function LoginContent() {
                             </div>
                         )}
 
-                        <div className="space-y-1">
-                            <label className="block text-sm uppercase tracking-widest font-bold text-slate-600 ml-1">Email Address</label>
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                                className="block w-full px-4 py-3 bg-white/50 border border-stone-300 rounded-lg text-royal-maroon placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-royal-gold focus:border-transparent transition-all shadow-sm"
-                                placeholder="you@example.com"
-                            />
-                        </div>
+                        {isPhoneAuth ? (
+                            <div className="space-y-1">
+                                <label className="block text-sm uppercase tracking-widest font-bold text-slate-600 ml-1">Phone Number</label>
+                                <input
+                                    type="tel"
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value)}
+                                    required
+                                    className="block w-full px-4 py-3 bg-white/50 border border-stone-300 rounded-lg text-royal-maroon placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-royal-gold focus:border-transparent transition-all shadow-sm"
+                                    placeholder="9876543210"
+                                />
+                            </div>
+                        ) : (
+                            <div className="space-y-1">
+                                <label className="block text-sm uppercase tracking-widest font-bold text-slate-600 ml-1">Email Address</label>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                    className="block w-full px-4 py-3 bg-white/50 border border-stone-300 rounded-lg text-royal-maroon placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-royal-gold focus:border-transparent transition-all shadow-sm"
+                                    placeholder="you@example.com"
+                                />
+                            </div>
+                        )}
 
                         <div className="space-y-1">
                             <div className="flex justify-between items-center ml-1">
@@ -171,7 +228,7 @@ function LoginContent() {
                 </form>
 
                 <div className="mt-8 text-center pt-6 border-t border-slate-100">
-                    <p className="text-slate-500 text-sm">
+                    <p className="text-slate-700 text-sm">
                         {isSignUp ? "Already have an account?" : "Don't have an account?"}
                         <button
                             onClick={() => {
@@ -185,7 +242,7 @@ function LoginContent() {
                     </p>
                 </div>
 
-                <p className="text-center text-sm text-slate-500 mt-6 font-light">
+                <p className="text-center text-sm text-slate-700 mt-6 font-light">
                     Protected with ❤️
                 </p>
 

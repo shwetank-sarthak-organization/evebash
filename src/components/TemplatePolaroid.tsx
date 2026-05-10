@@ -27,7 +27,7 @@ export function TemplatePolaroid({ event, children }: TemplatePolaroidProps) {
                                 <Image src={event.coverImage} alt={event.title} fill className="object-contain bg-stone-900" />
                             </div>
                         ) : (
-                            <div className="aspect-[4/3] w-full bg-stone-100 flex items-center justify-center text-stone-400">
+                            <div className="aspect-[4/3] w-full bg-stone-100 flex items-center justify-center text-stone-600">
                                 No Preview
                             </div>
                         )}
@@ -60,7 +60,7 @@ export function TemplatePolaroid({ event, children }: TemplatePolaroidProps) {
                 </main>
             )}
 
-            <footer className="py-12 text-center text-stone-500 font-mono text-xs">
+            <footer className="py-12 text-center text-stone-700 font-mono text-xs">
                 Captured on Film
             </footer>
         </div>

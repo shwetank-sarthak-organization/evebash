@@ -135,7 +135,7 @@ export default function FindYouPage() {
                                     flex-1 flex flex-col items-center justify-center p-8 rounded-xl border-2 border-dashed transition-all
                                     ${modelsLoaded
                                         ? 'border-royal-gold/50 bg-royal-gold/5 hover:bg-royal-gold/10 hover:border-royal-gold text-royal-maroon'
-                                        : 'border-stone-200 bg-stone-50 text-stone-400 cursor-not-allowed'}
+                                        : 'border-stone-200 bg-stone-50 text-stone-600 cursor-not-allowed'}
                                 `}
                             >
                                 <span className="text-4xl mb-3">📁</span>
@@ -151,7 +151,7 @@ export default function FindYouPage() {
                                     flex-1 flex flex-col items-center justify-center p-8 rounded-xl border-2 border-dashed transition-all
                                     ${modelsLoaded
                                         ? 'border-royal-gold/50 bg-royal-gold/5 hover:bg-royal-gold/10 hover:border-royal-gold text-royal-maroon'
-                                        : 'border-stone-200 bg-stone-50 text-stone-400 cursor-not-allowed'}
+                                        : 'border-stone-200 bg-stone-50 text-stone-600 cursor-not-allowed'}
                                 `}
                             >
                                 <span className="text-4xl mb-3">📸</span>
@@ -162,7 +162,7 @@ export default function FindYouPage() {
 
                         {/* Status Message Area (moved out of the conditional rendering block above for clarity) */}
                         {!modelsLoaded && (
-                            <p className="text-center text-stone-500 mt-4 animate-pulse">
+                            <p className="text-center text-stone-700 mt-4 animate-pulse">
                                 Loading AI Models...
                             </p>
                         )}

@@ -54,11 +54,11 @@ export default function EventHome({ event, subEvents, basePath = `/tenant/${even
                         </div>
 
                         <div className="mt-16">
-                            <p className="max-w-md text-sm leading-relaxed text-gray-500 mb-8 uppercase tracking-wide">
+                            <p className="max-w-md text-sm leading-relaxed text-gray-700 mb-8 uppercase tracking-wide">
                                 {event.description || "Join us for an evening of celebration, love, and laughter as we begin our new chapter together."}
                             </p>
                             <Link href="#events" className="inline-block group">
-                                <span className="inline-block border-b border-editorial-black pb-1 text-sm font-bold uppercase tracking-widest hover:text-gray-500 hover:border-gray-500 transition-colors">
+                                <span className="inline-block border-b border-editorial-black pb-1 text-sm font-bold uppercase tracking-widest hover:text-gray-700 hover:border-gray-500 transition-colors">
                                     View Details
                                 </span>
                             </Link>
@@ -71,7 +71,7 @@ export default function EventHome({ event, subEvents, basePath = `/tenant/${even
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-12">
                         <div className="md:col-span-4 self-start sticky top-24">
                             <h2 className="text-4xl md:text-5xl font-serif mb-4">The Itinerary</h2>
-                            <p className="text-gray-500 text-sm">A timeline of our celebrations.</p>
+                            <p className="text-gray-700 text-sm">A timeline of our celebrations.</p>
                         </div>
 
                         <div className="md:col-span-8 space-y-16">
@@ -89,7 +89,7 @@ export default function EventHome({ event, subEvents, basePath = `/tenant/${even
                                             {/* Content */}
                                             <div className="flex-grow">
                                                 <h3 className="text-3xl font-serif mb-2 group-hover:italic transition-all">{subEvent.title}</h3>
-                                                <p className="text-gray-500 mb-4 text-sm max-w-md">{subEvent.description || "Details to follow."}</p>
+                                                <p className="text-gray-700 mb-4 text-sm max-w-md">{subEvent.description || "Details to follow."}</p>
                                                 <span className="text-xs uppercase font-bold tracking-widest underline decoration-transparent group-hover:decoration-black transition-all">
                                                     See Location &rarr;
                                                 </span>
@@ -109,7 +109,7 @@ export default function EventHome({ event, subEvents, basePath = `/tenant/${even
                                 ))
                             ) : (
                                 <div className="py-10 border-t border-gray-200">
-                                    <p className="text-gray-400 italic">No events scheduled yet.</p>
+                                    <p className="text-gray-600 italic">No events scheduled yet.</p>
                                 </div>
                             )}
                         </div>
@@ -118,7 +118,7 @@ export default function EventHome({ event, subEvents, basePath = `/tenant/${even
 
                 <footer className="py-20 px-6 border-t border-gray-100 mt-12 bg-white flex flex-col items-center justify-center text-center">
                     <h2 className="text-4xl lg:text-7xl font-serif mb-6">{event.title}</h2>
-                    <p className="text-xs uppercase tracking-[0.3em] text-gray-400">
+                    <p className="text-xs uppercase tracking-[0.3em] text-gray-600">
                         {new Date().getFullYear()} &bull; Wedding Album
                     </p>
                 </footer>

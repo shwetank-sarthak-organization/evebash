@@ -72,7 +72,7 @@ export default function SeedPage() {
                 {message && <div className="mt-4 text-center font-medium">{message}</div>}
             </div>
 
-            <div className="mt-8 text-sm text-gray-500">
+            <div className="mt-8 text-sm text-gray-700">
                 <p>Use this page to add the initial admins/guests.</p>
                 <p>After setup, you might want to delete or protect this route.</p>
             </div>

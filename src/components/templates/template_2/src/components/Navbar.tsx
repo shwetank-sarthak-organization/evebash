@@ -58,7 +58,7 @@ export default function Navbar({ event, subEvents = [], basePath }: NavbarProps)
                                 key={link.name}
                                 href={link.href}
                                 className={clsx(
-                                    "px-3 py-2 text-xs font-bold uppercase tracking-[0.15em] hover:text-gray-500 transition-colors duration-300",
+                                    "px-3 py-2 text-xs font-bold uppercase tracking-[0.15em] hover:text-gray-700 transition-colors duration-300",
                                     pathname === link.href ? "text-black border-b-2 border-black" : "text-gray-800"
                                 )}
                             >

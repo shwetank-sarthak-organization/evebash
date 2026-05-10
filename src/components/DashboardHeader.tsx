@@ -64,12 +64,12 @@ export function DashboardHeader({
                         {breadcrumbs ? (
                             breadcrumbs.map((crumb, idx) => (
                                 <React.Fragment key={idx}>
-                                    {idx > 0 && <ChevronRight className="w-4 h-4 text-stone-400 mx-1" />}
+                                    {idx > 0 && <ChevronRight className="w-4 h-4 text-stone-600 mx-1" />}
                                     {crumb.onClick ? (
                                         <Tooltip text={`Return to ${crumb.label}`}>
                                             <button
                                                 onClick={crumb.onClick}
-                                                className="text-stone-500 hover:text-slate-900 transition-colors cursor-pointer"
+                                                className="text-stone-700 hover:text-slate-900 transition-colors cursor-pointer"
                                             >
                                                 {crumb.label}
                                             </button>
@@ -88,7 +88,7 @@ export function DashboardHeader({
                 <div className="flex items-center space-x-4 text-slate-800">
                     <div className="text-right hidden sm:block">
                         <p className="text-sm font-bold">{user?.name || "User"}</p>
-                        <p className="text-xs text-slate-500 font-sans">{user?.email || ""}</p>
+                        <p className="text-xs text-slate-700 font-sans">{user?.email || ""}</p>
                     </div>
 
                     {onShare && (
@@ -124,7 +124,7 @@ export function DashboardHeader({
                     {logout && (
                         <button
                             onClick={logout}
-                            className="p-2 hover:bg-stone-100 rounded-full text-stone-500 transition-colors"
+                            className="p-2 hover:bg-stone-100 rounded-full text-stone-700 transition-colors"
                             title="Logout"
                         >
                             <LogOut className="w-5 h-5" />

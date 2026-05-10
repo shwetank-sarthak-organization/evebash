@@ -124,7 +124,7 @@ export default function FaceIndexPage() {
                     <div className="flex justify-between items-center mb-6">
                         <div>
                             <h2 className="text-xl font-bold font-serif text-royal-maroon">Face Indexer</h2>
-                            <p className="text-stone-500">Run this once to populate the search database.</p>
+                            <p className="text-stone-700">Run this once to populate the search database.</p>
                         </div>
                         <button
                             onClick={startIndexing}
@@ -132,7 +132,7 @@ export default function FaceIndexPage() {
                             className={`
                                 px-6 py-3 rounded-lg font-semibold tracking-wide transition-colors
                                 ${!modelsLoaded || indexing
-                                    ? "bg-gray-300 cursor-not-allowed text-gray-500"
+                                    ? "bg-gray-300 cursor-not-allowed text-gray-700"
                                     : "bg-royal-gold text-royal-maroon hover:bg-yellow-500 shadow-md"}
                             `}
                         >
@@ -147,13 +147,13 @@ export default function FaceIndexPage() {
                             style={{ width: `${progress}%` }}
                         />
                     </div>
-                    <p className="text-right text-sm text-stone-500 mb-6">{progress}% Complete</p>
+                    <p className="text-right text-sm text-stone-700 mb-6">{progress}% Complete</p>
 
                     {/* Logs */}
                     <div className="bg-stone-900 text-green-400 font-mono text-sm p-4 rounded-lg h-96 overflow-y-auto border border-stone-800 shadow-inner">
                         {statusLogs.map((log, i) => (
                             <div key={i} className="mb-1 border-b border-white/5 pb-1 last:border-0">
-                                <span className="text-stone-500 mr-2">{new Date().toLocaleTimeString()}</span>
+                                <span className="text-stone-700 mr-2">{new Date().toLocaleTimeString()}</span>
                                 {log}
                             </div>
                         ))}

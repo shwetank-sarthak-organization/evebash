@@ -22,7 +22,7 @@ const packages = [
         ctaHref: "/login",
         accentClass: "border border-slate-100",
         btnClass: "bg-slate-800 text-white hover:bg-slate-900",
-        checkClass: "bg-slate-100 text-slate-400",
+        checkClass: "bg-slate-100 text-slate-600",
     },
     {
         name: "Basic",
@@ -135,7 +135,7 @@ export default function Pricing() {
                 {/* Header */}
                 <div className="text-center mb-16 space-y-4">
                     <h1 className="text-4xl md:text-5xl font-serif text-slate-800">Simple, Transparent Pricing</h1>
-                    <p className="text-slate-500 text-lg max-w-2xl mx-auto font-light">
+                    <p className="text-slate-700 text-lg max-w-2xl mx-auto font-light">
                         From free to enterprise — find the plan that fits your story.
                     </p>
                 </div>
@@ -160,8 +160,8 @@ export default function Pricing() {
                                 <div className="flex items-baseline mb-0.5">
                                     <span className="text-3xl font-bold text-slate-900">{pkg.price}</span>
                                 </div>
-                                <span className="text-slate-400 text-xs font-light mb-2">{pkg.period}</span>
-                                <p className="text-slate-500 font-light text-xs mb-4 min-h-[32px]">{pkg.description}</p>
+                                <span className="text-slate-600 text-xs font-light mb-2">{pkg.period}</span>
+                                <p className="text-slate-700 font-light text-xs mb-4 min-h-[32px]">{pkg.description}</p>
 
                                 <div className="w-full h-px bg-slate-100 mb-4" />
 
@@ -198,9 +198,9 @@ export default function Pricing() {
 
                 {/* Fair Usage Policy Note */}
                 <div className="mt-10 flex items-start justify-center gap-2 text-center">
-                    <Info className="w-4 h-4 text-slate-400 shrink-0 mt-px" />
-                    <p className="text-slate-400 text-xs max-w-xl leading-relaxed">
-                        <span className="font-semibold text-slate-500">Fair Usage Policy:</span> Bandwidth usage beyond fair limits may incur additional charges.
+                    <Info className="w-4 h-4 text-slate-600 shrink-0 mt-px" />
+                    <p className="text-slate-600 text-xs max-w-xl leading-relaxed">
+                        <span className="font-semibold text-slate-700">Fair Usage Policy:</span> Bandwidth usage beyond fair limits may incur additional charges.
                         Extra Storage: ₹5/GB &bull; Extra Bandwidth: ₹7–₹10/GB.
                     </p>
                 </div>
@@ -208,7 +208,7 @@ export default function Pricing() {
                 {/* Custom Plan CTA */}
                 <div className="mt-14 text-center bg-white p-10 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="text-2xl font-serif text-slate-800 mb-3">Need a custom plan?</h3>
-                    <p className="text-slate-500 mb-8 max-w-2xl mx-auto">
+                    <p className="text-slate-700 mb-8 max-w-2xl mx-auto">
                         Running a large studio or enterprise operation? Let&apos;s build a plan tailored to your exact needs.
                     </p>
                     <Link href="/contact-us" className="inline-block">

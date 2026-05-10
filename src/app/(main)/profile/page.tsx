@@ -27,10 +27,12 @@ import {
     getUserEventCount,
     getUserEvents,
     getUserVisits,
+    getUserById,
     Event as FirestoreEvent,
 } from "@/lib/firestore";
 import { uploadProfileImageToCloudinary } from "@/app/actions/userActions";
 import Image from "next/image";
+import { navigateWithModifierClick } from "@/lib/navigation";
 
 type GalleryTab = "my" | "shared";
 
@@ -52,6 +54,7 @@ export default function ProfilePage() {
     // Gallery data
     const [myGalleries, setMyGalleries] = useState<FirestoreEvent[]>([]);
     const [sharedGalleries, setSharedGalleries] = useState<any[]>([]);
+    const [sharedGalleryOwners, setSharedGalleryOwners] = useState<Record<string, string>>({});
     const [loadingGalleries, setLoadingGalleries] = useState(true);
 
     useEffect(() => {
@@ -90,14 +93,34 @@ export default function ProfilePage() {
 
                 setMyGalleries(myEvents);
 
-                // Deduplicate shared galleries by eventId
+                // Deduplicate shared galleries and remove events the user created themselves
                 const seen = new Set<string>();
+                const myEventIds = new Set(myEvents.map(e => e.id));
+
                 const unique = visits.filter((v: any) => {
                     if (seen.has(v.eventId)) return false;
+                    if (myEventIds.has(v.eventId)) return false; // Hide own events
                     seen.add(v.eventId);
                     return true;
                 });
                 setSharedGalleries(unique);
+
+                const ownerIds = Array.from(new Set(
+                    unique
+                        .map((visit: any) => visit.parentEventOwnerId || visit.ownerId || visit.createdBy)
+                        .filter(Boolean)
+                ));
+
+                const ownerEntries = await Promise.all(
+                    ownerIds.map(async (ownerId: string) => {
+                        if (ownerId.includes("@")) return [ownerId, ownerId] as const;
+
+                        const owner = await getUserById(ownerId);
+                        return [ownerId, owner?.email || ownerId] as const;
+                    })
+                );
+
+                setSharedGalleryOwners(Object.fromEntries(ownerEntries));
             } catch (err) {
                 console.error("Error fetching galleries:", err);
             } finally {
@@ -136,6 +159,20 @@ export default function ProfilePage() {
             setIsUploading(false);
         }
     };
+
+    const getSharedGalleryOwnerEmail = (visit: any) => {
+        const ownerId = visit.parentEventOwnerId || visit.ownerId || visit.createdBy;
+        if (!ownerId) return "Unknown owner";
+        if (ownerId.includes("@")) return ownerId;
+        return sharedGalleryOwners[ownerId] || ownerId;
+    };
+
+    const sharedGalleriesByOwner = sharedGalleries.reduce<Record<string, any[]>>((groups, visit) => {
+        const ownerEmail = getSharedGalleryOwnerEmail(visit);
+        if (!groups[ownerEmail]) groups[ownerEmail] = [];
+        groups[ownerEmail].push(visit);
+        return groups;
+    }, {});
 
     const getPlanLabel = (role?: string) => {
         switch (role) {
@@ -192,13 +229,13 @@ export default function ProfilePage() {
                                     {isUploading && (
                                         <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-20">
                                             <Loader2 className="w-8 h-8 animate-spin text-royal-gold mb-2" />
-                                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Uploading</span>
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-700">Uploading</span>
                                         </div>
                                     )}
                                     {profileImage ? (
                                         <Image src={profileImage} alt={user.name} fill className="object-cover" />
                                     ) : (
-                                        <User size={64} className="text-stone-300" />
+                                        <User size={64} className="text-stone-600" />
                                     )}
                                     <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
                                         <Upload className="text-white mb-1" size={24} />
@@ -214,7 +251,7 @@ export default function ProfilePage() {
                             </div>
 
                             <h1 className="text-2xl font-bold text-slate-800 tracking-tight">{user.name}</h1>
-                            <p className="text-slate-400 text-sm font-sans flex items-center justify-center mt-1">
+                            <p className="text-slate-600 text-sm font-sans flex items-center justify-center mt-1">
                                 {user.email ? <><Mail size={12} className="mr-1.5" />{user.email}</> : <><Phone size={12} className="mr-1.5" />{user.phone}</>}
                             </p>
 
@@ -243,37 +280,67 @@ export default function ProfilePage() {
                             </div>
                         </motion.div>
 
-                        {/* Usage Stats – Free/normal users */}
-                        {user.role !== "admin" && user.role !== "premium" && (
+                        {/* Usage Stats – Visible for all plans except Super Admin */}
+                        {user && user.role !== "admin" && (
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.15 }}
                                 className="bg-white rounded-[2.5rem] p-6 shadow-2xl shadow-slate-200/50 border border-stone-100"
                             >
-                                <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">Your Usage</h3>
+                                <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600 mb-4">Your Usage</h3>
 
                                 <div className="mb-5">
                                     <div className="flex justify-between items-center mb-2">
-                                        <span className="text-xs font-sans text-slate-500">Storage Used</span>
+                                        <span className="text-xs font-sans text-slate-700">Storage Used</span>
                                         <span className="text-xs font-bold font-sans text-slate-700">
-                                            {(storageUsed / (1024 * 1024)).toFixed(1)} MB / 1 GB
+                                            {(() => {
+                                                const role = user.role || "free";
+                                                const limits: Record<string, { label: string, bytes: number }> = {
+                                                    "free": { label: "1 GB", bytes: 1 * 1024 * 1024 * 1024 },
+                                                    "basic": { label: "15 GB", bytes: 15 * 1024 * 1024 * 1024 },
+                                                    "standard": { label: "60 GB", bytes: 60 * 1024 * 1024 * 1024 },
+                                                    "premium": { label: "200 GB", bytes: 200 * 1024 * 1024 * 1024 },
+                                                    "elite": { label: "1 TB", bytes: 1024 * 1024 * 1024 * 1024 }
+                                                };
+                                                const limit = limits[role] || limits["free"];
+                                                return `${(storageUsed / (1024 * 1024)).toFixed(1)} MB / ${limit.label}`;
+                                            })()}
                                         </span>
                                     </div>
                                     <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
                                         <div
                                             className="h-full rounded-full transition-all duration-700"
-                                            style={{
-                                                width: `${Math.min((storageUsed / (1024 * 1024 * 1024)) * 100, 100)}%`,
-                                                background: storageUsed >= 900 * 1024 * 1024 ? "#ef4444" : "#b8860b",
-                                            }}
+                                            style={(() => {
+                                                const role = user.role || "free";
+                                                const limits: Record<string, number> = {
+                                                    "free": 1 * 1024 * 1024 * 1024,
+                                                    "basic": 15 * 1024 * 1024 * 1024,
+                                                    "standard": 60 * 1024 * 1024 * 1024,
+                                                    "premium": 200 * 1024 * 1024 * 1024,
+                                                    "elite": 1024 * 1024 * 1024 * 1024
+                                                };
+                                                const bytesLimit = limits[role] || (1 * 1024 * 1024 * 1024);
+                                                const percentage = (storageUsed / bytesLimit) * 100;
+                                                return {
+                                                    width: `${Math.min(percentage, 100)}%`,
+                                                    background: percentage >= 90 ? "#ef4444" : "#b8860b"
+                                                };
+                                            })()}
                                         />
                                     </div>
                                 </div>
 
                                 <div className="flex justify-between items-center p-3 bg-stone-50 rounded-2xl">
-                                    <span className="text-xs font-sans text-slate-500">Events Created</span>
-                                    <span className="text-xs font-bold font-sans text-slate-700">{eventCount} / 2</span>
+                                    <span className="text-xs font-sans text-slate-700">Events Created</span>
+                                    <span className="text-xs font-bold font-sans text-slate-700">
+                                        {(() => {
+                                            const role = user.role || "free";
+                                            if (role === "admin" || role === "premium" || role === "elite") return `${eventCount} / Unlimited`;
+                                            const eventLimits: Record<string, number> = { "free": 2, "basic": 5, "standard": 20 };
+                                            return `${eventCount} / ${eventLimits[role] || 2}`;
+                                        })()}
+                                    </span>
                                 </div>
 
                                 <button
@@ -295,7 +362,7 @@ export default function ProfilePage() {
                                 onClick={() => setActiveTab("activity")}
                                 className={cn(
                                     "px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all",
-                                    activeTab === "activity" ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                    activeTab === "activity" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-600"
                                 )}
                             >
                                 My Galleries
@@ -304,7 +371,7 @@ export default function ProfilePage() {
                                 onClick={() => setActiveTab("settings")}
                                 className={cn(
                                     "px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all",
-                                    activeTab === "settings" ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                    activeTab === "settings" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-600"
                                 )}
                             >
                                 Account Settings
@@ -325,10 +392,10 @@ export default function ProfilePage() {
                                         <button
                                             onClick={() => setGalleryTab("my")}
                                             className={cn(
-                                                "flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all border",
+                                                "flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all",
                                                 galleryTab === "my"
-                                                    ? "bg-slate-900 text-white border-slate-900 shadow-md"
-                                                    : "bg-white text-slate-500 border-stone-100 hover:border-slate-300"
+                                                    ? "bg-white text-slate-900 border border-stone-100 shadow-sm"
+                                                    : "bg-stone-50 text-slate-700 border border-transparent hover:bg-stone-100"
                                             )}
                                         >
                                             <Images size={14} />
@@ -336,7 +403,7 @@ export default function ProfilePage() {
                                             {!loadingGalleries && (
                                                 <span className={cn(
                                                     "ml-1 px-2 py-0.5 rounded-full text-[9px]",
-                                                    galleryTab === "my" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                                                    galleryTab === "my" ? "bg-slate-100 text-slate-700" : "bg-stone-200 text-slate-600"
                                                 )}>
                                                     {myGalleries.length}
                                                 </span>
@@ -345,10 +412,10 @@ export default function ProfilePage() {
                                         <button
                                             onClick={() => setGalleryTab("shared")}
                                             className={cn(
-                                                "flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all border",
+                                                "flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all",
                                                 galleryTab === "shared"
-                                                    ? "bg-slate-900 text-white border-slate-900 shadow-md"
-                                                    : "bg-white text-slate-500 border-stone-100 hover:border-slate-300"
+                                                    ? "bg-white text-slate-900 border border-stone-100 shadow-sm"
+                                                    : "bg-stone-50 text-slate-700 border border-transparent hover:bg-stone-100"
                                             )}
                                         >
                                             <Share2 size={14} />
@@ -356,7 +423,7 @@ export default function ProfilePage() {
                                             {!loadingGalleries && (
                                                 <span className={cn(
                                                     "ml-1 px-2 py-0.5 rounded-full text-[9px]",
-                                                    galleryTab === "shared" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                                                    galleryTab === "shared" ? "bg-slate-100 text-slate-700" : "bg-stone-200 text-slate-600"
                                                 )}>
                                                     {sharedGalleries.length}
                                                 </span>
@@ -371,7 +438,7 @@ export default function ProfilePage() {
                                         {loadingGalleries ? (
                                             <div className="py-20 flex flex-col items-center justify-center space-y-4">
                                                 <Loader2 className="w-8 h-8 animate-spin text-royal-gold" />
-                                                <p className="text-stone-400 text-[10px] font-bold tracking-widest uppercase">Loading Galleries...</p>
+                                                <p className="text-stone-600 text-[10px] font-bold tracking-widest uppercase">Loading Galleries...</p>
                                             </div>
                                         ) : galleryTab === "my" ? (
                                             /* ── MY GALLERIES ── */
@@ -380,9 +447,9 @@ export default function ProfilePage() {
                                                     <div className="flex items-center justify-between mb-6 border-b border-stone-50 pb-4">
                                                         <div>
                                                             <h3 className="text-xl font-bold text-slate-800 font-serif">Your Created Galleries</h3>
-                                                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Events you have created</p>
+                                                            <p className="text-slate-600 text-[10px] font-bold uppercase tracking-widest mt-1">Events you have created</p>
                                                         </div>
-                                                        <div className="hidden sm:flex w-10 h-10 bg-slate-50 rounded-full items-center justify-center text-slate-400">
+                                                        <div className="hidden sm:flex w-10 h-10 bg-slate-50 rounded-full items-center justify-center text-slate-600">
                                                             <Camera size={20} />
                                                         </div>
                                                     </div>
@@ -391,7 +458,7 @@ export default function ProfilePage() {
                                                             key={event.id}
                                                             whileHover={{ x: 5 }}
                                                             className="group p-4 bg-stone-50/50 border border-transparent hover:border-slate-100 rounded-2xl flex items-center justify-between transition-all cursor-pointer"
-                                                            onClick={() => router.push(`/dashboard`)}
+                                                            onClick={(e) => navigateWithModifierClick(e, `/events/${event.id}`, router.push)}
                                                         >
                                                             <div className="flex items-center space-x-4">
                                                                 <div className="w-12 h-12 rounded-xl bg-white border border-stone-100 flex items-center justify-center text-royal-gold shadow-sm overflow-hidden">
@@ -403,23 +470,23 @@ export default function ProfilePage() {
                                                                 </div>
                                                                 <div>
                                                                     <h4 className="text-sm font-bold text-slate-800 group-hover:text-royal-gold transition-colors">{event.title}</h4>
-                                                                    <div className="flex items-center text-[10px] text-stone-400 font-sans mt-1">
+                                                                    <div className="flex items-center text-[10px] text-stone-600 font-sans mt-1">
                                                                         <Calendar size={10} className="mr-1" />
                                                                         {event.date || "No date set"}
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                            <ChevronRight size={16} className="text-stone-300 group-hover:text-slate-600 transition-colors" />
+                                                            <ChevronRight size={16} className="text-stone-600 group-hover:text-slate-600 transition-colors" />
                                                         </motion.div>
                                                     ))}
                                                 </div>
                                             ) : (
                                                 <div className="py-16 flex flex-col items-center text-center">
-                                                    <div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mb-6 text-stone-300">
+                                                    <div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mb-6 text-stone-600">
                                                         <Camera size={32} />
                                                     </div>
                                                     <h3 className="text-xl font-bold text-slate-800 mb-2">No Galleries Yet</h3>
-                                                    <p className="text-slate-400 text-sm max-w-sm mb-8 font-sans">
+                                                    <p className="text-slate-600 text-sm max-w-sm mb-8 font-sans">
                                                         You haven&apos;t created any galleries. Head to your dashboard to create your first event.
                                                     </p>
                                                     <button
@@ -437,50 +504,61 @@ export default function ProfilePage() {
                                                     <div className="flex items-center justify-between mb-6 border-b border-stone-50 pb-4">
                                                         <div>
                                                             <h3 className="text-xl font-bold text-slate-800 font-serif">Shared With Me</h3>
-                                                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Galleries you have been approved to view</p>
+                                                            <p className="text-slate-600 text-[10px] font-bold uppercase tracking-widest mt-1">Galleries you have been approved to view</p>
                                                         </div>
                                                         <div className="hidden sm:flex w-10 h-10 bg-emerald-50 rounded-full items-center justify-center text-emerald-500">
                                                             <Shield size={20} />
                                                         </div>
                                                     </div>
-                                                    {sharedGalleries.map((visit) => (
-                                                        <motion.div
-                                                            key={visit.id}
-                                                            whileHover={{ x: 5 }}
-                                                            className="group p-4 bg-stone-50/50 border border-transparent hover:border-slate-100 rounded-2xl flex items-center justify-between transition-all cursor-pointer"
-                                                            onClick={() => { if (visit.eventId) router.push(`/events/${visit.eventId}`); }}
-                                                        >
-                                                            <div className="flex items-center space-x-4">
-                                                                <div className="w-12 h-12 rounded-xl bg-white border border-stone-100 flex items-center justify-center text-emerald-500 shadow-sm">
-                                                                    <Share2 size={20} />
-                                                                </div>
-                                                                <div>
-                                                                    <h4 className="text-sm font-bold text-slate-800 group-hover:text-royal-gold transition-colors">
-                                                                        {visit.eventTitle || "Untitled Event"}
-                                                                    </h4>
-                                                                    <div className="flex items-center gap-3 mt-1">
-                                                                        <div className="flex items-center text-[10px] text-stone-400 font-sans">
-                                                                            <Clock size={10} className="mr-1" />
-                                                                            {visit.loginAt?.toDate().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                                                    {Object.entries(sharedGalleriesByOwner).map(([ownerEmail, visits]) => (
+                                                        <div key={ownerEmail} className="space-y-3">
+                                                            <div className="px-1 pt-2">
+                                                                <h4 className="text-sm font-bold text-slate-800 font-sans">{ownerEmail}</h4>
+                                                                <p className="text-[10px] text-stone-600 font-bold uppercase tracking-widest mt-1">
+                                                                    {visits.length} shared {visits.length === 1 ? "gallery" : "galleries"}
+                                                                </p>
+                                                            </div>
+
+                                                            {visits.map((visit) => (
+                                                                <motion.div
+                                                                    key={visit.id}
+                                                                    whileHover={{ x: 5 }}
+                                                                    className="group p-4 bg-stone-50/50 border border-transparent hover:border-slate-100 rounded-2xl flex items-center justify-between transition-all cursor-pointer"
+                                                                    onClick={(e) => { if (visit.eventId) navigateWithModifierClick(e, `/events/${visit.eventId}`, router.push); }}
+                                                                >
+                                                                    <div className="flex items-center space-x-4">
+                                                                        <div className="w-12 h-12 rounded-xl bg-white border border-stone-100 flex items-center justify-center text-emerald-500 shadow-sm">
+                                                                            <Share2 size={20} />
                                                                         </div>
-                                                                        <div className="flex items-center text-[10px] text-emerald-500 font-bold uppercase tracking-tighter">
-                                                                            <Shield size={10} className="mr-1" />
-                                                                            Approved
+                                                                        <div>
+                                                                            <h4 className="text-sm font-bold text-slate-800 group-hover:text-royal-gold transition-colors">
+                                                                                {visit.eventTitle || "Untitled Event"}
+                                                                            </h4>
+                                                                            <div className="flex items-center gap-3 mt-1">
+                                                                                <div className="flex items-center text-[10px] text-stone-600 font-sans">
+                                                                                    <Clock size={10} className="mr-1" />
+                                                                                    {visit.loginAt?.toDate().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                                                                                </div>
+                                                                                <div className="flex items-center text-[10px] text-emerald-500 font-bold uppercase tracking-tighter">
+                                                                                    <Shield size={10} className="mr-1" />
+                                                                                    Approved
+                                                                                </div>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
-                                                                </div>
-                                                            </div>
-                                                            <ChevronRight size={16} className="text-stone-300 group-hover:text-slate-600 transition-colors" />
-                                                        </motion.div>
+                                                                    <ChevronRight size={16} className="text-stone-600 group-hover:text-slate-600 transition-colors" />
+                                                                </motion.div>
+                                                            ))}
+                                                        </div>
                                                     ))}
                                                 </div>
                                             ) : (
                                                 <div className="py-16 flex flex-col items-center text-center">
-                                                    <div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mb-6 text-stone-300">
+                                                    <div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mb-6 text-stone-600">
                                                         <Share2 size={32} />
                                                     </div>
                                                     <h3 className="text-xl font-bold text-slate-800 mb-2">No Shared Galleries Yet</h3>
-                                                    <p className="text-slate-400 text-sm max-w-sm mb-8 font-sans">
+                                                    <p className="text-slate-600 text-sm max-w-sm mb-8 font-sans">
                                                         Once a host approves your access to their gallery, it will appear here for you to revisit anytime.
                                                     </p>
                                                     <button
@@ -507,18 +585,18 @@ export default function ProfilePage() {
                                     <div className="space-y-6">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1">Full Name</label>
+                                                <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1">Full Name</label>
                                                 <input readOnly value={user.name} className="w-full px-5 py-3.5 bg-stone-50 border border-stone-100 rounded-xl text-slate-700 font-sans focus:outline-none" />
                                             </div>
                                             <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1">
+                                                <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1">
                                                     {user.email ? "Email Address" : "Phone Number"}
                                                 </label>
                                                 <input readOnly value={user.email || user.phone || ""} className="w-full px-5 py-3.5 bg-stone-50 border border-stone-100 rounded-xl text-slate-700 font-sans focus:outline-none" />
                                             </div>
                                         </div>
                                         <div className="pt-6 border-t border-stone-50">
-                                            <p className="text-stone-400 text-xs font-sans italic">
+                                            <p className="text-stone-600 text-xs font-sans italic">
                                                 To change your account details, please contact our support team.
                                             </p>
                                         </div>

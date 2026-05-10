@@ -18,13 +18,13 @@ export default function Footer() {
                             We believe every picture tells a story, and we are here to tell yours.
                         </p>
                         <div className="flex space-x-6 pt-4">
-                            <a href="#" className="text-slate-500 hover:text-sky-600 transition-colors transform hover:-translate-y-1 duration-300">
+                            <a href="#" className="text-slate-700 hover:text-sky-600 transition-colors transform hover:-translate-y-1 duration-300">
                                 <Instagram className="w-5 h-5" />
                             </a>
-                            <a href="#" className="text-slate-500 hover:text-sky-600 transition-colors transform hover:-translate-y-1 duration-300">
+                            <a href="#" className="text-slate-700 hover:text-sky-600 transition-colors transform hover:-translate-y-1 duration-300">
                                 <Facebook className="w-5 h-5" />
                             </a>
-                            <a href="#" className="text-slate-500 hover:text-sky-600 transition-colors transform hover:-translate-y-1 duration-300">
+                            <a href="#" className="text-slate-700 hover:text-sky-600 transition-colors transform hover:-translate-y-1 duration-300">
                                 <Twitter className="w-5 h-5" />
                             </a>
                         </div>
@@ -86,10 +86,10 @@ export default function Footer() {
 
                 {/* Copyright */}
                 <div className="mt-16 pt-8 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center bg-slate-50">
-                    <p className="text-slate-500 text-sm">
+                    <p className="text-slate-700 text-sm">
                         &copy; {new Date().getFullYear()} Wedding Album. All rights reserved.
                     </p>
-                    <p className="text-slate-500 text-sm mt-2 md:mt-0">
+                    <p className="text-slate-700 text-sm mt-2 md:mt-0">
                         Designed with <span className="text-red-400">♥</span>
                     </p>
                 </div>

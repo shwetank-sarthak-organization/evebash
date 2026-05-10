@@ -23,7 +23,7 @@ export function SectionHeader({ title, subtitle, className, dark = false }: Sect
                 <p
                     className={cn(
                         "text-sm uppercase tracking-widest font-semibold",
-                        dark ? "text-gold-400" : "text-gold-600"
+                        dark ? "text-gold-600" : "text-gold-600"
                     )}
                 >
                     {subtitle}

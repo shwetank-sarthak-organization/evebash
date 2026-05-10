@@ -6,7 +6,7 @@ export default function ContactUs() {
             <div className="max-w-7xl mx-auto">
                 <div className="text-center mb-16 space-y-4">
                     <h1 className="text-4xl md:text-5xl font-serif text-slate-800">Get in Touch</h1>
-                    <p className="text-slate-500 text-lg max-w-2xl mx-auto font-light">
+                    <p className="text-slate-700 text-lg max-w-2xl mx-auto font-light">
                         We'd love to hear about your story. Send us a message and let's start planning something beautiful.
                     </p>
                 </div>
@@ -23,7 +23,7 @@ export default function ContactUs() {
                                     </div>
                                     <div className="ml-4">
                                         <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide mb-1">Studio Address</h3>
-                                        <p className="text-slate-500 leading-relaxed">123 Kingsway Road, Dehradun,<br />Uttarakhand, India - 248001</p>
+                                        <p className="text-slate-700 leading-relaxed">123 Kingsway Road, Dehradun,<br />Uttarakhand, India - 248001</p>
                                     </div>
                                 </div>
 
@@ -33,8 +33,8 @@ export default function ContactUs() {
                                     </div>
                                     <div className="ml-4">
                                         <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide mb-1">Phone</h3>
-                                        <p className="text-slate-500">+91 987 654 3210</p>
-                                        <p className="text-slate-500">+91 123 456 7890</p>
+                                        <p className="text-slate-700">+91 987 654 3210</p>
+                                        <p className="text-slate-700">+91 123 456 7890</p>
                                     </div>
                                 </div>
 
@@ -44,8 +44,8 @@ export default function ContactUs() {
                                     </div>
                                     <div className="ml-4">
                                         <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide mb-1">Email</h3>
-                                        <p className="text-slate-500">hello@weddingalbum.com</p>
-                                        <p className="text-slate-500">bookings@weddingalbum.com</p>
+                                        <p className="text-slate-700">hello@weddingalbum.com</p>
+                                        <p className="text-slate-700">bookings@weddingalbum.com</p>
                                     </div>
                                 </div>
 
@@ -55,8 +55,8 @@ export default function ContactUs() {
                                     </div>
                                     <div className="ml-4">
                                         <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide mb-1">Business Hours</h3>
-                                        <p className="text-slate-500">Mon - Sat: 10:00 AM - 7:00 PM</p>
-                                        <p className="text-slate-500">Sun: By Appointment Only</p>
+                                        <p className="text-slate-700">Mon - Sat: 10:00 AM - 7:00 PM</p>
+                                        <p className="text-slate-700">Sun: By Appointment Only</p>
                                     </div>
                                 </div>
                             </div>
@@ -66,7 +66,7 @@ export default function ContactUs() {
                     {/* Contact Form */}
                     <div className="bg-white p-8 md:p-12 rounded-2xl shadow-xl border border-slate-100">
                         <h2 className="text-3xl font-serif text-slate-800 mb-2">Send Us a Message</h2>
-                        <p className="text-slate-400 mb-8 text-sm">Fill out the form below and we will get back to you within 24 hours.</p>
+                        <p className="text-slate-600 mb-8 text-sm">Fill out the form below and we will get back to you within 24 hours.</p>
 
                         <form className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

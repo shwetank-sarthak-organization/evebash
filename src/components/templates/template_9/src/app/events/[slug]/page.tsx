@@ -50,7 +50,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
                 </div>
 
                 <div className="relative z-10 text-center text-white">
-                    <p className="text-gold-400 tracking-[0.3em] text-sm uppercase font-semibold mb-2">
+                    <p className="text-gold-600 tracking-[0.3em] text-sm uppercase font-semibold mb-2">
                         {event.description}
                     </p>
                     <h1 className="font-serif text-5xl md:text-7xl font-bold tracking-tight">
@@ -67,15 +67,15 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
                     <MasonryGrid photos={photos} eventSlug={slug} />
                 ) : (
                     <div className="text-center py-20 bg-gray-50 rounded-lg mx-4 border border-dashed border-gray-300">
-                        <p className="text-stone-500 mb-2">No photos found in database.</p>
-                        <p className="text-sm text-stone-400">
+                        <p className="text-stone-700 mb-2">No photos found in database.</p>
+                        <p className="text-sm text-stone-600">
                             Please go to the <strong>Admin Dashboard</strong> and click <strong>Sync Photos</strong> for {slug}.
                         </p>
                     </div>
                 )}
             </section>
 
-            <footer className="bg-stone-900 text-stone-400 py-12 text-center text-sm">
+            <footer className="bg-stone-900 text-stone-600 py-12 text-center text-sm">
                 <p>© 2026 Wedding Album.</p>
             </footer>
         </main>

@@ -679,14 +679,14 @@ export async function updateUserRole(uid: string, newRole: string | null, delega
     }
     try {
         const docRef = doc(db, "users", uid);
-        const updateData: any = { role: newRole };
+        const updateData: any = {};
 
-        if (newRole) updateData.role = newRole;
+        if (newRole !== null) updateData.role = newRole;
 
         if (delegatedBy) {
             updateData.delegatedBy = delegatedBy;
             if (roleType) updateData.roleType = roleType;
-            if (assignedEvents) updateData.assignedEvents = assignedEvents;
+            updateData.assignedEvents = roleType === 'event' ? (assignedEvents || []) : deleteField();
         } else {
             // Revoke delegation
             updateData.delegatedBy = deleteField();

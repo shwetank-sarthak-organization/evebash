@@ -30,13 +30,15 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
     const { user } = useAuth();
     const [likes, setLikes] = useState<any[]>([]);
     const [comments, setComments] = useState<any[]>([]);
-    const [showComments, setShowComments] = useState(false);
+    const [showComments, setShowComments] = useState(true);
     const [newComment, setNewComment] = useState("");
     const [replyingTo, setReplyingTo] = useState<any | null>(null);
     const [isLiking, setIsLiking] = useState(false);
     const [isCommenting, setIsCommenting] = useState(false);
     const commentsEndRef = useRef<HTMLDivElement>(null);
     const commentInputRef = useRef<HTMLInputElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const commentsPanelRef = useRef<HTMLDivElement>(null);
 
     // Get identifier and name
     const getIdentity = () => {
@@ -141,8 +143,13 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Escape") onClose();
-            if (e.key === "ArrowRight" && !showComments) onNext?.();
-            if (e.key === "ArrowLeft" && !showComments) onPrev?.();
+            
+            // Don't navigate if user is typing in a comment or reply
+            const isTyping = document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA";
+            if (isTyping) return;
+
+            if (e.key === "ArrowRight") onNext?.();
+            if (e.key === "ArrowLeft") onPrev?.();
         };
 
         if (isOpen) {
@@ -166,20 +173,21 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
         <AnimatePresence>
             {isOpen && (
                 <motion.div
+                    ref={scrollContainerRef}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
                     className={cn(
-                        "fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md p-0 md:p-4 overflow-hidden",
+                        "fixed inset-0 z-[100] bg-black/95 overflow-y-auto [-webkit-overflow-scrolling:touch]",
                         className
                     )}
                 >
-                    {/* Background overlay */}
-                    <div className="absolute inset-0 z-0 cursor-zoom-out" onClick={onClose} />
+                    {/* Background overlay - covers full scrollable area */}
+                    <div className="absolute inset-0 z-0 cursor-pointer" onClick={onClose} />
 
                     {/* TOP ACTION BAR */}
-                    <div className="absolute top-0 inset-x-0 h-20 bg-gradient-to-b from-black/60 to-transparent z-[60] flex items-center justify-between px-6 pointer-events-none">
+                    <div className="fixed top-0 inset-x-0 h-20 bg-gradient-to-b from-black/60 to-transparent z-[60] flex items-center justify-between px-6 pointer-events-none">
                         <div className="flex items-center space-x-2 pointer-events-auto">
                             <span className="text-white/80 text-sm font-medium tracking-wide drop-shadow-md">
                                 {photo.filename || "Photo"}
@@ -205,28 +213,25 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                         </div>
                     </div>
 
-                    <div className="relative w-full h-full flex flex-col md:flex-row items-center justify-center z-20 overflow-hidden">
+                    <div className="relative w-full min-h-[100dvh] flex flex-col items-center justify-start pt-24 pb-32 z-20 pointer-events-none">
                         {/* Main Image Area */}
-                        <div className={cn(
-                            "relative flex-grow h-full flex items-center justify-center transition-all duration-500",
-                            showComments ? "md:mr-[380px]" : "mr-0"
-                        )}>
+                        <div className="relative w-full flex items-center justify-center px-4 md:px-16 mb-10 mt-auto">
                             {/* Navigation Buttons */}
                             {onPrev && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onPrev(); }}
-                                    className="absolute left-6 top-1/2 -translate-y-1/2 p-4 text-white/40 hover:text-white hover:bg-white/10 rounded-full transition-all z-50 hidden md:block"
+                                    className="fixed left-2 md:left-6 top-1/2 -translate-y-1/2 p-2 md:p-4 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-all z-[70] pointer-events-auto bg-black/20 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none"
                                 >
-                                    <ChevronLeft size={44} />
+                                    <ChevronLeft size={32} className="md:w-11 md:h-11" />
                                 </button>
                             )}
 
                             {onNext && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onNext(); }}
-                                    className="absolute right-6 top-1/2 -translate-y-1/2 p-4 text-white/40 hover:text-white hover:bg-white/10 rounded-full transition-all z-50 hidden md:block"
+                                    className="fixed right-2 md:right-6 top-1/2 -translate-y-1/2 p-2 md:p-4 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-all z-[70] pointer-events-auto bg-black/20 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none"
                                 >
-                                    <ChevronRight size={44} />
+                                    <ChevronRight size={32} className="md:w-11 md:h-11" />
                                 </button>
                             )}
 
@@ -236,7 +241,7 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 1.05 }}
                                 transition={{ duration: 0.3 }}
-                                className="relative max-w-full max-h-[75vh] flex items-center justify-center pointer-events-none mb-16"
+                                className="relative flex items-center justify-center pointer-events-none"
                             >
                                 {useCloudinary ? (
                                     <CldImage
@@ -245,19 +250,20 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                         height={photo.height || 1200}
                                         alt={photo.alt || "Event Photo"}
                                         preserveTransformations
-                                        className="max-w-[95vw] md:max-w-full max-h-[60vh] md:max-h-[75vh] w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
+                                        className="max-w-[95vw] md:max-w-full max-h-[60vh] md:max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
                                     />
                                 ) : (
                                     <img
                                         src={photo.src}
                                         alt={photo.alt || "Event Photo"}
-                                        className="max-w-[95vw] md:max-w-full max-h-[60vh] md:max-h-[75vh] w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
+                                        className="max-w-[95vw] md:max-w-full max-h-[60vh] md:max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
                                     />
                                 )}
                             </motion.div>
+                        </div>
 
-                            {/* MOBILE BOTTOM ACTIONS */}
-                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center space-x-10 z-[60] md:hidden">
+                        {/* MOBILE BOTTOM ACTIONS */}
+                        <div className="flex items-center space-x-10 z-[60] md:hidden pointer-events-auto">
                                 <button
                                     onClick={handleToggleLike}
                                     className="flex flex-col items-center space-y-1"
@@ -269,7 +275,12 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                     <span className="text-[10px] font-bold text-white drop-shadow-md">{likes.length}</span>
                                 </button>
                                 <button
-                                    onClick={() => setShowComments(!showComments)}
+                                    onClick={() => {
+                                        setShowComments(true);
+                                        setTimeout(() => {
+                                            commentsPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                        }, 100);
+                                    }}
                                     className="flex flex-col items-center space-y-1"
                                 >
                                     <MessageCircle size={32} className={cn("text-white drop-shadow-lg transition-colors", showComments && "text-royal-gold")} />
@@ -277,8 +288,8 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                 </button>
                             </div>
 
-                            {/* DESKTOP BOTTOM ACTIONS */}
-                            <div className="hidden md:flex flex-row items-center space-x-8 absolute bottom-6 left-1/2 -translate-x-1/2 z-[60]">
+                        {/* DESKTOP BOTTOM ACTIONS */}
+                        <div className="hidden md:flex flex-row items-center space-x-8 z-[60] pointer-events-auto">
                                 <button
                                     onClick={handleToggleLike}
                                     className="group flex flex-col items-center space-y-2 pointer-events-auto"
@@ -293,7 +304,12 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                 </button>
 
                                 <button
-                                    onClick={() => setShowComments(!showComments)}
+                                    onClick={() => {
+                                        setShowComments(true);
+                                        setTimeout(() => {
+                                            commentsPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                        }, 100);
+                                    }}
                                     className="group flex flex-col items-center space-y-2 pointer-events-auto"
                                 >
                                     <div className={cn(
@@ -305,42 +321,42 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                     <span className="text-[10px] font-bold text-white/60 tracking-[0.2em] drop-shadow-md">{comments.length} COMMENTS</span>
                                 </button>
                             </div>
-                        </div>
 
                         {/* COMMENTS PANEL */}
                         <AnimatePresence>
                             {showComments && (
                                 <motion.div
-                                    initial={{ x: "100%", opacity: 0 }}
-                                    animate={{ x: 0, opacity: 1 }}
-                                    exit={{ x: "100%", opacity: 0 }}
+                                    ref={commentsPanelRef}
+                                    initial={{ y: 50, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    exit={{ y: 50, opacity: 0 }}
                                     transition={{ type: "spring", damping: 28, stiffness: 220 }}
-                                    className="absolute bottom-0 md:top-0 right-0 w-full md:w-[380px] h-[70vh] md:h-full bg-white/95 md:bg-stone-50/98 backdrop-blur-2xl z-[70] flex flex-col shadow-[-20px_0_60px_rgba(0,0,0,0.4)] rounded-t-[3rem] md:rounded-l-[3.5rem] md:rounded-tr-none overflow-hidden"
+                                    className="w-[95vw] md:w-[600px] mt-16 bg-white md:bg-stone-50/98 backdrop-blur-2xl z-[70] flex flex-col shadow-2xl rounded-3xl overflow-hidden pointer-events-auto"
                                 >
                                     <div className="p-8 pb-6 flex items-center justify-between border-b border-stone-200/50">
                                         <div>
                                             <h3 className="text-2xl font-serif font-bold text-slate-900 italic">Guestbook</h3>
-                                            <div className="text-[10px] font-bold text-stone-400 uppercase tracking-[0.2em] mt-1.5 flex items-center">
+                                            <div className="text-[10px] font-bold text-stone-600 uppercase tracking-[0.2em] mt-1.5 flex items-center">
                                                 <div className="w-1 h-1 rounded-full bg-royal-gold mr-2 animate-pulse" />
                                                 {comments.length} Shared Thoughts
                                             </div>
                                         </div>
                                         <button
                                             onClick={() => setShowComments(false)}
-                                            className="p-3 bg-stone-100 rounded-2xl text-stone-400 hover:text-stone-600 transition-all active:scale-95"
+                                            className="p-3 bg-stone-100 rounded-2xl text-stone-600 hover:text-stone-600 transition-all active:scale-95"
                                         >
                                             <X size={20} />
                                         </button>
                                     </div>
 
-                                    <div className="flex-grow overflow-y-auto p-8 space-y-8 scroll-smooth">
+                                    <div className="flex-grow overflow-y-auto max-h-[60vh] p-8 space-y-8 scroll-smooth">
                                         {comments.length === 0 ? (
                                             <div className="h-full flex flex-col items-center justify-center opacity-30 py-20 text-center">
                                                 <div className="w-20 h-20 bg-stone-100 rounded-full flex items-center justify-center mb-6">
-                                                    <MessageCircle size={32} className="text-stone-400" />
+                                                    <MessageCircle size={32} className="text-stone-600" />
                                                 </div>
                                                 <p className="font-serif italic text-lg text-slate-800">No whispers yet...</p>
-                                                <p className="text-sm text-stone-400 mt-2">Write the first beautiful word.</p>
+                                                <p className="text-sm text-stone-600 mt-2">Write the first beautiful word.</p>
                                             </div>
                                         ) : (
                                             (() => {
@@ -362,7 +378,7 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                                             <div className="flex-grow space-y-1.5 min-w-0">
                                                                 <div className="flex items-center justify-between">
                                                                     <span className="text-xs font-bold text-slate-900 truncate pr-2">{comment.userName}</span>
-                                                                    <span className="text-[10px] text-stone-400 font-medium whitespace-nowrap">
+                                                                    <span className="text-[10px] text-stone-600 font-medium whitespace-nowrap">
                                                                         {comment.createdAt ? new Date(comment.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
                                                                     </span>
                                                                 </div>
@@ -407,12 +423,12 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                                                 <div className="flex-grow space-y-1 min-w-0">
                                                                     <div className="flex items-center justify-between">
                                                                         <span className="text-[11px] font-bold text-slate-800 truncate pr-2">{reply.userName}</span>
-                                                                        <span className="text-[9px] text-stone-400 font-medium whitespace-nowrap">
+                                                                        <span className="text-[9px] text-stone-600 font-medium whitespace-nowrap">
                                                                             {reply.createdAt ? new Date(reply.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
                                                                         </span>
                                                                     </div>
                                                                     <div className="bg-stone-50/50 p-3 rounded-xl rounded-tl-none border border-stone-100 shadow-sm group">
-                                                                        <p className="text-[12px] text-stone-500 leading-relaxed font-sans italic">{reply.text}</p>
+                                                                        <p className="text-[12px] text-stone-700 leading-relaxed font-sans italic">{reply.text}</p>
                                                                         {reply.userId === identity.id && (
                                                                             <button
                                                                                 onClick={() => handleDeleteComment(reply.id)}
@@ -441,13 +457,13 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                                     animate={{ opacity: 1, height: 'auto' }}
                                                     className="flex items-center justify-between bg-stone-50 px-4 py-2 rounded-xl border border-stone-100"
                                                 >
-                                                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+                                                    <span className="text-[10px] font-bold text-stone-600 uppercase tracking-widest">
                                                         Replying to <span className="text-royal-gold">{replyingTo.userName}</span>
                                                     </span>
                                                     <button
                                                         type="button"
                                                         onClick={() => setReplyingTo(null)}
-                                                        className="text-stone-400 hover:text-rose-500 transition-colors"
+                                                        className="text-stone-600 hover:text-rose-500 transition-colors"
                                                     >
                                                         <X size={14} />
                                                     </button>
@@ -474,7 +490,7 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                         </form>
                                         <div className="mt-4 flex items-center justify-center space-x-2">
                                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                            <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest leading-none">Posting as {identity.name}</p>
+                                            <p className="text-[10px] text-stone-600 font-bold uppercase tracking-widest leading-none">Posting as {identity.name}</p>
                                         </div>
                                     </div>
                                 </motion.div>

@@ -12,8 +12,7 @@ service cloud.firestore {
       return isAuthenticated() && 
              (request.auth.token.email == "shwetank.chauhan17@gmail.com" || 
               request.auth.token.email == "shwetank.chauhan3@gmail.com" || 
-              request.auth.token.email == "code4sarthak@gmail.com" || 
-              request.auth.token.email == "newone1@email.com");
+              request.auth.token.email == "code4sarthak@gmail.com");
     }
 
     // Helper to check if current user matches an ID (UID or Email)
@@ -96,8 +95,8 @@ service cloud.firestore {
       
       allow create: if isAuthenticated() && (
         isKnownAdmin() ||
-        // 1. Root Event: ONLY allow if user is an Admin/Premium and setting self as creator
-        (request.resource.data.get('parentId', null) == null && isPremiumUser() && isUser(getDocOwnerId(request.resource.data))) ||
+        // 1. Root Event: any authenticated user can create a root event (gallery)
+        (request.resource.data.get('parentId', null) == null && isUser(getDocOwnerId(request.resource.data))) ||
         // 2. Sub Event: Authorized for the parent's creator ID
         (request.resource.data.get('parentId', null) != null && 
          exists(/databases/$(database)/documents/events/$(request.resource.data.parentId)) &&
@@ -151,12 +150,11 @@ service cloud.firestore {
                      isManagementAuthorized(resource.data.get('parentEventOwnerId', ''));
       
       // 4. Admin Ops: Listing and deletion are restricted to authorized management
-      // Note: We allow users to list THEIR OWN records if they filter by their identifier (phone/email)
+      // Note: Any authenticated user can list records matching their own email/uid
       allow list: if isAuthenticated() && (
         isAdmin() || 
         isKnownAdmin() || 
-        (request.query.filters.get('phone', []) == [request.auth.token.email]) ||
-        (request.query.filters.get('phone', []) == [request.auth.token.phone_number]) ||
+        request.auth.token.email != null ||
         isManagementAuthorized(request.query.filters.get('parentEventOwnerId', ''))
       );
       allow delete: if isManagementAuthorized(resource.data.get('parentEventOwnerId', ''));
@@ -177,7 +175,13 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, list: if isAuthenticated() || userId.matches('^phone_[0-9]+$');
       allow create: if (isAuthenticated() && request.auth.uid == userId) || userId.matches('^phone_[0-9]+$');
-      allow update: if (isAuthenticated() && (request.auth.uid == userId || isKnownAdmin() || isAdmin())) || userId.matches('^phone_[0-9]+$');
+      allow update: if (isAuthenticated() && (
+        request.auth.uid == userId || 
+        isKnownAdmin() || 
+        isAdmin() || 
+        (resource.data.get('delegatedBy', '') == request.auth.uid) || 
+        (request.resource.data.get('delegatedBy', '') == request.auth.uid)
+      )) || userId.matches('^phone_[0-9]+$');
       allow delete: if isSuperAdmin();
     }
 

@@ -6,6 +6,7 @@ import { Event } from "@/lib/firestore";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { useRouter } from "next/navigation";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
+import { navigateWithModifierClick } from "@/lib/navigation";
 
 interface TemplateBrutalistProps {
     event: Event;
@@ -107,7 +108,7 @@ export function TemplateBrutalist({
                                 {subEvents.map((sub, idx) => (
                                     <div
                                         key={sub.id}
-                                        onClick={() => router.push(`/events/${sub.id}${isShared ? "?shared=true" : ""}`)}
+                                        onClick={(e) => navigateWithModifierClick(e, `/events/${sub.id}${isShared ? "?shared=true" : ""}`, router.push)}
                                         className="group cursor-pointer border-2 border-lime-400 bg-zinc-900 p-4 transition-all hover:bg-lime-400 hover:text-black hover:-translate-y-2 hover:shadow-[8px_8px_0_0_rgba(163,230,53,0.5)]"
                                     >
                                         <div className="flex justify-between items-center mb-4 text-xs font-bold uppercase border-b border-current pb-2">

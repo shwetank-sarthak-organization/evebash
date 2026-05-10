@@ -21,6 +21,8 @@ interface AuthContextType {
     loginWithGoogle: () => Promise<boolean>;
     resetPassword: (email: string) => Promise<boolean>;
     loginWithPhoneSimple: (name: string, phone: string) => Promise<boolean>;
+    authWithPhone: (name: string, phone: string, password: string) => Promise<boolean>;
+    authWithEmail: (name: string, email: string, password: string) => Promise<boolean>;
     logout: () => void;
     loading: boolean;
 }
@@ -42,18 +44,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
+    const syncUserSession = (userData: {
+        uid: string;
+        name: string;
+        phone: string;
+        role?: string;
+        roleType?: 'primary' | 'event';
+        assignedEvents?: string[];
+        profileImage?: string;
+        email?: string | null;
+        delegatedBy?: string;
+    }) => {
+        setUser(userData);
+        localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
+    };
+
     useEffect(() => {
         let unsubscribe: () => void;
+        let unsubscribeProfile: (() => void) | undefined;
 
         const initAuth = async () => {
-            const { onAuthStateChanged, setPersistence, browserSessionPersistence } = await import("firebase/auth");
+            const { onAuthStateChanged, setPersistence, browserLocalPersistence } = await import("firebase/auth");
             const { auth } = await import("@/lib/firebase");
             const { getUserProfile, createUserProfile } = await import("@/lib/firestore");
+            const { doc, onSnapshot } = await import("firebase/firestore");
+            const { db } = await import("@/lib/firebase");
 
-            // Set persistence to session (wiped on tab close)
-            await setPersistence(auth, browserSessionPersistence);
+            // Set persistence to local (persists across tabs and browser restarts)
+            await setPersistence(auth, browserLocalPersistence);
 
             unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+                if (unsubscribeProfile) {
+                    unsubscribeProfile();
+                    unsubscribeProfile = undefined;
+                }
+
                 if (firebaseUser) {
                     console.log("[Auth] Live state changed: User is logged in", firebaseUser.uid);
 
@@ -76,12 +101,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         delegatedBy: profile?.delegatedBy
                     };
 
-                    setUser(userData);
-                    sessionStorage.setItem("wedding_guest_user", JSON.stringify(userData));
+                    syncUserSession(userData);
+
+                    if (db) {
+                        unsubscribeProfile = onSnapshot(doc(db, "users", firebaseUser.uid), (profileSnap) => {
+                            if (!profileSnap.exists()) return;
+
+                            const liveProfile = profileSnap.data();
+                            syncUserSession({
+                                uid: firebaseUser.uid,
+                                name: liveProfile?.name || name,
+                                phone: liveProfile?.phone || "No Phone",
+                                role: liveProfile?.role || "user",
+                                roleType: liveProfile?.roleType || (liveProfile?.delegatedBy ? "event" : "primary"),
+                                assignedEvents: liveProfile?.assignedEvents || [],
+                                profileImage: liveProfile?.profileImage,
+                                email: firebaseUser.email,
+                                delegatedBy: liveProfile?.delegatedBy
+                            });
+                        });
+                    }
                 } else {
                     console.log("[Auth] Live state changed: No user found in Firebase Auth");
                     // Before wiping out the user, check if we have a valid guest session (phone login)
-                    const storedUser = sessionStorage.getItem("wedding_guest_user");
+                    const storedUser = localStorage.getItem("wedding_guest_user");
                     if (storedUser) {
                         try {
                             const parsed = JSON.parse(storedUser);
@@ -97,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     }
 
                     setUser(null);
-                    sessionStorage.removeItem("wedding_guest_user");
+                    localStorage.removeItem("wedding_guest_user");
                 }
                 setLoading(false);
             });
@@ -107,6 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         return () => {
             if (unsubscribe) unsubscribe();
+            if (unsubscribeProfile) unsubscribeProfile();
         };
     }, []);
 
@@ -146,7 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 delegatedBy: profile?.delegatedBy
             };
             setUser(userData);
-            sessionStorage.setItem("wedding_guest_user", JSON.stringify(userData));
+            localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
             return true;
         } catch (error: unknown) {
             const err = error as { code?: string; message?: string };
@@ -202,7 +246,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 email: user.email
             };
             setUser(userData);
-            sessionStorage.setItem("wedding_guest_user", JSON.stringify(userData));
+            localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
             console.log("Signup flow complete, navigating...");
             return true;
         } catch (error: unknown) {
@@ -258,7 +302,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             };
 
             setUser(userData);
-            sessionStorage.setItem("wedding_guest_user", JSON.stringify(userData));
+            localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
             return true;
         } catch (error: unknown) {
             const err = error as { code?: string; message?: string };
@@ -345,7 +389,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             };
 
             setUser(userData);
-            sessionStorage.setItem("wedding_guest_user", JSON.stringify(userData));
+            localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
 
             await logGuestLogin(userData.name, phone);
 
@@ -358,6 +402,78 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const authWithEmailLogic = async (name: string, email: string, password: string, phoneStr: string = "") => {
+        try {
+            const { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } = await import("firebase/auth");
+            const { auth, isFirebaseConfigured } = await import("@/lib/firebase");
+
+            if (!isFirebaseConfigured) {
+                alert("Firebase configuration is missing!");
+                return false;
+            }
+
+            let user;
+            try {
+                // Try Login
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                user = userCredential.user;
+            } catch (loginError: any) {
+                // If user not found, try Signup
+                if (loginError.code === "auth/invalid-credential" || loginError.code === "auth/user-not-found" || loginError.code === "auth/wrong-password") {
+                    if (loginError.code === "auth/wrong-password" || loginError.message.includes('password')) {
+                         alert("Incorrect password for this account.");
+                         return false;
+                    }
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    user = userCredential.user;
+                    await updateProfile(user, { displayName: name });
+                } else {
+                    throw loginError;
+                }
+            }
+
+            const { createUserProfile, getUserProfile } = await import("@/lib/firestore");
+            
+            // Only overwrite empty fields to avoid erasing existing data
+            const existingProfile = await getUserProfile(user.uid);
+            const finalPhone = existingProfile?.phone || phoneStr;
+            const finalName = existingProfile?.name || name;
+
+            await createUserProfile(user.uid, finalName, email, finalPhone, existingProfile?.role || "user");
+
+            const profile = await getUserProfile(user.uid);
+
+            const userData = {
+                uid: user.uid,
+                name: profile?.name || finalName,
+                phone: profile?.phone || finalPhone,
+                role: profile?.role || "user",
+                roleType: profile?.roleType || "primary",
+                assignedEvents: profile?.assignedEvents || [],
+                profileImage: profile?.profileImage,
+                email: email,
+                delegatedBy: profile?.delegatedBy,
+                loginMethod: phoneStr ? "phone" : "email"
+            };
+            setUser(userData as any);
+            localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
+            return true;
+        } catch (error: any) {
+            console.error("Auth Error:", error);
+            alert(`Authentication failed: ${error.message}`);
+            return false;
+        }
+    };
+
+    const authWithEmail = async (name: string, email: string, password: string) => {
+        return await authWithEmailLogic(name, email, password, "");
+    };
+
+    const authWithPhone = async (name: string, phone: string, password: string) => {
+        const fakeEmail = `${phone.replace(/\D/g, "")}@phone-login.local`;
+        return await authWithEmailLogic(name, fakeEmail, password, phone);
+    };
+
     const logout = async () => {
         try {
             const { auth } = await import("@/lib/firebase");
@@ -367,12 +483,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error("Error signing out of Firebase:", error);
         }
         setUser(null);
-        sessionStorage.removeItem("wedding_guest_user");
+        localStorage.removeItem("wedding_guest_user");
         router.push("/login"); // Fixed recursion if already on login, but push is fine.
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, signup, loginWithGoogle, resetPassword, loginWithPhoneSimple, logout, loading }}>
+        <AuthContext.Provider value={{ user, login, signup, loginWithGoogle, resetPassword, loginWithPhoneSimple, authWithPhone, authWithEmail, logout, loading }}>
             {children}
         </AuthContext.Provider>
     );

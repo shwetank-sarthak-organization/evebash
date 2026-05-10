@@ -23,7 +23,7 @@ export function TemplateMuseum({ event, children }: TemplateMuseumProps) {
                             </h1>
                         </ScrollReveal>
                         <ScrollReveal delay={0.1}>
-                            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                            <p className="text-xs font-bold uppercase tracking-widest text-slate-600">
                                 Exhibit {new Date().getFullYear()} • Collection No. 001
                             </p>
                         </ScrollReveal>
@@ -34,7 +34,7 @@ export function TemplateMuseum({ event, children }: TemplateMuseumProps) {
                             <div className="w-full h-px bg-slate-200" />
                         </ScrollReveal>
                         <ScrollReveal delay={0.3}>
-                            <p className="text-sm md:text-base text-slate-500 font-light leading-relaxed">
+                            <p className="text-sm md:text-base text-slate-700 font-light leading-relaxed">
                                 {event.description}
                             </p>
                         </ScrollReveal>
@@ -48,7 +48,7 @@ export function TemplateMuseum({ event, children }: TemplateMuseumProps) {
                     <div className="max-w-[90rem] mx-auto">
                         {/* Gallery Label */}
                         <div className="sticky top-24 z-10 py-4 bg-[#fcfcfc]/90 backdrop-blur mb-8 border-b border-dashed border-slate-200">
-                            <span className="text-[10px] font-mono uppercase text-slate-400">Viewing Floor</span>
+                            <span className="text-[10px] font-mono uppercase text-slate-600">Viewing Floor</span>
                         </div>
 
                         <div className="museum-grid">
@@ -59,7 +59,7 @@ export function TemplateMuseum({ event, children }: TemplateMuseumProps) {
             )}
 
             <footer className="py-12 border-t border-slate-100 mx-12">
-                <div className="flex justify-between items-center text-[10px] uppercase tracking-widest text-slate-400 font-mono">
+                <div className="flex justify-between items-center text-[10px] uppercase tracking-widest text-slate-600 font-mono">
                     <p>MUSEUM OF MEMORIES</p>
                     <p>{event.date}</p>
                 </div>

@@ -57,7 +57,7 @@ export function UploadCard() {
                         onChange={handleChange}
                         accept="image/*"
                     />
-                    <div className="flex flex-col items-center gap-4 text-stone-500">
+                    <div className="flex flex-col items-center gap-4 text-stone-700">
                         <div className="bg-stone-100 p-4 rounded-full">
                             <Upload className="w-8 h-8 text-gold-600" />
                         </div>

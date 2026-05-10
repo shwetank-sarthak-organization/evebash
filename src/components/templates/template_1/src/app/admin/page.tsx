@@ -66,9 +66,9 @@ export default function AdminDashboard() {
                     </div>
 
                     {loadingReqs ? (
-                        <div className="p-8 text-center text-gray-500">Loading requests...</div>
+                        <div className="p-8 text-center text-gray-700">Loading requests...</div>
                     ) : requests.length === 0 ? (
-                        <div className="p-8 text-center text-gray-500">No pending requests.</div>
+                        <div className="p-8 text-center text-gray-700">No pending requests.</div>
                     ) : (
                         <ul className="divide-y divide-gray-100">
                             {requests.map((req) => (
@@ -81,7 +81,7 @@ export default function AdminDashboard() {
                                     <div>
                                         <p className="font-medium text-lg text-gray-900">{req.name}</p>
                                         <p className="text-gray-600 font-mono">{req.phone}</p>
-                                        <p className="text-xs text-gray-400 mt-1">
+                                        <p className="text-xs text-gray-600 mt-1">
                                             Requested: {new Date(req.requestedAt.seconds * 1000).toLocaleString()}
                                         </p>
                                     </div>

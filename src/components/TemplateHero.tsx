@@ -89,7 +89,7 @@ export function TemplateHero({ event, children }: TemplateHeroProps) {
         </section>
       )}
 
-      <footer className="bg-stone-900 text-stone-400 py-12 text-center text-sm relative z-10">
+      <footer className="bg-stone-900 text-stone-600 py-12 text-center text-sm relative z-10">
         <p>© 2026 Wedding Album.</p>
       </footer>
     </div>

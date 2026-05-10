@@ -40,7 +40,7 @@ export function Navigation() {
                     "font-serif text-2xl font-bold tracking-widest group transition-colors",
                     scrolled ? "text-stone-900" : "text-white"
                 )}>
-                    S <span className={cn("transition-colors", scrolled ? "text-gold-500 group-hover:text-gold-600" : "text-gold-400 group-hover:text-gold-300")}>&</span> J
+                    S <span className={cn("transition-colors", scrolled ? "text-gold-500 group-hover:text-gold-600" : "text-gold-600 group-hover:text-gold-500")}>&</span> J
                 </Link>
 
                 {/* Desktop Navigation */}
@@ -54,8 +54,8 @@ export function Navigation() {
                                 className={cn(
                                     "uppercase tracking-widest text-xs font-bold relative py-1 transition-colors",
                                     isActive
-                                        ? (scrolled ? "text-gold-600" : "text-gold-400")
-                                        : (scrolled ? "text-stone-500 hover:text-stone-900" : "text-white/80 hover:text-white")
+                                        ? (scrolled ? "text-gold-600" : "text-gold-600")
+                                        : (scrolled ? "text-stone-700 hover:text-stone-900" : "text-white/80 hover:text-white")
                                 )}
                             >
                                 {item.name}

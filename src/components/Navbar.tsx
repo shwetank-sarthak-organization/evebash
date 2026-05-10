@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, X, Camera, User as UserIcon } from "lucide-react";
+import { Menu, X, Camera, User as UserIcon, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { AnimatePresence, motion } from "framer-motion";
@@ -17,6 +17,7 @@ const navLinks = [
 
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
+    const [profileOpen, setProfileOpen] = useState(false);
     const pathname = usePathname();
     const { user, logout } = useAuth();
 
@@ -55,7 +56,7 @@ export default function Navbar() {
                                     "text-sm font-medium transition-colors hover:text-slate-900 pb-1 border-b-2 border-transparent",
                                     pathname === link.href
                                         ? "text-slate-900 border-slate-900"
-                                        : "text-slate-500 hover:border-slate-300"
+                                        : "text-slate-700 hover:border-slate-300"
                                 )}
                             >
                                 {link.name}
@@ -63,56 +64,64 @@ export default function Navbar() {
                         ))}
 
                         {user ? (
-                            <div className="flex items-center space-x-6">
-                                <div className="flex items-center space-x-2 text-slate-700">
-                                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
-                                        <UserIcon className="w-4 h-4 text-slate-500" />
+                            <div className="relative ml-4">
+                                <button
+                                    onClick={() => setProfileOpen(!profileOpen)}
+                                    className="flex items-center space-x-3 px-3 py-1.5 rounded-full border transition-all border-slate-200 hover:bg-slate-50"
+                                >
+                                    <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-[12px] font-bold shadow-sm">
+                                        {user.name?.charAt(0).toUpperCase() || <UserIcon className="w-4 h-4 text-white" />}
                                     </div>
-                                    <div className="flex flex-col">
-                                        <span className="text-sm font-bold leading-tight">Hi, {user.name}</span>
-                                        <span className="text-[10px] text-slate-400 font-sans leading-tight">{getPlanLabel(user.role)}</span>
+                                    <div className="flex flex-col text-left pr-2">
+                                        <span className="text-sm font-bold leading-tight text-slate-800">Hi, {user.name?.split(' ')[0]}</span>
+                                        <span className="text-[10px] text-slate-500 font-sans leading-tight">{getPlanLabel(user.role)}</span>
                                     </div>
-                                </div>
-                                <div className="flex items-center space-x-3">
-                                    <Link
-                                        href="/profile"
-                                        className={cn(
-                                            "text-sm font-medium transition-colors hover:text-slate-900 border-b-2",
-                                            pathname === "/profile" ? "text-slate-900 border-slate-900" : "text-slate-500 border-transparent"
-                                        )}
-                                    >
-                                        My Profile
-                                    </Link>
-                                    {(user.role === "admin" || user.role === "premium" || !!user.delegatedBy) && (
-                                        <Link
-                                            href="/dashboard"
-                                            className={cn(
-                                                "px-6 py-2 rounded-full text-sm font-bold transition-all shadow-sm active:scale-95 flex items-center space-x-2",
-                                                pathname.startsWith("/dashboard") || pathname.startsWith("/admin/dashboard")
-                                                    ? "bg-sky-600 text-white hover:bg-sky-700 shadow-sky-100"
-                                                    : "text-sky-600 hover:text-sky-800"
-                                            )}
+                                </button>
+
+                                <AnimatePresence>
+                                    {profileOpen && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: 10 }}
+                                            className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-xl border border-stone-100 overflow-hidden z-50"
                                         >
-                                            <span>
-                                                {pathname === "/dashboard" ? (user.role === "admin" && !user.delegatedBy ? "Admin Dashboard" : "Manage Galleries") : "Manage Galleries"}
-                                            </span>
-                                        </Link>
+                                            <div className="p-4 border-b border-stone-50 bg-stone-50/50">
+                                                <p className="text-sm font-bold text-slate-800 truncate">{user.name}</p>
+                                                <p className="text-[10px] text-stone-500 uppercase tracking-widest truncate mt-0.5">{user.email}</p>
+                                            </div>
+                                            <div className="p-2 flex flex-col space-y-1">
+                                                <Link
+                                                    href="/profile"
+                                                    className="flex items-center space-x-3 w-full px-3 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-stone-50 rounded-xl transition-all"
+                                                    onClick={() => setProfileOpen(false)}
+                                                >
+                                                    <UserIcon className="w-4 h-4" />
+                                                    <span>My Profile</span>
+                                                </Link>
+                                                <Link
+                                                    href={user.role === "admin" && !user.delegatedBy ? "/admin/dashboard" : "/dashboard"}
+                                                    className="flex items-center space-x-3 w-full px-3 py-2 text-xs font-bold text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded-xl transition-all"
+                                                    onClick={() => setProfileOpen(false)}
+                                                >
+                                                    <Camera className="w-4 h-4" />
+                                                    <span>{user.role === "admin" && !user.delegatedBy ? "Admin Dashboard" : "Manage Galleries"}</span>
+                                                </Link>
+                                                <div className="my-1 border-t border-stone-100"></div>
+                                                <button
+                                                    onClick={() => {
+                                                        setProfileOpen(false);
+                                                        logout();
+                                                    }}
+                                                    className="flex items-center space-x-3 w-full px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                                                >
+                                                    <LogOut className="w-4 h-4" />
+                                                    <span>Logout</span>
+                                                </button>
+                                            </div>
+                                        </motion.div>
                                     )}
-                                    {user.role === "admin" && !user.delegatedBy && pathname === "/dashboard" && (
-                                        <Link
-                                            href="/admin/dashboard"
-                                            className="px-4 py-2 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-widest rounded-full hover:bg-slate-200 transition-colors"
-                                        >
-                                            Switch to Admin
-                                        </Link>
-                                    )}
-                                    <button
-                                        onClick={logout}
-                                        className="px-5 py-2 border border-slate-200 text-slate-600 text-sm font-medium rounded-full hover:bg-slate-50 transition-colors shadow-sm"
-                                    >
-                                        Logout
-                                    </button>
-                                </div>
+                                </AnimatePresence>
                             </div>
                         ) : (
                             <Link
@@ -165,11 +174,11 @@ export default function Navbar() {
                             <>
                                 <div className="flex items-center space-x-3 px-4 py-2 bg-slate-50 rounded-lg mb-2">
                                     <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-slate-200">
-                                        <UserIcon className="w-5 h-5 text-slate-500" />
+                                        <UserIcon className="w-5 h-5 text-slate-700" />
                                     </div>
                                     <div>
                                         <p className="text-sm font-bold text-slate-900">{user.name}</p>
-                                        <p className="text-xs text-slate-500">{getPlanLabel(user.role)}</p>
+                                        <p className="text-xs text-slate-700">{getPlanLabel(user.role)}</p>
                                     </div>
                                 </div>
                                 <Link
@@ -182,7 +191,7 @@ export default function Navbar() {
                                 >
                                     My Profile
                                 </Link>
-                                {(user.role === "admin" || user.role === "premium" || !!user.delegatedBy) && (
+                                {(user) && (
                                     <Link
                                         href="/dashboard"
                                         onClick={() => setIsOpen(false)}
