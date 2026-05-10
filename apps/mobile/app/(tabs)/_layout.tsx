@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform } from 'react-native';
-import Svg, { Path, Rect } from 'react-native-svg';
+import Svg, { Path, Rect, Circle } from 'react-native-svg';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -84,8 +84,14 @@ export default function TabLayout() {
       <Tabs.Screen
         name="menu"
         options={{
-          title: 'Menu',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="line.3.horizontal" color={color} />,
+          title: 'Usage',
+          tabBarIcon: ({ color }) => (
+            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <Path d="M15.6 2.7a10 10 0 1 0 5.7 5.7" />
+              <Circle cx="12" cy="12" r="2" />
+              <Path d="M13.4 10.6 19 5" />
+            </Svg>
+          ),
         }}
       />
       <Tabs.Screen
