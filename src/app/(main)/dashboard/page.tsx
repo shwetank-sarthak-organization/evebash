@@ -34,7 +34,11 @@ import {
     ChevronDown,
     ChevronRight,
     UserCog,
-    UserMinus
+    UserMinus,
+    Info,
+    Sparkles,
+    QrCode,
+    UserPlus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -58,7 +62,9 @@ import {
     getEventLogs,
     getSubEvents,
     getEventById,
-    getUserById
+    getUserById,
+    getEventByJoinId,
+    logGuestLogin
 } from "@/lib/firestore";
 import { uploadEventImage } from "@/lib/storage";
 import { DashboardHeader } from "@/components/DashboardHeader";
@@ -134,6 +140,10 @@ function DashboardContent() {
     const [status, setStatus] = useState<"idle" | "uploading" | "success" | "error">("idle");
     const [message, setMessage] = useState("");
 
+    const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+    const [joinCode, setJoinCode] = useState("");
+    const [isJoining, setIsJoining] = useState(false);
+
     const toggleMainEvent = (eventId: string) => {
         setExpandedMainEvents(prev => {
             const next = new Set(prev);
@@ -159,6 +169,40 @@ function DashboardContent() {
             else next.add(eventId);
             return next;
         });
+    };
+
+    const handleJoinEvent = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!joinCode.trim()) return;
+
+        setIsJoining(true);
+        try {
+            const event = await getEventByJoinId(joinCode);
+            if (!event) {
+                alert("Invalid join code. Please check and try again.");
+                return;
+            }
+
+            // Log the join request
+            await logGuestLogin(
+                user?.name || "Guest",
+                user?.phone || user?.email || user?.uid || "Anonymous",
+                event.id,
+                event.parentId || undefined,
+                event.title,
+                event.createdBy,
+                "pending"
+            );
+
+            alert("Request sent! You'll be able to access the event once the admin approves your request.");
+            setIsJoinModalOpen(false);
+            setJoinCode("");
+        } catch (error) {
+            console.error("Error joining event:", error);
+            alert("An error occurred. Please try again.");
+        } finally {
+            setIsJoining(false);
+        }
     };
 
     // Event Management State
@@ -197,7 +241,7 @@ function DashboardContent() {
         }
 
         // 2. Manage Level
-        if (levelParam === "galleries" || levelParam === "photos") {
+        if (levelParam === "galleries" || levelParam === "photos" || levelParam === "event-details") {
             setManageLevel(levelParam as any);
         } else {
             setManageLevel("events");
@@ -1074,7 +1118,7 @@ function DashboardContent() {
             whileHover={{ y: -5 }}
             onClick={(e) => {
                 if (manageLevel === "events") {
-                    navigateWithModifierClick(e, `/dashboard?view=manage&level=galleries&eventId=${evt.id}`, router.push);
+                    navigateWithModifierClick(e, `/dashboard?view=manage&level=event-details&eventId=${evt.id}`, router.push);
                 } else {
                     navigateWithModifierClick(e, `/dashboard?view=manage&level=photos&mode=add-image&eventId=${evt.id}`, router.push);
                 }
@@ -1282,18 +1326,21 @@ function DashboardContent() {
                     { label: "Dashboard", onClick: view !== "main" ? () => router.push("/dashboard") : undefined },
                     ...(view === "manage" ? [
                         {
-                            label: "Manage Gallery",
+                            label: "Manage Events",
                             onClick: manageLevel !== "events" || manageMode !== "list"
                                 ? () => router.push("/dashboard?view=manage&level=events")
                                 : undefined
                         },
-                        ...(manageLevel === "galleries" || (manageLevel === "photos" && selectedMainEvent) ? [
+                        ...(manageLevel === "event-details" || manageLevel === "galleries" || (manageLevel === "photos" && selectedMainEvent) ? [
                             {
-                                label: selectedMainEvent?.title || "Event",
-                                onClick: manageLevel === "photos"
-                                    ? () => router.push(`/dashboard?view=manage&level=galleries&eventId=${selectedMainEvent?.id}`)
+                                label: selectedMainEvent?.title || "Event Details",
+                                onClick: manageLevel !== "event-details"
+                                    ? () => router.push(`/dashboard?view=manage&level=event-details&eventId=${selectedMainEvent?.id}`)
                                     : undefined
                             }
+                        ] : []),
+                        ...(manageLevel === "galleries" ? [
+                            { label: "Galleries" }
                         ] : []),
                         ...(manageLevel === "photos" ? [
                             { label: selectedEventName || "Gallery" }
@@ -1317,7 +1364,10 @@ function DashboardContent() {
                             // Back to Galleries list
                             router.push(`/dashboard?view=manage&level=galleries&eventId=${selectedMainEvent?.id}`);
                         } else if (manageLevel === "galleries") {
-                            // Back to Event list
+                            // Back to Event Hub
+                            router.push(`/dashboard?view=manage&level=event-details&eventId=${selectedMainEvent?.id}`);
+                        } else if (manageLevel === "event-details") {
+                            // Back to Main Event List
                             router.push("/dashboard?view=manage&level=events");
                         } else {
                             // Back to Main Dashboard
@@ -1381,6 +1431,24 @@ function DashboardContent() {
                                     color="bg-emerald-50 text-emerald-600"
                                     hoverBorder="hover:border-emerald-200"
                                     actionTitle="Manage user access and roles"
+                                />
+                                <OptionCard
+                                    title="Join Event"
+                                    description="Got a secret code? Enter it here to join a private event album."
+                                    icon={UserPlus}
+                                    onClick={() => setIsJoinModalOpen(true)}
+                                    color="bg-blue-50 text-blue-600"
+                                    hoverBorder="hover:border-blue-200"
+                                    actionTitle="Enter a join code"
+                                />
+                                <OptionCard
+                                    title="About Us"
+                                    description="Learn more about our platform and our mission."
+                                    icon={Info}
+                                    href="/"
+                                    color="bg-amber-50 text-amber-600"
+                                    hoverBorder="hover:border-amber-200"
+                                    actionTitle="Learn about Lens & Frame"
                                 />
                             </div>
                         </motion.div>
@@ -2496,6 +2564,73 @@ function DashboardContent() {
                         }
                     }}
                 />
+
+                {/* Join Event Modal */}
+                <AnimatePresence>
+                    {isJoinModalOpen && (
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                                className="bg-white rounded-[2.5rem] p-8 md:p-12 w-full max-w-md shadow-2xl relative overflow-hidden"
+                            >
+                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-stone-400 via-stone-200 to-stone-400"></div>
+                                
+                                <div className="flex justify-between items-center mb-8">
+                                    <div className="w-14 h-14 bg-stone-50 rounded-2xl flex items-center justify-center">
+                                        <QrCode className="w-7 h-7 text-stone-700" />
+                                    </div>
+                                    <button 
+                                        onClick={() => { setIsJoinModalOpen(false); setJoinCode(""); }}
+                                        className="p-2 hover:bg-stone-50 rounded-full transition-colors"
+                                    >
+                                        <X className="w-6 h-6 text-stone-400" />
+                                    </button>
+                                </div>
+
+                                <h3 className="text-3xl font-bold mb-3 tracking-tight text-slate-900">Join Event</h3>
+                                <p className="text-slate-600 mb-8 font-sans leading-relaxed text-sm">
+                                    Enter the 6-digit unique join code provided by the event host to request access.
+                                </p>
+
+                                <form onSubmit={handleJoinEvent} className="space-y-6">
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-stone-500 mb-3 ml-1">Join Code</label>
+                                        <input
+                                            type="text"
+                                            value={joinCode}
+                                            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                                            placeholder="E.G. WED123"
+                                            className="w-full px-6 py-5 bg-stone-50 border border-stone-100 rounded-2xl focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all outline-none text-2xl font-bold tracking-[0.3em] text-center placeholder:text-stone-300 placeholder:tracking-normal"
+                                            required
+                                            autoFocus
+                                            maxLength={10}
+                                        />
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={isJoining || !joinCode.trim()}
+                                        className="w-full py-5 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-xl active:scale-[0.98] disabled:bg-stone-200 disabled:shadow-none flex items-center justify-center gap-3 text-lg"
+                                    >
+                                        {isJoining ? (
+                                            <>
+                                                <Loader2 className="w-6 h-6 animate-spin" />
+                                                <span>Joining...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <ArrowRight className="w-6 h-6" />
+                                                <span>Request Access</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </form>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
             </main >
         </div >
     );

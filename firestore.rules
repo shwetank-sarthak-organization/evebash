@@ -90,6 +90,16 @@ service cloud.firestore {
 
     // --- COLLECTION RULES ---
 
+    // --- BUSINESS RULES ---
+    match /businesses/{bizId} {
+      allow get, list: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated() && (
+        isKnownAdmin() || 
+        isAdmin() || 
+        (resource == null || resource.data.createdBy == request.auth.uid)
+      );
+    }
+
     match /events/{eventId} {
       allow read: if true;
       

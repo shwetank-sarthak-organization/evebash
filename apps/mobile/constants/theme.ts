@@ -27,27 +27,51 @@ export const Colors = {
   },
 };
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
+export const MidnightColors = {
+  background: '#020617',
+  deepSlate: '#0f172a',
+  slate900: '#0f172a',
+  slate800: '#1e293b',
+  slate700: '#334155',
+  slate400: '#94a3b8',
+  gold: '#d4af37',
+  white: '#ffffff',
+  ghostWhite: '#f8fafc',
+  border: 'rgba(212, 175, 55, 0.25)',
+  cardBorder: 'rgba(255, 255, 255, 0.05)',
+};
+
+export const RoyalColors = {
+  maroon: '#5D001E',
+  gold: '#D4AF37',
+  cream: '#FFFDD0',
+  green: '#005D4B',
+  slate800: '#1e293b',
+  slate700: '#334155',
+  slate400: '#94a3b8',
+};
+
+export const Fonts = {
+  ...Platform.select({
+    ios: {
+      sans: 'system-ui',
+      serif: 'ui-serif',
+    },
+    default: {
+      sans: 'normal',
+      serif: 'serif',
+    },
+  }),
+  outfit: {
+    regular: 'Outfit_400Regular',
+    semiBold: 'Outfit_600SemiBold',
+    bold: 'Outfit_700Bold',
+    extraBold: 'Outfit_800ExtraBold',
   },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});
+  inter: {
+    regular: 'Inter_400Regular',
+    medium: 'Inter_500Medium',
+    semiBold: 'Inter_600SemiBold',
+    bold: 'Inter_700Bold',
+  }
+};

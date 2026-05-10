@@ -149,7 +149,7 @@ export default function GalleryPage() {
                         console.log(`[GalleryPage] Event clicked. Title: "${event.title}", ID: "${event.id}"`);
                         navigateWithModifierClick(e, `/events/${event.id}`, router.push);
                     }}
-                    className="group block relative aspect-[4/5] rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 border border-stone-100 cursor-pointer"
+                    className="group block relative aspect-[4/5] rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 border border-stone-100 cursor-pointer bg-white"
                 >
                     <Image
                         src={event.coverImage || '/placeholder-event.jpg'}
@@ -159,7 +159,7 @@ export default function GalleryPage() {
                         className="object-cover transition-transform duration-700 group-hover:scale-110"
                         priority={index < 3}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent group-hover:via-black/40 transition-all" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent group-hover:via-black/40 transition-all duration-500" />
 
                     <div className="absolute bottom-0 left-0 p-8 w-full text-left flex items-end justify-between">
                         <div>
@@ -219,22 +219,22 @@ export default function GalleryPage() {
             : [["", items] as [string, Event[]]];
 
         return (
-            <section className="space-y-5">
-                <div>
-                    <h2 className="text-xl font-bold text-slate-800 font-serif">{title}</h2>
-                    <p className="text-sm text-stone-600 font-sans">{items.length} {items.length === 1 ? "item" : "items"}</p>
+            <section className="space-y-6">
+                <div className="mb-8">
+                    <h2 className="text-2xl font-bold text-slate-800 italic tracking-tight">{title}</h2>
+                    <div className="w-12 h-1 bg-royal-gold/30 rounded-full mt-2"></div>
                 </div>
                 {groupedItems.map(([ownerEmail, ownerEvents]) => (
-                    <div key={ownerEmail || title} className="space-y-5">
+                    <div key={ownerEmail || title} className="space-y-6">
                         {groupByOwner && (
                             <div className="px-1 pt-2">
-                                <h3 className="text-sm font-bold text-slate-800 font-sans">{ownerEmail}</h3>
+                                <h3 className="text-sm font-bold text-slate-800 font-sans uppercase tracking-[0.2em]">{ownerEmail}</h3>
                                 <p className="text-[10px] text-stone-600 font-bold uppercase tracking-widest mt-1">
                                     {ownerEvents.length} shared {ownerEvents.length === 1 ? "event" : "events"}
                                 </p>
                             </div>
                         )}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
                             {ownerEvents.map(renderEventCard)}
                         </div>
                     </div>
@@ -245,7 +245,7 @@ export default function GalleryPage() {
 
     if (loading || loadingEvents) {
         return (
-            <main className="min-h-screen flex items-center justify-center bg-stone-50 relative" ref={containerRef}>
+            <main className="min-h-screen flex items-center justify-center bg-royal-cream relative" ref={containerRef}>
                 <Loader2 className="w-8 h-8 animate-spin text-royal-gold" />
             </main>
         );
@@ -253,7 +253,7 @@ export default function GalleryPage() {
 
     // Default Main Events View
     return (
-        <main className="min-h-screen bg-stone-50 relative" ref={containerRef}>
+        <main className="min-h-screen bg-royal-cream font-serif text-slate-800 selection:bg-royal-gold/30" ref={containerRef}>
             <DashboardHeader
                 user={user}
                 breadcrumbs={[
@@ -267,37 +267,46 @@ export default function GalleryPage() {
             />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-                <header className="mb-16 text-center">
+                <header className="mb-20 text-center">
                     <ScrollReveal direction="up">
-                        <h1 className="text-4xl md:text-6xl font-serif font-bold text-slate-900 mb-6 uppercase tracking-wider">
-                            Your Events
+                        <div className="inline-flex items-center space-x-3 px-4 py-2 bg-royal-gold/10 rounded-full text-royal-gold text-xs font-bold uppercase tracking-widest mb-6 border border-royal-gold/20">
+                            <Camera className="w-4 h-4" />
+                            <span>Your Collection</span>
+                        </div>
+                    </ScrollReveal>
+                    
+                    <ScrollReveal direction="up" delay={0.1}>
+                        <h1 className="text-5xl md:text-7xl font-bold text-slate-900 mb-8 italic tracking-tight">
+                            Your <span className="text-royal-gold">Memories</span>
                         </h1>
                     </ScrollReveal>
+                    
                     <ScrollReveal direction="up" delay={0.2}>
-                        <p className="text-slate-700 font-sans text-lg max-w-2xl mx-auto">
-                            A private collection of your most cherished moments, captured forever.
+                        <p className="text-slate-700 font-sans text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
+                            A private collection of your most cherished moments, beautifully organized and captured forever.
                         </p>
                     </ScrollReveal>
                 </header>
 
                 {events.length === 0 ? (
-                    <div className="bg-white rounded-[3rem] p-12 text-center border border-dashed border-stone-200 shadow-sm max-w-2xl mx-auto">
-                        <div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <Camera className="w-10 h-10 text-stone-600" />
+                    <div className="bg-white rounded-[3rem] p-16 text-center border border-stone-100 shadow-xl shadow-black/5 max-w-2xl mx-auto">
+                        <div className="w-24 h-24 bg-royal-cream rounded-full flex items-center justify-center mx-auto mb-8 border border-royal-gold/10 shadow-inner">
+                            <Camera className="w-10 h-10 text-royal-gold" />
                         </div>
-                        <h2 className="text-2xl font-bold mb-4 text-slate-900">No events yet</h2>
-                        <p className="text-slate-700 mb-8 font-sans text-neutral-700">
+                        <h2 className="text-3xl font-bold mb-4 text-slate-900 italic tracking-tight">No events yet</h2>
+                        <p className="text-slate-700 mb-10 font-sans text-lg">
                             Start by creating an event in your dashboard and uploading some photos.
                         </p>
                         <Link
                             href="/dashboard"
-                            className="inline-flex items-center space-x-2 px-8 py-4 bg-slate-900 text-white rounded-full font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-95"
+                            className="inline-flex items-center space-x-3 px-10 py-5 bg-slate-900 text-white rounded-full font-bold hover:bg-slate-800 transition-all shadow-xl active:scale-95"
                         >
-                            Go to Dashboard
+                            <span>Go to Dashboard</span>
+                            <ArrowRight className="w-5 h-5" />
                         </Link>
                     </div>
                 ) : (
-                    <div className="space-y-12">
+                    <div className="space-y-20">
                         {renderEventSection("Your Created Events", createdEvents)}
                         {renderEventSection("Shared Events", sharedEvents, true)}
                     </div>
@@ -305,7 +314,7 @@ export default function GalleryPage() {
             </div>
 
             <footer className="py-20 text-center text-slate-600 font-sans text-sm">
-                <p>© 2026 Lens & Frame. All Rights Reserved.</p>
+                <p>© 2026 WedAlbum. Elegant Memories, Forever Preserved.</p>
             </footer>
         </main>
     );

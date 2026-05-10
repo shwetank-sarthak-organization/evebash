@@ -37,7 +37,7 @@ export default function Footer() {
                             <li>
                                 <Link href="/" className="text-slate-600 hover:text-sky-600 transition-colors flex items-center group">
                                     <span className="w-1 h-1 rounded-full bg-slate-300 mr-2 group-hover:bg-sky-500 transition-colors"></span>
-                                    Home
+                                    About Us
                                 </Link>
                             </li>
                             <li>
@@ -50,6 +50,12 @@ export default function Footer() {
                                 <Link href="/pricing" className="text-slate-600 hover:text-sky-600 transition-colors flex items-center group">
                                     <span className="w-1 h-1 rounded-full bg-slate-300 mr-2 group-hover:bg-sky-500 transition-colors"></span>
                                     Pricing
+                                </Link>
+                            </li>
+                            <li>
+                                <Link href="#" className="text-slate-600 hover:text-sky-600 transition-colors flex items-center group">
+                                    <span className="w-1 h-1 rounded-full bg-slate-300 mr-2 group-hover:bg-sky-500 transition-colors"></span>
+                                    Businesses
                                 </Link>
                             </li>
                             <li>

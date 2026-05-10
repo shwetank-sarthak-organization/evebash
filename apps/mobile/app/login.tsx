@@ -74,7 +74,7 @@ export default function LoginScreen() {
     setLoading(false);
 
     if (result.success) {
-      router.replace('/(tabs)/profile');
+      router.replace('/(tabs)/dashboard');
     } else {
       setError(result.error || 'Something went wrong.');
     }

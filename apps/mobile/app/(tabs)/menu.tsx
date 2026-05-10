@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
@@ -20,6 +21,7 @@ export default function MenuScreen() {
   };
 
   const menuItems = [
+    { id: 'about-us', title: 'About Us', route: '/(tabs)/', icon: 'house.fill' },
     { id: 'sample-galleries', title: 'Sample Galleries', route: '/sample-galleries', icon: 'photo.fill' },
     { id: 'pricing', title: 'Pricing', route: '/pricing', icon: 'star.fill' },
     { id: 'contact', title: 'Contact Us', route: '/contact', icon: 'paperplane.fill' },
@@ -53,7 +55,7 @@ export default function MenuScreen() {
             </View>
             <TouchableOpacity 
               style={styles.manageButton}
-              onPress={() => router.push('/dashboard')}
+              onPress={() => router.push('/(tabs)/dashboard')}
             >
               <Text style={styles.manageButtonText}>Manage Galleries</Text>
             </TouchableOpacity>

@@ -9,9 +9,9 @@ import { useAuth } from "@/context/AuthContext";
 import { AnimatePresence, motion } from "framer-motion";
 
 const navLinks = [
-    { name: "Home", href: "/" },
     { name: "Sample Galleries", href: "/sample-galleries" },
     { name: "Pricing", href: "/pricing" },
+    { name: "Businesses", href: "#" },
     { name: "Contact Us", href: "/contact-us" },
 ];
 

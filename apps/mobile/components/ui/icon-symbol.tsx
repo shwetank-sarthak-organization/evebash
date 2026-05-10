@@ -35,6 +35,10 @@ const MAPPING = {
   'rectangle.portrait.and.arrow.right': 'logout',
   'folder': 'folder',
   'calendar': 'event',
+  'square.grid.2x2.fill': 'apps',
+  'gearshape.fill': 'settings',
+  'pencil': 'edit',
+  'trash.fill': 'delete',
 } as const;
 
 type IconSymbolName = keyof typeof MAPPING;

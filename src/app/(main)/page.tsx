@@ -5,6 +5,7 @@ import Image from "next/image";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
+import { ArrowRight, Camera, Sparkles } from "lucide-react";
 
 export default function Home() {
     const containerRef = useRef(null);
@@ -18,10 +19,9 @@ export default function Home() {
     const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
 
     return (
-        <div className="flex flex-col min-h-screen bg-slate-50 relative" ref={containerRef}>
-            {/* Light & Airy Hero Section with Parallax */}
+        <div className="flex flex-col min-h-screen bg-royal-cream font-serif text-slate-800 selection:bg-royal-gold/30" ref={containerRef}>
+            {/* Hero Section with Parallax */}
             <section className="relative h-screen w-full flex items-center justify-center overflow-hidden">
-                {/* Background Image - Clean without dark overlay */}
                 <motion.div style={{ y, opacity }} className="absolute inset-0 z-0 h-[120%] -top-[10%]">
                     <Image
                         src="https://res.cloudinary.com/dkphvdlwk/image/upload/v1767692961/0D2A5755_1_cipyfz.jpg"
@@ -32,96 +32,120 @@ export default function Home() {
                     />
                 </motion.div>
 
-                {/* Subtle gradient from bottom white to transparent for text readability */}
-                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-slate-900/60 to-transparent z-0"></div>
+                {/* Subtle gradient for text readability */}
+                <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/70 via-black/20 to-transparent z-0"></div>
 
                 {/* Hero Content */}
-                <div className="relative z-10 text-center space-y-6 px-4 mt-20 max-w-5xl mx-auto">
+                <div className="relative z-10 text-center space-y-8 px-4 mt-20 max-w-5xl mx-auto">
                     <ScrollReveal direction="down" delay={0.2}>
-                        <div className="inline-block border border-white/60 py-2 px-8 mb-6 bg-white/20 backdrop-blur-md rounded-full shadow-lg">
-                            <p className="text-sm md:text-lg text-white font-serif uppercase tracking-[0.2em]">
-                                Professional Photography
+                        <div className="inline-flex items-center space-x-3 px-6 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/20 shadow-2xl">
+                            <Sparkles className="w-4 h-4 text-royal-gold" />
+                            <p className="text-xs md:text-sm text-white font-bold uppercase tracking-[0.3em]">
+                                Premium Wedding Photography
                             </p>
                         </div>
                     </ScrollReveal>
 
                     <ScrollReveal delay={0.4}>
-                        <h1 className="text-5xl md:text-8xl font-serif text-white drop-shadow-md tracking-tight leading-tight">
-                            Capturing <span className="font-light italic text-sky-200">Timeless</span> Moments
+                        <h1 className="text-5xl md:text-8xl font-bold text-white drop-shadow-2xl tracking-tight leading-tight italic">
+                            Capturing <span className="text-royal-gold">Timeless</span> Moments
                         </h1>
                     </ScrollReveal>
 
                     <ScrollReveal delay={0.6}>
-                        <p className="text-lg md:text-xl text-white/90 font-light tracking-wide max-w-2xl mx-auto leading-relaxed drop-shadow-sm">
-                            We believe that every moment is a piece of art waiting to be captured. Let us tell your story with elegance and simplicity.
+                        <p className="text-lg md:text-2xl text-white/90 font-sans font-light tracking-wide max-w-2xl mx-auto leading-relaxed drop-shadow-lg">
+                            Where every frame tells a story of elegance, and every moment becomes a masterpiece.
                         </p>
                     </ScrollReveal>
 
-                    <div className="mt-12 flex flex-col md:flex-row gap-6 justify-center">
+                    <div className="mt-12 flex flex-col md:flex-row gap-6 justify-center items-center">
                         <ScrollReveal direction="left" delay={0.8}>
-                            <Link href="/sample-galleries" className="inline-block">
-                                <span className="inline-block px-8 py-4 bg-white text-slate-800 hover:bg-sky-50 transition-all duration-300 uppercase tracking-widest text-sm font-semibold rounded-lg shadow-xl hover:shadow-2xl hover:scale-105 transform">
-                                    View Our Work
+                            <Link href="/sample-galleries" className="group">
+                                <span className="inline-flex items-center space-x-3 px-10 py-5 bg-white text-slate-900 hover:bg-royal-cream transition-all duration-500 uppercase tracking-widest text-sm font-bold rounded-full shadow-2xl hover:scale-105 transform">
+                                    <span>View Portfolio</span>
+                                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                                 </span>
                             </Link>
                         </ScrollReveal>
 
                         <ScrollReveal direction="right" delay={1.0}>
-                            <Link href="/contact-us" className="inline-block">
-                                <span className="inline-block px-8 py-4 bg-transparent border border-white text-white hover:bg-white hover:text-slate-800 transition-all duration-300 uppercase tracking-widest text-sm font-semibold rounded-lg hover:shadow-lg hover:scale-105 transform">
-                                    Book a Session
+                            <Link href="/contact-us" className="group">
+                                <span className="inline-flex items-center space-x-3 px-10 py-5 bg-transparent border-2 border-white/60 text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-500 uppercase tracking-widest text-sm font-bold rounded-full hover:shadow-2xl hover:scale-105 transform">
+                                    <span>Book a Session</span>
                                 </span>
                             </Link>
                         </ScrollReveal>
                     </div>
                 </div>
+                
+                {/* Scroll Indicator */}
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 2, duration: 1 }}
+                    className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center space-y-2"
+                >
+                    <div className="w-px h-12 bg-gradient-to-b from-royal-gold to-transparent"></div>
+                    <span className="text-[10px] text-white/50 uppercase tracking-[0.4em] font-sans">Scroll</span>
+                </motion.div>
             </section>
 
-            {/* About Section - Clean & Minimal */}
-            <section className="py-24 px-4 md:px-12 max-w-7xl mx-auto w-full bg-white relative z-10">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+            {/* About Section */}
+            <section className="py-32 px-4 md:px-12 max-w-7xl mx-auto w-full bg-royal-cream relative z-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-24 items-center">
                     <ScrollReveal direction="left" delay={0.2}>
-                        <div className="relative aspect-[3/4] w-full max-w-md mx-auto shadow-2xl rounded-2xl overflow-hidden group">
+                        <div className="relative aspect-[3/4] w-full max-w-md mx-auto shadow-2xl rounded-[3rem] overflow-hidden group border-8 border-white/50">
                             <Image
                                 src="https://res.cloudinary.com/dkphvdlwk/image/upload/v1767692961/0D2A5755_1_cipyfz.jpg"
                                 alt="Photographer"
                                 fill
                                 className="object-cover transition-transform duration-1000 group-hover:scale-110"
                             />
-                            <div className="absolute inset-0 border-[1px] border-white/20 rounded-2xl m-4"></div>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         </div>
                     </ScrollReveal>
 
-                    <div className="text-left space-y-8">
+                    <div className="text-left space-y-10">
                         <ScrollReveal delay={0.3}>
-                            <div className="space-y-2">
-                                <h3 className="text-sm font-bold text-sky-600 uppercase tracking-widest">About The Artist</h3>
-                                <h2 className="text-4xl md:text-5xl font-serif text-slate-800">Preserving Your Legacy</h2>
+                            <div className="space-y-4">
+                                <div className="flex items-center space-x-4">
+                                    <div className="w-12 h-px bg-royal-gold"></div>
+                                    <h3 className="text-sm font-bold text-royal-gold uppercase tracking-[0.3em]">About The Artist</h3>
+                                </div>
+                                <h2 className="text-5xl md:text-6xl font-bold text-slate-900 italic tracking-tight leading-tight">
+                                    Preserving Your <span className="text-royal-gold">Legacy</span>
+                                </h2>
                             </div>
                         </ScrollReveal>
 
                         <ScrollReveal delay={0.5}>
-                            <div className="space-y-4 text-slate-600 leading-relaxed font-light text-lg">
+                            <div className="space-y-6 text-slate-700 leading-relaxed font-sans font-light text-lg">
                                 <p>
-                                    With over a decade of experience in capturing weddings, portraits, and events, we strive to create images that are not just photographs, but heirlooms.
+                                    With over a decade of experience in capturing the grandest celebrations, we believe that photography is more than just clicking a button—it's about capturing the soul of a moment.
                                 </p>
                                 <p>
-                                    Our style is a blend of fine art and photojournalism, ensuring that every emotion is captured authentically. From the grandest gestures to the quietest whispers, we are there to document it all.
+                                    Our signature "Royal Aesthetic" combines the warmth of traditional storytelling with the precision of modern fine art, ensuring your memories are preserved in their most beautiful form.
                                 </p>
                             </div>
                         </ScrollReveal>
 
                         <ScrollReveal delay={0.7}>
-                            <Link href="/contact-us" className="inline-block group">
-                                <span className="text-slate-800 font-semibold border-b-2 border-sky-400 pb-1 hover:text-sky-600 hover:border-sky-600 transition-all duration-300">
-                                    Read More About Us
-                                    <span className="inline-block ml-2 transition-transform duration-300 group-hover:translate-x-1">&rarr;</span>
+                            <Link href="/contact-us" className="inline-flex items-center space-x-4 group">
+                                <span className="text-slate-900 font-bold uppercase tracking-widest text-sm border-b-2 border-royal-gold/30 pb-2 group-hover:border-royal-gold transition-all duration-300">
+                                    Discover Our Journey
                                 </span>
+                                <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center group-hover:bg-royal-gold transition-all duration-300 shadow-lg">
+                                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                </div>
                             </Link>
                         </ScrollReveal>
                     </div>
                 </div>
             </section>
+
+            <footer className="py-20 text-center text-slate-600 font-sans text-sm border-t border-royal-gold/10">
+                <p>© 2026 WedAlbum. The Gold Standard in Memories.</p>
+            </footer>
         </div>
     );
 }

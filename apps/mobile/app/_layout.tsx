@@ -7,10 +7,27 @@ import { View, ActivityIndicator } from 'react-native';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import * as SplashScreen from 'expo-splash-screen';
+import { 
+  useFonts, 
+  Outfit_400Regular, 
+  Outfit_600SemiBold, 
+  Outfit_700Bold, 
+  Outfit_800ExtraBold 
+} from '@expo-google-fonts/outfit';
+import { 
+  Inter_400Regular, 
+  Inter_500Medium, 
+  Inter_600SemiBold, 
+  Inter_700Bold 
+} from '@expo-google-fonts/inter';
+
+// Prevent splash screen from auto-hiding
+SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
   // Ensure any route can link back to `/`
-  initialRouteName: 'profile',
+  initialRouteName: 'dashboard',
 };
 
 // Auth gate: redirects unauthenticated users to /login
@@ -37,8 +54,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       // Not logged in → go to login
       router.replace('/login');
     } else if (user && inAuthGroup) {
-      // Already logged in → go to profile tabs
-      router.replace('/(tabs)/profile');
+      // Already logged in → go to dashboard tabs
+      router.replace('/(tabs)/dashboard');
     }
   }, [user, loading, segments]);
 
@@ -55,6 +72,27 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  const [fontsLoaded, fontError] = useFonts({
+    Outfit_400Regular,
+    Outfit_600SemiBold,
+    Outfit_700Bold,
+    Outfit_800ExtraBold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   return (
     <AuthProvider>

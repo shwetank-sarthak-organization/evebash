@@ -6,6 +6,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
+import { ChevronLeft, ArrowRight } from "lucide-react";
 
 // In a real app, this would come from a database based on the client slug
 const clients = {
@@ -41,7 +42,7 @@ export default function ClientGallery({ params }: { params: Promise<{ client: st
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 relative" ref={containerRef}>
+        <div className="min-h-screen bg-royal-cream font-serif text-slate-800" ref={containerRef}>
             {/* Hero Cover Image with Parallax */}
             <div className="relative h-[85vh] w-full overflow-hidden">
                 <motion.div style={{ y, opacity }} className="absolute inset-0 h-[120%] -top-[10%]">
@@ -57,51 +58,65 @@ export default function ClientGallery({ params }: { params: Promise<{ client: st
 
                 <div className="absolute inset-0 flex flex-col justify-end items-center text-center px-4 pb-20">
                     <ScrollReveal direction="up" delay={0.3}>
-                        <h1 className="text-4xl md:text-7xl font-serif text-white drop-shadow-xl mb-6">{data.title}</h1>
+                        <h1 className="text-4xl md:text-7xl font-bold text-white drop-shadow-xl mb-6 italic tracking-tight">{data.title}</h1>
                     </ScrollReveal>
                     <ScrollReveal direction="up" delay={0.5}>
-                        <p className="text-white/90 text-lg md:text-xl max-w-2xl font-light drop-shadow-lg tracking-wide">
+                        <p className="text-white/90 text-lg md:text-xl max-w-2xl font-sans font-light drop-shadow-lg tracking-wide">
                             {data.description}
                         </p>
                     </ScrollReveal>
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto py-16 px-4 bg-slate-50 relative z-10 -mt-10 rounded-t-3xl">
+            <div className="max-w-7xl mx-auto py-24 px-4 sm:px-6 lg:px-8 bg-royal-cream relative z-10 -mt-20 rounded-t-[3rem] shadow-2xl shadow-black/20">
                 {/* Breadcrumb / Back Link */}
-                <div className="mb-12">
-                    <Link href="/sample-galleries" className="text-sky-600 hover:text-sky-800 transition-colors text-sm font-semibold flex items-center">
-                        &larr; Back to Albums
+                <div className="mb-16 flex items-center justify-between">
+                    <Link href="/sample-galleries" className="group inline-flex items-center space-x-2 text-royal-gold hover:text-royal-gold/80 transition-all text-sm font-bold uppercase tracking-widest">
+                        <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                        <span>Back to Albums</span>
                     </Link>
+                    
+                    <div className="h-px flex-1 bg-royal-gold/20 mx-8 hidden md:block"></div>
+                    
+                    <span className="text-xs font-bold uppercase tracking-[0.3em] text-slate-400">Curated Collection</span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
                     {data.events.map((event, index) => (
                         <ScrollReveal key={event.slug} delay={index * 0.1}>
-                            <Link href={`/events/${event.slug}`} className="group relative block w-full aspect-[3/4] overflow-hidden rounded-2xl shadow-md hover:shadow-2xl transition-all duration-500">
+                            <Link 
+                                href={`/events/${event.slug}`} 
+                                className="group relative block w-full aspect-[3/4] overflow-hidden rounded-[2rem] shadow-md hover:shadow-2xl transition-all duration-700 bg-white"
+                            >
                                 {/* Image */}
                                 <Image
                                     src={event.img}
                                     alt={event.name}
                                     fill
-                                    className="object-cover transition-transform duration-700 group-hover:scale-110"
+                                    className="object-cover transition-transform duration-1000 group-hover:scale-110"
                                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
                                 />
 
-                                {/* Overlay - appearing on hover */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-300"></div>
+                                {/* Overlay */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent opacity-60 group-hover:opacity-80 transition-all duration-500"></div>
 
                                 {/* Content */}
-                                <div className="absolute bottom-0 left-0 p-6 w-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-                                    <p className="text-sky-400 text-xs font-bold uppercase tracking-widest mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">{event.category}</p>
-                                    <h3 className="text-2xl font-serif text-white mb-2">{event.name}</h3>
-                                    <div className="h-[2px] w-0 bg-white group-hover:w-full transition-all duration-500 ease-out"></div>
+                                <div className="absolute bottom-0 left-0 p-8 w-full transform translate-y-4 group-hover:translate-y-0 transition-all duration-500">
+                                    <p className="text-royal-gold text-[10px] font-bold uppercase tracking-[0.2em] mb-3 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">{event.category}</p>
+                                    <h3 className="text-2xl font-bold text-white mb-4 italic tracking-tight">{event.name}</h3>
+                                    <div className="flex items-center text-white/70 text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all duration-500">
+                                        Open Gallery <ArrowRight className="w-3 h-3 ml-2 group-hover:translate-x-1 transition-transform" />
+                                    </div>
                                 </div>
                             </Link>
                         </ScrollReveal>
                     ))}
                 </div>
             </div>
+            
+            <footer className="py-20 text-center text-slate-600 font-sans text-sm">
+                <p>© 2026 WedAlbum. Elegant Memories.</p>
+            </footer>
         </div>
     );
 }

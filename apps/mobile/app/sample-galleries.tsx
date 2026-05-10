@@ -1,8 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { MidnightColors, Fonts } from '../constants/theme';
+
+const { width } = Dimensions.get('window');
 
 const albums = [
   {
@@ -18,177 +22,94 @@ export default function SampleGalleriesScreen() {
   const router = useRouter();
 
   return (
-    <View style={styles.mainContainer}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <Stack.Screen options={{ 
-        headerShown: true, 
-        title: 'Sample Galleries',
-        headerTitleStyle: { 
-          fontWeight: 'bold',
-          fontSize: 18,
-          color: '#0f172a',
-        },
-        headerStyle: { backgroundColor: '#f8fafc' },
-        headerShadowVisible: false,
-        headerLeft: () => (
-          <TouchableOpacity 
-            onPress={() => router.back()} 
-            style={styles.nativeBackButton}
-            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-          >
-            <IconSymbol name="chevron.left" size={28} color="#0f172a" />
-          </TouchableOpacity>
-        ),
+        headerShown: false
       }} />
-      <ScrollView 
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Text style={styles.title}>Sample Galleries</Text>
-          <Text style={styles.subtitle}>
-            Browse through our portfolio of beautiful stories.
-          </Text>
+      
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <IconSymbol name="chevron.left" size={20} color={MidnightColors.gold} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Sample Events</Text>
+        <View style={{ width: 44 }} />
+      </View>
+
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.hero}>
+          <Text style={styles.heroTitle}>Masterpieces</Text>
+          <Text style={styles.heroSub}>Explore our curated collection of professional galleries.</Text>
         </View>
 
-        <View style={styles.gridContainer}>
+        <View style={styles.grid}>
           {albums.map((album) => (
             <TouchableOpacity 
               key={album.slug} 
-              style={styles.albumCard}
-              activeOpacity={0.8}
+              style={styles.card}
+              activeOpacity={0.85}
+              onPress={() => router.push(`/events/${album.slug}`)}
             >
-              <View style={styles.imageContainer}>
-                <Image 
-                  source={{ uri: album.coverImg }} 
-                  style={styles.coverImage} 
-                />
-                <View style={styles.overlay} />
-              </View>
-              
-              <View style={styles.infoContainer}>
-                <View style={styles.metaRow}>
-                  <Text style={styles.category}>{album.category}</Text>
-                  <Text style={styles.year}>{album.year}</Text>
+              <Image source={{ uri: album.coverImg }} style={styles.cardImage} />
+              <LinearGradient
+                colors={['transparent', 'rgba(2, 6, 23, 0.9)']}
+                style={styles.cardGradient}
+              />
+              <View style={styles.cardContent}>
+                <View style={styles.categoryBadge}>
+                  <Text style={styles.categoryText}>{album.category}</Text>
                 </View>
-                <Text style={styles.albumName}>{album.name}</Text>
-                
-                <View style={styles.viewRow}>
-                  <Text style={styles.viewText}>View Album</Text>
-                  <IconSymbol name="chevron.right" size={16} color="#0284c7" />
-                </View>
+                <Text style={styles.cardTitle}>{album.name}</Text>
+                <Text style={styles.cardYear}>{album.year}</Text>
               </View>
             </TouchableOpacity>
           ))}
         </View>
-
-        <View style={{ height: 40 }} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
+  safeArea: { flex: 1, backgroundColor: MidnightColors.background },
+  container: { flex: 1 },
+  scrollContent: { paddingBottom: 40 },
+  
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: MidnightColors.border,
   },
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: 10,
-    paddingBottom: 40,
-  },
-  nativeBackButton: {
+  backBtn: {
     width: 44,
     height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'flex-start',
-    marginLeft: 0,
   },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 24,
-    alignItems: 'center',
+  headerTitle: { fontSize: 18, color: '#fff', fontFamily: Fonts.outfit.bold },
+
+  hero: { padding: 24, paddingBottom: 10 },
+  heroTitle: { fontSize: 32, color: '#fff', fontFamily: Fonts.outfit.extraBold, letterSpacing: -0.5 },
+  heroSub: { fontSize: 14, color: MidnightColors.slate400, fontFamily: Fonts.inter.regular, marginTop: 6 },
+
+  grid: { padding: 20 },
+  card: {
+    width: '100%', height: 240,
+    borderRadius: 28, overflow: 'hidden',
+    backgroundColor: MidnightColors.deepSlate,
+    borderWidth: 1, borderColor: MidnightColors.cardBorder,
+    marginBottom: 20,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#0f172a',
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#64748b',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  gridContainer: {
-    paddingHorizontal: 16,
-    gap: 20,
-  },
-  albumCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-  },
-  imageContainer: {
-    width: '100%',
-    aspectRatio: 4 / 3,
-    position: 'relative',
-  },
-  coverImage: {
-    width: '100%',
-    height: '100%',
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.1)',
-  },
-  infoContainer: {
-    padding: 24,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  category: {
-    color: '#0284c7',
-    fontSize: 12,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  year: {
-    color: '#64748b',
-    fontSize: 12,
-    fontStyle: 'italic',
-  },
-  albumName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#0f172a',
-    marginBottom: 16,
-  },
-  viewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  viewText: {
-    color: '#0284c7',
-    fontSize: 14,
-    fontWeight: '600',
-    marginRight: 6,
-  },
+  cardImage: { ...StyleSheet.absoluteFillObject },
+  cardGradient: { ...StyleSheet.absoluteFillObject },
+  cardContent: { position: 'absolute', bottom: 20, left: 20, right: 20 },
+  categoryBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, backgroundColor: 'rgba(212,175,55,0.2)', borderRadius: 10, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(212,175,55,0.3)' },
+  categoryText: { fontSize: 10, color: MidnightColors.gold, fontFamily: Fonts.inter.bold, textTransform: 'uppercase' },
+  cardTitle: { fontSize: 20, color: '#fff', fontFamily: Fonts.outfit.bold },
+  cardYear: { fontSize: 12, color: MidnightColors.slate400, fontFamily: Fonts.inter.medium, marginTop: 2 },
 });

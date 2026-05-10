@@ -6,6 +6,12 @@
   --color-secondary-600: #475569;
   --color-secondary-50: #f8fafc;
 
+  /* Royal Theme Colors */
+  --color-royal-maroon: #5D001E;
+  --color-royal-gold: #D4AF37;
+  --color-royal-cream: #FFFDD0;
+  --color-royal-green: #005D4B;
+
   --font-serif: var(--font-playfair), serif;
   --font-sans: var(--font-lato), sans-serif;
 }

@@ -14,6 +14,7 @@ export interface Event {
     parentId?: string;
     legacyId?: string; // Captures original truncated/mismatched ID for backward compatibility
     templateId?: string; // 'hero' | 'classic', defaults to 'hero'
+    joinId?: string; // 6-digit unique code for guests to join
 }
 
 export interface Photo {
@@ -262,7 +263,7 @@ export async function getAllowedUser(phone: string): Promise<DocumentData | null
 /**
  * Logs a successful login or event access to the guests collection.
  */
-export async function logGuestLogin(name: string, phone: string, eventId?: string, parentEventId?: string, eventTitle?: string, ownerId?: string) {
+export async function logGuestLogin(name: string, phone: string, eventId?: string, parentEventId?: string, eventTitle?: string, ownerId?: string, status: 'pending' | 'approved' | 'rejected' = 'pending') {
     try {
         // We use a combined ID if eventId is provided to track multiple event accesses per person
         const logId = eventId ? `${phone}_${eventId}` : phone;
@@ -270,7 +271,7 @@ export async function logGuestLogin(name: string, phone: string, eventId?: strin
 
         // Check for existing status to avoid resetting approvals
         const existingDoc = await getDoc(docRef);
-        const existingStatus = existingDoc.exists() ? existingDoc.data().status : null;
+        const existingData = existingDoc.exists() ? existingDoc.data() : null;
 
         await setDoc(docRef, {
             name,
@@ -279,8 +280,8 @@ export async function logGuestLogin(name: string, phone: string, eventId?: strin
             parentEventId: parentEventId || null,
             parentEventOwnerId: ownerId || null,
             eventTitle: eventTitle || "General Access",
-            loginAt: Timestamp.now(),
-            status: existingStatus === 'approved' ? 'approved' : 'pending'
+            loginAt: serverTimestamp(),
+            status: existingData?.status || status
         }, { merge: true });
     } catch (error) {
         console.error("Error logging guest login:", error);
@@ -831,6 +832,22 @@ export async function getEventById(eventId: string): Promise<Event | null> {
     } catch (error: unknown) {
         const err = error as Error;
         console.error("[Firestore] getEventById Error:", err.message || err);
+        return null;
+    }
+}
+
+/**
+ * Fetches an event by its unique join code (case-insensitive).
+ */
+export async function getEventByJoinId(joinId: string): Promise<Event | null> {
+    try {
+        const eventsCol = collection(db, "events");
+        const q = query(eventsCol, where("joinId", "==", joinId.toUpperCase().trim()));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) return null;
+        return mapDocToEvent(snapshot.docs[0]);
+    } catch (error) {
+        console.error("Error fetching event by joinId:", error);
         return null;
     }
 }

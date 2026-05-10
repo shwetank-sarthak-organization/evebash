@@ -30,6 +30,8 @@ export interface Event {
     type?: 'main' | 'sub';
     parentId?: string;
     legacyId?: string;
+    joinId?: string;
+    category?: string;
     templateId?: string;
     createdAt?: any;
 }
@@ -45,6 +47,20 @@ export interface Photo {
     height?: number;
     size?: number;
     format?: string;
+}
+
+export interface Business {
+    id: string;
+    name: string;
+    type: string;
+    rating: string;
+    coverImage: string;
+    createdBy: string;
+    admins?: string[];
+    allowedUsers?: string[];
+    address?: string;
+    description?: string;
+    createdAt?: any;
 }
 
 export interface UserProfile {
@@ -64,14 +80,17 @@ export interface GuestLog {
     id: string;
     name: string;
     phone: string;
-    email?: string | null;
-    accessMethod?: 'email' | 'mobile';
-    eventId?: string;
+    email?: string;
+    eventId: string;
     parentEventId?: string;
-    parentEventOwnerId?: string;
     eventTitle?: string;
-    loginAt?: any;
+    parentEventOwnerId?: string;
+    loginAt: any;
     status: 'pending' | 'approved' | 'rejected';
+    canAdmin?: boolean;
+    canUpload?: boolean;
+    canComment?: boolean;
+    canChat?: boolean;
 }
 
 function mapDocToEvent(docSnapshot: QueryDocumentSnapshot<DocumentData>): Event {
@@ -462,7 +481,7 @@ export async function getSharedEvents(identifier: string): Promise<Event[]> {
     }
 }
 
-export async function getApprovedSharedEventsForUser(identifiers: string | string[]): Promise<Event[]> {
+export async function getApprovedSharedEventsForUser(identifiers: string | string[], isAdminOnly: boolean = false): Promise<Event[]> {
     try {
         const ids = Array.isArray(identifiers) ? identifiers.filter(Boolean) : [identifiers].filter(Boolean);
         if (ids.length === 0) return [];
@@ -470,15 +489,21 @@ export async function getApprovedSharedEventsForUser(identifiers: string | strin
         const visitsByIdentifier = await Promise.all(ids.map((identifier) => getUserVisits(identifier)));
         const visits = visitsByIdentifier.flat();
 
-        const seenVisitIds = new Set<string>();
-        const eventIds = visits
-            .filter((visit: any) => {
-                if (seenVisitIds.has(visit.id)) return false;
-                seenVisitIds.add(visit.id);
-                return visit.status === "approved";
-            })
-            .map((visit: any) => visit.parentEventId || visit.eventId)
-            .filter(Boolean);
+        const eventVisits: { [eventId: string]: any[] } = {};
+        visits.forEach(v => {
+            const eid = v.parentEventId || v.eventId;
+            if (eid) {
+                if (!eventVisits[eid]) eventVisits[eid] = [];
+                eventVisits[eid].push(v);
+            }
+        });
+
+        const eventIds = Object.keys(eventVisits).filter(eid => {
+            const vList = eventVisits[eid];
+            const isApproved = vList.some(v => v.status === "approved");
+            const isAdminMatch = isAdminOnly ? vList.some(v => !!v.canAdmin) : true;
+            return isApproved && isAdminMatch;
+        });
 
         const uniqueEventIds = [...new Set(eventIds)];
         const events = await Promise.all(uniqueEventIds.map((eventId) => getEventById(eventId)));
@@ -492,25 +517,27 @@ export async function getApprovedSharedEventsForUser(identifiers: string | strin
     }
 }
 
-export async function logGuestLogin(name: string, phone: string, eventId?: string, parentEventId?: string, eventTitle?: string, ownerId?: string) {
+export async function logGuestLogin(name: string, phone: string, eventId?: string, parentEventId?: string, eventTitle?: string, ownerId?: string, status: 'pending' | 'approved' | 'rejected' = 'pending') {
+    if (!phone) {
+        console.error("logGuestLogin failed: No identifier (phone/email/uid) provided.");
+        return false;
+    }
     try {
         const logId = eventId ? `${phone}_${eventId}` : phone;
         const docRef = doc(db, "guests", logId);
         const existingDoc = await getDoc(docRef);
-        const existingStatus = existingDoc.exists() ? existingDoc.data().status : null;
+        const existingData = existingDoc.exists() ? existingDoc.data() : null;
         const isEmail = phone.includes('@');
 
         await setDoc(docRef, {
             name,
-            phone,
-            email: isEmail ? phone : null,
-            accessMethod: isEmail ? 'email' : 'mobile',
+            [isEmail ? 'email' : 'phone']: phone,
             eventId: eventId || null,
             parentEventId: parentEventId || null,
+            eventTitle: eventTitle || null,
             parentEventOwnerId: ownerId || null,
-            eventTitle: eventTitle || "General Access",
-            loginAt: Timestamp.now(),
-            status: existingStatus === 'approved' ? 'approved' : 'pending'
+            loginAt: serverTimestamp(),
+            status: existingData?.status || status
         }, { merge: true });
         return true;
     } catch (error) {
@@ -560,10 +587,27 @@ export async function getEventLogs(eventId: string): Promise<GuestLog[]> {
 
 export async function updateGuestStatus(logId: string, status: 'pending' | 'approved' | 'rejected') {
     try {
-        await updateDoc(doc(db, "guests", logId), { status });
+        const updateData: any = { status };
+        // If approved, set default permissions
+        if (status === 'approved') {
+            updateData.canUpload = true;
+            updateData.canComment = true;
+            updateData.canChat = true;
+        }
+        await updateDoc(doc(db, "guests", logId), updateData);
         return true;
     } catch (error) {
         console.error("Error updating guest status:", error);
+        return false;
+    }
+}
+
+export async function updateGuestPermissions(logId: string, permissions: Partial<{ canAdmin: boolean, canUpload: boolean, canComment: boolean, canChat: boolean }>) {
+    try {
+        await updateDoc(doc(db, "guests", logId), permissions);
+        return true;
+    } catch (error) {
+        console.error("Error updating guest permissions:", error);
         return false;
     }
 }
@@ -622,6 +666,52 @@ export async function deletePhoto(photoId: string) {
         return false;
     }
 }
+export async function getUserBusinesses(uid: string): Promise<Business[]> {
+    console.log('[Firestore] Fetching businesses for UID:', uid);
+    if (!uid) return [];
+    try {
+        const businessCol = collection(db, "businesses");
+        
+        // Query 1: Created by user
+        const q1 = query(businessCol, where("createdBy", "==", uid));
+        
+        // Query 2: User is admin
+        const q2 = query(businessCol, where("admins", "array-contains", uid));
+        
+        // Query 3: User is allowed
+        const q3 = query(businessCol, where("allowedUsers", "array-contains", uid));
+        
+        console.log('[Firestore] Running business queries...');
+        const [snap1, snap2, snap3] = await Promise.all([
+            getDocs(q1),
+            getDocs(q2),
+            getDocs(q3)
+        ]);
+        console.log('[Firestore] Business queries completed successfully.');
+        
+        const allDocs = [
+            ...snap1.docs,
+            ...snap2.docs,
+            ...snap3.docs
+        ];
+        
+        // Deduplicate
+        const seen = new Set<string>();
+        const uniqueBusinesses: Business[] = [];
+        
+        for (const docSnap of allDocs) {
+            if (!seen.has(docSnap.id)) {
+                seen.add(docSnap.id);
+                uniqueBusinesses.push({ id: docSnap.id, ...docSnap.data() } as Business);
+            }
+        }
+        
+        return uniqueBusinesses.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    } catch (error) {
+        console.error("Error fetching user businesses:", error);
+        return [];
+    }
+}
 
 export async function addPhoto(data: Omit<Photo, 'id'>) {
     try {
@@ -633,6 +723,19 @@ export async function addPhoto(data: Omit<Photo, 'id'>) {
         return docRef.id;
     } catch (error) {
         console.error("Error adding photo:", error);
+        return null;
+    }
+}
+
+export async function getEventByJoinId(joinId: string): Promise<Event | null> {
+    try {
+        const eventsCol = collection(db, "events");
+        const q = query(eventsCol, where("joinId", "==", joinId.toUpperCase().trim()));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) return null;
+        return mapDocToEvent(snapshot.docs[0]);
+    } catch (error) {
+        console.error("Error fetching event by joinId:", error);
         return null;
     }
 }
