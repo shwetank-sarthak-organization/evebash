@@ -289,8 +289,8 @@ export default function PortfolioTabScreen() {
         style={styles.header}
       >
         <View>
-          <Text style={styles.headerGreeting}>Your Collections</Text>
-          <Text style={styles.headerName}>Events</Text>
+          <Text style={styles.headerGreeting}>Host Control</Text>
+          <Text style={styles.headerName}>Management</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity style={styles.createBtnHeader} onPress={() => setShowJoinModal(true)}>
@@ -338,7 +338,7 @@ export default function PortfolioTabScreen() {
               size={14} 
               color={activeTab === 'my' ? MidnightColors.gold : MidnightColors.slate400} 
             />
-            <Text style={[styles.tabText, activeTab === 'my' && styles.tabTextActive]}>My Events</Text>
+            <Text style={[styles.tabText, activeTab === 'my' && styles.tabTextActive]}>Host</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 

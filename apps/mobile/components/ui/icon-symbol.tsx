@@ -39,6 +39,12 @@ const MAPPING = {
   'gearshape.fill': 'settings',
   'pencil': 'edit',
   'trash.fill': 'delete',
+  'trophy.fill': 'emoji-events',
+  'gift.fill': 'card-giftcard',
+  'sparkles': 'auto-awesome',
+  'briefcase.fill': 'business-center',
+  'lock.fill': 'lock',
+  'theatermasks.fill': 'theater-comedy',
 } as const;
 
 type IconSymbolName = keyof typeof MAPPING;

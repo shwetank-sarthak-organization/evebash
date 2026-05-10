@@ -38,16 +38,24 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="explore-business"
+        options={{
+          title: 'Marketplace',
+          href: null,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="magnifyingglass" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="gallery"
         options={{
-          title: 'Events',
+          title: 'Host',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="calendar" color={color} />,
         }}
       />
       <Tabs.Screen
         name="businesses"
         options={{
-          title: 'Business',
+          title: 'Biz Hub',
           tabBarIcon: ({ color }) => (
             <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <Path d="m11 17 2 2a1 1 0 1 0 3-3"/>

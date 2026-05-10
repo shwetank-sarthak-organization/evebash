@@ -209,126 +209,102 @@ export default function DashboardScreen() {
         {loading && !refreshing
           ? <ActivityIndicator color="#d4af37" style={{ marginTop: 60 }} />
           : <>
-              {/* ── SECTION 1: YOUR EVENTS (Deep Midnight) ── */}
+              {/* ── SECTION 1: EVENTS (Deep Midnight) ── */}
               <View style={[styles.section, { backgroundColor: '#020617' }]}>
                 <View style={styles.sectionHead}>
                   <View>
-                    <Text style={styles.sectionLabel}>Your Events</Text>
+                    <Text style={styles.sectionLabel}>Events</Text>
                     <Text style={styles.sectionSub}>Memories curated for you</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                    <TouchableOpacity
-                      style={styles.viewAllPill}
-                      onPress={() => router.push('/your-events')}
-                    >
-                      <Text style={styles.viewAllLabel}>View All</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.viewAllPill, { backgroundColor: '#d4af37' }]}
-                      onPress={() => setShowJoinModal(true)}
-                    >
-                      <IconSymbol name="plus" size={10} color="#0f172a" />
-                      <Text style={[styles.viewAllLabel, { color: '#0f172a' }]}>Join</Text>
-                    </TouchableOpacity>
                   </View>
                 </View>
 
-                {events.length === 0
-                  ? <View style={styles.emptySlate}>
-                      <View style={styles.emptyIconRing}>
-                        <IconSymbol name="photo.on.rectangle" size={28} color="#334155" />
+                <View style={styles.allEventsCard}>
+                  <LinearGradient 
+                    colors={['rgba(212,175,55,0.15)', 'rgba(15,23,42,0.8)']} 
+                    style={StyleSheet.absoluteFill} 
+                  />
+                  <View style={styles.allEventsContent}>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.allEventsHeaderRow}>
+                        <Text style={styles.allEventsTitle}>All Memories</Text>
+                        <View style={styles.countBadge}>
+                          <Text style={styles.countBadgeText}>{events.length}</Text>
+                        </View>
                       </View>
-                      <Text style={styles.emptyTitle}>No memories yet</Text>
-                      <Text style={styles.emptyBody}>Events shared with you will appear here.</Text>
+                      <Text style={styles.allEventsSub}>
+                        Access every event you've hosted or joined in one place.
+                      </Text>
                     </View>
-                  : <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={{ paddingHorizontal: 20, gap: 14 }}
+                  </View>
+
+                  <View style={styles.cardActionsRow}>
+                    <TouchableOpacity 
+                      style={styles.cardActionBtnMain}
+                      onPress={() => router.push('/your-events')}
                     >
-                      {events.slice(0, 5).map((event) => (
-                        <TouchableOpacity
-                          key={event.id}
-                          style={styles.eventCard}
-                          activeOpacity={0.88}
-                          onPress={() => router.push(`/events/${event.id}?mode=visitor`)}
-                        >
-                          <ExpoImage
-                            source={{ uri: event.coverImage }}
-                            style={StyleSheet.absoluteFill}
-                            contentFit="cover"
-                            transition={400}
-                          />
-                          <LinearGradient colors={['rgba(2,6,23,0.4)', 'transparent']} style={styles.vignetteTop} />
-                          <LinearGradient colors={['transparent', 'rgba(2,6,23,1)']} style={styles.vignetteBottom} />
-                          <View style={styles.eventCardBody}>
-                            <Text style={styles.eventCardTitle} numberOfLines={1}>{event.title}</Text>
-                            <View style={styles.eventCardMeta}>
-                              <IconSymbol name="calendar" size={10} color="rgba(255,255,255,0.6)" />
-                              <Text style={styles.eventCardDate}>{event.date}</Text>
-                            </View>
-                          </View>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                }
+                      <Text style={styles.cardActionBtnMainText}>Open Gallery</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={styles.cardActionBtnSecondary}
+                      onPress={() => setShowJoinModal(true)}
+                    >
+                      <Text style={styles.cardActionBtnSecondaryText}>Join Event</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               </View>
 
-              {/* ── SECTION 2: BUSINESS NEAR YOU (Liquid Transition S1 -> S2) ── */}
+              {/* ── SECTION 3: SERVICES NEAR YOU ── */}
               <LinearGradient 
                 colors={['#020617', '#0f172a']} 
                 style={[styles.section, { paddingTop: 40 }]}
               >
                 <View style={styles.sectionHead}>
                   <View>
-                    <Text style={styles.sectionLabel}>Business near you</Text>
-                    <Text style={styles.sectionSub}>Shops, gyms, restaurants & services</Text>
+                    <Text style={styles.sectionLabel}>Services near you</Text>
+                    <Text style={styles.sectionSub}>Photographers, venues, catering & more</Text>
                   </View>
-                  <TouchableOpacity
-                    style={styles.viewAllPill}
-                    onPress={() => router.push('/explore-business')}
-                  >
-                    <Text style={styles.viewAllLabel}>Explore</Text>
-                    <IconSymbol name="chevron.right" size={10} color="#d4af37" />
-                  </TouchableOpacity>
                 </View>
 
-                {businesses.length === 0
-                  ? <View style={styles.emptySlate}>
-                      <View style={[styles.emptyIconRing, { borderColor: 'rgba(129,140,248,0.1)' }]}>
-                        <HandshakeIcon size={24} color="#334155" />
+                <View style={styles.allEventsCard}>
+                  <LinearGradient 
+                    colors={['rgba(129,140,248,0.1)', 'rgba(15,23,42,0.8)']} 
+                    style={StyleSheet.absoluteFill} 
+                  />
+                  <View style={styles.allEventsContent}>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.allEventsHeaderRow}>
+                        <Text style={styles.allEventsTitle}>Marketplace</Text>
+                        <View style={[styles.countBadge, { backgroundColor: 'rgba(129,140,248,0.2)', borderColor: 'rgba(129,140,248,0.3)' }]}>
+                          <Text style={[styles.countBadgeText, { color: '#818cf8' }]}>{businesses.length}+</Text>
+                        </View>
                       </View>
-                      <Text style={styles.emptyTitle}>No businesses yet</Text>
-                      <Text style={styles.emptyBody}>Authorized businesses will appear here.</Text>
+                      <Text style={styles.allEventsSub}>
+                        Discover top-rated vendors and exclusive local deals.
+                      </Text>
                     </View>
-                  : <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={{ paddingHorizontal: 20, gap: 14 }}
+                  </View>
+
+                  <View style={styles.cardActionsRow}>
+                    <TouchableOpacity 
+                      style={[styles.cardActionBtnMain, { backgroundColor: '#818cf8' }]}
+                      onPress={() => router.push('/(tabs)/explore-business')}
                     >
-                      {businesses.map((biz) => (
-                        <TouchableOpacity key={biz.id} style={styles.eventCard} activeOpacity={0.88}>
-                          <ExpoImage source={{ uri: biz.coverImage }} style={StyleSheet.absoluteFill} contentFit="cover" transition={400} />
-                          <LinearGradient colors={['rgba(2,6,23,0.4)', 'transparent']} style={styles.vignetteTop} />
-                          <LinearGradient colors={['transparent', 'rgba(2,6,23,1)']} style={styles.vignetteBottom} />
-                          <View style={styles.ratingBadge}>
-                            <IconSymbol name="star.fill" size={9} color="#d4af37" />
-                            <Text style={styles.ratingText}>{biz.rating}</Text>
-                          </View>
-                          <View style={styles.eventCardBody}>
-                            <Text style={styles.eventCardTitle} numberOfLines={1}>{biz.name}</Text>
-                            <View style={styles.eventCardMeta}>
-                              <IconSymbol name="tag.fill" size={9} color="rgba(255,255,255,0.5)" />
-                              <Text style={styles.eventCardDate}>{biz.type}</Text>
-                            </View>
-                          </View>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                }
+                      <Text style={[styles.cardActionBtnMainText, { color: '#fff' }]}>Explore All</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={styles.cardActionBtnSecondary}
+                      onPress={() => router.push('/shortlist')}
+                    >
+                      <Text style={[styles.cardActionBtnSecondaryText, { color: '#818cf8' }]}>Shortlist</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               </LinearGradient>
 
-              {/* ── SECTION 3: HOST YOUR EVENTS (Liquid Transition S2 -> S3) ── */}
+              {/* ── SECTION 3: HOST AN EVENT ── */}
               <LinearGradient 
                 colors={['#0f172a', '#1e293b']}
                 style={[styles.ctaSection, { paddingTop: 40 }]}
@@ -337,7 +313,7 @@ export default function DashboardScreen() {
                   <View style={[styles.ctaIcon, { backgroundColor: 'rgba(212,175,55,0.1)', borderColor: 'rgba(212,175,55,0.2)' }]}>
                     <CakeIcon size={18} color="#d4af37" strokeWidth={1.8} />
                   </View>
-                  <Text style={styles.ctaTitle}>Host Your Events</Text>
+                  <Text style={styles.ctaTitle}>Host an Event</Text>
                 </View>
                 <Text style={styles.ctaBody}>
                   From weddings and birthdays to sports tournaments and corporate meets. Create a stunning gallery for any occasion.
@@ -382,7 +358,7 @@ export default function DashboardScreen() {
                   <TouchableOpacity
                     style={[styles.ctaBtnGold, { backgroundColor: '#818cf8' }]}
                     activeOpacity={0.85}
-                    onPress={() => router.push('/(tabs)/gallery')}
+                    onPress={() => router.push('/manage-business')}
                   >
                     <Text style={[styles.ctaBtnGoldText, { color: '#fff' }]}>Manage Business</Text>
                   </TouchableOpacity>
@@ -722,4 +698,100 @@ const styles = StyleSheet.create({
   scannerCloseBtn: { position: 'absolute', bottom: 20, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },
   scannerCloseText: { color: '#fff', fontFamily: 'Inter_700Bold', fontSize: 12 },
   permissionText: { color: '#fff', textAlign: 'center', marginBottom: 20, fontFamily: 'Inter_500Medium' },
+
+  // ── All Events Card Styles ──
+  allEventsCard: {
+    marginHorizontal: 24,
+    backgroundColor: '#0f172a',
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.2)',
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  allEventsContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  allEventsIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: 'rgba(212,175,55,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  allEventsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  countBadge: {
+    backgroundColor: 'rgba(212,175,55,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.3)',
+  },
+  countBadgeText: {
+    color: '#d4af37',
+    fontSize: 12,
+    fontFamily: 'Outfit_700Bold',
+  },
+  allEventsTitle: {
+    fontSize: 18,
+    color: '#f8fafc',
+    fontFamily: 'Outfit_700Bold',
+  },
+  allEventsSub: {
+    fontSize: 13,
+    color: '#94a3b8',
+    fontFamily: 'Inter_400Regular',
+    marginTop: 2,
+  },
+  cardActionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
+  cardActionBtnMain: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: '#d4af37',
+    paddingVertical: 12,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  cardActionBtnMainText: {
+    color: '#020617',
+    fontSize: 14,
+    fontFamily: 'Outfit_800ExtraBold',
+  },
+  cardActionBtnSecondary: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingVertical: 12,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.3)',
+  },
+  cardActionBtnSecondaryText: {
+    color: '#d4af37',
+    fontSize: 14,
+    fontFamily: 'Outfit_700Bold',
+  },
 });
