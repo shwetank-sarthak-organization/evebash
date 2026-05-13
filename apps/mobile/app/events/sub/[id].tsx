@@ -6,12 +6,14 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { getEventById, getEventPhotos, toggleLike, addComment, onPhotoInteractions, deletePhotoComment, logGuestLogin, onGuestStatusChange, Event as FirestoreEvent, Photo } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
 
-const { width } = Dimensions.get('window');
+
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const COLUMN_COUNT = 3;
-const IMAGE_MARGIN = 2;
-const IMAGE_SIZE = (width - (COLUMN_COUNT + 1) * IMAGE_MARGIN) / COLUMN_COUNT;
+const IMAGE_SIZE = (SCREEN_WIDTH - 24) / COLUMN_COUNT;
 
 export default function SubEventPhotosScreen() {
+  const { width } = useWindowDimensions();
   const { id, shared } = useLocalSearchParams<{ id: string; shared?: string }>();
   const router = useRouter();
   const { user } = useAuth();
@@ -36,6 +38,8 @@ export default function SubEventPhotosScreen() {
       eventId === subEvent.parentId
     )
   );
+  
+
 
   // Viewer State
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -44,6 +48,14 @@ export default function SubEventPhotosScreen() {
   const openViewer = (index: number) => {
     setInitialIndex(index);
     setViewerVisible(true);
+  };
+
+  const navigateViewer = (dir: 'prev' | 'next') => {
+    if (dir === 'prev') {
+      setInitialIndex(prev => (prev > 0 ? prev - 1 : photos.length - 1));
+    } else {
+      setInitialIndex(prev => (prev < photos.length - 1 ? prev + 1 : 0));
+    }
   };
 
   useEffect(() => {
@@ -143,22 +155,30 @@ export default function SubEventPhotosScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: false }} />
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.nativeBackButton} 
-            onPress={() => router.back()}
-            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-          >
-            <IconSymbol name="chevron.left" size={28} color="#ffffff" />
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>{subEvent.title}</Text>
-            <Text style={styles.headerSubtitle}>{photos.length} Photos</Text>
-          </View>
-          <View style={{ width: 40 }} />
-        </View>
+      <Stack.Screen 
+        options={{ 
+          headerShown: true, 
+          headerTransparent: true,
+          headerTitle: '',
+          headerTintColor: '#ffffff',
+          headerLeft: () => (
+            <TouchableOpacity 
+              onPress={() => {
+                if (router.canGoBack()) {
+                  router.back();
+                } else {
+                  router.replace('/(tabs)/gallery');
+                }
+              }}
+              style={styles.nativeBackButton}
+              hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
+            >
+              <IconSymbol name="chevron.left" size={28} color="#ffffff" />
+            </TouchableOpacity>
+          )
+        }} 
+      />
+      <View style={styles.container}>
 
         {!accessGranted ? (
           <View style={styles.emptyContainer}>
@@ -189,9 +209,16 @@ export default function SubEventPhotosScreen() {
             <Text style={styles.emptySubText}>Use the web dashboard to upload photos to this gallery.</Text>
           </View>
         )}
-      </SafeAreaView>
+      </View>
 
-      <Modal visible={viewerVisible} transparent={true} animationType="fade" onRequestClose={() => setViewerVisible(false)}>
+      <Modal
+        visible={viewerVisible}
+        animationType="fade"
+        presentationStyle="fullScreen"
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={() => setViewerVisible(false)}
+      >
         <PhotoViewer 
           photos={photos} 
           initialIndex={initialIndex} 
@@ -275,252 +302,45 @@ function GuestAccessModal({
 // --- PHOTO VIEWER COMPONENT ---
 function PhotoViewer({ photos, initialIndex, onClose, user }: any) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const flatListRef = useRef<FlatList>(null);
-  const [interactions, setInteractions] = useState<{ [key: string]: { likes: any[], comments: any[] } }>({});
-  const [commentText, setCommentText] = useState('');
-  const [showComments, setShowComments] = useState(false);
-  const [replyingTo, setReplyingTo] = useState<any | null>(null);
   const { width, height: screenHeight } = useWindowDimensions();
 
-  useEffect(() => {
-    const photo = photos[currentIndex];
-    if (!photo) return;
-    
-    // Subscribe to likes and comments
-    const unsubscribe = onPhotoInteractions(photo.id, (data) => {
-      setInteractions(prev => ({ ...prev, [photo.id]: data }));
-    });
-    
-    return () => unsubscribe();
-  }, [currentIndex, photos]);
-
-  const currentPhoto = photos[currentIndex];
-  const photoInteractions = interactions[currentPhoto?.id] || { likes: [], comments: [] };
-  const hasLiked = photoInteractions.likes.some((l: any) => l.userId === user?.uid);
-
-  const handleLike = async () => {
-    if (!user) return;
-    try {
-      await toggleLike(currentPhoto.id, user.uid, user.name || 'User');
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleComment = async () => {
-    if (!user || !commentText.trim()) return;
-    try {
-      await addComment(currentPhoto.id, user.uid, user.name || 'User', commentText.trim(), replyingTo?.id);
-      setCommentText('');
-      setReplyingTo(null);
-      Keyboard.dismiss();
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleDeleteComment = (commentId: string) => {
-    Alert.alert("Delete Comment", "Are you sure you want to delete this comment?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: async () => {
-        try {
-          await deletePhotoComment(commentId);
-        } catch (e) {
-          console.error(e);
-        }
-      }}
-    ]);
-  };
-
   const goToNext = () => {
-    if (currentIndex < photos.length - 1) {
-      flatListRef.current?.scrollToIndex({ index: currentIndex + 1, animated: true });
-    }
+    setCurrentIndex((prev: number) => (prev < photos.length - 1 ? prev + 1 : 0));
   };
 
   const goToPrev = () => {
-    if (currentIndex > 0) {
-      flatListRef.current?.scrollToIndex({ index: currentIndex - 1, animated: true });
-    }
+    setCurrentIndex((prev: number) => (prev > 0 ? prev - 1 : photos.length - 1));
   };
 
   return (
-    <SafeAreaView style={styles.viewerContainer} edges={['top', 'bottom', 'left', 'right']}>
-      <View style={styles.viewerHeaderNonAbsolute}>
-        <TouchableOpacity 
-          style={styles.viewerCloseBtn} 
-          onPress={onClose}
-          hitSlop={{ top: 30, bottom: 30, left: 30, right: 30 }}
-        >
-          <IconSymbol name="xmark" size={28} color="#ffffff" />
-        </TouchableOpacity>
-        <Text style={styles.viewerCounter}>{currentIndex + 1} / {photos.length}</Text>
-        <View style={{ width: 40 }} />
+    <View style={styles.viewerContainer}>
+      <TouchableOpacity style={styles.viewerClose} onPress={onClose}>
+        <IconSymbol name="xmark" size={28} color="#fff" />
+      </TouchableOpacity>
+      
+      <TouchableOpacity style={styles.navBtnLeft} onPress={goToPrev}>
+        <IconSymbol name="chevron.left" size={32} color="#fff" />
+      </TouchableOpacity>
+      
+      {photos[currentIndex] && (
+        <Image 
+          source={{ uri: photos[currentIndex].url }} 
+          style={styles.fullImage} 
+          resizeMode="contain" 
+        />
+      )}
+      
+      <TouchableOpacity style={styles.navBtnRight} onPress={goToNext}>
+        <IconSymbol name="chevron.right" size={32} color="#fff" />
+      </TouchableOpacity>
+      
+      <View style={styles.viewerFooter}>
+        <Text style={styles.viewerText}>{currentIndex + 1} / {photos.length}</Text>
       </View>
-
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-        style={{ flex: 1 }}
-      >
-        <FlatList
-          data={photoInteractions.comments.filter(c => !c.parentId)}
-          keyExtractor={c => c.id}
-          style={styles.commentsList}
-          contentContainerStyle={{ paddingBottom: 20 }}
-          ListHeaderComponent={
-            <View>
-              {/* Image Area */}
-              <View style={{ height: screenHeight * 0.65 }}>
-                <FlatList
-                  ref={flatListRef}
-                  data={photos}
-                  horizontal
-                  pagingEnabled={false}
-                  snapToInterval={width}
-                  snapToAlignment="center"
-                  decelerationRate="fast"
-                  showsHorizontalScrollIndicator={false}
-                  initialScrollIndex={initialIndex}
-                  onMomentumScrollEnd={(e) => {
-                    const index = Math.round(e.nativeEvent.contentOffset.x / width);
-                    setCurrentIndex(index);
-                  }}
-                  getItemLayout={(data, index) => ({ length: width, offset: width * index, index })}
-                  keyExtractor={item => item.id}
-                  renderItem={({ item }) => (
-                    <View style={{ width, height: '100%', justifyContent: 'center', alignItems: 'center' }}>
-                      <Image source={{ uri: item.url }} style={styles.viewerImage} resizeMode="contain" />
-                    </View>
-                  )}
-                />
-
-                {currentIndex > 0 && (
-                  <TouchableOpacity style={[styles.navArrow, styles.navArrowLeft]} onPress={goToPrev}>
-                    <IconSymbol name="chevron.left" size={32} color="rgba(255,255,255,0.7)" />
-                  </TouchableOpacity>
-                )}
-                {currentIndex < photos.length - 1 && (
-                  <TouchableOpacity style={[styles.navArrow, styles.navArrowRight]} onPress={goToNext}>
-                    <IconSymbol name="chevron.right" size={32} color="rgba(255,255,255,0.7)" />
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Interactions Bar */}
-              <View style={styles.interactionsOverlay}>
-                <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
-                  <IconSymbol name={hasLiked ? "heart.fill" : "heart"} size={28} color="#ef4444" />
-                  <Text style={styles.actionText}>{photoInteractions.likes.length || ''}</Text>
-                </TouchableOpacity>
-                <View style={styles.actionButton}>
-                  <IconSymbol name="bubble.right" size={28} color="#ef4444" />
-                  <Text style={styles.actionText}>{photoInteractions.comments.length || ''}</Text>
-                </View>
-              </View>
-
-              {/* Comments Header */}
-              <View style={styles.commentsHeader}>
-                <View>
-                  <Text style={styles.commentsTitle}>Guestbook</Text>
-                  <Text style={styles.commentsSubtitle}>{photoInteractions.comments.length} Shared Thoughts</Text>
-                </View>
-              </View>
-            </View>
-          }
-          renderItem={({ item }) => {
-              const replies = photoInteractions.comments.filter(c => c.parentId === item.id);
-              return (
-                <View style={styles.commentThread}>
-                  {/* Main Comment */}
-                  <View style={styles.commentItem}>
-                    <View style={styles.commentAvatar}>
-                      <Text style={styles.commentAvatarText}>{item.userName.charAt(0)}</Text>
-                    </View>
-                    <View style={styles.commentContent}>
-                      <View style={styles.commentRow}>
-                        <Text style={styles.commentName}>{item.userName}</Text>
-                        <Text style={styles.commentTime}>
-                          {item.createdAt ? new Date(item.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
-                        </Text>
-                      </View>
-                      <View style={styles.commentBubble}>
-                        <Text style={styles.commentText}>{item.text}</Text>
-                        <View style={styles.commentActions}>
-                          <TouchableOpacity onPress={() => setReplyingTo(item)}>
-                            <Text style={styles.replyBtnText}>REPLY</Text>
-                          </TouchableOpacity>
-                          {item.userId === user?.uid && (
-                            <TouchableOpacity onPress={() => handleDeleteComment(item.id)}>
-                              <Text style={styles.deleteBtnText}>DELETE</Text>
-                            </TouchableOpacity>
-                          )}
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Replies */}
-                  {replies.map(reply => (
-                    <View key={reply.id} style={styles.replyItem}>
-                      <View style={styles.replyAvatar}>
-                        <Text style={styles.replyAvatarText}>{reply.userName.charAt(0)}</Text>
-                      </View>
-                      <View style={styles.commentContent}>
-                        <View style={styles.commentRow}>
-                          <Text style={styles.replyName}>{reply.userName}</Text>
-                          <Text style={styles.commentTime}>
-                            {reply.createdAt ? new Date(reply.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
-                          </Text>
-                        </View>
-                        <View style={styles.replyBubble}>
-                          <Text style={styles.replyText}>{reply.text}</Text>
-                          {reply.userId === user?.uid && (
-                            <TouchableOpacity onPress={() => handleDeleteComment(reply.id)}>
-                              <Text style={[styles.deleteBtnText, { marginTop: 4 }]}>DELETE</Text>
-                            </TouchableOpacity>
-                          )}
-                        </View>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              );
-            }}
-            ListEmptyComponent={
-              <View style={styles.emptyCommentsContainer}>
-                <IconSymbol name="bubble.right" size={40} color="#334155" />
-                <Text style={styles.emptyComments}>No whispers yet...</Text>
-                <Text style={styles.emptyCommentsSub}>Write the first beautiful word.</Text>
-              </View>
-            }
-          />
-          
-        <View style={styles.commentInputContainer}>
-          {replyingTo && (
-            <View style={styles.replyingToBanner}>
-              <Text style={styles.replyingToText}>Replying to <Text style={{color: '#d4af37'}}>{replyingTo.userName}</Text></Text>
-              <TouchableOpacity onPress={() => setReplyingTo(null)}>
-                <IconSymbol name="xmark" size={16} color="#94a3b8" />
-              </TouchableOpacity>
-            </View>
-          )}
-          <View style={styles.commentInputRow}>
-            <TextInput
-              style={styles.commentInput}
-              placeholder={replyingTo ? "Write a reply..." : "Share a wish..."}
-              placeholderTextColor="#64748b"
-              value={commentText}
-              onChangeText={setCommentText}
-            />
-            <TouchableOpacity style={styles.commentSendBtn} onPress={handleComment} disabled={!commentText.trim()}>
-              <IconSymbol name="paperplane.fill" size={20} color={commentText.trim() ? "#0ea5e9" : "#334155"} />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -562,6 +382,7 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'flex-start',
     justifyContent: 'center',
+    marginLeft: 8,
   },
   headerTitleContainer: {
     alignItems: 'center',
@@ -577,14 +398,14 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   gridContainer: {
-    padding: IMAGE_MARGIN,
     paddingBottom: 40,
   },
   gridImage: {
     width: IMAGE_SIZE,
     height: IMAGE_SIZE,
-    margin: IMAGE_MARGIN,
+    margin: 4,
     backgroundColor: '#1e293b',
+    borderRadius: 8,
   },
   emptyContainer: {
     flex: 1,
@@ -604,36 +425,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 20,
-  },
-  viewerContainer: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  viewerHeaderNonAbsolute: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#000000',
-    zIndex: 9999,
-  },
-  viewerCloseBtn: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  viewerCounter: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  viewerImage: {
-    width: '100%',
-    height: '100%',
   },
   navArrow: {
     position: 'absolute',
@@ -960,5 +751,54 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '900',
     textTransform: 'uppercase',
+  },
+  viewerContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  fullImage: {
+    width: '100%',
+    height: '80%',
+  },
+  viewerClose: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    padding: 10,
+  },
+  navBtnLeft: {
+    position: 'absolute',
+    left: 20,
+    top: '50%',
+    marginTop: -25,
+    zIndex: 10,
+    padding: 15,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 30,
+  },
+  navBtnRight: {
+    position: 'absolute',
+    right: 20,
+    top: '50%',
+    marginTop: -25,
+    zIndex: 10,
+    padding: 15,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 30,
+  },
+  viewerFooter: {
+    position: 'absolute',
+    bottom: 40,
+    paddingHorizontal: 20,
+  },
+  viewerText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

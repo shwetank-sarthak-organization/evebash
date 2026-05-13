@@ -68,6 +68,7 @@ async function fetchOrCreateProfile(firebaseUser: FirebaseUser): Promise<AppUser
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  console.log('[Auth] AuthProvider mounting...');
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -75,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let profileUnsubscribe: (() => void) | undefined;
 
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('[Auth] onAuthStateChanged fired. User:', firebaseUser?.uid || 'none');
       if (firebaseUser) {
         // Stop any previous profile listener
         if (profileUnsubscribe) profileUnsubscribe();

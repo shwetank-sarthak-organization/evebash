@@ -22,18 +22,29 @@ export default function SampleGalleriesScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <Stack.Screen options={{ 
-        headerShown: false
+        headerShown: true,
+        headerTransparent: true,
+        headerTitle: '',
+        headerTintColor: '#ffffff',
+        headerStyle: { backgroundColor: MidnightColors.background },
+        headerLeft: () => (
+          <TouchableOpacity 
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)/dashboard');
+              }
+            }}
+            style={styles.backBtn}
+            hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
+          >
+            <IconSymbol name="chevron.left" size={28} color={MidnightColors.gold} />
+          </TouchableOpacity>
+        ),
       }} />
-      
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <IconSymbol name="chevron.left" size={20} color={MidnightColors.gold} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Sample Events</Text>
-        <View style={{ width: 44 }} />
-      </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         <View style={styles.hero}>
@@ -65,7 +76,7 @@ export default function SampleGalleriesScreen() {
           ))}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

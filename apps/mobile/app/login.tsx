@@ -19,6 +19,7 @@ import { useRouter } from 'expo-router';
 const { height } = Dimensions.get('window');
 
 export default function LoginScreen() {
+  console.log('LoginScreen rendering...');
   const { login, signup, authWithPhone } = useAuth();
   const router = useRouter();
 

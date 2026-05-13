@@ -31,14 +31,28 @@ export default function BusinessNearYouScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <IconSymbol name="chevron.left" size={24} color="#0f172a" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Business Near You</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <View style={styles.container}>
+      <Stack.Screen options={{ 
+        headerShown: true, 
+        headerTransparent: true,
+        headerTitle: '',
+        headerTintColor: '#0f172a',
+        headerLeft: () => (
+          <TouchableOpacity 
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)/dashboard');
+              }
+            }}
+            style={styles.backButton}
+            hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
+          >
+            <IconSymbol name="chevron.left" size={28} color="#0f172a" />
+          </TouchableOpacity>
+        ),
+      }} />
 
       <View style={styles.searchContainer}>
         <View style={styles.searchBox}>
@@ -85,7 +99,7 @@ export default function BusinessNearYouScreen() {
           ))}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -103,7 +117,7 @@ const styles = StyleSheet.create({
   },
   backButton: { padding: 8 },
   headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#0f172a' },
-  searchContainer: { padding: 16, backgroundColor: '#ffffff' },
+  searchContainer: { padding: 16, paddingTop: 80, backgroundColor: '#ffffff' },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',

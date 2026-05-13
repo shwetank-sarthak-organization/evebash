@@ -1049,6 +1049,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   scrollContent: {
+    paddingTop: 80,
     paddingBottom: 40,
   },
   statsGrid: {

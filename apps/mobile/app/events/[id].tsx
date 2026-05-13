@@ -1,18 +1,33 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Share } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Share, Keyboard, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event as FirestoreEvent, updateEvent, createEvent, getGuestLogs, updateGuestStatus, updateGuestPermissions, deleteGuest } from '@/lib/firestore';
+import { getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event as FirestoreEvent, updateEvent, createEvent, getGuestLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, onPhotoInteractions, toggleLike, addComment, deletePhotoComment } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadEventImage } from '@/lib/storage';
 
-const { width } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const PHOTO_GRID_GAP = 3;
+
+const MOBILE_TEMPLATE_THEMES = [
+  { id: 'hero', label: 'Hero (Default)', desc: 'Big impact cover image', background: '#020617', panel: 'rgba(255,255,255,0.02)', text: '#ffffff', muted: '#94a3b8', accent: '#d4af37', accentBg: 'rgba(212,175,55,0.12)', tileBg: '#111827', radius: 0, overlay: ['rgba(2, 6, 23, 0.2)', 'rgba(2, 6, 23, 1)'] },
+  { id: 'classic', label: 'Classic', desc: 'Timeless and elegant', background: '#111827', panel: '#1f2937', text: '#f9fafb', muted: '#d1d5db', accent: '#f3d19c', accentBg: 'rgba(243,209,156,0.14)', tileBg: '#0f172a', radius: 14, overlay: ['rgba(17,24,39,0.2)', 'rgba(17,24,39,1)'] },
+  { id: 'royal', label: 'Royal', desc: 'Luxurious serif typography', background: '#0b1026', panel: 'rgba(212,175,55,0.08)', text: '#fff7ed', muted: '#cbd5e1', accent: '#d4af37', accentBg: 'rgba(212,175,55,0.18)', tileBg: '#111827', radius: 18, overlay: ['rgba(11,16,38,0.25)', 'rgba(11,16,38,1)'] },
+  { id: 'editorial', label: 'Editorial', desc: 'Magazine-style layout', background: '#fafaf9', panel: '#ffffff', text: '#111827', muted: '#57534e', accent: '#111827', accentBg: '#f5f5f4', tileBg: '#e7e5e4', radius: 0, overlay: ['rgba(17,24,39,0.05)', 'rgba(250,250,249,1)'] },
+  { id: 'bohemian', label: 'Bohemian', desc: 'Earthy and organic colors', background: '#2f241d', panel: 'rgba(255,247,237,0.08)', text: '#ffedd5', muted: '#d6d3d1', accent: '#fb923c', accentBg: 'rgba(251,146,60,0.18)', tileBg: '#3f2f26', radius: 22, overlay: ['rgba(47,36,29,0.15)', 'rgba(47,36,29,1)'] },
+  { id: 'polaroid', label: 'Polaroid', desc: 'Vintage photo frames', background: '#f8f3e7', panel: '#fffaf0', text: '#1f2937', muted: '#78716c', accent: '#b45309', accentBg: '#fef3c7', tileBg: '#ffffff', radius: 2, overlay: ['rgba(31,41,55,0.05)', 'rgba(248,243,231,1)'] },
+  { id: 'cinematic', label: 'Cinematic', desc: 'Immersive fullscreen video', background: '#000000', panel: 'rgba(255,255,255,0.04)', text: '#ffffff', muted: '#a3a3a3', accent: '#ef4444', accentBg: 'rgba(239,68,68,0.16)', tileBg: '#111111', radius: 4, overlay: ['rgba(0,0,0,0.1)', 'rgba(0,0,0,1)'] },
+  { id: 'museum', label: 'Museum', desc: 'Minimalist art gallery', background: '#f8fafc', panel: '#ffffff', text: '#0f172a', muted: '#64748b', accent: '#334155', accentBg: '#e2e8f0', tileBg: '#ffffff', radius: 0, overlay: ['rgba(15,23,42,0.02)', 'rgba(248,250,252,1)'] },
+  { id: 'scrapbook', label: 'Scrapbook', desc: 'Playful cut-out aesthetic', background: '#fff7ed', panel: '#fffbeb', text: '#431407', muted: '#92400e', accent: '#db2777', accentBg: '#fce7f3', tileBg: '#ffffff', radius: 10, overlay: ['rgba(67,20,7,0.04)', 'rgba(255,247,237,1)'] },
+  { id: 'brutalist', label: 'Brutalist', desc: 'Raw, highly structured design', background: '#f4f4f5', panel: '#ffffff', text: '#000000', muted: '#27272a', accent: '#000000', accentBg: '#e4e4e7', tileBg: '#ffffff', radius: 0, overlay: ['rgba(0,0,0,0)', 'rgba(244,244,245,1)'] },
+];
 
 export default function EventDetailScreen() {
+  const { width } = useWindowDimensions();
   const { id, shared, guestView, tab, share, mode } = useLocalSearchParams<{ id: string; shared?: string; guestView?: string; tab?: string; share?: string; mode?: 'admin' | 'visitor' }>();
   const router = useRouter();
   const { user } = useAuth();
@@ -48,6 +63,94 @@ export default function EventDetailScreen() {
   const [photos, setPhotos] = useState<any[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
 
+  // Image Viewer State
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [likes, setLikes] = useState<any[]>([]);
+  const [comments, setComments] = useState<any[]>([]);
+  const [showComments, setShowComments] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [replyingTo, setReplyingTo] = useState<any | null>(null);
+  const [isLiking, setIsLiking] = useState(false);
+  const [isCommenting, setIsCommenting] = useState(false);
+
+  const currentPhoto = photos[currentPhotoIndex];
+  const viewerIdentity = user
+    ? { id: user.uid, name: user.name || user.email?.split('@')[0] || 'User' }
+    : { id: guestPhone || 'anonymous', name: guestName || 'Guest' };
+  const isLiked = likes.some((like) => like.userId === viewerIdentity.id);
+
+  const openViewer = (index: number) => {
+    setCurrentPhotoIndex(index);
+    setShowComments(false);
+    setReplyingTo(null);
+    setNewComment('');
+    setViewerVisible(true);
+  };
+
+  const navigateViewer = (dir: 'prev' | 'next') => {
+    if (dir === 'prev') {
+      setCurrentPhotoIndex(prev => (prev > 0 ? prev - 1 : photos.length - 1));
+    } else {
+      setCurrentPhotoIndex(prev => (prev < photos.length - 1 ? prev + 1 : 0));
+    }
+  };
+
+  useEffect(() => {
+    if (!viewerVisible || !currentPhoto?.id) return;
+
+    const unsubscribe = onPhotoInteractions(currentPhoto.id, (data) => {
+      setLikes(data.likes);
+      setComments(data.comments);
+    });
+
+    return () => unsubscribe();
+  }, [viewerVisible, currentPhoto?.id]);
+
+  const handleToggleLike = async () => {
+    if (!currentPhoto?.id || isLiking) return;
+    setIsLiking(true);
+    try {
+      await toggleLike(currentPhoto.id, viewerIdentity.id, viewerIdentity.name);
+    } catch (err) {
+      console.error('[EventDetail] Like failed:', err);
+    } finally {
+      setIsLiking(false);
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!currentPhoto?.id || !newComment.trim() || isCommenting) return;
+    setIsCommenting(true);
+    try {
+      await addComment(currentPhoto.id, viewerIdentity.id, viewerIdentity.name, newComment.trim(), replyingTo?.id);
+      setNewComment('');
+      setReplyingTo(null);
+      Keyboard.dismiss();
+    } catch (err) {
+      console.error('[EventDetail] Comment failed:', err);
+    } finally {
+      setIsCommenting(false);
+    }
+  };
+
+  const handleDeleteComment = (commentId: string) => {
+    Alert.alert('Delete Comment', 'Are you sure you want to delete this comment?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deletePhotoComment(commentId);
+          } catch (err) {
+            console.error('[EventDetail] Delete comment failed:', err);
+          }
+        },
+      },
+    ]);
+  };
+
   const loadEvent = async () => {
     setLoading(true);
     try {
@@ -59,6 +162,11 @@ export default function EventDetailScreen() {
           await updateEvent(eventData.id, { joinId: shortId });
           eventData.joinId = shortId;
         }
+
+        if (!eventData.templateId) {
+          await updateEvent(eventData.id, { templateId: 'hero' });
+          eventData.templateId = 'hero';
+        }
         
         setEvent(eventData);
         setIsOwner(user?.uid === eventData.createdBy);
@@ -68,7 +176,7 @@ export default function EventDetailScreen() {
         // Auto-load photos for main event initially
         loadPhotos(eventData.id, eventData.legacyId);
 
-        if (user?.uid === eventData.createdBy) {
+        if (user && user.uid === eventData.createdBy) {
           const logs = await getGuestLogs([user.uid]);
           setGuestLogs(logs.filter(l => l.eventId === id || l.parentEventId === id));
         }
@@ -188,6 +296,7 @@ export default function EventDetailScreen() {
     if (!event) return;
     setUpdating(true);
     try {
+      setEvent({ ...event, templateId });
       await updateEvent(event.id, { templateId });
       setShowTemplateModal(false);
       loadEvent();
@@ -232,6 +341,8 @@ export default function EventDetailScreen() {
     );
   }
 
+  const selectedTemplate = MOBILE_TEMPLATE_THEMES.find((theme) => theme.id === (event.templateId || 'hero')) || MOBILE_TEMPLATE_THEMES[0];
+
   // ── VISITOR NAVIGATION ──
   const renderVisitorHeader = () => {
     return (
@@ -266,26 +377,44 @@ export default function EventDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <Stack.Screen options={{ headerShown: false }} />
-      
+    <View style={[styles.safeArea, { backgroundColor: selectedTemplate.background }]}>
+      <Stack.Screen 
+        options={{ 
+          headerShown: true, 
+          headerTransparent: true, 
+          headerTitle: '',
+          headerLeft: () => (
+            <TouchableOpacity 
+              onPress={() => {
+                if (router.canGoBack()) {
+                  router.back();
+                } else {
+                  router.replace('/(tabs)/gallery');
+                }
+              }}
+              style={styles.floatingBack}
+              hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
+            >
+              <IconSymbol name="chevron.left" size={28} color={MidnightColors.gold} />
+            </TouchableOpacity>
+          )
+        }} 
+      />
+
       {/* Immersive Top Nav for Guests */}
       {!showAdminView && renderVisitorHeader()}
 
-      <ScrollView style={styles.container} bounces={false} showsVerticalScrollIndicator={false}>
+      <ScrollView style={[styles.container, { backgroundColor: selectedTemplate.background }]} bounces={false} showsVerticalScrollIndicator={false}>
         {/* ── HERO ── */}
         <View style={styles.hero}>
           <Image source={{ uri: activeSubEvent?.coverImage || event.coverImage }} style={styles.heroImage} />
           <LinearGradient
-            colors={['rgba(2, 6, 23, 0.3)', 'rgba(2, 6, 23, 1)']}
+            colors={selectedTemplate.overlay as [string, string]}
             style={styles.heroGradient}
           />
-          <TouchableOpacity style={styles.floatingBack} onPress={() => router.back()}>
-            <IconSymbol name="chevron.left" size={20} color={MidnightColors.gold} />
-          </TouchableOpacity>
 
           <TouchableOpacity style={styles.floatingShare} onPress={() => setShowShareModal(true)}>
-            <IconSymbol name="square.and.arrow.up" size={18} color={MidnightColors.gold} />
+              <IconSymbol name="square.and.arrow.up" size={18} color={selectedTemplate.accent} />
           </TouchableOpacity>
 
           {showAdminView && (
@@ -296,10 +425,10 @@ export default function EventDetailScreen() {
           )}
           
           <View style={styles.heroContent}>
-            <Text style={styles.heroTitle}>{activeSubEvent?.title || event.title}</Text>
+            <Text style={[styles.heroTitle, { color: selectedTemplate.text }]}>{activeSubEvent?.title || event.title}</Text>
             <View style={styles.heroMeta}>
-              <IconSymbol name="calendar" size={12} color={MidnightColors.gold} />
-              <Text style={styles.heroDate}>{activeSubEvent?.date || event.date}</Text>
+              <IconSymbol name="calendar" size={12} color={selectedTemplate.accent} />
+              <Text style={[styles.heroDate, { color: selectedTemplate.accent }]}>{activeSubEvent?.date || event.date}</Text>
             </View>
           </View>
         </View>
@@ -456,8 +585,8 @@ export default function EventDetailScreen() {
                               <View style={styles.grantedRowSmall}>
                                 {log.canAdmin && <View style={styles.miniIcon}><IconSymbol name="shield.fill" size={8} color={MidnightColors.gold} /></View>}
                                 {log.canUpload && <View style={styles.miniIcon}><IconSymbol name="camera.fill" size={8} color={MidnightColors.gold} /></View>}
-                                {log.canComment && <View style={styles.miniIcon}><IconSymbol name="bubble.left.fill" size={8} color={MidnightColors.gold} /></View>}
-                                {log.canChat && <View style={styles.miniIcon}><IconSymbol name="message.fill" size={8} color={MidnightColors.gold} /></View>}
+                                {log.canComment && <View style={styles.miniIcon}><IconSymbol name={"bubble.left.fill" as any} size={8} color={MidnightColors.gold} /></View>}
+                                {log.canChat && <View style={styles.miniIcon}><IconSymbol name={"message.fill" as any} size={8} color={MidnightColors.gold} /></View>}
                               </View>
                             </View>
                           </View>
@@ -488,7 +617,7 @@ export default function EventDetailScreen() {
 
               {/* ── PREMIUM MEMBER PERMISSIONS MODAL ── */}
               <Modal visible={!!selectedGuest} transparent animationType="fade">
-                <View style={styles.modalBackdrop}>
+                <View style={styles.premiumModalBackdrop}>
                   <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                     <LinearGradient 
                       colors={['#0f172a', '#020617']} 
@@ -571,7 +700,7 @@ export default function EventDetailScreen() {
 
               {/* ── PREMIUM REQUEST DETAIL MODAL ── */}
               <Modal visible={!!selectedRequest} transparent animationType="fade">
-                <View style={styles.modalBackdrop}>
+                <View style={styles.premiumModalBackdrop}>
                   <View style={styles.ironCladWrapper}>
                     <LinearGradient 
                       colors={['#0f172a', '#020617']} 
@@ -657,57 +786,46 @@ export default function EventDetailScreen() {
                     <IconSymbol name="chevron.right" size={20} color={MidnightColors.gold} />
                   </TouchableOpacity>
 
-                  {/* Step 2: Theme (Only if type selected) */}
-                  {event.category ? (
                     <TouchableOpacity 
                       style={[styles.designCard, { marginTop: 16 }]} 
                       onPress={() => setShowTemplateModal(true)}
                     >
                       <View style={styles.designInfo}>
-                        <Text style={styles.designLabel}>2. Visual Theme</Text>
-                        <Text style={styles.designValue}>{event.templateId || 'Hero (Default)'}</Text>
+                        <Text style={styles.designLabel}>2. Change Template</Text>
+                        <Text style={styles.designValue}>{event.templateId ? MOBILE_TEMPLATE_THEMES.find(t => t.id === event.templateId)?.label : 'Hero (Default)'}</Text>
                       </View>
                       <IconSymbol name="chevron.right" size={20} color={MidnightColors.gold} />
                     </TouchableOpacity>
-                  ) : (
-                    <View style={[styles.designCard, { marginTop: 16, opacity: 0.5 }]}>
-                      <View style={styles.designInfo}>
-                        <Text style={styles.designLabel}>2. Visual Theme</Text>
-                        <Text style={styles.designValue}>Select event type first</Text>
-                      </View>
-                      <IconSymbol name="lock.fill" size={20} color={MidnightColors.slate400} />
-                    </View>
-                  )}
                 </View>
               )}
             </>
           ) : (
             <>
               {/* ── VISITOR IMMERSIVE CONTENT ── */}
-              <View style={styles.visitorContent}>
+              <View style={[styles.visitorContent, { backgroundColor: selectedTemplate.background }]}>
                 {!activeSubEvent && (
-                  <View style={styles.mainInfoBox}>
-                    <Text style={styles.visitorDescription}>{event.description}</Text>
+                  <View style={[styles.mainInfoBox, { backgroundColor: selectedTemplate.panel, borderColor: selectedTemplate.accentBg }]}>
+                    <Text style={[styles.visitorDescription, { color: selectedTemplate.muted }]}>{event.description}</Text>
                     {event.category && (
-                      <View style={styles.categoryBadge}>
-                        <Text style={styles.categoryBadgeText}>{event.category}</Text>
+                      <View style={[styles.categoryBadge, { backgroundColor: selectedTemplate.accentBg }]}>
+                        <Text style={[styles.categoryBadgeText, { color: selectedTemplate.accent }]}>{event.category}</Text>
                       </View>
                     )}
                   </View>
                 )}
 
                 <View style={styles.galleryHeader}>
-                  <Text style={styles.galleryTitle}>
+                  <Text style={[styles.galleryTitle, { color: selectedTemplate.text }]}>
                     {activeSubEvent ? activeSubEvent.title : 'Highlights'}
                   </Text>
-                  <Text style={styles.photoCount}>
+                  <Text style={[styles.photoCount, { color: selectedTemplate.accent }]}>
                     {photos.length} {photos.length === 1 ? 'Photo' : 'Photos'}
                   </Text>
                 </View>
 
                 {loadingPhotos ? (
                   <View style={styles.photoLoading}>
-                    <ActivityIndicator color={MidnightColors.gold} />
+                    <ActivityIndicator color={selectedTemplate.accent} />
                   </View>
                 ) : (
                   <View style={styles.photoGrid}>
@@ -720,11 +838,25 @@ export default function EventDetailScreen() {
                       photos.map((photo, i) => (
                         <TouchableOpacity 
                           key={photo.id} 
-                          style={styles.photoCard}
+                          style={[
+                            styles.photoCard,
+                            {
+                              paddingRight: (i + 1) % 3 === 0 ? 0 : PHOTO_GRID_GAP,
+                              paddingBottom: PHOTO_GRID_GAP,
+                            },
+                          ]}
                           activeOpacity={0.9}
-                          onPress={() => router.push({ pathname: '/gallery/[id]', params: { id: activeSubEvent?.id || event.id, photoId: photo.id } } as any)}
+                          onPress={() => openViewer(i)}
                         >
-                          <Image source={{ uri: photo.url }} style={styles.galleryImg} />
+                          <View style={[styles.photoTile, {
+                            backgroundColor: selectedTemplate.tileBg,
+                            borderRadius: selectedTemplate.radius,
+                            borderWidth: event.templateId === 'polaroid' || event.templateId === 'museum' || event.templateId === 'brutalist' ? 1 : 0,
+                            borderColor: selectedTemplate.accentBg,
+                            padding: event.templateId === 'polaroid' ? 5 : 0,
+                          }]}>
+                            <Image source={{ uri: photo.url }} style={styles.galleryImg} />
+                          </View>
                         </TouchableOpacity>
                       ))
                     )}
@@ -808,23 +940,220 @@ export default function EventDetailScreen() {
         </View>
       </Modal>
 
-      {/* ── TEMPLATE MODAL ── */}
+      {/* ── IMAGE VIEWER MODAL ── */}
+      <Modal
+        visible={viewerVisible}
+        animationType="fade"
+        presentationStyle="fullScreen"
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={() => setViewerVisible(false)}
+      >
+        <View style={styles.viewerContainer}>
+          <TouchableOpacity style={styles.viewerClose} onPress={() => setViewerVisible(false)}>
+            <IconSymbol name="xmark" size={28} color="#fff" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.navBtnLeft} onPress={() => navigateViewer('prev')}>
+            <IconSymbol name="chevron.left" size={32} color="#fff" />
+          </TouchableOpacity>
+          
+          {photos[currentPhotoIndex] && (
+            <Image 
+              source={{ uri: photos[currentPhotoIndex].url }} 
+              style={[styles.fullImage, showComments && styles.fullImageWithComments]} 
+              resizeMode="contain" 
+            />
+          )}
+          
+          <TouchableOpacity style={styles.navBtnRight} onPress={() => navigateViewer('next')}>
+            <IconSymbol name="chevron.right" size={32} color="#fff" />
+          </TouchableOpacity>
+          
+          <View style={[styles.viewerActions, showComments ? styles.viewerActionsRaised : styles.viewerActionsDocked]}>
+            <TouchableOpacity style={styles.viewerAction} onPress={handleToggleLike} disabled={isLiking}>
+              <IconSymbol name={isLiked ? "heart.fill" : "heart"} size={30} color={isLiked ? "#f43f5e" : "#ffffff"} />
+              <Text style={styles.viewerActionCount}>{likes.length}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.viewerAction} onPress={() => setShowComments(true)}>
+              <IconSymbol name="bubble.right" size={30} color={showComments ? MidnightColors.gold : "#ffffff"} />
+              <Text style={styles.viewerActionCount}>{comments.length}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {!showComments && (
+            <View style={styles.viewerFooter}>
+              <Text style={styles.viewerText}>{currentPhotoIndex + 1} / {photos.length}</Text>
+            </View>
+          )}
+
+          {showComments && (
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.guestbookPanel}>
+              <View style={styles.guestbookHeader}>
+                <View>
+                  <Text style={styles.guestbookTitle}>Guestbook</Text>
+                  <Text style={styles.guestbookSubtitle}>{comments.length} Shared Thoughts</Text>
+                </View>
+                <TouchableOpacity style={styles.closeGuestbookBtn} onPress={() => setShowComments(false)}>
+                  <IconSymbol name="xmark" size={18} color="#57534e" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.guestbookList} contentContainerStyle={styles.guestbookListContent}>
+                {comments.length === 0 ? (
+                  <View style={styles.emptyGuestbook}>
+                    <View style={styles.emptyGuestbookIcon}>
+                      <IconSymbol name="bubble.right" size={30} color="#78716c" />
+                    </View>
+                    <Text style={styles.emptyGuestbookTitle}>No whispers yet...</Text>
+                    <Text style={styles.emptyGuestbookText}>Write the first beautiful word.</Text>
+                  </View>
+                ) : (
+                  comments.filter((comment) => !comment.parentId).map((comment) => {
+                    const replies = comments.filter((reply) => reply.parentId === comment.id);
+                    return (
+                      <View key={comment.id} style={styles.commentThread}>
+                        <View style={styles.commentItem}>
+                          <View style={styles.commentAvatar}>
+                            <Text style={styles.commentAvatarText}>{comment.userName?.charAt(0) || 'G'}</Text>
+                          </View>
+                          <View style={styles.commentContent}>
+                            <View style={styles.commentRow}>
+                              <Text style={styles.commentName} numberOfLines={1}>{comment.userName || 'Guest'}</Text>
+                              <Text style={styles.commentTime}>
+                                {comment.createdAt ? new Date(comment.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+                              </Text>
+                            </View>
+                            <View style={styles.commentBubble}>
+                              <Text style={styles.commentText}>{comment.text}</Text>
+                              <View style={styles.commentActions}>
+                                <TouchableOpacity onPress={() => setReplyingTo(comment)}>
+                                  <Text style={styles.replyBtnText}>REPLY</Text>
+                                </TouchableOpacity>
+                                {comment.userId === viewerIdentity.id && (
+                                  <TouchableOpacity onPress={() => handleDeleteComment(comment.id)}>
+                                    <Text style={styles.deleteBtnText}>DELETE</Text>
+                                  </TouchableOpacity>
+                                )}
+                              </View>
+                            </View>
+                          </View>
+                        </View>
+
+                        {replies.map((reply) => (
+                          <View key={reply.id} style={styles.replyItem}>
+                            <View style={styles.replyAvatar}>
+                              <Text style={styles.replyAvatarText}>{reply.userName?.charAt(0) || 'G'}</Text>
+                            </View>
+                            <View style={styles.commentContent}>
+                              <View style={styles.commentRow}>
+                                <Text style={styles.replyName} numberOfLines={1}>{reply.userName || 'Guest'}</Text>
+                                <Text style={styles.commentTime}>
+                                  {reply.createdAt ? new Date(reply.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+                                </Text>
+                              </View>
+                              <View style={styles.replyBubble}>
+                                <Text style={styles.replyText}>{reply.text}</Text>
+                                {reply.userId === viewerIdentity.id && (
+                                  <TouchableOpacity onPress={() => handleDeleteComment(reply.id)}>
+                                    <Text style={[styles.deleteBtnText, styles.replyDeleteText]}>DELETE</Text>
+                                  </TouchableOpacity>
+                                )}
+                              </View>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    );
+                  })
+                )}
+              </ScrollView>
+
+              <View style={styles.commentComposer}>
+                {replyingTo && (
+                  <View style={styles.replyingToBanner}>
+                    <Text style={styles.replyingToText}>Replying to <Text style={styles.replyingToName}>{replyingTo.userName}</Text></Text>
+                    <TouchableOpacity onPress={() => setReplyingTo(null)}>
+                      <IconSymbol name="xmark" size={14} color="#78716c" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+                <View style={styles.commentInputRow}>
+                  <TextInput
+                    style={styles.commentInput}
+                    placeholder={replyingTo ? "Write a reply..." : "Share a wish..."}
+                    placeholderTextColor="#78716c"
+                    value={newComment}
+                    onChangeText={setNewComment}
+                  />
+                  <TouchableOpacity style={[styles.commentSendBtn, (!newComment.trim() || isCommenting) && styles.commentSendBtnDisabled]} onPress={handleAddComment} disabled={!newComment.trim() || isCommenting}>
+                    <IconSymbol name="paperplane.fill" size={18} color="#ffffff" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          )}
+        </View>
+      </Modal>
+
       <Modal visible={showTemplateModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowTemplateModal(false)} />
-          <View style={[styles.modalContent, { maxHeight: '80%' }]}>
-            <Text style={styles.modalTitle}>Choose Style</Text>
-            <ScrollView>
-              {['hero', 'classic', 'royal', 'editorial', 'polaroid', 'museum'].map((t) => (
-                <TouchableOpacity 
-                  key={t} 
-                  style={[styles.templateOption, event?.templateId === t && styles.activeTemplate]}
-                  onPress={() => handleUpdateTemplate(t)}
-                >
-                  <Text style={[styles.templateText, event?.templateId === t && styles.activeTemplateText]}>{t.toUpperCase()}</Text>
-                  {event?.templateId === t && <IconSymbol name="checkmark" size={16} color={MidnightColors.background} />}
-                </TouchableOpacity>
-              ))}
+          <TouchableOpacity 
+            style={styles.modalBackdrop} 
+            activeOpacity={1} 
+            onPress={() => setShowTemplateModal(false)} 
+          />
+          <View style={[styles.modalContent, { maxHeight: '85%' }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Choose Style</Text>
+                <Text style={styles.templateModalSub}>Select a design template for this event.</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.closeModalCircle} 
+                onPress={() => setShowTemplateModal(false)}
+              >
+                <IconSymbol name="xmark" size={20} color={MidnightColors.gold} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView 
+              showsVerticalScrollIndicator={false} 
+              contentContainerStyle={{ paddingBottom: 40 }}
+            >
+              {MOBILE_TEMPLATE_THEMES.map((template, index) => {
+                const isActive = (event?.templateId || 'hero') === template.id;
+                return (
+                  <TouchableOpacity 
+                    key={template.id} 
+                    style={[
+                      styles.templateOptionCard,
+                      { borderColor: isActive ? template.accent : 'rgba(255,255,255,0.1)' }
+                    ]}
+                    onPress={() => handleUpdateTemplate(template.id)}
+                  >
+                    <View style={[styles.templatePreview, { backgroundColor: template.background }]}>
+                      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.1)' }]} />
+                      <Text style={[styles.templatePreviewLabel, { color: template.accent }]}>Template {index + 1}</Text>
+                      <Text style={[styles.templatePreviewTitle, { color: template.text }]}>{template.label}</Text>
+                    </View>
+                    <View style={styles.templateMeta}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.templateText}>{template.label}</Text>
+                        <Text style={styles.templateDesc}>{template.desc}</Text>
+                      </View>
+                      {isActive && (
+                        <View style={[styles.templateCheck, { backgroundColor: template.accent }]}>
+                          <IconSymbol name="checkmark" size={14} color="#000" />
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+              {MOBILE_TEMPLATE_THEMES.length === 0 && (
+                <Text style={{ color: '#fff', textAlign: 'center', marginTop: 20 }}>No templates available.</Text>
+              )}
             </ScrollView>
           </View>
         </View>
@@ -862,7 +1191,7 @@ export default function EventDetailScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -875,7 +1204,17 @@ const styles = StyleSheet.create({
   hero: { height: 400, width: '100%' },
   heroImage: { ...StyleSheet.absoluteFillObject },
   heroGradient: { ...StyleSheet.absoluteFillObject },
-  floatingBack: { position: 'absolute', top: 20, left: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  floatingBack: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 20, 
+    backgroundColor: 'rgba(2, 6, 23, 0.7)', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    marginLeft: 8,
+    borderWidth: 1, 
+    borderColor: 'rgba(212, 175, 55, 0.3)',
+  },
   floatingShare: { position: 'absolute', top: 20, right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   heroContent: { position: 'absolute', bottom: 30, left: 24, right: 24 },
   heroTitle: { fontSize: 36, color: '#fff', fontFamily: Fonts.outfit.extraBold, letterSpacing: -1 },
@@ -905,7 +1244,7 @@ const styles = StyleSheet.create({
   addBtnText: { color: MidnightColors.gold, fontSize: 12, fontFamily: Fonts.outfit.bold },
   
   subGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  subCard: { width: (width - 60) / 2, height: 160, borderRadius: 20, overflow: 'hidden', backgroundColor: MidnightColors.deepSlate, borderWidth: 1, borderColor: MidnightColors.cardBorder },
+  subCard: { width: (SCREEN_WIDTH - 60) / 2, height: 160, borderRadius: 20, overflow: 'hidden', backgroundColor: MidnightColors.deepSlate, borderWidth: 1, borderColor: MidnightColors.cardBorder },
   subImage: { width: '100%', height: 110 },
   subInfo: { padding: 10 },
   subTitle: { fontSize: 14, color: '#fff', fontFamily: Fonts.outfit.bold },
@@ -952,7 +1291,7 @@ const styles = StyleSheet.create({
   grantedIcon: { width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(212, 175, 55, 0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(212, 175, 55, 0.2)' },
   
   // Premium Permission Modal
-  modalBackdrop: { 
+  premiumModalBackdrop: { 
     flex: 1,
     position: 'absolute',
     top: 0,
@@ -965,7 +1304,7 @@ const styles = StyleSheet.create({
     zIndex: 1000
   },
   premiumModalContent: { 
-    width: width * 0.85, 
+    width: SCREEN_WIDTH * 0.85, 
     alignSelf: 'center',
     borderRadius: 32, 
     overflow: 'hidden', 
@@ -1021,7 +1360,7 @@ const styles = StyleSheet.create({
 
   // Request Modal Specific
   ironCladWrapper: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
-  premiumRequestModal: { width: width * 0.85, borderRadius: 32, padding: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  premiumRequestModal: { width: SCREEN_WIDTH * 0.85, borderRadius: 32, padding: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   modalHeaderCentered: { alignItems: 'center', marginBottom: 24 },
   largeAvatar: { width: 80, height: 80, borderRadius: 40, overflow: 'hidden', marginBottom: 16 },
   largeAvatarText: { color: MidnightColors.background, fontSize: 32, fontFamily: Fonts.outfit.extraBold },
@@ -1042,6 +1381,7 @@ const styles = StyleSheet.create({
 
   // Design
   designCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: MidnightColors.deepSlate, padding: 20, borderRadius: 20, borderWidth: 1, borderColor: MidnightColors.cardBorder },
+  designInfo: { flex: 1, paddingRight: 16 },
   designLabel: { color: MidnightColors.slate400, fontSize: 11, fontFamily: Fonts.inter.bold, textTransform: 'uppercase' },
   designValue: { color: '#fff', fontSize: 18, fontFamily: Fonts.outfit.bold, marginTop: 4 },
 
@@ -1061,8 +1401,16 @@ const styles = StyleSheet.create({
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.8)' },
+  modalHeader: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: 8,
+    width: '100%'
+  },
   modalContent: { backgroundColor: '#0f172a', width: '100%', borderRadius: 28, padding: 24, borderWidth: 1, borderColor: 'rgba(212,175,55,0.2)' },
-  modalTitle: { fontSize: 24, color: '#fff', fontFamily: Fonts.outfit.bold, marginBottom: 20 },
+  modalTitle: { fontSize: 24, color: '#fff', fontFamily: Fonts.outfit.bold },
+  templateModalSub: { color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.inter.medium, marginTop: -10, marginBottom: 18 },
   submitBtn: { backgroundColor: MidnightColors.gold, padding: 16, borderRadius: 16, alignItems: 'center', marginTop: 8 },
   submitBtnText: { color: MidnightColors.background, fontSize: 16, fontFamily: Fonts.outfit.bold },
   
@@ -1070,6 +1418,52 @@ const styles = StyleSheet.create({
   activeTemplate: { backgroundColor: MidnightColors.gold },
   templateText: { color: '#fff', fontSize: 15, fontFamily: Fonts.outfit.bold },
   activeTemplateText: { color: MidnightColors.background },
+  templateOptionCard: {
+    borderWidth: 2,
+    borderRadius: 22,
+    overflow: 'hidden',
+    marginBottom: 16,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  activeTemplateCard: {
+    transform: [{ scale: 0.99 }],
+  },
+  templatePreview: {
+    height: 112,
+    justifyContent: 'flex-end',
+    padding: 16,
+    overflow: 'hidden',
+  },
+  templatePreviewLabel: {
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+  },
+  templatePreviewTitle: {
+    fontSize: 22,
+    fontFamily: Fonts.outfit.extraBold,
+    marginTop: 4,
+  },
+  templateMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 12,
+  },
+  templateDesc: {
+    color: MidnightColors.slate400,
+    fontSize: 12,
+    fontFamily: Fonts.inter.medium,
+    marginTop: 3,
+  },
+  templateCheck: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   
   errorText: { color: '#fff', fontSize: 18, fontFamily: Fonts.outfit.bold, marginBottom: 20 },
   backBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: MidnightColors.gold, borderRadius: 10 },
@@ -1186,14 +1580,16 @@ const styles = StyleSheet.create({
   photoGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 20,
-    gap: 8,
+    width: '100%',
+    alignSelf: 'stretch',
     paddingBottom: 40,
   },
   photoCard: {
-    width: (width - 48) / 3, // 3 column grid
+    width: '33.3333%',
     aspectRatio: 1,
-    borderRadius: 12,
+  },
+  photoTile: {
+    flex: 1,
     overflow: 'hidden',
     backgroundColor: 'rgba(255,255,255,0.02)',
   },
@@ -1207,5 +1603,335 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 12,
+  },
+  viewerContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  fullImage: {
+    width: '100%',
+    height: '80%',
+  },
+  fullImageWithComments: {
+    height: '46%',
+    marginBottom: SCREEN_WIDTH * 0.86,
+  },
+  viewerClose: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    padding: 10,
+  },
+  navBtnLeft: {
+    position: 'absolute',
+    left: 20,
+    top: '50%',
+    marginTop: -25,
+    zIndex: 10,
+    padding: 15,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 30,
+  },
+  navBtnRight: {
+    position: 'absolute',
+    right: 20,
+    top: '50%',
+    marginTop: -25,
+    zIndex: 10,
+    padding: 15,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 30,
+  },
+  viewerFooter: {
+    position: 'absolute',
+    bottom: 40,
+    paddingHorizontal: 20,
+  },
+  viewerText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: Fonts.inter.bold,
+  },
+  viewerActions: {
+    position: 'absolute',
+    flexDirection: 'row',
+    gap: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 12,
+  },
+  viewerActionsDocked: {
+    bottom: 72,
+  },
+  viewerActionsRaised: {
+    bottom: SCREEN_WIDTH * 0.9,
+  },
+  viewerAction: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  viewerActionCount: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontFamily: Fonts.inter.bold,
+  },
+  guestbookPanel: {
+    position: 'absolute',
+    left: 10,
+    right: 10,
+    bottom: 10,
+    height: SCREEN_WIDTH * 0.86,
+    backgroundColor: '#fafaf9',
+    borderRadius: 28,
+    overflow: 'hidden',
+    zIndex: 11,
+  },
+  guestbookHeader: {
+    paddingHorizontal: 24,
+    paddingTop: 22,
+    paddingBottom: 18,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e7e5e4',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  guestbookTitle: {
+    color: '#0f172a',
+    fontSize: 24,
+    fontFamily: Fonts.outfit.bold,
+    fontStyle: 'italic',
+  },
+  guestbookSubtitle: {
+    color: '#57534e',
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    marginTop: 5,
+  },
+  closeGuestbookBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: '#f5f5f4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guestbookList: {
+    flex: 1,
+  },
+  guestbookListContent: {
+    padding: 22,
+    paddingBottom: 26,
+  },
+  emptyGuestbook: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 44,
+    opacity: 0.55,
+  },
+  emptyGuestbookIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#f5f5f4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyGuestbookTitle: {
+    color: '#0f172a',
+    fontSize: 18,
+    fontFamily: Fonts.outfit.bold,
+    fontStyle: 'italic',
+  },
+  emptyGuestbookText: {
+    color: '#57534e',
+    fontSize: 13,
+    fontFamily: Fonts.inter.regular,
+    marginTop: 6,
+  },
+  commentThread: {
+    marginBottom: 22,
+  },
+  commentItem: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  commentAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  commentAvatarText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontFamily: Fonts.inter.bold,
+  },
+  commentContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  commentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  commentName: {
+    flex: 1,
+    color: '#0f172a',
+    fontSize: 12,
+    fontFamily: Fonts.inter.bold,
+    paddingRight: 8,
+  },
+  commentTime: {
+    color: '#78716c',
+    fontSize: 10,
+    fontFamily: Fonts.inter.medium,
+  },
+  commentBubble: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#f5f5f4',
+    borderRadius: 18,
+    borderTopLeftRadius: 2,
+    padding: 14,
+  },
+  commentText: {
+    color: '#57534e',
+    fontSize: 13,
+    fontFamily: Fonts.inter.regular,
+    lineHeight: 19,
+  },
+  commentActions: {
+    flexDirection: 'row',
+    gap: 18,
+    marginTop: 10,
+  },
+  replyBtnText: {
+    color: MidnightColors.gold,
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    letterSpacing: 1.5,
+  },
+  deleteBtnText: {
+    color: '#fb7185',
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    letterSpacing: 1.5,
+  },
+  replyItem: {
+    flexDirection: 'row',
+    gap: 10,
+    marginLeft: 50,
+    marginTop: 14,
+  },
+  replyAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 12,
+    backgroundColor: '#334155',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  replyAvatarText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontFamily: Fonts.inter.bold,
+  },
+  replyName: {
+    flex: 1,
+    color: '#1e293b',
+    fontSize: 11,
+    fontFamily: Fonts.inter.bold,
+    paddingRight: 8,
+  },
+  replyBubble: {
+    backgroundColor: '#f5f5f4',
+    borderWidth: 1,
+    borderColor: '#e7e5e4',
+    borderRadius: 14,
+    borderTopLeftRadius: 2,
+    padding: 11,
+  },
+  replyText: {
+    color: '#44403c',
+    fontSize: 12,
+    fontFamily: Fonts.inter.regular,
+    fontStyle: 'italic',
+    lineHeight: 18,
+  },
+  replyDeleteText: {
+    marginTop: 6,
+    fontSize: 9,
+  },
+  commentComposer: {
+    padding: 16,
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#f5f5f4',
+  },
+  replyingToBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#fafaf9',
+    borderWidth: 1,
+    borderColor: '#f5f5f4',
+    marginBottom: 10,
+  },
+  replyingToText: {
+    color: '#57534e',
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  replyingToName: {
+    color: MidnightColors.gold,
+  },
+  commentInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  commentInput: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 22,
+    backgroundColor: '#fafaf9',
+    borderWidth: 1,
+    borderColor: '#f5f5f4',
+    paddingHorizontal: 18,
+    color: '#0f172a',
+    fontSize: 14,
+    fontFamily: Fonts.inter.regular,
+  },
+  commentSendBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 15,
+    backgroundColor: '#0f172a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  commentSendBtnDisabled: {
+    opacity: 0.25,
   },
 });

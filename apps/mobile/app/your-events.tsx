@@ -37,7 +37,12 @@ export default function YourEventsScreen() {
   );
 
   const fetchData = async () => {
-    if (!user) return;
+    if (!user) {
+      setEvents([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     setLoading(true);
     try {
       const ownIdentifiers = [user.uid];
@@ -108,24 +113,29 @@ export default function YourEventsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <Stack.Screen options={{ headerShown: false }} />
-      
-      {/* ── HEADER ── */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <IconSymbol name="chevron.left" size={24} color="#ffffff" />
+    <View style={styles.safeArea}>
+      <Stack.Screen options={{ 
+        headerShown: true,
+        headerTransparent: true,
+        headerTitle: '',
+        headerTintColor: '#ffffff',
+        headerStyle: { backgroundColor: '#020617' },
+        headerLeft: () => (
+          <TouchableOpacity 
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)/dashboard');
+              }
+            }}
+            style={styles.backBtn}
+            hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
+          >
+            <IconSymbol name="chevron.left" size={28} color="#ffffff" />
           </TouchableOpacity>
-          <View>
-            <Text style={styles.headerTitle}>All Memories</Text>
-            <Text style={styles.headerSubtitle}>{events.length} Collections</Text>
-          </View>
-        </View>
-        <TouchableOpacity style={styles.iconBtn}>
-          <IconSymbol name="bell.fill" size={20} color="#d4af37" />
-        </TouchableOpacity>
-      </View>
+        ),
+      }} />
 
       <ScrollView
         style={styles.container}
@@ -218,14 +228,14 @@ export default function YourEventsScreen() {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#020617' },
   container: { flex: 1 },
-  scrollContent: { paddingBottom: 60, paddingTop: 10 },
+  scrollContent: { paddingBottom: 60, paddingTop: 80 },
   
   // Header
   header: {

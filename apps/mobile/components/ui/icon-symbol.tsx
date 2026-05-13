@@ -46,6 +46,9 @@ const MAPPING = {
   'lock.fill': 'lock',
   'theatermasks.fill': 'theater-comedy',
   'checkmark.seal.fill': 'verified',
+  'paintbrush.fill': 'brush',
+  'globe': 'public',
+  'square.and.arrow.up': 'share',
 } as const;
 
 type IconSymbolName = keyof typeof MAPPING;

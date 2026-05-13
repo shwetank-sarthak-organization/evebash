@@ -36,6 +36,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const segments = useSegments();
+  console.log('[AuthGate] Segments:', segments);
 
   useEffect(() => {
     if (loading) return;
@@ -62,8 +63,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' }}>
-        <ActivityIndicator size="large" color="#d4af37" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ff0000' }}>
+        <ActivityIndicator size="large" color="#ffffff" />
       </View>
     );
   }
@@ -72,6 +73,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  console.log('RootLayout rendering...');
   const colorScheme = useColorScheme();
 
   const [fontsLoaded, fontError] = useFonts({
@@ -85,13 +87,17 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
+  console.log('Fonts loaded:', fontsLoaded, 'Font error:', fontError);
+
   useEffect(() => {
     if (fontsLoaded || fontError) {
+      console.log('Hiding splash screen...');
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
 
   if (!fontsLoaded && !fontError) {
+    console.log('Still waiting for fonts...');
     return null;
   }
 
@@ -102,8 +108,9 @@ export default function RootLayout() {
           <Stack screenOptions={{
             headerBackTitle: '',
             headerTintColor: '#0f172a',
-            headerStyle: { backgroundColor: '#f8fafc' },
+            headerStyle: { backgroundColor: 'transparent' },
             headerShadowVisible: false,
+            headerTransparent: true,
           }}>
             <Stack.Screen name="login" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '' }} />

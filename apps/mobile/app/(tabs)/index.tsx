@@ -18,101 +18,12 @@ const { width, height } = Dimensions.get('window');
 const HERO_IMAGE = "https://res.cloudinary.com/dkphvdlwk/image/upload/v1767692961/0D2A5755_1_cipyfz.jpg";
 
 export default function HomeScreen() {
+  console.log('HomeScreen mounting...');
   const router = useRouter();
 
   return (
-    <View style={styles.mainContainer}>
-      <StatusBar barStyle="light-content" />
-      <ScrollView 
-        style={styles.container} 
-        contentContainerStyle={styles.scrollContent} 
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
-        {/* Hero Section */}
-        <View style={styles.heroSection}>
-          <Image
-            source={HERO_IMAGE}
-            style={styles.heroImage}
-            contentFit="cover"
-            transition={1000}
-          />
-          <LinearGradient
-            colors={['transparent', 'rgba(15, 23, 42, 0.7)']}
-            style={styles.heroOverlay}
-          />
-          
-          <View style={styles.heroContent}>
-            <View style={styles.badgeContainer}>
-              <Text style={styles.badgeText}>Professional Photography</Text>
-            </View>
-            
-            <Text style={styles.heroTitle}>
-              Capturing{"\n"}
-              <Text style={styles.heroTitleItalic}>Timeless</Text> Moments
-            </Text>
-            
-            <Text style={styles.heroSubtitle}>
-              We believe that every moment is a piece of art waiting to be captured. 
-              Let us tell your story with elegance and simplicity.
-            </Text>
-            
-            <View style={styles.heroActions}>
-              <TouchableOpacity 
-                style={styles.primaryButton}
-                onPress={() => router.push('/(tabs)/gallery')}
-              >
-                <Text style={styles.primaryButtonText}>View Our Work</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.secondaryButton}
-                onPress={() => router.push('/contact')}
-              >
-                <Text style={styles.secondaryButtonText}>Book a Session</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        {/* About Section */}
-        <View style={styles.aboutSection}>
-          <View style={styles.aboutHeader}>
-            <Text style={styles.aboutBadge}>About The Artist</Text>
-            <Text style={styles.aboutTitle}>Preserving Your Legacy</Text>
-          </View>
-          
-          <View style={styles.aboutImageWrapper}>
-            <Image
-              source={HERO_IMAGE}
-              style={styles.aboutImage}
-              contentFit="cover"
-              transition={1000}
-            />
-          </View>
-          
-          <View style={styles.aboutTextContainer}>
-            <Text style={styles.aboutParagraph}>
-              With over a decade of experience in capturing weddings, portraits, and events, 
-              we strive to create images that are not just photographs, but heirlooms.
-            </Text>
-            <Text style={styles.aboutParagraph}>
-              Our style is a blend of fine art and photojournalism, ensuring that every 
-              emotion is captured authentically.
-            </Text>
-            
-            <TouchableOpacity 
-              style={styles.readMoreLink}
-              onPress={() => router.push('/contact')}
-            >
-              <Text style={styles.readMoreText}>Read More About Us</Text>
-              <IconSymbol name="chevron.right" size={16} color="#0284c7" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={{ height: 100 }} />
-      </ScrollView>
+    <View style={{ flex: 1, backgroundColor: 'red', justifyContent: 'center', alignItems: 'center' }}>
+      <Text style={{ color: 'white', fontSize: 24 }}>HOME SCREEN REACHED</Text>
     </View>
   );
 }

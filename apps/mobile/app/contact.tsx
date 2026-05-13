@@ -10,19 +10,24 @@ export default function ContactUsScreen() {
     <View style={styles.mainContainer}>
       <Stack.Screen options={{ 
         headerShown: true, 
-        title: 'Contact Us',
-        headerBackTitle: '',
-        headerBackVisible: false,
+        headerTransparent: true,
+        headerTitle: 'Contact Us',
+        headerTintColor: '#0f172a',
         headerLeft: () => (
           <TouchableOpacity 
-            onPress={() => router.back()} 
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)/dashboard');
+              }
+            }} 
             style={styles.nativeBackButton}
-            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
           >
             <IconSymbol name="chevron.left" size={28} color="#0f172a" />
           </TouchableOpacity>
         ),
-        headerStyle: { backgroundColor: '#f8fafc' },
         headerShadowVisible: false,
       }} />
       <ScrollView style={styles.container}>
@@ -142,7 +147,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingTop: 100,
     paddingBottom: 24,
     alignItems: 'center',
   },

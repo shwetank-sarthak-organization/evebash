@@ -13,6 +13,8 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
+  Share,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -31,7 +33,9 @@ import {
   GuestLog,
   createEvent,
   getEventByJoinId,
-  logGuestLogin
+  logGuestLogin,
+  updateEvent,
+  deleteEvent
 } from '@/lib/firestore';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 
@@ -41,6 +45,19 @@ const PLACEHOLDER_IMAGES = [
   "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1200&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=1200&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1465495910483-34a170a7bb00?q=80&w=1200&auto=format&fit=crop"
+];
+
+const MOBILE_TEMPLATE_THEMES = [
+  { id: 'hero', label: 'Hero (Default)', desc: 'Big impact cover image', background: '#020617', text: '#ffffff', accent: '#d4af37', overlay: ['rgba(2,6,23,0.2)', 'rgba(2,6,23,1)'] },
+  { id: 'classic', label: 'Classic', desc: 'Timeless and elegant', background: '#111827', text: '#f9fafb', accent: '#f3d19c', overlay: ['rgba(17,24,39,0.2)', 'rgba(17,24,39,1)'] },
+  { id: 'royal', label: 'Royal', desc: 'Luxurious serif typography', background: '#0b1026', text: '#fff7ed', accent: '#d4af37', overlay: ['rgba(11,16,38,0.25)', 'rgba(11,16,38,1)'] },
+  { id: 'editorial', label: 'Editorial', desc: 'Magazine-style layout', background: '#fafaf9', text: '#111827', accent: '#111827', overlay: ['rgba(17,24,39,0.05)', 'rgba(250,250,249,1)'] },
+  { id: 'bohemian', label: 'Bohemian', desc: 'Earthy and organic colors', background: '#2f241d', text: '#ffedd5', accent: '#fb923c', overlay: ['rgba(47,36,29,0.15)', 'rgba(47,36,29,1)'] },
+  { id: 'polaroid', label: 'Polaroid', desc: 'Vintage photo frames', background: '#f8f3e7', text: '#1f2937', accent: '#b45309', overlay: ['rgba(31,41,55,0.05)', 'rgba(248,243,231,1)'] },
+  { id: 'cinematic', label: 'Cinematic', desc: 'Immersive fullscreen video', background: '#000000', text: '#ffffff', accent: '#ef4444', overlay: ['rgba(0,0,0,0.1)', 'rgba(0,0,0,1)'] },
+  { id: 'museum', label: 'Museum', desc: 'Minimalist art gallery', background: '#f8fafc', text: '#0f172a', accent: '#334155', overlay: ['rgba(15,23,42,0.02)', 'rgba(248,250,252,1)'] },
+  { id: 'scrapbook', label: 'Scrapbook', desc: 'Playful cut-out aesthetic', background: '#fff7ed', text: '#431407', accent: '#db2777', overlay: ['rgba(67,20,7,0.04)', 'rgba(255,247,237,1)'] },
+  { id: 'brutalist', label: 'Brutalist', desc: 'Raw, highly structured design', background: '#f4f4f5', text: '#000000', accent: '#000000', overlay: ['rgba(0,0,0,0)', 'rgba(244,244,245,1)'] },
 ];
 
 function createSlug(value: string) {
@@ -65,6 +82,11 @@ export default function PortfolioTabScreen() {
   const [creating, setCreating] = useState(false);
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventDate, setNewEventDate] = useState('');
+  const [targetEvent, setTargetEvent] = useState<FirestoreEvent | null>(null);
+  const [optionsVisible, setOptionsVisible] = useState(false);
+  const [templateVisible, setTemplateVisible] = useState(false);
+  const [renameVisible, setRenameVisible] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
 
   // Join Event State
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -102,9 +124,9 @@ export default function PortfolioTabScreen() {
           guestName, 
           guestId, 
           event.id, 
-          event.parentId || null, 
+          event.parentId || undefined,
           event.title || 'Untitled Event', 
-          event.createdBy || null,
+          event.createdBy || undefined,
           'pending'
         );
 
@@ -149,7 +171,15 @@ export default function PortfolioTabScreen() {
   };
 
   const fetchData = async () => {
-    if (!user) return;
+    if (!user) {
+      setEvents([]);
+      setSharedEvents([]);
+      setGuestLogs([]);
+      setStorageUsed(0);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     setLoading(true);
     try {
       const identifiers = [user.uid];
@@ -206,7 +236,7 @@ export default function PortfolioTabScreen() {
         coverImage,
         createdBy: user.uid,
         type: 'main',
-        templateId: 'royal'
+        templateId: 'hero'
       });
 
       if (success) {
@@ -224,61 +254,127 @@ export default function PortfolioTabScreen() {
     }
   };
 
+  const handleVisitWebsite = (event: FirestoreEvent) => {
+    const url = `https://wedalbum.app/events/${event.id}`;
+    Linking.openURL(url).catch(err => console.error('Could not open URL', err));
+  };
+
+  const handleShareLink = async (event: FirestoreEvent) => {
+    try {
+      const url = `https://wedalbum.app/events/${event.id}`;
+      await Share.share({
+        message: `Check out the ${event.title} gallery: ${url}`,
+        url: url,
+      });
+    } catch (error) {
+      console.error('Sharing error:', error);
+    }
+  };
+
+  const handleDeleteEvent = async (event: FirestoreEvent) => {
+    Alert.alert(
+      "Delete Event",
+      `Are you sure you want to delete "${event.title}"? This will permanently remove all photos and sub-events.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive", 
+          onPress: async () => {
+            setLoading(true);
+            const success = await deleteEvent(event.id);
+            if (success) {
+              fetchData();
+              Alert.alert("Success", "Event deleted successfully.");
+            } else {
+              Alert.alert("Error", "Failed to delete event.");
+            }
+            setLoading(false);
+          } 
+        }
+      ]
+    );
+  };
+
+  const handleRenameSubmit = async () => {
+    if (!targetEvent || !editTitle.trim()) return;
+    setLoading(true);
+    const success = await updateEvent(targetEvent.id, { title: editTitle.trim() });
+    if (success) {
+      setRenameVisible(false);
+      setTargetEvent(null);
+      fetchData();
+      Alert.alert("Success", "Event renamed successfully.");
+    } else {
+      Alert.alert("Error", "Failed to rename event.");
+    }
+    setLoading(false);
+  };
+
+  const handleTemplateSelect = async (templateId: string) => {
+    if (!targetEvent) return;
+
+    const updatedEvent = { ...targetEvent, templateId };
+    setTargetEvent(updatedEvent);
+    setEvents((prev) => prev.map((event) => event.id === targetEvent.id ? { ...event, templateId } : event));
+    setSharedEvents((prev) => prev.map((event) => event.id === targetEvent.id ? { ...event, templateId } : event));
+
+    try {
+      const success = await updateEvent(targetEvent.id, { templateId });
+      if (!success) {
+        Alert.alert("Error", "Failed to update template.");
+        fetchData();
+        return;
+      }
+      setTemplateVisible(false);
+      setOptionsVisible(false);
+      Alert.alert("Success", "Template updated!");
+    } catch (error) {
+      console.error('[Portfolio] Template update error:', error);
+      Alert.alert("Error", "Failed to update template.");
+      fetchData();
+    }
+  };
+
   const renderEventCard = (event: FirestoreEvent) => (
-    <TouchableOpacity
+    <View
       key={event.id}
       style={styles.eventCard}
-      activeOpacity={0.85}
-      onPress={() => router.push(`/events/${event.id}?mode=admin`)}
     >
-      <ExpoImage
-        source={{ uri: event.coverImage }}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-        transition={300}
-      />
-      <LinearGradient
-        colors={['transparent', 'rgba(2, 6, 23, 0.95)']}
-        style={styles.cardGradient}
-      />
-      <View style={styles.cardContent}>
-        <Text style={styles.cardTitle} numberOfLines={1}>{event.title}</Text>
-        <View style={styles.cardMeta}>
-          <IconSymbol name="calendar" size={10} color={MidnightColors.slate400} />
-          <Text style={styles.cardDate}>{event.date}</Text>
+      <TouchableOpacity
+        style={styles.cardOpenArea}
+        activeOpacity={0.85}
+        onPress={() => router.push(`/events/${event.id}?mode=admin`)}
+      >
+        <ExpoImage
+          source={{ uri: event.coverImage }}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          transition={300}
+        />
+        <LinearGradient
+          colors={['transparent', 'rgba(2, 6, 23, 0.95)']}
+          style={styles.cardGradient}
+        />
+        <View style={styles.cardContent}>
+          <Text style={styles.cardTitle} numberOfLines={1}>{event.title}</Text>
+          <View style={styles.cardMeta}>
+            <IconSymbol name="calendar" size={10} color={MidnightColors.slate400} />
+            <Text style={styles.cardDate}>{event.date}</Text>
+          </View>
         </View>
-      </View>
+      </TouchableOpacity>
       <TouchableOpacity 
         style={styles.cardAction}
-        onPress={() => {
-          const isOwner = user?.uid === event.createdBy;
-          if (isOwner) {
-            Alert.alert(
-              'Event Options',
-              event.title,
-              [
-                { text: 'Manage Event', onPress: () => router.push(`/events/${event.id}?mode=admin`) },
-                { text: 'Photos', onPress: () => router.push({ pathname: `/events/${event.id}`, params: { tab: 'photos', mode: 'admin' } } as any) },
-                { text: 'Permissions', onPress: () => router.push({ pathname: `/events/${event.id}`, params: { tab: 'permissions', mode: 'admin' } } as any) },
-                { text: 'Share Event', onPress: () => router.push({ pathname: `/events/${event.id}`, params: { share: 'true', mode: 'admin' } } as any) },
-                { text: 'Cancel', style: 'cancel' }
-              ]
-            );
-          } else {
-            Alert.alert(
-              'Event Options',
-              event.title,
-              [
-                { text: 'View Details', onPress: () => router.push(`/events/${event.id}?mode=visitor`) },
-                { text: 'Cancel', style: 'cancel' }
-              ]
-            );
-          }
+        onPress={(pressEvent) => {
+          pressEvent.stopPropagation?.();
+          setTargetEvent(event);
+          setOptionsVisible(true);
         }}
       >
         <IconSymbol name="ellipsis" size={16} color={MidnightColors.gold} />
       </TouchableOpacity>
-    </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -304,11 +400,12 @@ export default function PortfolioTabScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={MidnightColors.gold} />}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* ── STORAGE STATS ── */}
+        {/* ── USAGE STATS ── */}
         <View style={styles.storageSection}>
+          {/* Storage Row */}
           <View style={styles.storageHeader}>
             <View>
-              <Text style={styles.storageLabel}>Your Storage</Text>
+              <Text style={styles.storageLabel}>Cloud Storage</Text>
               <Text style={styles.storageSub}>{(storageUsed / (1024 * 1024)).toFixed(1)} MB / 5 GB</Text>
             </View>
             <TouchableOpacity 
@@ -316,11 +413,34 @@ export default function PortfolioTabScreen() {
               onPress={() => router.push('/pricing' as any)}
             >
               <Text style={styles.upgradeText}>Upgrade</Text>
-              <IconSymbol name="arrow.up.right" size={10} color={MidnightColors.gold} />
+              <IconSymbol name={"arrow.up.right" as any} size={10} color={MidnightColors.gold} />
             </TouchableOpacity>
           </View>
           <View style={styles.storageBarContainer}>
             <View style={[styles.storageBar, { width: `${Math.min((storageUsed / (5 * 1024 * 1024 * 1024)) * 100, 100)}%` }]} />
+          </View>
+
+          <View style={{ height: 16 }} />
+
+          {/* Events Row */}
+          <View style={styles.storageHeader}>
+            <View>
+              <Text style={styles.storageLabel}>Event Limit</Text>
+              <Text style={styles.storageSub}>
+                {events.length} / {user?.role === 'premium' || user?.role === 'elite' ? '∞' : (user?.role === 'standard' ? '20' : (user?.role === 'basic' ? '5' : '2'))} Events
+              </Text>
+            </View>
+          </View>
+          <View style={styles.storageBarContainer}>
+            <View 
+              style={[
+                styles.storageBar, 
+                { 
+                  width: `${Math.min((events.length / (user?.role === 'standard' ? 20 : (user?.role === 'basic' ? 5 : (user?.role === 'premium' || user?.role === 'elite' ? events.length || 1 : 2)))) * 100, 100)}%`,
+                  backgroundColor: '#818cf8' 
+                }
+              ]} 
+            />
           </View>
         </View>
 
@@ -402,7 +522,7 @@ export default function PortfolioTabScreen() {
             {activeTab === 'requests' && (
               guestLogs.filter(l => l.status === 'pending').length === 0 ? (
                 <View style={styles.emptyState}>
-                  <IconSymbol name="checkmark.circle.fill" size={40} color="rgba(16, 185, 129, 0.2)" />
+                  <IconSymbol name={"checkmark.circle.fill" as any} size={40} color="rgba(16, 185, 129, 0.2)" />
                   <Text style={styles.emptyTitle}>All caught up!</Text>
                   <Text style={styles.emptyBody}>New access requests will appear here.</Text>
                 </View>
@@ -538,7 +658,7 @@ export default function PortfolioTabScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Join Event</Text>
               <TouchableOpacity onPress={() => { setShowJoinModal(false); setIsScanning(false); }}>
-                <IconSymbol name="xmark.circle.fill" size={24} color={MidnightColors.slate400} />
+                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
               </TouchableOpacity>
             </View>
 
@@ -603,11 +723,183 @@ export default function PortfolioTabScreen() {
                   style={styles.scanBtn} 
                   onPress={() => setIsScanning(true)}
                 >
-                  <IconSymbol name="qrcode.viewfinder" size={20} color={MidnightColors.gold} />
+                  <IconSymbol name={"qrcode.viewfinder" as any} size={20} color={MidnightColors.gold} />
                   <Text style={styles.scanBtnText}>Scan QR Code</Text>
                 </TouchableOpacity>
               </View>
             )}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── EVENT OPTIONS MODAL ── */}
+      <Modal visible={optionsVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={styles.modalBackdrop} 
+            activeOpacity={1} 
+            onPress={() => {
+              if (templateVisible) return;
+              setOptionsVisible(false);
+            }} 
+          />
+          <View style={[styles.modalContent, { paddingBottom: Platform.OS === 'ios' ? 40 : 24 }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>{templateVisible ? 'Choose Template' : targetEvent?.title}</Text>
+                <Text style={styles.headerGreeting}>{templateVisible ? '10 gallery themes' : 'Event Management'}</Text>
+              </View>
+              <TouchableOpacity onPress={() => {
+                setTemplateVisible(false);
+                setOptionsVisible(false);
+              }}>
+                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
+              </TouchableOpacity>
+            </View>
+
+            {templateVisible ? (
+              <ScrollView showsVerticalScrollIndicator={false} style={styles.templateModalContent}>
+                {MOBILE_TEMPLATE_THEMES.map((template, index) => (
+                  <TouchableOpacity
+                    key={template.id}
+                    style={[
+                      styles.templateOptionCard,
+                      { borderColor: (targetEvent?.templateId || 'hero') === template.id ? template.accent : 'rgba(255,255,255,0.08)' },
+                    ]}
+                    onPress={() => handleTemplateSelect(template.id)}
+                    activeOpacity={0.9}
+                  >
+                    <View style={[styles.templatePreview, { backgroundColor: template.background }]}>
+                      <LinearGradient colors={template.overlay as [string, string]} style={StyleSheet.absoluteFillObject} />
+                      <Text style={[styles.templatePreviewLabel, { color: template.accent }]}>Template {index + 1}</Text>
+                      <Text style={[styles.templatePreviewTitle, { color: template.text }]}>{template.label}</Text>
+                    </View>
+                    <View style={styles.templateMeta}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.templateName}>{template.label}</Text>
+                        <Text style={styles.templateDesc}>{template.desc}</Text>
+                      </View>
+                      {(targetEvent?.templateId || 'hero') === template.id && (
+                        <View style={[styles.templateCheck, { backgroundColor: template.accent }]}>
+                          <IconSymbol name="checkmark" size={14} color={template.background === '#000000' ? '#000000' : '#ffffff'} />
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={styles.optionsList}>
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setOptionsVisible(false);
+                    setEditTitle(targetEvent?.title || '');
+                    setRenameVisible(true);
+                  }}
+                >
+                  <IconSymbol name="pencil" size={20} color={MidnightColors.gold} />
+                  <Text style={styles.optionText}>Rename Event</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setOptionsVisible(false);
+                    router.push({ pathname: `/events/${targetEvent?.id}`, params: { tab: 'photos', mode: 'admin' } } as any);
+                  }}
+                >
+                  <IconSymbol name="photo.fill" size={20} color={MidnightColors.gold} />
+                  <Text style={styles.optionText}>Edit Photos</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => setTemplateVisible(true)}
+                >
+                  <IconSymbol name="paintbrush.fill" size={20} color={MidnightColors.gold} />
+                  <Text style={styles.optionText}>Change Template</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setOptionsVisible(false);
+                    if (targetEvent) handleVisitWebsite(targetEvent);
+                  }}
+                >
+                  <IconSymbol name="globe" size={20} color={MidnightColors.gold} />
+                  <Text style={styles.optionText}>Visit Website</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setOptionsVisible(false);
+                    if (targetEvent) handleShareLink(targetEvent);
+                  }}
+                >
+                  <IconSymbol name="square.and.arrow.up" size={20} color={MidnightColors.gold} />
+                  <Text style={styles.optionText}>Share Link</Text>
+                </TouchableOpacity>
+
+                <View style={styles.modalDivider} />
+
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setOptionsVisible(false);
+                    if (targetEvent) handleDeleteEvent(targetEvent);
+                  }}
+                >
+                  <IconSymbol name="trash.fill" size={20} color="#ef4444" />
+                  <Text style={[styles.optionText, { color: '#ef4444' }]}>Delete Event</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── RENAME MODAL ── */}
+      <Modal visible={renameVisible} transparent animationType="fade">
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity 
+            style={styles.modalBackdrop} 
+            activeOpacity={1} 
+            onPress={() => setRenameVisible(false)} 
+          />
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Rename Event</Text>
+              <TouchableOpacity onPress={() => setRenameVisible(false)}>
+                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.form}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>New Event Name</Text>
+                <TextInput 
+                  style={styles.input} 
+                  value={editTitle} 
+                  onChangeText={setEditTitle} 
+                  placeholder="Enter new name..." 
+                  placeholderTextColor={MidnightColors.slate700}
+                  autoFocus
+                />
+              </View>
+
+              <TouchableOpacity 
+                style={styles.submitBtn} 
+                onPress={handleRenameSubmit}
+              >
+                <Text style={styles.submitBtnText}>Update Name</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -627,7 +919,7 @@ export default function PortfolioTabScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New Event</Text>
               <TouchableOpacity onPress={() => setCreateModalVisible(false)}>
-                <IconSymbol name="xmark.circle.fill" size={24} color={MidnightColors.slate400} />
+                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
               </TouchableOpacity>
             </View>
             
@@ -679,6 +971,7 @@ export default function PortfolioTabScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: MidnightColors.background },
   container: { flex: 1 },
+  centered: { alignItems: 'center', justifyContent: 'center' },
   scrollContent: { paddingBottom: 40 },
   
   // Header
@@ -753,12 +1046,13 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: MidnightColors.cardBorder,
     marginBottom: 14,
   },
+  cardOpenArea: { ...StyleSheet.absoluteFillObject },
   cardGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%' },
   cardContent: { position: 'absolute', bottom: 14, left: 16, right: 16 },
   cardTitle: { fontSize: 16, color: '#fff', fontFamily: Fonts.outfit.bold, marginBottom: 4 },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   cardDate: { fontSize: 10, color: MidnightColors.slate400, fontFamily: Fonts.inter.medium },
-  cardAction: { position: 'absolute', top: 12, right: 12, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
+  cardAction: { position: 'absolute', top: 12, right: 12, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', zIndex: 5, elevation: 5 },
 
   // Empty State
   emptyState: { width: '100%', alignItems: 'center', paddingVertical: 80 },
@@ -793,6 +1087,7 @@ const styles = StyleSheet.create({
   ironCladWrapper: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
   premiumRequestModal: { width: width * 0.85, borderRadius: 32, padding: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   largeAvatar: { width: 80, height: 80, borderRadius: 40, overflow: 'hidden', marginBottom: 16 },
+  avatarGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   largeAvatarText: { color: MidnightColors.background, fontSize: 32, fontFamily: Fonts.outfit.extraBold },
   modalRequestTitle: { color: '#fff', fontSize: 22, fontFamily: Fonts.outfit.bold, textAlign: 'center' },
   modalRequestSub: { color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.inter.medium, marginTop: 4 },
@@ -906,4 +1201,67 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(212,175,55,0.05)' 
   },
   scanBtnText: { color: MidnightColors.gold, fontSize: 16, fontFamily: Fonts.outfit.bold },
+  
+  // Options List
+  optionsList: { gap: 4, marginTop: 8 },
+  optionItem: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 16, 
+    paddingVertical: 16, 
+    paddingHorizontal: 8,
+    borderRadius: 16,
+  },
+  optionText: { fontSize: 16, color: '#fff', fontFamily: Fonts.inter.medium },
+  templateModalContent: {
+    maxHeight: '82%',
+  },
+  templateOptionCard: {
+    borderWidth: 2,
+    borderRadius: 22,
+    overflow: 'hidden',
+    marginBottom: 16,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  templatePreview: {
+    height: 112,
+    justifyContent: 'flex-end',
+    padding: 16,
+    overflow: 'hidden',
+  },
+  templatePreviewLabel: {
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+  },
+  templatePreviewTitle: {
+    fontSize: 22,
+    fontFamily: Fonts.outfit.extraBold,
+    marginTop: 4,
+  },
+  templateMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 12,
+  },
+  templateName: {
+    color: '#fff',
+    fontSize: 15,
+    fontFamily: Fonts.outfit.bold,
+  },
+  templateDesc: {
+    color: MidnightColors.slate400,
+    fontSize: 12,
+    fontFamily: Fonts.inter.medium,
+    marginTop: 3,
+  },
+  templateCheck: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

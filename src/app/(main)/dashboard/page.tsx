@@ -260,11 +260,15 @@ function DashboardContent() {
             // We'll trust fetchUserEvents to handle data loading, this just sets the ID.
             const targetEvent = userEvents.find(e => e.id === eventIdParam);
             if (targetEvent) {
+                // Always set the selected event ID if we're in add-image mode or specifically on photos level
+                if (levelParam === "photos" || modeParam === "add-image") {
+                    setSelectedEventId(targetEvent.id);
+                    setSelectedEventName(targetEvent.title);
+                }
+
                 if (levelParam === "galleries") {
                     setSelectedMainEvent(targetEvent);
                 } else if (levelParam === "photos") {
-                    setSelectedEventId(targetEvent.id);
-                    setSelectedEventName(targetEvent.title);
                     // If it's a sub-event, we also need to set the Main Event parent
                     if (targetEvent.parentId) {
                         const parent = userEvents.find(e => e.id === targetEvent.parentId);
@@ -429,12 +433,27 @@ function DashboardContent() {
 
     const fetchEventPhotos = async () => {
         if (!selectedEventId) return;
-        const currentEvent = userEvents.find(e => e.id === selectedEventId);
+        
+        let currentEvent = userEvents.find(e => e.id === selectedEventId);
+        
+        // Robust fetch: Ensure we have the full event object (especially legacyId and createdBy)
+        // If we don't have it or it's missing the legacyId (common for migrated events in the list pool)
+        // we fetch it deeply from Firestore.
+        if (!currentEvent || (!currentEvent.legacyId && selectedEventId.includes("-"))) {
+            try {
+                const fetched = await getEventById(selectedEventId);
+                if (fetched) currentEvent = fetched;
+            } catch (err) {
+                console.error("[Dashboard] Error fetching event details for photos:", err);
+            }
+        }
 
         setLoadingPhotos(true);
         try {
             // 1. Fetch from Firestore CLIENT-SIDE (Respects permissions)
-            let photos = await getEventPhotos(selectedEventId, currentEvent?.legacyId);
+            // Use legacyId if available, fallback to selectedEventId
+            const legacyId = currentEvent?.legacyId;
+            let photos = await getEventPhotos(selectedEventId, legacyId);
 
             // 2. If Empty, trigger SERVER-SIDE Sync
             if (photos.length === 0) {
@@ -449,7 +468,7 @@ function DashboardContent() {
 
                 if (syncResult.success && (syncResult.count || 0) > 0) {
                     // Re-fetch on client after successful sync
-                    photos = await getEventPhotos(selectedEventId, currentEvent?.legacyId);
+                    photos = await getEventPhotos(selectedEventId, legacyId);
                     setMessage(`Sync success! ${syncResult.count || 0} photos restored. ✨`);
                     setStatus("success");
                     setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
@@ -1640,7 +1659,7 @@ function DashboardContent() {
                                     animate={{ opacity: 1, scale: 1 }}
                                     className="max-w-7xl mx-auto bg-white p-8 md:p-12 rounded-[2.5rem] shadow-xl border border-stone-100"
                                 >
-                                    <div className="flex items-center justify-between mb-8">
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-10">
                                         <div>
                                             <h3 className="text-3xl font-bold tracking-tight">Gallery Editor</h3>
                                             <p className="text-slate-700 font-sans mt-1">Managing memories for <span className="text-slate-900 font-bold underline decoration-royal-gold decoration-2 underline-offset-4">{selectedEventName}</span></p>

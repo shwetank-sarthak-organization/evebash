@@ -9,14 +9,28 @@ export default function ShortlistScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <IconSymbol name="chevron.left" size={24} color="#ffffff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Shortlist</Text>
-        <View style={{ width: 44 }} />
-      </View>
+    <View style={styles.container}>
+      <Stack.Screen options={{ 
+        headerShown: true, 
+        headerTransparent: true,
+        headerTitle: '',
+        headerTintColor: '#ffffff',
+        headerLeft: () => (
+          <TouchableOpacity 
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)/dashboard');
+              }
+            }}
+            style={styles.backBtn}
+            hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
+          >
+            <IconSymbol name="chevron.left" size={28} color="#ffffff" />
+          </TouchableOpacity>
+        ),
+      }} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.emptyContainer}>
@@ -35,7 +49,7 @@ export default function ShortlistScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

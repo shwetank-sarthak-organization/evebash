@@ -87,9 +87,9 @@ export default function DashboardScreen() {
           guestName, 
           guestId, 
           event.id, 
-          event.parentId || null, 
+          event.parentId || undefined,
           event.title || 'Untitled Event', 
-          event.createdBy || null,
+          event.createdBy || undefined,
           'pending'
         );
 
@@ -132,7 +132,13 @@ export default function DashboardScreen() {
   };
 
   const fetchData = async () => {
-    if (!user) return;
+    if (!user) {
+      setEvents([]);
+      setBusinesses([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     setLoading(true);
     try {
       const ownIdentifiers = [user.uid];
