@@ -165,7 +165,7 @@ export default function ExploreBusinessScreen() {
           </View>
         </View>
         <TouchableOpacity style={styles.iconBtn}>
-          <IconSymbol name="bell.fill" size={20} color="#d4af37" />
+          <IconSymbol name="bell.fill" size={20} color="#818cf8" />
         </TouchableOpacity>
       </View>
 
@@ -176,8 +176,8 @@ export default function ExploreBusinessScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#d4af37"
-            colors={["#d4af37"]}
+            tintColor="#818cf8"
+            colors={["#818cf8"]}
           />
         }
       >
@@ -234,7 +234,7 @@ export default function ExploreBusinessScreen() {
           onPress={() => router.push('/(tabs)/businesses')}
         >
           <LinearGradient
-            colors={['rgba(212, 175, 55, 0.95)', 'rgba(184, 134, 11, 1)']}
+            colors={['#4f46e5', '#3730a3']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.heroGradient}
@@ -247,13 +247,13 @@ export default function ExploreBusinessScreen() {
               <Text style={styles.heroSubtitle}>
                 Reach thousands of event organizers and grow your brand today.
               </Text>
-              <View style={styles.heroBtn}>
+              <View style={[styles.heroBtn, { backgroundColor: '#1e1b4b' }]}>
                 <Text style={styles.heroBtnText}>Get Started</Text>
                 <IconSymbol name="chevron.right" size={12} color="#ffffff" />
               </View>
             </View>
             <View style={styles.heroIconContainer}>
-              <IconSymbol name="briefcase.fill" size={80} color="rgba(255,255,255,0.2)" />
+              <IconSymbol name="briefcase.fill" size={60} color="rgba(255,255,255,0.15)" />
             </View>
           </LinearGradient>
         </TouchableOpacity>
@@ -554,11 +554,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    backgroundColor: 'rgba(129, 140, 248, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: 'rgba(129, 140, 248, 0.2)',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 16,
-    backgroundColor: '#d4af37',
+    backgroundColor: '#818cf8',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -609,8 +609,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   categoryChipActive: {
-    backgroundColor: '#d4af37',
-    borderColor: '#d4af37',
+    backgroundColor: '#818cf8',
+    borderColor: '#818cf8',
   },
   categoryText: {
     color: '#94a3b8',
@@ -622,17 +622,17 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     marginHorizontal: 24,
-    borderRadius: 24,
+    borderRadius: 20,
     overflow: 'hidden',
-    marginBottom: 32,
-    elevation: 8,
-    shadowColor: '#d4af37',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
+    marginBottom: 24,
+    elevation: 4,
+    shadowColor: '#818cf8',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
   },
   heroGradient: {
-    padding: 24,
+    padding: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -642,48 +642,48 @@ const styles = StyleSheet.create({
   },
   heroBadge: {
     backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
     alignSelf: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   heroBadgeText: {
     color: '#ffffff',
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: 'Outfit_800ExtraBold',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
   },
   heroTitle: {
     color: '#ffffff',
-    fontSize: 22,
+    fontSize: 18,
     fontFamily: 'Outfit_800ExtraBold',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   heroSubtitle: {
     color: 'rgba(255,255,255,0.8)',
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Inter_400Regular',
-    marginBottom: 16,
-    lineHeight: 20,
+    marginBottom: 12,
+    lineHeight: 16,
   },
   heroBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
     backgroundColor: '#0f172a',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
     alignSelf: 'flex-start',
   },
   heroBtnText: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },
   heroIconContainer: {
-    marginLeft: 12,
+    marginLeft: 8,
   },
   section: {
     marginBottom: 32,
@@ -702,7 +702,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   viewAllText: {
-    color: '#d4af37',
+    color: '#818cf8',
     fontSize: 14,
     fontFamily: 'Outfit_700Bold',
   },
@@ -736,10 +736,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 4,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(129, 140, 248, 0.3)',
   },
   featuredBadgeText: {
-    color: '#d4af37',
+    color: '#818cf8',
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },

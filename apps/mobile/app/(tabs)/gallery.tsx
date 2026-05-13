@@ -289,8 +289,8 @@ export default function PortfolioTabScreen() {
         style={styles.header}
       >
         <View>
-          <Text style={styles.headerGreeting}>Host Control</Text>
-          <Text style={styles.headerName}>Management</Text>
+          <Text style={styles.headerName}>Host Event</Text>
+          <Text style={styles.headerGreeting}>Management</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity style={[styles.createBtnHeader, { backgroundColor: MidnightColors.gold }]} onPress={() => setCreateModalVisible(true)}>

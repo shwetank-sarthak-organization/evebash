@@ -154,22 +154,31 @@ export default function YourEventsScreen() {
 
         {/* ── HOST CTA BANNER ── */}
         <TouchableOpacity 
-          style={styles.hostBanner}
+          style={styles.heroCard}
           activeOpacity={0.9}
           onPress={() => router.push('/(tabs)/gallery')}
         >
           <LinearGradient
-            colors={['rgba(212,175,55,0.15)', 'rgba(15,23,42,0.9)']}
-            style={styles.hostBannerGradient}
+            colors={['rgba(212,175,55,0.95)', 'rgba(184,134,11,1)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroGradient}
           >
-            <View style={styles.hostBannerContent}>
-              <View>
-                <Text style={styles.hostBannerTitle}>Host Your Own Event</Text>
-                <Text style={styles.hostBannerSub}>Create a private gallery for any occasion</Text>
+            <View style={styles.heroContent}>
+              <View style={styles.heroBadge}>
+                <Text style={styles.heroBadgeText}>FOR HOSTS</Text>
               </View>
-              <View style={styles.hostBannerBtn}>
-                <IconSymbol name="plus" size={16} color="#020617" />
+              <Text style={styles.heroTitle}>Host Your Own Event</Text>
+              <Text style={styles.heroSubtitle}>
+                Create a stunning private gallery for any occasion and collect memories.
+              </Text>
+              <View style={styles.heroBtn}>
+                <Text style={styles.heroBtnText}>Create Now</Text>
+                <IconSymbol name="plus" size={12} color="#ffffff" />
               </View>
+            </View>
+            <View style={styles.heroIconContainer}>
+              <IconSymbol name="calendar.badge.plus" size={60} color="rgba(255,255,255,0.2)" />
             </View>
           </LinearGradient>
         </TouchableOpacity>
@@ -263,40 +272,71 @@ const styles = StyleSheet.create({
   },
 
   // Host Banner
-  hostBanner: {
+  // Hero Banner Styles
+  heroCard: {
     marginHorizontal: 20,
-    marginBottom: 24,
-    borderRadius: 24,
+    borderRadius: 20,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.2)',
+    marginBottom: 24,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
   },
-  hostBannerGradient: {
-    padding: 20,
-  },
-  hostBannerContent: {
+  heroGradient: {
+    padding: 18,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
   },
-  hostBannerTitle: {
-    fontSize: 20,
-    color: '#fff',
+  heroContent: {
+    flex: 1,
+  },
+  heroBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  heroBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
     fontFamily: Fonts.outfit.extraBold,
-    marginBottom: 4,
+    letterSpacing: 0.8,
   },
-  hostBannerSub: {
-    fontSize: 13,
-    color: MidnightColors.slate400,
+  heroTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontFamily: Fonts.outfit.extraBold,
+    marginBottom: 2,
+  },
+  heroSubtitle: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
     fontFamily: Fonts.inter.regular,
+    marginBottom: 12,
+    lineHeight: 16,
   },
-  hostBannerBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: MidnightColors.gold,
+  heroBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: '#020617',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  heroBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontFamily: Fonts.outfit.bold,
+  },
+  heroIconContainer: {
+    marginLeft: 8,
   },
 
   // Search & Filter

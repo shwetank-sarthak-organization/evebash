@@ -396,76 +396,66 @@ export default function DashboardScreen() {
               </LinearGradient>
 
               {/* ── SECTION 3: HOST AN EVENT ── */}
-              <LinearGradient 
-                colors={['#0f172a', '#1e293b']}
-                style={[styles.ctaSection, { paddingTop: 40 }]}
+              <TouchableOpacity 
+                activeOpacity={0.9} 
+                style={styles.heroCard}
+                onPress={() => router.push('/(tabs)/gallery')}
               >
-                <View style={styles.ctaHeaderRow}>
-                  <View style={[styles.ctaIcon, { backgroundColor: 'rgba(212,175,55,0.1)', borderColor: 'rgba(212,175,55,0.2)' }]}>
-                    <CakeIcon size={18} color="#d4af37" strokeWidth={1.8} />
+                <LinearGradient
+                  colors={['rgba(212, 175, 55, 0.95)', 'rgba(184, 134, 11, 1)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.heroGradient}
+                >
+                  <View style={styles.heroContent}>
+                    <View style={styles.heroBadge}>
+                      <Text style={styles.heroBadgeText}>FOR HOSTS</Text>
+                    </View>
+                    <Text style={styles.heroTitle}>Host an Event</Text>
+                    <Text style={styles.heroSubtitle}>
+                      Create a stunning private gallery for weddings, parties or corporate meets.
+                    </Text>
+                    <View style={styles.heroBtn}>
+                      <Text style={styles.heroBtnText}>Create Now</Text>
+                      <IconSymbol name="chevron.right" size={12} color="#ffffff" />
+                    </View>
                   </View>
-                  <Text style={styles.ctaTitle}>Host an Event</Text>
-                </View>
-                <Text style={styles.ctaBody}>
-                  From weddings and birthdays to sports tournaments and corporate meets. Create a stunning gallery for any occasion.
-                </Text>
-                <View style={styles.ctaActionsRow}>
-                  <TouchableOpacity
-                    style={styles.ctaBtnGold}
-                    activeOpacity={0.85}
-                    onPress={() => router.push('/(tabs)/gallery')}
-                  >
-                    <Text style={styles.ctaBtnGoldText}>Create Event</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.ctaBtnOutline}
-                    activeOpacity={0.7}
-                    onPress={() => setInfoModal({
-                      visible: true,
-                      title: 'Host Any Event',
-                      content: 'Whether it is a wedding, a birthday party, a corporate summit, or a football tournament, you can create private galleries to collect and share photos from every participant seamlessly.'
-                    })}
-                  >
-                    <Text style={[styles.ctaBtnOutlineText, { color: '#d4af37' }]}>Learn More</Text>
-                  </TouchableOpacity>
-                </View>
-              </LinearGradient>
+                  <View style={styles.heroIconContainer}>
+                    <IconSymbol name="calendar.badge.plus" size={60} color="rgba(255,255,255,0.2)" />
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
 
-              {/* ── SECTION 4: EXPAND BUSINESS (Liquid Transition S3 -> S4) ── */}
-              <LinearGradient 
-                colors={['#1e293b', '#111827']}
-                style={[styles.ctaSection, { paddingBottom: 80, paddingTop: 40 }]}
+              {/* ── SECTION 4: EXPAND BUSINESS ── */}
+              <TouchableOpacity 
+                activeOpacity={0.9} 
+                style={[styles.heroCard, { marginBottom: 80 }]}
+                onPress={() => router.push('/manage-business')}
               >
-                <View style={styles.ctaHeaderRow}>
-                  <View style={[styles.ctaIcon, { backgroundColor: 'rgba(99,102,241,0.1)', borderColor: 'rgba(99,102,241,0.2)' }]}>
-                    <HandshakeIcon size={18} color="#818cf8" strokeWidth={1.8} />
+                <LinearGradient
+                  colors={['#4f46e5', '#3730a3']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.heroGradient}
+                >
+                  <View style={styles.heroContent}>
+                    <View style={[styles.heroBadge, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
+                      <Text style={styles.heroBadgeText}>FOR PARTNERS</Text>
+                    </View>
+                    <Text style={styles.heroTitle}>Expand Your Business</Text>
+                    <Text style={styles.heroSubtitle}>
+                      Promote your brand and reach thousands of local event organizers.
+                    </Text>
+                    <View style={[styles.heroBtn, { backgroundColor: '#1e1b4b' }]}>
+                      <Text style={styles.heroBtnText}>Manage Hub</Text>
+                      <IconSymbol name="chevron.right" size={12} color="#ffffff" />
+                    </View>
                   </View>
-                  <Text style={styles.ctaTitle}>Expand Your Business</Text>
-                </View>
-                <Text style={styles.ctaBody}>
-                  Promote your brand with stunning photos, real-time announcements, and exclusive offers for your local community.
-                </Text>
-                <View style={styles.ctaActionsRow}>
-                  <TouchableOpacity
-                    style={[styles.ctaBtnGold, { backgroundColor: '#818cf8' }]}
-                    activeOpacity={0.85}
-                    onPress={() => router.push('/manage-business')}
-                  >
-                    <Text style={[styles.ctaBtnGoldText, { color: '#fff' }]}>Manage Business</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.ctaBtnOutline}
-                    activeOpacity={0.7}
-                    onPress={() => setInfoModal({
-                      visible: true,
-                      title: 'Promote Your Brand',
-                      content: 'Use our business suite to share high-quality photos of your products, post real-time updates and announcements, and attract new customers with exclusive offers and neighborhood deals.'
-                    })}
-                  >
-                    <Text style={[styles.ctaBtnOutlineText, { color: '#818cf8' }]}>Learn More</Text>
-                  </TouchableOpacity>
-                </View>
-              </LinearGradient>
+                  <View style={styles.heroIconContainer}>
+                    <IconSymbol name="briefcase.fill" size={60} color="rgba(255,255,255,0.15)" />
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
 
               {/* ── INFO MODAL ── */}
               <Modal
@@ -747,31 +737,72 @@ const styles = StyleSheet.create({
   hairline: { marginHorizontal: 24, height: 1, backgroundColor: '#0f172a' },
 
   // ── CTA ──
-  ctaSection: { paddingHorizontal: 24, paddingTop: 28, paddingBottom: 28 },
-  ctaHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 14 },
-  ctaIcon: {
-    width: 44, height: 44, borderRadius: 14,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1,
+  // Hero Banner Styles
+  heroCard: {
+    marginHorizontal: 24,
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 24,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
   },
-  ctaTitle: { fontSize: 22, color: '#f1f5f9', fontFamily: 'Outfit_800ExtraBold', letterSpacing: -0.3 },
-  ctaBody: { fontSize: 14, color: '#94a3b8', fontFamily: 'Inter_400Regular', lineHeight: 22, marginTop: 6 },
-  ctaActionsRow: { flexDirection: 'row', gap: 12, marginTop: 18 },
-  ctaBtnGold: {
+  heroGradient: {
+    padding: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  heroContent: {
     flex: 1,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#d4af37',
-    paddingVertical: 12, borderRadius: 12,
   },
-  ctaBtnGoldText: { fontSize: 14, fontFamily: 'Outfit_800ExtraBold', color: '#0f172a', textTransform: 'uppercase', letterSpacing: 0.5 },
-  ctaBtnOutline: {
-    flex: 1,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    paddingVertical: 12, borderRadius: 12,
-    borderWidth: 1, borderColor: '#1e293b',
+  heroBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
   },
-  ctaBtnOutlineText: { fontSize: 14, fontFamily: 'Outfit_700Bold', color: '#94a3b8' },
+  heroBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontFamily: 'Outfit_800ExtraBold',
+    letterSpacing: 0.8,
+  },
+  heroTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontFamily: 'Outfit_800ExtraBold',
+    marginBottom: 2,
+  },
+  heroSubtitle: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    marginBottom: 12,
+    lineHeight: 16,
+  },
+  heroBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#0f172a',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  heroBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontFamily: 'Outfit_700Bold',
+  },
+  heroIconContainer: {
+    marginLeft: 8,
+  },
 
   // ── Modal Styles ──
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(2, 6, 23, 0.9)', justifyContent: 'center', alignItems: 'center', padding: 24 },

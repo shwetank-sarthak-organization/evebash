@@ -162,6 +162,25 @@ export default function BusinessLandingScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* ── HEADER ── */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <View>
+            <Text style={styles.headerTitle}>Biz Hub</Text>
+            <Text style={styles.headerSubtitle}>Manage & Grow your empire.</Text>
+          </View>
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={styles.newBizBtn} 
+            onPress={() => setShowListingForm(true)}
+          >
+            <IconSymbol name="plus" size={14} color="#0f172a" />
+            <Text style={styles.newBizBtnText}>New Business</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
         {/* ── YOUR BUSINESSES SECTION ── */}
@@ -194,36 +213,38 @@ export default function BusinessLandingScreen() {
         )}
 
         {/* ── HERO SECTION ── */}
-        <View style={styles.heroSection}>
-          <LinearGradient
-            colors={['#0f172a', '#020617']}
-            style={styles.heroGradient}
-          >
-            <View style={styles.heroBadge}>
-              <IconSymbol name="briefcase.fill" size={14} color="#d4af37" />
-              <Text style={styles.heroBadgeText}>PARTNER HUB</Text>
-            </View>
-            <Text style={styles.heroTitle}>Grow Your Business</Text>
-            <Text style={styles.heroSubtitle}>
-              Connect with event organizers, showcase your premium portfolio, and track your growth with elite analytics.
-            </Text>
-            
-            <View style={styles.heroActions}>
-              <TouchableOpacity 
-                style={styles.primaryBtn} 
-                onPress={() => setShowListingForm(true)}
-              >
-                <LinearGradient
-                  colors={['#d4af37', '#b8860b']}
-                  style={styles.btnGradient}
+        {!fetchingBusinesses && userBusinesses.length === 0 && (
+          <View style={styles.heroSection}>
+            <LinearGradient
+              colors={['#0f172a', '#020617']}
+              style={styles.heroGradient}
+            >
+              <View style={styles.heroBadge}>
+                <IconSymbol name="briefcase.fill" size={14} color="#d4af37" />
+                <Text style={styles.heroBadgeText}>PARTNER HUB</Text>
+              </View>
+              <Text style={styles.heroTitle}>Grow Your Business</Text>
+              <Text style={styles.heroSubtitle}>
+                Connect with event organizers, showcase your premium portfolio, and track your growth with elite analytics.
+              </Text>
+              
+              <View style={styles.heroActions}>
+                <TouchableOpacity 
+                  style={styles.primaryBtn} 
+                  onPress={() => setShowListingForm(true)}
                 >
-                  <Text style={styles.primaryBtnText}>List New Business</Text>
-                  <IconSymbol name="plus" size={18} color="#0f172a" />
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </LinearGradient>
-        </View>
+                  <LinearGradient
+                    colors={['#d4af37', '#b8860b']}
+                    style={styles.btnGradient}
+                  >
+                    <Text style={styles.primaryBtnText}>List New Business</Text>
+                    <IconSymbol name="plus" size={18} color="#0f172a" />
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </View>
+        )}
 
         {/* ── BENEFITS SECTION ── */}
         <View style={styles.section}>
@@ -399,6 +420,64 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     marginBottom: 40,
+    marginTop: 10,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  newBizBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#d4af37',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    gap: 6,
+    shadowColor: '#d4af37',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  newBizBtnText: {
+    color: '#0f172a',
+    fontSize: 12,
+    fontFamily: 'Outfit_700Bold',
+  },
+  headerTitle: {
+    fontSize: 28,
+    color: '#ffffff',
+    fontFamily: 'Outfit_800ExtraBold',
+    marginTop: -2,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#94a3b8',
+    fontFamily: 'Inter_500Medium',
+  },
+  iconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.2)',
   },
   heroGradient: {
     padding: 32,
