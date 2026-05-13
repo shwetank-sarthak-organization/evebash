@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,14 +11,21 @@ import {
   KeyboardAvoidingView,
   Platform,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
+import * as Location from 'expo-location';
+import { useAuth } from '@/context/AuthContext';
+import { createBusiness, getUserBusinesses, Business } from '@/lib/firestore';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
+
+const BUSINESS_TYPES = ['Photography', 'Catering', 'Venues', 'Decoration', 'Music', 'Makeup', 'Event Planning'];
+const EVENT_TAGS = ['Wedding', 'Birthdays', 'Sports', 'Corporate', 'Cultural', 'Private'];
 
 const BENEFITS = [
   { id: '1', title: 'Reach Event Organizers', desc: 'Connect with professionals planning sports tournaments, corporate meets, and celebrations.', icon: 'person.2.fill' },
@@ -28,11 +35,164 @@ const BENEFITS = [
 
 export default function BusinessLandingScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  
   const [showListingForm, setShowListingForm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [fetchingBusinesses, setFetchingBusinesses] = useState(true);
+  const [userBusinesses, setUserBusinesses] = useState<Business[]>([]);
+
+  // Form State
+  const [name, setName] = useState('');
+  const [ownerName, setOwnerName] = useState(user?.displayName || '');
+  const [ownerEmail, setOwnerEmail] = useState(user?.email || '');
+  const [ownerPhone, setOwnerPhone] = useState(user?.phoneNumber || '');
+  const [businessType, setBusinessType] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [location, setLocation] = useState<{latitude: number, longitude: number} | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+  
+  // New profile fields
+  const [description, setDescription] = useState('');
+  const [experience, setExperience] = useState('');
+  const [eventsHosted, setEventsHosted] = useState('');
+
+  useEffect(() => {
+    fetchUserBusinesses();
+  }, [user]);
+
+  const fetchUserBusinesses = async () => {
+    if (!user) return;
+    setFetchingBusinesses(true);
+    try {
+      const biz = await getUserBusinesses(user.uid);
+      setUserBusinesses(biz);
+    } catch (error) {
+      console.error('Error fetching businesses:', error);
+    } finally {
+      setFetchingBusinesses(false);
+    }
+  };
+
+  const handleGetLocation = async () => {
+    setIsLocating(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission denied', 'Location permission is required to pinpoint your business.');
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({});
+      setLocation({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Could not fetch your location.');
+    } finally {
+      setIsLocating(false);
+    }
+  };
+
+  const toggleTag = (tag: string) => {
+    if (selectedTags.includes(tag)) {
+      setSelectedTags(selectedTags.filter(t => t !== tag));
+    } else {
+      setSelectedTags([...selectedTags, tag]);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!name || !ownerName || !ownerEmail || !ownerPhone || !businessType || !location) {
+      Alert.alert('Missing Info', 'Please fill in all basic fields and pinpoint your location.');
+      return;
+    }
+
+    if (!user) {
+      Alert.alert('Auth Required', 'Please login to create a business.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const businessData: Omit<Business, 'id' | 'createdAt'> = {
+        name,
+        ownerName,
+        ownerEmail,
+        ownerPhone,
+        type: businessType,
+        tags: selectedTags,
+        location: {
+          latitude: location.latitude,
+          longitude: location.longitude,
+        },
+        description,
+        experience: parseInt(experience) || 0,
+        eventsHosted: parseInt(eventsHosted) || 0,
+        rating: 0,
+        coverImage: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=800', // Default image
+        createdBy: user.uid,
+        status: 'created',
+      };
+
+      const result = await createBusiness(businessData);
+      if (result) {
+        Alert.alert('Success', 'Your business has been created! You can now manage it from the Partner Hub.');
+        setShowListingForm(false);
+        // Reset form
+        setName('');
+        setBusinessType('');
+        setSelectedTags([]);
+        setLocation(null);
+        setDescription('');
+        setExperience('');
+        setEventsHosted('');
+        // Refresh list
+        fetchUserBusinesses();
+      } else {
+        Alert.alert('Error', 'Failed to create business. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error creating business:', error);
+      Alert.alert('Error', 'An unexpected error occurred.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        
+        {/* ── YOUR BUSINESSES SECTION ── */}
+        {fetchingBusinesses ? (
+          <View style={[styles.section, { alignItems: 'center' }]}>
+            <ActivityIndicator color="#d4af37" />
+          </View>
+        ) : userBusinesses.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Your Businesses</Text>
+            {userBusinesses.map((biz) => (
+              <TouchableOpacity 
+                key={biz.id} 
+                style={styles.bizManageCard}
+                onPress={() => router.push({ pathname: '/manage-business', params: { id: biz.id } })}
+              >
+                <ExpoImage source={{ uri: biz.coverImage }} style={styles.bizManageImage} contentFit="cover" />
+                <View style={styles.bizManageInfo}>
+                  <Text style={styles.bizManageName}>{biz.name}</Text>
+                  <Text style={styles.bizManageType}>{biz.type}</Text>
+                  <View style={styles.statusBadge}>
+                    <View style={[styles.statusDot, { backgroundColor: biz.status === 'published' ? '#22c55e' : '#f59e0b' }]} />
+                    <Text style={styles.statusText}>{biz.status.toUpperCase()}</Text>
+                  </View>
+                </View>
+                <IconSymbol name="chevron.right" size={20} color="#475569" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         {/* ── HERO SECTION ── */}
         <View style={styles.heroSection}>
           <LinearGradient
@@ -41,11 +201,11 @@ export default function BusinessLandingScreen() {
           >
             <View style={styles.heroBadge}>
               <IconSymbol name="briefcase.fill" size={14} color="#d4af37" />
-              <Text style={styles.heroBadgeText}>FOR BUSINESS OWNERS</Text>
+              <Text style={styles.heroBadgeText}>PARTNER HUB</Text>
             </View>
-            <Text style={styles.heroTitle}>Partner Hub</Text>
+            <Text style={styles.heroTitle}>Grow Your Business</Text>
             <Text style={styles.heroSubtitle}>
-              The premium platform for event professionals to showcase their work and find organizers for any occasion.
+              Connect with event organizers, showcase your premium portfolio, and track your growth with elite analytics.
             </Text>
             
             <View style={styles.heroActions}>
@@ -57,16 +217,9 @@ export default function BusinessLandingScreen() {
                   colors={['#d4af37', '#b8860b']}
                   style={styles.btnGradient}
                 >
-                  <Text style={styles.primaryBtnText}>Start Your Business</Text>
-                  <IconSymbol name="chevron.right" size={16} color="#0f172a" />
+                  <Text style={styles.primaryBtnText}>List New Business</Text>
+                  <IconSymbol name="plus" size={18} color="#0f172a" />
                 </LinearGradient>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.secondaryBtn}
-                onPress={() => router.push('/manage-business')}
-              >
-                <Text style={styles.secondaryBtnText}>Already have one? Manage Now</Text>
               </TouchableOpacity>
             </View>
           </LinearGradient>
@@ -74,7 +227,7 @@ export default function BusinessLandingScreen() {
 
         {/* ── BENEFITS SECTION ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Why Join Us?</Text>
+          <Text style={styles.sectionTitle}>Why Partner With Us?</Text>
           <View style={styles.benefitsGrid}>
             {BENEFITS.map((benefit) => (
               <View key={benefit.id} style={styles.benefitCard}>
@@ -88,28 +241,9 @@ export default function BusinessLandingScreen() {
           </View>
         </View>
 
-        {/* ── CTA CARD ── */}
-        <View style={styles.ctaCardContainer}>
-          <LinearGradient
-            colors={['#1e293b', '#0f172a']}
-            style={styles.ctaCard}
-          >
-            <IconSymbol name="sparkles" size={40} color="#d4af37" />
-            <Text style={styles.ctaCardTitle}>Ready to Shine?</Text>
-            <Text style={styles.ctaCardSubtitle}>
-              It only takes 2 minutes to list your business and start reaching event organizers.
-            </Text>
-            <TouchableOpacity 
-              style={styles.ctaCardBtn}
-              onPress={() => setShowListingForm(true)}
-            >
-              <Text style={styles.ctaCardBtnText}>Create Listing Now</Text>
-            </TouchableOpacity>
-          </LinearGradient>
-        </View>
       </ScrollView>
 
-      {/* ── CREATE BUSINESS MODAL (Re-using the form logic) ── */}
+      {/* ── CREATE BUSINESS MODAL ── */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -122,28 +256,131 @@ export default function BusinessLandingScreen() {
             style={styles.formContainer}
           >
             <View style={styles.formHeader}>
-              <Text style={styles.formTitle}>List Your Business</Text>
+              <Text style={styles.formTitle}>Business Details</Text>
               <TouchableOpacity onPress={() => setShowListingForm(false)}>
                 <IconSymbol name="xmark" size={24} color="#94a3b8" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.formBody}>
-              <Text style={styles.inputLabel}>Business Name</Text>
-              <TextInput style={styles.formInput} placeholder="e.g. Royal Photography" placeholderTextColor="#475569" />
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.formBody}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Business Name *</Text>
+                <TextInput 
+                  style={styles.formInput} 
+                  placeholder="e.g. Royal Photography" 
+                  placeholderTextColor="#475569"
+                  value={name}
+                  onChangeText={setName}
+                />
+              </View>
 
-              <Text style={styles.inputLabel}>Category</Text>
-              <TextInput style={styles.formInput} placeholder="e.g. Photography, Venue..." placeholderTextColor="#475569" />
+              <View style={styles.row}>
+                <View style={[styles.inputGroup, { flex: 1 }]}>
+                  <Text style={styles.inputLabel}>Email *</Text>
+                  <TextInput 
+                    style={styles.formInput} 
+                    placeholder="email@example.com" 
+                    placeholderTextColor="#475569"
+                    value={ownerEmail}
+                    onChangeText={setOwnerEmail}
+                    keyboardType="email-address"
+                  />
+                </View>
+                <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
+                  <Text style={styles.inputLabel}>Phone *</Text>
+                  <TextInput 
+                    style={styles.formInput} 
+                    placeholder="+91..." 
+                    placeholderTextColor="#475569"
+                    value={ownerPhone}
+                    onChangeText={setOwnerPhone}
+                    keyboardType="phone-pad"
+                  />
+                </View>
+              </View>
 
-              <Text style={styles.inputLabel}>Phone Number</Text>
-              <TextInput style={styles.formInput} placeholder="+91 98765 43210" placeholderTextColor="#475569" keyboardType="phone-pad" />
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Business Type *</Text>
+                <View style={styles.typeGrid}>
+                  {BUSINESS_TYPES.map(type => (
+                    <TouchableOpacity 
+                      key={type} 
+                      style={[styles.typeChip, businessType === type && styles.typeChipActive]}
+                      onPress={() => setBusinessType(type)}
+                    >
+                      <Text style={[styles.typeChipText, businessType === type && styles.typeChipTextActive]}>{type}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
 
-              <TouchableOpacity style={styles.submitFormBtn} onPress={() => {
-                setShowListingForm(false);
-                Alert.alert("Success", "Your business listing has been submitted!");
-              }}>
-                <Text style={styles.submitFormText}>Create Business</Text>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Experience & Reach</Text>
+                <View style={styles.row}>
+                  <TextInput 
+                    style={[styles.formInput, { flex: 1, marginRight: 6 }]} 
+                    placeholder="Years Exp." 
+                    placeholderTextColor="#475569"
+                    value={experience}
+                    onChangeText={setExperience}
+                    keyboardType="numeric"
+                  />
+                  <TextInput 
+                    style={[styles.formInput, { flex: 1, marginLeft: 6 }]} 
+                    placeholder="Events Done" 
+                    placeholderTextColor="#475569"
+                    value={eventsHosted}
+                    onChangeText={setEventsHosted}
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>About Business</Text>
+                <TextInput 
+                  style={[styles.formInput, { height: 80, textAlignVertical: 'top' }]} 
+                  placeholder="Short description of your services..." 
+                  placeholderTextColor="#475569"
+                  multiline
+                  value={description}
+                  onChangeText={setDescription}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Pinpoint Location *</Text>
+                <TouchableOpacity 
+                  style={[styles.locationBtn, location && styles.locationBtnActive]} 
+                  onPress={handleGetLocation}
+                  disabled={isLocating}
+                >
+                  {isLocating ? (
+                    <ActivityIndicator size="small" color="#d4af37" />
+                  ) : (
+                    <>
+                      <IconSymbol name="location.fill" size={18} color={location ? "#0f172a" : "#d4af37"} />
+                      <Text style={[styles.locationBtnText, location && styles.locationBtnTextActive]}>
+                        {location ? 'Location Captured' : 'Use Current GPS'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity 
+                style={[styles.submitFormBtn, loading && styles.submitBtnDisabled]} 
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#0f172a" />
+                ) : (
+                  <Text style={styles.submitFormText}>Create Business</Text>
+                )}
               </TouchableOpacity>
+              
+              <View style={{ height: 40 }} />
             </ScrollView>
           </KeyboardAvoidingView>
         </View>
@@ -226,28 +463,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Outfit_800ExtraBold',
   },
-  secondaryBtn: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  secondaryBtnText: {
-    color: '#64748b',
-    fontSize: 14,
-    fontFamily: 'Outfit_700Bold',
-    textDecorationLine: 'underline',
-  },
   section: {
     paddingHorizontal: 24,
-    marginBottom: 40,
+    marginVertical: 24,
   },
   sectionTitle: {
-    fontSize: 24,
+    fontSize: 22,
     color: '#ffffff',
     fontFamily: 'Outfit_800ExtraBold',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   benefitsGrid: {
-    gap: 20,
+    gap: 16,
   },
   benefitCard: {
     backgroundColor: '#0f172a',
@@ -277,40 +504,52 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     lineHeight: 20,
   },
-  ctaCardContainer: {
-    paddingHorizontal: 24,
-  },
-  ctaCard: {
-    padding: 32,
-    borderRadius: 32,
+  bizManageCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 24,
+    padding: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    marginBottom: 16,
   },
-  ctaCardTitle: {
-    fontSize: 28,
-    color: '#ffffff',
-    fontFamily: 'Outfit_800ExtraBold',
-  },
-  ctaCardSubtitle: {
-    fontSize: 15,
-    color: '#94a3b8',
-    fontFamily: 'Inter_400Regular',
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 8,
-  },
-  ctaCardBtn: {
-    backgroundColor: '#d4af37',
-    paddingHorizontal: 32,
-    paddingVertical: 16,
+  bizManageImage: {
+    width: 64,
+    height: 64,
     borderRadius: 16,
   },
-  ctaCardBtnText: {
-    color: '#0f172a',
-    fontSize: 16,
-    fontFamily: 'Outfit_800ExtraBold',
+  bizManageInfo: {
+    flex: 1,
+    marginLeft: 16,
   },
-  // ── Form Modal Styles ──
+  bizManageName: {
+    fontSize: 18,
+    color: '#ffffff',
+    fontFamily: 'Outfit_700Bold',
+  },
+  bizManageType: {
+    fontSize: 14,
+    color: '#94a3b8',
+    fontFamily: 'Inter_400Regular',
+    marginBottom: 4,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 10,
+    color: '#64748b',
+    fontFamily: 'Outfit_800ExtraBold',
+    letterSpacing: 0.5,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(2, 6, 23, 0.9)',
@@ -320,7 +559,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    height: '70%',
+    maxHeight: '90%',
     padding: 24,
   },
   formHeader: {
@@ -335,7 +574,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_800ExtraBold',
   },
   formBody: {
-    gap: 16,
+    gap: 20,
+  },
+  row: {
+    flexDirection: 'row',
+  },
+  inputGroup: {
+    gap: 8,
   },
   inputLabel: {
     fontSize: 14,
@@ -344,12 +589,61 @@ const styles = StyleSheet.create({
   },
   formInput: {
     backgroundColor: '#020617',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     color: '#ffffff',
     fontFamily: 'Inter_400Regular',
     borderWidth: 1,
     borderColor: '#1e293b',
+  },
+  typeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  typeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#020617',
+    borderWidth: 1,
+    borderColor: '#1e293b',
+  },
+  typeChipActive: {
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    borderColor: '#d4af37',
+  },
+  typeChipText: {
+    color: '#64748b',
+    fontSize: 13,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  typeChipTextActive: {
+    color: '#d4af37',
+  },
+  locationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(212, 175, 55, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderStyle: 'dashed',
+    paddingVertical: 16,
+    borderRadius: 16,
+  },
+  locationBtnActive: {
+    backgroundColor: '#d4af37',
+    borderStyle: 'solid',
+    borderColor: '#d4af37',
+  },
+  locationBtnText: {
+    color: '#d4af37',
+    fontFamily: 'Outfit_700Bold',
+  },
+  locationBtnTextActive: {
+    color: '#0f172a',
   },
   submitFormBtn: {
     backgroundColor: '#d4af37',
@@ -357,6 +651,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     marginTop: 10,
+    shadowColor: '#d4af37',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+  },
+  submitBtnDisabled: {
+    opacity: 0.7,
   },
   submitFormText: {
     color: '#0f172a',

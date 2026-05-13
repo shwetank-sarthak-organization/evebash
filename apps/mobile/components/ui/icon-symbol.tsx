@@ -45,6 +45,7 @@ const MAPPING = {
   'briefcase.fill': 'business-center',
   'lock.fill': 'lock',
   'theatermasks.fill': 'theater-comedy',
+  'checkmark.seal.fill': 'verified',
 } as const;
 
 type IconSymbolName = keyof typeof MAPPING;

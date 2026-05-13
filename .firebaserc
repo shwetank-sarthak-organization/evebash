@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "development": "wedding-album-70296"
+  },
   "targets": {},
   "etags": {}
 }

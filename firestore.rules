@@ -92,7 +92,7 @@ service cloud.firestore {
 
     // --- BUSINESS RULES ---
     match /businesses/{bizId} {
-      allow get, list: if isAuthenticated();
+      allow read: if true;
       allow create, update, delete: if isAuthenticated() && (
         isKnownAdmin() || 
         isAdmin() || 

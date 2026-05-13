@@ -293,9 +293,6 @@ export default function PortfolioTabScreen() {
           <Text style={styles.headerName}>Management</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity style={styles.createBtnHeader} onPress={() => setShowJoinModal(true)}>
-            <Text style={styles.createBtnText}>Join</Text>
-          </TouchableOpacity>
           <TouchableOpacity style={[styles.createBtnHeader, { backgroundColor: MidnightColors.gold }]} onPress={() => setCreateModalVisible(true)}>
             <Text style={[styles.createBtnText, { color: MidnightColors.background }]}>Create</Text>
           </TouchableOpacity>

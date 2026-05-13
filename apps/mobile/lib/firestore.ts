@@ -52,14 +52,29 @@ export interface Photo {
 export interface Business {
     id: string;
     name: string;
+    ownerName: string;
+    ownerEmail: string;
+    ownerPhone: string;
     type: string;
-    rating: string;
+    tags: string[];
+    location: {
+        latitude: number;
+        longitude: number;
+        address?: string;
+    };
+    rating: number;
     coverImage: string;
+    coverImages?: string[];
     createdBy: string;
     admins?: string[];
     allowedUsers?: string[];
-    address?: string;
     description?: string;
+    experience?: number;
+    eventsHosted?: number;
+    services?: string[];
+    faqs?: { q: string; a: string }[];
+    status: 'created' | 'published';
+    announcements?: string[];
     createdAt?: any;
 }
 
@@ -738,4 +753,73 @@ export async function getEventByJoinId(joinId: string): Promise<Event | null> {
         console.error("Error fetching event by joinId:", error);
         return null;
     }
+}
+
+export async function createBusiness(businessData: Omit<Business, 'id' | 'createdAt'>) {
+  try {
+    const docRef = await addDoc(collection(db, 'businesses'), {
+      ...businessData,
+      createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+  } catch (e) {
+    console.error("Error adding business: ", e);
+    return null;
+  }
+}
+
+export async function getBusinessById(id: string): Promise<Business | null> {
+  try {
+    const docRef = doc(db, 'businesses', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return { ...docSnap.data(), id: docSnap.id } as Business;
+    }
+    return null;
+  } catch (e) {
+    console.error("Error fetching business by ID:", e);
+    return null;
+  }
+}
+
+export async function updateBusiness(bizId: string, data: Partial<Business>): Promise<boolean> {
+  try {
+    const bizRef = doc(db, 'businesses', bizId);
+    await updateDoc(bizRef, data);
+    return true;
+  } catch (e) {
+    console.error("Error updating business: ", e);
+    return false;
+  }
+}
+
+export async function getTopRatedBusinesses(limitCount: number = 10): Promise<Business[]> {
+    try {
+      const bizCol = collection(db, 'businesses');
+      const q = query(
+        bizCol, 
+        where('status', '==', 'published'),
+        orderBy('rating', 'desc'), 
+        limit(limitCount)
+      );
+      const bizSnapshot = await getDocs(q);
+      return bizSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Business));
+    } catch (e) {
+      console.error("Error fetching top rated businesses:", e);
+      return [];
+    }
+}
+
+export function onTopRatedBusinesses(limitCount: number = 10, callback: (businesses: Business[]) => void) {
+    const bizCol = collection(db, 'businesses');
+    const q = query(
+      bizCol, 
+      where('status', '==', 'published'),
+      orderBy('rating', 'desc'), 
+      limit(limitCount)
+    );
+    return onSnapshot(q, (snapshot) => {
+        const businesses = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Business));
+        callback(businesses);
+    });
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,33 +21,12 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter, Stack } from 'expo-router';
 import * as Location from 'expo-location';
+import { onTopRatedBusinesses, getTopRatedBusinesses, Business } from '@/lib/firestore';
 
 const { width } = Dimensions.get('window');
 
-const FEATURED_VENDORS = [
-  {
-    id: 'v1',
-    name: 'Eternal Frames',
-    category: 'Photography',
-    eventTypes: ['Weddings', 'Cultural', 'Birthdays'],
-    rating: 4.9,
-    location: 'Dehradun',
-    lat: 30.3165, lng: 78.0322,
-    image: 'file:///Users/sarthak/.gemini/antigravity/brain/8108cfea-61b2-481c-b392-200c0212a690/wedding_photography_hero_1778430432364.png',
-    verified: true,
-  },
-  {
-    id: 'v2',
-    name: 'Grand Royal Plaza',
-    category: 'Venues',
-    eventTypes: ['Corporate', 'Weddings', 'Cultural'],
-    rating: 4.8,
-    location: 'Dehradun',
-    lat: 30.3160, lng: 78.0300,
-    image: 'file:///Users/sarthak/.gemini/antigravity/brain/8108cfea-61b2-481c-b392-200c0212a690/luxury_wedding_venue_1778430453775.png',
-    verified: true,
-  },
-];
+// Removed dummy FEATURED_VENDORS
+
 
 const CATEGORIES = [
   { id: '1', name: 'All', icon: 'square.grid.2x2.fill' },
@@ -58,48 +38,8 @@ const CATEGORIES = [
   { id: '7', name: 'Private', icon: 'lock.fill' },
 ];
 
-const ALL_VENDORS = [
-  {
-    id: 'v3',
-    name: 'Glow by Maria',
-    category: 'Makeup',
-    eventTypes: ['Weddings', 'Cultural'],
-    rating: 4.7,
-    location: 'Chennai',
-    lat: 13.0827, lng: 80.2707,
-    image: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&q=80&w=800',
-  },
-  {
-    id: 'v4',
-    name: 'Taste of Elegance',
-    category: 'Catering',
-    eventTypes: ['Corporate', 'Sports', 'Birthdays'],
-    rating: 4.6,
-    location: 'Delhi',
-    lat: 28.6139, lng: 77.2090,
-    image: 'https://images.unsplash.com/photo-1555244162-803834f70033?auto=format&fit=crop&q=80&w=800',
-  },
-  {
-    id: 'v5',
-    name: 'Bloom Decor',
-    category: 'Decoration',
-    eventTypes: ['Birthdays', 'Private', 'Weddings'],
-    rating: 4.5,
-    location: 'Dehradun',
-    lat: 30.3180, lng: 78.0350,
-    image: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80&w=800',
-  },
-  {
-    id: 'v6',
-    name: 'Harmony Beats',
-    category: 'Music',
-    eventTypes: ['Sports', 'Corporate', 'Cultural'],
-    rating: 4.8,
-    location: 'Chennai',
-    lat: 13.0850, lng: 80.2750,
-    image: 'https://images.unsplash.com/photo-1514525253361-bee8d48842a1?auto=format&fit=crop&q=80&w=800',
-  },
-];
+// Removed dummy ALL_VENDORS
+
 
 // Helper to calculate distance in KM
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -126,6 +66,32 @@ export default function ExploreBusinessScreen() {
   const [userCoords, setUserCoords] = useState<{lat: number, lng: number} | null>(null);
   const [maxDistance, setMaxDistance] = useState(100); // in KM
   const [isDetecting, setIsDetecting] = useState(false);
+  const [dbVendors, setDbVendors] = useState<Business[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    const unsubscribe = onTopRatedBusinesses(50, (businesses) => {
+      setDbVendors(businesses);
+      setLoading(false);
+      setRefreshing(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const businesses = await getTopRatedBusinesses(50);
+      setDbVendors(businesses);
+    } catch (error) {
+      console.error('Refresh error:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const detectLocation = async () => {
     setIsDetecting(true);
@@ -150,8 +116,21 @@ export default function ExploreBusinessScreen() {
     }
   };
 
-  // Filter vendors based on event type and search
-  const filteredVendors = ALL_VENDORS.filter((v) => {
+  // Only use database vendors
+  const allAvailableVendors = dbVendors.map(b => ({
+    id: b.id,
+    name: b.name,
+    category: b.type,
+    eventTypes: b.tags,
+    rating: b.rating,
+    location: b.location.address || 'Local',
+    lat: b.location.latitude,
+    lng: b.location.longitude,
+    image: b.coverImage,
+    verified: b.rating >= 4.8 // Auto-verify high rated ones
+  }));
+
+  const filteredVendors = allAvailableVendors.filter((v) => {
     const matchesCategory = selectedCategory === 'All' || v.eventTypes.includes(selectedCategory);
     const matchesLocation = selectedLocation === 'All Cities' || 
                            (selectedLocation === 'Near Me' && userCoords ? true : v.location === selectedLocation);
@@ -168,19 +147,8 @@ export default function ExploreBusinessScreen() {
     return matchesCategory && matchesLocation && matchesSearch && isWithinDistance;
   });
 
-  const featuredFiltered = FEATURED_VENDORS.filter((v) => {
-    const matchesCategory = selectedCategory === 'All' || v.eventTypes.includes(selectedCategory);
-    const matchesLocation = selectedLocation === 'All Cities' || 
-                           (selectedLocation === 'Near Me' && userCoords ? true : v.location === selectedLocation);
-    
-    let isWithinDistance = true;
-    if (selectedLocation === 'Near Me' && userCoords) {
-      const dist = getDistance(userCoords.lat, userCoords.lng, v.lat, v.lng);
-      isWithinDistance = dist <= maxDistance;
-    }
-
-    return matchesCategory && matchesLocation && isWithinDistance;
-  });
+  // Featured vendors are just the top 3 from the filtered list
+  const featuredFiltered = filteredVendors.slice(0, 3);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -201,7 +169,18 @@ export default function ExploreBusinessScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#d4af37"
+            colors={["#d4af37"]}
+          />
+        }
+      >
         {/* ── SEARCH BAR ── */}
         <View style={styles.searchContainer}>
           <View style={styles.searchBox}>
@@ -298,7 +277,7 @@ export default function ExploreBusinessScreen() {
                   key={vendor.id} 
                   style={styles.featuredCard} 
                   activeOpacity={0.9}
-                  onPress={() => setSelectedVendor(vendor)}
+                  onPress={() => router.push(`/business/${vendor.id}`)}
                 >
                   <ExpoImage source={{ uri: vendor.image }} style={styles.featuredImage} contentFit="cover" />
                   <LinearGradient
@@ -347,13 +326,18 @@ export default function ExploreBusinessScreen() {
                   key={vendor.id} 
                   style={styles.gridCard} 
                   activeOpacity={0.9}
-                  onPress={() => setSelectedVendor(vendor)}
+                  onPress={() => router.push(`/business/${vendor.id}`)}
                 >
                   <ExpoImage source={{ uri: vendor.image }} style={styles.gridImage} contentFit="cover" />
                   <View style={styles.gridInfo}>
-                    <Text style={styles.gridName} numberOfLines={1}>
-                      {vendor.name}
-                    </Text>
+                    <View style={styles.nameRow}>
+                      <Text style={styles.gridName} numberOfLines={1}>{vendor.name}</Text>
+                      {vendor.rating >= 4.0 && (
+                        <View style={styles.verifiedIcon}>
+                          <IconSymbol name="checkmark.seal.fill" size={10} color="#ffffff" />
+                        </View>
+                      )}
+                    </View>
                     <View style={styles.gridMeta}>
                       <Text style={styles.gridCategory}>{vendor.category}</Text>
                       <View style={styles.locationRow}>
@@ -373,71 +357,7 @@ export default function ExploreBusinessScreen() {
         </View>
       </ScrollView>
 
-      {/* ── VENDOR DETAIL MODAL ── */}
-      {selectedVendor && (
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={!!selectedVendor}
-          onRequestClose={() => setSelectedVendor(null)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <TouchableOpacity 
-                style={styles.closeBtn} 
-                onPress={() => setSelectedVendor(null)}
-              >
-                <IconSymbol name="xmark.circle.fill" size={32} color="#ffffff" />
-              </TouchableOpacity>
-              
-              <ExpoImage 
-                source={{ uri: selectedVendor.image }} 
-                style={styles.modalHeroImage} 
-                contentFit="cover" 
-              />
-              
-              <View style={styles.modalBody}>
-                <View style={styles.modalHeaderRow}>
-                  <View>
-                    <Text style={styles.modalVendorName}>{selectedVendor.name}</Text>
-                    <Text style={styles.modalVendorCat}>{selectedVendor.category}</Text>
-                  </View>
-                  <View style={styles.modalRating}>
-                    <IconSymbol name="star.fill" size={16} color="#d4af37" />
-                    <Text style={styles.modalRatingText}>{selectedVendor.rating}</Text>
-                  </View>
-                </View>
 
-                <Text style={styles.modalDesc}>
-                  Experience the magic of {selectedVendor.name}. We specialize in providing top-notch {selectedVendor.category.toLowerCase()} services tailored to make your event unforgettable.
-                </Text>
-
-                <View style={styles.featureGrid}>
-                  <View style={styles.featureItem}>
-                    <IconSymbol name="clock.fill" size={14} color="#d4af37" />
-                    <Text style={styles.featureText}>Available 24/7</Text>
-                  </View>
-                  <View style={styles.featureItem}>
-                    <IconSymbol name="mappin.circle.fill" size={14} color="#d4af37" />
-                    <Text style={styles.featureText}>Premium Locations</Text>
-                  </View>
-                </View>
-
-                <View style={styles.actionButtons}>
-                  <TouchableOpacity style={styles.primaryAction}>
-                    <IconSymbol name="phone.fill" size={18} color="#0f172a" />
-                    <Text style={styles.primaryActionText}>Call Now</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.secondaryAction}>
-                    <IconSymbol name="bubble.left.and.bubble.right.fill" size={18} color="#d4af37" />
-                    <Text style={styles.secondaryActionText}>Inquiry</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </View>
-        </Modal>
-      )}
 
       {/* ── LIST YOUR BUSINESS MODAL ── */}
       <Modal
@@ -887,6 +807,20 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontFamily: 'Outfit_700Bold',
+    flex: 1,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  verifiedIcon: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   gridMeta: {
     flexDirection: 'row',

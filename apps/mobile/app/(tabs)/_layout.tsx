@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
+import * as React from 'react';
+import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 
