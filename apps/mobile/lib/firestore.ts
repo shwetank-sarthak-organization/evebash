@@ -20,6 +20,15 @@ import {
   QueryDocumentSnapshot
 } from "firebase/firestore";
 
+export const generateShortId = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclude ambiguous chars like I, O, 0, 1
+  let result = '';
+  for (let i = 0; i < 5; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `WA-${result}`;
+};
+
 export interface Event {
     id: string;
     title: string;
@@ -70,10 +79,12 @@ export interface Business {
     allowedUsers?: string[];
     description?: string;
     experience?: number;
+    startedDate?: any;
     eventsHosted?: number;
     services?: string[];
     faqs?: { q: string; a: string }[];
     status: 'created' | 'published';
+    shortId?: string;
     announcements?: string[];
     createdAt?: any;
 }

@@ -19,12 +19,18 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '@/context/AuthContext';
-import { createBusiness, getUserBusinesses, Business } from '@/lib/firestore';
+import { createBusiness, getUserBusinesses, Business, generateShortId } from '@/lib/firestore';
 
 const { width } = Dimensions.get('window');
 
-const BUSINESS_TYPES = ['Photography', 'Catering', 'Venues', 'Decoration', 'Music', 'Makeup', 'Event Planning'];
+const BUSINESS_TYPES = [
+  'Venue', 'Photography', 'Videography', 'Catering', 'Food Stalls',
+  'Music & DJ', 'Lighting', 'Decor', 'Event Planner', 'Security',
+  'Anchors', 'Gifts', 'Travel', 'Staff', 'Invitations', 'Makeup',
+  'Apparel', 'Trophies'
+];
 const EVENT_TAGS = ['Wedding', 'Birthdays', 'Sports', 'Corporate', 'Cultural', 'Private'];
 
 const BENEFITS = [
@@ -48,6 +54,7 @@ export default function BusinessLandingScreen() {
   const [ownerEmail, setOwnerEmail] = useState(user?.email || '');
   const [ownerPhone, setOwnerPhone] = useState(user?.phoneNumber || '');
   const [businessType, setBusinessType] = useState('');
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [location, setLocation] = useState<{latitude: number, longitude: number} | null>(null);
   const [isLocating, setIsLocating] = useState(false);
@@ -55,6 +62,8 @@ export default function BusinessLandingScreen() {
   // New profile fields
   const [description, setDescription] = useState('');
   const [experience, setExperience] = useState('');
+  const [startedDate, setStartedDate] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [eventsHosted, setEventsHosted] = useState('');
 
   useEffect(() => {
@@ -127,12 +136,14 @@ export default function BusinessLandingScreen() {
           longitude: location.longitude,
         },
         description,
-        experience: parseInt(experience) || 0,
+        startedDate: startedDate,
+        experience: Math.floor((new Date().getTime() - startedDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25)),
         eventsHosted: parseInt(eventsHosted) || 0,
         rating: 0,
         coverImage: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=800', // Default image
         createdBy: user.uid,
         status: 'created',
+        shortId: generateShortId(),
       };
 
       const result = await createBusiness(businessData);
@@ -146,6 +157,7 @@ export default function BusinessLandingScreen() {
         setLocation(null);
         setDescription('');
         setExperience('');
+        setStartedDate(new Date());
         setEventsHosted('');
         // Refresh list
         fetchUserBusinesses();
@@ -199,7 +211,10 @@ export default function BusinessLandingScreen() {
               >
                 <ExpoImage source={{ uri: biz.coverImage }} style={styles.bizManageImage} contentFit="cover" />
                 <View style={styles.bizManageInfo}>
-                  <Text style={styles.bizManageName}>{biz.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.bizManageName}>{biz.name}</Text>
+                    {biz.shortId && <Text style={styles.shortIdBadge}>{biz.shortId}</Text>}
+                  </View>
                   <Text style={styles.bizManageType}>{biz.type}</Text>
                   <View style={styles.statusBadge}>
                     <View style={[styles.statusDot, { backgroundColor: biz.status === 'published' ? '#22c55e' : '#f59e0b' }]} />
@@ -322,30 +337,103 @@ export default function BusinessLandingScreen() {
 
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Business Type *</Text>
-                <View style={styles.typeGrid}>
-                  {BUSINESS_TYPES.map(type => (
-                    <TouchableOpacity 
-                      key={type} 
-                      style={[styles.typeChip, businessType === type && styles.typeChipActive]}
-                      onPress={() => setBusinessType(type)}
-                    >
-                      <Text style={[styles.typeChipText, businessType === type && styles.typeChipTextActive]}>{type}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <TouchableOpacity 
+                  style={styles.dropdownBtn} 
+                  onPress={() => setShowCategoryPicker(true)}
+                >
+                  <Text style={[styles.dropdownBtnText, !businessType && { color: '#475569' }]}>
+                    {businessType || 'Select Category'}
+                  </Text>
+                  <IconSymbol name="chevron.down" size={16} color="#d4af37" />
+                </TouchableOpacity>
+
+                <Modal
+                  visible={showCategoryPicker}
+                  transparent={true}
+                  animationType="fade"
+                  onRequestClose={() => setShowCategoryPicker(false)}
+                >
+                  <TouchableOpacity 
+                    style={styles.modalOverlay} 
+                    activeOpacity={1} 
+                    onPress={() => setShowCategoryPicker(false)}
+                  >
+                    <View style={styles.pickerModalContainer}>
+                      <View style={styles.pickerHeader}>
+                        <Text style={styles.pickerTitle}>Select Category</Text>
+                        <TouchableOpacity onPress={() => setShowCategoryPicker(false)}>
+                          <IconSymbol name="xmark" size={20} color="#94a3b8" />
+                        </TouchableOpacity>
+                      </View>
+                      <View>
+                        <ScrollView 
+                          style={styles.pickerList}
+                          showsVerticalScrollIndicator={true}
+                          contentContainerStyle={{ paddingBottom: 40 }}
+                        >
+                          {BUSINESS_TYPES.map((item) => (
+                            <TouchableOpacity 
+                              key={item} 
+                              style={[styles.pickerItem, businessType === item && styles.pickerItemActive]}
+                              onPress={() => {
+                                setBusinessType(item);
+                                setShowCategoryPicker(false);
+                              }}
+                            >
+                              <Text style={[styles.pickerItemText, businessType === item && styles.pickerItemTextActive]}>
+                                {item}
+                              </Text>
+                              {businessType === item && (
+                                <IconSymbol name="checkmark" size={16} color="#d4af37" />
+                              )}
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                        <LinearGradient
+                          colors={['transparent', 'rgba(15, 23, 42, 0.9)', '#0f172a']}
+                          style={styles.pickerFade}
+                          pointerEvents="none"
+                        />
+                      </View>
+                      <View style={styles.pickerFooter}>
+                        <IconSymbol name="chevron.down" size={12} color="#475569" />
+                        <Text style={styles.pickerFooterText}>Scroll for more</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                </Modal>
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Experience & Reach</Text>
+                <Text style={styles.inputLabel}>Business Experience</Text>
                 <View style={styles.row}>
-                  <TextInput 
-                    style={[styles.formInput, { flex: 1, marginRight: 6 }]} 
-                    placeholder="Years Exp." 
-                    placeholderTextColor="#475569"
-                    value={experience}
-                    onChangeText={setExperience}
-                    keyboardType="numeric"
-                  />
+                  <TouchableOpacity 
+                    style={[styles.formInput, { flex: 1, marginRight: 6, flexDirection: 'row', alignItems: 'center', gap: 10 }]} 
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <IconSymbol name="calendar" size={16} color="#d4af37" />
+                    <Text style={{ color: '#ffffff', fontFamily: 'Inter_400Regular' }}>
+                      Started: {startedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={startedDate}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      onChange={(event, selectedDate) => {
+                        setShowDatePicker(Platform.OS === 'ios');
+                        if (selectedDate) {
+                          setStartedDate(selectedDate);
+                          const years = Math.floor((new Date().getTime() - selectedDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+                          setExperience(years.toString());
+                        }
+                      }}
+                      maximumDate={new Date()}
+                    />
+                  )}
+
                   <TextInput 
                     style={[styles.formInput, { flex: 1, marginLeft: 6 }]} 
                     placeholder="Events Done" 
@@ -743,5 +831,114 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Outfit_800ExtraBold',
     textTransform: 'uppercase',
+  },
+  dropdownBtn: {
+    backgroundColor: '#020617',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#1e293b',
+  },
+  dropdownBtnText: {
+    color: '#ffffff',
+    fontFamily: 'Inter_400Regular',
+    fontSize: 15,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(2, 6, 23, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickerModalContainer: {
+    backgroundColor: '#0f172a',
+    width: '85%',
+    maxHeight: '70%',
+    minHeight: 400,
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.5,
+    shadowRadius: 30,
+    elevation: 20,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  pickerTitle: {
+    fontSize: 18,
+    color: '#ffffff',
+    fontFamily: 'Outfit_700Bold',
+  },
+  pickerList: {
+    maxHeight: 400,
+  },
+  pickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.02)',
+  },
+  pickerItemActive: {
+    backgroundColor: 'rgba(212, 175, 55, 0.05)',
+  },
+  pickerItemText: {
+    fontSize: 15,
+    color: '#94a3b8',
+    fontFamily: 'Inter_500Medium',
+  },
+  pickerItemTextActive: {
+    color: '#d4af37',
+    fontFamily: 'Inter_600SemiBold',
+  },
+  pickerFade: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 40,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  pickerFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
+  },
+  pickerFooterText: {
+    fontSize: 11,
+    color: '#475569',
+    fontFamily: 'Inter_500Medium',
+  },
+  shortIdBadge: {
+    fontSize: 10,
+    color: '#94a3b8',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    fontFamily: 'Outfit_700Bold',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
 });

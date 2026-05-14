@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
   Alert,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,9 +19,17 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { getBusinessById, updateBusiness, Business } from '@/lib/firestore';
 
 const { width } = Dimensions.get('window');
+
+const BUSINESS_TYPES = [
+  'Venue', 'Photography', 'Videography', 'Catering', 'Food Stalls',
+  'Music & DJ', 'Lighting', 'Decor', 'Event Planner', 'Security',
+  'Anchors', 'Gifts', 'Travel', 'Staff', 'Invitations', 'Makeup',
+  'Apparel', 'Trophies'
+];
 
 export default function ManageBusinessScreen() {
   const router = useRouter();
@@ -34,8 +43,11 @@ export default function ManageBusinessScreen() {
   // Editable fields
   const [businessName, setBusinessName] = useState('');
   const [category, setCategory] = useState('');
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [about, setAbout] = useState('');
   const [experience, setExperience] = useState('');
+  const [startedDate, setStartedDate] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [eventsHosted, setEventsHosted] = useState('');
   const [services, setServices] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
@@ -77,6 +89,16 @@ export default function ManageBusinessScreen() {
     setCategory(biz.type || '');
     setAbout(biz.description || '');
     setExperience(biz.experience?.toString() || '0');
+    if (biz.startedDate) {
+      // Handle Firestore Timestamp or ISO string
+      const date = biz.startedDate.toDate ? biz.startedDate.toDate() : new Date(biz.startedDate);
+      setStartedDate(date);
+    } else if (biz.experience) {
+      // Fallback: Estimate start date from experience years
+      const date = new Date();
+      date.setFullYear(date.getFullYear() - (biz.experience || 0));
+      setStartedDate(date);
+    }
     setEventsHosted(biz.eventsHosted?.toString() || '0');
     setServices(biz.services || []);
     setFaqs(biz.faqs || []);
@@ -138,7 +160,8 @@ export default function ManageBusinessScreen() {
         name: businessName,
         type: category,
         description: about,
-        experience: parseInt(experience) || 0,
+        startedDate: startedDate,
+        experience: Math.floor((new Date().getTime() - startedDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25)),
         eventsHosted: parseInt(eventsHosted) || 0,
         services: services,
         faqs: faqs,
@@ -252,7 +275,10 @@ export default function ManageBusinessScreen() {
           </TouchableOpacity>
         )}
         
-        <Text style={styles.headerTitle}>Business Manager</Text>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={styles.headerTitle}>Business Manager</Text>
+          {business?.shortId && <Text style={styles.headerShortId}>{business.shortId}</Text>}
+        </View>
         
         {isEditing ? (
           <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isUpdating}>
@@ -263,10 +289,20 @@ export default function ManageBusinessScreen() {
             )}
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity style={styles.editBtn} onPress={() => setIsEditing(true)}>
-            <IconSymbol name="pencil" size={16} color="#d4af37" />
-            <Text style={styles.editBtnText}>Edit</Text>
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            {activeTab === 'Profile' && (
+              <TouchableOpacity style={styles.editBtn} onPress={() => setIsEditing(true)}>
+                <IconSymbol name="pencil" size={16} color="#d4af37" />
+                <Text style={styles.editBtnText}>Edit</Text>
+              </TouchableOpacity>
+            )}
+            {activeTab === 'Portfolio' && (
+              <TouchableOpacity style={styles.editBtn} onPress={pickImage}>
+                <IconSymbol name="plus" size={16} color="#d4af37" />
+                <Text style={styles.editBtnText}>Add</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
       </View>
 
@@ -378,29 +414,117 @@ export default function ManageBusinessScreen() {
               <View style={[styles.inputGroup, { flex: 1 }]}>
                 <Text style={styles.inputLabel}>Category</Text>
                 {isEditing ? (
-                  <TextInput
-                    style={styles.input}
-                    value={category}
-                    onChangeText={setCategory}
-                    placeholderTextColor="#475569"
-                  />
+                  <>
+                    <TouchableOpacity 
+                      style={styles.dropdownBtn} 
+                      onPress={() => setShowCategoryPicker(true)}
+                    >
+                      <Text style={[styles.dropdownBtnText, !category && { color: '#475569' }]}>
+                        {category || 'Select Category'}
+                      </Text>
+                      <IconSymbol name="chevron.down" size={16} color="#d4af37" />
+                    </TouchableOpacity>
+
+                    <Modal
+                      visible={showCategoryPicker}
+                      transparent={true}
+                      animationType="fade"
+                      onRequestClose={() => setShowCategoryPicker(false)}
+                    >
+                      <TouchableOpacity 
+                        style={styles.modalOverlay} 
+                        activeOpacity={1} 
+                        onPress={() => setShowCategoryPicker(false)}
+                      >
+                        <View style={styles.pickerModalContainer}>
+                          <View style={styles.pickerHeader}>
+                            <Text style={styles.pickerTitle}>Select Category</Text>
+                            <TouchableOpacity onPress={() => setShowCategoryPicker(false)}>
+                              <IconSymbol name="xmark" size={20} color="#94a3b8" />
+                            </TouchableOpacity>
+                          </View>
+                          <View>
+                            <ScrollView 
+                              style={styles.pickerList}
+                              showsVerticalScrollIndicator={true}
+                              contentContainerStyle={{ paddingBottom: 40 }}
+                            >
+                              {BUSINESS_TYPES.map((item) => (
+                                <TouchableOpacity 
+                                  key={item} 
+                                  style={[styles.pickerItem, category === item && styles.pickerItemActive]}
+                                  onPress={() => {
+                                    setCategory(item);
+                                    setShowCategoryPicker(false);
+                                  }}
+                                >
+                                  <Text style={[styles.pickerItemText, category === item && styles.pickerItemTextActive]}>
+                                    {item}
+                                  </Text>
+                                  {category === item && (
+                                    <IconSymbol name="checkmark" size={16} color="#d4af37" />
+                                  )}
+                                </TouchableOpacity>
+                              ))}
+                            </ScrollView>
+                            <LinearGradient
+                              colors={['transparent', 'rgba(15, 23, 42, 0.9)', '#0f172a']}
+                              style={styles.pickerFade}
+                              pointerEvents="none"
+                            />
+                          </View>
+                          <View style={styles.pickerFooter}>
+                            <IconSymbol name="chevron.down" size={12} color="#475569" />
+                            <Text style={styles.pickerFooterText}>Scroll for more</Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    </Modal>
+                  </>
                 ) : (
                   <Text style={styles.displayText}>{category}</Text>
                 )}
               </View>
               <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
-                <Text style={styles.inputLabel}>Years Experience</Text>
+                <Text style={styles.inputLabel}>Business Started</Text>
                 {isEditing ? (
-                  <TextInput
-                    style={styles.input}
-                    value={experience}
-                    onChangeText={setExperience}
-                    keyboardType="numeric"
-                    placeholder="e.g. 5"
-                    placeholderTextColor="#475569"
-                  />
+                  <>
+                    <TouchableOpacity 
+                      style={styles.datePickerBtn} 
+                      onPress={() => setShowDatePicker(true)}
+                    >
+                      <IconSymbol name="calendar" size={16} color="#d4af37" />
+                      <Text style={styles.datePickerBtnText}>
+                        {startedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                      </Text>
+                    </TouchableOpacity>
+                    {showDatePicker && (
+                      <DateTimePicker
+                        value={startedDate}
+                        mode="date"
+                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                        onChange={(event, selectedDate) => {
+                          setShowDatePicker(Platform.OS === 'ios');
+                          if (selectedDate) {
+                            setStartedDate(selectedDate);
+                            // Update experience string for immediate UI feedback if needed
+                            const years = Math.floor((new Date().getTime() - selectedDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+                            setExperience(years.toString());
+                          }
+                        }}
+                        maximumDate={new Date()}
+                      />
+                    )}
+                  </>
                 ) : (
-                  <Text style={styles.displayText}>{experience} Years</Text>
+                  <View style={styles.experienceContainer}>
+                    <Text style={styles.displayText}>
+                      {Math.floor((new Date().getTime() - startedDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25))} Years
+                    </Text>
+                    <Text style={styles.startedHint}>
+                      Started {startedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                    </Text>
+                  </View>
                 )}
               </View>
             </View>
@@ -583,11 +707,22 @@ export default function ManageBusinessScreen() {
             <View style={[styles.inputGroup, { marginTop: 10 }]}>
               <View style={styles.sectionHeaderRow}>
                 <Text style={styles.inputLabel}>News & Updates ({news.length}/10)</Text>
-                <View style={[styles.statusBadge, { backgroundColor: news.length > 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(148, 163, 184, 0.1)' }]}>
-                  <Text style={[styles.statusText, { color: news.length > 0 ? '#22c55e' : '#94a3b8' }]}>
-                    {news.length > 0 ? `${news.length} Active` : 'No News'}
-                  </Text>
-                </View>
+                {!isEditing && (
+                  <TouchableOpacity 
+                    style={styles.manageBtn}
+                    onPress={() => setIsEditing(true)}
+                  >
+                    <IconSymbol name="megaphone.fill" size={14} color="#d4af37" />
+                    <Text style={styles.manageBtnText}>Manage</Text>
+                  </TouchableOpacity>
+                )}
+                {isEditing && (
+                  <View style={[styles.statusBadge, { backgroundColor: news.length > 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(148, 163, 184, 0.1)' }]}>
+                    <Text style={[styles.statusText, { color: news.length > 0 ? '#22c55e' : '#94a3b8' }]}>
+                      {news.length > 0 ? `${news.length} Active` : 'No News'}
+                    </Text>
+                  </View>
+                )}
               </View>
 
               {isEditing && (
@@ -634,6 +769,15 @@ export default function ManageBusinessScreen() {
 
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.inputLabel}>Manage FAQ ({faqs.length}/5)</Text>
+              {!isEditing && (
+                <TouchableOpacity 
+                  style={styles.manageBtn}
+                  onPress={() => setIsEditing(true)}
+                >
+                  <IconSymbol name="questionmark.circle.fill" size={14} color="#d4af37" />
+                  <Text style={styles.manageBtnText}>Manage</Text>
+                </TouchableOpacity>
+              )}
               {isEditing && (
                 <TouchableOpacity 
                   style={[styles.addBtn, faqs.length >= 5 && { opacity: 0.5 }]} 
@@ -1014,9 +1158,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     color: '#ffffff',
     fontFamily: 'Outfit_800ExtraBold',
+  },
+  headerShortId: {
+    fontSize: 10,
+    color: '#d4af37',
+    fontFamily: 'Outfit_700Bold',
+    letterSpacing: 1,
+    marginTop: -2,
   },
   editBtn: {
     flexDirection: 'row',
@@ -1043,13 +1194,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    minWidth: 80,
+  },
   saveBtnText: {
     color: '#0f172a',
     fontFamily: 'Outfit_800ExtraBold',
     fontSize: 14,
   },
   scrollContent: {
-    paddingTop: 80,
+    paddingTop: 10,
     paddingBottom: 40,
   },
   statsGrid: {
@@ -1138,10 +1295,12 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   inputLabel: {
-    fontSize: 14,
-    color: '#94a3b8',
-    fontFamily: 'Outfit_700Bold',
-    marginBottom: 8,
+    fontSize: 11,
+    color: '#64748b',
+    fontFamily: 'Inter_700Bold',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 6,
   },
   input: {
     backgroundColor: '#0f172a',
@@ -1921,25 +2080,27 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: 'rgba(255,255,255,0.7)',
     fontFamily: 'Outfit_700Bold',
+    textTransform: 'uppercase',
   },
   displayTextMain: {
-    fontSize: 28,
-    color: '#ffffff',
-    fontFamily: 'Outfit_800ExtraBold',
-    marginTop: 4,
-  },
-  displayText: {
-    fontSize: 18,
+    fontSize: 20,
     color: '#ffffff',
     fontFamily: 'Outfit_700Bold',
-    marginTop: 4,
+    paddingVertical: 2,
+    letterSpacing: -0.3,
+  },
+  displayText: {
+    fontSize: 15,
+    color: '#f1f5f9',
+    fontFamily: 'Outfit_600SemiBold',
+    paddingVertical: 2,
   },
   displayTextAbout: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#94a3b8',
+    lineHeight: 22,
     fontFamily: 'Inter_400Regular',
-    lineHeight: 24,
-    marginTop: 4,
+    marginTop: 2,
   },
   storageCard: {
     backgroundColor: '#0f172a',
@@ -2086,5 +2247,145 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     marginTop: 8,
     paddingHorizontal: 4,
+  },
+  datePickerBtn: {
+    backgroundColor: '#020617',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    marginTop: 4,
+  },
+  datePickerBtnText: {
+    color: '#ffffff',
+    fontFamily: 'Inter_400Regular',
+    fontSize: 15,
+  },
+  experienceContainer: {
+    marginTop: 4,
+  },
+  startedHint: {
+    fontSize: 12,
+    color: '#64748b',
+    fontFamily: 'Inter_400Regular',
+    marginTop: 2,
+  },
+  dropdownBtn: {
+    backgroundColor: '#020617',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    marginTop: 4,
+  },
+  dropdownBtnText: {
+    color: '#ffffff',
+    fontFamily: 'Inter_400Regular',
+    fontSize: 15,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(2, 6, 23, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickerModalContainer: {
+    backgroundColor: '#0f172a',
+    width: '85%',
+    maxHeight: '70%',
+    minHeight: 400,
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.5,
+    shadowRadius: 30,
+    elevation: 20,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  pickerTitle: {
+    fontSize: 18,
+    color: '#ffffff',
+    fontFamily: 'Outfit_700Bold',
+  },
+  pickerList: {
+    maxHeight: 400,
+  },
+  pickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.02)',
+  },
+  pickerItemActive: {
+    backgroundColor: 'rgba(212, 175, 55, 0.05)',
+  },
+  pickerItemText: {
+    fontSize: 15,
+    color: '#94a3b8',
+    fontFamily: 'Inter_500Medium',
+  },
+  pickerItemTextActive: {
+    color: '#d4af37',
+    fontFamily: 'Inter_600SemiBold',
+  },
+  pickerFade: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 40,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  pickerFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
+  },
+  pickerFooterText: {
+    fontSize: 11,
+    color: '#475569',
+    fontFamily: 'Inter_500Medium',
+  },
+  manageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.2)',
+  },
+  manageBtnText: {
+    color: '#d4af37',
+    fontSize: 11,
+    fontFamily: 'Outfit_700Bold',
   },
 });

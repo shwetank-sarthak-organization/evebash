@@ -139,8 +139,17 @@ export default function BusinessDetailScreen() {
     ? business.coverImages 
     : [business.coverImage || 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop'];
 
+  const getExperienceYears = () => {
+    if (!business) return 0;
+    if (business.startedDate) {
+      const date = business.startedDate.toDate ? business.startedDate.toDate() : new Date(business.startedDate);
+      return Math.floor((new Date().getTime() - date.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+    }
+    return business.experience || 0;
+  };
+
   const highlights = [
-    { id: '1', title: `${business.experience || 0}+ Years`, subtitle: 'Experience', icon: 'clock.fill', color: '#6366f1' },
+    { id: '1', title: `${getExperienceYears()}+ Years`, subtitle: 'Experience', icon: 'clock.fill', color: '#6366f1' },
     { id: '2', title: `${business.eventsHosted || 0}+`, subtitle: 'Events', icon: 'star.fill', color: '#f59e0b' },
     { id: '3', title: 'Quick', subtitle: 'Response', icon: 'bolt.fill', color: '#10b981' },
   ];

@@ -127,7 +127,8 @@ export default function ExploreBusinessScreen() {
     lat: b.location.latitude,
     lng: b.location.longitude,
     image: b.coverImage,
-    verified: b.rating >= 4.8 // Auto-verify high rated ones
+    verified: b.rating >= 4.8, // Auto-verify high rated ones
+    experience: b.experience || 0,
   }));
 
   const filteredVendors = allAvailableVendors.filter((v) => {
@@ -302,6 +303,10 @@ export default function ExploreBusinessScreen() {
                         <Text style={styles.locationText}>{vendor.location}</Text>
                       </View>
                     </View>
+                    <View style={styles.experienceBadge}>
+                      <IconSymbol name="clock.fill" size={10} color="#ffffff" />
+                      <Text style={styles.experienceText}>{vendor.experience}+ Years</Text>
+                    </View>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -343,6 +348,10 @@ export default function ExploreBusinessScreen() {
                       <View style={styles.locationRow}>
                         <IconSymbol name="mappin.fill" size={10} color="#64748b" />
                         <Text style={styles.locationText}>{vendor.location}</Text>
+                      </View>
+                      <View style={styles.gridExperienceRow}>
+                        <IconSymbol name="clock.fill" size={10} color="#d4af37" />
+                        <Text style={styles.gridExperienceText}>{vendor.experience}+ Years</Text>
                       </View>
                     </View>
                     <View style={styles.gridRatingRow}>
@@ -1076,5 +1085,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter_500Medium',
     textAlign: 'center',
+  },
+  experienceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 8,
+    gap: 4,
+  },
+  experienceText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontFamily: 'Outfit_700Bold',
+  },
+  gridExperienceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  gridExperienceText: {
+    color: '#d4af37',
+    fontSize: 10,
+    fontFamily: 'Outfit_700Bold',
   },
 });
