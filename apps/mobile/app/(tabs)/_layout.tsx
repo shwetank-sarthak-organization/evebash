@@ -82,17 +82,12 @@ export default function TabLayout() {
           ),
         }}
       />
+
       <Tabs.Screen
-        name="menu"
+        name="social"
         options={{
-          title: 'Usage',
-          tabBarIcon: ({ color }) => (
-            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <Path d="M15.6 2.7a10 10 0 1 0 5.7 5.7" />
-              <Circle cx="12" cy="12" r="2" />
-              <Path d="M13.4 10.6 19 5" />
-            </Svg>
-          ),
+          title: 'Social',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.2.fill" color={color} />,
         }}
       />
       <Tabs.Screen

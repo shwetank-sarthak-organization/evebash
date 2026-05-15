@@ -1192,3 +1192,82 @@ export function serializeFirestoreData<T>(data: T): T {
 
     return data;
 }
+/**
+ * Follows another user.
+ */
+export async function followUser(followerId: string, followedId: string) {
+    try {
+        const relationshipId = `${followerId}_${followedId}`;
+        const docRef = doc(db, "relationships", relationshipId);
+        await setDoc(docRef, {
+            followerId,
+            followedId,
+            createdAt: serverTimestamp()
+        });
+        return true;
+    } catch (error) {
+        console.error("Error following user:", error);
+        return false;
+    }
+}
+
+/**
+ * Unfollows another user.
+ */
+export async function unfollowUser(followerId: string, followedId: string) {
+    try {
+        const relationshipId = `${followerId}_${followedId}`;
+        const docRef = doc(db, "relationships", relationshipId);
+        await deleteDoc(docRef);
+        return true;
+    } catch (error) {
+        console.error("Error unfollowing user:", error);
+        return false;
+    }
+}
+
+/**
+ * Fetches the list of user IDs that a specific user is following.
+ */
+export async function getFollowing(userId: string): Promise<string[]> {
+    try {
+        const relCol = collection(db, "relationships");
+        const q = query(relCol, where("followerId", "==", userId));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => doc.data().followedId);
+    } catch (error) {
+        console.error("Error fetching following list:", error);
+        return [];
+    }
+}
+
+/**
+ * Counts how many people are following a specific user.
+ */
+export async function getFollowersCount(userId: string): Promise<number> {
+    try {
+        const relCol = collection(db, "relationships");
+        const q = query(relCol, where("followedId", "==", userId));
+        const snapshot = await getDocs(q);
+        return snapshot.size;
+    } catch (error) {
+        console.error("Error fetching followers count:", error);
+        return 0;
+    }
+}
+
+/**
+ * Counts how many people a specific user is following.
+ */
+export async function getFollowingCount(userId: string): Promise<number> {
+    try {
+        const relCol = collection(db, "relationships");
+        const q = query(relCol, where("followerId", "==", userId));
+        const snapshot = await getDocs(q);
+        return snapshot.size;
+    } catch (error) {
+        console.error("Error fetching following count:", error);
+        return 0;
+    }
+}
+

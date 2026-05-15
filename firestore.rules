@@ -19,7 +19,7 @@ service cloud.firestore {
     function isUser(id) {
       return isAuthenticated() && id != null && id != "" && (
         request.auth.uid == id || 
-        (request.auth.token.email != null && request.auth.token.email.toLowerCase() == id.toLowerCase())
+        request.auth.token.email == id
       );
     }
 
@@ -170,7 +170,7 @@ service cloud.firestore {
       allow delete: if isManagementAuthorized(resource.data.get('parentEventOwnerId', ''));
     }
 
-    // --- SOCIAL INTERACTIONS (Likes & Comments) ---
+    // --- SOCIAL INTERACTIONS (Likes, Comments & Relationships) ---
     match /likes/{id} {
       allow read, list: if true;
       allow create, delete: if isAuthenticated() || request.resource.data.userId != null;
@@ -181,6 +181,16 @@ service cloud.firestore {
       allow create: if isAuthenticated() || request.resource.data.userId != null;
       allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.userId);
     }
+
+    match /relationships/{relId} {
+      allow read, list: if true;
+      allow write: if isAuthenticated() && (
+        (request.resource != null && request.auth.uid == request.resource.data.followerId) ||
+        (resource != null && request.auth.uid == resource.data.followerId) ||
+        isAdmin()
+      );
+    }
+
 
     match /users/{userId} {
       allow read, list: if isAuthenticated() || userId.matches('^phone_[0-9]+$');

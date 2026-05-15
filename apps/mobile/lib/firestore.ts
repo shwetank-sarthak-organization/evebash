@@ -834,3 +834,155 @@ export function onTopRatedBusinesses(limitCount: number = 10, callback: (busines
         callback(businesses);
     });
 }
+
+// --- SOCIAL NETWORK FUNCTIONS ---
+/**
+ * Follows another user.
+ */
+export async function followUser(followerId: string, followedId: string) {
+    try {
+        const relationshipId = `${followerId}_${followedId}`;
+        const docRef = doc(db, "relationships", relationshipId);
+        await setDoc(docRef, {
+            followerId,
+            followedId,
+            createdAt: serverTimestamp()
+        });
+        return true;
+    } catch (error) {
+        console.error("Error following user:", error);
+        return false;
+    }
+}
+
+/**
+ * Unfollows another user.
+ */
+export async function unfollowUser(followerId: string, followedId: string) {
+    try {
+        const relationshipId = `${followerId}_${followedId}`;
+        const docRef = doc(db, "relationships", relationshipId);
+        await deleteDoc(docRef);
+        return true;
+    } catch (error) {
+        console.error("Error unfollowing user:", error);
+        return false;
+    }
+}
+
+/**
+ * Fetches the list of user IDs that a specific user is following.
+ */
+export async function getFollowing(userId: string): Promise<string[]> {
+    try {
+        const relCol = collection(db, "relationships");
+        const q = query(relCol, where("followerId", "==", userId));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => doc.data().followedId);
+    } catch (error) {
+        console.error("Error fetching following list:", error);
+        return [];
+    }
+}
+
+/**
+ * Counts how many people are following a specific user.
+ */
+export async function getFollowersCount(userId: string): Promise<number> {
+    try {
+        const relCol = collection(db, "relationships");
+        const q = query(relCol, where("followedId", "==", userId));
+        const snapshot = await getDocs(q);
+        return snapshot.size;
+    } catch (error) {
+        console.error("Error fetching followers count:", error);
+        return 0;
+    }
+}
+
+/**
+ * Counts how many people a specific user is following.
+ */
+export async function getFollowingCount(userId: string): Promise<number> {
+    try {
+        const relCol = collection(db, "relationships");
+        const q = query(relCol, where("followerId", "==", userId));
+        const snapshot = await getDocs(q);
+        return snapshot.size;
+    } catch (error) {
+        console.error("Error fetching following count:", error);
+        return 0;
+    }
+}
+
+/**
+ * Fetches the latest activities (likes, comments, events) from users being followed.
+ */
+export async function getSocialFeed(followingIds: string[]): Promise<any[]> {
+    if (!followingIds || followingIds.length === 0) return [];
+    
+    try {
+        const feedItems: any[] = [];
+        
+        // Fetch recent likes
+        const likesCol = collection(db, "likes");
+        const likesQuery = query(likesCol, where("userId", "in", followingIds.slice(0, 30)), orderBy("createdAt", "desc"), limit(10));
+        const likesSnapshot = await getDocs(likesQuery);
+        likesSnapshot.forEach(doc => {
+            feedItems.push({ id: doc.id, type: 'like', ...doc.data() });
+        });
+
+        // Fetch recent comments
+        const commentsCol = collection(db, "comments");
+        const commentsQuery = query(commentsCol, where("userId", "in", followingIds.slice(0, 30)), orderBy("createdAt", "desc"), limit(10));
+        const commentsSnapshot = await getDocs(commentsQuery);
+        commentsSnapshot.forEach(doc => {
+            feedItems.push({ id: doc.id, type: 'comment', ...doc.data() });
+        });
+
+        // Fetch recent events
+        const eventsCol = collection(db, "events");
+        const eventsQuery = query(eventsCol, where("createdBy", "in", followingIds.slice(0, 30)), orderBy("createdAt", "desc"), limit(10));
+        const eventsSnapshot = await getDocs(eventsQuery);
+        eventsSnapshot.forEach(doc => {
+            feedItems.push({ id: doc.id, type: 'event', ...doc.data() });
+        });
+
+        // Fetch recent business creations
+        const businessCol = collection(db, "businesses");
+        const businessQuery = query(businessCol, where("createdBy", "in", followingIds.slice(0, 30)), orderBy("createdAt", "desc"), limit(10));
+        const businessSnapshot = await getDocs(businessQuery);
+        businessSnapshot.forEach(doc => {
+            feedItems.push({ id: doc.id, type: 'business', ...doc.data() });
+        });
+
+        // Fetch recent event joins (guest logs)
+        const guestCol = collection(db, "guests");
+        const guestQuery = query(guestCol, where("phone", "in", followingIds.slice(0, 30)), orderBy("loginAt", "desc"), limit(10));
+        // Note: Using phone as the identifier for joins in this context, or email if applicable.
+        // For simplicity, we'll try to find joins by followed user IDs if stored in guest logs.
+        const guestSnapshot = await getDocs(guestQuery);
+        guestSnapshot.forEach(doc => {
+            const data = doc.data();
+            feedItems.push({ 
+                id: doc.id, 
+                type: 'join', 
+                eventId: data.eventId, 
+                eventTitle: data.eventTitle, 
+                createdAt: data.loginAt,
+                userId: data.phone // Identifier used in guest logs
+            });
+        });
+
+        // Sort combined feed by date
+        return feedItems.sort((a, b) => {
+            const dateA = a.createdAt?.seconds || 0;
+            const dateB = b.createdAt?.seconds || 0;
+            return dateB - dateA;
+        });
+    } catch (error) {
+        console.error("Error fetching social feed:", error);
+        return [];
+    }
+}
+

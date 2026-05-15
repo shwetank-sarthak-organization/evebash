@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,12 +13,27 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter } from 'expo-router';
+import { getFollowersCount, getFollowingCount } from '@/lib/firestore';
 
 const { width } = Dimensions.get('window');
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const [stats, setStats] = useState({ followers: 0, following: 0 });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (user?.uid) {
+        const [followers, following] = await Promise.all([
+          getFollowersCount(user.uid),
+          getFollowingCount(user.uid)
+        ]);
+        setStats({ followers, following });
+      }
+    };
+    fetchStats();
+  }, [user]);
 
   if (!user) return null;
 
@@ -47,9 +62,20 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.profileInfo}>
               <Text style={styles.userName}>{user.name}</Text>
-              <View style={styles.planChip}>
-                <IconSymbol name="crown.fill" size={8} color="#d4af37" />
-                <Text style={styles.planChipText}>{user.role || 'Elite User'}</Text>
+              <View style={styles.headerBadgeRow}>
+                <View style={styles.planChip}>
+                  <IconSymbol name="crown.fill" size={8} color="#d4af37" />
+                  <Text style={styles.planChipText}>{user.role || 'Elite User'}</Text>
+                </View>
+                <View style={styles.socialStatsRow}>
+                  <Text style={styles.socialStatText}>
+                    <Text style={styles.socialStatNumber}>{stats.followers}</Text> Followers
+                  </Text>
+                  <View style={styles.dotSeparator} />
+                  <Text style={styles.socialStatText}>
+                    <Text style={styles.socialStatNumber}>{stats.following}</Text> Following
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
@@ -82,6 +108,20 @@ export default function ProfileScreen() {
                 <Text style={styles.infoValue}>{user.email || 'Not provided'}</Text>
               </View>
             </View>
+
+            <View style={styles.divider} />
+
+            <TouchableOpacity 
+              style={styles.actionItem} 
+              activeOpacity={0.7} 
+              onPress={() => router.push('/usage')}
+            >
+              <View style={[styles.infoIconBox, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}>
+                <IconSymbol name="chart.bar.fill" size={18} color="#d4af37" />
+              </View>
+              <Text style={styles.actionText}>Usage & Plan</Text>
+              <IconSymbol name="chevron.right" size={16} color="#475569" />
+            </TouchableOpacity>
 
             <View style={styles.divider} />
 
@@ -199,6 +239,32 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
+  },
+  headerBadgeRow: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 6,
+  },
+  socialStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  socialStatText: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontFamily: 'Inter_400Regular',
+  },
+  socialStatNumber: {
+    color: '#f1f5f9',
+    fontFamily: 'Outfit_700Bold',
+  },
+  dotSeparator: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#334155',
   },
   content: { 
     paddingHorizontal: 24, 

@@ -9,7 +9,7 @@ import { getUserEventCount, getUserTotalStorage, getUserBusinesses } from '@/lib
 
 const { width } = Dimensions.get('window');
 
-export default function MenuScreen() {
+export default function UsageScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -109,7 +109,16 @@ export default function MenuScreen() {
           colors={['#0f172a', '#020617']}
           style={styles.header}
         >
-          <Text style={styles.headerTitle}>Plan & Usage</Text>
+          <View style={styles.headerRow}>
+            <TouchableOpacity 
+              onPress={() => router.back()}
+              style={styles.backButton}
+            >
+              <IconSymbol name="chevron.left" size={24} color="#94a3b8" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Plan & Usage</Text>
+            <View style={{ width: 40 }} /> 
+          </View>
         </LinearGradient>
 
         {/* Current Plan Card */}
@@ -253,6 +262,20 @@ const styles = StyleSheet.create({
     color: '#94a3b8', 
     textTransform: 'uppercase', 
     letterSpacing: 2 
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   planCard: {
     backgroundColor: '#0f172a',

@@ -49,6 +49,15 @@ const MAPPING = {
   'paintbrush.fill': 'brush',
   'globe': 'public',
   'square.and.arrow.up': 'share',
+  'chart.bar.fill': 'assessment',
+  'cloud.fill': 'cloud',
+  'calendar.fill': 'event',
+  'sparkles.fill': 'auto-awesome',
+  'creditcard.fill': 'credit-card',
+  'message.fill': 'message',
+  'questionmark.circle.fill': 'help-outline',
+  'crown.fill': 'workspace-premium',
+  'magnifyingglass': 'search',
 } as const;
 
 type IconSymbolName = keyof typeof MAPPING;
