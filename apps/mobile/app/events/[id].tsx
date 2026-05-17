@@ -4,13 +4,14 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event as FirestoreEvent, updateEvent, createEvent, getGuestLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, onPhotoInteractions, toggleLike, addComment, deletePhotoComment, deleteEvent } from '@/lib/firestore';
+import { getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event as FirestoreEvent, updateEvent, createEvent, getGuestLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, onPhotoInteractions, toggleLike, addComment, deletePhotoComment, deleteEvent, getBusinessByVendorCode, getBusinessById, Business } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { MOBILE_TEMPLATE_THEMES } from '../../constants/templates';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadEventImage } from '@/lib/storage';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_GRID_GAP = 3;
@@ -21,6 +22,10 @@ export default function EventDetailScreen() {
   const router = useRouter();
   const { user } = useAuth();
   
+  const [scrollY, setScrollY] = useState(0);
+  const scrollViewRef = React.useRef<ScrollView>(null);
+  const { height: windowHeight } = useWindowDimensions();
+
   const [event, setEvent] = useState<FirestoreEvent | null>(null);
   const [selectedGuest, setSelectedGuest] = useState<GuestLog | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<GuestLog | null>(null);
@@ -31,7 +36,10 @@ export default function EventDetailScreen() {
   const [guestPhone, setGuestPhone] = useState('');
   
   const [isOwner, setIsOwner] = useState(false);
-  const [activeTab, setActiveTab] = useState<'galleries' | 'permissions' | 'design'>((tab as any) || 'galleries');
+  const [activeTab, setActiveTab] = useState<'galleries' | 'permissions' | 'design' | 'partners'>((tab as any) || 'galleries');
+  const [linkingVendor, setLinkingVendor] = useState(false);
+  const [vendorCode, setVendorCode] = useState('');
+  const [linkedVendors, setLinkedVendors] = useState<Business[]>([]);
   const [guestLogs, setGuestLogs] = useState<any[]>([]);
   const [updating, setUpdating] = useState(false);
   
@@ -56,7 +64,10 @@ export default function EventDetailScreen() {
   // Decide which view to show
   // We show Admin view ONLY if mode=admin AND user is owner.
   // Otherwise, we default to the premium Visitor view.
-  const showAdminView = mode === 'admin' && isOwner;
+  const [isAdminViewActive, setIsAdminViewActive] = useState(mode === 'admin');
+
+  const showAdminView = isAdminViewActive && isOwner;
+  const heroHeight = (!showAdminView && event?.templateId === 'royal') ? windowHeight : 400;
   
   // Modals
   const [showSubEventModal, setShowSubEventModal] = useState(false);
@@ -72,6 +83,14 @@ export default function EventDetailScreen() {
   const [activeSubEvent, setActiveSubEvent] = useState<FirestoreEvent | null>(null);
   const [photos, setPhotos] = useState<any[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
+  
+  // Gallery Welcome Text Settings State
+  const [galleryDescModalVisible, setGalleryDescModalVisible] = useState(false);
+  const [galleryDescText, setGalleryDescText] = useState('');
+
+  // Admin Gallery Manager — which gallery is the host currently managing
+  // null = Home gallery, FirestoreEvent = a sub-event gallery
+  const [selectedAdminGallery, setSelectedAdminGallery] = useState<FirestoreEvent | null | undefined>(undefined);
 
   // Image Viewer State
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -183,6 +202,14 @@ export default function EventDetailScreen() {
         const subs = await getSubEvents(id, eventData.legacyId);
         setSubEvents(subs);
         
+        // Fetch linked vendors
+        if (eventData.vendors && eventData.vendors.length > 0) {
+          const vendorsData = await Promise.all(
+            eventData.vendors.map((vid: string) => getBusinessById(vid))
+          );
+          setLinkedVendors(vendorsData.filter(v => v !== null) as Business[]);
+        }
+        
         // Auto-load photos for main event initially
         loadPhotos(eventData.id, eventData.legacyId);
 
@@ -217,6 +244,112 @@ export default function EventDetailScreen() {
       loadPhotos(sub.id, sub.legacyId);
     } else if (event) {
       loadPhotos(event.id, event.legacyId);
+    }
+  };
+
+  const handleOpenEditWelcomeModal = () => {
+    const currentDesc = activeSubEvent ? activeSubEvent.description : event?.description;
+    setGalleryDescText(currentDesc || '');
+    setGalleryDescModalVisible(true);
+  };
+
+  const handleSaveGalleryDesc = async () => {
+    if (!event) return;
+    setUpdating(true);
+    try {
+      if (activeSubEvent) {
+        await updateEvent(activeSubEvent.id, { description: galleryDescText.trim() });
+        setActiveSubEvent({ ...activeSubEvent, description: galleryDescText.trim() });
+        const loadedSubs = await getSubEvents(event.id, event.legacyId);
+        setSubEvents(loadedSubs);
+      } else {
+        await updateEvent(event.id, { description: galleryDescText.trim() });
+        setEvent({ ...event, description: galleryDescText.trim() });
+      }
+      setGalleryDescModalVisible(false);
+      Alert.alert("Success", "Gallery message updated successfully!");
+    } catch (err) {
+      console.error('[SaveDesc] Error:', err);
+      Alert.alert("Error", "Failed to update description.");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleUploadGalleryPhoto = async () => {
+    if (!event) return;
+    const activeId = activeSubEvent ? activeSubEvent.id : event.id;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setUpdating(true);
+      try {
+        const file = { uri: result.assets[0].uri, name: 'photo.jpg', type: 'image/jpeg' } as any;
+        const upload = await uploadEventImage(file, activeId, user?.uid || 'anon');
+        
+        const { addPhoto } = await import('@/lib/firestore');
+        await addPhoto({
+          eventId: activeId,
+          url: upload.url,
+          cloudinaryPublicId: '',
+          uploadedAt: new Date(),
+          userId: user?.uid || 'anon'
+        });
+        
+        loadPhotos(activeId, activeSubEvent ? activeSubEvent.legacyId : event.legacyId);
+        Alert.alert("Success", "Photo uploaded successfully!");
+      } catch (err) {
+        console.error('[UploadPhoto] Error:', err);
+        Alert.alert("Error", "Failed to upload photo.");
+      } finally {
+        setUpdating(false);
+      }
+    }
+  };
+
+  const handleDeleteGalleryPhoto = async (photoId: string) => {
+    Alert.alert(
+      "Delete Photo",
+      "Are you sure you want to permanently delete this photo from the gallery?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setUpdating(true);
+            try {
+              const { deletePhoto } = await import('@/lib/firestore');
+              await deletePhoto(photoId);
+              
+              const activeId = activeSubEvent ? activeSubEvent.id : event!.id;
+              loadPhotos(activeId, activeSubEvent ? activeSubEvent.legacyId : event!.legacyId);
+              Alert.alert("Success", "Photo removed from gallery.");
+            } catch (err) {
+              console.error('[DeletePhoto] Error:', err);
+              Alert.alert("Error", "Failed to delete photo.");
+            } finally {
+              setUpdating(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleOpenGalleryImmersive = (sub: FirestoreEvent | null) => {
+    console.log('[GalleryOpen] Tapped gallery card:', sub ? sub.title : 'Home');
+    try {
+      handleSubEventChange(sub);
+      setIsAdminViewActive(false);
+      console.log('[GalleryOpen] Switched isAdminViewActive to false successfully!');
+    } catch (error) {
+      console.error('[GalleryOpen] Error in handleOpenGalleryImmersive:', error);
     }
   };
 
@@ -286,7 +419,7 @@ export default function EventDetailScreen() {
         title: newSubTitle,
         date: event.date,
         coverImage: event.coverImage,
-        description: `Gallery for ${event.title}`,
+        description: `Welcome to the ${newSubTitle} gallery! Share your beautiful moments and thoughts here.`,
         createdBy: user?.uid,
         type: 'sub',
         parentId: event.id,
@@ -422,33 +555,140 @@ export default function EventDetailScreen() {
 
   // ── VISITOR NAVIGATION ──
   const renderVisitorHeader = () => {
+    const isRoyal = event?.templateId === 'royal';
     return (
-      <View style={styles.visitorHeaderContainer}>
+      <View style={[styles.visitorHeaderContainer, isRoyal && { height: 75, marginTop: 16, marginBottom: 8 }]}>
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false} 
           contentContainerStyle={styles.visitorHeaderContent}
         >
           <TouchableOpacity 
-            style={[styles.visitorTab, !activeSubEvent && styles.visitorTabActive]}
+            style={[
+              styles.visitorTab,
+              isRoyal ? { 
+                backgroundColor: 'transparent', 
+                borderWidth: 0, 
+                borderRadius: 0, 
+                paddingHorizontal: 16, 
+                paddingVertical: 6,
+                flexDirection: 'column',
+                gap: 2
+              } : !activeSubEvent && styles.visitorTabActive
+            ]}
             onPress={() => handleSubEventChange(null)}
           >
-            <IconSymbol name="house.fill" size={16} color={!activeSubEvent ? MidnightColors.background : MidnightColors.gold} />
-            <Text style={[styles.visitorTabText, !activeSubEvent && styles.visitorTabTextActive]}>Home</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {!isRoyal && (
+                <IconSymbol 
+                  name="house.fill" 
+                  size={14} 
+                  color={!activeSubEvent ? MidnightColors.background : MidnightColors.gold} 
+                />
+              )}
+              <Text style={[
+                styles.visitorTabText,
+                { color: isRoyal ? selectedTemplate.muted : MidnightColors.gold },
+                selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
+                !activeSubEvent && (isRoyal ? { color: '#fff' } : styles.visitorTabTextActive)
+              ]}>
+                Home
+              </Text>
+            </View>
+
+            {isRoyal && !activeSubEvent && (
+              <View style={{ alignItems: 'center', marginTop: 3 }}>
+                <View style={{ width: 28, height: 1.5, backgroundColor: selectedTemplate.accent }} />
+                <Text style={{ fontSize: 6, color: selectedTemplate.accent, marginTop: 1 }}>♦</Text>
+              </View>
+            )}
           </TouchableOpacity>
 
-          {subEvents.map((sub) => (
-            <TouchableOpacity 
-              key={sub.id}
-              style={[styles.visitorTab, activeSubEvent?.id === sub.id && styles.visitorTabActive]}
-              onPress={() => handleSubEventChange(sub)}
-            >
-              <Text style={[styles.visitorTabText, activeSubEvent?.id === sub.id && styles.visitorTabTextActive]}>
-                {sub.title}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {subEvents.map((sub) => {
+            const isActive = activeSubEvent?.id === sub.id;
+            return (
+              <TouchableOpacity 
+                key={sub.id}
+                style={[
+                  styles.visitorTab,
+                  isRoyal ? { 
+                    backgroundColor: 'transparent', 
+                    borderWidth: 0, 
+                    borderRadius: 0, 
+                    paddingHorizontal: 16, 
+                    paddingVertical: 6,
+                    flexDirection: 'column',
+                    gap: 2
+                  } : isActive && styles.visitorTabActive
+                ]}
+                onPress={() => handleSubEventChange(sub)}
+              >
+                <Text style={[
+                  styles.visitorTabText,
+                  { color: isRoyal ? selectedTemplate.muted : MidnightColors.gold },
+                  selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
+                  isActive && (isRoyal ? { color: '#fff' } : styles.visitorTabTextActive)
+                ]}>
+                  {sub.title}
+                </Text>
+
+                {isRoyal && isActive && (
+                  <View style={{ alignItems: 'center', marginTop: 3 }}>
+                    <View style={{ width: 28, height: 1.5, backgroundColor: selectedTemplate.accent }} />
+                    <Text style={{ fontSize: 6, color: selectedTemplate.accent, marginTop: 1 }}>♦</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+
+          {/* Wedding Partners Tab */}
+          <TouchableOpacity 
+            style={[
+              styles.visitorTab,
+              isRoyal ? { 
+                backgroundColor: 'transparent', 
+                borderWidth: 0, 
+                borderRadius: 0, 
+                paddingHorizontal: 16, 
+                paddingVertical: 6,
+                flexDirection: 'column',
+                gap: 2
+              } : activeSubEvent?.id === 'wedding-partners' && styles.visitorTabActive
+            ]}
+            onPress={() => setActiveSubEvent({ id: 'wedding-partners', title: 'Wedding Partners' } as any)}
+          >
+            <Text style={[
+              styles.visitorTabText,
+              { color: isRoyal ? selectedTemplate.muted : MidnightColors.gold },
+              selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
+              activeSubEvent?.id === 'wedding-partners' && (isRoyal ? { color: '#fff' } : styles.visitorTabTextActive)
+            ]}>
+              Wedding Partners <Text style={{ fontSize: 10 }}>🤝</Text>
+            </Text>
+
+            {isRoyal && activeSubEvent?.id === 'wedding-partners' && (
+              <View style={{ alignItems: 'center', marginTop: 3 }}>
+                <View style={{ width: 28, height: 1.5, backgroundColor: selectedTemplate.accent }} />
+                <Text style={{ fontSize: 6, color: selectedTemplate.accent, marginTop: 1 }}>♦</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+
         </ScrollView>
+      </View>
+    );
+  };
+
+  // ── ROYAL ORNAMENTAL DIVIDER ──
+  const renderRoyalDivider = () => {
+    if (selectedTemplate.id !== 'royal') return null;
+    return (
+      <View style={styles.royalDividerContainer}>
+        <View style={[styles.royalDividerLine, { backgroundColor: selectedTemplate.accent }]} />
+        <Text style={[styles.royalDividerDiamond, { color: selectedTemplate.accent }]}>♦</Text>
+        <View style={[styles.royalDividerLine, { backgroundColor: selectedTemplate.accent }]} />
       </View>
     );
   };
@@ -462,37 +702,69 @@ export default function EventDetailScreen() {
           headerTitle: '',
           headerLeft: () => (
             <TouchableOpacity 
-              onPress={() => {
-                if (router.canGoBack()) {
-                  router.back();
-                } else {
-                  router.replace('/(tabs)/gallery');
+              onPress={() => router.replace('/(tabs)/gallery')}
+              style={[
+                styles.floatingBack,
+                { marginTop: Platform.OS === 'ios' ? 44 : 10 },
+                (!showAdminView && event?.templateId === 'royal') && {
+                  marginLeft: 24,
+                  marginTop: 36,
+                  width: 40,
+                  height: 40,
+                  borderRadius: 6,
+                  borderColor: selectedTemplate.accent,
+                  backgroundColor: 'rgba(0,0,0,0.15)',
                 }
-              }}
-              style={styles.floatingBack}
+              ]}
               hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
             >
-              <IconSymbol name="chevron.left" size={28} color={MidnightColors.gold} />
+              <IconSymbol name="chevron.left" size={28} color={selectedTemplate.accent} />
+            </TouchableOpacity>
+          ),
+          headerRight: () => (
+            <TouchableOpacity 
+              style={[
+                styles.floatingBack,
+                { marginTop: Platform.OS === 'ios' ? 44 : 10, marginRight: 16 },
+                (!showAdminView && event?.templateId === 'royal') && {
+                  marginRight: 24,
+                  marginTop: 36,
+                  width: 40,
+                  height: 40,
+                  borderRadius: 6,
+                  borderColor: selectedTemplate.accent,
+                  backgroundColor: 'rgba(0,0,0,0.15)',
+                }
+              ]} 
+              onPress={() => setShowShareModal(true)}
+              hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
+            >
+              <IconSymbol name="square.and.arrow.up" size={20} color={selectedTemplate.accent} />
             </TouchableOpacity>
           )
         }} 
       />
 
-      {/* Immersive Top Nav for Guests */}
-      {!showAdminView && renderVisitorHeader()}
-
-      <ScrollView style={[styles.container, { backgroundColor: selectedTemplate.background }]} bounces={false} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        ref={scrollViewRef}
+        style={[styles.container, { backgroundColor: selectedTemplate.background }]} 
+        bounces={false} 
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={(e) => setScrollY(e.nativeEvent.contentOffset.y)}
+        stickyHeaderIndices={!showAdminView ? [1] : undefined}
+      >
         {/* ── HERO ── */}
-        <View style={styles.hero}>
+        <View style={[styles.hero, { height: heroHeight }]}>
           <Image source={{ uri: activeSubEvent?.coverImage || event.coverImage }} style={styles.heroImage} />
           <LinearGradient
             colors={selectedTemplate.overlay as [string, string]}
             style={styles.heroGradient}
           />
 
-          <TouchableOpacity style={styles.floatingShare} onPress={() => setShowShareModal(true)}>
-              <IconSymbol name="square.and.arrow.up" size={18} color={selectedTemplate.accent} />
-          </TouchableOpacity>
+
+
+
 
           {showAdminView && (
             <TouchableOpacity style={styles.editCoverBtn} onPress={handleChangeCover} disabled={updating}>
@@ -501,45 +773,98 @@ export default function EventDetailScreen() {
             </TouchableOpacity>
           )}
           
-          <View style={styles.heroContent}>
-            <View style={styles.titleRowMain}>
-              <Text style={[styles.heroTitle, { color: selectedTemplate.text, flex: 1 }]}>
-                {activeSubEvent?.title || event.title}
-              </Text>
-              {showAdminView && !activeSubEvent && (
-                <TouchableOpacity 
-                  style={styles.renameHeroBtn}
-                  onPress={() => {
-                    setEditTitle(event.title);
-                    setShowRenameModal(true);
-                  }}
-                >
-                  <IconSymbol name="pencil" size={22} color={MidnightColors.gold} />
-                </TouchableOpacity>
-              )}
-            </View>
-            <View style={styles.heroMeta}>
-              <IconSymbol name="calendar" size={12} color={selectedTemplate.accent} />
-              <Text style={[styles.heroDate, { color: selectedTemplate.accent }]}>{activeSubEvent?.date || event.date}</Text>
-              {showAdminView && !activeSubEvent && (
-                <TouchableOpacity 
-                  style={styles.editDateBtn}
-                  onPress={() => setShowDatePicker(true)}
-                >
-                  <IconSymbol name="pencil" size={12} color={selectedTemplate.accent} />
-                </TouchableOpacity>
-              )}
-            </View>
+          {(!showAdminView && event?.templateId === 'royal') ? (
+            <View style={styles.royalHeroOverlay}>
+              {/* 1. Elegant Thin Inset Frame */}
+              <View style={[styles.royalFrame, { borderColor: selectedTemplate.accent }]} />
 
-            <TouchableOpacity 
-              style={[styles.heroMeta, { marginTop: 12 }]} 
-              onPress={handleShare}
-            >
-              <IconSymbol name="square.and.arrow.up" size={12} color={selectedTemplate.accent} />
-              <Text style={[styles.heroDate, { color: selectedTemplate.accent }]}>Share Event</Text>
-            </TouchableOpacity>
-          </View>
+              {/* 2. Centered Text & Button */}
+              <View style={styles.royalCenterContent}>
+                <Text style={[styles.royalTitle, { color: '#fff' }]}>
+                  {(activeSubEvent?.title || event.title).toUpperCase()}
+                </Text>
+
+                <Text style={[styles.royalDateText, { color: selectedTemplate.accent }]}>
+                  {(activeSubEvent?.date || event.date || '').toUpperCase()}
+                </Text>
+
+                <TouchableOpacity 
+                  style={[styles.royalButton, { borderColor: selectedTemplate.accent }]}
+                  onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
+                >
+                  <Text style={[styles.royalButtonText, { color: selectedTemplate.text }]}>MY PHOTOS</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* 3. Bottom Brand/Logo and Chevron */}
+              <View style={styles.royalBottomContent}>
+                <View style={styles.brandLogoContainer}>
+                  <Text style={[styles.royalBrandLogoScript, { color: '#fff', fontSize: 13, opacity: 0.8 }]}>Delivered by</Text>
+                  <Text style={[styles.royalBrandSubText, { color: selectedTemplate.accent, fontSize: 16, marginTop: 2, letterSpacing: 2 }]}>Wed Album</Text>
+                  <Text style={[styles.royalBrandLogoScript, { color: '#fff', fontSize: 12, marginTop: 4, opacity: 0.8, fontStyle: 'normal' }]}>with love ❤️</Text>
+                </View>
+
+                {/* Downward Chevron */}
+                <TouchableOpacity 
+                  onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
+                  style={styles.royalChevron}
+                >
+                  <IconSymbol name="chevron.down" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.heroContent}>
+              <View style={styles.titleRowMain}>
+                <Text style={[
+                  styles.heroTitle, 
+                  { color: selectedTemplate.text, flex: 1 },
+                  selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' }
+                ]}>
+                  {activeSubEvent?.title || event.title}
+                </Text>
+                {showAdminView && !activeSubEvent && (
+                  <TouchableOpacity 
+                    style={styles.renameHeroBtn}
+                    onPress={() => {
+                      setEditTitle(event.title);
+                      setShowRenameModal(true);
+                    }}
+                  >
+                    <IconSymbol name="pencil" size={22} color={MidnightColors.gold} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <View style={styles.heroMeta}>
+                <IconSymbol name="calendar" size={12} color={selectedTemplate.accent} />
+                <Text style={[
+                  styles.heroDate, 
+                  { color: selectedTemplate.accent },
+                  selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic', letterSpacing: 2 }
+                ]}>{activeSubEvent?.date || event.date}</Text>
+                {showAdminView && !activeSubEvent && (
+                  <TouchableOpacity 
+                    style={styles.editDateBtn}
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <IconSymbol name="pencil" size={12} color={selectedTemplate.accent} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <TouchableOpacity 
+                style={[styles.heroMeta, { marginTop: 12 }]} 
+                onPress={handleShare}
+              >
+                <IconSymbol name="square.and.arrow.up" size={12} color={selectedTemplate.accent} />
+                <Text style={[styles.heroDate, { color: selectedTemplate.accent }]}>Share Event</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
+
+        {/* Visitor Navigation Tabs placed BELOW the Cover Photo screen */}
+        {!showAdminView && renderVisitorHeader()}
 
         {/* ── CONTENT ── */}
         <View style={styles.content}>
@@ -549,7 +874,7 @@ export default function EventDetailScreen() {
               <View style={styles.tabBar}>
                 <TouchableOpacity 
                   style={[styles.tab, activeTab === 'galleries' && styles.activeTab]} 
-                  onPress={() => setActiveTab('galleries')}
+                  onPress={() => { setActiveTab('galleries'); setSelectedAdminGallery(undefined); }}
                 >
                   <Text style={[styles.tabText, activeTab === 'galleries' && styles.activeTabText]}>Galleries</Text>
                 </TouchableOpacity>
@@ -566,44 +891,221 @@ export default function EventDetailScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={[styles.tab, activeTab === 'design' && styles.activeTab]} 
-                  onPress={() => setActiveTab('design')}
+                  onPress={() => { setActiveTab('design'); setSelectedAdminGallery(undefined); }}
                 >
                   <Text style={[styles.tabText, activeTab === 'design' && styles.activeTabText]}>Design</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.tab, activeTab === 'partners' && styles.activeTab]} 
+                  onPress={() => { setActiveTab('partners'); setSelectedAdminGallery(undefined); }}
+                >
+                  <Text style={[styles.tabText, activeTab === 'partners' && styles.activeTabText]}>Partners</Text>
                 </TouchableOpacity>
               </View>
 
               {activeTab === 'galleries' && (
                 <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Sub-Events</Text>
-                    <TouchableOpacity style={styles.addBtn} onPress={() => setShowSubEventModal(true)}>
-                      <IconSymbol name="plus" size={14} color={MidnightColors.gold} />
-                      <Text style={styles.addBtnText}>Add Gallery</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.subGrid}>
-                    {subEvents.map((sub) => (
-                      <TouchableOpacity 
-                        key={sub.id} 
-                        style={styles.subCard}
-                        onPress={() => router.push(`/events/${sub.id}`)}
-                      >
-                        <Image source={{ uri: sub.coverImage }} style={styles.subImage} />
-                        <View style={styles.subInfo}>
-                          <Text style={styles.subTitle} numberOfLines={1}>{sub.title}</Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                  {selectedAdminGallery === undefined ? (
+                    // ── GALLERY CARDS LIST ──
+                    <>
+                      <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Galleries</Text>
+                        <TouchableOpacity style={styles.addBtn} onPress={() => setShowSubEventModal(true)}>
+                          <IconSymbol name="plus" size={14} color={MidnightColors.gold} />
+                          <Text style={styles.addBtnText}>Add Gallery</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <View style={styles.subGrid}>
+                        {/* Home Gallery Card */}
+                        {event && (
+                          <TouchableOpacity 
+                            style={[styles.subCard, { borderColor: selectedTemplate.accent, borderWidth: 1, backgroundColor: 'rgba(204,164,59,0.05)' }]}
+                            onPress={() => {
+                              loadPhotos(event.id, event.legacyId);
+                              setGalleryDescText(event.description || '');
+                              setSelectedAdminGallery(null);
+                            }}
+                          >
+                            <Image source={{ uri: event.coverImage }} style={styles.subImage} />
+                            <View style={styles.subInfo}>
+                              <Text style={[styles.subTitle, { color: selectedTemplate.accent, fontWeight: 'bold' }]} numberOfLines={1}>🏠 Home</Text>
+                            </View>
+                          </TouchableOpacity>
+                        )}
+                        {subEvents.map((sub) => (
+                          <TouchableOpacity 
+                            key={sub.id} 
+                            style={styles.subCard}
+                            onPress={() => {
+                              loadPhotos(sub.id, sub.legacyId);
+                              setGalleryDescText(sub.description || '');
+                              setSelectedAdminGallery(sub);
+                            }}
+                          >
+                            <Image source={{ uri: sub.coverImage }} style={styles.subImage} />
+                            <View style={styles.subInfo}>
+                              <Text style={styles.subTitle} numberOfLines={1}>{sub.title}</Text>
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
 
-                  {/* ── DELETE EVENT BUTTON ── */}
-                  <TouchableOpacity 
-                    style={styles.deleteMainBtn}
-                    onPress={handleDeleteMainEvent}
-                  >
-                    <IconSymbol name="trash.fill" size={16} color="#ef4444" />
-                    <Text style={styles.deleteMainText}>Delete Event</Text>
-                  </TouchableOpacity>
+                      {/* Delete Event */}
+                      <TouchableOpacity style={styles.deleteMainBtn} onPress={handleDeleteMainEvent}>
+                        <IconSymbol name="trash.fill" size={16} color="#ef4444" />
+                        <Text style={styles.deleteMainText}>Delete Event</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    // ── INLINE GALLERY MANAGER ──
+                    <>
+                      {/* Header with back button */}
+                      <View style={[styles.sectionHeader, { marginBottom: 16 }]}>
+                        <TouchableOpacity 
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                          onPress={() => setSelectedAdminGallery(undefined)}
+                        >
+                          <IconSymbol name="chevron.left" size={18} color={MidnightColors.gold} />
+                          <Text style={{ color: MidnightColors.gold, fontSize: 14, fontWeight: '600' }}>Galleries</Text>
+                        </TouchableOpacity>
+                        
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                          <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>
+                            {selectedAdminGallery === null ? '🏠 Home' : selectedAdminGallery.title}
+                          </Text>
+                          <TouchableOpacity
+                            style={{ backgroundColor: 'rgba(204,164,59,0.12)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: MidnightColors.gold, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                            onPress={async () => {
+                              const targetId = selectedAdminGallery === null ? event!.id : selectedAdminGallery.id;
+                              const result = await ImagePicker.launchImageLibraryAsync({
+                                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                                allowsEditing: true,
+                                aspect: [16, 9],
+                                quality: 0.8,
+                              });
+                              if (!result.canceled) {
+                                setUpdating(true);
+                                try {
+                                  const file = { uri: result.assets[0].uri, name: 'cover.jpg', type: 'image/jpeg' } as any;
+                                  const upload = await uploadEventImage(file, event!.id, user?.uid || 'anon');
+                                  await updateEvent(targetId, { coverImage: upload.url });
+                                  loadEvent(); 
+                                  Alert.alert("Success", "Cover image updated!");
+                                } catch (err) {
+                                  Alert.alert("Error", "Failed to update cover.");
+                                } finally {
+                                  setUpdating(false);
+                                }
+                              }
+                            }}
+                          >
+                            <IconSymbol name="camera.fill" size={12} color={MidnightColors.gold} />
+                            <Text style={{ color: MidnightColors.gold, fontSize: 11, fontWeight: '600' }}>Change Cover</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+
+                      {/* Welcome Message Editor */}
+                      <View style={{ marginBottom: 24 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
+                          <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600', letterSpacing: 0.5 }}>Welcome Message</Text>
+                          <Text style={{ color: (galleryDescText?.length || 0) >= 200 ? '#ef4444' : 'rgba(255,255,255,0.6)', fontSize: 11 }}>
+                            {galleryDescText?.length || 0}/200
+                          </Text>
+                        </View>
+                        <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(204,164,59,0.25)', overflow: 'hidden' }}>
+                          <TextInput
+                            style={{ color: '#ffffff', fontSize: 14, lineHeight: 22, minHeight: 60, maxHeight: 100, padding: 12, textAlignVertical: 'top' }}
+                            value={galleryDescText}
+                            onChangeText={setGalleryDescText}
+                            placeholder="Write a brief, elegant welcome note..."
+                            placeholderTextColor="rgba(255,255,255,0.4)"
+                            multiline
+                            maxLength={200}
+                          />
+                          <View style={{ backgroundColor: 'rgba(204,164,59,0.05)', borderTopWidth: 1, borderColor: 'rgba(204,164,59,0.1)', paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', justifyContent: 'flex-end' }}>
+                            {(() => {
+                              const originalDesc = (selectedAdminGallery === null ? event!.description : selectedAdminGallery.description) || '';
+                              const isChanged = galleryDescText !== originalDesc;
+                              
+                              if (isChanged) {
+                                return (
+                                  <TouchableOpacity
+                                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                                    onPress={async () => {
+                                      const targetId = selectedAdminGallery === null ? event!.id : selectedAdminGallery.id;
+                                      const { updateEvent } = await import('@/lib/firestore');
+                                      await updateEvent(targetId, { description: galleryDescText });
+                                      
+                                      if (selectedAdminGallery === null) {
+                                        event!.description = galleryDescText;
+                                      } else {
+                                        selectedAdminGallery.description = galleryDescText;
+                                      }
+                                      
+                                      Alert.alert('Saved', 'Welcome message updated.');
+                                    }}
+                                  >
+                                    <IconSymbol name="checkmark" size={12} color={MidnightColors.gold} />
+                                    <Text style={{ color: MidnightColors.gold, fontWeight: '600', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Save</Text>
+                                  </TouchableOpacity>
+                                );
+                              } else {
+                                return (
+                                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, opacity: 0.5 }} pointerEvents="none">
+                                    <IconSymbol name="pencil" size={12} color={MidnightColors.slate300} />
+                                    <Text style={{ color: MidnightColors.slate300, fontWeight: '600', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Edit</Text>
+                                  </View>
+                                );
+                              }
+                            })()}
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Photo Grid Header */}
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <Text style={styles.sectionTitle}>
+                          Photos ({photos.length})
+                        </Text>
+                        <TouchableOpacity
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(204,164,59,0.12)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: MidnightColors.gold }}
+                          onPress={handleUploadGalleryPhoto}
+                        >
+                          <IconSymbol name="plus" size={13} color={MidnightColors.gold} />
+                          <Text style={{ color: MidnightColors.gold, fontSize: 12, fontWeight: '600' }}>Add Photo</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Photo Grid */}
+                      {loadingPhotos ? (
+                        <ActivityIndicator color={MidnightColors.gold} style={{ marginTop: 24 }} />
+                      ) : photos.length === 0 ? (
+                        <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                          <IconSymbol name="photo.on.rectangle" size={36} color={MidnightColors.slate700} />
+                          <Text style={{ color: MidnightColors.slate400, marginTop: 10, fontSize: 14 }}>No photos yet. Tap Add Photo!</Text>
+                        </View>
+                      ) : (
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                          {photos.map((photo) => (
+                            <View key={photo.id} style={{ position: 'relative' }}>
+                              <Image
+                                source={{ uri: photo.url }}
+                                style={{ width: (SCREEN_WIDTH - 76) / 3, height: (SCREEN_WIDTH - 76) / 3, borderRadius: 10 }}
+                                resizeMode="contain"
+                              />
+                              <TouchableOpacity
+                                style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(239,68,68,0.9)', alignItems: 'center', justifyContent: 'center' }}
+                                onPress={() => handleDeleteGalleryPhoto(photo.id)}
+                              >
+                                <IconSymbol name="trash.fill" size={10} color="#fff" />
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </>
+                  )}
                 </View>
               )}
 
@@ -893,29 +1395,214 @@ export default function EventDetailScreen() {
                     </TouchableOpacity>
                 </View>
               )}
+
+              {activeTab === 'partners' && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Wedding Partners</Text>
+                  <View style={{ backgroundColor: MidnightColors.deepSlate, borderRadius: 12, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: MidnightColors.slate800 }}>
+                    <IconSymbol name="building.2.fill" size={48} color={MidnightColors.gold} />
+                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', marginTop: 16, marginBottom: 8 }}>Partner Management</Text>
+                    
+                    {!linkingVendor ? (
+                      <>
+                        <Text style={{ color: MidnightColors.slate400, fontSize: 14, textAlign: 'center', lineHeight: 22, paddingHorizontal: 20 }}>
+                          Link photographers, makeup artists, and venues from the Biz Hub using their unique Vendor Code. They will appear on your guest page.
+                        </Text>
+                        <TouchableOpacity 
+                          style={{ marginTop: 24, backgroundColor: MidnightColors.gold, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 }}
+                          onPress={() => setLinkingVendor(true)}
+                        >
+                          <Text style={{ color: '#000', fontWeight: '700', fontSize: 14 }}>Link a Vendor</Text>
+                        </TouchableOpacity>
+                      </>
+                    ) : (
+                      <View style={{ width: '100%', marginTop: 16 }}>
+                        <Text style={{ color: MidnightColors.slate300, fontSize: 12, fontWeight: '600', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Enter Vendor Code</Text>
+                        <TextInput
+                          style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff', fontSize: 16, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: MidnightColors.slate700, marginBottom: 16 }}
+                          value={vendorCode}
+                          onChangeText={(text) => setVendorCode(text.toUpperCase())}
+                          placeholder="e.g. VEN-1234"
+                          placeholderTextColor={MidnightColors.slate500}
+                          autoCapitalize="characters"
+                        />
+                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                          <TouchableOpacity 
+                            style={{ flex: 1, paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: MidnightColors.slate700, alignItems: 'center' }}
+                            onPress={() => { setLinkingVendor(false); setVendorCode(''); }}
+                          >
+                            <Text style={{ color: MidnightColors.slate300, fontWeight: '600', fontSize: 14 }}>Cancel</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={{ flex: 1, backgroundColor: MidnightColors.gold, paddingVertical: 12, borderRadius: 8, alignItems: 'center', opacity: vendorCode.length > 3 ? 1 : 0.5 }}
+                            disabled={vendorCode.length <= 3}
+                            onPress={async () => {
+                              const biz = await getBusinessByVendorCode(vendorCode);
+                              if (biz) {
+                                if (event?.vendors?.includes(biz.id)) {
+                                  Alert.alert("Already Linked", "This vendor is already linked to your event.");
+                                } else {
+                                  const newVendors = [...(event?.vendors || []), biz.id];
+                                  await updateEvent(event!.id, { vendors: newVendors });
+                                  setEvent({ ...event!, vendors: newVendors });
+                                  setLinkedVendors([...linkedVendors, biz]);
+                                  Alert.alert("Vendor Linked!", `Successfully linked ${biz.name}. They will now appear on the Wedding Partners page.`);
+                                  setLinkingVendor(false);
+                                  setVendorCode('');
+                                }
+                              } else {
+                                Alert.alert("Invalid Code", "No business found with this code. Please try again.");
+                              }
+                            }}
+                          >
+                            <Text style={{ color: '#000', fontWeight: '700', fontSize: 14 }}>Submit</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+
+                  {linkedVendors.length > 0 && (
+                    <View style={{ marginTop: 24, paddingHorizontal: 16 }}>
+                      <Text style={{ color: MidnightColors.slate300, fontSize: 14, fontWeight: '600', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Linked Partners</Text>
+                      <View style={{ gap: 12 }}>
+                        {linkedVendors.map((biz) => (
+                          <View key={biz.id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: MidnightColors.deepSlate, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: MidnightColors.slate800 }}>
+                            <Image source={{ uri: biz.coverImage || 'https://via.placeholder.com/150' }} style={{ width: 48, height: 48, borderRadius: 24, marginRight: 16, backgroundColor: MidnightColors.slate800 }} />
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>{biz.name}</Text>
+                              <Text style={{ color: MidnightColors.slate400, fontSize: 13 }}>{biz.type}</Text>
+                            </View>
+                            <TouchableOpacity
+                              style={{ padding: 8, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: 8 }}
+                              onPress={async () => {
+                                const newVendors = event?.vendors?.filter(vid => vid !== biz.id) || [];
+                                await updateEvent(event!.id, { vendors: newVendors });
+                                setEvent({ ...event!, vendors: newVendors });
+                                setLinkedVendors(linkedVendors.filter(v => v.id !== biz.id));
+                              }}
+                            >
+                              <IconSymbol name="trash.fill" size={16} color="#ef4444" />
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                </View>
+              )}
             </>
           ) : (
             <>
               {/* ── VISITOR IMMERSIVE CONTENT ── */}
               <View style={[styles.visitorContent, { backgroundColor: selectedTemplate.background }]}>
-                {!activeSubEvent && (
-                  <View style={[styles.mainInfoBox, { backgroundColor: selectedTemplate.panel, borderColor: selectedTemplate.accentBg }]}>
-                    <Text style={[styles.visitorDescription, { color: selectedTemplate.muted }]}>{event.description}</Text>
-                    {event.category && (
-                      <View style={[styles.categoryBadge, { backgroundColor: selectedTemplate.accentBg }]}>
-                        <Text style={[styles.categoryBadgeText, { color: selectedTemplate.accent }]}>{event.category}</Text>
-                      </View>
-                    )}
+                {event.showWelcomeCard !== false && activeSubEvent?.id !== 'wedding-partners' && (
+                  <View style={[
+                    styles.mainInfoBox, 
+                    { backgroundColor: selectedTemplate.panel, borderColor: selectedTemplate.accentBg },
+                    event.templateId === 'royal' && { 
+                      borderWidth: 1, 
+                      borderColor: 'rgba(204, 164, 59, 0.35)', 
+                      borderRadius: 12,
+                      padding: 10,
+                      borderLeftWidth: 1, // override dynamic left border stripe
+                    }
+                  ]}>
+                    <View style={[
+                      event.templateId === 'royal' && {
+                        borderWidth: 1,
+                        borderColor: 'rgba(204, 164, 59, 0.15)',
+                        borderRadius: 8,
+                        paddingVertical: 20,
+                        paddingHorizontal: 16,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative'
+                      },
+                      { position: 'relative' }
+                    ]}>
+                      {event.templateId === 'royal' && (
+                        <Text style={{ color: selectedTemplate.accent, fontSize: 10, marginBottom: 12 }}>✦  ♦  ✦</Text>
+                      )}
+
+                      <Text style={[
+                        styles.visitorDescription, 
+                        { color: event.templateId === 'royal' ? selectedTemplate.accent : selectedTemplate.text },
+                        selectedTemplate.useSerif && { 
+                          fontFamily: Fonts.serif, 
+                          fontStyle: 'italic', 
+                          fontSize: 16, 
+                          lineHeight: 26,
+                          textAlign: 'center',
+                        }
+                      ]}>{activeSubEvent ? activeSubEvent.description : event.description} 🤍</Text>
+
+
+
+
+                    </View>
                   </View>
                 )}
 
-                <View style={styles.galleryHeader}>
-                  <Text style={[styles.galleryTitle, { color: selectedTemplate.text }]}>
-                    {activeSubEvent ? activeSubEvent.title : 'Highlights'}
-                  </Text>
-                  <Text style={[styles.photoCount, { color: selectedTemplate.accent }]}>
-                    {photos.length} {photos.length === 1 ? 'Photo' : 'Photos'}
-                  </Text>
+                {renderRoyalDivider()}
+
+                {activeSubEvent?.id === 'wedding-partners' ? (
+                  <View style={{ paddingVertical: 40, paddingHorizontal: 20 }}>
+                    <View style={{ alignItems: 'center', marginBottom: 32 }}>
+                      <Text style={[
+                        { fontSize: 28, color: selectedTemplate.text, marginBottom: 8 },
+                        selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic' }
+                      ]}>The Dream Team</Text>
+                      <Text style={{ fontSize: 14, color: selectedTemplate.muted, textAlign: 'center', lineHeight: 22, maxWidth: '80%' }}>
+                        The incredible businesses and vendors who brought this beautiful wedding to life.
+                      </Text>
+                    </View>
+                    
+                    {linkedVendors.length === 0 ? (
+                      <View style={{ alignItems: 'center', paddingVertical: 40, backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' }}>
+                         <IconSymbol name="building.2" size={32} color={selectedTemplate.accent} />
+                         <Text style={{ color: selectedTemplate.muted, marginTop: 16, fontSize: 15, fontWeight: '500' }}>Vendor list coming soon...</Text>
+                      </View>
+                    ) : (
+                      <View style={{ gap: 16 }}>
+                        {linkedVendors.map((biz) => (
+                          <TouchableOpacity 
+                            key={biz.id} 
+                            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}
+                            onPress={() => router.push(`/business/${biz.id}`)}
+                          >
+                            <Image source={{ uri: biz.coverImage || 'https://via.placeholder.com/150' }} style={{ width: 64, height: 64, borderRadius: 32, marginRight: 16, borderWidth: 1, borderColor: selectedTemplate.accent }} />
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ color: selectedTemplate.text, fontSize: 18, fontWeight: '600', marginBottom: 4 }}>{biz.name}</Text>
+                              <Text style={{ color: selectedTemplate.accent, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, fontWeight: '700' }}>{biz.type}</Text>
+                            </View>
+                            <IconSymbol name="chevron.right" size={20} color={selectedTemplate.muted} />
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ) : (
+                  <>
+                <View style={[styles.galleryHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 16 }]}>
+                  <View>
+                    <Text style={[
+                      styles.galleryTitle, 
+                      { color: selectedTemplate.text },
+                      selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' }
+                    ]}>
+                      {activeSubEvent ? activeSubEvent.title : 'Highlights'}
+                    </Text>
+                    <Text style={[
+                      styles.photoCount, 
+                      { color: selectedTemplate.accent },
+                      selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic' }
+                    ]}>
+                      {photos.length} {photos.length === 1 ? 'Photo' : 'Photos'}
+                    </Text>
+                  </View>
+
+
                 </View>
 
                 {loadingPhotos ? (
@@ -931,32 +1618,52 @@ export default function EventDetailScreen() {
                       </View>
                     ) : (
                       photos.map((photo, i) => (
-                        <TouchableOpacity 
-                          key={photo.id} 
+                        <Animated.View
+                          key={photo.id}
+                          entering={FadeInUp.delay(i * 100).duration(600).springify().damping(14)}
                           style={[
                             styles.photoCard,
                             {
-                              paddingRight: (i + 1) % 3 === 0 ? 0 : PHOTO_GRID_GAP,
+                              paddingRight: (i + 1) % 2 === 0 ? 0 : PHOTO_GRID_GAP,
                               paddingBottom: PHOTO_GRID_GAP,
                             },
                           ]}
-                          activeOpacity={0.9}
-                          onPress={() => openViewer(i)}
                         >
-                          <View style={[styles.photoTile, {
-                            backgroundColor: selectedTemplate.tileBg,
-                            borderRadius: selectedTemplate.radius,
-                            borderWidth: event.templateId === 'polaroid' || event.templateId === 'museum' || event.templateId === 'brutalist' ? 1 : 0,
-                            borderColor: selectedTemplate.accentBg,
-                            padding: event.templateId === 'polaroid' ? 5 : 0,
-                          }]}>
-                            <Image source={{ uri: photo.url }} style={styles.galleryImg} />
+                          <TouchableOpacity 
+                            style={{ flex: 1 }}
+                            activeOpacity={0.9}
+                            onPress={() => openViewer(i)}
+                          >
+                            <View style={[
+                            styles.photoTile, 
+                            {
+                              backgroundColor: selectedTemplate.tileBg,
+                              borderRadius: selectedTemplate.radius,
+                              borderWidth: event.templateId === 'polaroid' || event.templateId === 'museum' || event.templateId === 'brutalist' || event.templateId === 'royal' ? 1 : 0,
+                              borderColor: event.templateId === 'royal' ? selectedTemplate.accent : selectedTemplate.accentBg,
+                              padding: event.templateId === 'polaroid' ? 5 : (event.templateId === 'royal' ? 4 : 0),
+                            },
+                            event.templateId === 'royal' && {
+                              shadowColor: selectedTemplate.accent,
+                              shadowOffset: { width: 0, height: 2 },
+                              shadowOpacity: 0.15,
+                              shadowRadius: 4,
+                              elevation: 2,
+                            }
+                          ]}>
+                            <Image source={{ uri: photo.url }} style={styles.galleryImg} resizeMode="contain" />
+
                           </View>
                         </TouchableOpacity>
+                        </Animated.View>
                       ))
                     )}
                   </View>
                 )}
+                </>
+                )}
+
+                {renderRoyalDivider()}
 
                 {/* Join Prompt for non-logged in users */}
                 {!user && (
@@ -1086,8 +1793,14 @@ export default function EventDetailScreen() {
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.guestbookPanel}>
               <View style={styles.guestbookHeader}>
                 <View>
-                  <Text style={styles.guestbookTitle}>Guestbook</Text>
-                  <Text style={styles.guestbookSubtitle}>{comments.length} Shared Thoughts</Text>
+                  <Text style={[
+                    styles.guestbookTitle,
+                    selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' }
+                  ]}>Guestbook</Text>
+                  <Text style={[
+                    styles.guestbookSubtitle,
+                    selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic' }
+                  ]}>{comments.length} Shared Thoughts</Text>
                 </View>
                 <TouchableOpacity style={styles.closeGuestbookBtn} onPress={() => setShowComments(false)}>
                   <IconSymbol name="xmark" size={18} color="#57534e" />
@@ -1100,8 +1813,14 @@ export default function EventDetailScreen() {
                     <View style={styles.emptyGuestbookIcon}>
                       <IconSymbol name="bubble.right" size={30} color="#78716c" />
                     </View>
-                    <Text style={styles.emptyGuestbookTitle}>No whispers yet...</Text>
-                    <Text style={styles.emptyGuestbookText}>Write the first beautiful word.</Text>
+                    <Text style={[
+                      styles.emptyGuestbookTitle,
+                      selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic', fontSize: 18 }
+                    ]}>No whispers yet...</Text>
+                    <Text style={[
+                      styles.emptyGuestbookText,
+                      selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic' }
+                    ]}>Write the first beautiful word.</Text>
                   </View>
                 ) : (
                   comments.filter((comment) => !comment.parentId).map((comment) => {
@@ -1109,18 +1828,33 @@ export default function EventDetailScreen() {
                     return (
                       <View key={comment.id} style={styles.commentThread}>
                         <View style={styles.commentItem}>
-                          <View style={styles.commentAvatar}>
-                            <Text style={styles.commentAvatarText}>{comment.userName?.charAt(0) || 'G'}</Text>
+                          <View style={[
+                            styles.commentAvatar,
+                            selectedTemplate.id === 'royal' && { backgroundColor: selectedTemplate.accentBg, borderWidth: 1, borderColor: selectedTemplate.accent }
+                          ]}>
+                            <Text style={[
+                              styles.commentAvatarText,
+                              selectedTemplate.id === 'royal' && { color: selectedTemplate.accent, fontFamily: Fonts.serif, fontWeight: 'bold' }
+                            ]}>{comment.userName?.charAt(0) || 'G'}</Text>
                           </View>
                           <View style={styles.commentContent}>
                             <View style={styles.commentRow}>
-                              <Text style={styles.commentName} numberOfLines={1}>{comment.userName || 'Guest'}</Text>
+                              <Text style={[
+                                styles.commentName,
+                                selectedTemplate.id === 'royal' && { fontFamily: Fonts.serif, color: selectedTemplate.text }
+                              ]} numberOfLines={1}>{comment.userName || 'Guest'}</Text>
                               <Text style={styles.commentTime}>
                                 {comment.createdAt ? new Date(comment.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
                               </Text>
                             </View>
-                            <View style={styles.commentBubble}>
-                              <Text style={styles.commentText}>{comment.text}</Text>
+                            <View style={[
+                              styles.commentBubble,
+                              selectedTemplate.id === 'royal' && { borderWidth: 1, borderColor: 'rgba(212,175,55,0.15)', backgroundColor: 'rgba(212,175,55,0.04)' }
+                            ]}>
+                              <Text style={[
+                                styles.commentText,
+                                selectedTemplate.id === 'royal' && { color: selectedTemplate.text, fontFamily: Fonts.serif }
+                              ]}>{comment.text}</Text>
                               <View style={styles.commentActions}>
                                 <TouchableOpacity onPress={() => setReplyingTo(comment)}>
                                   <Text style={styles.replyBtnText}>REPLY</Text>
@@ -1137,18 +1871,33 @@ export default function EventDetailScreen() {
 
                         {replies.map((reply) => (
                           <View key={reply.id} style={styles.replyItem}>
-                            <View style={styles.replyAvatar}>
-                              <Text style={styles.replyAvatarText}>{reply.userName?.charAt(0) || 'G'}</Text>
+                            <View style={[
+                              styles.replyAvatar,
+                              selectedTemplate.id === 'royal' && { backgroundColor: selectedTemplate.accentBg, borderWidth: 1, borderColor: selectedTemplate.accent }
+                            ]}>
+                              <Text style={[
+                                styles.replyAvatarText,
+                                selectedTemplate.id === 'royal' && { color: selectedTemplate.accent, fontFamily: Fonts.serif, fontWeight: 'bold' }
+                              ]}>{reply.userName?.charAt(0) || 'G'}</Text>
                             </View>
                             <View style={styles.commentContent}>
                               <View style={styles.commentRow}>
-                                <Text style={styles.replyName} numberOfLines={1}>{reply.userName || 'Guest'}</Text>
+                                <Text style={[
+                                  styles.replyName,
+                                  selectedTemplate.id === 'royal' && { fontFamily: Fonts.serif, color: selectedTemplate.text }
+                                ]} numberOfLines={1}>{reply.userName || 'Guest'}</Text>
                                 <Text style={styles.commentTime}>
                                   {reply.createdAt ? new Date(reply.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
                                 </Text>
                               </View>
-                              <View style={styles.replyBubble}>
-                                <Text style={styles.replyText}>{reply.text}</Text>
+                              <View style={[
+                                styles.replyBubble,
+                                selectedTemplate.id === 'royal' && { borderWidth: 1, borderColor: 'rgba(212,175,55,0.15)', backgroundColor: 'rgba(212,175,55,0.04)' }
+                              ]}>
+                                <Text style={[
+                                  styles.replyText,
+                                  selectedTemplate.id === 'royal' && { color: selectedTemplate.text, fontFamily: Fonts.serif }
+                                ]}>{reply.text}</Text>
                                 {reply.userId === viewerIdentity.id && (
                                   <TouchableOpacity onPress={() => handleDeleteComment(reply.id)}>
                                     <Text style={[styles.deleteBtnText, styles.replyDeleteText]}>DELETE</Text>
@@ -1271,6 +2020,55 @@ export default function EventDetailScreen() {
             <TouchableOpacity style={styles.submitBtn} onPress={handleRenameEvent} disabled={updating}>
               <Text style={styles.submitBtnText}>{updating ? 'Updating...' : 'Save Name'}</Text>
             </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── EDIT GALLERY DESCRIPTION MODAL ── */}
+      <Modal visible={galleryDescModalVisible} transparent animationType="slide">
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity 
+            style={styles.modalBackdrop} 
+            activeOpacity={1} 
+            onPress={() => setGalleryDescModalVisible(false)} 
+          />
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Edit Gallery Message</Text>
+                <Text style={styles.headerGreeting}>
+                  For: {activeSubEvent ? activeSubEvent.title : 'Home Gallery'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setGalleryDescModalVisible(false)}>
+                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.form}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Gallery Welcome Message</Text>
+                <TextInput 
+                  style={[styles.input, { minHeight: 120, textAlignVertical: 'top', padding: 12, backgroundColor: MidnightColors.deepSlate, borderRadius: 8, color: '#fff' }]} 
+                  value={galleryDescText} 
+                  onChangeText={setGalleryDescText} 
+                  placeholder="Write a beautiful welcome message for this gallery..." 
+                  placeholderTextColor={MidnightColors.slate700}
+                  multiline
+                  numberOfLines={5}
+                />
+              </View>
+
+              <TouchableOpacity 
+                style={[styles.submitBtn, { backgroundColor: selectedTemplate.accent, marginTop: 12 }]} 
+                onPress={handleSaveGalleryDesc}
+              >
+                <Text style={[styles.submitBtnText, { color: '#000', fontWeight: 'bold' }]}>Save Message</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -1614,12 +2412,11 @@ const styles = StyleSheet.create({
 
   // Visitor Immersive Styles
   visitorHeaderContainer: {
-    position: 'absolute',
-    top: 50, // Below safe area top usually
-    left: 0,
-    right: 0,
-    zIndex: 100,
+    width: '100%',
     height: 60,
+    zIndex: 100,
+    marginTop: 12,
+    marginBottom: 4,
   },
   visitorHeaderContent: {
     paddingHorizontal: 20,
@@ -1656,7 +2453,8 @@ const styles = StyleSheet.create({
   mainInfoBox: {
     padding: 24,
     backgroundColor: 'rgba(255,255,255,0.02)',
-    margin: 20,
+    marginHorizontal: 12, // Reduced to make the card wider
+    marginVertical: 20,
     borderRadius: 24,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
@@ -1714,7 +2512,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   photoCard: {
-    width: '33.3333%',
+    width: '50%',
     aspectRatio: 1,
   },
   photoTile: {
@@ -2065,4 +2863,118 @@ const styles = StyleSheet.create({
   },
   deleteMainBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: 12, marginTop: 32, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.2)' },
   deleteMainText: { color: '#ef4444', fontSize: 14, fontFamily: Fonts.inter.bold },
+
+  royalDividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginVertical: 24,
+    alignSelf: 'center',
+    width: '60%',
+  },
+  royalDividerLine: {
+    flex: 1,
+    height: 1,
+    opacity: 0.3,
+  },
+  royalDividerDiamond: {
+    fontSize: 10,
+    transform: [{ scaleY: 1.2 }],
+    opacity: 0.75,
+  },
+
+  // Premium Royal Gold Splash Overlay Styles
+  royalHeroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 100,
+    paddingBottom: 40,
+  },
+  royalFrame: {
+    position: 'absolute',
+    top: 60,
+    bottom: 30,
+    left: 20,
+    right: 20,
+    borderWidth: 1,
+    borderRadius: 8,
+    pointerEvents: 'none',
+  },
+  royalCenterContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  royalTitle: {
+    fontSize: 34,
+    fontFamily: Fonts.serif,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginHorizontal: 36,
+    lineHeight: 46,
+    letterSpacing: 2,
+  },
+  royalDateText: {
+    fontSize: 13,
+    fontFamily: Fonts.inter.bold,
+    marginTop: 14,
+    letterSpacing: 2,
+  },
+  royalButton: {
+    marginTop: 32,
+    borderWidth: 1.5,
+    borderRadius: 6,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.15)',
+  },
+  royalButtonText: {
+    fontSize: 12,
+    fontFamily: Fonts.inter.bold,
+    letterSpacing: 2,
+  },
+  royalBottomContent: {
+    alignItems: 'center',
+    width: '100%',
+    gap: 16,
+  },
+  brandLogoContainer: {
+    alignItems: 'center',
+  },
+  royalBrandLogoScript: {
+    fontFamily: Fonts.serif,
+    fontSize: 18,
+    fontStyle: 'italic',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  royalCircleLetters: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 6,
+  },
+  royalCircleLetterBox: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  royalCircleLetterText: {
+    fontSize: 8,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  royalBrandSubText: {
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    letterSpacing: 3,
+  },
+  royalChevron: {
+    opacity: 0.85,
+  },
 });

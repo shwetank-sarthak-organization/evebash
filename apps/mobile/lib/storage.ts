@@ -4,8 +4,8 @@
  * Uses unsigned upload for simplicity since we don't have a backend to sign requests
  */
 
-const CLOUD_NAME = "db0feghsr";
-const UPLOAD_PRESET = "ml_default"; // Common default, hope it works or user has one
+const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || "db0feghsr";
+const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ml_default";
 
 export async function uploadEventImage(file: { uri: string; name: string; type: string }, eventId: string, userId?: string) {
     try {

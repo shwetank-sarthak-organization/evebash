@@ -58,6 +58,9 @@ const MAPPING = {
   'questionmark.circle.fill': 'help-outline',
   'crown.fill': 'workspace-premium',
   'magnifyingglass': 'search',
+  'bell.fill': 'notifications',
+  'eye.fill': 'visibility',
+  'chevron.down': 'keyboard-arrow-down',
 } as const;
 
 type IconSymbolName = keyof typeof MAPPING;

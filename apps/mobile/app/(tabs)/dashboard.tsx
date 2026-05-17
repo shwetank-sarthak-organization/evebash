@@ -200,24 +200,10 @@ export default function DashboardScreen() {
           <TouchableOpacity 
             style={styles.headerIconButton} 
             activeOpacity={0.7}
-            onPress={() => Alert.alert("Messages", "Coming Soon: Direct messaging with vendors and event hosts.")}
+            onPress={() => Alert.alert("Notifications", "Coming Soon: Updates on your albums, events, and shortlist activity.")}
           >
-            <IconSymbol name="bubble.right" size={22} color="#f8fafc" />
+            <IconSymbol name="bell.fill" size={20} color="#f8fafc" />
             <View style={styles.notificationBadge} />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            activeOpacity={0.8}
-            onPress={() => router.push('/(tabs)/profile')}
-          >
-            <View style={styles.avatarRing}>
-              {user.profileImage
-                ? <Image source={{ uri: user.profileImage }} style={styles.avatar} />
-                : <View style={styles.avatarFallback}>
-                    <IconSymbol name="person.fill" size={16} color="#64748b" />
-                  </View>
-              }
-            </View>
           </TouchableOpacity>
         </View>
       </LinearGradient>

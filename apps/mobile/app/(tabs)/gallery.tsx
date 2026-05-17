@@ -16,6 +16,7 @@ import {
   Share,
   Linking,
   useColorScheme,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -79,6 +80,11 @@ export default function PortfolioTabScreen() {
   const [templateVisible, setTemplateVisible] = useState(false);
   const [renameVisible, setRenameVisible] = useState(false);
   const [editTitle, setEditTitle] = useState('');
+
+  // Welcome Settings State
+  const [welcomeEditVisible, setWelcomeEditVisible] = useState(false);
+  const [welcomeText, setWelcomeText] = useState('');
+  const [showWelcomeCard, setShowWelcomeCard] = useState(true);
 
   // Join Event State
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -300,6 +306,24 @@ export default function PortfolioTabScreen() {
       Alert.alert("Success", "Event renamed successfully.");
     } else {
       Alert.alert("Error", "Failed to rename event.");
+    }
+    setLoading(false);
+  };
+
+  const handleWelcomeEditSubmit = async () => {
+    if (!targetEvent) return;
+    setLoading(true);
+    const success = await updateEvent(targetEvent.id, { 
+      description: welcomeText.trim(), 
+      showWelcomeCard: showWelcomeCard 
+    });
+    if (success) {
+      setWelcomeEditVisible(false);
+      setTargetEvent(null);
+      fetchData();
+      Alert.alert("Success", "Welcome card settings updated.");
+    } else {
+      Alert.alert("Error", "Failed to update settings.");
     }
     setLoading(false);
   };

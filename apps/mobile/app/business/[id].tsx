@@ -22,7 +22,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image as ExpoImage } from 'expo-image';
 import * as Location from 'expo-location';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { getBusinessById, Business } from '@/lib/firestore';
+import { getBusinessById, updateBusiness, Business } from '@/lib/firestore';
+import * as Clipboard from 'expo-clipboard';
+import { useAuth } from '@/context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
@@ -31,6 +33,7 @@ const { width } = Dimensions.get('window');
 export default function BusinessDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const { user } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFavorited, setIsFavorited] = useState(false);
@@ -51,7 +54,24 @@ export default function BusinessDetailScreen() {
     React.useCallback(() => {
       async function fetchBusiness() {
         if (typeof id === 'string') {
-          const data = await getBusinessById(id);
+          let data = await getBusinessById(id);
+          
+          if (data && !data.vendorCode) {
+            // Generate a unique deterministic vendorCode based on the business ID prefix
+            const docIdCode = id.substring(0, 6).toUpperCase();
+            const vendorCode = `VEN-${docIdCode}`;
+            data = { ...data, vendorCode };
+            
+            // Only write to database if the logged-in user is the owner (who has write permissions)
+            if (user && (user.uid === data.createdBy || user.email === data.ownerEmail)) {
+              try {
+                await updateBusiness(id, { vendorCode });
+              } catch (err) {
+                console.warn("Silent ignore: Failed to save vendorCode to db", err);
+              }
+            }
+          }
+          
           setBusiness(data);
           
           // Try to get locality from coordinates if address is missing
@@ -222,6 +242,19 @@ export default function BusinessDetailScreen() {
                 <View style={styles.categoryBadge}>
                   <Text style={styles.categoryText}>{business.type}</Text>
                 </View>
+                {business.vendorCode && (
+                  <TouchableOpacity 
+                    style={[styles.categoryBadge, { borderColor: 'rgba(59, 130, 246, 0.3)', backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}
+                    onPress={async () => {
+                      if (business.vendorCode) {
+                        await Clipboard.setStringAsync(business.vendorCode);
+                        Alert.alert("Copied!", "Vendor Code copied to clipboard.");
+                      }
+                    }}
+                  >
+                    <Text style={[styles.categoryText, { color: '#3b82f6' }]}>Code: {business.vendorCode} 📋</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
             <View style={styles.ratingBadge}>

@@ -42,6 +42,7 @@ export interface Event {
     joinId?: string;
     category?: string;
     templateId?: string;
+    vendors?: string[];
     createdAt?: any;
 }
 
@@ -85,6 +86,7 @@ export interface Business {
     faqs?: { q: string; a: string }[];
     status: 'created' | 'published';
     shortId?: string;
+    vendorCode?: string;
     announcements?: string[];
     createdAt?: any;
 }
@@ -770,8 +772,12 @@ export async function getEventByJoinId(joinId: string): Promise<Event | null> {
 
 export async function createBusiness(businessData: Omit<Business, 'id' | 'createdAt'>) {
   try {
+    const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const vendorCode = businessData.vendorCode || `VEN-${randomCode}`;
+    
     const docRef = await addDoc(collection(db, 'businesses'), {
       ...businessData,
+      vendorCode,
       createdAt: serverTimestamp(),
     });
     return docRef.id;
@@ -791,6 +797,42 @@ export async function getBusinessById(id: string): Promise<Business | null> {
     return null;
   } catch (e) {
     console.error("Error fetching business by ID:", e);
+    return null;
+  }
+}
+
+export async function getBusinessByVendorCode(code: string): Promise<Business | null> {
+  try {
+    const formattedCode = code.toUpperCase().trim();
+    // 1. Try querying by the vendorCode field
+    const q = query(collection(db, 'businesses'), where('vendorCode', '==', formattedCode));
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+      return { ...snapshot.docs[0].data(), id: snapshot.docs[0].id } as Business;
+    }
+
+    // 2. Fallback: If it's a deterministic code based on the document ID prefix, search by ID
+    if (formattedCode.startsWith('VEN-')) {
+      const docIdPrefix = formattedCode.replace('VEN-', '').toLowerCase();
+      
+      // If the ID matches the prefix exactly or we can find it
+      const docRef = doc(db, 'businesses', docIdPrefix);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return { ...docSnap.data(), id: docSnap.id } as Business;
+      }
+      
+      // Since prefix is just 6 chars, we can query all businesses and check client-side as a last resort
+      const allSnapshot = await getDocs(collection(db, 'businesses'));
+      for (const d of allSnapshot.docs) {
+        if (d.id.toLowerCase().startsWith(docIdPrefix)) {
+          return { ...d.data(), id: d.id } as Business;
+        }
+      }
+    }
+    return null;
+  } catch (e) {
+    console.error("Error fetching business by vendor code:", e);
     return null;
   }
 }

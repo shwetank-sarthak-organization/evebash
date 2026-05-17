@@ -14,6 +14,7 @@ export interface TemplateTheme {
   tileBg: { light: string; dark: string };
   radius: number;
   overlay: { light: string[]; dark: string[] };
+  useSerif?: boolean;
 }
 
 export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
@@ -21,17 +22,18 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
   { 
     id: 'royal', 
     category: 'Wedding', 
-    label: 'Royal Gold', 
-    desc: 'Luxurious serif & gold accents', 
-    background: { light: '#fffaf0', dark: '#0b1026' }, 
-    panel: { light: '#ffffff', dark: 'rgba(212,175,55,0.08)' }, 
-    text: { light: '#1c1917', dark: '#fff7ed' }, 
-    muted: { light: '#78716c', dark: '#cbd5e1' }, 
-    accent: '#d4af37', 
-    accentBg: { light: 'rgba(212,175,55,0.1)', dark: 'rgba(212,175,55,0.18)' }, 
-    tileBg: { light: '#ffffff', dark: '#111827' }, 
+    label: 'Royal Emerald', 
+    desc: 'Deep imperial emerald & palace gold', 
+    background: { light: '#033026', dark: '#02231c' }, 
+    panel: { light: 'rgba(2, 35, 28, 0.6)', dark: 'rgba(2, 35, 28, 0.8)' }, 
+    text: { light: '#fcfbf7', dark: '#fcfbf7' }, 
+    muted: { light: '#a3b899', dark: '#a3b899' }, 
+    accent: '#cca43b', 
+    accentBg: { light: 'rgba(204, 164, 59, 0.12)', dark: 'rgba(204, 164, 59, 0.18)' }, 
+    tileBg: { light: '#02231c', dark: '#021a15' }, 
     radius: 18, 
-    overlay: { light: ['rgba(255,250,240,0.1)', 'rgba(255,250,240,1)'], dark: ['rgba(11,16,38,0.25)', 'rgba(11,16,38,1)'] } 
+    overlay: { light: ['rgba(3, 48, 38, 0.25)', 'rgba(3, 48, 38, 1)'], dark: ['rgba(2, 35, 28, 0.25)', 'rgba(2, 35, 28, 1)'] },
+    useSerif: true
   },
   { 
     id: 'classic', 
@@ -46,7 +48,8 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
     accentBg: { light: 'rgba(212,175,55,0.1)', dark: 'rgba(212,175,55,0.15)' }, 
     tileBg: { light: '#ffffff', dark: '#1e293b' }, 
     radius: 0, 
-    overlay: { light: ['rgba(255,255,255,0.1)', 'rgba(255,255,255,1)'], dark: ['rgba(15,23,42,0.2)', 'rgba(15,23,42,1)'] } 
+    overlay: { light: ['rgba(255,255,255,0.1)', 'rgba(255,255,255,1)'], dark: ['rgba(15,23,42,0.2)', 'rgba(15,23,42,1)'] },
+    useSerif: true
   },
   { 
     id: 'hero', 
@@ -76,7 +79,8 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
     accentBg: { light: '#ffedd5', dark: 'rgba(194,65,12,0.2)' }, 
     tileBg: { light: '#fafaf9', dark: '#292524' }, 
     radius: 30, 
-    overlay: { light: ['rgba(253,252,251,0.1)', 'rgba(253,252,251,1)'], dark: ['rgba(28,25,23,0.2)', 'rgba(28,25,23,1)'] } 
+    overlay: { light: ['rgba(253,252,251,0.1)', 'rgba(253,252,251,1)'], dark: ['rgba(28,25,23,0.2)', 'rgba(28,25,23,1)'] },
+    useSerif: true
   },
 
   // BIRTHDAY
