@@ -7,11 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "mobile": "npm --prefix apps/mobile start",
-    "mobile:android": "npm --prefix apps/mobile run android",
-    "mobile:ios": "npm --prefix apps/mobile run ios",
-    "mobile:web": "npm --prefix apps/mobile run web",
-    "mobile:lint": "npm --prefix apps/mobile run lint",
+    "mobile": "cd apps/mobile && npm start",
+    "mobile:android": "cd apps/mobile && npm run android",
+    "mobile:ios": "cd apps/mobile && npm run ios",
+    "mobile:web": "cd apps/mobile && npm run web",
+    "mobile:lint": "cd apps/mobile && npm run lint",
     "mobile:install": "npm install --prefix apps/mobile"
   },
   "dependencies": {

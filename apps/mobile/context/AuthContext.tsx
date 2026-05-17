@@ -78,53 +78,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       console.log('[Auth] onAuthStateChanged fired. User:', firebaseUser?.uid || 'none');
-      if (firebaseUser) {
-        // Stop any previous profile listener
-        if (profileUnsubscribe) profileUnsubscribe();
+      try {
+        if (firebaseUser) {
+          // Stop any previous profile listener
+          if (profileUnsubscribe) profileUnsubscribe();
 
-        const db = getFirestore();
-        const profileRef = doc(db, 'users', firebaseUser.uid);
+          const db = getFirestore();
+          const profileRef = doc(db, 'users', firebaseUser.uid);
 
-        // First, ensure profile exists
-        const snap = await getDoc(profileRef);
-        if (!snap.exists()) {
-          const name = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User';
-          await setDoc(profileRef, {
-            uid: firebaseUser.uid,
-            name,
-            email: firebaseUser.email,
-            role: 'user',
-            createdAt: serverTimestamp(),
-          }, { merge: true });
-        }
-
-        // Now, set up real-time listener for the profile
-        console.log("[Auth] Setting up profile listener for:", firebaseUser.uid);
-        profileUnsubscribe = onSnapshot(profileRef, (profileSnap) => {
-          if (profileSnap.exists()) {
-            const data = profileSnap.data();
-            console.log("[Auth] Profile updated:", data.role);
+          // First, ensure profile exists - handle offline/error
+          try {
+            const snap = await getDoc(profileRef);
+            if (!snap.exists()) {
+              const name = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User';
+              await setDoc(profileRef, {
+                uid: firebaseUser.uid,
+                name,
+                email: firebaseUser.email,
+                role: 'user',
+                createdAt: serverTimestamp(),
+              }, { merge: true });
+            }
+          } catch (docErr) {
+            console.warn('[Auth] Profile fetch error (offline?):', docErr);
+            // Non-blocking: just show them as a basic user for now
             setUser({
               uid: firebaseUser.uid,
-              name: data.name || firebaseUser.displayName || 'User',
-              email: data.email || firebaseUser.email,
-              role: data.role || 'user',
-              roleType: data.roleType || (data.delegatedBy ? 'event' : 'primary'),
-              delegatedBy: data.delegatedBy,
-              assignedEvents: data.assignedEvents || [],
-              profileImage: data.profileImage,
-              phone: data.phone,
-              shortlisted: data.shortlisted || [],
+              name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+              email: firebaseUser.email,
+              role: 'user',
             });
+            setLoading(false);
+            // Don't setup onSnapshot if we're clearly offline/having issues
+            return;
           }
+
+          // Now, set up real-time listener for the profile
+          console.log("[Auth] Setting up profile listener for:", firebaseUser.uid);
+          profileUnsubscribe = onSnapshot(profileRef, (profileSnap) => {
+            if (profileSnap.exists()) {
+              const data = profileSnap.data();
+              console.log("[Auth] Profile updated:", data.role);
+              setUser({
+                uid: firebaseUser.uid,
+                name: data.name || firebaseUser.displayName || 'User',
+                email: data.email || firebaseUser.email,
+                role: data.role || 'user',
+                roleType: data.roleType || (data.delegatedBy ? 'event' : 'primary'),
+                delegatedBy: data.delegatedBy,
+                assignedEvents: data.assignedEvents || [],
+                profileImage: data.profileImage,
+                phone: data.phone,
+              });
+            }
+            setLoading(false);
+          }, (error) => {
+            console.error("[Auth] Profile listener error:", error);
+            setLoading(false);
+          });
+        } else {
+          if (profileUnsubscribe) profileUnsubscribe();
+          setUser(null);
           setLoading(false);
-        }, (error) => {
-          console.error("[Auth] Profile listener error:", error);
-          setLoading(false);
-        });
-      } else {
-        if (profileUnsubscribe) profileUnsubscribe();
-        setUser(null);
+        }
+      } catch (err) {
+        console.error('[Auth] Global auth handler error:', err);
         setLoading(false);
       }
     });

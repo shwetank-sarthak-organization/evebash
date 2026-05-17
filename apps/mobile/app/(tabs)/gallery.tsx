@@ -15,6 +15,7 @@ import {
   KeyboardAvoidingView,
   Share,
   Linking,
+  useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -23,6 +24,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
+import { MOBILE_TEMPLATE_THEMES } from '../../constants/templates';
 import { 
   Event as FirestoreEvent, 
   getUserEvents,
@@ -47,18 +49,6 @@ const PLACEHOLDER_IMAGES = [
   "https://images.unsplash.com/photo-1465495910483-34a170a7bb00?q=80&w=1200&auto=format&fit=crop"
 ];
 
-const MOBILE_TEMPLATE_THEMES = [
-  { id: 'hero', label: 'Hero (Default)', desc: 'Big impact cover image', background: '#020617', text: '#ffffff', accent: '#d4af37', overlay: ['rgba(2,6,23,0.2)', 'rgba(2,6,23,1)'] },
-  { id: 'classic', label: 'Classic', desc: 'Timeless and elegant', background: '#111827', text: '#f9fafb', accent: '#f3d19c', overlay: ['rgba(17,24,39,0.2)', 'rgba(17,24,39,1)'] },
-  { id: 'royal', label: 'Royal', desc: 'Luxurious serif typography', background: '#0b1026', text: '#fff7ed', accent: '#d4af37', overlay: ['rgba(11,16,38,0.25)', 'rgba(11,16,38,1)'] },
-  { id: 'editorial', label: 'Editorial', desc: 'Magazine-style layout', background: '#fafaf9', text: '#111827', accent: '#111827', overlay: ['rgba(17,24,39,0.05)', 'rgba(250,250,249,1)'] },
-  { id: 'bohemian', label: 'Bohemian', desc: 'Earthy and organic colors', background: '#2f241d', text: '#ffedd5', accent: '#fb923c', overlay: ['rgba(47,36,29,0.15)', 'rgba(47,36,29,1)'] },
-  { id: 'polaroid', label: 'Polaroid', desc: 'Vintage photo frames', background: '#f8f3e7', text: '#1f2937', accent: '#b45309', overlay: ['rgba(31,41,55,0.05)', 'rgba(248,243,231,1)'] },
-  { id: 'cinematic', label: 'Cinematic', desc: 'Immersive fullscreen video', background: '#000000', text: '#ffffff', accent: '#ef4444', overlay: ['rgba(0,0,0,0.1)', 'rgba(0,0,0,1)'] },
-  { id: 'museum', label: 'Museum', desc: 'Minimalist art gallery', background: '#f8fafc', text: '#0f172a', accent: '#334155', overlay: ['rgba(15,23,42,0.02)', 'rgba(248,250,252,1)'] },
-  { id: 'scrapbook', label: 'Scrapbook', desc: 'Playful cut-out aesthetic', background: '#fff7ed', text: '#431407', accent: '#db2777', overlay: ['rgba(67,20,7,0.04)', 'rgba(255,247,237,1)'] },
-  { id: 'brutalist', label: 'Brutalist', desc: 'Raw, highly structured design', background: '#f4f4f5', text: '#000000', accent: '#000000', overlay: ['rgba(0,0,0,0)', 'rgba(244,244,245,1)'] },
-];
 
 function createSlug(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
@@ -67,6 +57,8 @@ function createSlug(value: string) {
 export default function PortfolioTabScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const [activeTab, setActiveTab] = useState<'my' | 'shared' | 'requests'>('my');
   const [events, setEvents] = useState<FirestoreEvent[]>([]);
@@ -187,7 +179,7 @@ export default function PortfolioTabScreen() {
       if (user.phone) identifiers.push(user.phone);
 
       const [myEvts, shEvts, storage] = await Promise.all([
-        getUserEvents([user.uid], 'main'),
+        getUserEvents(identifiers, 'main'),
         getApprovedSharedEventsForUser(identifiers, true),
         getUserTotalStorage(identifiers)
       ]);
@@ -236,7 +228,8 @@ export default function PortfolioTabScreen() {
         coverImage,
         createdBy: user.uid,
         type: 'main',
-        templateId: 'hero'
+        templateId: 'hero',
+        category: 'Wedding'
       });
 
       if (success) {
@@ -363,16 +356,6 @@ export default function PortfolioTabScreen() {
             <Text style={styles.cardDate}>{event.date}</Text>
           </View>
         </View>
-      </TouchableOpacity>
-      <TouchableOpacity 
-        style={styles.cardAction}
-        onPress={(pressEvent) => {
-          pressEvent.stopPropagation?.();
-          setTargetEvent(event);
-          setOptionsVisible(true);
-        }}
-      >
-        <IconSymbol name="ellipsis" size={16} color={MidnightColors.gold} />
       </TouchableOpacity>
     </View>
   );
@@ -766,13 +749,13 @@ export default function PortfolioTabScreen() {
                       styles.templateOptionCard,
                       { borderColor: (targetEvent?.templateId || 'hero') === template.id ? template.accent : 'rgba(255,255,255,0.08)' },
                     ]}
-                    onPress={() => handleTemplateSelect(template.id)}
+                    onPress={() => { handleTemplateSelect(template.id); setTemplateVisible(false); }}
                     activeOpacity={0.9}
                   >
-                    <View style={[styles.templatePreview, { backgroundColor: template.background }]}>
-                      <LinearGradient colors={template.overlay as [string, string]} style={StyleSheet.absoluteFillObject} />
+                    <View style={[styles.templatePreview, { backgroundColor: isDark ? template.background.dark : template.background.light }]}>
+                      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.1)' }]} />
                       <Text style={[styles.templatePreviewLabel, { color: template.accent }]}>Template {index + 1}</Text>
-                      <Text style={[styles.templatePreviewTitle, { color: template.text }]}>{template.label}</Text>
+                      <Text style={[styles.templatePreviewTitle, { color: isDark ? template.text.dark : template.text.light }]}>{template.label}</Text>
                     </View>
                     <View style={styles.templateMeta}>
                       <View style={{ flex: 1 }}>

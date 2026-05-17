@@ -1,30 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Share, Keyboard, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Share, Keyboard, useWindowDimensions, useColorScheme } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event as FirestoreEvent, updateEvent, createEvent, getGuestLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, onPhotoInteractions, toggleLike, addComment, deletePhotoComment } from '@/lib/firestore';
+import { getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event as FirestoreEvent, updateEvent, createEvent, getGuestLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, onPhotoInteractions, toggleLike, addComment, deletePhotoComment, deleteEvent } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
+import { MOBILE_TEMPLATE_THEMES } from '../../constants/templates';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadEventImage } from '@/lib/storage';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_GRID_GAP = 3;
-
-const MOBILE_TEMPLATE_THEMES = [
-  { id: 'hero', label: 'Hero (Default)', desc: 'Big impact cover image', background: '#020617', panel: 'rgba(255,255,255,0.02)', text: '#ffffff', muted: '#94a3b8', accent: '#d4af37', accentBg: 'rgba(212,175,55,0.12)', tileBg: '#111827', radius: 0, overlay: ['rgba(2, 6, 23, 0.2)', 'rgba(2, 6, 23, 1)'] },
-  { id: 'classic', label: 'Classic', desc: 'Timeless and elegant', background: '#111827', panel: '#1f2937', text: '#f9fafb', muted: '#d1d5db', accent: '#f3d19c', accentBg: 'rgba(243,209,156,0.14)', tileBg: '#0f172a', radius: 14, overlay: ['rgba(17,24,39,0.2)', 'rgba(17,24,39,1)'] },
-  { id: 'royal', label: 'Royal', desc: 'Luxurious serif typography', background: '#0b1026', panel: 'rgba(212,175,55,0.08)', text: '#fff7ed', muted: '#cbd5e1', accent: '#d4af37', accentBg: 'rgba(212,175,55,0.18)', tileBg: '#111827', radius: 18, overlay: ['rgba(11,16,38,0.25)', 'rgba(11,16,38,1)'] },
-  { id: 'editorial', label: 'Editorial', desc: 'Magazine-style layout', background: '#fafaf9', panel: '#ffffff', text: '#111827', muted: '#57534e', accent: '#111827', accentBg: '#f5f5f4', tileBg: '#e7e5e4', radius: 0, overlay: ['rgba(17,24,39,0.05)', 'rgba(250,250,249,1)'] },
-  { id: 'bohemian', label: 'Bohemian', desc: 'Earthy and organic colors', background: '#2f241d', panel: 'rgba(255,247,237,0.08)', text: '#ffedd5', muted: '#d6d3d1', accent: '#fb923c', accentBg: 'rgba(251,146,60,0.18)', tileBg: '#3f2f26', radius: 22, overlay: ['rgba(47,36,29,0.15)', 'rgba(47,36,29,1)'] },
-  { id: 'polaroid', label: 'Polaroid', desc: 'Vintage photo frames', background: '#f8f3e7', panel: '#fffaf0', text: '#1f2937', muted: '#78716c', accent: '#b45309', accentBg: '#fef3c7', tileBg: '#ffffff', radius: 2, overlay: ['rgba(31,41,55,0.05)', 'rgba(248,243,231,1)'] },
-  { id: 'cinematic', label: 'Cinematic', desc: 'Immersive fullscreen video', background: '#000000', panel: 'rgba(255,255,255,0.04)', text: '#ffffff', muted: '#a3a3a3', accent: '#ef4444', accentBg: 'rgba(239,68,68,0.16)', tileBg: '#111111', radius: 4, overlay: ['rgba(0,0,0,0.1)', 'rgba(0,0,0,1)'] },
-  { id: 'museum', label: 'Museum', desc: 'Minimalist art gallery', background: '#f8fafc', panel: '#ffffff', text: '#0f172a', muted: '#64748b', accent: '#334155', accentBg: '#e2e8f0', tileBg: '#ffffff', radius: 0, overlay: ['rgba(15,23,42,0.02)', 'rgba(248,250,252,1)'] },
-  { id: 'scrapbook', label: 'Scrapbook', desc: 'Playful cut-out aesthetic', background: '#fff7ed', panel: '#fffbeb', text: '#431407', muted: '#92400e', accent: '#db2777', accentBg: '#fce7f3', tileBg: '#ffffff', radius: 10, overlay: ['rgba(67,20,7,0.04)', 'rgba(255,247,237,1)'] },
-  { id: 'brutalist', label: 'Brutalist', desc: 'Raw, highly structured design', background: '#f4f4f5', panel: '#ffffff', text: '#000000', muted: '#27272a', accent: '#000000', accentBg: '#e4e4e7', tileBg: '#ffffff', radius: 0, overlay: ['rgba(0,0,0,0)', 'rgba(244,244,245,1)'] },
-];
 
 export default function EventDetailScreen() {
   const { width } = useWindowDimensions();
@@ -42,10 +31,28 @@ export default function EventDetailScreen() {
   const [guestPhone, setGuestPhone] = useState('');
   
   const [isOwner, setIsOwner] = useState(false);
-  const [activeTab, setActiveTab] = useState<'galleries' | 'photos' | 'permissions' | 'design'>((tab as any) || 'galleries');
+  const [activeTab, setActiveTab] = useState<'galleries' | 'permissions' | 'design'>((tab as any) || 'galleries');
   const [guestLogs, setGuestLogs] = useState<any[]>([]);
   const [updating, setUpdating] = useState(false);
   
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  const selectedTemplate = React.useMemo(() => {
+    // If event is loading or missing, fallback to first theme
+    const base = MOBILE_TEMPLATE_THEMES.find((theme) => theme.id === (event?.templateId || 'hero')) || MOBILE_TEMPLATE_THEMES[0];
+    return {
+      ...base,
+      background: isDark ? base.background.dark : base.background.light,
+      panel: isDark ? base.panel.dark : base.panel.light,
+      text: isDark ? base.text.dark : base.text.light,
+      muted: isDark ? base.muted.dark : base.muted.light,
+      accentBg: isDark ? base.accentBg.dark : base.accentBg.light,
+      tileBg: isDark ? base.tileBg.dark : base.tileBg.light,
+      overlay: isDark ? base.overlay.dark : base.overlay.light,
+    };
+  }, [event?.templateId, isDark]);
+
   // Decide which view to show
   // We show Admin view ONLY if mode=admin AND user is owner.
   // Otherwise, we default to the premium Visitor view.
@@ -56,6 +63,9 @@ export default function EventDetailScreen() {
   const [newSubTitle, setNewSubTitle] = useState('');
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showShareModal, setShowShareModal] = useState(share === 'true');
   const [showApproved, setShowApproved] = useState(false);
 
@@ -299,8 +309,6 @@ export default function EventDetailScreen() {
       setEvent({ ...event, templateId });
       await updateEvent(event.id, { templateId });
       setShowTemplateModal(false);
-      loadEvent();
-      Alert.alert("Success", "Theme updated!");
     } catch (err) {
       Alert.alert("Error", "Failed to update theme.");
     } finally {
@@ -312,14 +320,84 @@ export default function EventDetailScreen() {
     if (!event) return;
     setUpdating(true);
     try {
+      setEvent({ ...event, category });
       await updateEvent(event.id, { category });
-      loadEvent();
-      Alert.alert("Success", `Event type set to ${category}!`);
     } catch (err) {
       Alert.alert("Error", "Failed to update event type.");
     } finally {
       setUpdating(false);
     }
+  };
+
+  const handleRenameEvent = async () => {
+    if (!event || !editTitle.trim()) return;
+    setUpdating(true);
+    try {
+      const success = await updateEvent(event.id, { title: editTitle.trim() });
+      if (success) {
+        // Update local state immediately for snappiness
+        setEvent({ ...event, title: editTitle.trim() });
+        setShowRenameModal(false);
+      } else {
+        Alert.alert("Error", "Failed to rename event in database.");
+      }
+    } catch (err) {
+      console.error("[RenameEvent] Error:", err);
+      Alert.alert("Error", "An unexpected error occurred.");
+    } finally {
+      setUpdating(false);
+    }
+  };
+  const handleDateChange = async (e: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (e.type === 'set' && selectedDate && event) {
+      const formattedDate = selectedDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+      
+      setUpdating(true);
+      try {
+        const success = await updateEvent(event.id, { date: formattedDate });
+        if (success) {
+          setEvent({ ...event, date: formattedDate });
+        } else {
+          Alert.alert("Error", "Failed to update date in database.");
+        }
+      } catch (err) {
+        console.error("[DateChange] Error:", err);
+        Alert.alert("Error", "Failed to update date.");
+      } finally {
+        setUpdating(false);
+      }
+    }
+  };
+
+  const handleDeleteMainEvent = async () => {
+    if (!event) return;
+    Alert.alert(
+      "Delete Event",
+      `Are you sure you want to delete "${event.title}"? This will permanently remove all photos and sub-events.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive", 
+          onPress: async () => {
+            setUpdating(true);
+            const success = await deleteEvent(event.id);
+            if (success) {
+              Alert.alert("Success", "Event deleted successfully.");
+              router.replace('/(tabs)/gallery');
+            } else {
+              Alert.alert("Error", "Failed to delete event.");
+            }
+            setUpdating(false);
+          } 
+        }
+      ]
+    );
   };
 
   if (loading) {
@@ -341,7 +419,6 @@ export default function EventDetailScreen() {
     );
   }
 
-  const selectedTemplate = MOBILE_TEMPLATE_THEMES.find((theme) => theme.id === (event.templateId || 'hero')) || MOBILE_TEMPLATE_THEMES[0];
 
   // ── VISITOR NAVIGATION ──
   const renderVisitorHeader = () => {
@@ -425,11 +502,42 @@ export default function EventDetailScreen() {
           )}
           
           <View style={styles.heroContent}>
-            <Text style={[styles.heroTitle, { color: selectedTemplate.text }]}>{activeSubEvent?.title || event.title}</Text>
+            <View style={styles.titleRowMain}>
+              <Text style={[styles.heroTitle, { color: selectedTemplate.text, flex: 1 }]}>
+                {activeSubEvent?.title || event.title}
+              </Text>
+              {showAdminView && !activeSubEvent && (
+                <TouchableOpacity 
+                  style={styles.renameHeroBtn}
+                  onPress={() => {
+                    setEditTitle(event.title);
+                    setShowRenameModal(true);
+                  }}
+                >
+                  <IconSymbol name="pencil" size={22} color={MidnightColors.gold} />
+                </TouchableOpacity>
+              )}
+            </View>
             <View style={styles.heroMeta}>
               <IconSymbol name="calendar" size={12} color={selectedTemplate.accent} />
               <Text style={[styles.heroDate, { color: selectedTemplate.accent }]}>{activeSubEvent?.date || event.date}</Text>
+              {showAdminView && !activeSubEvent && (
+                <TouchableOpacity 
+                  style={styles.editDateBtn}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <IconSymbol name="pencil" size={12} color={selectedTemplate.accent} />
+                </TouchableOpacity>
+              )}
             </View>
+
+            <TouchableOpacity 
+              style={[styles.heroMeta, { marginTop: 12 }]} 
+              onPress={handleShare}
+            >
+              <IconSymbol name="square.and.arrow.up" size={12} color={selectedTemplate.accent} />
+              <Text style={[styles.heroDate, { color: selectedTemplate.accent }]}>Share Event</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -444,12 +552,6 @@ export default function EventDetailScreen() {
                   onPress={() => setActiveTab('galleries')}
                 >
                   <Text style={[styles.tabText, activeTab === 'galleries' && styles.activeTabText]}>Galleries</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.tab, activeTab === 'photos' && styles.activeTab]} 
-                  onPress={() => setActiveTab('photos')}
-                >
-                  <Text style={[styles.tabText, activeTab === 'photos' && styles.activeTabText]}>Photos</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={[styles.tab, activeTab === 'permissions' && styles.activeTab]} 
@@ -493,22 +595,15 @@ export default function EventDetailScreen() {
                       </TouchableOpacity>
                     ))}
                   </View>
-                </View>
-              )}
 
-              {activeTab === 'photos' && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Media Management</Text>
+                  {/* ── DELETE EVENT BUTTON ── */}
                   <TouchableOpacity 
-                    style={styles.viewGalleryBtn}
-                    onPress={() => router.push(`/gallery/${event.id}` as any)}
+                    style={styles.deleteMainBtn}
+                    onPress={handleDeleteMainEvent}
                   >
-                    <LinearGradient colors={[MidnightColors.gold, '#b8860b']} style={styles.viewGalleryGradient}>
-                      <IconSymbol name="photo.fill" size={18} color={MidnightColors.background} />
-                      <Text style={styles.viewGalleryText}>Manage Photos</Text>
-                    </LinearGradient>
+                    <IconSymbol name="trash.fill" size={16} color="#ef4444" />
+                    <Text style={styles.deleteMainText}>Delete Event</Text>
                   </TouchableOpacity>
-                  <Text style={styles.emptyText}>Tap above to manage all photos and videos in this event.</Text>
                 </View>
               )}
 
@@ -780,7 +875,7 @@ export default function EventDetailScreen() {
                   {/* Step 1: Event Type */}
                   <TouchableOpacity style={styles.designCard} onPress={() => setShowCategoryModal(true)}>
                     <View style={styles.designInfo}>
-                      <Text style={styles.designLabel}>1. Event Type</Text>
+                      <Text style={styles.designLabel}>Event Type</Text>
                       <Text style={styles.designValue}>{event.category || 'Select Type'}</Text>
                     </View>
                     <IconSymbol name="chevron.right" size={20} color={MidnightColors.gold} />
@@ -791,7 +886,7 @@ export default function EventDetailScreen() {
                       onPress={() => setShowTemplateModal(true)}
                     >
                       <View style={styles.designInfo}>
-                        <Text style={styles.designLabel}>2. Change Template</Text>
+                        <Text style={styles.designLabel}>Change Template</Text>
                         <Text style={styles.designValue}>{event.templateId ? MOBILE_TEMPLATE_THEMES.find(t => t.id === event.templateId)?.label : 'Hero (Default)'}</Text>
                       </View>
                       <IconSymbol name="chevron.right" size={20} color={MidnightColors.gold} />
@@ -1107,7 +1202,7 @@ export default function EventDetailScreen() {
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalTitle}>Choose Style</Text>
-                <Text style={styles.templateModalSub}>Select a design template for this event.</Text>
+                <Text style={styles.templateModalSub}>Select a design template for this {event?.category || 'Wedding'} event.</Text>
               </View>
               <TouchableOpacity 
                 style={styles.closeModalCircle} 
@@ -1121,7 +1216,7 @@ export default function EventDetailScreen() {
               showsVerticalScrollIndicator={false} 
               contentContainerStyle={{ paddingBottom: 40 }}
             >
-              {MOBILE_TEMPLATE_THEMES.map((template, index) => {
+              {MOBILE_TEMPLATE_THEMES.filter(t => t.category === (event?.category || 'Wedding')).map((template, index) => {
                 const isActive = (event?.templateId || 'hero') === template.id;
                 return (
                   <TouchableOpacity 
@@ -1132,10 +1227,10 @@ export default function EventDetailScreen() {
                     ]}
                     onPress={() => handleUpdateTemplate(template.id)}
                   >
-                    <View style={[styles.templatePreview, { backgroundColor: template.background }]}>
+                    <View style={[styles.templatePreview, { backgroundColor: isDark ? template.background.dark : template.background.light }]}>
                       <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.1)' }]} />
                       <Text style={[styles.templatePreviewLabel, { color: template.accent }]}>Template {index + 1}</Text>
-                      <Text style={[styles.templatePreviewTitle, { color: template.text }]}>{template.label}</Text>
+                      <Text style={[styles.templatePreviewTitle, { color: isDark ? template.text.dark : template.text.light }]}>{template.label}</Text>
                     </View>
                     <View style={styles.templateMeta}>
                       <View style={{ flex: 1 }}>
@@ -1158,6 +1253,37 @@ export default function EventDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ── RENAME EVENT MODAL ── */}
+      <Modal visible={showRenameModal} transparent animationType="fade">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowRenameModal(false)} />
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Rename Event</Text>
+            <TextInput 
+              style={styles.input} 
+              value={editTitle} 
+              onChangeText={setEditTitle} 
+              placeholder="Event Name" 
+              placeholderTextColor={MidnightColors.slate400}
+              autoFocus
+            />
+            <TouchableOpacity style={styles.submitBtn} onPress={handleRenameEvent} disabled={updating}>
+              <Text style={styles.submitBtnText}>{updating ? 'Updating...' : 'Save Name'}</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── DATE PICKER ── */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={event.date ? new Date(event.date) : new Date()}
+          mode="date"
+          display="spinner"
+          onChange={handleDateChange}
+        />
+      )}
       {/* ── SHARE MODAL ── */}
       <Modal visible={showShareModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
@@ -1218,8 +1344,11 @@ const styles = StyleSheet.create({
   floatingShare: { position: 'absolute', top: 20, right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   heroContent: { position: 'absolute', bottom: 30, left: 24, right: 24 },
   heroTitle: { fontSize: 36, color: '#fff', fontFamily: Fonts.outfit.extraBold, letterSpacing: -1 },
+  titleRowMain: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  renameHeroBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(212, 175, 55, 0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(212, 175, 55, 0.3)' },
   heroMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
   heroDate: { fontSize: 14, color: MidnightColors.gold, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', letterSpacing: 1 },
+  editDateBtn: { paddingHorizontal: 4, paddingVertical: 2 },
   editCoverBtn: { position: 'absolute', top: 80, right: 20, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
   editCoverText: { color: '#fff', fontSize: 12, fontFamily: Fonts.inter.bold },
 
@@ -1934,4 +2063,6 @@ const styles = StyleSheet.create({
   commentSendBtnDisabled: {
     opacity: 0.25,
   },
+  deleteMainBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: 12, marginTop: 32, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.2)' },
+  deleteMainText: { color: '#ef4444', fontSize: 14, fontFamily: Fonts.inter.bold },
 });

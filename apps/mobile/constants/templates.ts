@@ -1,0 +1,453 @@
+import { MidnightColors } from './theme';
+
+export interface TemplateTheme {
+  id: string;
+  category: string;
+  label: string;
+  desc: string;
+  background: { light: string; dark: string };
+  panel: { light: string; dark: string };
+  text: { light: string; dark: string };
+  muted: { light: string; dark: string };
+  accent: string; // Accents usually stay consistent to maintain brand identity
+  accentBg: { light: string; dark: string };
+  tileBg: { light: string; dark: string };
+  radius: number;
+  overlay: { light: string[]; dark: string[] };
+}
+
+export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
+  // WEDDING
+  { 
+    id: 'royal', 
+    category: 'Wedding', 
+    label: 'Royal Gold', 
+    desc: 'Luxurious serif & gold accents', 
+    background: { light: '#fffaf0', dark: '#0b1026' }, 
+    panel: { light: '#ffffff', dark: 'rgba(212,175,55,0.08)' }, 
+    text: { light: '#1c1917', dark: '#fff7ed' }, 
+    muted: { light: '#78716c', dark: '#cbd5e1' }, 
+    accent: '#d4af37', 
+    accentBg: { light: 'rgba(212,175,55,0.1)', dark: 'rgba(212,175,55,0.18)' }, 
+    tileBg: { light: '#ffffff', dark: '#111827' }, 
+    radius: 18, 
+    overlay: { light: ['rgba(255,250,240,0.1)', 'rgba(255,250,240,1)'], dark: ['rgba(11,16,38,0.25)', 'rgba(11,16,38,1)'] } 
+  },
+  { 
+    id: 'classic', 
+    category: 'Wedding', 
+    label: 'Classic White', 
+    desc: 'Timeless and elegant design', 
+    background: { light: '#ffffff', dark: '#0f172a' }, 
+    panel: { light: '#f8fafc', dark: '#1e293b' }, 
+    text: { light: '#0f172a', dark: '#f8fafc' }, 
+    muted: { light: '#64748b', dark: '#94a3b8' }, 
+    accent: '#d4af37', 
+    accentBg: { light: 'rgba(212,175,55,0.1)', dark: 'rgba(212,175,55,0.15)' }, 
+    tileBg: { light: '#ffffff', dark: '#1e293b' }, 
+    radius: 0, 
+    overlay: { light: ['rgba(255,255,255,0.1)', 'rgba(255,255,255,1)'], dark: ['rgba(15,23,42,0.2)', 'rgba(15,23,42,1)'] } 
+  },
+  { 
+    id: 'hero', 
+    category: 'Wedding', 
+    label: 'Midnight Hero', 
+    desc: 'Big impact dark aesthetic', 
+    background: { light: '#f1f5f9', dark: '#020617' }, 
+    panel: { light: '#ffffff', dark: 'rgba(255,255,255,0.02)' }, 
+    text: { light: '#0f172a', dark: '#ffffff' }, 
+    muted: { light: '#64748b', dark: '#94a3b8' }, 
+    accent: '#d4af37', 
+    accentBg: { light: 'rgba(212,175,55,0.1)', dark: 'rgba(212,175,55,0.12)' }, 
+    tileBg: { light: '#ffffff', dark: '#111827' }, 
+    radius: 0, 
+    overlay: { light: ['rgba(241,245,249,0.1)', 'rgba(241,245,249,1)'], dark: ['rgba(2, 6, 23, 0.2)', 'rgba(2, 6, 23, 1)'] } 
+  },
+  { 
+    id: 'ethereal', 
+    category: 'Wedding', 
+    label: 'Ethereal Mist', 
+    desc: 'Soft, airy and romantic', 
+    background: { light: '#fdfcfb', dark: '#1c1917' }, 
+    panel: { light: '#ffffff', dark: '#292524' }, 
+    text: { light: '#44403c', dark: '#f5f5f4' }, 
+    muted: { light: '#a8a29e', dark: '#78716c' }, 
+    accent: '#c2410c', 
+    accentBg: { light: '#ffedd5', dark: 'rgba(194,65,12,0.2)' }, 
+    tileBg: { light: '#fafaf9', dark: '#292524' }, 
+    radius: 30, 
+    overlay: { light: ['rgba(253,252,251,0.1)', 'rgba(253,252,251,1)'], dark: ['rgba(28,25,23,0.2)', 'rgba(28,25,23,1)'] } 
+  },
+
+  // BIRTHDAY
+  { 
+    id: 'scrapbook', 
+    category: 'Birthday', 
+    label: 'Playful Scrapbook', 
+    desc: 'Fun cut-out aesthetic', 
+    background: { light: '#fff7ed', dark: '#431407' }, 
+    panel: { light: '#fffbeb', dark: 'rgba(255,255,255,0.05)' }, 
+    text: { light: '#431407', dark: '#fff7ed' }, 
+    muted: { light: '#92400e', dark: '#fb923c' }, 
+    accent: '#db2777', 
+    accentBg: { light: '#fce7f3', dark: 'rgba(219,39,119,0.2)' }, 
+    tileBg: { light: '#ffffff', dark: '#521b08' }, 
+    radius: 10, 
+    overlay: { light: ['rgba(255,247,237,0.1)', 'rgba(255,247,237,1)'], dark: ['rgba(67,20,7,0.2)', 'rgba(67,20,7,1)'] } 
+  },
+  { 
+    id: 'neon', 
+    category: 'Birthday', 
+    label: 'Neon Party', 
+    desc: 'Vibrant club aesthetic', 
+    background: { light: '#f5f3ff', dark: '#0a0a0a' }, 
+    panel: { light: '#ffffff', dark: 'rgba(168,85,247,0.05)' }, 
+    text: { light: '#1e1b4b', dark: '#fafafa' }, 
+    muted: { light: '#6366f1', dark: '#71717a' }, 
+    accent: '#a855f7', 
+    accentBg: { light: '#f3e8ff', dark: 'rgba(168,85,247,0.2)' }, 
+    tileBg: { light: '#ffffff', dark: '#18181b' }, 
+    radius: 20, 
+    overlay: { light: ['rgba(245,243,255,0.1)', 'rgba(245,243,255,1)'], dark: ['rgba(0,0,0,0.2)', 'rgba(10,10,10,1)'] } 
+  },
+  { 
+    id: 'pastel', 
+    category: 'Birthday', 
+    label: 'Pastel Dream', 
+    desc: 'Soft and sweet colors', 
+    background: { light: '#fdf2f8', dark: '#2d0622' }, 
+    panel: { light: '#ffffff', dark: 'rgba(236,72,153,0.05)' }, 
+    text: { light: '#1e293b', dark: '#fdf2f8' }, 
+    muted: { light: '#94a3b8', dark: '#be185d' }, 
+    accent: '#ec4899', 
+    accentBg: { light: '#fce7f3', dark: 'rgba(236,72,153,0.2)' }, 
+    tileBg: { light: '#ffffff', dark: '#4a0d39' }, 
+    radius: 24, 
+    overlay: { light: ['rgba(253,242,248,0.1)', 'rgba(253,242,248,1)'], dark: ['rgba(45,6,34,0.2)', 'rgba(45,6,34,1)'] } 
+  },
+  { 
+    id: 'pop', 
+    category: 'Birthday', 
+    label: 'Pop Art', 
+    desc: 'Bold and energetic', 
+    background: { light: '#fef08a', dark: '#1c1917' }, 
+    panel: { light: '#ffffff', dark: '#292524' }, 
+    text: { light: '#000000', dark: '#fef08a' }, 
+    muted: { light: '#3f3f46', dark: '#a1a1aa' }, 
+    accent: '#ef4444', 
+    accentBg: { light: '#fee2e2', dark: 'rgba(239,68,68,0.2)' }, 
+    tileBg: { light: '#ffffff', dark: '#292524' }, 
+    radius: 0, 
+    overlay: { light: ['rgba(254,240,138,0.2)', 'rgba(254,240,138,1)'], dark: ['rgba(28,25,23,0.2)', 'rgba(28,25,23,1)'] } 
+  },
+
+  // ANNIVERSARY
+  { 
+    id: 'golden_years', 
+    category: 'Anniversary', 
+    label: 'Golden Years', 
+    desc: 'Deep red and rich gold', 
+    background: { light: '#fef2f2', dark: '#450a0a' }, 
+    panel: { light: '#ffffff', dark: 'rgba(212,175,55,0.1)' }, 
+    text: { light: '#450a0a', dark: '#fef2f2' }, 
+    muted: { light: '#991b1b', dark: '#fca5a5' }, 
+    accent: '#d4af37', 
+    accentBg: { light: 'rgba(212,175,55,0.1)', dark: 'rgba(212,175,55,0.2)' }, 
+    tileBg: { light: '#ffffff', dark: '#7f1d1d' }, 
+    radius: 12, 
+    overlay: { light: ['rgba(254,242,242,0.1)', 'rgba(254,242,242,1)'], dark: ['rgba(69,10,10,0.3)', 'rgba(69,10,10,1)'] } 
+  },
+  { 
+    id: 'vintage', 
+    category: 'Anniversary', 
+    label: 'Vintage Noir', 
+    desc: 'Classic black and white', 
+    background: { light: '#f4f4f5', dark: '#09090b' }, 
+    panel: { light: '#ffffff', dark: '#18181b' }, 
+    text: { light: '#09090b', dark: '#ffffff' }, 
+    muted: { light: '#71717a', dark: '#a1a1aa' }, 
+    accent: '#18181b', 
+    accentBg: { light: 'rgba(0,0,0,0.05)', dark: 'rgba(255,255,255,0.1)' }, 
+    tileBg: { light: '#ffffff', dark: '#09090b' }, 
+    radius: 0, 
+    overlay: { light: ['rgba(244,244,245,0.1)', 'rgba(244,244,245,1)'], dark: ['rgba(0,0,0,0.2)', 'rgba(9,9,11,1)'] } 
+  },
+  { 
+    id: 'rose', 
+    category: 'Anniversary', 
+    label: 'Rose Garden', 
+    desc: 'Romantic floral tones', 
+    background: { light: '#fff1f2', dark: '#4c0519' }, 
+    panel: { light: '#ffffff', dark: 'rgba(225,29,72,0.05)' }, 
+    text: { light: '#881337', dark: '#fff1f2' }, 
+    muted: { light: '#be123c', dark: '#fb7185' }, 
+    accent: '#e11d48', 
+    accentBg: { light: '#ffe4e6', dark: 'rgba(225,29,72,0.2)' }, 
+    tileBg: { light: '#ffffff', dark: '#881337' }, 
+    radius: 40, 
+    overlay: { light: ['rgba(255,241,242,0.1)', 'rgba(255,241,242,1)'], dark: ['rgba(76,5,25,0.2)', 'rgba(76,5,25,1)'] } 
+  },
+  { 
+    id: 'minimal_love', 
+    category: 'Anniversary', 
+    label: 'Minimal Love', 
+    desc: 'Clean and sophisticated', 
+    background: { light: '#fafaf9', dark: '#1c1917' }, 
+    panel: { light: '#ffffff', dark: '#292524' }, 
+    text: { light: '#1c1917', dark: '#fafaf9' }, 
+    muted: { light: '#78716c', dark: '#a8a29e' }, 
+    accent: '#78716c', 
+    accentBg: { light: '#f5f5f4', dark: 'rgba(120,113,108,0.2)' }, 
+    tileBg: { light: '#ffffff', dark: '#292524' }, 
+    radius: 4, 
+    overlay: { light: ['rgba(250,250,249,0.05)', 'rgba(250,250,249,1)'], dark: ['rgba(28,25,23,0.2)', 'rgba(28,25,23,1)'] } 
+  },
+
+  // ENGAGEMENT
+  { 
+    id: 'bohemian', 
+    category: 'Engagement', 
+    label: 'Bohemian Rhapsody', 
+    desc: 'Earthy and organic', 
+    background: { light: '#fff7ed', dark: '#2f241d' }, 
+    panel: { light: '#ffffff', dark: 'rgba(255,247,237,0.08)' }, 
+    text: { light: '#431407', dark: '#ffedd5' }, 
+    muted: { light: '#9a3412', dark: '#d6d3d1' }, 
+    accent: '#fb923c', 
+    accentBg: { light: '#ffedd5', dark: 'rgba(251,146,60,0.18)' }, 
+    tileBg: { light: '#ffffff', dark: '#3f2f26' }, 
+    radius: 22, 
+    overlay: { light: ['rgba(255,247,237,0.1)', 'rgba(255,247,237,1)'], dark: ['rgba(47,36,29,0.15)', 'rgba(47,36,29,1)'] } 
+  },
+  { 
+    id: 'diamond', 
+    category: 'Engagement', 
+    label: 'Diamond Shine', 
+    desc: 'Cool blues and sparkle', 
+    background: { light: '#f0f9ff', dark: '#082f49' }, 
+    panel: { light: '#ffffff', dark: 'rgba(2,132,199,0.05)' }, 
+    text: { light: '#0c4a6e', dark: '#f0f9ff' }, 
+    muted: { light: '#0369a1', dark: '#7dd3fc' }, 
+    accent: '#0284c7', 
+    accentBg: { light: '#e0f2fe', dark: 'rgba(2,132,199,0.2)' }, 
+    tileBg: { light: '#ffffff', dark: '#0c4a6e' }, 
+    radius: 15, 
+    overlay: { light: ['rgba(240,249,255,0.1)', 'rgba(240,249,255,1)'], dark: ['rgba(8,47,73,0.2)', 'rgba(8,47,73,1)'] } 
+  },
+  { 
+    id: 'blush', 
+    category: 'Engagement', 
+    label: 'Blush & Bashful', 
+    desc: 'Soft pink champagne', 
+    background: { light: '#fff7ed', dark: '#431407' }, 
+    panel: { light: '#ffffff', dark: 'rgba(255,255,255,0.05)' }, 
+    text: { light: '#7c2d12', dark: '#fff7ed' }, 
+    muted: { light: '#9a3412', dark: '#fb923c' }, 
+    accent: '#ea580c', 
+    accentBg: { light: '#ffedd5', dark: 'rgba(234,88,12,0.2)' }, 
+    tileBg: { light: '#ffffff', dark: '#7c2d12' }, 
+    radius: 10, 
+    overlay: { light: ['rgba(255,247,237,0.1)', 'rgba(255,247,237,1)'], dark: ['rgba(67,20,7,0.2)', 'rgba(67,20,7,1)'] } 
+  },
+  { 
+    id: 'garden', 
+    category: 'Engagement', 
+    label: 'Garden Path', 
+    desc: 'Natural greens and ivory', 
+    background: { light: '#f0fdf4', dark: '#064e3b' }, 
+    panel: { light: '#ffffff', dark: 'rgba(22,163,74,0.05)' }, 
+    text: { light: '#14532d', dark: '#f0fdf4' }, 
+    muted: { light: '#166534', dark: '#4ade80' }, 
+    accent: '#16a34a', 
+    accentBg: { light: '#dcfce7', dark: 'rgba(22,163,74,0.2)' }, 
+    tileBg: { light: '#ffffff', dark: '#064e3b' }, 
+    radius: 50, 
+    overlay: { light: ['rgba(240,253,244,0.1)', 'rgba(240,253,244,1)'], dark: ['rgba(6,78,59,0.2)', 'rgba(6,78,59,1)'] } 
+  },
+
+  // RECEPTION
+  { 
+    id: 'midnight_glam', 
+    category: 'Reception', 
+    label: 'Midnight Glam', 
+    desc: 'Dark blue and silver', 
+    background: { light: '#eff6ff', dark: '#020617' }, 
+    panel: { light: '#ffffff', dark: 'rgba(30,58,138,0.1)' }, 
+    text: { light: '#1e3a8a', dark: '#f8fafc' }, 
+    muted: { light: '#3b82f6', dark: '#94a3b8' }, 
+    accent: '#3b82f6', 
+    accentBg: { light: '#dbeafe', dark: 'rgba(59,130,246,0.15)' }, 
+    tileBg: { light: '#ffffff', dark: '#0f172a' }, 
+    radius: 8, 
+    overlay: { light: ['rgba(239,246,255,0.1)', 'rgba(239,246,255,1)'], dark: ['rgba(2,6,23,0.3)', 'rgba(2,6,23,1)'] } 
+  },
+  { 
+    id: 'cinematic', 
+    category: 'Reception', 
+    label: 'Cinematic Noir', 
+    desc: 'Dramatic and immersive', 
+    background: { light: '#f5f5f5', dark: '#000000' }, 
+    panel: { light: '#ffffff', dark: 'rgba(255,255,255,0.04)' }, 
+    text: { light: '#171717', dark: '#ffffff' }, 
+    muted: { light: '#737373', dark: '#a3a3a3' }, 
+    accent: '#ef4444', 
+    accentBg: { light: '#fee2e2', dark: 'rgba(239,68,68,0.16)' }, 
+    tileBg: { light: '#ffffff', dark: '#111111' }, 
+    radius: 4, 
+    overlay: { light: ['rgba(245,245,245,0.1)', 'rgba(245,245,245,1)'], dark: ['rgba(0,0,0,0.1)', 'rgba(0,0,0,1)'] } 
+  },
+  { 
+    id: 'modern_lounge', 
+    category: 'Reception', 
+    label: 'Modern Lounge', 
+    desc: 'Sleek and contemporary', 
+    background: { light: '#f8fafc', dark: '#0f172a' }, 
+    panel: { light: '#ffffff', dark: '#1e293b' }, 
+    text: { light: '#0f172a', dark: '#f8fafc' }, 
+    muted: { light: '#64748b', dark: '#64748b' }, 
+    accent: '#818cf8', 
+    accentBg: { light: '#e0e7ff', dark: 'rgba(129,140,248,0.1)' }, 
+    tileBg: { light: '#ffffff', dark: '#1e293b' }, 
+    radius: 2, 
+    overlay: { light: ['rgba(248,250,252,0.1)', 'rgba(248,250,252,1)'], dark: ['rgba(15,23,42,0.2)', 'rgba(15,23,42,1)'] } 
+  },
+  { 
+    id: 'elegant_night', 
+    category: 'Reception', 
+    label: 'Elegant Night', 
+    desc: 'Sophisticated design', 
+    background: { light: '#fafafa', dark: '#111111' }, 
+    panel: { light: '#ffffff', dark: '#1a1a1a' }, 
+    text: { light: '#171717', dark: '#ffffff' }, 
+    muted: { light: '#737373', dark: '#cccccc' }, 
+    accent: '#171717', 
+    accentBg: { light: 'rgba(0,0,0,0.05)', dark: 'rgba(255,255,255,0.05)' }, 
+    tileBg: { light: '#ffffff', dark: '#111111' }, 
+    radius: 0, 
+    overlay: { light: ['rgba(250,250,250,0.1)', 'rgba(250,250,250,1)'], dark: ['rgba(0,0,0,0.4)', 'rgba(17,17,17,1)'] } 
+  },
+
+  // CORPORATE
+  { 
+    id: 'museum', 
+    category: 'Corporate', 
+    label: 'Museum Gallery', 
+    desc: 'Minimalist art style', 
+    background: { light: '#f8fafc', dark: '#0f172a' }, 
+    panel: { light: '#ffffff', dark: '#1e293b' }, 
+    text: { light: '#0f172a', dark: '#f8fafc' }, 
+    muted: { light: '#64748b', dark: '#94a3b8' }, 
+    accent: '#334155', 
+    accentBg: { light: '#e2e8f0', dark: 'rgba(51,65,85,0.2)' }, 
+    tileBg: { light: '#ffffff', dark: '#1e293b' }, 
+    radius: 0, 
+    overlay: { light: ['rgba(248,250,252,0.1)', 'rgba(248,250,252,1)'], dark: ['rgba(15,23,42,0.02)', 'rgba(15,23,42,1)'] } 
+  },
+  { 
+    id: 'brutalist', 
+    category: 'Corporate', 
+    label: 'Brutalist Grid', 
+    desc: 'Raw and structured', 
+    background: { light: '#f4f4f5', dark: '#18181b' }, 
+    panel: { light: '#ffffff', dark: '#27272a' }, 
+    text: { light: '#000000', dark: '#f4f4f5' }, 
+    muted: { light: '#27272a', dark: '#a1a1aa' }, 
+    accent: '#000000', 
+    accentBg: { light: '#e4e4e7', dark: 'rgba(255,255,255,0.1)' }, 
+    tileBg: { light: '#ffffff', dark: '#27272a' }, 
+    radius: 0, 
+    overlay: { light: ['rgba(244,244,245,0.1)', 'rgba(244,244,245,1)'], dark: ['rgba(0,0,0,0)', 'rgba(24,24,27,1)'] } 
+  },
+  { 
+    id: 'tech_sleek', 
+    category: 'Corporate', 
+    label: 'Tech Sleek', 
+    desc: 'Futuristic and clean', 
+    background: { light: '#f0f9ff', dark: '#0f172a' }, 
+    panel: { light: '#ffffff', dark: 'rgba(56,189,248,0.03)' }, 
+    text: { light: '#0c4a6e', dark: '#f8fafc' }, 
+    muted: { light: '#0284c7', dark: '#38bdf8' }, 
+    accent: '#38bdf8', 
+    accentBg: { light: '#e0f2fe', dark: 'rgba(56,189,248,0.1)' }, 
+    tileBg: { light: '#ffffff', dark: '#0f172a' }, 
+    radius: 0, 
+    overlay: { light: ['rgba(240,249,255,0.1)', 'rgba(240,249,255,1)'], dark: ['rgba(15,23,42,0.1)', 'rgba(15,23,42,1)'] } 
+  },
+  { 
+    id: 'executive', 
+    category: 'Corporate', 
+    label: 'Executive Suite', 
+    desc: 'Professional theme', 
+    background: { light: '#f1f5f9', dark: '#1e293b' }, 
+    panel: { light: '#ffffff', dark: '#0f172a' }, 
+    text: { light: '#1e293b', dark: '#f1f5f9' }, 
+    muted: { light: '#475569', dark: '#94a3b8' }, 
+    accent: '#0f172a', 
+    accentBg: { light: '#e2e8f0', dark: 'rgba(15,23,42,0.2)' }, 
+    tileBg: { light: '#ffffff', dark: '#0f172a' }, 
+    radius: 4, 
+    overlay: { light: ['rgba(241,245,249,0.1)', 'rgba(241,245,249,1)'], dark: ['rgba(30,41,59,0.1)', 'rgba(30,41,59,1)'] } 
+  },
+
+  // OTHER
+  { 
+    id: 'polaroid', 
+    category: 'Other', 
+    label: 'Vintage Polaroid', 
+    desc: 'Classic photo frames', 
+    background: { light: '#f8f3e7', dark: '#1c1917' }, 
+    panel: { light: '#fffaf0', dark: '#292524' }, 
+    text: { light: '#1f2937', dark: '#f8f3e7' }, 
+    muted: { light: '#78716c', dark: '#a8a29e' }, 
+    accent: '#b45309', 
+    accentBg: { light: '#fef3c7', dark: 'rgba(180,83,9,0.2)' }, 
+    tileBg: { light: '#ffffff', dark: '#292524' }, 
+    radius: 2, 
+    overlay: { light: ['rgba(248,243,231,0.1)', 'rgba(248,243,231,1)'], dark: ['rgba(28,25,23,0.2)', 'rgba(28,25,23,1)'] } 
+  },
+  { 
+    id: 'editorial', 
+    category: 'Other', 
+    label: 'Editorial Mag', 
+    desc: 'Magazine layout style', 
+    background: { light: '#fafaf9', dark: '#171717' }, 
+    panel: { light: '#ffffff', dark: '#262626' }, 
+    text: { light: '#111827', dark: '#fafaf9' }, 
+    muted: { light: '#57534e', dark: '#a3a3a3' }, 
+    accent: '#111827', 
+    accentBg: { light: '#f5f5f4', dark: 'rgba(255,255,255,0.1)' }, 
+    tileBg: { light: '#e7e5e4', dark: '#262626' }, 
+    radius: 0, 
+    overlay: { light: ['rgba(250,250,249,0.05)', 'rgba(250,250,249,1)'], dark: ['rgba(23,23,23,0.2)', 'rgba(23,23,23,1)'] } 
+  },
+  { 
+    id: 'vibrant', 
+    category: 'Other', 
+    label: 'Vibrant Energy', 
+    desc: 'Colorful and dynamic', 
+    background: { light: '#f5f3ff', dark: '#4c1d95' }, 
+    panel: { light: '#ffffff', dark: 'rgba(255,255,255,0.1)' }, 
+    text: { light: '#4c1d95', dark: '#ffffff' }, 
+    muted: { light: '#7c3aed', dark: '#ddd6fe' }, 
+    accent: '#8b5cf6', 
+    accentBg: { light: '#ede9fe', dark: 'rgba(139,92,246,0.2)' }, 
+    tileBg: { light: '#ffffff', dark: '#5b21b6' }, 
+    radius: 15, 
+    overlay: { light: ['rgba(245,243,255,0.1)', 'rgba(245,243,255,1)'], dark: ['rgba(76,29,149,0.2)', 'rgba(76,29,149,1)'] } 
+  },
+  { 
+    id: 'zen', 
+    category: 'Other', 
+    label: 'Zen Garden', 
+    desc: 'Calm and peaceful', 
+    background: { light: '#f5f5f4', dark: '#1c1917' }, 
+    panel: { light: '#ffffff', dark: '#292524' }, 
+    text: { light: '#44403c', dark: '#f5f5f4' }, 
+    muted: { light: '#78716c', dark: '#a8a29e' }, 
+    accent: '#57534e', 
+    accentBg: { light: '#e7e5e4', dark: 'rgba(87,83,78,0.2)' }, 
+    tileBg: { light: '#ffffff', dark: '#292524' }, 
+    radius: 100, 
+    overlay: { light: ['rgba(245,245,244,0.1)', 'rgba(245,245,244,1)'], dark: ['rgba(28,25,23,0.2)', 'rgba(28,25,23,1)'] } 
+  },
+];

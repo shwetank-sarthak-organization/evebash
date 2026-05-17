@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -23,7 +23,24 @@ let googleProvider: any;
 if (firebaseConfig.apiKey) {
     app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     auth = getAuth(app);
-    db = getFirestore(app);
+    
+    // Check if we are in a mobile/native environment for offline persistence
+    const isNative = typeof navigator !== 'undefined' && navigator.product === 'ReactNative';
+    
+    if (isNative) {
+        try {
+            db = initializeFirestore(app, {
+                localCache: persistentLocalCache({})
+            });
+            console.log("[Firebase] Firestore initialized with persistence.");
+        } catch (err) {
+            console.warn("[Firebase] Firestore persistence init failed, falling back to default.", err);
+            db = getFirestore(app);
+        }
+    } else {
+        db = getFirestore(app);
+    }
+    
     storage = getStorage(app);
     googleProvider = new GoogleAuthProvider();
 } else {

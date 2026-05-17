@@ -1,5 +1,5 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack, useRouter, useSegments, Redirect } from 'expo-router';
+import { Stack, useRouter, useSegments, useRootNavigationState, Redirect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import * as React from 'react';
@@ -36,22 +36,19 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
-  const rootNavigationState = router.canGoBack() ? true : true; // Fallback
-  
-  // Expo Router safe navigation check
-  const [isNavigationReady, setIsNavigationReady] = useState(false);
-  useEffect(() => {
-    setIsNavigationReady(true);
-  }, []);
+  const rootNavigationState = useRootNavigationState();
 
   useEffect(() => {
-    if (loading || !isNavigationReady) return;
+    if (loading || !rootNavigationState?.key) return;
 
     const inAuthGroup = segments[0] === 'login';
     const root = segments[0] as string | undefined;
     const tab = segments[1] as string | undefined;
+    
+    // Improved public route check
     const isPublicRoute =
       root === undefined ||
+      root === 'login' ||
       (root === '(tabs)' && (tab === undefined || tab === 'index' || tab === 'gallery' || tab === 'menu')) ||
       root === 'pricing' ||
       root === 'contact' ||
@@ -63,9 +60,9 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     } else if (user && inAuthGroup) {
       setTimeout(() => router.replace('/(tabs)/dashboard'), 1);
     }
-  }, [user, loading, segments, isNavigationReady]);
+  }, [user, loading, segments, rootNavigationState?.key]);
 
-  if (loading || !isNavigationReady) {
+  if (loading || !rootNavigationState?.key) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#020617' }}>
         <ActivityIndicator size="large" color="#d4af37" />
@@ -77,7 +74,6 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
-  console.log('RootLayout rendering...');
   const colorScheme = useColorScheme();
 
   const [fontsLoaded, fontError] = useFonts({
@@ -91,11 +87,10 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
-  console.log('Fonts loaded:', fontsLoaded, 'Font error:', fontError);
-
   useEffect(() => {
     if (fontsLoaded || fontError) {
-      console.log('Hiding splash screen...');
+      // We still wait for Auth in AuthGate before showing content, 
+      // but we hide splash once fonts are ready to avoid deadlocks.
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
