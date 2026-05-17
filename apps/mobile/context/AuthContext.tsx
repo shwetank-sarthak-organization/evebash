@@ -20,6 +20,7 @@ interface AppUser {
   assignedEvents?: string[];
   profileImage?: string;
   phone?: string;
+  shortlisted?: string[];
 }
 
 interface AuthContextType {
@@ -113,6 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               assignedEvents: data.assignedEvents || [],
               profileImage: data.profileImage,
               phone: data.phone,
+              shortlisted: data.shortlisted || [],
             });
           }
           setLoading(false);

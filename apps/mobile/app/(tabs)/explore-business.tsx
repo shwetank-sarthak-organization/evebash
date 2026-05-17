@@ -21,7 +21,8 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter, Stack } from 'expo-router';
 import * as Location from 'expo-location';
-import { onTopRatedBusinesses, getTopRatedBusinesses, Business } from '@/lib/firestore';
+import { onTopRatedBusinesses, getTopRatedBusinesses, toggleShortlistBusiness, Business } from '@/lib/firestore';
+import { useAuth } from '@/context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
@@ -56,6 +57,7 @@ function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
 
 export default function ExploreBusinessScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedVendor, setSelectedVendor] = useState<any>(null);
@@ -69,6 +71,20 @@ export default function ExploreBusinessScreen() {
   const [dbVendors, setDbVendors] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const isShortlisted = (vendorId: string) => user?.shortlisted?.includes(vendorId) || false;
+
+  const handleShortlistToggle = async (vendorId: string) => {
+    if (!user?.uid) {
+      Alert.alert("Login Required", "Please log in to shortlist vendors.");
+      return;
+    }
+    try {
+      await toggleShortlistBusiness(user.uid, vendorId);
+    } catch (error) {
+      console.error("Error toggling shortlist:", error);
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -285,6 +301,20 @@ export default function ExploreBusinessScreen() {
                     colors={['transparent', 'rgba(2, 6, 23, 0.9)']}
                     style={styles.cardGradient}
                   />
+                  {/* Shortlist Heart Button */}
+                  <TouchableOpacity 
+                    style={styles.shortlistHeartBtn} 
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleShortlistToggle(vendor.id);
+                    }}
+                  >
+                    <IconSymbol 
+                      name={isShortlisted(vendor.id) ? "heart.fill" : "heart"} 
+                      size={16} 
+                      color={isShortlisted(vendor.id) ? "#ef4444" : "#ffffff"} 
+                    />
+                  </TouchableOpacity>
                   <View style={styles.featuredBadge}>
                     <IconSymbol name="star.fill" size={10} color="#d4af37" />
                     <Text style={styles.featuredBadgeText}>{vendor.rating}</Text>
@@ -334,6 +364,20 @@ export default function ExploreBusinessScreen() {
                   onPress={() => router.push(`/business/${vendor.id}`)}
                 >
                   <ExpoImage source={{ uri: vendor.image }} style={styles.gridImage} contentFit="cover" />
+                  {/* Shortlist Heart Button */}
+                  <TouchableOpacity 
+                    style={styles.shortlistHeartBtn} 
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleShortlistToggle(vendor.id);
+                    }}
+                  >
+                    <IconSymbol 
+                      name={isShortlisted(vendor.id) ? "heart.fill" : "heart"} 
+                      size={14} 
+                      color={isShortlisted(vendor.id) ? "#ef4444" : "#ffffff"} 
+                    />
+                  </TouchableOpacity>
                   <View style={styles.gridInfo}>
                     <View style={styles.nameRow}>
                       <Text style={styles.gridName} numberOfLines={1}>{vendor.name}</Text>
@@ -804,6 +848,20 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#1e293b',
+  },
+  shortlistHeartBtn: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    zIndex: 10,
   },
   gridImage: {
     width: '100%',

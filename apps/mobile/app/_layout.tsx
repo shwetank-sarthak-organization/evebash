@@ -1,9 +1,9 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments, Redirect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import * as React from 'react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -34,37 +34,41 @@ export const unstable_settings = {
 // Auth gate: redirects unauthenticated users to /login
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  const router = useRouter();
   const segments = useSegments();
-  console.log('[AuthGate] Segments:', segments);
+  const router = useRouter();
+  const rootNavigationState = router.canGoBack() ? true : true; // Fallback
+  
+  // Expo Router safe navigation check
+  const [isNavigationReady, setIsNavigationReady] = useState(false);
+  useEffect(() => {
+    setIsNavigationReady(true);
+  }, []);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !isNavigationReady) return;
 
     const inAuthGroup = segments[0] === 'login';
     const root = segments[0] as string | undefined;
     const tab = segments[1] as string | undefined;
     const isPublicRoute =
       root === undefined ||
-      root === '(tabs)' && (tab === undefined || tab === 'index' || tab === 'gallery' || tab === 'menu') ||
+      (root === '(tabs)' && (tab === undefined || tab === 'index' || tab === 'gallery' || tab === 'menu')) ||
       root === 'pricing' ||
       root === 'contact' ||
       root === 'sample-galleries' ||
       root === 'events';
 
     if (!user && !inAuthGroup && !isPublicRoute) {
-      // Not logged in → go to login
-      router.replace('/login');
+      setTimeout(() => router.replace('/login'), 1);
     } else if (user && inAuthGroup) {
-      // Already logged in → go to dashboard tabs
-      router.replace('/(tabs)/dashboard');
+      setTimeout(() => router.replace('/(tabs)/dashboard'), 1);
     }
-  }, [user, loading, segments]);
+  }, [user, loading, segments, isNavigationReady]);
 
-  if (loading) {
+  if (loading || !isNavigationReady) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ff0000' }}>
-        <ActivityIndicator size="large" color="#ffffff" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#020617' }}>
+        <ActivityIndicator size="large" color="#d4af37" />
       </View>
     );
   }

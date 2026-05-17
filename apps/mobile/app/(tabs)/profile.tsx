@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter } from 'expo-router';
-import { getFollowersCount, getFollowingCount } from '@/lib/firestore';
+import { getFollowersCount, getFollowingCount, updateUserPrivacy } from '@/lib/firestore';
 
 const { width } = Dimensions.get('window');
 
@@ -21,19 +21,33 @@ export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState({ followers: 0, following: 0 });
+  const [isPrivate, setIsPrivate] = useState(user?.isPrivate || false);
+  const [updatingPrivacy, setUpdatingPrivacy] = useState(false);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchData = async () => {
       if (user?.uid) {
         const [followers, following] = await Promise.all([
           getFollowersCount(user.uid),
           getFollowingCount(user.uid)
         ]);
         setStats({ followers, following });
+        if (user.isPrivate !== undefined) setIsPrivate(user.isPrivate);
       }
     };
-    fetchStats();
+    fetchData();
   }, [user]);
+
+  const togglePrivacy = async () => {
+    if (!user?.uid || updatingPrivacy) return;
+    setUpdatingPrivacy(true);
+    const newStatus = !isPrivate;
+    const success = await updateUserPrivacy(user.uid, newStatus);
+    if (success) {
+      setIsPrivate(newStatus);
+    }
+    setUpdatingPrivacy(false);
+  };
 
   if (!user) return null;
 
@@ -111,16 +125,33 @@ export default function ProfileScreen() {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity 
-              style={styles.actionItem} 
-              activeOpacity={0.7} 
-              onPress={() => router.push('/usage')}
-            >
-              <View style={[styles.infoIconBox, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/usage')}>
+              <View style={[styles.menuIcon, { backgroundColor: '#d4af3720' }]}>
                 <IconSymbol name="chart.bar.fill" size={18} color="#d4af37" />
               </View>
               <Text style={styles.actionText}>Usage & Plan</Text>
               <IconSymbol name="chevron.right" size={16} color="#475569" />
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            <TouchableOpacity style={styles.actionItem} activeOpacity={0.7} onPress={togglePrivacy} disabled={updatingPrivacy}>
+              <View style={[styles.infoIconBox, { backgroundColor: isPrivate ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)' }]}>
+                <IconSymbol name={isPrivate ? "lock.fill" : "globe"} size={18} color={isPrivate ? "#ef4444" : "#10b981"} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.actionText}>{isPrivate ? 'Private Account' : 'Public Account'}</Text>
+                <Text style={{ fontSize: 11, color: '#64748b', fontFamily: 'Inter_400Regular', marginTop: 2 }}>
+                  {isPrivate ? 'Followers must be approved' : 'Anyone can follow you'}
+                </Text>
+              </View>
+              <View style={[styles.toggleBtn, isPrivate && styles.toggleBtnActive]}>
+                {updatingPrivacy ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <View style={[styles.toggleDot, isPrivate && styles.toggleDotActive]} />
+                )}
+              </View>
             </TouchableOpacity>
 
             <View style={styles.divider} />
@@ -337,6 +368,26 @@ const styles = StyleSheet.create({
     fontSize: 16, 
     fontFamily: 'Outfit_600SemiBold', 
     color: '#f1f5f9' 
+  },
+  toggleBtn: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#334155',
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleBtnActive: {
+    backgroundColor: '#10b981',
+  },
+  toggleDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+  },
+  toggleDotActive: {
+    alignSelf: 'flex-end',
   },
   signOutBtn: { 
     flexDirection: 'row', 

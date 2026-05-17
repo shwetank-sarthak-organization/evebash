@@ -94,6 +94,22 @@
         { "fieldPath": "phone", "order": "ASCENDING" },
         { "fieldPath": "loginAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "eventComments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "eventId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "businessActivities",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdBy", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

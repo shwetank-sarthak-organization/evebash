@@ -16,7 +16,7 @@ import {
   ActivityIndicator,
   Share,
 } from 'react-native';
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image as ExpoImage } from 'expo-image';
@@ -39,6 +39,7 @@ export default function BusinessDetailScreen() {
   const [showEnquiryForm, setShowEnquiryForm] = useState(false);
   const [activeTab, setActiveTab] = useState('About');
   const [locality, setLocality] = useState<string | null>(null);
+  const [hasSeenAnnouncements, setHasSeenAnnouncements] = useState(false);
   
   // Enquiry form state
   const [enquiryName, setEnquiryName] = useState('');
@@ -46,33 +47,35 @@ export default function BusinessDetailScreen() {
   const [enquiryMessage, setEnquiryMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    async function fetchBusiness() {
-      if (typeof id === 'string') {
-        const data = await getBusinessById(id);
-        setBusiness(data);
-        
-        // Try to get locality from coordinates if address is missing
-        if (data && data.location && (data.location.latitude || data.location.longitude)) {
-          try {
-            const reverse = await Location.reverseGeocodeAsync({
-              latitude: data.location.latitude,
-              longitude: data.location.longitude
-            });
-            if (reverse[0]) {
-              const place = reverse[0];
-              const name = place.district || place.city || place.subregion || place.region;
-              if (name) setLocality(name);
+  useFocusEffect(
+    React.useCallback(() => {
+      async function fetchBusiness() {
+        if (typeof id === 'string') {
+          const data = await getBusinessById(id);
+          setBusiness(data);
+          
+          // Try to get locality from coordinates if address is missing
+          if (data && data.location && (data.location.latitude || data.location.longitude)) {
+            try {
+              const reverse = await Location.reverseGeocodeAsync({
+                latitude: data.location.latitude,
+                longitude: data.location.longitude
+              });
+              if (reverse[0]) {
+                const place = reverse[0];
+                const name = place.district || place.city || place.subregion || place.region;
+                if (name) setLocality(name);
+              }
+            } catch (error) {
+              console.log('Reverse geocoding failed', error);
             }
-          } catch (error) {
-            console.log('Reverse geocoding failed', error);
           }
         }
+        setLoading(false);
       }
-      setLoading(false);
-    }
-    fetchBusiness();
-  }, [id]);
+      fetchBusiness();
+    }, [id])
+  );
 
   const handleCall = () => {
     if (business?.ownerPhone) {
@@ -230,15 +233,40 @@ export default function BusinessDetailScreen() {
 
           {/* ── TAB NAVIGATION ── */}
           <View style={styles.tabContainer}>
-            {['About', 'Portfolio', 'News', 'Reviews'].map((tab) => (
-              <TouchableOpacity 
-                key={tab} 
-                style={[styles.tabItem, activeTab === tab && styles.tabItemActive]}
-                onPress={() => setActiveTab(tab)}
-              >
-                <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{tab}</Text>
-              </TouchableOpacity>
-            ))}
+            {['About', 'Portfolio', 'Announcements', 'Reviews'].map((tab) => {
+              const showDot = tab === 'Announcements' && 
+                business?.announcements && 
+                business.announcements.length > 0 && 
+                !hasSeenAnnouncements && 
+                activeTab !== 'Announcements';
+
+              return (
+                <TouchableOpacity 
+                  key={tab} 
+                  style={[styles.tabItem, activeTab === tab && styles.tabItemActive]}
+                  onPress={() => {
+                    setActiveTab(tab);
+                    if (tab === 'Announcements') {
+                      setHasSeenAnnouncements(true);
+                    }
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text 
+                      style={[styles.tabText, activeTab === tab && styles.tabTextActive]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumScaleFactor={0.75}
+                    >
+                      {tab}
+                    </Text>
+                    {showDot && (
+                      <View style={styles.tabDot} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           {activeTab === 'About' && (
@@ -316,9 +344,9 @@ export default function BusinessDetailScreen() {
             </View>
           )}
 
-          {activeTab === 'News' && (
+          {activeTab === 'Announcements' && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>News & Updates</Text>
+              <Text style={styles.sectionTitle}>Announcements</Text>
               {business.announcements && business.announcements.length > 0 ? (
                 business.announcements.map((item, index) => (
                   <View key={index} style={styles.announcementCard}>
@@ -334,7 +362,7 @@ export default function BusinessDetailScreen() {
               ) : (
                 <View style={styles.emptyState}>
                   <IconSymbol name="megaphone" size={40} color="#334155" />
-                  <Text style={styles.emptyStateText}>No recent news from this business.</Text>
+                  <Text style={styles.emptyStateText}>No announcements from this business yet.</Text>
                 </View>
               )}
             </View>
@@ -819,6 +847,7 @@ const styles = StyleSheet.create({
   tabItem: {
     flex: 1,
     paddingVertical: 10,
+    paddingHorizontal: 2,
     alignItems: 'center',
     borderRadius: 12,
   },
@@ -826,12 +855,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#d4af37',
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#94a3b8',
     fontFamily: 'Outfit_600SemiBold',
   },
   tabTextActive: {
     color: '#020617',
+  },
+  tabDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#ef4444',
   },
   section: {
     marginBottom: 32,

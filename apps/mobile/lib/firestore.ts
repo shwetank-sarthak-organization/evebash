@@ -99,6 +99,7 @@ export interface UserProfile {
     delegatedBy?: string;
     assignedEvents?: string[];
     profileImage?: string;
+    isPrivate?: boolean;
     createdAt?: Timestamp;
 }
 
@@ -160,9 +161,10 @@ export async function getUserById(uid: string): Promise<UserProfile | null> {
 export async function getUsers(): Promise<UserProfile[]> {
     try {
         const usersCol = collection(db, "users");
-        const q = query(usersCol, orderBy("createdAt", "desc"));
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
+        const snapshot = await getDocs(usersCol);
+        const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
+        return users.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
     } catch (error) {
         console.error("Error fetching users:", error);
         return [];
@@ -837,20 +839,81 @@ export function onTopRatedBusinesses(limitCount: number = 10, callback: (busines
 
 // --- SOCIAL NETWORK FUNCTIONS ---
 /**
- * Follows another user.
+ * Updates user profile privacy setting.
+ */
+export async function updateUserPrivacy(uid: string, isPrivate: boolean) {
+    try {
+        const docRef = doc(db, "users", uid);
+        await updateDoc(docRef, { isPrivate });
+        return true;
+    } catch (error) {
+        console.error("Error updating privacy:", error);
+        return false;
+    }
+}
+
+/**
+ * Follows another user. If target user is private, creates a pending request.
  */
 export async function followUser(followerId: string, followedId: string) {
     try {
+        const targetUser = await getUserById(followedId);
+        const isPrivate = targetUser?.isPrivate || false;
+        
         const relationshipId = `${followerId}_${followedId}`;
         const docRef = doc(db, "relationships", relationshipId);
         await setDoc(docRef, {
             followerId,
             followedId,
+            status: isPrivate ? 'pending' : 'accepted',
             createdAt: serverTimestamp()
         });
-        return true;
+        return { success: true, status: isPrivate ? 'pending' : 'accepted' };
     } catch (error) {
         console.error("Error following user:", error);
+        return { success: false };
+    }
+}
+
+/**
+ * Fetches pending follow requests for a specific user.
+ */
+export async function getPendingFollowRequests(userId: string): Promise<any[]> {
+    try {
+        const relCol = collection(db, "relationships");
+        const q = query(relCol, where("followedId", "==", userId), where("status", "==", "pending"));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+        console.error("Error fetching pending requests:", error);
+        return [];
+    }
+}
+
+/**
+ * Approves a follow request.
+ */
+export async function approveFollowRequest(relationshipId: string) {
+    try {
+        const docRef = doc(db, "relationships", relationshipId);
+        await updateDoc(docRef, { status: 'accepted' });
+        return true;
+    } catch (error) {
+        console.error("Error approving request:", error);
+        return false;
+    }
+}
+
+/**
+ * Rejects a follow request.
+ */
+export async function rejectFollowRequest(relationshipId: string) {
+    try {
+        const docRef = doc(db, "relationships", relationshipId);
+        await deleteDoc(docRef);
+        return true;
+    } catch (error) {
+        console.error("Error rejecting request:", error);
         return false;
     }
 }
@@ -878,7 +941,10 @@ export async function getFollowing(userId: string): Promise<string[]> {
         const relCol = collection(db, "relationships");
         const q = query(relCol, where("followerId", "==", userId));
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => doc.data().followedId);
+        // Return IDs where status is 'accepted' OR status is missing (legacy support)
+        return snapshot.docs
+            .filter(doc => !doc.data().status || doc.data().status === 'accepted')
+            .map(doc => doc.data().followedId);
     } catch (error) {
         console.error("Error fetching following list:", error);
         return [];
@@ -919,69 +985,253 @@ export async function getFollowingCount(userId: string): Promise<number> {
  * Fetches the latest activities (likes, comments, events) from users being followed.
  */
 export async function getSocialFeed(followingIds: string[]): Promise<any[]> {
-    if (!followingIds || followingIds.length === 0) return [];
+    if (!followingIds || followingIds.length === 0) {
+        console.log('[SocialFeed] Called with empty followingIds — returning []');
+        return [];
+    }
+    
+    console.log('[SocialFeed] Querying for userIds:', followingIds);
     
     try {
         const feedItems: any[] = [];
         
-        // Fetch recent likes
-        const likesCol = collection(db, "likes");
-        const likesQuery = query(likesCol, where("userId", "in", followingIds.slice(0, 30)), orderBy("createdAt", "desc"), limit(10));
-        const likesSnapshot = await getDocs(likesQuery);
-        likesSnapshot.forEach(doc => {
-            feedItems.push({ id: doc.id, type: 'like', ...doc.data() });
-        });
-
-        // Fetch recent comments
-        const commentsCol = collection(db, "comments");
-        const commentsQuery = query(commentsCol, where("userId", "in", followingIds.slice(0, 30)), orderBy("createdAt", "desc"), limit(10));
-        const commentsSnapshot = await getDocs(commentsQuery);
-        commentsSnapshot.forEach(doc => {
-            feedItems.push({ id: doc.id, type: 'comment', ...doc.data() });
-        });
-
-        // Fetch recent events
+        // Fetch all events and filter client-side to support older events missing 'createdBy'
         const eventsCol = collection(db, "events");
-        const eventsQuery = query(eventsCol, where("createdBy", "in", followingIds.slice(0, 30)), orderBy("createdAt", "desc"), limit(10));
-        const eventsSnapshot = await getDocs(eventsQuery);
+        const eventsSnapshot = await getDocs(eventsCol);
+        
+        console.log('[SocialFeed] Total events docs fetched:', eventsSnapshot.size);
+        
+        let skippedOwner = 0, skippedSub = 0, skippedDeleted = 0, skippedGhost = 0;
+        
         eventsSnapshot.forEach(doc => {
-            feedItems.push({ id: doc.id, type: 'event', ...doc.data() });
-        });
-
-        // Fetch recent business creations
-        const businessCol = collection(db, "businesses");
-        const businessQuery = query(businessCol, where("createdBy", "in", followingIds.slice(0, 30)), orderBy("createdAt", "desc"), limit(10));
-        const businessSnapshot = await getDocs(businessQuery);
-        businessSnapshot.forEach(doc => {
-            feedItems.push({ id: doc.id, type: 'business', ...doc.data() });
-        });
-
-        // Fetch recent event joins (guest logs)
-        const guestCol = collection(db, "guests");
-        const guestQuery = query(guestCol, where("phone", "in", followingIds.slice(0, 30)), orderBy("loginAt", "desc"), limit(10));
-        // Note: Using phone as the identifier for joins in this context, or email if applicable.
-        // For simplicity, we'll try to find joins by followed user IDs if stored in guest logs.
-        const guestSnapshot = await getDocs(guestQuery);
-        guestSnapshot.forEach(doc => {
             const data = doc.data();
+            
+            // Check if it belongs to self or a followed user
+            const ownerId = data.createdBy || data.userId;
+            if (!ownerId || !followingIds.includes(ownerId)) {
+                skippedOwner++;
+                return;
+            }
+
+            // Skip sub-events
+            if (data.parentId || data.type === 'sub') {
+                skippedSub++;
+                return;
+            }
+            
+            // Skip deleted events
+            if (data.deleted || data.isDeleted) {
+                skippedDeleted++;
+                return;
+            }
+            
+            // Skip ghost events with no proper title (but keep 1-2 char titles like "DJ")
+            const title = (data.title || '').trim();
+            if (!title || title.toLowerCase() === 'new event' || title.toLowerCase() === 'untitled') {
+                skippedGhost++;
+                return;
+            }
+            
+            // IMPORTANT: spread data first, then override type so data.type ('main'/'sub')
+            // never overwrites the 'event' marker used by the feed filter in social.tsx
             feedItems.push({ 
+                ...data,
                 id: doc.id, 
-                type: 'join', 
-                eventId: data.eventId, 
-                eventTitle: data.eventTitle, 
-                createdAt: data.loginAt,
-                userId: data.phone // Identifier used in guest logs
+                type: 'event',
             });
         });
 
-        // Sort combined feed by date
+        // Sort by date client-side
         return feedItems.sort((a, b) => {
             const dateA = a.createdAt?.seconds || 0;
             const dateB = b.createdAt?.seconds || 0;
             return dateB - dateA;
         });
+
     } catch (error) {
-        console.error("Error fetching social feed:", error);
+        console.error("[SocialFeed] Error fetching social feed:", error);
+        return [];
+    }
+}
+
+/**
+ * Toggles a like on an event post.
+ */
+export async function toggleEventPostLike(eventId: string, userId: string) {
+    try {
+        const likeId = `${userId}_${eventId}`.replace(/[^a-zA-Z0-9]/g, '_');
+        const docRef = doc(db, "eventLikes", likeId);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+            await deleteDoc(docRef);
+            return { liked: false };
+        } else {
+            await setDoc(docRef, {
+                eventId,
+                userId,
+                createdAt: serverTimestamp()
+            });
+            return { liked: true };
+        }
+    } catch (error) {
+        console.error("Error toggling event like:", error);
+        throw error;
+    }
+}
+
+/**
+ * Checks if a user has liked an event post.
+ */
+export async function isEventPostLikedByUser(eventId: string, userId: string): Promise<boolean> {
+    try {
+        const likeId = `${userId}_${eventId}`.replace(/[^a-zA-Z0-9]/g, '_');
+        const docRef = doc(db, "eventLikes", likeId);
+        const docSnap = await getDoc(docRef);
+        return docSnap.exists();
+    } catch (error) {
+        console.error("Error checking event like:", error);
+        return false;
+    }
+}
+
+/**
+ * Fetches the count of likes for an event post.
+ */
+export async function getEventPostLikes(eventId: string) {
+    try {
+        const likesCol = collection(db, "eventLikes");
+        const q = query(likesCol, where("eventId", "==", eventId));
+        const snapshot = await getDocs(q);
+        return { count: snapshot.size };
+    } catch (error) {
+        console.error("Error fetching event likes:", error);
+        return { count: 0 };
+    }
+}
+
+/**
+ * Adds a comment to an event post.
+ */
+export async function addEventPostComment(eventId: string, userId: string, userName: string, text: string) {
+    try {
+        const commentsCol = collection(db, "eventComments");
+        await addDoc(commentsCol, {
+            eventId,
+            userId,
+            userName,
+            text,
+            createdAt: serverTimestamp()
+        });
+        return true;
+    } catch (error) {
+        console.error("Error adding event comment:", error);
+        return false;
+    }
+}
+
+/**
+ * Fetches all comments for an event post.
+ */
+export async function getEventPostComments(eventId: string) {
+    try {
+        const commentsCol = collection(db, "eventComments");
+        const q = query(commentsCol, where("eventId", "==", eventId), orderBy("createdAt", "desc"));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+    } catch (error) {
+        console.error("Error fetching event comments:", error);
+        return [];
+    }
+}
+
+/**
+ * Toggles shortlist status of a business for a user
+ */
+export async function toggleShortlistBusiness(userId: string, businessId: string) {
+    try {
+        const userRef = doc(db, "users", userId);
+        const userSnap = await getDoc(userRef);
+        if (!userSnap.exists()) return false;
+        const userData = userSnap.data();
+        const currentShortlist: string[] = userData.shortlisted || [];
+        
+        let newShortlist: string[];
+        if (currentShortlist.includes(businessId)) {
+            newShortlist = currentShortlist.filter(id => id !== businessId);
+        } else {
+            newShortlist = [...currentShortlist, businessId];
+        }
+        
+        await updateDoc(userRef, { shortlisted: newShortlist });
+        return true;
+    } catch (error) {
+        console.error("Error toggling shortlist business:", error);
+        return false;
+    }
+}
+
+/**
+ * Logs a new business activity post (e.g. announcement, FAQ, or new portfolio photo).
+ */
+export async function addBusinessActivity(activity: {
+    businessId: string;
+    businessName: string;
+    businessCover: string;
+    businessType: string;
+    createdBy: string;
+    activityType: 'announcement' | 'faq' | 'portfolio_photo';
+    title: string;
+    content: string;
+    photoUrl?: string;
+}): Promise<boolean> {
+    try {
+        const activitiesCol = collection(db, 'businessActivities');
+        await addDoc(activitiesCol, {
+            ...activity,
+            createdAt: serverTimestamp()
+        });
+        return true;
+    } catch (e) {
+        console.error("Error logging business activity:", e);
+        return false;
+    }
+}
+
+/**
+ * Fetches activities for a list of creator IDs.
+ */
+export async function getBusinessActivities(creatorIds: string[]): Promise<any[]> {
+    try {
+        if (!creatorIds || creatorIds.length === 0) return [];
+        
+        // Firestore IN query limited to chunks of 30.
+        const chunks: string[][] = [];
+        for (let i = 0; i < creatorIds.length; i += 30) {
+            chunks.push(creatorIds.slice(i, i + 30));
+        }
+
+        let allDocs: any[] = [];
+        for (const chunk of chunks) {
+            const activitiesCol = collection(db, 'businessActivities');
+            const q = query(activitiesCol, where('createdBy', 'in', chunk), orderBy('createdAt', 'desc'), limit(50));
+            const snapshot = await getDocs(q);
+            allDocs = [...allDocs, ...snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }))];
+        }
+
+        // Sort descending by createdAt
+        allDocs.sort((a, b) => {
+            const timeA = a.createdAt?.seconds || 0;
+            const timeB = b.createdAt?.seconds || 0;
+            return timeB - timeA;
+        });
+
+        return allDocs;
+    } catch (e) {
+        console.error("Error fetching business activities:", e);
         return [];
     }
 }

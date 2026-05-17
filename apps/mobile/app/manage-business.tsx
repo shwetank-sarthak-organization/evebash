@@ -20,7 +20,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { getBusinessById, updateBusiness, Business } from '@/lib/firestore';
+import { getBusinessById, updateBusiness, Business, addBusinessActivity } from '@/lib/firestore';
 
 const { width } = Dimensions.get('window');
 
@@ -156,6 +156,12 @@ export default function ManageBusinessScreen() {
     
     setIsUpdating(true);
     try {
+      // Auto-capture any typed announcement that wasn't explicitly added using the + button
+      let finalNews = [...news];
+      if (newNewsItem.trim()) {
+        finalNews = [newNewsItem.trim(), ...finalNews];
+      }
+
       const updatedData: Partial<Business> = {
         name: businessName,
         type: category,
@@ -165,7 +171,7 @@ export default function ManageBusinessScreen() {
         eventsHosted: parseInt(eventsHosted) || 0,
         services: services,
         faqs: faqs,
-        announcements: news,
+        announcements: finalNews,
         coverImages: coverImages,
         coverImage: coverImages[0] || '', // Fallback for single image field
       };
@@ -173,9 +179,67 @@ export default function ManageBusinessScreen() {
       const success = await updateBusiness(bizId, updatedData);
       
       if (success) {
+        // Log activities in the background
+        if (business) {
+          try {
+            // 1. Announcements
+            const oldAnnouncements = business.announcements || [];
+            const newAnnouncements = finalNews.filter(n => n.trim() && !oldAnnouncements.includes(n));
+            for (const ann of newAnnouncements) {
+              await addBusinessActivity({
+                businessId: bizId,
+                businessName: businessName,
+                businessCover: coverImages[0] || '',
+                businessType: category,
+                createdBy: business.createdBy,
+                activityType: 'announcement',
+                title: 'Announcement',
+                content: ann
+              });
+            }
+
+            // 2. FAQs
+            const oldFaqs = business.faqs || [];
+            const newFaqsList = faqs.filter(f => f.q.trim() && f.a.trim() && !oldFaqs.some(oldF => oldF.q === f.q));
+            for (const faqItem of newFaqsList) {
+              await addBusinessActivity({
+                businessId: bizId,
+                businessName: businessName,
+                businessCover: coverImages[0] || '',
+                businessType: category,
+                createdBy: business.createdBy,
+                activityType: 'faq',
+                title: 'New FAQ Added',
+                content: `Q: ${faqItem.q}\nA: ${faqItem.a}`
+              });
+            }
+
+            // 3. Portfolio Photos
+            const oldCovers = business.coverImages || [];
+            const newCoversList = coverImages.filter(img => img.trim() && !oldCovers.includes(img));
+            for (const imgUrl of newCoversList) {
+              await addBusinessActivity({
+                businessId: bizId,
+                businessName: businessName,
+                businessCover: coverImages[0] || '',
+                businessType: category,
+                createdBy: business.createdBy,
+                activityType: 'portfolio_photo',
+                title: 'New Portfolio Photo',
+                content: 'Added a new photo to their portfolio gallery.',
+                photoUrl: imgUrl
+              });
+            }
+          } catch (activityErr) {
+            console.error("Error logging background activities:", activityErr);
+          }
+        }
+
         if (business) {
           setBusiness({ ...business, ...updatedData } as Business);
         }
+        setNews(finalNews);
+        setNewNewsItem('');
         setIsEditing(false);
         Alert.alert("Success", "Profile updated successfully!");
       } else {
