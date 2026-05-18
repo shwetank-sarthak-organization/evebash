@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Share, Keyboard, useWindowDimensions, useColorScheme } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import Svg, { Path, Rect } from 'react-native-svg';
 import { getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event as FirestoreEvent, updateEvent, createEvent, getGuestLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, onPhotoInteractions, toggleLike, addComment, deletePhotoComment, deleteEvent, getBusinessByVendorCode, getBusinessById, Business } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
@@ -17,6 +18,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_GRID_GAP = 3;
 
 export default function EventDetailScreen() {
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { id, shared, guestView, tab, share, mode } = useLocalSearchParams<{ id: string; shared?: string; guestView?: string; tab?: string; share?: string; mode?: 'admin' | 'visitor' }>();
   const router = useRouter();
@@ -557,7 +559,7 @@ export default function EventDetailScreen() {
   const renderVisitorHeader = () => {
     const isRoyal = event?.templateId === 'royal';
     return (
-      <View style={[styles.visitorHeaderContainer, isRoyal && { height: 75, marginTop: 16, marginBottom: 8 }]}>
+      <View style={[styles.visitorHeaderContainer, isRoyal && { height: 70, marginTop: 12, marginBottom: 0 }]}>
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false} 
@@ -867,7 +869,7 @@ export default function EventDetailScreen() {
         {!showAdminView && renderVisitorHeader()}
 
         {/* ── CONTENT ── */}
-        <View style={styles.content}>
+        <View style={[styles.content, showAdminView && { paddingBottom: 60 + insets.bottom }]}>
           {showAdminView ? (
             <>
               {/* Owner Tabs */}
@@ -1053,8 +1055,8 @@ export default function EventDetailScreen() {
                               } else {
                                 return (
                                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, opacity: 0.5 }} pointerEvents="none">
-                                    <IconSymbol name="pencil" size={12} color={MidnightColors.slate300} />
-                                    <Text style={{ color: MidnightColors.slate300, fontWeight: '600', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Edit</Text>
+                                    <IconSymbol name="pencil" size={12} color={'#cbd5e1'} />
+                                    <Text style={{ color: '#cbd5e1', fontWeight: '600', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Edit</Text>
                                   </View>
                                 );
                               }
@@ -1399,82 +1401,120 @@ export default function EventDetailScreen() {
               {activeTab === 'partners' && (
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Wedding Partners</Text>
-                  <View style={{ backgroundColor: MidnightColors.deepSlate, borderRadius: 12, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: MidnightColors.slate800 }}>
-                    <IconSymbol name="building.2.fill" size={48} color={MidnightColors.gold} />
-                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', marginTop: 16, marginBottom: 8 }}>Partner Management</Text>
-                    
-                    {!linkingVendor ? (
-                      <>
-                        <Text style={{ color: MidnightColors.slate400, fontSize: 14, textAlign: 'center', lineHeight: 22, paddingHorizontal: 20 }}>
-                          Link photographers, makeup artists, and venues from the Biz Hub using their unique Vendor Code. They will appear on your guest page.
-                        </Text>
-                        <TouchableOpacity 
-                          style={{ marginTop: 24, backgroundColor: MidnightColors.gold, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 }}
-                          onPress={() => setLinkingVendor(true)}
-                        >
-                          <Text style={{ color: '#000', fontWeight: '700', fontSize: 14 }}>Link a Vendor</Text>
-                        </TouchableOpacity>
-                      </>
-                    ) : (
-                      <View style={{ width: '100%', marginTop: 16 }}>
-                        <Text style={{ color: MidnightColors.slate300, fontSize: 12, fontWeight: '600', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Enter Vendor Code</Text>
-                        <TextInput
-                          style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff', fontSize: 16, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: MidnightColors.slate700, marginBottom: 16 }}
-                          value={vendorCode}
-                          onChangeText={(text) => setVendorCode(text.toUpperCase())}
-                          placeholder="e.g. VEN-1234"
-                          placeholderTextColor={MidnightColors.slate500}
-                          autoCapitalize="characters"
-                        />
-                        <View style={{ flexDirection: 'row', gap: 12 }}>
-                          <TouchableOpacity 
-                            style={{ flex: 1, paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: MidnightColors.slate700, alignItems: 'center' }}
-                            onPress={() => { setLinkingVendor(false); setVendorCode(''); }}
-                          >
-                            <Text style={{ color: MidnightColors.slate300, fontWeight: '600', fontSize: 14 }}>Cancel</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity 
-                            style={{ flex: 1, backgroundColor: MidnightColors.gold, paddingVertical: 12, borderRadius: 8, alignItems: 'center', opacity: vendorCode.length > 3 ? 1 : 0.5 }}
-                            disabled={vendorCode.length <= 3}
-                            onPress={async () => {
-                              const biz = await getBusinessByVendorCode(vendorCode);
-                              if (biz) {
-                                if (event?.vendors?.includes(biz.id)) {
-                                  Alert.alert("Already Linked", "This vendor is already linked to your event.");
-                                } else {
-                                  const newVendors = [...(event?.vendors || []), biz.id];
-                                  await updateEvent(event!.id, { vendors: newVendors });
-                                  setEvent({ ...event!, vendors: newVendors });
-                                  setLinkedVendors([...linkedVendors, biz]);
-                                  Alert.alert("Vendor Linked!", `Successfully linked ${biz.name}. They will now appear on the Wedding Partners page.`);
-                                  setLinkingVendor(false);
-                                  setVendorCode('');
-                                }
-                              } else {
-                                Alert.alert("Invalid Code", "No business found with this code. Please try again.");
-                              }
-                            }}
-                          >
-                            <Text style={{ color: '#000', fontWeight: '700', fontSize: 14 }}>Submit</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    )}
-                  </View>
+                  
+                  {linkedVendors.length === 0 && (
+                    <View style={{ 
+                      backgroundColor: 'rgba(30, 41, 59, 0.4)', 
+                      borderRadius: 20, 
+                      paddingVertical: 20, 
+                      paddingHorizontal: 16, 
+                      alignItems: 'center', 
+                      borderWidth: 1, 
+                      borderColor: 'rgba(204, 164, 59, 0.2)',
+                    }}>
+                      <Text style={{ 
+                        color: '#fff', 
+                        fontSize: 14, 
+                        fontFamily: Fonts.outfit.bold,
+                        textTransform: 'uppercase',
+                        letterSpacing: 1.5,
+                        marginBottom: 8 
+                      }}>Partner Management</Text>
+                      
+                      <Text style={{ 
+                        color: '#cbd5e1', 
+                        fontSize: 13, 
+                        textAlign: 'center', 
+                        lineHeight: 20, 
+                        paddingHorizontal: 12,
+                        fontFamily: Fonts.inter.regular,
+                      }}>
+                        Connect photographers, makeup artists, and venues to your event page using their unique Vendor Code.
+                      </Text>
+                      
+                      <TouchableOpacity 
+                        style={{ 
+                          marginTop: 18, 
+                          backgroundColor: MidnightColors.gold, 
+                          paddingHorizontal: 28, 
+                          paddingVertical: 10, 
+                          borderRadius: 24,
+                        }}
+                        onPress={() => setLinkingVendor(true)}
+                      >
+                        <Text style={{ color: '#000', fontFamily: Fonts.outfit.bold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 }}>Link a Vendor</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
 
                   {linkedVendors.length > 0 && (
-                    <View style={{ marginTop: 24, paddingHorizontal: 16 }}>
-                      <Text style={{ color: MidnightColors.slate300, fontSize: 14, fontWeight: '600', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Linked Partners</Text>
+                    <View style={{ marginTop: 28, paddingHorizontal: 4 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                        <Text style={{ 
+                          color: '#cbd5e1', 
+                          fontSize: 11, 
+                          fontFamily: Fonts.inter.bold, 
+                          textTransform: 'uppercase', 
+                          letterSpacing: 1.2 
+                        }}>Linked Partners</Text>
+                        
+                        {!linkingVendor && (
+                          <TouchableOpacity 
+                            style={{ 
+                              flexDirection: 'row', 
+                              alignItems: 'center', 
+                              gap: 6,
+                              backgroundColor: 'rgba(204, 164, 59, 0.12)', 
+                              borderRadius: 12, 
+                              paddingHorizontal: 12, 
+                              paddingVertical: 6, 
+                              borderWidth: 1, 
+                              borderColor: MidnightColors.gold 
+                            }}
+                            onPress={() => setLinkingVendor(true)}
+                          >
+                            <IconSymbol name="plus" size={12} color={MidnightColors.gold} />
+                            <Text style={{ color: MidnightColors.gold, fontSize: 11, fontFamily: Fonts.outfit.bold, textTransform: 'uppercase', letterSpacing: 0.5 }}>Link Partner</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      
                       <View style={{ gap: 12 }}>
                         {linkedVendors.map((biz) => (
-                          <View key={biz.id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: MidnightColors.deepSlate, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: MidnightColors.slate800 }}>
-                            <Image source={{ uri: biz.coverImage || 'https://via.placeholder.com/150' }} style={{ width: 48, height: 48, borderRadius: 24, marginRight: 16, backgroundColor: MidnightColors.slate800 }} />
+                          <View key={biz.id} style={{ 
+                            flexDirection: 'row', 
+                            alignItems: 'center', 
+                            backgroundColor: 'rgba(30, 41, 59, 0.3)', 
+                            paddingHorizontal: 16,
+                            paddingVertical: 12, 
+                            borderRadius: 16, 
+                            borderWidth: 1, 
+                            borderColor: 'rgba(255, 255, 255, 0.05)',
+                          }}>
+                            <Image 
+                              source={{ uri: biz.coverImage || 'https://via.placeholder.com/150' }} 
+                              style={{ 
+                                width: 44, 
+                                height: 44, 
+                                borderRadius: 22, 
+                                marginRight: 14, 
+                                backgroundColor: 'rgba(255, 255, 255, 0.05)' 
+                              }} 
+                            />
+                            
                             <View style={{ flex: 1 }}>
-                              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>{biz.name}</Text>
-                              <Text style={{ color: MidnightColors.slate400, fontSize: 13 }}>{biz.type}</Text>
+                              <Text style={{ color: '#fff', fontSize: 15, fontFamily: Fonts.outfit.bold }}>{biz.name}</Text>
+                              <Text style={{ color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.inter.medium, marginTop: 2 }}>{biz.type}</Text>
                             </View>
+                            
                             <TouchableOpacity
-                              style={{ padding: 8, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: 8 }}
+                              style={{ 
+                                padding: 8, 
+                                backgroundColor: 'rgba(239, 68, 68, 0.08)', 
+                                borderRadius: 10,
+                                borderWidth: 1,
+                                borderColor: 'rgba(239, 68, 68, 0.15)',
+                              }}
                               onPress={async () => {
                                 const newVendors = event?.vendors?.filter(vid => vid !== biz.id) || [];
                                 await updateEvent(event!.id, { vendors: newVendors });
@@ -1482,7 +1522,7 @@ export default function EventDetailScreen() {
                                 setLinkedVendors(linkedVendors.filter(v => v.id !== biz.id));
                               }}
                             >
-                              <IconSymbol name="trash.fill" size={16} color="#ef4444" />
+                              <IconSymbol name="trash.fill" size={14} color="#ef4444" />
                             </TouchableOpacity>
                           </View>
                         ))}
@@ -1617,46 +1657,50 @@ export default function EventDetailScreen() {
                         <Text style={styles.emptyText}>No photos yet.</Text>
                       </View>
                     ) : (
-                      photos.map((photo, i) => (
-                        <Animated.View
-                          key={photo.id}
-                          entering={FadeInUp.delay(i * 100).duration(600).springify().damping(14)}
-                          style={[
-                            styles.photoCard,
-                            {
-                              paddingRight: (i + 1) % 2 === 0 ? 0 : PHOTO_GRID_GAP,
-                              paddingBottom: PHOTO_GRID_GAP,
-                            },
-                          ]}
-                        >
-                          <TouchableOpacity 
-                            style={{ flex: 1 }}
-                            activeOpacity={0.9}
-                            onPress={() => openViewer(i)}
-                          >
-                            <View style={[
-                            styles.photoTile, 
-                            {
-                              backgroundColor: selectedTemplate.tileBg,
-                              borderRadius: selectedTemplate.radius,
-                              borderWidth: event.templateId === 'polaroid' || event.templateId === 'museum' || event.templateId === 'brutalist' || event.templateId === 'royal' ? 1 : 0,
-                              borderColor: event.templateId === 'royal' ? selectedTemplate.accent : selectedTemplate.accentBg,
-                              padding: event.templateId === 'polaroid' ? 5 : (event.templateId === 'royal' ? 4 : 0),
-                            },
-                            event.templateId === 'royal' && {
-                              shadowColor: selectedTemplate.accent,
-                              shadowOffset: { width: 0, height: 2 },
-                              shadowOpacity: 0.15,
-                              shadowRadius: 4,
-                              elevation: 2,
-                            }
-                          ]}>
-                            <Image source={{ uri: photo.url }} style={styles.galleryImg} resizeMode="contain" />
+                      photos.map((photo, i) => {
+                        const ratio = photo.width && photo.height 
+                          ? photo.height / photo.width 
+                          : (i % 3 === 0 ? 1.25 : (i % 3 === 1 ? 0.95 : 1.45));
 
-                          </View>
-                        </TouchableOpacity>
-                        </Animated.View>
-                      ))
+                        return (
+                          <Animated.View
+                            key={photo.id}
+                            entering={FadeInUp.delay(i * 80).duration(600).springify().damping(14)}
+                            style={[
+                              styles.photoCard,
+                              {
+                                aspectRatio: 1 / ratio,
+                              }
+                            ]}
+                          >
+                            <TouchableOpacity 
+                              style={{ flex: 1 }}
+                              activeOpacity={0.9}
+                              onPress={() => openViewer(i)}
+                            >
+                              <View style={[
+                                styles.photoTile, 
+                                {
+                                  backgroundColor: selectedTemplate.tileBg,
+                                  borderRadius: selectedTemplate.radius,
+                                  borderWidth: event.templateId === 'polaroid' || event.templateId === 'museum' || event.templateId === 'brutalist' || event.templateId === 'royal' ? 1 : 0,
+                                  borderColor: event.templateId === 'royal' ? selectedTemplate.accent : selectedTemplate.accentBg,
+                                  padding: event.templateId === 'polaroid' ? 5 : (event.templateId === 'royal' ? 4 : 0),
+                                },
+                                event.templateId === 'royal' && {
+                                  shadowColor: selectedTemplate.accent,
+                                  shadowOffset: { width: 0, height: 2 },
+                                  shadowOpacity: 0.15,
+                                  shadowRadius: 4,
+                                  elevation: 2,
+                                }
+                              ]}>
+                                <Image source={{ uri: photo.url }} style={styles.galleryImg} resizeMode="cover" />
+                              </View>
+                            </TouchableOpacity>
+                          </Animated.View>
+                        );
+                      })
                     )}
                   </View>
                 )}
@@ -2115,6 +2159,208 @@ export default function EventDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ── LINK VENDOR MODAL ── */}
+      <Modal visible={linkingVendor} transparent animationType="slide">
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity 
+            style={styles.modalBackdrop} 
+            activeOpacity={1} 
+            onPress={() => { setLinkingVendor(false); setVendorCode(''); }} 
+          />
+          <View style={styles.modalContent}>
+            <View style={[styles.modalHeader, { borderBottomWidth: 0, paddingBottom: 8 }]}>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={{ 
+                  fontSize: 18, 
+                  color: '#ffffff', 
+                  fontFamily: Fonts.outfit.bold, 
+                  textTransform: 'uppercase', 
+                  letterSpacing: 1.2
+                }}>Link a Partner</Text>
+                <Text style={{ 
+                  fontSize: 12, 
+                  color: '#94a3b8', 
+                  fontFamily: Fonts.inter.regular, 
+                  marginTop: 4, 
+                  lineHeight: 18
+                }}>
+                  Connect photographers, makeup artists, and venues from the Biz Hub.
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => { setLinkingVendor(false); setVendorCode(''); }}>
+                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.form}>
+              <View style={styles.inputGroup}>
+                <Text style={{ 
+                  fontSize: 11, 
+                  color: '#cbd5e1', 
+                  fontFamily: Fonts.inter.bold, 
+                  textTransform: 'uppercase', 
+                  letterSpacing: 1.2, 
+                  marginBottom: 8 
+                }}>Enter Vendor Code</Text>
+                <TextInput
+                  style={{ 
+                    backgroundColor: 'rgba(255, 255, 255, 0.03)', 
+                    color: MidnightColors.gold, 
+                    fontSize: 18, 
+                    borderRadius: 12, 
+                    paddingHorizontal: 16, 
+                    paddingVertical: 14, 
+                    borderWidth: 1, 
+                    borderColor: 'rgba(204, 164, 59, 0.4)', 
+                    marginBottom: 16,
+                    textAlign: 'center',
+                    fontFamily: Fonts.outfit.bold,
+                    letterSpacing: 2,
+                  }}
+                  value={vendorCode}
+                  onChangeText={(text) => setVendorCode(text.toUpperCase())}
+                  placeholder="e.g. VEN-1234"
+                  placeholderTextColor={'#64748b'}
+                  autoCapitalize="characters"
+                />
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+                <TouchableOpacity 
+                  style={{ 
+                    flex: 1, 
+                    paddingVertical: 12, 
+                    borderRadius: 20, 
+                    borderWidth: 1, 
+                    borderColor: 'rgba(255, 255, 255, 0.15)', 
+                    alignItems: 'center' 
+                  }}
+                  onPress={() => { setLinkingVendor(false); setVendorCode(''); }}
+                >
+                  <Text style={{ color: '#cbd5e1', fontFamily: Fonts.outfit.bold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 }}>Cancel</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={{ 
+                    flex: 1, 
+                    backgroundColor: MidnightColors.gold, 
+                    paddingVertical: 12, 
+                    borderRadius: 20, 
+                    alignItems: 'center', 
+                    opacity: vendorCode.length > 3 ? 1 : 0.4,
+                    shadowColor: MidnightColors.gold,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.15,
+                    shadowRadius: 6,
+                    elevation: 3,
+                  }}
+                  disabled={vendorCode.length <= 3}
+                  onPress={async () => {
+                    const biz = await getBusinessByVendorCode(vendorCode);
+                    if (biz) {
+                      if (event?.vendors?.includes(biz.id)) {
+                        Alert.alert("Already Linked", "This vendor is already linked to your event.");
+                      } else {
+                        const newVendors = [...(event?.vendors || []), biz.id];
+                        await updateEvent(event!.id, { vendors: newVendors });
+                        setEvent({ ...event!, vendors: newVendors });
+                        setLinkedVendors([...linkedVendors, biz]);
+                        Alert.alert("Vendor Linked!", `Successfully linked ${biz.name}. They will now appear on the Wedding Partners page.`);
+                        setLinkingVendor(false);
+                        setVendorCode('');
+                      }
+                    } else {
+                      Alert.alert("Invalid Code", "No business found with this code. Please try again.");
+                    }
+                  }}
+                >
+                  <Text style={{ color: '#000', fontFamily: Fonts.outfit.bold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 }}>Submit</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── CUSTOM BOTTOM APP NAV BAR (Only visible in Host/Management View) ── */}
+      {showAdminView && (
+        <View style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 55 + insets.bottom,
+          backgroundColor: '#020617',
+          flexDirection: 'row',
+          paddingTop: 8,
+          paddingBottom: insets.bottom > 0 ? insets.bottom - 5 : 10,
+          zIndex: 1000,
+        }}>
+          {/* TAB 1: Host (Active Gold since we are in Event Management) */}
+          <TouchableOpacity 
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+            activeOpacity={0.8}
+          >
+            <IconSymbol size={28} name="calendar" color="#d4af37" />
+            <Text style={{ color: '#d4af37', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Host</Text>
+          </TouchableOpacity>
+
+          {/* TAB 2: Biz Hub (Matches TabLayout Svg exactly) */}
+          <TouchableOpacity 
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+            onPress={() => router.replace('/(tabs)/businesses')}
+            activeOpacity={0.8}
+          >
+            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <Path d="m11 17 2 2a1 1 0 1 0 3-3"/>
+              <Path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/>
+              <Path d="m21 3 1 11h-2"/>
+              <Path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/>
+              <Path d="M3 4h8"/>
+            </Svg>
+            <Text style={{ color: '#94a3b8', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Biz Hub</Text>
+          </TouchableOpacity>
+
+          {/* TAB 3: Dashboard (Matches TabLayout Svg exactly) */}
+          <TouchableOpacity 
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+            onPress={() => router.replace('/(tabs)/dashboard')}
+            activeOpacity={0.8}
+          >
+            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <Rect width="7" height="9" x="3" y="3" rx="1" />
+              <Rect width="7" height="5" x="14" y="3" rx="1" />
+              <Rect width="7" height="9" x="14" y="12" rx="1" />
+              <Rect width="7" height="5" x="3" y="16" rx="1" />
+            </Svg>
+            <Text style={{ color: '#94a3b8', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Dashboard</Text>
+          </TouchableOpacity>
+
+          {/* TAB 4: Social */}
+          <TouchableOpacity 
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+            onPress={() => router.replace('/(tabs)/social')}
+            activeOpacity={0.8}
+          >
+            <IconSymbol size={28} name="person.2.fill" color="#94a3b8" />
+            <Text style={{ color: '#94a3b8', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Social</Text>
+          </TouchableOpacity>
+
+          {/* TAB 5: Profile */}
+          <TouchableOpacity 
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+            onPress={() => router.replace('/(tabs)/profile')}
+            activeOpacity={0.8}
+          >
+            <IconSymbol size={28} name="person.fill" color="#94a3b8" />
+            <Text style={{ color: '#94a3b8', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Profile</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -2415,8 +2661,8 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 60,
     zIndex: 100,
-    marginTop: 12,
-    marginBottom: 4,
+    marginTop: 8,
+    marginBottom: 0,
   },
   visitorHeaderContent: {
     paddingHorizontal: 20,
@@ -2454,7 +2700,8 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: 'rgba(255,255,255,0.02)',
     marginHorizontal: 12, // Reduced to make the card wider
-    marginVertical: 20,
+    marginTop: 6,
+    marginBottom: 16,
     borderRadius: 24,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
@@ -2505,15 +2752,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   photoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     width: '100%',
     alignSelf: 'stretch',
     paddingBottom: 40,
+    paddingHorizontal: 16,
   },
   photoCard: {
-    width: '50%',
-    aspectRatio: 1,
+    width: '100%',
+    marginBottom: 16,
   },
   photoTile: {
     flex: 1,
