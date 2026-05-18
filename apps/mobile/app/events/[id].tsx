@@ -60,6 +60,7 @@ export default function EventDetailScreen() {
     const activeTemplateId = showAdminView ? 'hero' : (event?.templateId || 'hero');
     const base = MOBILE_TEMPLATE_THEMES.find((theme) => theme.id === activeTemplateId) || MOBILE_TEMPLATE_THEMES[0];
     const isClassic = base.id === 'classic';
+    const isHero = base.id === 'hero';
     return {
       ...base,
       background: isDark ? base.background.dark : base.background.light,
@@ -69,13 +70,13 @@ export default function EventDetailScreen() {
       accentBg: isDark ? base.accentBg.dark : base.accentBg.light,
       tileBg: isDark ? base.tileBg.dark : base.tileBg.light,
       overlay: isDark ? base.overlay.dark : base.overlay.light,
-      serifFont: isClassic ? Fonts.playfair.regular : Fonts.serif,
-      serifItalic: isClassic ? Fonts.playfair.italic : Fonts.serif,
-      serifBold: isClassic ? Fonts.playfair.bold : Fonts.serif,
+      serifFont: (isClassic || isHero) ? Fonts.playfair.regular : Fonts.serif,
+      serifItalic: (isClassic || isHero) ? Fonts.playfair.italic : Fonts.serif,
+      serifBold: (isClassic || isHero) ? Fonts.playfair.bold : Fonts.serif,
     };
   }, [event?.templateId, isDark, showAdminView]);
 
-  const heroHeight = (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic')) ? windowHeight : 400;
+  const heroHeight = (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic' || event?.templateId === 'hero')) ? windowHeight : 400;
   
   // Modals
   const [showSubEventModal, setShowSubEventModal] = useState(false);
@@ -565,12 +566,14 @@ export default function EventDetailScreen() {
   const renderVisitorHeader = () => {
     const isRoyal = event?.templateId === 'royal';
     const isClassic = event?.templateId === 'classic';
-    const isThemeHeader = isRoyal || isClassic;
+    const isHero = event?.templateId === 'hero';
+    const isThemeHeader = isRoyal || isClassic || isHero;
     return (
       <View style={[
         styles.visitorHeaderContainer, 
         isRoyal && { height: 70, marginTop: 12, marginBottom: 0 },
-        isClassic && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', backgroundColor: '#FAF9F6' }
+        isClassic && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', backgroundColor: '#FAF9F6' },
+        isHero && { height: 64, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', backgroundColor: '#000000' }
       ]}>
         <ScrollView 
           horizontal 
@@ -581,13 +584,16 @@ export default function EventDetailScreen() {
             style={[
               styles.visitorTab,
               isThemeHeader ? { 
-                backgroundColor: 'transparent', 
-                borderWidth: 0, 
-                borderRadius: 0, 
+                backgroundColor: isHero ? (!activeSubEvent ? 'rgba(204, 164, 59, 0.08)' : 'transparent') : 'transparent', 
+                borderWidth: isHero ? 0.8 : 0, 
+                borderColor: isHero ? (!activeSubEvent ? '#cca43b' : 'transparent') : 'transparent',
+                borderRadius: isHero ? 4 : 0, 
                 paddingHorizontal: 16, 
-                paddingVertical: 6,
-                flexDirection: 'column',
-                gap: 2
+                paddingVertical: isHero ? 8 : 6,
+                flexDirection: isHero ? 'row' : 'column',
+                gap: 2,
+                marginHorizontal: isHero ? 4 : 0,
+                alignSelf: 'center',
               } : !activeSubEvent && styles.visitorTabActive
             ]}
             onPress={() => handleSubEventChange(null)}
@@ -602,9 +608,9 @@ export default function EventDetailScreen() {
               )}
               <Text style={[
                 styles.visitorTabText,
-                { color: isThemeHeader ? selectedTemplate.muted : MidnightColors.gold },
+                { color: isThemeHeader ? (isHero ? '#94a3b8' : selectedTemplate.muted) : MidnightColors.gold },
                 selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
-                !activeSubEvent && (isThemeHeader ? { color: isRoyal ? '#fff' : '#cca43b' } : styles.visitorTabTextActive)
+                !activeSubEvent && (isThemeHeader ? { color: isHero ? '#cca43b' : (isRoyal ? '#fff' : '#cca43b') } : styles.visitorTabTextActive)
               ]}>
                 Home
               </Text>
@@ -631,22 +637,25 @@ export default function EventDetailScreen() {
                 style={[
                   styles.visitorTab,
                   isThemeHeader ? { 
-                    backgroundColor: 'transparent', 
-                    borderWidth: 0, 
-                    borderRadius: 0, 
+                    backgroundColor: isHero ? (isActive ? 'rgba(204, 164, 59, 0.08)' : 'transparent') : 'transparent', 
+                    borderWidth: isHero ? 0.8 : 0, 
+                    borderColor: isHero ? (isActive ? '#cca43b' : 'transparent') : 'transparent',
+                    borderRadius: isHero ? 4 : 0, 
                     paddingHorizontal: 16, 
-                    paddingVertical: 6,
-                    flexDirection: 'column',
-                    gap: 2
+                    paddingVertical: isHero ? 8 : 6,
+                    flexDirection: isHero ? 'row' : 'column',
+                    gap: 2,
+                    marginHorizontal: isHero ? 4 : 0,
+                    alignSelf: 'center',
                   } : isActive && styles.visitorTabActive
                 ]}
                 onPress={() => handleSubEventChange(sub)}
               >
                 <Text style={[
                   styles.visitorTabText,
-                  { color: isThemeHeader ? selectedTemplate.muted : MidnightColors.gold },
+                  { color: isThemeHeader ? (isHero ? '#94a3b8' : selectedTemplate.muted) : MidnightColors.gold },
                   selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
-                  isActive && (isThemeHeader ? { color: isRoyal ? '#fff' : '#cca43b' } : styles.visitorTabTextActive)
+                  isActive && (isThemeHeader ? { color: isHero ? '#cca43b' : (isRoyal ? '#fff' : '#cca43b') } : styles.visitorTabTextActive)
                 ]}>
                   {sub.title}
                 </Text>
@@ -671,22 +680,25 @@ export default function EventDetailScreen() {
             style={[
               styles.visitorTab,
               isThemeHeader ? { 
-                backgroundColor: 'transparent', 
-                borderWidth: 0, 
-                borderRadius: 0, 
+                backgroundColor: isHero ? (activeSubEvent?.id === 'event-partners' ? 'rgba(204, 164, 59, 0.08)' : 'transparent') : 'transparent', 
+                borderWidth: isHero ? 0.8 : 0, 
+                borderColor: isHero ? (activeSubEvent?.id === 'event-partners' ? '#cca43b' : 'transparent') : 'transparent',
+                borderRadius: isHero ? 4 : 0, 
                 paddingHorizontal: 16, 
-                paddingVertical: 6,
-                flexDirection: 'column',
-                gap: 2
+                paddingVertical: isHero ? 8 : 6,
+                flexDirection: isHero ? 'row' : 'column',
+                gap: 2,
+                marginHorizontal: isHero ? 4 : 0,
+                alignSelf: 'center',
               } : activeSubEvent?.id === 'event-partners' && styles.visitorTabActive
             ]}
             onPress={() => setActiveSubEvent({ id: 'event-partners', title: 'Event Partners' } as any)}
           >
             <Text style={[
               styles.visitorTabText,
-              { color: isThemeHeader ? selectedTemplate.muted : MidnightColors.gold },
+              { color: isThemeHeader ? (isHero ? '#94a3b8' : selectedTemplate.muted) : MidnightColors.gold },
               selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
-              activeSubEvent?.id === 'event-partners' && (isThemeHeader ? { color: isRoyal ? '#fff' : '#cca43b' } : styles.visitorTabTextActive)
+              activeSubEvent?.id === 'event-partners' && (isThemeHeader ? { color: isHero ? '#cca43b' : (isRoyal ? '#fff' : '#cca43b') } : styles.visitorTabTextActive)
             ]}>
               Event Partners <Text style={{ fontSize: 10 }}>🤝</Text>
             </Text>
@@ -728,6 +740,15 @@ export default function EventDetailScreen() {
         </View>
       );
     }
+    if (selectedTemplate.id === 'hero') {
+      return (
+        <View style={styles.heroDividerContainer}>
+          <View style={[styles.heroDividerLine, { backgroundColor: 'rgba(204, 164, 59, 0.25)' }]} />
+          <Text style={[styles.heroDividerStar, { color: '#cca43b' }]}>✦</Text>
+          <View style={[styles.heroDividerLine, { backgroundColor: 'rgba(204, 164, 59, 0.25)' }]} />
+        </View>
+      );
+    }
     return null;
   };
 
@@ -735,10 +756,10 @@ export default function EventDetailScreen() {
     <View style={[styles.safeArea, { backgroundColor: selectedTemplate.background }]}>
       <Stack.Screen 
         options={{ 
-          headerShown: !(!showAdminView && event?.templateId === 'classic'), 
+          headerShown: !(!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero')), 
           headerTransparent: true, 
           headerTitle: '',
-          headerLeft: () => (!showAdminView && event?.templateId === 'classic') ? null : (
+          headerLeft: () => (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero')) ? null : (
             <TouchableOpacity 
               onPress={() => router.replace('/(tabs)/gallery')}
               style={[
@@ -917,6 +938,79 @@ export default function EventDetailScreen() {
                 <TouchableOpacity 
                   onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
                   style={styles.classicChevron}
+                >
+                  <IconSymbol name="chevron.down" size={20} color="#cca43b" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (!showAdminView && event?.templateId === 'hero') ? (
+            <View style={styles.heroHeroOverlay}>
+              {/* 1. Immersive dark linear gradient overlay for ultimate depth */}
+              <LinearGradient
+                colors={['rgba(0, 0, 0, 0.25)', 'rgba(0, 0, 0, 0.92)']}
+                style={StyleSheet.absoluteFillObject}
+              />
+              
+              {/* 2. Glassmorphic Hero Inset Card - floating above bottom third */}
+              <View style={styles.heroGlassCard}>
+                {/* Thin golden-bordered micro-badge */}
+                <View style={styles.heroBadge}>
+                  <Text style={styles.heroBadgeText}>THE CELEBRATION OF</Text>
+                </View>
+                
+                {/* Event Title - Poetic fluid Playfair Display Serif Italic */}
+                <Text style={[styles.heroTitleMain, { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }]}>
+                  {activeSubEvent?.title || event.title}
+                </Text>
+                
+                {/* Micro-thin gold sparkle separator */}
+                <View style={styles.heroDividerContainer}>
+                  <View style={styles.heroDividerLine} />
+                  <Text style={styles.heroDividerStar}>✦</Text>
+                  <View style={styles.heroDividerLine} />
+                </View>
+                
+                {/* Wide tracked starlight-gold date */}
+                <Text style={styles.heroDateMain}>
+                  {`— ${activeSubEvent?.date || event.date || 'SAVE THE DATE'} —`.toUpperCase()}
+                </Text>
+
+                {/* Symmetrical parallel buttons block */}
+                <View style={styles.heroActionRow}>
+                  {/* Left: Gold bordered Square back/chevron icon button */}
+                  <TouchableOpacity 
+                    style={[styles.heroSideButton, { borderColor: '#cca43b' }]} 
+                    onPress={() => router.replace('/(tabs)/gallery')}
+                  >
+                    <IconSymbol name="chevron.left" size={16} color="#cca43b" />
+                  </TouchableOpacity>
+
+                  {/* Center: Glowing Enter Gallery pill button */}
+                  <TouchableOpacity 
+                    style={styles.heroEnterButton}
+                    onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
+                  >
+                    <Text style={styles.heroEnterButtonText}>ENTER GALLERY</Text>
+                  </TouchableOpacity>
+
+                  {/* Right: Gold bordered Square share icon button */}
+                  <TouchableOpacity 
+                    style={[styles.heroSideButton, { borderColor: '#cca43b' }]} 
+                    onPress={() => setShowShareModal(true)}
+                  >
+                    <IconSymbol name="square.and.arrow.up" size={16} color="#cca43b" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* 3. Infinite Dark Star Sign-off */}
+              <View style={styles.heroBottomContent}>
+                <View style={styles.brandLogoContainer}>
+                  <Text style={styles.heroBrandText}>CINEMATIC EDITIONS — WED ALBUM</Text>
+                </View>
+                <TouchableOpacity 
+                  onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
+                  style={styles.heroChevron}
                 >
                   <IconSymbol name="chevron.down" size={20} color="#cca43b" />
                 </TouchableOpacity>
@@ -1665,6 +1759,13 @@ export default function EventDetailScreen() {
                       borderRadius: 12,
                       padding: 10,
                       borderLeftWidth: 1, // override dynamic left border stripe
+                    },
+                    event.templateId === 'hero' && { 
+                      borderWidth: 0.8, 
+                      borderColor: '#cca43b', 
+                      borderRadius: 4,
+                      padding: 12,
+                      borderLeftWidth: 0.8, // override dynamic left border stripe
                     }
                   ]}>
                     <View style={[
@@ -1678,10 +1779,23 @@ export default function EventDetailScreen() {
                         justifyContent: 'center',
                         position: 'relative'
                       },
+                      event.templateId === 'hero' && {
+                        borderWidth: 0.8,
+                        borderColor: 'rgba(204, 164, 59, 0.25)',
+                        borderRadius: 2,
+                        paddingVertical: 24,
+                        paddingHorizontal: 20,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative'
+                      },
                       { position: 'relative' }
                     ]}>
                       {event.templateId === 'royal' && (
                         <Text style={{ color: selectedTemplate.accent, fontSize: 10, marginBottom: 12 }}>✦  ♦  ✦</Text>
+                      )}
+                      {event.templateId === 'hero' && (
+                        <Text style={{ color: selectedTemplate.accent, fontSize: 11, marginBottom: 14, letterSpacing: 2 }}>✦   ♦   ✦</Text>
                       )}
 
                       <Text style={[
@@ -1776,58 +1890,91 @@ export default function EventDetailScreen() {
                         <Text style={styles.emptyText}>No photos yet.</Text>
                       </View>
                     ) : (
-                      photos.map((photo, i) => {
-                        const ratio = photo.width && photo.height 
-                          ? photo.height / photo.width 
-                          : (i % 3 === 0 ? 1.25 : (i % 3 === 1 ? 0.95 : 1.45));
+                      (() => {
+                        const leftCol: any[] = [];
+                        const rightCol: any[] = [];
+                        let leftHeight = 0;
+                        let rightHeight = 0;
+
+                        photos.forEach((photo, idx) => {
+                          const ratio = photo.width && photo.height 
+                            ? photo.height / photo.width 
+                            : (idx % 3 === 0 ? 1.25 : (idx % 3 === 1 ? 0.95 : 1.45));
+
+                          // Height-aware sorting: always place the photo in the shorter column!
+                          if (leftHeight <= rightHeight) {
+                            leftCol.push({ photo, idx });
+                            leftHeight += ratio;
+                          } else {
+                            rightCol.push({ photo, idx });
+                            rightHeight += ratio;
+                          }
+                        });
+
+                        const renderPhotoItem = ({ photo, idx }: { photo: any; idx: number }) => {
+                          const ratio = photo.width && photo.height 
+                            ? photo.height / photo.width 
+                            : (idx % 3 === 0 ? 1.25 : (idx % 3 === 1 ? 0.95 : 1.45));
+
+                          return (
+                            <Animated.View
+                              key={photo.id}
+                              entering={FadeInUp.delay(idx * 80).duration(600).springify().damping(14)}
+                              style={[
+                                styles.photoCard,
+                                {
+                                  aspectRatio: 1 / ratio,
+                                }
+                              ]}
+                            >
+                              <TouchableOpacity 
+                                style={{ flex: 1 }}
+                                activeOpacity={0.9}
+                                onPress={() => openViewer(idx)}
+                              >
+                                <View style={[
+                                  styles.photoTile, 
+                                  {
+                                    backgroundColor: selectedTemplate.tileBg,
+                                    borderRadius: selectedTemplate.radius,
+                                    borderWidth: event.templateId === 'polaroid' || event.templateId === 'museum' || event.templateId === 'brutalist' || event.templateId === 'royal' || event.templateId === 'classic' ? 1 : 0,
+                                    borderColor: event.templateId === 'royal' ? selectedTemplate.accent : (event.templateId === 'classic' ? 'rgba(0,0,0,0.05)' : selectedTemplate.accentBg),
+                                    padding: event.templateId === 'polaroid' ? 4 : (event.templateId === 'royal' ? 3 : (event.templateId === 'classic' ? 8 : 0)),
+                                  },
+                                  event.templateId === 'royal' && {
+                                    shadowColor: selectedTemplate.accent,
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.15,
+                                    shadowRadius: 4,
+                                    elevation: 2,
+                                  },
+                                  event.templateId === 'classic' && {
+                                    shadowColor: '#000',
+                                    shadowOffset: { width: 0, height: 1 },
+                                    shadowOpacity: 0.06,
+                                    shadowRadius: 3,
+                                    elevation: 1,
+                                    backgroundColor: '#ffffff',
+                                  }
+                                ]}>
+                                  <Image source={{ uri: photo.url }} style={styles.galleryImg} resizeMode="cover" />
+                                </View>
+                              </TouchableOpacity>
+                            </Animated.View>
+                          );
+                        };
 
                         return (
-                          <Animated.View
-                            key={photo.id}
-                            entering={FadeInUp.delay(i * 80).duration(600).springify().damping(14)}
-                            style={[
-                              styles.photoCard,
-                              {
-                                aspectRatio: 1 / ratio,
-                              }
-                            ]}
-                          >
-                            <TouchableOpacity 
-                              style={{ flex: 1 }}
-                              activeOpacity={0.9}
-                              onPress={() => openViewer(i)}
-                            >
-                              <View style={[
-                                styles.photoTile, 
-                                {
-                                  backgroundColor: selectedTemplate.tileBg,
-                                  borderRadius: selectedTemplate.radius,
-                                  borderWidth: event.templateId === 'polaroid' || event.templateId === 'museum' || event.templateId === 'brutalist' || event.templateId === 'royal' || event.templateId === 'classic' ? 1 : 0,
-                                  borderColor: event.templateId === 'royal' ? selectedTemplate.accent : (event.templateId === 'classic' ? 'rgba(0,0,0,0.05)' : selectedTemplate.accentBg),
-                                  padding: event.templateId === 'polaroid' ? 5 : (event.templateId === 'royal' ? 4 : (event.templateId === 'classic' ? 12 : 0)),
-                                },
-                                event.templateId === 'royal' && {
-                                  shadowColor: selectedTemplate.accent,
-                                  shadowOffset: { width: 0, height: 2 },
-                                  shadowOpacity: 0.15,
-                                  shadowRadius: 4,
-                                  elevation: 2,
-                                },
-                                event.templateId === 'classic' && {
-                                  shadowColor: '#000',
-                                  shadowOffset: { width: 0, height: 1 },
-                                  shadowOpacity: 0.06,
-                                  shadowRadius: 3,
-                                  elevation: 1,
-                                  backgroundColor: '#ffffff',
-                                }
-                              ]}>
-                                <Image source={{ uri: photo.url }} style={styles.galleryImg} resizeMode="cover" />
-                              </View>
-                            </TouchableOpacity>
-                          </Animated.View>
+                          <View style={styles.masonryContainer}>
+                            <View style={styles.masonryColumn}>
+                              {leftCol.map(renderPhotoItem)}
+                            </View>
+                            <View style={styles.masonryColumn}>
+                              {rightCol.map(renderPhotoItem)}
+                            </View>
+                          </View>
                         );
-                      })
+                      })()
                     )}
                   </View>
                 )}
@@ -2883,11 +3030,21 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'stretch',
     paddingBottom: 40,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
+  },
+  masonryContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 12,
+  },
+  masonryColumn: {
+    flex: 1,
+    flexDirection: 'column',
+    gap: 12,
   },
   photoCard: {
     width: '100%',
-    marginBottom: 16,
   },
   photoTile: {
     flex: 1,
@@ -3514,5 +3671,130 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 2,
     elevation: 1,
+  },
+  heroHeroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 100,
+    paddingBottom: 40,
+  },
+  heroGlassCard: {
+    position: 'absolute',
+    bottom: 110,
+    left: SCREEN_WIDTH * 0.08,
+    right: SCREEN_WIDTH * 0.08,
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    borderRadius: 2, // Ultra-modern sharp editorial edges
+    backgroundColor: 'rgba(10, 10, 12, 0.7)', // Luminous dark obsidian glass
+    borderWidth: 0.8, // Micro-thin gold border
+    borderColor: 'rgba(204, 164, 59, 0.35)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+    alignItems: 'center',
+  },
+  heroBadge: {
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderWidth: 0.8,
+    borderColor: 'rgba(204, 164, 59, 0.35)',
+    borderRadius: 2,
+    marginBottom: 16,
+  },
+  heroBadgeText: {
+    fontFamily: Fonts.inter.bold,
+    fontSize: 9,
+    color: '#cca43b',
+    letterSpacing: 3, // Premium wide letterspacing
+  },
+  heroTitleMain: {
+    fontSize: 28,
+    textAlign: 'center',
+    color: '#ffffff',
+    letterSpacing: 1.5,
+    lineHeight: 38,
+  },
+  heroDividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginVertical: 14,
+    width: 140,
+  },
+  heroDividerLine: {
+    flex: 1,
+    height: 0.8,
+    backgroundColor: 'rgba(204, 164, 59, 0.25)',
+  },
+  heroDividerStar: {
+    fontSize: 10,
+    color: '#cca43b',
+  },
+  heroDateMain: {
+    fontSize: 11,
+    fontFamily: Fonts.inter.semiBold,
+    color: '#94a3b8',
+    letterSpacing: 3,
+  },
+  heroActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 14,
+    marginTop: 26,
+    width: '100%',
+  },
+  heroSideButton: {
+    width: 44,
+    height: 44,
+    borderWidth: 0.8,
+    borderColor: '#cca43b',
+    borderRadius: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  heroEnterButton: {
+    flex: 1,
+    height: 44,
+    backgroundColor: '#cca43b',
+    borderRadius: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#cca43b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  heroEnterButtonText: {
+    fontSize: 11,
+    fontFamily: Fonts.inter.bold,
+    letterSpacing: 2,
+    color: '#000000',
+  },
+  heroBottomContent: {
+    position: 'absolute',
+    bottom: 25,
+    left: 30,
+    right: 30,
+    alignItems: 'center',
+    gap: 6,
+  },
+  heroBrandText: {
+    fontSize: 8,
+    fontFamily: Fonts.inter.bold,
+    letterSpacing: 2,
+    color: 'rgba(255, 255, 255, 0.35)',
+  },
+  heroChevron: {
+    opacity: 0.85,
+    marginTop: 4,
   },
 });

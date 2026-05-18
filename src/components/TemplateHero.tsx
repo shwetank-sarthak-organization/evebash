@@ -19,7 +19,7 @@ export function TemplateHero({ event, children }: TemplateHeroProps) {
     offset: ["start start", "end start"]
   });
 
-  // Parallax effect
+  // Modern cinematic Parallax effect
   const y = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
 
@@ -30,8 +30,23 @@ export function TemplateHero({ event, children }: TemplateHeroProps) {
     }
   };
 
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: event.title,
+        text: event.description || "Check out our wedding album!",
+        url: window.location.href,
+      }).catch((err) => console.log(err));
+    } else {
+      // Fallback
+      navigator.clipboard.writeText(window.location.href);
+      alert("Link copied to clipboard!");
+    }
+  };
+
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 relative" ref={containerRef}>
+    <div className="flex flex-col min-h-screen bg-black text-white selection:bg-amber-900 selection:text-white relative overflow-x-hidden" ref={containerRef}>
+      {/* Cinematic Cover Section */}
       <section className="relative h-screen w-full overflow-hidden">
         <motion.div style={{ y, opacity }} className="absolute inset-0 z-0 h-[120%] -top-[10%]">
           {event.coverImage ? (
@@ -39,58 +54,119 @@ export function TemplateHero({ event, children }: TemplateHeroProps) {
               src={event.coverImage}
               alt={event.title}
               fill
-              className="object-cover object-[50%_35%] opacity-90"
+              className="object-cover object-[50%_35%] opacity-60"
               priority
             />
           ) : (
-            <div className="w-full h-full bg-slate-300" />
+            <div className="w-full h-full bg-zinc-950" />
           )}
         </motion.div>
 
-        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-slate-900/60 to-transparent z-0"></div>
+        {/* Ambient Dark Glow Gradients */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black z-0"></div>
+        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black via-black/90 to-transparent z-0"></div>
 
-        <div className="relative z-10 flex flex-col justify-end items-center text-center px-4 pb-32 h-full max-w-5xl mx-auto">
-          <ScrollReveal direction="down" delay={0.2}>
-            <div className="inline-block border border-white/60 py-2 px-8 mb-6 bg-white/20 backdrop-blur-md rounded-full shadow-lg">
-              <p className="text-sm md:text-lg text-white font-serif uppercase tracking-[0.2em]">
-                {event.date || "Wedding Celebration"}
+        {/* Floating Glassmorphic Details Card */}
+        <div className="relative z-10 flex flex-col justify-end items-center px-4 pb-20 h-full max-w-5xl mx-auto">
+          
+          <ScrollReveal direction="up" delay={0.2} className="w-full max-w-xl">
+            <div className="bg-[#0a0a0c]/70 backdrop-blur-xl border border-[#cca43b]/30 p-8 md:p-12 rounded-sm shadow-2xl text-center flex flex-col items-center">
+              
+              {/* Modern Micro-Badge */}
+              <div className="inline-block bg-black border border-[#cca43b]/30 px-5 py-1 rounded-sm mb-6">
+                <p className="text-[9px] text-[#cca43b] font-black uppercase tracking-[0.3em]">
+                  The Celebration Of
+                </p>
+              </div>
+
+              {/* Bold Cinematic Title - Spaced-out Serif Italic */}
+              <h1 className="text-3xl md:text-5xl font-serif italic text-white tracking-wide mb-4 drop-shadow-md capitalize">
+                {event.title}
+              </h1>
+
+              {/* Platinum divider line with gold star */}
+              <div className="flex items-center justify-center gap-4 w-48 my-4">
+                <div className="flex-1 h-[0.5px] bg-[#cca43b]/30" />
+                <span className="text-[#cca43b] text-xs">✦</span>
+                <div className="flex-1 h-[0.5px] bg-[#cca43b]/30" />
+              </div>
+
+              {/* Event Date */}
+              <p className="text-[10px] md:text-xs text-zinc-400 font-bold uppercase tracking-[0.25em] mb-6">
+                — {event.date || "Save The Date"} —
               </p>
+
+              {/* Description */}
+              {event.description && (
+                <p className="text-xs md:text-sm text-zinc-400 font-light leading-relaxed mb-8 max-w-md">
+                  {event.description}
+                </p>
+              )}
+
+              {/* Parallel Action Row */}
+              <div className="flex items-center justify-center gap-4 w-full">
+                {/* Back Button */}
+                <Link
+                  href="/gallery"
+                  className="flex items-center justify-center w-12 h-12 border border-[#cca43b]/60 rounded-sm hover:bg-white/5 transition-all text-[#cca43b] bg-black/60"
+                  title="Back to gallery"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                  </svg>
+                </Link>
+
+                {/* Primary CTA (Enter Gallery) */}
+                <button
+                  onClick={scrollToContent}
+                  className="flex-1 py-3.5 bg-[#cca43b] hover:bg-[#e2b857] text-black text-[10px] font-black uppercase tracking-[0.2em] rounded-sm transition-all duration-300 shadow-md shadow-[#cca43b]/10 hover:shadow-[#cca43b]/30 transform hover:-translate-y-0.5"
+                >
+                  Enter Gallery
+                </button>
+
+                {/* Share Button */}
+                <button
+                  onClick={handleShare}
+                  className="flex items-center justify-center w-12 h-12 border border-[#cca43b]/60 rounded-sm hover:bg-white/5 transition-all text-[#cca43b] bg-black/60"
+                  title="Share event"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935-2.186 2.25 2.25 0 00-3.935 2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+                  </svg>
+                </button>
+              </div>
+
             </div>
           </ScrollReveal>
 
-          <ScrollReveal delay={0.4}>
-            <h1 className="text-5xl md:text-8xl font-serif text-white drop-shadow-md tracking-tight leading-tight mb-6">
-              {event.title}
-            </h1>
-          </ScrollReveal>
-
-          <ScrollReveal delay={0.6}>
-            <p className="text-lg md:text-xl text-white/90 font-light tracking-wide max-w-2xl mx-auto leading-relaxed drop-shadow-sm mb-12">
-              {event.description || "Welcome to our wedding album. We are so happy to share our memories with you."}
-            </p>
-          </ScrollReveal>
-
-          <ScrollReveal direction="up" delay={0.8}>
-            <button
-              onClick={scrollToContent}
-              className="inline-block px-8 py-4 bg-white text-slate-800 hover:bg-sky-50 transition-all duration-300 uppercase tracking-widest text-sm font-semibold rounded-lg shadow-xl hover:shadow-2xl hover:scale-105 transform"
-            >
-              View Gallery
+          {/* Scrolling indicator */}
+          <ScrollReveal direction="up" delay={0.6} className="mt-4">
+            <button onClick={scrollToContent} className="animate-bounce flex flex-col items-center gap-2">
+              <span className="text-[8px] uppercase tracking-[0.3em] text-[#cca43b]/70 font-semibold">Scroll Down</span>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-[#cca43b]/60">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
             </button>
           </ScrollReveal>
         </div>
       </section>
 
+      {/* Main Content Area */}
       {children && (
-        <section id="event-content" className="relative z-10 -mt-12 bg-slate-50 rounded-t-[3rem] py-20 shadow-2xl shadow-black/10 min-h-[50vh]">
+        <section id="event-content" className="relative z-10 bg-black border-t border-zinc-900 py-24 min-h-[50vh]">
           <div className="max-w-7xl mx-auto px-4">
+            <div className="text-center mb-16">
+              <h2 className="text-[10px] uppercase tracking-[0.3em] text-[#cca43b] mb-3 font-black">The Guest Gallery</h2>
+              <div className="mx-auto w-px h-16 bg-gradient-to-b from-[#cca43b] to-transparent" />
+            </div>
             {children}
           </div>
         </section>
       )}
 
-      <footer className="bg-stone-900 text-stone-600 py-12 text-center text-sm relative z-10">
-        <p>© 2026 Wedding Album.</p>
+      {/* Footer */}
+      <footer className="bg-black border-t border-zinc-950 text-zinc-600 py-16 text-center text-[10px] tracking-[0.25em] uppercase relative z-10">
+        <p>Delivered by Wed Album — Cinematic Editions</p>
       </footer>
     </div>
   );

@@ -55,16 +55,17 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
     id: 'hero', 
     category: 'Wedding', 
     label: 'Midnight Hero', 
-    desc: 'Big impact dark aesthetic', 
-    background: { light: '#f1f5f9', dark: '#020617' }, 
-    panel: { light: '#ffffff', dark: 'rgba(255,255,255,0.02)' }, 
-    text: { light: '#0f172a', dark: '#ffffff' }, 
-    muted: { light: '#64748b', dark: '#94a3b8' }, 
-    accent: '#d4af37', 
-    accentBg: { light: 'rgba(212,175,55,0.1)', dark: 'rgba(212,175,55,0.12)' }, 
-    tileBg: { light: '#ffffff', dark: '#111827' }, 
-    radius: 0, 
-    overlay: { light: ['rgba(241,245,249,0.1)', 'rgba(241,245,249,1)'], dark: ['rgba(2, 6, 23, 0.2)', 'rgba(2, 6, 23, 1)'] } 
+    desc: 'Big impact cinematic dark aesthetic', 
+    background: { light: '#000000', dark: '#000000' }, // Locked to Obsidian/Midnight Black
+    panel: { light: 'rgba(255,255,255,0.03)', dark: 'rgba(255,255,255,0.03)' }, // Premium graphite frosted glass
+    text: { light: '#ffffff', dark: '#ffffff' }, // Stark starlight white
+    muted: { light: '#94a3b8', dark: '#94a3b8' }, // Cool platinum gray
+    accent: '#cca43b', // Warm champagne gold
+    accentBg: { light: 'rgba(204,164,59,0.08)', dark: 'rgba(204,164,59,0.1)' }, 
+    tileBg: { light: '#09090b', dark: '#09090b' }, // Dark glassmorphism photo cards
+    radius: 12, // High-end sleek rounded cards
+    overlay: { light: ['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.95)'], dark: ['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.95)'] },
+    useSerif: true
   },
   { 
     id: 'ethereal', 
