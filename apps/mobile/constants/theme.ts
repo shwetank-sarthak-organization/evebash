@@ -62,6 +62,12 @@ export const Fonts = {
       serif: 'serif',
     },
   }),
+  playfair: {
+    regular: 'PlayfairDisplay_400Regular',
+    italic: 'PlayfairDisplay_400Regular_Italic',
+    semiBold: 'PlayfairDisplay_600SemiBold',
+    bold: 'PlayfairDisplay_700Bold',
+  },
   outfit: {
     regular: 'Outfit_400Regular',
     semiBold: 'Outfit_600SemiBold',

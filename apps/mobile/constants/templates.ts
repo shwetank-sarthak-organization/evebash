@@ -40,15 +40,15 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
     category: 'Wedding', 
     label: 'Classic White', 
     desc: 'Timeless and elegant design', 
-    background: { light: '#ffffff', dark: '#0f172a' }, 
-    panel: { light: '#f8fafc', dark: '#1e293b' }, 
-    text: { light: '#0f172a', dark: '#f8fafc' }, 
-    muted: { light: '#64748b', dark: '#94a3b8' }, 
-    accent: '#d4af37', 
-    accentBg: { light: 'rgba(212,175,55,0.1)', dark: 'rgba(212,175,55,0.15)' }, 
-    tileBg: { light: '#ffffff', dark: '#1e293b' }, 
+    background: { light: '#FAF9F6', dark: '#FAF9F6' }, // Premium warm alabaster museum wall background
+    panel: { light: '#ffffff', dark: '#ffffff' }, // Pure white card matting
+    text: { light: '#1e293b', dark: '#1e293b' }, // Modern dark slate charcoal
+    muted: { light: '#64748b', dark: '#64748b' }, 
+    accent: '#cca43b', // Warm brushed gold
+    accentBg: { light: 'rgba(204,164,59,0.06)', dark: 'rgba(204,164,59,0.06)' }, 
+    tileBg: { light: '#ffffff', dark: '#ffffff' }, 
     radius: 0, 
-    overlay: { light: ['rgba(255,255,255,0.1)', 'rgba(255,255,255,1)'], dark: ['rgba(15,23,42,0.2)', 'rgba(15,23,42,1)'] },
+    overlay: { light: ['rgba(250,249,246,0.1)', 'rgba(250,249,246,1)'], dark: ['rgba(250,249,246,0.1)', 'rgba(250,249,246,1)'] },
     useSerif: true
   },
   { 

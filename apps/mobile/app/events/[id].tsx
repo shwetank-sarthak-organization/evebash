@@ -48,9 +48,18 @@ export default function EventDetailScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
+  // Decide which view to show
+  // We show Admin view ONLY if mode=admin AND user is owner.
+  // Otherwise, we default to the premium Visitor view.
+  const [isAdminViewActive, setIsAdminViewActive] = useState(mode === 'admin');
+  const showAdminView = isAdminViewActive && isOwner;
+
   const selectedTemplate = React.useMemo(() => {
-    // If event is loading or missing, fallback to first theme
-    const base = MOBILE_TEMPLATE_THEMES.find((theme) => theme.id === (event?.templateId || 'hero')) || MOBILE_TEMPLATE_THEMES[0];
+    // If we are in Admin/Management View, we ALWAYS lock the palette to the default 'hero' (Midnight dark theme)
+    // to keep the back-office controls consistent and standard for the app shell.
+    const activeTemplateId = showAdminView ? 'hero' : (event?.templateId || 'hero');
+    const base = MOBILE_TEMPLATE_THEMES.find((theme) => theme.id === activeTemplateId) || MOBILE_TEMPLATE_THEMES[0];
+    const isClassic = base.id === 'classic';
     return {
       ...base,
       background: isDark ? base.background.dark : base.background.light,
@@ -60,16 +69,13 @@ export default function EventDetailScreen() {
       accentBg: isDark ? base.accentBg.dark : base.accentBg.light,
       tileBg: isDark ? base.tileBg.dark : base.tileBg.light,
       overlay: isDark ? base.overlay.dark : base.overlay.light,
+      serifFont: isClassic ? Fonts.playfair.regular : Fonts.serif,
+      serifItalic: isClassic ? Fonts.playfair.italic : Fonts.serif,
+      serifBold: isClassic ? Fonts.playfair.bold : Fonts.serif,
     };
-  }, [event?.templateId, isDark]);
+  }, [event?.templateId, isDark, showAdminView]);
 
-  // Decide which view to show
-  // We show Admin view ONLY if mode=admin AND user is owner.
-  // Otherwise, we default to the premium Visitor view.
-  const [isAdminViewActive, setIsAdminViewActive] = useState(mode === 'admin');
-
-  const showAdminView = isAdminViewActive && isOwner;
-  const heroHeight = (!showAdminView && event?.templateId === 'royal') ? windowHeight : 400;
+  const heroHeight = (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic')) ? windowHeight : 400;
   
   // Modals
   const [showSubEventModal, setShowSubEventModal] = useState(false);
@@ -558,8 +564,14 @@ export default function EventDetailScreen() {
   // ── VISITOR NAVIGATION ──
   const renderVisitorHeader = () => {
     const isRoyal = event?.templateId === 'royal';
+    const isClassic = event?.templateId === 'classic';
+    const isThemeHeader = isRoyal || isClassic;
     return (
-      <View style={[styles.visitorHeaderContainer, isRoyal && { height: 70, marginTop: 12, marginBottom: 0 }]}>
+      <View style={[
+        styles.visitorHeaderContainer, 
+        isRoyal && { height: 70, marginTop: 12, marginBottom: 0 },
+        isClassic && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', backgroundColor: '#FAF9F6' }
+      ]}>
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false} 
@@ -568,7 +580,7 @@ export default function EventDetailScreen() {
           <TouchableOpacity 
             style={[
               styles.visitorTab,
-              isRoyal ? { 
+              isThemeHeader ? { 
                 backgroundColor: 'transparent', 
                 borderWidth: 0, 
                 borderRadius: 0, 
@@ -581,7 +593,7 @@ export default function EventDetailScreen() {
             onPress={() => handleSubEventChange(null)}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              {!isRoyal && (
+              {!isThemeHeader && (
                 <IconSymbol 
                   name="house.fill" 
                   size={14} 
@@ -590,9 +602,9 @@ export default function EventDetailScreen() {
               )}
               <Text style={[
                 styles.visitorTabText,
-                { color: isRoyal ? selectedTemplate.muted : MidnightColors.gold },
-                selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
-                !activeSubEvent && (isRoyal ? { color: '#fff' } : styles.visitorTabTextActive)
+                { color: isThemeHeader ? selectedTemplate.muted : MidnightColors.gold },
+                selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
+                !activeSubEvent && (isThemeHeader ? { color: isRoyal ? '#fff' : '#cca43b' } : styles.visitorTabTextActive)
               ]}>
                 Home
               </Text>
@@ -604,6 +616,11 @@ export default function EventDetailScreen() {
                 <Text style={{ fontSize: 6, color: selectedTemplate.accent, marginTop: 1 }}>♦</Text>
               </View>
             )}
+            {isClassic && !activeSubEvent && (
+              <View style={{ alignItems: 'center', marginTop: 4 }}>
+                <View style={{ width: 32, height: 1.2, backgroundColor: '#cca43b' }} />
+              </View>
+            )}
           </TouchableOpacity>
 
           {subEvents.map((sub) => {
@@ -613,7 +630,7 @@ export default function EventDetailScreen() {
                 key={sub.id}
                 style={[
                   styles.visitorTab,
-                  isRoyal ? { 
+                  isThemeHeader ? { 
                     backgroundColor: 'transparent', 
                     borderWidth: 0, 
                     borderRadius: 0, 
@@ -627,9 +644,9 @@ export default function EventDetailScreen() {
               >
                 <Text style={[
                   styles.visitorTabText,
-                  { color: isRoyal ? selectedTemplate.muted : MidnightColors.gold },
-                  selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
-                  isActive && (isRoyal ? { color: '#fff' } : styles.visitorTabTextActive)
+                  { color: isThemeHeader ? selectedTemplate.muted : MidnightColors.gold },
+                  selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
+                  isActive && (isThemeHeader ? { color: isRoyal ? '#fff' : '#cca43b' } : styles.visitorTabTextActive)
                 ]}>
                   {sub.title}
                 </Text>
@@ -640,15 +657,20 @@ export default function EventDetailScreen() {
                     <Text style={{ fontSize: 6, color: selectedTemplate.accent, marginTop: 1 }}>♦</Text>
                   </View>
                 )}
+                {isClassic && isActive && (
+                  <View style={{ alignItems: 'center', marginTop: 4 }}>
+                    <View style={{ width: 32, height: 1.2, backgroundColor: '#cca43b' }} />
+                  </View>
+                )}
               </TouchableOpacity>
             );
           })}
 
-          {/* Wedding Partners Tab */}
+          {/* Event Partners Tab */}
           <TouchableOpacity 
             style={[
               styles.visitorTab,
-              isRoyal ? { 
+              isThemeHeader ? { 
                 backgroundColor: 'transparent', 
                 borderWidth: 0, 
                 borderRadius: 0, 
@@ -656,59 +678,73 @@ export default function EventDetailScreen() {
                 paddingVertical: 6,
                 flexDirection: 'column',
                 gap: 2
-              } : activeSubEvent?.id === 'wedding-partners' && styles.visitorTabActive
+              } : activeSubEvent?.id === 'event-partners' && styles.visitorTabActive
             ]}
-            onPress={() => setActiveSubEvent({ id: 'wedding-partners', title: 'Wedding Partners' } as any)}
+            onPress={() => setActiveSubEvent({ id: 'event-partners', title: 'Event Partners' } as any)}
           >
             <Text style={[
               styles.visitorTabText,
-              { color: isRoyal ? selectedTemplate.muted : MidnightColors.gold },
-              selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
-              activeSubEvent?.id === 'wedding-partners' && (isRoyal ? { color: '#fff' } : styles.visitorTabTextActive)
+              { color: isThemeHeader ? selectedTemplate.muted : MidnightColors.gold },
+              selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
+              activeSubEvent?.id === 'event-partners' && (isThemeHeader ? { color: isRoyal ? '#fff' : '#cca43b' } : styles.visitorTabTextActive)
             ]}>
-              Wedding Partners <Text style={{ fontSize: 10 }}>🤝</Text>
+              Event Partners <Text style={{ fontSize: 10 }}>🤝</Text>
             </Text>
 
-            {isRoyal && activeSubEvent?.id === 'wedding-partners' && (
+            {isRoyal && activeSubEvent?.id === 'event-partners' && (
               <View style={{ alignItems: 'center', marginTop: 3 }}>
                 <View style={{ width: 28, height: 1.5, backgroundColor: selectedTemplate.accent }} />
                 <Text style={{ fontSize: 6, color: selectedTemplate.accent, marginTop: 1 }}>♦</Text>
               </View>
             )}
+            {isClassic && activeSubEvent?.id === 'event-partners' && (
+              <View style={{ alignItems: 'center', marginTop: 4 }}>
+                <View style={{ width: 32, height: 1.2, backgroundColor: '#cca43b' }} />
+              </View>
+            )}
           </TouchableOpacity>
-
-
         </ScrollView>
       </View>
     );
   };
 
-  // ── ROYAL ORNAMENTAL DIVIDER ──
-  const renderRoyalDivider = () => {
-    if (selectedTemplate.id !== 'royal') return null;
-    return (
-      <View style={styles.royalDividerContainer}>
-        <View style={[styles.royalDividerLine, { backgroundColor: selectedTemplate.accent }]} />
-        <Text style={[styles.royalDividerDiamond, { color: selectedTemplate.accent }]}>♦</Text>
-        <View style={[styles.royalDividerLine, { backgroundColor: selectedTemplate.accent }]} />
-      </View>
-    );
+  // ── THEME ORNAMENTAL DIVIDER ──
+  const renderThemeDivider = () => {
+    if (selectedTemplate.id === 'royal') {
+      return (
+        <View style={styles.royalDividerContainer}>
+          <View style={[styles.royalDividerLine, { backgroundColor: selectedTemplate.accent }]} />
+          <Text style={[styles.royalDividerDiamond, { color: selectedTemplate.accent }]}>♦</Text>
+          <View style={[styles.royalDividerLine, { backgroundColor: selectedTemplate.accent }]} />
+        </View>
+      );
+    }
+    if (selectedTemplate.id === 'classic') {
+      return (
+        <View style={styles.classicDividerContainer}>
+          <View style={[styles.classicDividerLine, { backgroundColor: 'rgba(212, 175, 55, 0.25)' }]} />
+          <Text style={[styles.classicDividerDot, { color: '#cca43b' }]}>✦</Text>
+          <View style={[styles.classicDividerLine, { backgroundColor: 'rgba(212, 175, 55, 0.25)' }]} />
+        </View>
+      );
+    }
+    return null;
   };
 
   return (
     <View style={[styles.safeArea, { backgroundColor: selectedTemplate.background }]}>
       <Stack.Screen 
         options={{ 
-          headerShown: true, 
+          headerShown: !(!showAdminView && event?.templateId === 'classic'), 
           headerTransparent: true, 
           headerTitle: '',
-          headerLeft: () => (
+          headerLeft: () => (!showAdminView && event?.templateId === 'classic') ? null : (
             <TouchableOpacity 
               onPress={() => router.replace('/(tabs)/gallery')}
               style={[
                 styles.floatingBack,
                 { marginTop: Platform.OS === 'ios' ? 44 : 10 },
-                (!showAdminView && event?.templateId === 'royal') && {
+                (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic')) && {
                   marginLeft: 24,
                   marginTop: 36,
                   width: 40,
@@ -723,12 +759,12 @@ export default function EventDetailScreen() {
               <IconSymbol name="chevron.left" size={28} color={selectedTemplate.accent} />
             </TouchableOpacity>
           ),
-          headerRight: () => (
+          headerRight: () => (!showAdminView && event?.templateId === 'classic') ? null : (
             <TouchableOpacity 
               style={[
                 styles.floatingBack,
                 { marginTop: Platform.OS === 'ios' ? 44 : 10, marginRight: 16 },
-                (!showAdminView && event?.templateId === 'royal') && {
+                (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic')) && {
                   marginRight: 24,
                   marginTop: 36,
                   width: 40,
@@ -757,12 +793,20 @@ export default function EventDetailScreen() {
         stickyHeaderIndices={!showAdminView ? [1] : undefined}
       >
         {/* ── HERO ── */}
-        <View style={[styles.hero, { height: heroHeight }]}>
-          <Image source={{ uri: activeSubEvent?.coverImage || event.coverImage }} style={styles.heroImage} />
-          <LinearGradient
-            colors={selectedTemplate.overlay as [string, string]}
-            style={styles.heroGradient}
-          />
+        <View style={[styles.hero, { height: heroHeight, backgroundColor: selectedTemplate.background }]}>
+          {!showAdminView && event?.templateId === 'classic' ? (
+            <View style={styles.classicHeroImageContainer}>
+              <Image source={{ uri: activeSubEvent?.coverImage || event.coverImage }} style={styles.classicHeroImage} />
+            </View>
+          ) : (
+            <Image source={{ uri: activeSubEvent?.coverImage || event.coverImage }} style={styles.heroImage} />
+          )}
+          {event?.templateId !== 'classic' && (
+            <LinearGradient
+              colors={selectedTemplate.overlay as [string, string]}
+              style={styles.heroGradient}
+            />
+          )}
 
 
 
@@ -812,6 +856,69 @@ export default function EventDetailScreen() {
                   style={styles.royalChevron}
                 >
                   <IconSymbol name="chevron.down" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (!showAdminView && event?.templateId === 'classic') ? (
+            <View style={styles.classicHeroOverlay}>
+              {/* 1. Elegant Thin Matte Frame */}
+              <View style={[styles.classicFrame, { borderColor: 'rgba(212, 175, 55, 0.15)' }]} />
+
+              {/* 2. Center Content with Spaced-out Fine-Art Typography */}
+              <View style={styles.classicCenterContent}>
+                <Text style={[styles.classicTitle, { color: selectedTemplate.text, fontFamily: selectedTemplate.serifFont }]}>
+                  {activeSubEvent?.title || event.title}
+                </Text>
+
+                <View style={styles.classicDividerOrnament}>
+                  <View style={[styles.classicDividerOrnamentLine, { backgroundColor: '#cca43b' }]} />
+                  <Text style={styles.classicDividerOrnamentDot}>✦</Text>
+                  <View style={[styles.classicDividerOrnamentLine, { backgroundColor: '#cca43b' }]} />
+                </View>
+
+                <Text style={[styles.classicDateText, { color: '#cca43b', fontFamily: selectedTemplate.serifItalic }]}>
+                  {`— ${activeSubEvent?.date || event.date || ''} —`.toUpperCase()}
+                </Text>
+
+                <View style={styles.classicActionRow}>
+                  {/* Left: Symmetrical Gold Square Back Button */}
+                  <TouchableOpacity 
+                    style={[styles.classicSideButton, { borderColor: '#cca43b' }]} 
+                    onPress={() => router.replace('/(tabs)/gallery')}
+                  >
+                    <IconSymbol name="chevron.left" size={16} color="#cca43b" />
+                  </TouchableOpacity>
+
+                  {/* Center: Main Gold Square Enter Gallery Button */}
+                  <TouchableOpacity 
+                    style={[styles.classicButton, { borderColor: '#cca43b', marginTop: 0 }]}
+                    onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
+                  >
+                    <Text style={[styles.classicButtonText, { color: '#cca43b' }]}>ENTER GALLERY</Text>
+                  </TouchableOpacity>
+
+                  {/* Right: Symmetrical Gold Square Share Button */}
+                  <TouchableOpacity 
+                    style={[styles.classicSideButton, { borderColor: '#cca43b' }]} 
+                    onPress={() => setShowShareModal(true)}
+                  >
+                    <IconSymbol name="square.and.arrow.up" size={16} color="#cca43b" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* 3. Classic Fine Art Brand Signature */}
+              <View style={styles.classicBottomContent}>
+                <View style={styles.brandLogoContainer}>
+                  <Text style={[styles.classicBrandSubText, { color: '#94a3b8' }]}>EXHIBITION DELIVERED BY</Text>
+                  <Text style={[styles.classicBrandLogoScript, { color: selectedTemplate.text, fontFamily: selectedTemplate.serifItalic }]}>Wed Album</Text>
+                </View>
+
+                <TouchableOpacity 
+                  onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
+                  style={styles.classicChevron}
+                >
+                  <IconSymbol name="chevron.down" size={20} color="#cca43b" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -1400,7 +1507,7 @@ export default function EventDetailScreen() {
 
               {activeTab === 'partners' && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Wedding Partners</Text>
+                  <Text style={styles.sectionTitle}>Event Partners</Text>
                   
                   {linkedVendors.length === 0 && (
                     <View style={{ 
@@ -1536,10 +1643,22 @@ export default function EventDetailScreen() {
             <>
               {/* ── VISITOR IMMERSIVE CONTENT ── */}
               <View style={[styles.visitorContent, { backgroundColor: selectedTemplate.background }]}>
-                {event.showWelcomeCard !== false && activeSubEvent?.id !== 'wedding-partners' && (
+                {event.showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && (
                   <View style={[
                     styles.mainInfoBox, 
-                    { backgroundColor: selectedTemplate.panel, borderColor: selectedTemplate.accentBg },
+                    { 
+                      backgroundColor: selectedTemplate.panel, 
+                      borderColor: event.templateId === 'classic' ? 'rgba(0,0,0,0.05)' : selectedTemplate.accentBg,
+                      borderRadius: selectedTemplate.radius,
+                    },
+                    event.templateId === 'classic' && {
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.04,
+                      shadowRadius: 2,
+                      elevation: 1,
+                      borderWidth: 1,
+                    },
                     event.templateId === 'royal' && { 
                       borderWidth: 1, 
                       borderColor: 'rgba(204, 164, 59, 0.35)', 
@@ -1569,7 +1688,7 @@ export default function EventDetailScreen() {
                         styles.visitorDescription, 
                         { color: event.templateId === 'royal' ? selectedTemplate.accent : selectedTemplate.text },
                         selectedTemplate.useSerif && { 
-                          fontFamily: Fonts.serif, 
+                          fontFamily: selectedTemplate.serifItalic, 
                           fontStyle: 'italic', 
                           fontSize: 16, 
                           lineHeight: 26,
@@ -1584,14 +1703,14 @@ export default function EventDetailScreen() {
                   </View>
                 )}
 
-                {renderRoyalDivider()}
+                {renderThemeDivider()}
 
-                {activeSubEvent?.id === 'wedding-partners' ? (
+                {activeSubEvent?.id === 'event-partners' ? (
                   <View style={{ paddingVertical: 40, paddingHorizontal: 20 }}>
                     <View style={{ alignItems: 'center', marginBottom: 32 }}>
                       <Text style={[
                         { fontSize: 28, color: selectedTemplate.text, marginBottom: 8 },
-                        selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic' }
+                        selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
                       ]}>The Dream Team</Text>
                       <Text style={{ fontSize: 14, color: selectedTemplate.muted, textAlign: 'center', lineHeight: 22, maxWidth: '80%' }}>
                         The incredible businesses and vendors who brought this beautiful wedding to life.
@@ -1629,14 +1748,14 @@ export default function EventDetailScreen() {
                     <Text style={[
                       styles.galleryTitle, 
                       { color: selectedTemplate.text },
-                      selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' }
+                      selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold' }
                     ]}>
                       {activeSubEvent ? activeSubEvent.title : 'Highlights'}
                     </Text>
                     <Text style={[
                       styles.photoCount, 
                       { color: selectedTemplate.accent },
-                      selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic' }
+                      selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
                     ]}>
                       {photos.length} {photos.length === 1 ? 'Photo' : 'Photos'}
                     </Text>
@@ -1683,9 +1802,9 @@ export default function EventDetailScreen() {
                                 {
                                   backgroundColor: selectedTemplate.tileBg,
                                   borderRadius: selectedTemplate.radius,
-                                  borderWidth: event.templateId === 'polaroid' || event.templateId === 'museum' || event.templateId === 'brutalist' || event.templateId === 'royal' ? 1 : 0,
-                                  borderColor: event.templateId === 'royal' ? selectedTemplate.accent : selectedTemplate.accentBg,
-                                  padding: event.templateId === 'polaroid' ? 5 : (event.templateId === 'royal' ? 4 : 0),
+                                  borderWidth: event.templateId === 'polaroid' || event.templateId === 'museum' || event.templateId === 'brutalist' || event.templateId === 'royal' || event.templateId === 'classic' ? 1 : 0,
+                                  borderColor: event.templateId === 'royal' ? selectedTemplate.accent : (event.templateId === 'classic' ? 'rgba(0,0,0,0.05)' : selectedTemplate.accentBg),
+                                  padding: event.templateId === 'polaroid' ? 5 : (event.templateId === 'royal' ? 4 : (event.templateId === 'classic' ? 12 : 0)),
                                 },
                                 event.templateId === 'royal' && {
                                   shadowColor: selectedTemplate.accent,
@@ -1693,6 +1812,14 @@ export default function EventDetailScreen() {
                                   shadowOpacity: 0.15,
                                   shadowRadius: 4,
                                   elevation: 2,
+                                },
+                                event.templateId === 'classic' && {
+                                  shadowColor: '#000',
+                                  shadowOffset: { width: 0, height: 1 },
+                                  shadowOpacity: 0.06,
+                                  shadowRadius: 3,
+                                  elevation: 1,
+                                  backgroundColor: '#ffffff',
                                 }
                               ]}>
                                 <Image source={{ uri: photo.url }} style={styles.galleryImg} resizeMode="cover" />
@@ -1707,7 +1834,7 @@ export default function EventDetailScreen() {
                 </>
                 )}
 
-                {renderRoyalDivider()}
+                {renderThemeDivider()}
 
                 {/* Join Prompt for non-logged in users */}
                 {!user && (
@@ -2269,7 +2396,7 @@ export default function EventDetailScreen() {
                         await updateEvent(event!.id, { vendors: newVendors });
                         setEvent({ ...event!, vendors: newVendors });
                         setLinkedVendors([...linkedVendors, biz]);
-                        Alert.alert("Vendor Linked!", `Successfully linked ${biz.name}. They will now appear on the Wedding Partners page.`);
+                        Alert.alert("Vendor Linked!", `Successfully linked ${biz.name}. They will now appear on the Event Partners page.`);
                         setLinkingVendor(false);
                         setVendorCode('');
                       }
@@ -3223,5 +3350,169 @@ const styles = StyleSheet.create({
   },
   royalChevron: {
     opacity: 0.85,
+  },
+
+  // Premium Classic White Fine Art Styles
+  classicDividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginVertical: 24,
+    alignSelf: 'center',
+    width: '60%',
+  },
+  classicDividerLine: {
+    flex: 1,
+    height: 1,
+    opacity: 0.2,
+  },
+  classicDividerDot: {
+    fontSize: 8,
+    opacity: 0.8,
+  },
+  classicHeroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 100,
+    paddingBottom: 40,
+  },
+  classicFrame: {
+    position: 'absolute',
+    top: 60,
+    bottom: 30,
+    left: 20,
+    right: 20,
+    borderWidth: 1,
+    borderRadius: 0, // Clean, zero-radius classic framing
+    pointerEvents: 'none',
+  },
+  classicHeroImageContainer: {
+    position: 'absolute',
+    top: 80,
+    left: 28,
+    right: 28,
+    height: SCREEN_WIDTH * 1.15, // Grand portrait exhibition height!
+    borderRadius: 2,
+    overflow: 'hidden',
+    borderWidth: 1.5, // Thicker, luxurious outer frame
+    borderColor: '#cca43b', // Elegantly gilded warm gold frame holding the white-matted photo!
+    backgroundColor: '#ffffff', // Crisp white internal gallery matte frame
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+    padding: 10, // Gives a beautiful physical matting effect around the photograph
+  },
+  classicHeroImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  classicCenterContent: {
+    position: 'absolute',
+    top: 80 + SCREEN_WIDTH * 1.15 + 20, // Mathematically scales perfectly below the enlarged portrait mat card
+    left: 30,
+    right: 30,
+    alignItems: 'center',
+  },
+  classicTitle: {
+    fontSize: 32,
+    fontFamily: Fonts.serif,
+    textAlign: 'center',
+    marginHorizontal: 36,
+    lineHeight: 42,
+    letterSpacing: 1.5,
+    textTransform: 'capitalize',
+  },
+  classicDividerOrnament: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 16,
+    width: 60,
+  },
+  classicDividerOrnamentLine: {
+    flex: 1,
+    height: 1,
+    opacity: 0.4,
+  },
+  classicDividerOrnamentDot: {
+    fontSize: 6,
+    opacity: 0.7,
+  },
+  classicDateText: {
+    fontSize: 12,
+    fontFamily: Fonts.serif,
+    fontStyle: 'italic',
+    marginTop: 10,
+    letterSpacing: 2,
+  },
+  classicButton: {
+    marginTop: 28,
+    borderWidth: 1,
+    borderRadius: 0, // Perfectly square classic high-fashion button
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    alignSelf: 'center',
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  classicButtonText: {
+    fontSize: 11,
+    fontFamily: Fonts.inter.bold,
+    letterSpacing: 2,
+  },
+  classicBottomContent: {
+    position: 'absolute',
+    bottom: 25,
+    left: 30,
+    right: 30,
+    alignItems: 'center',
+    gap: 8,
+  },
+  classicBrandLogoScript: {
+    fontFamily: Fonts.serif,
+    fontSize: 16,
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+  classicBrandSubText: {
+    fontSize: 8,
+    fontFamily: Fonts.inter.bold,
+    letterSpacing: 2,
+  },
+  classicChevron: {
+    opacity: 0.85,
+    marginTop: 8,
+  },
+  classicActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 24,
+    width: '100%',
+  },
+  classicSideButton: {
+    width: 38,
+    height: 38,
+    borderWidth: 1,
+    borderRadius: 0, // Clean, high-fashion square buttons
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
 });
