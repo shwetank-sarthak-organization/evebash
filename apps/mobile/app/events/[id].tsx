@@ -76,7 +76,9 @@ export default function EventDetailScreen() {
     };
   }, [event?.templateId, isDark, showAdminView]);
 
-  const heroHeight = (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic' || event?.templateId === 'hero')) ? windowHeight : 400;
+  const heroHeight = (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic' || event?.templateId === 'hero')) 
+    ? windowHeight 
+    : ((!showAdminView && event?.templateId === 'pop') ? (465 + insets.top) : 400);
   const isScrapbookTemplate = event?.templateId === 'scrapbook';
   const isNeonTemplate = event?.templateId === 'neon';
   const isPastelTemplate = event?.templateId === 'pastel';
@@ -671,7 +673,7 @@ export default function EventDetailScreen() {
                 <IconSymbol
                   name="house.fill"
                   size={14}
-                  color={!activeSubEvent ? (isScrapbook ? '#263331' : (isNeon ? '#66e8ff' : (isPastel ? '#c9768b' : (isPop ? '#0080ff' : MidnightColors.background)))) : (isScrapbook ? selectedTemplate.accent : (isNeon ? '#b9b1d9' : (isPastel ? '#9a8583' : (isPop ? '#231f20' : MidnightColors.gold))))}
+                  color={!activeSubEvent ? (isScrapbook ? '#263331' : (isNeon ? '#66e8ff' : (isPastel ? '#c9768b' : (isPop ? '#ffffff' : MidnightColors.background)))) : (isScrapbook ? selectedTemplate.accent : (isNeon ? '#b9b1d9' : (isPastel ? '#9a8583' : (isPop ? '#231f20' : MidnightColors.gold))))}
                 />
               )}
               <Text style={[
@@ -814,51 +816,59 @@ export default function EventDetailScreen() {
     <View style={[styles.safeArea, { backgroundColor: selectedTemplate.background }]}>
       <Stack.Screen
         options={{
-          headerShown: !(!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero')),
+          headerShown: !(!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'pop')),
           headerTransparent: true,
           headerTitle: '',
-          headerLeft: () => (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero')) ? null : (
-            <TouchableOpacity
-              onPress={handleEventBack}
-              style={[
-                styles.floatingBack,
-                { marginTop: Platform.OS === 'ios' ? 44 : 10 },
-                (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic')) && {
-                  marginLeft: 24,
-                  marginTop: 36,
-                  width: 40,
-                  height: 40,
-                  borderRadius: 6,
-                  borderColor: selectedTemplate.accent,
-                  backgroundColor: 'rgba(0,0,0,0.15)',
-                }
-              ]}
-              hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
-            >
-              <IconSymbol name="chevron.left" size={28} color={selectedTemplate.accent} />
-            </TouchableOpacity>
-          ),
-          headerRight: () => (!showAdminView && event?.templateId === 'classic') ? null : (
-            <TouchableOpacity
-              style={[
-                styles.floatingBack,
-                { marginTop: Platform.OS === 'ios' ? 44 : 10, marginRight: 16 },
-                (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic')) && {
-                  marginRight: 24,
-                  marginTop: 36,
-                  width: 40,
-                  height: 40,
-                  borderRadius: 6,
-                  borderColor: selectedTemplate.accent,
-                  backgroundColor: 'rgba(0,0,0,0.15)',
-                }
-              ]}
-              onPress={() => setShowShareModal(true)}
-              hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
-            >
-              <IconSymbol name="square.and.arrow.up" size={20} color={selectedTemplate.accent} />
-            </TouchableOpacity>
-          )
+          headerLeft: () => {
+            const isPop = event?.templateId === 'pop';
+            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero')) ? null : (
+              <TouchableOpacity
+                onPress={handleEventBack}
+                style={[
+                  styles.floatingBack,
+                  { marginTop: Platform.OS === 'ios' ? 44 : 10 },
+                  (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic')) && {
+                    marginLeft: 24,
+                    marginTop: 36,
+                    width: 40,
+                    height: 40,
+                    borderRadius: 6,
+                    borderColor: selectedTemplate.accent,
+                    backgroundColor: 'rgba(0,0,0,0.15)',
+                  },
+                  isPop && styles.popFloatingBack
+                ]}
+                hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
+              >
+                <IconSymbol name="chevron.left" size={isPop ? 22 : 28} color={isPop ? '#ffffff' : selectedTemplate.accent} />
+              </TouchableOpacity>
+            );
+          },
+          headerRight: () => {
+            const isPop = event?.templateId === 'pop';
+            return (!showAdminView && event?.templateId === 'classic') ? null : (
+              <TouchableOpacity
+                style={[
+                  styles.floatingBack,
+                  { marginTop: Platform.OS === 'ios' ? 44 : 10, marginRight: 16 },
+                  (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic')) && {
+                    marginRight: 24,
+                    marginTop: 36,
+                    width: 40,
+                    height: 40,
+                    borderRadius: 6,
+                    borderColor: selectedTemplate.accent,
+                    backgroundColor: 'rgba(0,0,0,0.15)',
+                  },
+                  isPop && styles.popFloatingShare
+                ]}
+                onPress={() => setShowShareModal(true)}
+                hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
+              >
+                <IconSymbol name="square.and.arrow.up" size={isPop ? 18 : 20} color={isPop ? '#ffffff' : selectedTemplate.accent} />
+              </TouchableOpacity>
+            );
+          }
         }}
       />
 
@@ -873,14 +883,20 @@ export default function EventDetailScreen() {
       >
         {/* ── HERO ── */}
         <View style={[styles.hero, { height: heroHeight, backgroundColor: selectedTemplate.background }]}>
-          {!showAdminView && event?.templateId === 'classic' ? (
+          {!showAdminView && event?.templateId === 'pop' ? (
+            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#ffe84a' }]}>
+              {/* Giant background comic decorative shapes */}
+              <View style={styles.popBackgroundShapeBlue} />
+              <View style={styles.popBackgroundShapePink} />
+            </View>
+          ) : !showAdminView && event?.templateId === 'classic' ? (
             <View style={styles.classicHeroImageContainer}>
               <Image source={{ uri: activeSubEvent?.coverImage || event.coverImage }} style={styles.classicHeroImage} />
             </View>
           ) : (
             <Image source={{ uri: activeSubEvent?.coverImage || event.coverImage }} style={styles.heroImage} />
           )}
-          {event?.templateId !== 'classic' && (
+          {event?.templateId !== 'classic' && event?.templateId !== 'pop' && (
             <LinearGradient
               colors={selectedTemplate.overlay as [string, string]}
               style={styles.heroGradient}
@@ -1074,6 +1090,57 @@ export default function EventDetailScreen() {
                 </TouchableOpacity>
               </View>
             </View>
+          ) : (!showAdminView && event?.templateId === 'pop') ? (
+            <View style={[styles.popHeroCanvas, { height: 465 + insets.top }]}>
+              {/* 1. Large Event Title Starburst Banner */}
+              <View style={[styles.popTitleContainerOuter, { top: insets.top + 16 }]}>
+                <View style={styles.popTitleContainerShadow} />
+                <View style={styles.popTitleContainer}>
+                  <Text style={styles.popTitleText}>
+                    {activeSubEvent?.title || event.title}
+                  </Text>
+                </View>
+              </View>
+
+              {/* 2. Tilted White Polaroid Frame */}
+              <View style={[styles.popPolaroidFrame, { marginTop: insets.top + 78 }]}>
+                <View style={styles.popPolaroidInner}>
+                  <Image 
+                    source={{ uri: activeSubEvent?.coverImage || event.coverImage }} 
+                    style={styles.popPolaroidImage} 
+                    resizeMode="cover"
+                  />
+                  <View style={styles.popPolaroidOverlay} />
+                </View>
+
+                {/* Integrated Tactile Navigation Console */}
+                <View style={styles.popPolaroidCaptionRow}>
+                  <TouchableOpacity onPress={handleEventBack} style={styles.popCaptionBackBtn}>
+                    <IconSymbol name="chevron.left" size={16} color="#ffffff" />
+                  </TouchableOpacity>
+
+                  <Text style={styles.popPolaroidCaption}>
+                    {`${activeSubEvent?.date || event.date || 'PARTY TIME'}`.toUpperCase()}
+                  </Text>
+
+                  <TouchableOpacity onPress={() => setShowShareModal(true)} style={styles.popCaptionShareBtn}>
+                    <IconSymbol name="square.and.arrow.up" size={14} color="#ffffff" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Corner Starburst stickers */}
+                <View style={[styles.popSticker, styles.popStickerLeft]}>
+                  <Text style={styles.popStickerText}>BOOM! 🎉</Text>
+                </View>
+                <View style={[styles.popSticker, styles.popStickerRight]}>
+                  <Text style={styles.popStickerText}>YEAH! 💥</Text>
+                </View>
+                {/* Birthday Cap Emoji Sticker */}
+                <View style={styles.popStickerCapContainer}>
+                  <Text style={styles.popStickerCapEmoji}>🥳</Text>
+                </View>
+              </View>
+            </View>
           ) : (
             <View style={[styles.heroContent, isScrapbookTemplate && styles.scrapbookHeroContent, isNeonTemplate && styles.neonHeroContent, isPastelTemplate && styles.pastelHeroContent, isPopTemplate && styles.popHeroContent]}>
               {isScrapbookTemplate && (
@@ -1127,10 +1194,7 @@ export default function EventDetailScreen() {
                   <View style={styles.popHeroSticker}>
                     <Text style={styles.popHeroStickerText}>WOW!</Text>
                   </View>
-                  <View style={styles.popHeroChip}>
-                    <View style={styles.popHeroChipDot} />
-                    <Text style={styles.popHeroChipText}>Birthday Highlights</Text>
-                  </View>
+                  <Text style={styles.popHeroChipText}>★ GALLERY HIGHLIGHTS ★</Text>
                   <View style={styles.popHeroDivider}>
                     <View style={styles.popHeroDividerBlock} />
                     <View style={styles.popHeroDividerLine} />
@@ -1723,6 +1787,17 @@ export default function EventDetailScreen() {
                       </View>
                       <IconSymbol name="chevron.right" size={20} color={MidnightColors.gold} />
                     </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.designCard, { marginTop: 16, backgroundColor: 'rgba(212, 175, 55, 0.15)', borderColor: '#cca43b', borderWidth: 1 }]}
+                      onPress={() => setIsAdminViewActive(false)}
+                    >
+                      <View style={styles.designInfo}>
+                        <Text style={[styles.designLabel, { color: '#cca43b' }]}>Preview Guest Theme</Text>
+                        <Text style={[styles.designValue, { color: '#cbd5e1' }]}>See how guests view your Pop Art theme</Text>
+                      </View>
+                      <IconSymbol name="eye.fill" size={20} color="#cca43b" />
+                    </TouchableOpacity>
                 </View>
               )}
 
@@ -1957,11 +2032,17 @@ export default function EventDetailScreen() {
                       )}
 
                       {isPopTemplate && (
-                        <View style={styles.popInfoHeader}>
-                          <Text style={styles.popInfoBang}>!</Text>
-                          <Text style={styles.popInfoKicker}>Birthday Highlights</Text>
-                          <View style={styles.popInfoStripe} />
-                        </View>
+                        <>
+                          <View style={styles.popInfoHeader}>
+                            <Text style={styles.popInfoBang}>!</Text>
+                            <Text style={styles.popInfoKicker}>Host's Broadcast</Text>
+                            <View style={styles.popInfoStripe} />
+                          </View>
+                          {/* Speech Bubble Tail */}
+                          <View style={styles.popBubbleTailOuter}>
+                            <View style={styles.popBubbleTail} />
+                          </View>
+                        </>
                       )}
 
                       <Text style={[
@@ -1992,36 +2073,83 @@ export default function EventDetailScreen() {
                 {renderThemeDivider()}
 
                 {activeSubEvent?.id === 'event-partners' ? (
-                  <View style={{ paddingVertical: 40, paddingHorizontal: 20 }}>
+                  <View style={{ paddingTop: isPopTemplate ? 10 : 40, paddingBottom: 24, paddingHorizontal: 20 }}>
                     <View style={{ alignItems: 'center', marginBottom: 32 }}>
                       <Text style={[
                         { fontSize: 28, color: selectedTemplate.text, marginBottom: 8 },
+                        isPopTemplate && { fontFamily: FunkyFonts.marker, fontSize: 32, color: '#0080ff', textTransform: 'uppercase', letterSpacing: -0.5 },
                         selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
                       ]}>The Dream Team</Text>
-                      <Text style={{ fontSize: 14, color: selectedTemplate.muted, textAlign: 'center', lineHeight: 22, maxWidth: '80%' }}>
-                        The incredible businesses and vendors who brought this beautiful wedding to life.
+                      <Text style={[
+                        { fontSize: 14, color: selectedTemplate.muted, textAlign: 'center', lineHeight: 22, maxWidth: '80%' },
+                        isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', fontSize: 13, textTransform: 'uppercase', letterSpacing: -0.2 }
+                      ]}>
+                        {`The incredible businesses and vendors who brought this beautiful ${event?.category === 'birthday' ? 'birthday' : 'wedding'} to life.`}
                       </Text>
                     </View>
 
                     {linkedVendors.length === 0 ? (
-                      <View style={{ alignItems: 'center', paddingVertical: 40, backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' }}>
-                         <IconSymbol name="building.2" size={32} color={selectedTemplate.accent} />
-                         <Text style={{ color: selectedTemplate.muted, marginTop: 16, fontSize: 15, fontWeight: '500' }}>Vendor list coming soon...</Text>
+                      <View style={[
+                        { alignItems: 'center', paddingVertical: 40, backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+                        isPopTemplate && {
+                          backgroundColor: '#fffdf3',
+                          borderWidth: 3,
+                          borderColor: '#231f20',
+                          borderRadius: 18,
+                          shadowColor: '#ef2b3a',
+                          shadowOffset: { width: 5, height: 5 },
+                          shadowOpacity: 1,
+                          shadowRadius: 0,
+                          elevation: 4,
+                        }
+                      ]}>
+                         <IconSymbol name="building.2" size={32} color={isPopTemplate ? '#0080ff' : selectedTemplate.accent} />
+                         <Text style={[
+                           { color: selectedTemplate.muted, marginTop: 16, fontSize: 15, fontWeight: '500' },
+                           isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', textTransform: 'uppercase', fontSize: 13 }
+                         ]}>Vendor list coming soon...</Text>
                       </View>
                     ) : (
-                      <View style={{ gap: 16 }}>
+                      <View style={{ gap: isPopTemplate ? 20 : 16 }}>
                         {linkedVendors.map((biz) => (
                           <TouchableOpacity
                             key={biz.id}
-                            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}
+                            style={[
+                              { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+                              isPopTemplate && {
+                                backgroundColor: '#fffdf3',
+                                borderWidth: 3,
+                                borderColor: '#231f20',
+                                borderRadius: 18,
+                                shadowColor: '#ef2b3a',
+                                shadowOffset: { width: 5, height: 5 },
+                                shadowOpacity: 1,
+                                shadowRadius: 0,
+                                elevation: 4,
+                                padding: 14,
+                                marginBottom: 6,
+                              }
+                            ]}
                             onPress={() => router.push(`/business/${biz.id}`)}
                           >
-                            <Image source={{ uri: biz.coverImage || 'https://via.placeholder.com/150' }} style={{ width: 64, height: 64, borderRadius: 32, marginRight: 16, borderWidth: 1, borderColor: selectedTemplate.accent }} />
+                            <Image 
+                              source={{ uri: biz.coverImage || 'https://via.placeholder.com/150' }} 
+                              style={[
+                                { width: 64, height: 64, borderRadius: 32, marginRight: 16, borderWidth: 1, borderColor: selectedTemplate.accent },
+                                isPopTemplate && { borderWidth: 2.5, borderColor: '#231f20', borderRadius: 32 }
+                              ]} 
+                            />
                             <View style={{ flex: 1 }}>
-                              <Text style={{ color: selectedTemplate.text, fontSize: 18, fontWeight: '600', marginBottom: 4 }}>{biz.name}</Text>
-                              <Text style={{ color: selectedTemplate.accent, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, fontWeight: '700' }}>{biz.type}</Text>
+                              <Text style={[
+                                { color: selectedTemplate.text, fontSize: 18, fontWeight: '600', marginBottom: 4 },
+                                isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', fontSize: 18, fontWeight: undefined, textTransform: 'uppercase' }
+                              ]}>{biz.name}</Text>
+                              <Text style={[
+                                { color: selectedTemplate.accent, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, fontWeight: '700' },
+                                isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#ff4fb8', fontSize: 12, fontWeight: undefined, letterSpacing: 0.5 }
+                              ]}>{biz.type}</Text>
                             </View>
-                            <IconSymbol name="chevron.right" size={20} color={selectedTemplate.muted} />
+                            <IconSymbol name="chevron.right" size={20} color={isPopTemplate ? '#231f20' : selectedTemplate.muted} />
                           </TouchableOpacity>
                         ))}
                       </View>
@@ -2074,15 +2202,28 @@ export default function EventDetailScreen() {
                       isPopTemplate && styles.popGalleryTitle,
                       selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold' }
                     ]}>
-                      {activeSubEvent ? activeSubEvent.title : 'Highlights'}
+                      {isPopTemplate ? (
+                        <>
+                          <Text style={{ color: '#0080ff' }}>
+                            {activeSubEvent ? activeSubEvent.title : 'Highlights'}
+                          </Text>
+                          <Text style={{ color: '#ff4fb8' }}>
+                            {` (${photos.length})`}
+                          </Text>
+                        </>
+                      ) : (
+                        activeSubEvent ? activeSubEvent.title : 'Highlights'
+                      )}
                     </Text>
-                    <Text style={[
-                      styles.photoCount,
-                      { color: selectedTemplate.accent },
-                      selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
-                    ]}>
-                      {photos.length} {photos.length === 1 ? 'Photo' : 'Photos'}
-                    </Text>
+                    {!isPopTemplate && (
+                      <Text style={[
+                        styles.photoCount,
+                        { color: selectedTemplate.accent },
+                        selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
+                      ]}>
+                        {photos.length} {photos.length === 1 ? 'Photo' : 'Photos'}
+                      </Text>
+                    )}
                   </View>
 
 
@@ -2227,14 +2368,6 @@ export default function EventDetailScreen() {
                                       <View style={[styles.pastelPhotoTape, styles.pastelPhotoTapeRight]} />
                                       <View style={[styles.pastelPhotoDot, styles.pastelPhotoDotTop]} />
                                       <View style={[styles.pastelPhotoDot, styles.pastelPhotoDotBottom]} />
-                                    </>
-                                  )}
-                                  {isPopTemplate && (
-                                    <>
-                                      <View style={[styles.popPhotoCorner, styles.popPhotoCornerTopLeft]} />
-                                      <View style={[styles.popPhotoCorner, styles.popPhotoCornerBottomRight]} />
-                                      <View style={[styles.popPhotoHalftone, styles.popPhotoHalftoneTop]} />
-                                      <View style={[styles.popPhotoHalftone, styles.popPhotoHalftoneBottom]} />
                                     </>
                                   )}
                                   <Image
@@ -2925,9 +3058,20 @@ export default function EventDetailScreen() {
           </TouchableOpacity>
         </View>
       )}
+
     </View>
   );
 }
+
+const FunkyFonts = {
+  marker: Fonts.permanentMarker.regular,
+  comic: Fonts.permanentMarker.regular,
+  retro: Platform.select({
+    ios: 'American Typewriter',
+    android: 'monospace',
+    default: 'monospace',
+  }),
+};
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: MidnightColors.background },
@@ -2948,6 +3092,45 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     borderWidth: 1,
     borderColor: 'rgba(212, 175, 55, 0.3)',
+  },
+  popFloatingBack: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#0080ff',
+    borderWidth: 3,
+    borderColor: '#231f20',
+    shadowColor: '#231f20',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  popFloatingShare: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#ff4fb8',
+    borderWidth: 3,
+    borderColor: '#231f20',
+    shadowColor: '#231f20',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  popCustomNavbar: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 25,
   },
   floatingShare: { position: 'absolute', top: 20, right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   heroContent: { position: 'absolute', bottom: 30, left: 24, right: 24 },
@@ -3255,7 +3438,7 @@ const styles = StyleSheet.create({
   popHeroStickerText: {
     color: '#231f20',
     fontSize: 13,
-    fontFamily: Fonts.outfit.extraBold,
+    fontFamily: FunkyFonts.marker,
     letterSpacing: 0,
   },
   popHeroChip: {
@@ -3280,11 +3463,14 @@ const styles = StyleSheet.create({
     borderColor: '#231f20',
   },
   popHeroChipText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontFamily: Fonts.inter.bold,
+    color: '#231f20',
+    fontSize: 20,
+    fontFamily: FunkyFonts.marker,
     textTransform: 'uppercase',
-    letterSpacing: 0,
+    letterSpacing: -0.2,
+    marginBottom: 10,
+    marginTop: 6,
+    alignSelf: 'center',
   },
   popHeroDivider: {
     flexDirection: 'row',
@@ -3311,9 +3497,10 @@ const styles = StyleSheet.create({
   },
   popHeroTitle: {
     fontSize: 40,
-    lineHeight: 42,
+    lineHeight: 44,
     letterSpacing: 0,
     textTransform: 'uppercase',
+    fontFamily: FunkyFonts.marker,
   },
   popHeroMeta: {
     alignSelf: 'flex-start',
@@ -3326,7 +3513,9 @@ const styles = StyleSheet.create({
   },
   popHeroDate: {
     color: '#231f20',
-    letterSpacing: 0,
+    letterSpacing: 0.5,
+    fontFamily: FunkyFonts.marker,
+    fontSize: 14,
   },
   popShareButton: {
     alignSelf: 'flex-start',
@@ -3336,6 +3525,223 @@ const styles = StyleSheet.create({
     backgroundColor: '#0080ff',
     borderWidth: 3,
     borderColor: '#231f20',
+  },
+  popHeroCanvas: {
+    width: '100%',
+    height: 465,
+    backgroundColor: '#ffe84a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    paddingTop: 16,
+  },
+  popTitleContainerOuter: {
+    position: 'absolute',
+    top: 20,
+    zIndex: 10,
+    transform: [{ rotate: '-1.5deg' }],
+  },
+  popTitleContainerShadow: {
+    position: 'absolute',
+    top: 4, left: 4, right: -4, bottom: -4,
+    backgroundColor: '#ef2b3a',
+    borderRadius: 18,
+    borderWidth: 3,
+    borderColor: '#231f20',
+  },
+  popTitleContainer: {
+    backgroundColor: '#fffdf3',
+    borderWidth: 3,
+    borderColor: '#231f20',
+    paddingHorizontal: 22,
+    paddingVertical: 8,
+    borderRadius: 18,
+  },
+  popTitleText: {
+    fontFamily: FunkyFonts.marker,
+    fontSize: 24,
+    color: '#0080ff',
+    textTransform: 'uppercase',
+    letterSpacing: -0.5,
+  },
+  popPolaroidFrame: {
+    marginTop: 82,
+    width: 340,
+    height: 310,
+    backgroundColor: '#ffffff',
+    borderWidth: 4,
+    borderColor: '#231f20',
+    padding: 12,
+    paddingBottom: 24,
+    borderRadius: 16,
+    transform: [{ rotate: '2.5deg' }],
+    shadowColor: '#231f20',
+    shadowOffset: { width: 8, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 8,
+    position: 'relative',
+  },
+  popPolaroidInner: {
+    flex: 1,
+    borderRadius: 8,
+    borderWidth: 3,
+    borderColor: '#231f20',
+    overflow: 'hidden',
+    backgroundColor: '#f5f5f5',
+  },
+  popPolaroidImage: {
+    width: '100%',
+    height: '100%',
+  },
+  popPolaroidOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: '#ffe84a',
+    opacity: 0.05,
+  },
+  popPolaroidCaption: {
+    fontFamily: FunkyFonts.marker,
+    fontSize: 13,
+    color: '#231f20',
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    flex: 1,
+  },
+  popPolaroidCaptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 12,
+    paddingHorizontal: 4,
+  },
+  popCaptionBackBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#0080ff',
+    borderWidth: 2.5,
+    borderColor: '#231f20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#231f20',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 2,
+  },
+  popCaptionShareBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#ff4fb8',
+    borderWidth: 2.5,
+    borderColor: '#231f20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#231f20',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 2,
+  },
+  popSticker: {
+    position: 'absolute',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 2.5,
+    borderColor: '#231f20',
+    zIndex: 20,
+  },
+  popStickerLeft: {
+    top: -12,
+    left: -20,
+    backgroundColor: '#0080ff',
+    transform: [{ rotate: '-12deg' }],
+  },
+  popStickerRight: {
+    top: 110,
+    right: -24,
+    backgroundColor: '#ff4fb8',
+    transform: [{ rotate: '8deg' }],
+  },
+  popStickerText: {
+    fontFamily: FunkyFonts.marker,
+    fontSize: 12,
+    color: '#ffffff',
+    textTransform: 'uppercase',
+  },
+  popBubbleTailOuter: {
+    position: 'absolute',
+    bottom: -13,
+    left: '50%',
+    marginLeft: -12,
+    width: 24,
+    height: 24,
+    overflow: 'hidden',
+    zIndex: 4,
+  },
+  popBubbleTail: {
+    width: 14,
+    height: 14,
+    backgroundColor: '#fffdf3',
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderColor: '#231f20',
+    transform: [{ rotate: '45deg' }],
+    marginTop: -8,
+    marginLeft: 5,
+  },
+  popBackgroundShapeBlue: {
+    position: 'absolute',
+    top: 60,
+    left: -40,
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    borderWidth: 3,
+    borderColor: '#231f20',
+    backgroundColor: '#0080ff',
+    opacity: 0.12,
+    transform: [{ rotate: '-12deg' }],
+  },
+  popBackgroundShapePink: {
+    position: 'absolute',
+    bottom: 50,
+    right: -45,
+    width: 120,
+    height: 120,
+    borderWidth: 3,
+    borderColor: '#231f20',
+    backgroundColor: '#ff4fb8',
+    opacity: 0.12,
+    transform: [{ rotate: '45deg' }],
+  },
+  popStickerCapContainer: {
+    position: 'absolute',
+    top: -24,
+    right: -24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#ffe84a',
+    borderWidth: 3,
+    borderColor: '#231f20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    transform: [{ rotate: '15deg' }],
+    zIndex: 25,
+    shadowColor: '#231f20',
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 6,
+  },
+  popStickerCapEmoji: {
+    fontSize: 26,
   },
   scrapbookTape: {
     position: 'absolute',
@@ -3767,7 +4173,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   popVisitorTabActive: {
-    backgroundColor: '#ffe84a',
+    backgroundColor: '#0080ff',
     borderColor: '#231f20',
     transform: [{ translateY: -2 }, { rotate: '-1deg' }],
   },
@@ -3793,8 +4199,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.15,
   },
   popVisitorTabText: {
-    fontSize: 12,
-    fontFamily: Fonts.outfit.extraBold,
+    fontSize: 13,
+    fontFamily: FunkyFonts.marker,
     textTransform: 'uppercase',
     letterSpacing: 0,
   },
@@ -3811,7 +4217,7 @@ const styles = StyleSheet.create({
     color: '#7b555b',
   },
   popVisitorTabTextActive: {
-    color: '#231f20',
+    color: '#ffffff',
   },
 
   visitorContent: {
@@ -3942,7 +4348,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(201, 118, 139, 0.18)',
   },
   popInfoBox: {
-    marginHorizontal: 16,
+    marginHorizontal: 10,
     marginTop: 16,
     marginBottom: 26,
     padding: 0,
@@ -3970,25 +4376,25 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   popInfoBang: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     overflow: 'hidden',
     textAlign: 'center',
-    lineHeight: 26,
+    lineHeight: 28,
     backgroundColor: '#0080ff',
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: '#231f20',
     color: '#ffffff',
-    fontFamily: Fonts.outfit.extraBold,
+    fontFamily: FunkyFonts.marker,
     fontSize: 18,
   },
   popInfoKicker: {
     color: '#231f20',
-    fontSize: 11,
-    fontFamily: Fonts.inter.bold,
+    fontSize: 13,
+    fontFamily: FunkyFonts.marker,
     textTransform: 'uppercase',
-    letterSpacing: 0,
+    letterSpacing: 0.5,
   },
   popInfoStripe: {
     flex: 1,
@@ -4033,8 +4439,11 @@ const styles = StyleSheet.create({
   },
   popVisitorDescription: {
     color: '#231f20',
-    fontFamily: Fonts.inter.medium,
-    lineHeight: 23,
+    fontFamily: FunkyFonts.marker,
+    fontSize: 18,
+    lineHeight: 26,
+    textAlign: 'center',
+    letterSpacing: -0.2,
   },
   categoryBadge: {
     alignSelf: 'flex-start',
@@ -4084,20 +4493,16 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(201, 118, 139, 0.12)',
   },
   popGalleryHeader: {
-    marginTop: 18,
-    marginBottom: 22,
+    marginTop: 24,
+    marginBottom: 16,
     marginHorizontal: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderWidth: 3,
-    borderColor: '#231f20',
-    borderRadius: 22,
-    backgroundColor: '#fffdf3',
-    shadowColor: '#0080ff',
-    shadowOffset: { width: 6, height: 6 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 5,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    borderWidth: 0,
+    borderColor: 'transparent',
+    backgroundColor: 'transparent',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   scrapbookGalleryKicker: {
     flexDirection: 'row',
@@ -4188,9 +4593,9 @@ const styles = StyleSheet.create({
   popGalleryKickerText: {
     color: '#231f20',
     fontSize: 10,
-    fontFamily: Fonts.inter.bold,
+    fontFamily: FunkyFonts.marker,
     textTransform: 'uppercase',
-    letterSpacing: 0,
+    letterSpacing: 0.5,
   },
   popGalleryKickerBolt: {
     width: 36,
@@ -4219,9 +4624,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
   },
   popGalleryTitle: {
-    fontSize: 30,
-    letterSpacing: 0,
+    color: '#231f20',
+    fontSize: 32,
+    fontFamily: FunkyFonts.marker,
     textTransform: 'uppercase',
+    letterSpacing: -0.5,
   },
   photoCount: {
     fontSize: 12,
@@ -4537,6 +4944,8 @@ const styles = StyleSheet.create({
   },
   popViewerActionCount: {
     color: '#ffe84a',
+    fontFamily: FunkyFonts.marker,
+    fontSize: 14,
   },
   guestbookPanel: {
     position: 'absolute',

@@ -95,7 +95,15 @@ export default function RootLayout() {
     PlayfairDisplay_400Regular_Italic,
     PlayfairDisplay_600SemiBold,
     PlayfairDisplay_700Bold,
+    'Monofett_400Regular': require('../assets/fonts/Monofett-Regular.ttf'),
+    'BubblegumSans_400Regular': require('../assets/fonts/BubblegumSans-Regular.ttf'),
+    'PermanentMarker_400Regular': require('../assets/fonts/PermanentMarker-Regular.ttf'),
   });
+
+  console.log('--- Font Diagnostics ---');
+  console.log('fontsLoaded:', fontsLoaded);
+  console.log('fontError:', fontError);
+  console.log('------------------------');
 
   useEffect(() => {
     if (fontsLoaded || fontError) {

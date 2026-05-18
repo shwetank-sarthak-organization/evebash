@@ -79,5 +79,14 @@ export const Fonts = {
     medium: 'Inter_500Medium',
     semiBold: 'Inter_600SemiBold',
     bold: 'Inter_700Bold',
+  },
+  monofett: {
+    regular: 'Monofett_400Regular',
+  },
+  bubblegum: {
+    regular: 'BubblegumSans_400Regular',
+  },
+  permanentMarker: {
+    regular: 'PermanentMarker_400Regular',
   }
 };

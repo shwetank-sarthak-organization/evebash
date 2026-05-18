@@ -18,6 +18,7 @@ import { TemplateMuseum } from "@/components/TemplateMuseum";
 import { TemplatePolaroid } from "@/components/TemplatePolaroid";
 import { TemplateRoyal } from "@/components/TemplateRoyal";
 import { TemplateScrapbook } from "@/components/TemplateScrapbook";
+import { TemplatePop } from "@/components/TemplatePop";
 
 import EventHome from "@/components/templates/template_1/src/components/EventHome";
 import TemplateEditorial_2 from "@/components/templates/template_2/src/app/EventHome";
@@ -88,6 +89,7 @@ export default async function SubEventPage({ params }: { params: Promise<{ slug:
         case 'polaroid': return <TemplatePolaroid event={plainSubEvent}>{galleryBlock}</TemplatePolaroid>;
         case 'royal': return <TemplateRoyal event={plainSubEvent}>{galleryBlock}</TemplateRoyal>;
         case 'scrapbook': return <TemplateScrapbook event={plainSubEvent}>{galleryBlock}</TemplateScrapbook>;
+        case 'pop': return <TemplatePop event={plainSubEvent}>{galleryBlock}</TemplatePop>;
 
         // Legacy components without {children} support need the legacy layout
         case 'template_1':

@@ -24,6 +24,7 @@ import { TemplateMuseum } from "@/components/TemplateMuseum";
 import { TemplatePolaroid } from "@/components/TemplatePolaroid";
 import { TemplateRoyal } from "@/components/TemplateRoyal";
 import { TemplateScrapbook } from "@/components/TemplateScrapbook";
+import { TemplatePop } from "@/components/TemplatePop";
 
 export default async function TenantPage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params;
@@ -60,6 +61,7 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
         case 'polaroid': return <TemplatePolaroid event={plainEvent}>{grid}</TemplatePolaroid>;
         case 'royal': return <TemplateRoyal event={plainEvent}>{grid}</TemplateRoyal>;
         case 'scrapbook': return <TemplateScrapbook event={plainEvent}>{grid}</TemplateScrapbook>;
+        case 'pop': return <TemplatePop event={plainEvent}>{grid}</TemplatePop>;
 
         // Keep legacy references just in case they are used in db
         case 'template_1': return <EventHome event={plainEvent} subEvents={plainSubEvents} basePath={basePath} />;

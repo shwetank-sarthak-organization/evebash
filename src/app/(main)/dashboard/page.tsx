@@ -96,7 +96,8 @@ export const TEMPLATE_THEMES = [
     { id: "cinematic", label: "Cinematic", desc: "Immersive fullscreen video" },
     { id: "museum", label: "Museum", desc: "Minimalist art gallery" },
     { id: "scrapbook", label: "Scrapbook", desc: "Playful cut-out aesthetic" },
-    { id: "brutalist", label: "Brutalist", desc: "Raw, highly structured design" }
+    { id: "brutalist", label: "Brutalist", desc: "Raw, highly structured design" },
+    { id: "pop", label: "Pop Art", desc: "Comic poster birthday album" }
 ];
 
 function DashboardContent() {
@@ -1604,11 +1605,11 @@ function DashboardContent() {
                                                             onClick={() => setSelectedTemplate(theme.id)}
                                                             className={`cursor-pointer border-2 rounded-xl p-3 text-center transition-all ${selectedTemplate === theme.id ? 'border-royal-gold bg-royal-gold/5 ring-2 ring-royal-gold/20' : 'border-stone-100 hover:border-stone-300'}`}
                                                         >
-                                                            <div className={`w-full aspect-square rounded-lg mb-2 shadow-sm ${theme.id === 'hero' ? 'bg-slate-900 border-2 border-slate-900' : 'bg-black border-2 border-black'}`}>
+                                                            <div className={`w-full aspect-square rounded-lg mb-2 shadow-sm ${theme.id === 'pop' ? 'bg-[#ffe84a] border-2 border-black' : (theme.id === 'hero' ? 'bg-slate-900 border-2 border-slate-900' : 'bg-black border-2 border-black')}`}>
                                                                 {/* Mini preview text */}
                                                                 <div className="w-full h-full flex items-center justify-center">
-                                                                    <span className={`text-[10px] font-serif ${theme.id === 'hero' ? 'text-white' : 'text-white'}`}>
-                                                                        Aa
+                                                                    <span className={`text-[10px] ${theme.id === 'pop' ? 'text-black font-black font-sans uppercase' : (theme.id === 'hero' ? 'text-white font-serif' : 'text-white font-serif')}`}>
+                                                                        {theme.id === 'pop' ? 'POP!' : 'Aa'}
                                                                     </span>
                                                                 </div>
                                                             </div>
