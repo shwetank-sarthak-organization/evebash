@@ -588,12 +588,14 @@ export async function getGuestLogs(ownerIds?: string | string[]): Promise<GuestL
         const ids = Array.isArray(ownerIds) ? ownerIds.filter(Boolean) : ownerIds ? [ownerIds] : [];
         const guestsCol = collection(db, "guests");
         const q = ids.length > 0
-            ? query(guestsCol, where("parentEventOwnerId", "in", ids), orderBy("loginAt", "desc"))
+            ? query(guestsCol, where("parentEventOwnerId", "in", ids))
             : query(guestsCol, orderBy("loginAt", "desc"));
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GuestLog));
+        return snapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as GuestLog))
+            .sort((a, b) => (b.loginAt?.seconds || 0) - (a.loginAt?.seconds || 0));
     } catch (error) {
-        console.warn("Guest log indexed query failed, falling back to client filter:", error);
+        console.error("Guest log query failed, falling back to client filter:", error);
         try {
             const ids = Array.isArray(ownerIds) ? ownerIds.filter(Boolean) : ownerIds ? [ownerIds] : [];
             const snapshot = await getDocs(collection(db, "guests"));
@@ -1277,4 +1279,3 @@ export async function getBusinessActivities(creatorIds: string[]): Promise<any[]
         return [];
     }
 }
-

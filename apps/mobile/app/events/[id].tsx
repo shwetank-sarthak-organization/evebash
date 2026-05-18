@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Share, Keyboard, useWindowDimensions, useColorScheme } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Share, Keyboard, useWindowDimensions, useColorScheme, BackHandler } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,7 +23,7 @@ export default function EventDetailScreen() {
   const { id, shared, guestView, tab, share, mode } = useLocalSearchParams<{ id: string; shared?: string; guestView?: string; tab?: string; share?: string; mode?: 'admin' | 'visitor' }>();
   const router = useRouter();
   const { user } = useAuth();
-  
+
   const [scrollY, setScrollY] = useState(0);
   const scrollViewRef = React.useRef<ScrollView>(null);
   const { height: windowHeight } = useWindowDimensions();
@@ -36,7 +36,7 @@ export default function EventDetailScreen() {
   const [guestStatus, setGuestStatus] = useState<string | null>(null);
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
-  
+
   const [isOwner, setIsOwner] = useState(false);
   const [activeTab, setActiveTab] = useState<'galleries' | 'permissions' | 'design' | 'partners'>((tab as any) || 'galleries');
   const [linkingVendor, setLinkingVendor] = useState(false);
@@ -44,7 +44,7 @@ export default function EventDetailScreen() {
   const [linkedVendors, setLinkedVendors] = useState<Business[]>([]);
   const [guestLogs, setGuestLogs] = useState<any[]>([]);
   const [updating, setUpdating] = useState(false);
-  
+
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -77,7 +77,11 @@ export default function EventDetailScreen() {
   }, [event?.templateId, isDark, showAdminView]);
 
   const heroHeight = (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic' || event?.templateId === 'hero')) ? windowHeight : 400;
-  
+  const isScrapbookTemplate = event?.templateId === 'scrapbook';
+  const isNeonTemplate = event?.templateId === 'neon';
+  const isPastelTemplate = event?.templateId === 'pastel';
+  const isPopTemplate = event?.templateId === 'pop';
+
   // Modals
   const [showSubEventModal, setShowSubEventModal] = useState(false);
   const [newSubTitle, setNewSubTitle] = useState('');
@@ -92,7 +96,7 @@ export default function EventDetailScreen() {
   const [activeSubEvent, setActiveSubEvent] = useState<FirestoreEvent | null>(null);
   const [photos, setPhotos] = useState<any[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
-  
+
   // Gallery Welcome Text Settings State
   const [galleryDescModalVisible, setGalleryDescModalVisible] = useState(false);
   const [galleryDescText, setGalleryDescText] = useState('');
@@ -205,12 +209,12 @@ export default function EventDetailScreen() {
           await updateEvent(eventData.id, { templateId: 'hero' });
           eventData.templateId = 'hero';
         }
-        
+
         setEvent(eventData);
         setIsOwner(user?.uid === eventData.createdBy);
         const subs = await getSubEvents(id, eventData.legacyId);
         setSubEvents(subs);
-        
+
         // Fetch linked vendors
         if (eventData.vendors && eventData.vendors.length > 0) {
           const vendorsData = await Promise.all(
@@ -218,7 +222,7 @@ export default function EventDetailScreen() {
           );
           setLinkedVendors(vendorsData.filter(v => v !== null) as Business[]);
         }
-        
+
         // Auto-load photos for main event initially
         loadPhotos(eventData.id, eventData.legacyId);
 
@@ -255,6 +259,35 @@ export default function EventDetailScreen() {
       loadPhotos(event.id, event.legacyId);
     }
   };
+
+  const handleEventBack = useCallback(() => {
+    if (selectedAdminGallery !== undefined) {
+      setSelectedAdminGallery(undefined);
+      if (event) {
+        loadPhotos(event.id, event.legacyId);
+      }
+      return;
+    }
+
+    if (activeSubEvent) {
+      setActiveSubEvent(null);
+      if (event) {
+        loadPhotos(event.id, event.legacyId);
+      }
+      return;
+    }
+
+    router.replace('/(tabs)/gallery');
+  }, [activeSubEvent, event, router, selectedAdminGallery]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleEventBack();
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [handleEventBack]);
 
   const handleOpenEditWelcomeModal = () => {
     const currentDesc = activeSubEvent ? activeSubEvent.description : event?.description;
@@ -300,7 +333,7 @@ export default function EventDetailScreen() {
       try {
         const file = { uri: result.assets[0].uri, name: 'photo.jpg', type: 'image/jpeg' } as any;
         const upload = await uploadEventImage(file, activeId, user?.uid || 'anon');
-        
+
         const { addPhoto } = await import('@/lib/firestore');
         await addPhoto({
           eventId: activeId,
@@ -309,7 +342,7 @@ export default function EventDetailScreen() {
           uploadedAt: new Date(),
           userId: user?.uid || 'anon'
         });
-        
+
         loadPhotos(activeId, activeSubEvent ? activeSubEvent.legacyId : event.legacyId);
         Alert.alert("Success", "Photo uploaded successfully!");
       } catch (err) {
@@ -335,7 +368,7 @@ export default function EventDetailScreen() {
             try {
               const { deletePhoto } = await import('@/lib/firestore');
               await deletePhoto(photoId);
-              
+
               const activeId = activeSubEvent ? activeSubEvent.id : event!.id;
               loadPhotos(activeId, activeSubEvent ? activeSubEvent.legacyId : event!.legacyId);
               Alert.alert("Success", "Photo removed from gallery.");
@@ -372,6 +405,20 @@ export default function EventDetailScreen() {
       });
     } catch (error) {
       console.error('Sharing failed', error);
+    }
+  };
+
+  const handleSharePhoto = async () => {
+    const photo = photos[currentPhotoIndex];
+    if (!photo?.url) return;
+
+    try {
+      await Share.share({
+        message: `A birthday memory from "${event?.title || 'our event'}"\n${photo.url}`,
+        url: photo.url,
+      });
+    } catch (error) {
+      console.error('Photo sharing failed', error);
     }
   };
 
@@ -498,7 +545,7 @@ export default function EventDetailScreen() {
         day: 'numeric',
         year: 'numeric'
       });
-      
+
       setUpdating(true);
       try {
         const success = await updateEvent(event.id, { date: formattedDate });
@@ -523,9 +570,9 @@ export default function EventDetailScreen() {
       `Are you sure you want to delete "${event.title}"? This will permanently remove all photos and sub-events.`,
       [
         { text: "Cancel", style: "cancel" },
-        { 
-          text: "Delete", 
-          style: "destructive", 
+        {
+          text: "Delete",
+          style: "destructive",
           onPress: async () => {
             setUpdating(true);
             const success = await deleteEvent(event.id);
@@ -536,7 +583,7 @@ export default function EventDetailScreen() {
               Alert.alert("Error", "Failed to delete event.");
             }
             setUpdating(false);
-          } 
+          }
         }
       ]
     );
@@ -567,50 +614,75 @@ export default function EventDetailScreen() {
     const isRoyal = event?.templateId === 'royal';
     const isClassic = event?.templateId === 'classic';
     const isHero = event?.templateId === 'hero';
+    const isScrapbook = event?.templateId === 'scrapbook';
+    const isNeon = event?.templateId === 'neon';
+    const isPastel = event?.templateId === 'pastel';
+    const isPop = event?.templateId === 'pop';
     const isThemeHeader = isRoyal || isClassic || isHero;
+    const birthdayTextColor = isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : MidnightColors.gold)));
+    const birthdayActiveText = isScrapbook ? styles.scrapbookVisitorTabTextActive : (isNeon ? styles.neonVisitorTabTextActive : (isPastel ? styles.pastelVisitorTabTextActive : (isPop ? styles.popVisitorTabTextActive : styles.visitorTabTextActive)));
+    const birthdayActiveTab = isScrapbook ? styles.scrapbookVisitorTabActive : (isNeon ? styles.neonVisitorTabActive : (isPastel ? styles.pastelVisitorTabActive : (isPop ? styles.popVisitorTabActive : styles.visitorTabActive)));
+    const birthdayTabStyles = [
+      isScrapbook && styles.scrapbookVisitorTab,
+      isNeon && styles.neonVisitorTab,
+      isPastel && styles.pastelVisitorTab,
+      isPop && styles.popVisitorTab,
+    ];
+    const themeHeaderTab = (active: boolean) => ({
+      backgroundColor: isHero ? (active ? 'rgba(204, 164, 59, 0.08)' : 'transparent') : 'transparent',
+      borderWidth: isHero ? 0.8 : 0,
+      borderColor: isHero ? (active ? '#cca43b' : 'transparent') : 'transparent',
+      borderRadius: isHero ? 4 : 0,
+      paddingHorizontal: 16,
+      paddingVertical: isHero ? 8 : 6,
+      flexDirection: isHero ? 'row' as const : 'column' as const,
+      gap: 2,
+      marginHorizontal: isHero ? 4 : 0,
+      alignSelf: 'center' as const,
+    });
+    const themeTextColor = (active: boolean) => active
+      ? (isHero ? '#cca43b' : (isRoyal ? '#fff' : '#cca43b'))
+      : (isHero ? '#94a3b8' : selectedTemplate.muted);
     return (
       <View style={[
-        styles.visitorHeaderContainer, 
+        styles.visitorHeaderContainer,
         isRoyal && { height: 70, marginTop: 12, marginBottom: 0 },
         isClassic && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', backgroundColor: '#FAF9F6' },
-        isHero && { height: 64, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', backgroundColor: '#000000' }
+        isHero && { height: 64, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', backgroundColor: '#000000' },
+        isScrapbook && styles.scrapbookVisitorHeaderContainer,
+        isNeon && styles.neonVisitorHeaderContainer,
+        isPastel && styles.pastelVisitorHeaderContainer,
+        isPop && styles.popVisitorHeaderContainer,
       ]}>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          contentContainerStyle={styles.visitorHeaderContent}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[styles.visitorHeaderContent, isScrapbook && styles.scrapbookVisitorHeaderContent, isNeon && styles.neonVisitorHeaderContent, isPastel && styles.pastelVisitorHeaderContent, isPop && styles.popVisitorHeaderContent]}
         >
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
               styles.visitorTab,
-              isThemeHeader ? { 
-                backgroundColor: isHero ? (!activeSubEvent ? 'rgba(204, 164, 59, 0.08)' : 'transparent') : 'transparent', 
-                borderWidth: isHero ? 0.8 : 0, 
-                borderColor: isHero ? (!activeSubEvent ? '#cca43b' : 'transparent') : 'transparent',
-                borderRadius: isHero ? 4 : 0, 
-                paddingHorizontal: 16, 
-                paddingVertical: isHero ? 8 : 6,
-                flexDirection: isHero ? 'row' : 'column',
-                gap: 2,
-                marginHorizontal: isHero ? 4 : 0,
-                alignSelf: 'center',
-              } : !activeSubEvent && styles.visitorTabActive
+              isThemeHeader ? themeHeaderTab(!activeSubEvent) : [...birthdayTabStyles, !activeSubEvent && birthdayActiveTab]
             ]}
             onPress={() => handleSubEventChange(null)}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               {!isThemeHeader && (
-                <IconSymbol 
-                  name="house.fill" 
-                  size={14} 
-                  color={!activeSubEvent ? MidnightColors.background : MidnightColors.gold} 
+                <IconSymbol
+                  name="house.fill"
+                  size={14}
+                  color={!activeSubEvent ? (isScrapbook ? '#263331' : (isNeon ? '#66e8ff' : (isPastel ? '#c9768b' : (isPop ? '#0080ff' : MidnightColors.background)))) : (isScrapbook ? selectedTemplate.accent : (isNeon ? '#b9b1d9' : (isPastel ? '#9a8583' : (isPop ? '#231f20' : MidnightColors.gold))))}
                 />
               )}
               <Text style={[
                 styles.visitorTabText,
-                { color: isThemeHeader ? (isHero ? '#94a3b8' : selectedTemplate.muted) : MidnightColors.gold },
+                { color: isThemeHeader ? themeTextColor(!activeSubEvent) : birthdayTextColor },
+                isScrapbook && styles.scrapbookVisitorTabText,
+                isNeon && styles.neonVisitorTabText,
+                isPastel && styles.pastelVisitorTabText,
+                isPop && styles.popVisitorTabText,
                 selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
-                !activeSubEvent && (isThemeHeader ? { color: isHero ? '#cca43b' : (isRoyal ? '#fff' : '#cca43b') } : styles.visitorTabTextActive)
+                !activeSubEvent && !isThemeHeader && birthdayActiveText
               ]}>
                 Home
               </Text>
@@ -632,30 +704,23 @@ export default function EventDetailScreen() {
           {subEvents.map((sub) => {
             const isActive = activeSubEvent?.id === sub.id;
             return (
-              <TouchableOpacity 
+              <TouchableOpacity
                 key={sub.id}
                 style={[
                   styles.visitorTab,
-                  isThemeHeader ? { 
-                    backgroundColor: isHero ? (isActive ? 'rgba(204, 164, 59, 0.08)' : 'transparent') : 'transparent', 
-                    borderWidth: isHero ? 0.8 : 0, 
-                    borderColor: isHero ? (isActive ? '#cca43b' : 'transparent') : 'transparent',
-                    borderRadius: isHero ? 4 : 0, 
-                    paddingHorizontal: 16, 
-                    paddingVertical: isHero ? 8 : 6,
-                    flexDirection: isHero ? 'row' : 'column',
-                    gap: 2,
-                    marginHorizontal: isHero ? 4 : 0,
-                    alignSelf: 'center',
-                  } : isActive && styles.visitorTabActive
+                  isThemeHeader ? themeHeaderTab(isActive) : [...birthdayTabStyles, isActive && birthdayActiveTab]
                 ]}
                 onPress={() => handleSubEventChange(sub)}
               >
                 <Text style={[
                   styles.visitorTabText,
-                  { color: isThemeHeader ? (isHero ? '#94a3b8' : selectedTemplate.muted) : MidnightColors.gold },
+                  { color: isThemeHeader ? themeTextColor(isActive) : birthdayTextColor },
+                  isScrapbook && styles.scrapbookVisitorTabText,
+                  isNeon && styles.neonVisitorTabText,
+                  isPastel && styles.pastelVisitorTabText,
+                  isPop && styles.popVisitorTabText,
                   selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
-                  isActive && (isThemeHeader ? { color: isHero ? '#cca43b' : (isRoyal ? '#fff' : '#cca43b') } : styles.visitorTabTextActive)
+                  isActive && !isThemeHeader && birthdayActiveText
                 ]}>
                   {sub.title}
                 </Text>
@@ -676,29 +741,22 @@ export default function EventDetailScreen() {
           })}
 
           {/* Event Partners Tab */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
               styles.visitorTab,
-              isThemeHeader ? { 
-                backgroundColor: isHero ? (activeSubEvent?.id === 'event-partners' ? 'rgba(204, 164, 59, 0.08)' : 'transparent') : 'transparent', 
-                borderWidth: isHero ? 0.8 : 0, 
-                borderColor: isHero ? (activeSubEvent?.id === 'event-partners' ? '#cca43b' : 'transparent') : 'transparent',
-                borderRadius: isHero ? 4 : 0, 
-                paddingHorizontal: 16, 
-                paddingVertical: isHero ? 8 : 6,
-                flexDirection: isHero ? 'row' : 'column',
-                gap: 2,
-                marginHorizontal: isHero ? 4 : 0,
-                alignSelf: 'center',
-              } : activeSubEvent?.id === 'event-partners' && styles.visitorTabActive
+              isThemeHeader ? themeHeaderTab(activeSubEvent?.id === 'event-partners') : [...birthdayTabStyles, activeSubEvent?.id === 'event-partners' && birthdayActiveTab]
             ]}
             onPress={() => setActiveSubEvent({ id: 'event-partners', title: 'Event Partners' } as any)}
           >
             <Text style={[
               styles.visitorTabText,
-              { color: isThemeHeader ? (isHero ? '#94a3b8' : selectedTemplate.muted) : MidnightColors.gold },
+              { color: isThemeHeader ? themeTextColor(activeSubEvent?.id === 'event-partners') : birthdayTextColor },
+              isScrapbook && styles.scrapbookVisitorTabText,
+              isNeon && styles.neonVisitorTabText,
+              isPastel && styles.pastelVisitorTabText,
+              isPop && styles.popVisitorTabText,
               selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
-              activeSubEvent?.id === 'event-partners' && (isThemeHeader ? { color: isHero ? '#cca43b' : (isRoyal ? '#fff' : '#cca43b') } : styles.visitorTabTextActive)
+              activeSubEvent?.id === 'event-partners' && !isThemeHeader && birthdayActiveText
             ]}>
               Event Partners <Text style={{ fontSize: 10 }}>🤝</Text>
             </Text>
@@ -754,14 +812,14 @@ export default function EventDetailScreen() {
 
   return (
     <View style={[styles.safeArea, { backgroundColor: selectedTemplate.background }]}>
-      <Stack.Screen 
-        options={{ 
-          headerShown: !(!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero')), 
-          headerTransparent: true, 
+      <Stack.Screen
+        options={{
+          headerShown: !(!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero')),
+          headerTransparent: true,
           headerTitle: '',
           headerLeft: () => (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero')) ? null : (
-            <TouchableOpacity 
-              onPress={() => router.replace('/(tabs)/gallery')}
+            <TouchableOpacity
+              onPress={handleEventBack}
               style={[
                 styles.floatingBack,
                 { marginTop: Platform.OS === 'ios' ? 44 : 10 },
@@ -781,7 +839,7 @@ export default function EventDetailScreen() {
             </TouchableOpacity>
           ),
           headerRight: () => (!showAdminView && event?.templateId === 'classic') ? null : (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
                 styles.floatingBack,
                 { marginTop: Platform.OS === 'ios' ? 44 : 10, marginRight: 16 },
@@ -794,20 +852,20 @@ export default function EventDetailScreen() {
                   borderColor: selectedTemplate.accent,
                   backgroundColor: 'rgba(0,0,0,0.15)',
                 }
-              ]} 
+              ]}
               onPress={() => setShowShareModal(true)}
               hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
             >
               <IconSymbol name="square.and.arrow.up" size={20} color={selectedTemplate.accent} />
             </TouchableOpacity>
           )
-        }} 
+        }}
       />
 
-      <ScrollView 
+      <ScrollView
         ref={scrollViewRef}
-        style={[styles.container, { backgroundColor: selectedTemplate.background }]} 
-        bounces={false} 
+        style={[styles.container, { backgroundColor: selectedTemplate.background }]}
+        bounces={false}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={(e) => setScrollY(e.nativeEvent.contentOffset.y)}
@@ -839,7 +897,7 @@ export default function EventDetailScreen() {
               <Text style={styles.editCoverText}>{updating ? 'Updating...' : 'Change Cover'}</Text>
             </TouchableOpacity>
           )}
-          
+
           {(!showAdminView && event?.templateId === 'royal') ? (
             <View style={styles.royalHeroOverlay}>
               {/* 1. Elegant Thin Inset Frame */}
@@ -855,7 +913,7 @@ export default function EventDetailScreen() {
                   {(activeSubEvent?.date || event.date || '').toUpperCase()}
                 </Text>
 
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.royalButton, { borderColor: selectedTemplate.accent }]}
                   onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
                 >
@@ -872,7 +930,7 @@ export default function EventDetailScreen() {
                 </View>
 
                 {/* Downward Chevron */}
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
                   style={styles.royalChevron}
                 >
@@ -903,15 +961,15 @@ export default function EventDetailScreen() {
 
                 <View style={styles.classicActionRow}>
                   {/* Left: Symmetrical Gold Square Back Button */}
-                  <TouchableOpacity 
-                    style={[styles.classicSideButton, { borderColor: '#cca43b' }]} 
+                  <TouchableOpacity
+                    style={[styles.classicSideButton, { borderColor: '#cca43b' }]}
                     onPress={() => router.replace('/(tabs)/gallery')}
                   >
                     <IconSymbol name="chevron.left" size={16} color="#cca43b" />
                   </TouchableOpacity>
 
                   {/* Center: Main Gold Square Enter Gallery Button */}
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={[styles.classicButton, { borderColor: '#cca43b', marginTop: 0 }]}
                     onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
                   >
@@ -919,8 +977,8 @@ export default function EventDetailScreen() {
                   </TouchableOpacity>
 
                   {/* Right: Symmetrical Gold Square Share Button */}
-                  <TouchableOpacity 
-                    style={[styles.classicSideButton, { borderColor: '#cca43b' }]} 
+                  <TouchableOpacity
+                    style={[styles.classicSideButton, { borderColor: '#cca43b' }]}
                     onPress={() => setShowShareModal(true)}
                   >
                     <IconSymbol name="square.and.arrow.up" size={16} color="#cca43b" />
@@ -935,7 +993,7 @@ export default function EventDetailScreen() {
                   <Text style={[styles.classicBrandLogoScript, { color: selectedTemplate.text, fontFamily: selectedTemplate.serifItalic }]}>Wed Album</Text>
                 </View>
 
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
                   style={styles.classicChevron}
                 >
@@ -950,26 +1008,26 @@ export default function EventDetailScreen() {
                 colors={['rgba(0, 0, 0, 0.25)', 'rgba(0, 0, 0, 0.92)']}
                 style={StyleSheet.absoluteFillObject}
               />
-              
+
               {/* 2. Glassmorphic Hero Inset Card - floating above bottom third */}
               <View style={styles.heroGlassCard}>
                 {/* Thin golden-bordered micro-badge */}
                 <View style={styles.heroBadge}>
                   <Text style={styles.heroBadgeText}>THE CELEBRATION OF</Text>
                 </View>
-                
+
                 {/* Event Title - Poetic fluid Playfair Display Serif Italic */}
                 <Text style={[styles.heroTitleMain, { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }]}>
                   {activeSubEvent?.title || event.title}
                 </Text>
-                
+
                 {/* Micro-thin gold sparkle separator */}
                 <View style={styles.heroDividerContainer}>
                   <View style={styles.heroDividerLine} />
                   <Text style={styles.heroDividerStar}>✦</Text>
                   <View style={styles.heroDividerLine} />
                 </View>
-                
+
                 {/* Wide tracked starlight-gold date */}
                 <Text style={styles.heroDateMain}>
                   {`— ${activeSubEvent?.date || event.date || 'SAVE THE DATE'} —`.toUpperCase()}
@@ -978,15 +1036,15 @@ export default function EventDetailScreen() {
                 {/* Symmetrical parallel buttons block */}
                 <View style={styles.heroActionRow}>
                   {/* Left: Gold bordered Square back/chevron icon button */}
-                  <TouchableOpacity 
-                    style={[styles.heroSideButton, { borderColor: '#cca43b' }]} 
+                  <TouchableOpacity
+                    style={[styles.heroSideButton, { borderColor: '#cca43b' }]}
                     onPress={() => router.replace('/(tabs)/gallery')}
                   >
                     <IconSymbol name="chevron.left" size={16} color="#cca43b" />
                   </TouchableOpacity>
 
                   {/* Center: Glowing Enter Gallery pill button */}
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.heroEnterButton}
                     onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
                   >
@@ -994,8 +1052,8 @@ export default function EventDetailScreen() {
                   </TouchableOpacity>
 
                   {/* Right: Gold bordered Square share icon button */}
-                  <TouchableOpacity 
-                    style={[styles.heroSideButton, { borderColor: '#cca43b' }]} 
+                  <TouchableOpacity
+                    style={[styles.heroSideButton, { borderColor: '#cca43b' }]}
                     onPress={() => setShowShareModal(true)}
                   >
                     <IconSymbol name="square.and.arrow.up" size={16} color="#cca43b" />
@@ -1008,7 +1066,7 @@ export default function EventDetailScreen() {
                 <View style={styles.brandLogoContainer}>
                   <Text style={styles.heroBrandText}>CINEMATIC EDITIONS — WED ALBUM</Text>
                 </View>
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
                   style={styles.heroChevron}
                 >
@@ -1017,17 +1075,83 @@ export default function EventDetailScreen() {
               </View>
             </View>
           ) : (
-            <View style={styles.heroContent}>
+            <View style={[styles.heroContent, isScrapbookTemplate && styles.scrapbookHeroContent, isNeonTemplate && styles.neonHeroContent, isPastelTemplate && styles.pastelHeroContent, isPopTemplate && styles.popHeroContent]}>
+              {isScrapbookTemplate && (
+                <>
+                  <View style={[styles.scrapbookTape, styles.scrapbookTapeLeft]} />
+                  <View style={[styles.scrapbookTape, styles.scrapbookTapeRight]} />
+                  <View style={styles.scrapbookSticker}>
+                    <Text style={styles.scrapbookStickerText}>Birthday memories</Text>
+                  </View>
+                  <View style={styles.scrapbookHeroRule}>
+                    <View style={styles.scrapbookHeroRuleLine} />
+                    <View style={[styles.scrapbookHeroDot, { backgroundColor: selectedTemplate.accent }]} />
+                    <View style={styles.scrapbookHeroRuleLine} />
+                  </View>
+                </>
+              )}
+              {isNeonTemplate && (
+                <>
+                  <View style={[styles.neonLightStreak, styles.neonLightStreakTop]} />
+                  <View style={[styles.neonLightStreak, styles.neonLightStreakBottom]} />
+                  <View style={styles.neonHeroChip}>
+                    <View style={styles.neonHeroChipDot} />
+                    <Text style={styles.neonHeroChipText}>Neon party</Text>
+                  </View>
+                  <View style={styles.neonHeroDivider}>
+                    <View style={styles.neonHeroDividerLine} />
+                    <View style={styles.neonHeroDividerCore} />
+                    <View style={styles.neonHeroDividerLine} />
+                  </View>
+                </>
+              )}
+              {isPastelTemplate && (
+                <>
+                  <View style={[styles.pastelFloatOrb, styles.pastelFloatOrbPink]} />
+                  <View style={[styles.pastelFloatOrb, styles.pastelFloatOrbBlue]} />
+                  <View style={styles.pastelHeroChip}>
+                    <View style={styles.pastelHeroSparkle} />
+                    <Text style={styles.pastelHeroChipText}>Sweet birthday journal</Text>
+                  </View>
+                  <View style={styles.pastelHeroDivider}>
+                    <View style={styles.pastelHeroDividerDot} />
+                    <View style={styles.pastelHeroDividerLine} />
+                    <View style={[styles.pastelHeroDividerDot, styles.pastelHeroDividerDotAlt]} />
+                  </View>
+                </>
+              )}
+              {isPopTemplate && (
+                <>
+                  <View style={[styles.popBurstShape, styles.popBurstShapePink]} />
+                  <View style={[styles.popBurstShape, styles.popBurstShapeBlue]} />
+                  <View style={styles.popHeroSticker}>
+                    <Text style={styles.popHeroStickerText}>WOW!</Text>
+                  </View>
+                  <View style={styles.popHeroChip}>
+                    <View style={styles.popHeroChipDot} />
+                    <Text style={styles.popHeroChipText}>Birthday Highlights</Text>
+                  </View>
+                  <View style={styles.popHeroDivider}>
+                    <View style={styles.popHeroDividerBlock} />
+                    <View style={styles.popHeroDividerLine} />
+                    <View style={[styles.popHeroDividerBlock, styles.popHeroDividerBlockAlt]} />
+                  </View>
+                </>
+              )}
               <View style={styles.titleRowMain}>
                 <Text style={[
-                  styles.heroTitle, 
+                  styles.heroTitle,
                   { color: selectedTemplate.text, flex: 1 },
+                  isScrapbookTemplate && styles.scrapbookHeroTitle,
+                  isNeonTemplate && styles.neonHeroTitle,
+                  isPastelTemplate && styles.pastelHeroTitle,
+                  isPopTemplate && styles.popHeroTitle,
                   selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' }
                 ]}>
                   {activeSubEvent?.title || event.title}
                 </Text>
                 {showAdminView && !activeSubEvent && (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.renameHeroBtn}
                     onPress={() => {
                       setEditTitle(event.title);
@@ -1038,15 +1162,18 @@ export default function EventDetailScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-              <View style={styles.heroMeta}>
+              <View style={[styles.heroMeta, isNeonTemplate && styles.neonHeroMeta, isPastelTemplate && styles.pastelHeroMeta, isPopTemplate && styles.popHeroMeta]}>
                 <IconSymbol name="calendar" size={12} color={selectedTemplate.accent} />
                 <Text style={[
-                  styles.heroDate, 
+                  styles.heroDate,
                   { color: selectedTemplate.accent },
+                  isNeonTemplate && styles.neonHeroDate,
+                  isPastelTemplate && styles.pastelHeroDate,
+                  isPopTemplate && styles.popHeroDate,
                   selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic', letterSpacing: 2 }
                 ]}>{activeSubEvent?.date || event.date}</Text>
                 {showAdminView && !activeSubEvent && (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.editDateBtn}
                     onPress={() => setShowDatePicker(true)}
                   >
@@ -1055,12 +1182,12 @@ export default function EventDetailScreen() {
                 )}
               </View>
 
-              <TouchableOpacity 
-                style={[styles.heroMeta, { marginTop: 12 }]} 
+              <TouchableOpacity
+                style={[styles.heroMeta, { marginTop: 12 }, isNeonTemplate && styles.neonShareButton, isPastelTemplate && styles.pastelShareButton, isPopTemplate && styles.popShareButton]}
                 onPress={handleShare}
               >
                 <IconSymbol name="square.and.arrow.up" size={12} color={selectedTemplate.accent} />
-                <Text style={[styles.heroDate, { color: selectedTemplate.accent }]}>Share Event</Text>
+                <Text style={[styles.heroDate, { color: selectedTemplate.accent }, isNeonTemplate && styles.neonHeroDate, isPastelTemplate && styles.pastelHeroDate, isPopTemplate && styles.popHeroDate]}>Share Event</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -1075,14 +1202,14 @@ export default function EventDetailScreen() {
             <>
               {/* Owner Tabs */}
               <View style={styles.tabBar}>
-                <TouchableOpacity 
-                  style={[styles.tab, activeTab === 'galleries' && styles.activeTab]} 
+                <TouchableOpacity
+                  style={[styles.tab, activeTab === 'galleries' && styles.activeTab]}
                   onPress={() => { setActiveTab('galleries'); setSelectedAdminGallery(undefined); }}
                 >
                   <Text style={[styles.tabText, activeTab === 'galleries' && styles.activeTabText]}>Galleries</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.tab, activeTab === 'permissions' && styles.activeTab]} 
+                <TouchableOpacity
+                  style={[styles.tab, activeTab === 'permissions' && styles.activeTab]}
                   onPress={() => setActiveTab('permissions')}
                 >
                   <Text style={[styles.tabText, activeTab === 'permissions' && styles.activeTabText]}>Permissions</Text>
@@ -1092,14 +1219,14 @@ export default function EventDetailScreen() {
                     </View>
                   )}
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.tab, activeTab === 'design' && styles.activeTab]} 
+                <TouchableOpacity
+                  style={[styles.tab, activeTab === 'design' && styles.activeTab]}
                   onPress={() => { setActiveTab('design'); setSelectedAdminGallery(undefined); }}
                 >
                   <Text style={[styles.tabText, activeTab === 'design' && styles.activeTabText]}>Design</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.tab, activeTab === 'partners' && styles.activeTab]} 
+                <TouchableOpacity
+                  style={[styles.tab, activeTab === 'partners' && styles.activeTab]}
                   onPress={() => { setActiveTab('partners'); setSelectedAdminGallery(undefined); }}
                 >
                   <Text style={[styles.tabText, activeTab === 'partners' && styles.activeTabText]}>Partners</Text>
@@ -1121,7 +1248,7 @@ export default function EventDetailScreen() {
                       <View style={styles.subGrid}>
                         {/* Home Gallery Card */}
                         {event && (
-                          <TouchableOpacity 
+                          <TouchableOpacity
                             style={[styles.subCard, { borderColor: selectedTemplate.accent, borderWidth: 1, backgroundColor: 'rgba(204,164,59,0.05)' }]}
                             onPress={() => {
                               loadPhotos(event.id, event.legacyId);
@@ -1136,8 +1263,8 @@ export default function EventDetailScreen() {
                           </TouchableOpacity>
                         )}
                         {subEvents.map((sub) => (
-                          <TouchableOpacity 
-                            key={sub.id} 
+                          <TouchableOpacity
+                            key={sub.id}
                             style={styles.subCard}
                             onPress={() => {
                               loadPhotos(sub.id, sub.legacyId);
@@ -1164,14 +1291,14 @@ export default function EventDetailScreen() {
                     <>
                       {/* Header with back button */}
                       <View style={[styles.sectionHeader, { marginBottom: 16 }]}>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
                           onPress={() => setSelectedAdminGallery(undefined)}
                         >
                           <IconSymbol name="chevron.left" size={18} color={MidnightColors.gold} />
                           <Text style={{ color: MidnightColors.gold, fontSize: 14, fontWeight: '600' }}>Galleries</Text>
                         </TouchableOpacity>
-                        
+
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                           <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>
                             {selectedAdminGallery === null ? '🏠 Home' : selectedAdminGallery.title}
@@ -1192,7 +1319,7 @@ export default function EventDetailScreen() {
                                   const file = { uri: result.assets[0].uri, name: 'cover.jpg', type: 'image/jpeg' } as any;
                                   const upload = await uploadEventImage(file, event!.id, user?.uid || 'anon');
                                   await updateEvent(targetId, { coverImage: upload.url });
-                                  loadEvent(); 
+                                  loadEvent();
                                   Alert.alert("Success", "Cover image updated!");
                                 } catch (err) {
                                   Alert.alert("Error", "Failed to update cover.");
@@ -1230,7 +1357,7 @@ export default function EventDetailScreen() {
                             {(() => {
                               const originalDesc = (selectedAdminGallery === null ? event!.description : selectedAdminGallery.description) || '';
                               const isChanged = galleryDescText !== originalDesc;
-                              
+
                               if (isChanged) {
                                 return (
                                   <TouchableOpacity
@@ -1239,13 +1366,13 @@ export default function EventDetailScreen() {
                                       const targetId = selectedAdminGallery === null ? event!.id : selectedAdminGallery.id;
                                       const { updateEvent } = await import('@/lib/firestore');
                                       await updateEvent(targetId, { description: galleryDescText });
-                                      
+
                                       if (selectedAdminGallery === null) {
                                         event!.description = galleryDescText;
                                       } else {
                                         selectedAdminGallery.description = galleryDescText;
                                       }
-                                      
+
                                       Alert.alert('Saved', 'Welcome message updated.');
                                     }}
                                   >
@@ -1325,28 +1452,28 @@ export default function EventDetailScreen() {
                   {/* ── PENDING REQUESTS ── */}
                   <View style={{ gap: 12 }}>
                     {guestLogs.filter(l => l.status === 'pending').map(log => (
-                      <TouchableOpacity 
-                        key={log.id} 
+                      <TouchableOpacity
+                        key={log.id}
                         style={styles.requestCardItem}
                         onPress={() => setSelectedRequest(log)}
                       >
                         <View style={styles.requestAvatar}>
                           <Text style={styles.avatarTextSmall}>{log.name.charAt(0)}</Text>
                         </View>
-                        
+
                         <View style={{ flex: 1 }}>
                           <Text style={styles.requestName}>{log.name}</Text>
                           <Text style={styles.requestPhone}>{log.phone}</Text>
                         </View>
 
                         <View style={styles.requestActionsMini}>
-                          <TouchableOpacity 
+                          <TouchableOpacity
                             style={styles.miniActionBtnRed}
                             onPress={() => updateGuestStatus(log.id, 'rejected').then(loadEvent)}
                           >
                             <IconSymbol name="xmark" size={12} color="#fff" />
                           </TouchableOpacity>
-                          <TouchableOpacity 
+                          <TouchableOpacity
                             style={styles.miniActionBtnGreen}
                             onPress={() => updateGuestStatus(log.id, 'approved').then(loadEvent)}
                           >
@@ -1365,8 +1492,8 @@ export default function EventDetailScreen() {
                         .filter(l => l.status === 'approved')
                         .sort((a, b) => (b.canAdmin ? 1 : 0) - (a.canAdmin ? 1 : 0))
                         .map((log, index) => (
-                        <TouchableOpacity 
-                          key={log.id} 
+                        <TouchableOpacity
+                          key={log.id}
                           style={styles.memberCard}
                           onPress={() => setSelectedGuest(log)}
                         >
@@ -1378,7 +1505,7 @@ export default function EventDetailScreen() {
                           {/* Center: Info & Permissions */}
                           <View style={styles.memberMain}>
                             <Text style={styles.memberName}>{log.name}</Text>
-                            
+
                             {/* Secondary Row (Phone & Permissions) */}
                             <View style={styles.memberSecondary}>
                               <Text style={styles.memberPhone}>{log.phone}</Text>
@@ -1394,7 +1521,7 @@ export default function EventDetailScreen() {
                           {/* Right: Number & Actions */}
                           <View style={styles.memberActions}>
                             <Text style={styles.memberNumber}>#{String(index + 1).padStart(2, '0')}</Text>
-                            <TouchableOpacity 
+                            <TouchableOpacity
                               style={styles.memberDelete}
                               onPress={() => deleteGuest(log.id).then(loadEvent)}
                             >
@@ -1419,8 +1546,8 @@ export default function EventDetailScreen() {
               <Modal visible={!!selectedGuest} transparent animationType="fade">
                 <View style={styles.premiumModalBackdrop}>
                   <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
-                    <LinearGradient 
-                      colors={['#0f172a', '#020617']} 
+                    <LinearGradient
+                      colors={['#0f172a', '#020617']}
                       style={styles.premiumModalContent}
                     >
                       {/* Header: Member Identity */}
@@ -1441,7 +1568,7 @@ export default function EventDetailScreen() {
 
                       <View style={styles.permissionsScroll}>
                         <Text style={styles.permissionsGroupLabel}>Member Privileges</Text>
-                        
+
                         {[
                           { id: 'canAdmin', label: 'Admin Access', desc: 'Manage event, sub-galleries, and other guests', icon: 'shield.fill' },
                           { id: 'canUpload', label: 'Allow Uploads', desc: 'Can add photos and videos to the event', icon: 'camera.fill' },
@@ -1450,8 +1577,8 @@ export default function EventDetailScreen() {
                         ].map((perm) => {
                           const isActive = (selectedGuest as any)?.[perm.id];
                           return (
-                            <TouchableOpacity 
-                              key={perm.id} 
+                            <TouchableOpacity
+                              key={perm.id}
                               style={[styles.richPermCard, isActive && styles.richPermCardActive]}
                               onPress={() => {
                                 if (selectedGuest) {
@@ -1466,7 +1593,7 @@ export default function EventDetailScreen() {
                               <View style={[styles.richPermIconBox, isActive && { backgroundColor: 'rgba(212, 175, 55, 0.15)' }]}>
                                 <IconSymbol name={perm.icon as any} size={20} color={isActive ? MidnightColors.gold : MidnightColors.slate700} />
                               </View>
-                              
+
                               <View style={{ flex: 1, paddingRight: 10 }}>
                                 <Text style={[styles.richPermLabel, isActive && { color: '#fff' }]}>{perm.label}</Text>
                                 <Text style={styles.richPermDesc} numberOfLines={2}>{perm.desc}</Text>
@@ -1480,13 +1607,13 @@ export default function EventDetailScreen() {
                         })}
                       </View>
 
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         style={styles.premiumDoneBtn}
                         onPress={() => setSelectedGuest(null)}
                       >
-                        <LinearGradient 
-                          colors={[MidnightColors.gold, '#b8860b']} 
-                          start={{ x: 0, y: 0 }} 
+                        <LinearGradient
+                          colors={[MidnightColors.gold, '#b8860b']}
+                          start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 0 }}
                           style={styles.premiumDoneGradient}
                         >
@@ -1502,8 +1629,8 @@ export default function EventDetailScreen() {
               <Modal visible={!!selectedRequest} transparent animationType="fade">
                 <View style={styles.premiumModalBackdrop}>
                   <View style={styles.ironCladWrapper}>
-                    <LinearGradient 
-                      colors={['#0f172a', '#020617']} 
+                    <LinearGradient
+                      colors={['#0f172a', '#020617']}
                       style={styles.premiumRequestModal}
                     >
                       <View style={styles.modalHeaderCentered}>
@@ -1528,7 +1655,7 @@ export default function EventDetailScreen() {
                       </View>
 
                       <View style={styles.modalFooter}>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           style={[styles.modalActionBtn, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}
                           onPress={() => {
                             if (selectedRequest) {
@@ -1541,8 +1668,8 @@ export default function EventDetailScreen() {
                         >
                           <Text style={[styles.modalActionText, { color: '#ef4444' }]}>Reject</Text>
                         </TouchableOpacity>
-                        
-                        <TouchableOpacity 
+
+                        <TouchableOpacity
                           style={styles.modalActionBtnApprove}
                           onPress={() => {
                             if (selectedRequest) {
@@ -1553,8 +1680,8 @@ export default function EventDetailScreen() {
                             }
                           }}
                         >
-                          <LinearGradient 
-                            colors={['#10b981', '#059669']} 
+                          <LinearGradient
+                            colors={['#10b981', '#059669']}
                             style={styles.approveGradient}
                           >
                             <Text style={styles.modalActionTextWhite}>Approve Access</Text>
@@ -1562,7 +1689,7 @@ export default function EventDetailScreen() {
                         </TouchableOpacity>
                       </View>
 
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         style={styles.modalCloseLink}
                         onPress={() => setSelectedRequest(null)}
                       >
@@ -1576,7 +1703,7 @@ export default function EventDetailScreen() {
               {activeTab === 'design' && (
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Event Design</Text>
-                  
+
                   {/* Step 1: Event Type */}
                   <TouchableOpacity style={styles.designCard} onPress={() => setShowCategoryModal(true)}>
                     <View style={styles.designInfo}>
@@ -1586,8 +1713,8 @@ export default function EventDetailScreen() {
                     <IconSymbol name="chevron.right" size={20} color={MidnightColors.gold} />
                   </TouchableOpacity>
 
-                    <TouchableOpacity 
-                      style={[styles.designCard, { marginTop: 16 }]} 
+                    <TouchableOpacity
+                      style={[styles.designCard, { marginTop: 16 }]}
                       onPress={() => setShowTemplateModal(true)}
                     >
                       <View style={styles.designInfo}>
@@ -1602,43 +1729,43 @@ export default function EventDetailScreen() {
               {activeTab === 'partners' && (
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Event Partners</Text>
-                  
+
                   {linkedVendors.length === 0 && (
-                    <View style={{ 
-                      backgroundColor: 'rgba(30, 41, 59, 0.4)', 
-                      borderRadius: 20, 
-                      paddingVertical: 20, 
-                      paddingHorizontal: 16, 
-                      alignItems: 'center', 
-                      borderWidth: 1, 
+                    <View style={{
+                      backgroundColor: 'rgba(30, 41, 59, 0.4)',
+                      borderRadius: 20,
+                      paddingVertical: 20,
+                      paddingHorizontal: 16,
+                      alignItems: 'center',
+                      borderWidth: 1,
                       borderColor: 'rgba(204, 164, 59, 0.2)',
                     }}>
-                      <Text style={{ 
-                        color: '#fff', 
-                        fontSize: 14, 
+                      <Text style={{
+                        color: '#fff',
+                        fontSize: 14,
                         fontFamily: Fonts.outfit.bold,
                         textTransform: 'uppercase',
                         letterSpacing: 1.5,
-                        marginBottom: 8 
+                        marginBottom: 8
                       }}>Partner Management</Text>
-                      
-                      <Text style={{ 
-                        color: '#cbd5e1', 
-                        fontSize: 13, 
-                        textAlign: 'center', 
-                        lineHeight: 20, 
+
+                      <Text style={{
+                        color: '#cbd5e1',
+                        fontSize: 13,
+                        textAlign: 'center',
+                        lineHeight: 20,
                         paddingHorizontal: 12,
                         fontFamily: Fonts.inter.regular,
                       }}>
                         Connect photographers, makeup artists, and venues to your event page using their unique Vendor Code.
                       </Text>
-                      
-                      <TouchableOpacity 
-                        style={{ 
-                          marginTop: 18, 
-                          backgroundColor: MidnightColors.gold, 
-                          paddingHorizontal: 28, 
-                          paddingVertical: 10, 
+
+                      <TouchableOpacity
+                        style={{
+                          marginTop: 18,
+                          backgroundColor: MidnightColors.gold,
+                          paddingHorizontal: 28,
+                          paddingVertical: 10,
                           borderRadius: 24,
                         }}
                         onPress={() => setLinkingVendor(true)}
@@ -1651,26 +1778,26 @@ export default function EventDetailScreen() {
                   {linkedVendors.length > 0 && (
                     <View style={{ marginTop: 28, paddingHorizontal: 4 }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                        <Text style={{ 
-                          color: '#cbd5e1', 
-                          fontSize: 11, 
-                          fontFamily: Fonts.inter.bold, 
-                          textTransform: 'uppercase', 
-                          letterSpacing: 1.2 
+                        <Text style={{
+                          color: '#cbd5e1',
+                          fontSize: 11,
+                          fontFamily: Fonts.inter.bold,
+                          textTransform: 'uppercase',
+                          letterSpacing: 1.2
                         }}>Linked Partners</Text>
-                        
+
                         {!linkingVendor && (
-                          <TouchableOpacity 
-                            style={{ 
-                              flexDirection: 'row', 
-                              alignItems: 'center', 
+                          <TouchableOpacity
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
                               gap: 6,
-                              backgroundColor: 'rgba(204, 164, 59, 0.12)', 
-                              borderRadius: 12, 
-                              paddingHorizontal: 12, 
-                              paddingVertical: 6, 
-                              borderWidth: 1, 
-                              borderColor: MidnightColors.gold 
+                              backgroundColor: 'rgba(204, 164, 59, 0.12)',
+                              borderRadius: 12,
+                              paddingHorizontal: 12,
+                              paddingVertical: 6,
+                              borderWidth: 1,
+                              borderColor: MidnightColors.gold
                             }}
                             onPress={() => setLinkingVendor(true)}
                           >
@@ -1679,39 +1806,39 @@ export default function EventDetailScreen() {
                           </TouchableOpacity>
                         )}
                       </View>
-                      
+
                       <View style={{ gap: 12 }}>
                         {linkedVendors.map((biz) => (
-                          <View key={biz.id} style={{ 
-                            flexDirection: 'row', 
-                            alignItems: 'center', 
-                            backgroundColor: 'rgba(30, 41, 59, 0.3)', 
+                          <View key={biz.id} style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            backgroundColor: 'rgba(30, 41, 59, 0.3)',
                             paddingHorizontal: 16,
-                            paddingVertical: 12, 
-                            borderRadius: 16, 
-                            borderWidth: 1, 
+                            paddingVertical: 12,
+                            borderRadius: 16,
+                            borderWidth: 1,
                             borderColor: 'rgba(255, 255, 255, 0.05)',
                           }}>
-                            <Image 
-                              source={{ uri: biz.coverImage || 'https://via.placeholder.com/150' }} 
-                              style={{ 
-                                width: 44, 
-                                height: 44, 
-                                borderRadius: 22, 
-                                marginRight: 14, 
-                                backgroundColor: 'rgba(255, 255, 255, 0.05)' 
-                              }} 
+                            <Image
+                              source={{ uri: biz.coverImage || 'https://via.placeholder.com/150' }}
+                              style={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: 22,
+                                marginRight: 14,
+                                backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                              }}
                             />
-                            
+
                             <View style={{ flex: 1 }}>
                               <Text style={{ color: '#fff', fontSize: 15, fontFamily: Fonts.outfit.bold }}>{biz.name}</Text>
                               <Text style={{ color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.inter.medium, marginTop: 2 }}>{biz.type}</Text>
                             </View>
-                            
+
                             <TouchableOpacity
-                              style={{ 
-                                padding: 8, 
-                                backgroundColor: 'rgba(239, 68, 68, 0.08)', 
+                              style={{
+                                padding: 8,
+                                backgroundColor: 'rgba(239, 68, 68, 0.08)',
                                 borderRadius: 10,
                                 borderWidth: 1,
                                 borderColor: 'rgba(239, 68, 68, 0.15)',
@@ -1739,12 +1866,16 @@ export default function EventDetailScreen() {
               <View style={[styles.visitorContent, { backgroundColor: selectedTemplate.background }]}>
                 {event.showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && (
                   <View style={[
-                    styles.mainInfoBox, 
-                    { 
-                      backgroundColor: selectedTemplate.panel, 
+                    styles.mainInfoBox,
+                    {
+                      backgroundColor: selectedTemplate.panel,
                       borderColor: event.templateId === 'classic' ? 'rgba(0,0,0,0.05)' : selectedTemplate.accentBg,
                       borderRadius: selectedTemplate.radius,
                     },
+                    isScrapbookTemplate && styles.scrapbookInfoBox,
+                    isNeonTemplate && styles.neonInfoBox,
+                    isPastelTemplate && styles.pastelInfoBox,
+                    isPopTemplate && styles.popInfoBox,
                     event.templateId === 'classic' && {
                       shadowColor: '#000',
                       shadowOffset: { width: 0, height: 1 },
@@ -1753,22 +1884,26 @@ export default function EventDetailScreen() {
                       elevation: 1,
                       borderWidth: 1,
                     },
-                    event.templateId === 'royal' && { 
-                      borderWidth: 1, 
-                      borderColor: 'rgba(204, 164, 59, 0.35)', 
+                    event.templateId === 'royal' && {
+                      borderWidth: 1,
+                      borderColor: 'rgba(204, 164, 59, 0.35)',
                       borderRadius: 12,
                       padding: 10,
                       borderLeftWidth: 1, // override dynamic left border stripe
                     },
-                    event.templateId === 'hero' && { 
-                      borderWidth: 0.8, 
-                      borderColor: '#cca43b', 
+                    event.templateId === 'hero' && {
+                      borderWidth: 0.8,
+                      borderColor: '#cca43b',
                       borderRadius: 4,
                       padding: 12,
                       borderLeftWidth: 0.8, // override dynamic left border stripe
                     }
                   ]}>
                     <View style={[
+                      isScrapbookTemplate && styles.scrapbookInfoInner,
+                      isNeonTemplate && styles.neonInfoInner,
+                      isPastelTemplate && styles.pastelInfoInner,
+                      isPopTemplate && styles.popInfoInner,
                       event.templateId === 'royal' && {
                         borderWidth: 1,
                         borderColor: 'rgba(204, 164, 59, 0.15)',
@@ -1791,6 +1926,13 @@ export default function EventDetailScreen() {
                       },
                       { position: 'relative' }
                     ]}>
+                      {isScrapbookTemplate && (
+                        <View style={styles.scrapbookInfoRule}>
+                          <View style={[styles.scrapbookInfoRuleLine, { backgroundColor: selectedTemplate.accent }]} />
+                          <View style={styles.scrapbookInfoRuleShort} />
+                        </View>
+                      )}
+
                       {event.templateId === 'royal' && (
                         <Text style={{ color: selectedTemplate.accent, fontSize: 10, marginBottom: 12 }}>✦  ♦  ✦</Text>
                       )}
@@ -1798,21 +1940,51 @@ export default function EventDetailScreen() {
                         <Text style={{ color: selectedTemplate.accent, fontSize: 11, marginBottom: 14, letterSpacing: 2 }}>✦   ♦   ✦</Text>
                       )}
 
+                      {isNeonTemplate && (
+                        <View style={styles.neonInfoHeader}>
+                          <View style={styles.neonInfoPulse} />
+                          <Text style={styles.neonInfoKicker}>Party highlights</Text>
+                          <View style={styles.neonInfoLine} />
+                        </View>
+                      )}
+
+                      {isPastelTemplate && (
+                        <View style={styles.pastelInfoHeader}>
+                          <View style={styles.pastelInfoPetal} />
+                          <Text style={styles.pastelInfoKicker}>Sweet Memories</Text>
+                          <View style={styles.pastelInfoLine} />
+                        </View>
+                      )}
+
+                      {isPopTemplate && (
+                        <View style={styles.popInfoHeader}>
+                          <Text style={styles.popInfoBang}>!</Text>
+                          <Text style={styles.popInfoKicker}>Birthday Highlights</Text>
+                          <View style={styles.popInfoStripe} />
+                        </View>
+                      )}
+
                       <Text style={[
-                        styles.visitorDescription, 
+                        styles.visitorDescription,
                         { color: event.templateId === 'royal' ? selectedTemplate.accent : selectedTemplate.text },
-                        selectedTemplate.useSerif && { 
-                          fontFamily: selectedTemplate.serifItalic, 
-                          fontStyle: 'italic', 
-                          fontSize: 16, 
+                        isNeonTemplate && styles.neonVisitorDescription,
+                        isPastelTemplate && styles.pastelVisitorDescription,
+                        isPopTemplate && styles.popVisitorDescription,
+                        selectedTemplate.useSerif && {
+                          fontFamily: selectedTemplate.serifItalic,
+                          fontStyle: 'italic',
+                          fontSize: 16,
                           lineHeight: 26,
                           textAlign: 'center',
                         }
                       ]}>{activeSubEvent ? activeSubEvent.description : event.description} 🤍</Text>
 
-
-
-
+                      {isScrapbookTemplate && (
+                        <View style={[styles.scrapbookInfoRule, styles.scrapbookInfoRuleBottom]}>
+                          <View style={styles.scrapbookInfoRuleShort} />
+                          <View style={[styles.scrapbookInfoRuleLine, { backgroundColor: selectedTemplate.accent }]} />
+                        </View>
+                      )}
                     </View>
                   </View>
                 )}
@@ -1830,7 +2002,7 @@ export default function EventDetailScreen() {
                         The incredible businesses and vendors who brought this beautiful wedding to life.
                       </Text>
                     </View>
-                    
+
                     {linkedVendors.length === 0 ? (
                       <View style={{ alignItems: 'center', paddingVertical: 40, backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' }}>
                          <IconSymbol name="building.2" size={32} color={selectedTemplate.accent} />
@@ -1839,8 +2011,8 @@ export default function EventDetailScreen() {
                     ) : (
                       <View style={{ gap: 16 }}>
                         {linkedVendors.map((biz) => (
-                          <TouchableOpacity 
-                            key={biz.id} 
+                          <TouchableOpacity
+                            key={biz.id}
                             style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}
                             onPress={() => router.push(`/business/${biz.id}`)}
                           >
@@ -1857,17 +2029,55 @@ export default function EventDetailScreen() {
                   </View>
                 ) : (
                   <>
-                <View style={[styles.galleryHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 16 }]}>
+                <View style={[
+                  styles.galleryHeader,
+                  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 16 },
+                  isScrapbookTemplate && styles.scrapbookGalleryHeader,
+                  isNeonTemplate && styles.neonGalleryHeader,
+                  isPastelTemplate && styles.pastelGalleryHeader,
+                  isPopTemplate && styles.popGalleryHeader
+                ]}>
                   <View>
+                    {isScrapbookTemplate && (
+                      <View style={styles.scrapbookGalleryKicker}>
+                        <View style={[styles.scrapbookGalleryKickerLine, { backgroundColor: selectedTemplate.accent }]} />
+                        <Text style={[styles.scrapbookGalleryKickerText, { color: selectedTemplate.muted }]}>Memory strip</Text>
+                      </View>
+                    )}
+                    {isNeonTemplate && (
+                      <View style={styles.neonGalleryKicker}>
+                        <View style={styles.neonGallerySpark} />
+                        <Text style={styles.neonGalleryKickerText}>Glow reel</Text>
+                        <View style={styles.neonGalleryKickerLine} />
+                      </View>
+                    )}
+                    {isPastelTemplate && (
+                      <View style={styles.pastelGalleryKicker}>
+                        <View style={styles.pastelGalleryKickerDot} />
+                        <Text style={styles.pastelGalleryKickerText}>Dream notes</Text>
+                        <View style={styles.pastelGalleryKickerLine} />
+                      </View>
+                    )}
+                    {isPopTemplate && (
+                      <View style={styles.popGalleryKicker}>
+                        <Text style={styles.popGalleryKickerBadge}>POP</Text>
+                        <Text style={styles.popGalleryKickerText}>Poster reel</Text>
+                        <View style={styles.popGalleryKickerBolt} />
+                      </View>
+                    )}
                     <Text style={[
-                      styles.galleryTitle, 
+                      styles.galleryTitle,
                       { color: selectedTemplate.text },
+                      isScrapbookTemplate && styles.scrapbookGalleryTitle,
+                      isNeonTemplate && styles.neonGalleryTitle,
+                      isPastelTemplate && styles.pastelGalleryTitle,
+                      isPopTemplate && styles.popGalleryTitle,
                       selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold' }
                     ]}>
                       {activeSubEvent ? activeSubEvent.title : 'Highlights'}
                     </Text>
                     <Text style={[
-                      styles.photoCount, 
+                      styles.photoCount,
                       { color: selectedTemplate.accent },
                       selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
                     ]}>
@@ -1897,8 +2107,8 @@ export default function EventDetailScreen() {
                         let rightHeight = 0;
 
                         photos.forEach((photo, idx) => {
-                          const ratio = photo.width && photo.height 
-                            ? photo.height / photo.width 
+                          const ratio = photo.width && photo.height
+                            ? photo.height / photo.width
                             : (idx % 3 === 0 ? 1.25 : (idx % 3 === 1 ? 0.95 : 1.45));
 
                           // Height-aware sorting: always place the photo in the shorter column!
@@ -1912,8 +2122,8 @@ export default function EventDetailScreen() {
                         });
 
                         const renderPhotoItem = ({ photo, idx }: { photo: any; idx: number }) => {
-                          const ratio = photo.width && photo.height 
-                            ? photo.height / photo.width 
+                          const ratio = photo.width && photo.height
+                            ? photo.height / photo.width
                             : (idx % 3 === 0 ? 1.25 : (idx % 3 === 1 ? 0.95 : 1.45));
 
                           return (
@@ -1927,13 +2137,13 @@ export default function EventDetailScreen() {
                                 }
                               ]}
                             >
-                              <TouchableOpacity 
+                              <TouchableOpacity
                                 style={{ flex: 1 }}
                                 activeOpacity={0.9}
                                 onPress={() => openViewer(idx)}
                               >
                                 <View style={[
-                                  styles.photoTile, 
+                                  styles.photoTile,
                                   {
                                     backgroundColor: selectedTemplate.tileBg,
                                     borderRadius: selectedTemplate.radius,
@@ -1941,6 +2151,38 @@ export default function EventDetailScreen() {
                                     borderColor: event.templateId === 'royal' ? selectedTemplate.accent : (event.templateId === 'classic' ? 'rgba(0,0,0,0.05)' : selectedTemplate.accentBg),
                                     padding: event.templateId === 'polaroid' ? 4 : (event.templateId === 'royal' ? 3 : (event.templateId === 'classic' ? 8 : 0)),
                                   },
+                                  isScrapbookTemplate && [
+                                    styles.scrapbookPhotoTile,
+                                    {
+                                      borderColor: selectedTemplate.accentBg,
+                                      shadowColor: selectedTemplate.accent,
+                                    },
+                                    idx % 2 === 1 && styles.scrapbookPhotoTileAlt,
+                                  ],
+                                  isNeonTemplate && [
+                                    styles.neonPhotoTile,
+                                    {
+                                      borderColor: idx % 3 === 0 ? selectedTemplate.accent : selectedTemplate.accentBg,
+                                      shadowColor: idx % 3 === 0 ? selectedTemplate.accent : '#66e8ff',
+                                    },
+                                    idx % 3 === 0 && styles.neonPhotoTileFeatured,
+                                  ],
+                                  isPastelTemplate && [
+                                    styles.pastelPhotoTile,
+                                    {
+                                      borderColor: idx % 3 === 0 ? 'rgba(201, 118, 139, 0.26)' : selectedTemplate.accentBg,
+                                      shadowColor: idx % 2 === 0 ? '#d8b4dc' : '#f4b8a8',
+                                    },
+                                    idx % 2 === 1 && styles.pastelPhotoTileAlt,
+                                  ],
+                                  isPopTemplate && [
+                                    styles.popPhotoTile,
+                                    {
+                                      borderColor: idx % 3 === 0 ? '#0080ff' : '#231f20',
+                                      shadowColor: idx % 2 === 0 ? '#ef2b3a' : '#0080ff',
+                                    },
+                                    idx % 2 === 1 && styles.popPhotoTileAlt,
+                                  ],
                                   event.templateId === 'royal' && {
                                     shadowColor: selectedTemplate.accent,
                                     shadowOffset: { width: 0, height: 2 },
@@ -1957,7 +2199,49 @@ export default function EventDetailScreen() {
                                     backgroundColor: '#ffffff',
                                   }
                                 ]}>
-                                  <Image source={{ uri: photo.url }} style={styles.galleryImg} resizeMode="cover" />
+                                  {isScrapbookTemplate && (
+                                    <>
+                                      <View style={[styles.scrapbookCorner, styles.scrapbookCornerTopLeft, { borderColor: selectedTemplate.accent }]} />
+                                      <View style={[styles.scrapbookCorner, styles.scrapbookCornerBottomRight, { borderColor: selectedTemplate.accent }]} />
+                                    </>
+                                  )}
+                                  {isNeonTemplate && (
+                                    <>
+                                      <LinearGradient
+                                        colors={['rgba(255,61,242,0.75)', 'rgba(102,232,255,0.08)']}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 0 }}
+                                        style={[styles.neonPhotoGlowLine, styles.neonPhotoGlowLineTop]}
+                                      />
+                                      <LinearGradient
+                                        colors={['rgba(102,232,255,0.7)', 'rgba(126,87,255,0.08)']}
+                                        start={{ x: 1, y: 0 }}
+                                        end={{ x: 0, y: 0 }}
+                                        style={[styles.neonPhotoGlowLine, styles.neonPhotoGlowLineBottom]}
+                                      />
+                                    </>
+                                  )}
+                                  {isPastelTemplate && (
+                                    <>
+                                      <View style={[styles.pastelPhotoTape, styles.pastelPhotoTapeLeft]} />
+                                      <View style={[styles.pastelPhotoTape, styles.pastelPhotoTapeRight]} />
+                                      <View style={[styles.pastelPhotoDot, styles.pastelPhotoDotTop]} />
+                                      <View style={[styles.pastelPhotoDot, styles.pastelPhotoDotBottom]} />
+                                    </>
+                                  )}
+                                  {isPopTemplate && (
+                                    <>
+                                      <View style={[styles.popPhotoCorner, styles.popPhotoCornerTopLeft]} />
+                                      <View style={[styles.popPhotoCorner, styles.popPhotoCornerBottomRight]} />
+                                      <View style={[styles.popPhotoHalftone, styles.popPhotoHalftoneTop]} />
+                                      <View style={[styles.popPhotoHalftone, styles.popPhotoHalftoneBottom]} />
+                                    </>
+                                  )}
+                                  <Image
+                                    source={{ uri: photo.url }}
+                                    style={[styles.galleryImg, isScrapbookTemplate && styles.scrapbookGalleryImg, isNeonTemplate && styles.neonGalleryImg, isPastelTemplate && styles.pastelGalleryImg, isPopTemplate && styles.popGalleryImg]}
+                                    resizeMode="cover"
+                                  />
                                 </View>
                               </TouchableOpacity>
                             </Animated.View>
@@ -1988,16 +2272,16 @@ export default function EventDetailScreen() {
                   <View style={styles.guestSection}>
                     <Text style={styles.guestTitle}>Enter the Celebration</Text>
                     <Text style={styles.guestSub}>Join to view all photos and interactions</Text>
-                    <TextInput 
-                      style={styles.input} 
-                      placeholder="Your Name" 
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Your Name"
                       placeholderTextColor={MidnightColors.slate400}
                       value={guestName}
                       onChangeText={setGuestName}
                     />
-                    <TextInput 
-                      style={styles.input} 
-                      placeholder="Phone Number" 
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Phone Number"
                       placeholderTextColor={MidnightColors.slate400}
                       keyboardType="phone-pad"
                       value={guestPhone}
@@ -2020,11 +2304,11 @@ export default function EventDetailScreen() {
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowSubEventModal(false)} />
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>New Gallery</Text>
-            <TextInput 
-              style={styles.input} 
-              value={newSubTitle} 
-              onChangeText={setNewSubTitle} 
-              placeholder="e.g. Wedding Reception" 
+            <TextInput
+              style={styles.input}
+              value={newSubTitle}
+              onChangeText={setNewSubTitle}
+              placeholder="e.g. Wedding Reception"
               placeholderTextColor={MidnightColors.slate400}
               autoFocus
             />
@@ -2043,8 +2327,8 @@ export default function EventDetailScreen() {
             <Text style={styles.modalTitle}>Event Type</Text>
             <ScrollView>
               {['Wedding', 'Birthday', 'Anniversary', 'Engagement', 'Reception', 'Corporate', 'Other'].map((cat) => (
-                <TouchableOpacity 
-                  key={cat} 
+                <TouchableOpacity
+                  key={cat}
                   style={[styles.templateOption, event?.category === cat && styles.activeTemplate]}
                   onPress={() => {
                     handleUpdateCategory(cat);
@@ -2073,23 +2357,23 @@ export default function EventDetailScreen() {
           <TouchableOpacity style={styles.viewerClose} onPress={() => setViewerVisible(false)}>
             <IconSymbol name="xmark" size={28} color="#fff" />
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.navBtnLeft} onPress={() => navigateViewer('prev')}>
             <IconSymbol name="chevron.left" size={32} color="#fff" />
           </TouchableOpacity>
-          
+
           {photos[currentPhotoIndex] && (
-            <Image 
-              source={{ uri: photos[currentPhotoIndex].url }} 
-              style={[styles.fullImage, showComments && styles.fullImageWithComments]} 
-              resizeMode="contain" 
+            <Image
+              source={{ uri: photos[currentPhotoIndex].url }}
+              style={[styles.fullImage, showComments && styles.fullImageWithComments]}
+              resizeMode="contain"
             />
           )}
-          
+
           <TouchableOpacity style={styles.navBtnRight} onPress={() => navigateViewer('next')}>
             <IconSymbol name="chevron.right" size={32} color="#fff" />
           </TouchableOpacity>
-          
+
           <View style={[styles.viewerActions, showComments ? styles.viewerActionsRaised : styles.viewerActionsDocked]}>
             <TouchableOpacity style={styles.viewerAction} onPress={handleToggleLike} disabled={isLiking}>
               <IconSymbol name={isLiked ? "heart.fill" : "heart"} size={30} color={isLiked ? "#f43f5e" : "#ffffff"} />
@@ -2099,6 +2383,12 @@ export default function EventDetailScreen() {
               <IconSymbol name="bubble.right" size={30} color={showComments ? MidnightColors.gold : "#ffffff"} />
               <Text style={styles.viewerActionCount}>{comments.length}</Text>
             </TouchableOpacity>
+            {(isScrapbookTemplate || isNeonTemplate || isPopTemplate) && (
+              <TouchableOpacity style={styles.viewerAction} onPress={handleSharePhoto}>
+                <IconSymbol name="square.and.arrow.up" size={28} color={isNeonTemplate ? '#66e8ff' : (isPopTemplate ? '#ffe84a' : '#ffffff')} />
+                <Text style={[styles.viewerActionCount, isNeonTemplate && styles.neonViewerActionCount, isPopTemplate && styles.popViewerActionCount]}>Share</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {!showComments && (
@@ -2260,10 +2550,10 @@ export default function EventDetailScreen() {
 
       <Modal visible={showTemplateModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalBackdrop} 
-            activeOpacity={1} 
-            onPress={() => setShowTemplateModal(false)} 
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowTemplateModal(false)}
           />
           <View style={[styles.modalContent, { maxHeight: '85%' }]}>
             <View style={styles.modalHeader}>
@@ -2271,23 +2561,23 @@ export default function EventDetailScreen() {
                 <Text style={styles.modalTitle}>Choose Style</Text>
                 <Text style={styles.templateModalSub}>Select a design template for this {event?.category || 'Wedding'} event.</Text>
               </View>
-              <TouchableOpacity 
-                style={styles.closeModalCircle} 
+              <TouchableOpacity
+                style={styles.closeModalCircle}
                 onPress={() => setShowTemplateModal(false)}
               >
                 <IconSymbol name="xmark" size={20} color={MidnightColors.gold} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView 
-              showsVerticalScrollIndicator={false} 
+            <ScrollView
+              showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 40 }}
             >
               {MOBILE_TEMPLATE_THEMES.filter(t => t.category === (event?.category || 'Wedding')).map((template, index) => {
                 const isActive = (event?.templateId || 'hero') === template.id;
                 return (
-                  <TouchableOpacity 
-                    key={template.id} 
+                  <TouchableOpacity
+                    key={template.id}
                     style={[
                       styles.templateOptionCard,
                       { borderColor: isActive ? template.accent : 'rgba(255,255,255,0.1)' }
@@ -2327,11 +2617,11 @@ export default function EventDetailScreen() {
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowRenameModal(false)} />
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Rename Event</Text>
-            <TextInput 
-              style={styles.input} 
-              value={editTitle} 
-              onChangeText={setEditTitle} 
-              placeholder="Event Name" 
+            <TextInput
+              style={styles.input}
+              value={editTitle}
+              onChangeText={setEditTitle}
+              placeholder="Event Name"
               placeholderTextColor={MidnightColors.slate400}
               autoFocus
             />
@@ -2344,14 +2634,14 @@ export default function EventDetailScreen() {
 
       {/* ── EDIT GALLERY DESCRIPTION MODAL ── */}
       <Modal visible={galleryDescModalVisible} transparent animationType="slide">
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
         >
-          <TouchableOpacity 
-            style={styles.modalBackdrop} 
-            activeOpacity={1} 
-            onPress={() => setGalleryDescModalVisible(false)} 
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setGalleryDescModalVisible(false)}
           />
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -2365,23 +2655,23 @@ export default function EventDetailScreen() {
                 <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.form}>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Gallery Welcome Message</Text>
-                <TextInput 
-                  style={[styles.input, { minHeight: 120, textAlignVertical: 'top', padding: 12, backgroundColor: MidnightColors.deepSlate, borderRadius: 8, color: '#fff' }]} 
-                  value={galleryDescText} 
-                  onChangeText={setGalleryDescText} 
-                  placeholder="Write a beautiful welcome message for this gallery..." 
+                <TextInput
+                  style={[styles.input, { minHeight: 120, textAlignVertical: 'top', padding: 12, backgroundColor: MidnightColors.deepSlate, borderRadius: 8, color: '#fff' }]}
+                  value={galleryDescText}
+                  onChangeText={setGalleryDescText}
+                  placeholder="Write a beautiful welcome message for this gallery..."
                   placeholderTextColor={MidnightColors.slate700}
                   multiline
                   numberOfLines={5}
                 />
               </View>
 
-              <TouchableOpacity 
-                style={[styles.submitBtn, { backgroundColor: selectedTemplate.accent, marginTop: 12 }]} 
+              <TouchableOpacity
+                style={[styles.submitBtn, { backgroundColor: selectedTemplate.accent, marginTop: 12 }]}
                 onPress={handleSaveGalleryDesc}
               >
                 <Text style={[styles.submitBtnText, { color: '#000', fontWeight: 'bold' }]}>Save Message</Text>
@@ -2406,11 +2696,11 @@ export default function EventDetailScreen() {
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowShareModal(false)} />
           <View style={styles.shareModalContent}>
             <Text style={styles.modalTitle}>Share Event</Text>
-            
+
             <View style={styles.qrContainer}>
-              <Image 
-                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://wedalbum.app/events/${event.id}` }} 
-                style={styles.qrCode} 
+              <Image
+                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://wedalbum.app/events/${event.id}` }}
+                style={styles.qrCode}
               />
               <Text style={styles.qrLabel}>Scan to Join</Text>
             </View>
@@ -2436,30 +2726,30 @@ export default function EventDetailScreen() {
 
       {/* ── LINK VENDOR MODAL ── */}
       <Modal visible={linkingVendor} transparent animationType="slide">
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
         >
-          <TouchableOpacity 
-            style={styles.modalBackdrop} 
-            activeOpacity={1} 
-            onPress={() => { setLinkingVendor(false); setVendorCode(''); }} 
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => { setLinkingVendor(false); setVendorCode(''); }}
           />
           <View style={styles.modalContent}>
             <View style={[styles.modalHeader, { borderBottomWidth: 0, paddingBottom: 8 }]}>
               <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={{ 
-                  fontSize: 18, 
-                  color: '#ffffff', 
-                  fontFamily: Fonts.outfit.bold, 
-                  textTransform: 'uppercase', 
+                <Text style={{
+                  fontSize: 18,
+                  color: '#ffffff',
+                  fontFamily: Fonts.outfit.bold,
+                  textTransform: 'uppercase',
                   letterSpacing: 1.2
                 }}>Link a Partner</Text>
-                <Text style={{ 
-                  fontSize: 12, 
-                  color: '#94a3b8', 
-                  fontFamily: Fonts.inter.regular, 
-                  marginTop: 4, 
+                <Text style={{
+                  fontSize: 12,
+                  color: '#94a3b8',
+                  fontFamily: Fonts.inter.regular,
+                  marginTop: 4,
                   lineHeight: 18
                 }}>
                   Connect photographers, makeup artists, and venues from the Biz Hub.
@@ -2469,27 +2759,27 @@ export default function EventDetailScreen() {
                 <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.form}>
               <View style={styles.inputGroup}>
-                <Text style={{ 
-                  fontSize: 11, 
-                  color: '#cbd5e1', 
-                  fontFamily: Fonts.inter.bold, 
-                  textTransform: 'uppercase', 
-                  letterSpacing: 1.2, 
-                  marginBottom: 8 
+                <Text style={{
+                  fontSize: 11,
+                  color: '#cbd5e1',
+                  fontFamily: Fonts.inter.bold,
+                  textTransform: 'uppercase',
+                  letterSpacing: 1.2,
+                  marginBottom: 8
                 }}>Enter Vendor Code</Text>
                 <TextInput
-                  style={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.03)', 
-                    color: MidnightColors.gold, 
-                    fontSize: 18, 
-                    borderRadius: 12, 
-                    paddingHorizontal: 16, 
-                    paddingVertical: 14, 
-                    borderWidth: 1, 
-                    borderColor: 'rgba(204, 164, 59, 0.4)', 
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                    color: MidnightColors.gold,
+                    fontSize: 18,
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    borderWidth: 1,
+                    borderColor: 'rgba(204, 164, 59, 0.4)',
                     marginBottom: 16,
                     textAlign: 'center',
                     fontFamily: Fonts.outfit.bold,
@@ -2504,27 +2794,27 @@ export default function EventDetailScreen() {
               </View>
 
               <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-                <TouchableOpacity 
-                  style={{ 
-                    flex: 1, 
-                    paddingVertical: 12, 
-                    borderRadius: 20, 
-                    borderWidth: 1, 
-                    borderColor: 'rgba(255, 255, 255, 0.15)', 
-                    alignItems: 'center' 
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    borderRadius: 20,
+                    borderWidth: 1,
+                    borderColor: 'rgba(255, 255, 255, 0.15)',
+                    alignItems: 'center'
                   }}
                   onPress={() => { setLinkingVendor(false); setVendorCode(''); }}
                 >
                   <Text style={{ color: '#cbd5e1', fontFamily: Fonts.outfit.bold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 }}>Cancel</Text>
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={{ 
-                    flex: 1, 
-                    backgroundColor: MidnightColors.gold, 
-                    paddingVertical: 12, 
-                    borderRadius: 20, 
-                    alignItems: 'center', 
+
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    backgroundColor: MidnightColors.gold,
+                    paddingVertical: 12,
+                    borderRadius: 20,
+                    alignItems: 'center',
                     opacity: vendorCode.length > 3 ? 1 : 0.4,
                     shadowColor: MidnightColors.gold,
                     shadowOffset: { width: 0, height: 4 },
@@ -2575,7 +2865,7 @@ export default function EventDetailScreen() {
           zIndex: 1000,
         }}>
           {/* TAB 1: Host (Active Gold since we are in Event Management) */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
             activeOpacity={0.8}
           >
@@ -2584,7 +2874,7 @@ export default function EventDetailScreen() {
           </TouchableOpacity>
 
           {/* TAB 2: Biz Hub (Matches TabLayout Svg exactly) */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
             onPress={() => router.replace('/(tabs)/businesses')}
             activeOpacity={0.8}
@@ -2600,7 +2890,7 @@ export default function EventDetailScreen() {
           </TouchableOpacity>
 
           {/* TAB 3: Dashboard (Matches TabLayout Svg exactly) */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
             onPress={() => router.replace('/(tabs)/dashboard')}
             activeOpacity={0.8}
@@ -2615,7 +2905,7 @@ export default function EventDetailScreen() {
           </TouchableOpacity>
 
           {/* TAB 4: Social */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
             onPress={() => router.replace('/(tabs)/social')}
             activeOpacity={0.8}
@@ -2625,7 +2915,7 @@ export default function EventDetailScreen() {
           </TouchableOpacity>
 
           {/* TAB 5: Profile */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
             onPress={() => router.replace('/(tabs)/profile')}
             activeOpacity={0.8}
@@ -2643,25 +2933,447 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: MidnightColors.background },
   centered: { justifyContent: 'center', alignItems: 'center' },
   container: { flex: 1 },
-  
+
   // Hero
   hero: { height: 400, width: '100%' },
   heroImage: { ...StyleSheet.absoluteFillObject },
   heroGradient: { ...StyleSheet.absoluteFillObject },
-  floatingBack: { 
-    width: 40, 
-    height: 40, 
-    borderRadius: 20, 
-    backgroundColor: 'rgba(2, 6, 23, 0.7)', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
+  floatingBack: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(2, 6, 23, 0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginLeft: 8,
-    borderWidth: 1, 
+    borderWidth: 1,
     borderColor: 'rgba(212, 175, 55, 0.3)',
   },
   floatingShare: { position: 'absolute', top: 20, right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   heroContent: { position: 'absolute', bottom: 30, left: 24, right: 24 },
   heroTitle: { fontSize: 36, color: '#fff', fontFamily: Fonts.outfit.extraBold, letterSpacing: -1 },
+  scrapbookHeroContent: {
+    left: 18,
+    right: 18,
+    bottom: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 253, 249, 0.72)',
+    borderWidth: 1,
+    borderColor: 'rgba(217, 130, 107, 0.22)',
+  },
+  scrapbookHeroRule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  scrapbookHeroRuleLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(38, 51, 49, 0.18)',
+  },
+  scrapbookHeroDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  scrapbookHeroTitle: {
+    fontSize: 34,
+    letterSpacing: 0,
+    lineHeight: 38,
+  },
+  neonHeroContent: {
+    left: 18,
+    right: 18,
+    bottom: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderRadius: 28,
+    backgroundColor: 'rgba(9, 8, 24, 0.72)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 61, 242, 0.42)',
+    shadowColor: '#ff3df2',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.26,
+    shadowRadius: 28,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  neonLightStreak: {
+    position: 'absolute',
+    height: 2,
+    borderRadius: 999,
+    opacity: 0.85,
+  },
+  neonLightStreakTop: {
+    top: 16,
+    right: -12,
+    width: 132,
+    backgroundColor: '#66e8ff',
+    transform: [{ rotate: '-12deg' }],
+  },
+  neonLightStreakBottom: {
+    left: -18,
+    bottom: 18,
+    width: 110,
+    backgroundColor: '#ff3df2',
+    transform: [{ rotate: '-10deg' }],
+  },
+  neonHeroChip: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(102, 232, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(102, 232, 255, 0.34)',
+    marginBottom: 12,
+  },
+  neonHeroChipDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#66e8ff',
+  },
+  neonHeroChipText: {
+    color: '#e9fbff',
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.4,
+  },
+  neonHeroDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  neonHeroDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(102, 232, 255, 0.24)',
+  },
+  neonHeroDividerCore: {
+    width: 42,
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: '#ff3df2',
+  },
+  neonHeroTitle: {
+    fontSize: 38,
+    lineHeight: 42,
+    letterSpacing: 0,
+    textTransform: 'uppercase',
+  },
+  neonHeroMeta: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  neonHeroDate: {
+    color: '#66e8ff',
+    letterSpacing: 1.2,
+  },
+  neonShareButton: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 61, 242, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 61, 242, 0.36)',
+  },
+  pastelHeroContent: {
+    left: 18,
+    right: 18,
+    bottom: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 253, 251, 0.76)',
+    borderWidth: 1,
+    borderColor: 'rgba(213, 180, 220, 0.34)',
+    shadowColor: '#d8b4dc',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.2,
+    shadowRadius: 26,
+    elevation: 6,
+    overflow: 'hidden',
+  },
+  pastelFloatOrb: {
+    position: 'absolute',
+    borderRadius: 999,
+    opacity: 0.42,
+  },
+  pastelFloatOrbPink: {
+    width: 92,
+    height: 92,
+    right: -28,
+    top: -22,
+    backgroundColor: '#f8c8d8',
+  },
+  pastelFloatOrbBlue: {
+    width: 70,
+    height: 70,
+    left: -22,
+    bottom: -20,
+    backgroundColor: '#cdeaf6',
+  },
+  pastelHeroChip: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 241, 232, 0.82)',
+    borderWidth: 1,
+    borderColor: 'rgba(201, 118, 139, 0.18)',
+    marginBottom: 12,
+  },
+  pastelHeroSparkle: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#d8b4dc',
+  },
+  pastelHeroChipText: {
+    color: '#8b6f70',
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+  },
+  pastelHeroDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  pastelHeroDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(154, 133, 131, 0.22)',
+  },
+  pastelHeroDividerDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#f4b8a8',
+  },
+  pastelHeroDividerDotAlt: {
+    backgroundColor: '#bddfd9',
+  },
+  pastelHeroTitle: {
+    fontSize: 36,
+    lineHeight: 41,
+    letterSpacing: 0,
+  },
+  pastelHeroMeta: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.58)',
+    borderWidth: 1,
+    borderColor: 'rgba(201, 118, 139, 0.16)',
+  },
+  pastelHeroDate: {
+    color: '#c9768b',
+    letterSpacing: 0.9,
+  },
+  pastelShareButton: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 999,
+    backgroundColor: 'rgba(216, 180, 220, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(201, 118, 139, 0.2)',
+  },
+  popHeroContent: {
+    left: 18,
+    right: 18,
+    bottom: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderRadius: 24,
+    backgroundColor: '#fffdf3',
+    borderWidth: 3,
+    borderColor: '#231f20',
+    shadowColor: '#0080ff',
+    shadowOffset: { width: 8, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  popBurstShape: {
+    position: 'absolute',
+    width: 82,
+    height: 82,
+    borderRadius: 18,
+    borderWidth: 3,
+    borderColor: '#231f20',
+    opacity: 0.92,
+  },
+  popBurstShapePink: {
+    right: -28,
+    top: -24,
+    backgroundColor: '#ff4fb8',
+    transform: [{ rotate: '18deg' }],
+  },
+  popBurstShapeBlue: {
+    left: -34,
+    bottom: -30,
+    backgroundColor: '#0080ff',
+    transform: [{ rotate: '-16deg' }],
+  },
+  popHeroSticker: {
+    position: 'absolute',
+    right: 18,
+    top: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#ffe84a',
+    borderWidth: 3,
+    borderColor: '#231f20',
+    transform: [{ rotate: '8deg' }],
+    zIndex: 2,
+  },
+  popHeroStickerText: {
+    color: '#231f20',
+    fontSize: 13,
+    fontFamily: Fonts.outfit.extraBold,
+    letterSpacing: 0,
+  },
+  popHeroChip: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: '#ff4fb8',
+    borderWidth: 3,
+    borderColor: '#231f20',
+    marginBottom: 12,
+  },
+  popHeroChipDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ffe84a',
+    borderWidth: 1,
+    borderColor: '#231f20',
+  },
+  popHeroChipText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0,
+  },
+  popHeroDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  popHeroDividerLine: {
+    flex: 1,
+    height: 3,
+    backgroundColor: '#231f20',
+  },
+  popHeroDividerBlock: {
+    width: 22,
+    height: 12,
+    backgroundColor: '#0080ff',
+    borderWidth: 2,
+    borderColor: '#231f20',
+    transform: [{ rotate: '-8deg' }],
+  },
+  popHeroDividerBlockAlt: {
+    backgroundColor: '#ef2b3a',
+    transform: [{ rotate: '8deg' }],
+  },
+  popHeroTitle: {
+    fontSize: 40,
+    lineHeight: 42,
+    letterSpacing: 0,
+    textTransform: 'uppercase',
+  },
+  popHeroMeta: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 14,
+    backgroundColor: '#ffe84a',
+    borderWidth: 3,
+    borderColor: '#231f20',
+  },
+  popHeroDate: {
+    color: '#231f20',
+    letterSpacing: 0,
+  },
+  popShareButton: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 16,
+    backgroundColor: '#0080ff',
+    borderWidth: 3,
+    borderColor: '#231f20',
+  },
+  scrapbookTape: {
+    position: 'absolute',
+    width: 70,
+    height: 22,
+    borderRadius: 6,
+    backgroundColor: 'rgba(246, 213, 143, 0.74)',
+    borderWidth: 1,
+    borderColor: 'rgba(217, 130, 107, 0.18)',
+    zIndex: 3,
+  },
+  scrapbookTapeLeft: {
+    top: -10,
+    left: 22,
+    transform: [{ rotate: '-8deg' }],
+  },
+  scrapbookTapeRight: {
+    top: -8,
+    right: 26,
+    transform: [{ rotate: '7deg' }],
+  },
+  scrapbookSticker: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(217, 130, 107, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(217, 130, 107, 0.18)',
+    marginBottom: 10,
+  },
+  scrapbookStickerText: {
+    color: '#72493f',
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
   titleRowMain: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   renameHeroBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(212, 175, 55, 0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(212, 175, 55, 0.3)' },
   heroMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
@@ -2673,7 +3385,7 @@ const styles = StyleSheet.create({
   // Content
   content: { padding: 24 },
   description: { fontSize: 16, color: MidnightColors.slate400, fontFamily: Fonts.inter.regular, lineHeight: 24, marginBottom: 32 },
-  
+
   // Tabs
   tabBar: { flexDirection: 'row', gap: 12, marginBottom: 24, backgroundColor: 'rgba(255,255,255,0.05)', padding: 6, borderRadius: 16 },
   tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 12 },
@@ -2689,7 +3401,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 22, color: '#fff', fontFamily: Fonts.outfit.bold },
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(212,175,55,0.1)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
   addBtnText: { color: MidnightColors.gold, fontSize: 12, fontFamily: Fonts.outfit.bold },
-  
+
   subGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   subCard: { width: (SCREEN_WIDTH - 60) / 2, height: 160, borderRadius: 20, overflow: 'hidden', backgroundColor: MidnightColors.deepSlate, borderWidth: 1, borderColor: MidnightColors.cardBorder },
   subImage: { width: '100%', height: 110 },
@@ -2708,17 +3420,17 @@ const styles = StyleSheet.create({
   emptyText: { color: MidnightColors.slate400, fontSize: 14, fontFamily: Fonts.inter.regular, fontStyle: 'italic', textAlign: 'center' },
   manageApprovedToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
   manageApprovedText: { color: '#64748b', fontSize: 13, fontFamily: Fonts.inter.bold },
-  
+
   // Member Card
-  memberCard: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: 'rgba(255,255,255,0.03)', 
-    borderRadius: 24, 
+  memberCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 24,
     paddingHorizontal: 16,
     height: 84,
-    marginBottom: 12, 
-    borderWidth: 1, 
+    marginBottom: 12,
+    borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
     gap: 16
   },
@@ -2736,32 +3448,32 @@ const styles = StyleSheet.create({
 
   grantedRow: { flexDirection: 'row', gap: 6, marginTop: 12 },
   grantedIcon: { width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(212, 175, 55, 0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(212, 175, 55, 0.2)' },
-  
+
   // Premium Permission Modal
-  premiumModalBackdrop: { 
+  premiumModalBackdrop: {
     flex: 1,
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(2, 6, 23, 0.95)', 
-    justifyContent: 'center', 
+    backgroundColor: 'rgba(2, 6, 23, 0.95)',
+    justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000
   },
-  premiumModalContent: { 
-    width: SCREEN_WIDTH * 0.85, 
+  premiumModalContent: {
+    width: SCREEN_WIDTH * 0.85,
     alignSelf: 'center',
-    borderRadius: 32, 
-    overflow: 'hidden', 
-    borderWidth: 1, 
-    borderColor: 'rgba(255,255,255,0.1)', 
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 10 }, 
-    shadowOpacity: 0.5, 
-    shadowRadius: 20, 
-    elevation: 10 
+    borderRadius: 32,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10
   },
   premiumModalHeader: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: 'rgba(255,255,255,0.02)' },
   premiumAvatar: { width: 48, height: 48, borderRadius: 24, overflow: 'hidden' },
@@ -2786,14 +3498,14 @@ const styles = StyleSheet.create({
   premiumDoneText: { color: MidnightColors.background, fontSize: 13, fontFamily: Fonts.outfit.extraBold, textTransform: 'uppercase', letterSpacing: 1 },
 
   // Internal Request Cards
-  requestCardItem: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: 'rgba(255,255,255,0.03)', 
-    borderRadius: 24, 
-    padding: 12, 
+  requestCardItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 24,
+    padding: 12,
     width: '100%',
-    borderWidth: 1, 
+    borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
     gap: 16
   },
@@ -2848,10 +3560,10 @@ const styles = StyleSheet.create({
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.8)' },
-  modalHeader: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
     width: '100%'
   },
@@ -2860,7 +3572,7 @@ const styles = StyleSheet.create({
   templateModalSub: { color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.inter.medium, marginTop: -10, marginBottom: 18 },
   submitBtn: { backgroundColor: MidnightColors.gold, padding: 16, borderRadius: 16, alignItems: 'center', marginTop: 8 },
   submitBtnText: { color: MidnightColors.background, fontSize: 16, fontFamily: Fonts.outfit.bold },
-  
+
   templateOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   activeTemplate: { backgroundColor: MidnightColors.gold },
   templateText: { color: '#fff', fontSize: 15, fontFamily: Fonts.outfit.bold },
@@ -2911,7 +3623,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  
+
   errorText: { color: '#fff', fontSize: 18, fontFamily: Fonts.outfit.bold, marginBottom: 20 },
   backBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: MidnightColors.gold, borderRadius: 10 },
   backBtnText: { color: MidnightColors.background, fontWeight: 'bold' },
@@ -2943,6 +3655,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
+  scrapbookVisitorHeaderContainer: {
+    height: 72,
+    marginTop: 12,
+  },
+  scrapbookVisitorHeaderContent: {
+    paddingHorizontal: 18,
+    gap: 12,
+  },
+  neonVisitorHeaderContainer: {
+    height: 72,
+    marginTop: 10,
+  },
+  neonVisitorHeaderContent: {
+    paddingHorizontal: 18,
+    gap: 12,
+  },
+  pastelVisitorHeaderContainer: {
+    height: 72,
+    marginTop: 10,
+  },
+  pastelVisitorHeaderContent: {
+    paddingHorizontal: 18,
+    gap: 12,
+  },
+  popVisitorHeaderContainer: {
+    height: 74,
+    marginTop: 10,
+  },
+  popVisitorHeaderContent: {
+    paddingHorizontal: 18,
+    gap: 12,
+  },
   visitorTab: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2954,17 +3698,120 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
+  scrapbookVisitorTab: {
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 253, 249, 0.72)',
+    borderColor: 'rgba(38, 51, 49, 0.1)',
+    shadowColor: '#d9826b',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 2,
+  },
   visitorTabActive: {
     backgroundColor: MidnightColors.gold,
     borderColor: MidnightColors.gold,
+  },
+  scrapbookVisitorTabActive: {
+    backgroundColor: '#f6d58f',
+    borderColor: 'rgba(217, 130, 107, 0.28)',
+    transform: [{ translateY: -2 }, { rotate: '-0.4deg' }],
+  },
+  neonVisitorTab: {
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 999,
+    backgroundColor: 'rgba(16, 14, 34, 0.72)',
+    borderColor: 'rgba(102, 232, 255, 0.18)',
+  },
+  neonVisitorTabActive: {
+    backgroundColor: 'rgba(255, 61, 242, 0.18)',
+    borderColor: 'rgba(255, 61, 242, 0.72)',
+    shadowColor: '#ff3df2',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
+    elevation: 4,
+    transform: [{ translateY: -2 }],
+  },
+  pastelVisitorTab: {
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 253, 251, 0.78)',
+    borderColor: 'rgba(213, 180, 220, 0.22)',
+    shadowColor: '#d8b4dc',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    elevation: 2,
+  },
+  pastelVisitorTabActive: {
+    backgroundColor: '#f8d9de',
+    borderColor: 'rgba(201, 118, 139, 0.24)',
+    transform: [{ translateY: -2 }],
+  },
+  popVisitorTab: {
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 18,
+    backgroundColor: '#fffdf3',
+    borderColor: '#231f20',
+    borderWidth: 2,
+    shadowColor: '#231f20',
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 3,
+  },
+  popVisitorTabActive: {
+    backgroundColor: '#ffe84a',
+    borderColor: '#231f20',
+    transform: [{ translateY: -2 }, { rotate: '-1deg' }],
   },
   visitorTabText: {
     color: MidnightColors.gold,
     fontSize: 14,
     fontFamily: Fonts.outfit.bold,
   },
+  scrapbookVisitorTabText: {
+    fontSize: 13,
+    fontFamily: Fonts.outfit.bold,
+    letterSpacing: 0.2,
+  },
+  neonVisitorTabText: {
+    fontSize: 12,
+    fontFamily: Fonts.outfit.extraBold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  pastelVisitorTabText: {
+    fontSize: 13,
+    fontFamily: Fonts.outfit.bold,
+    letterSpacing: 0.15,
+  },
+  popVisitorTabText: {
+    fontSize: 12,
+    fontFamily: Fonts.outfit.extraBold,
+    textTransform: 'uppercase',
+    letterSpacing: 0,
+  },
   visitorTabTextActive: {
     color: MidnightColors.background,
+  },
+  scrapbookVisitorTabTextActive: {
+    color: '#263331',
+  },
+  neonVisitorTabTextActive: {
+    color: '#66e8ff',
+  },
+  pastelVisitorTabTextActive: {
+    color: '#7b555b',
+  },
+  popVisitorTabTextActive: {
+    color: '#231f20',
   },
 
   visitorContent: {
@@ -2980,11 +3827,214 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
   },
+  scrapbookInfoBox: {
+    marginHorizontal: 18,
+    marginTop: 14,
+    marginBottom: 26,
+    padding: 12,
+    borderRadius: 26,
+    borderWidth: 1,
+    shadowColor: '#d9826b',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.12,
+    shadowRadius: 22,
+    elevation: 3,
+  },
+  scrapbookInfoInner: {
+    paddingHorizontal: 18,
+    paddingVertical: 22,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(38, 51, 49, 0.08)',
+    backgroundColor: 'rgba(255, 253, 249, 0.58)',
+  },
+  neonInfoBox: {
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 24,
+    padding: 1,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(102, 232, 255, 0.26)',
+    shadowColor: '#7e57ff',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.22,
+    shadowRadius: 28,
+    elevation: 6,
+  },
+  neonInfoInner: {
+    paddingHorizontal: 18,
+    paddingVertical: 20,
+    borderRadius: 26,
+    backgroundColor: 'rgba(12, 11, 27, 0.78)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  neonInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    marginBottom: 12,
+  },
+  neonInfoPulse: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ff3df2',
+  },
+  neonInfoKicker: {
+    color: '#66e8ff',
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.3,
+  },
+  neonInfoLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(102, 232, 255, 0.24)',
+  },
+  pastelInfoBox: {
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 24,
+    padding: 10,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(213, 180, 220, 0.24)',
+    backgroundColor: 'rgba(255, 253, 251, 0.62)',
+    shadowColor: '#f4b8a8',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.13,
+    shadowRadius: 24,
+    elevation: 3,
+  },
+  pastelInfoInner: {
+    paddingHorizontal: 18,
+    paddingVertical: 22,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.56)',
+    borderWidth: 1,
+    borderColor: 'rgba(201, 118, 139, 0.12)',
+  },
+  pastelInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    marginBottom: 12,
+  },
+  pastelInfoPetal: {
+    width: 10,
+    height: 10,
+    borderRadius: 6,
+    backgroundColor: '#f4b8a8',
+  },
+  pastelInfoKicker: {
+    color: '#9a8583',
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  pastelInfoLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(201, 118, 139, 0.18)',
+  },
+  popInfoBox: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 26,
+    padding: 0,
+    borderRadius: 24,
+    borderWidth: 3,
+    borderColor: '#231f20',
+    backgroundColor: '#fffdf3',
+    shadowColor: '#ef2b3a',
+    shadowOffset: { width: 7, height: 7 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 6,
+  },
+  popInfoInner: {
+    paddingHorizontal: 18,
+    paddingVertical: 20,
+    borderRadius: 20,
+    backgroundColor: '#fffdf3',
+    borderWidth: 0,
+  },
+  popInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  popInfoBang: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    overflow: 'hidden',
+    textAlign: 'center',
+    lineHeight: 26,
+    backgroundColor: '#0080ff',
+    borderWidth: 2,
+    borderColor: '#231f20',
+    color: '#ffffff',
+    fontFamily: Fonts.outfit.extraBold,
+    fontSize: 18,
+  },
+  popInfoKicker: {
+    color: '#231f20',
+    fontSize: 11,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0,
+  },
+  popInfoStripe: {
+    flex: 1,
+    height: 4,
+    backgroundColor: '#ff4fb8',
+    borderWidth: 1,
+    borderColor: '#231f20',
+  },
+  scrapbookInfoRule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  scrapbookInfoRuleBottom: {
+    marginTop: 16,
+    marginBottom: 0,
+  },
+  scrapbookInfoRuleLine: {
+    flex: 1,
+    height: 1,
+    opacity: 0.65,
+  },
+  scrapbookInfoRuleShort: {
+    width: 42,
+    height: 1,
+    backgroundColor: 'rgba(38, 51, 49, 0.16)',
+  },
   visitorDescription: {
     fontSize: 15,
     color: MidnightColors.slate400,
     fontFamily: Fonts.inter.regular,
     lineHeight: 22,
+  },
+  neonVisitorDescription: {
+    color: '#e7e3ff',
+    lineHeight: 23,
+  },
+  pastelVisitorDescription: {
+    color: '#5d5350',
+    lineHeight: 24,
+  },
+  popVisitorDescription: {
+    color: '#231f20',
+    fontFamily: Fonts.inter.medium,
+    lineHeight: 23,
   },
   categoryBadge: {
     alignSelf: 'flex-start',
@@ -3009,10 +4059,169 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     marginTop: 10,
   },
+  scrapbookGalleryHeader: {
+    marginTop: 18,
+    marginBottom: 22,
+    paddingHorizontal: 22,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(38, 51, 49, 0.1)',
+  },
+  neonGalleryHeader: {
+    marginTop: 18,
+    marginBottom: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(102, 232, 255, 0.16)',
+  },
+  pastelGalleryHeader: {
+    marginTop: 18,
+    marginBottom: 22,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(201, 118, 139, 0.12)',
+  },
+  popGalleryHeader: {
+    marginTop: 18,
+    marginBottom: 22,
+    marginHorizontal: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderWidth: 3,
+    borderColor: '#231f20',
+    borderRadius: 22,
+    backgroundColor: '#fffdf3',
+    shadowColor: '#0080ff',
+    shadowOffset: { width: 6, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 5,
+  },
+  scrapbookGalleryKicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  scrapbookGalleryKickerLine: {
+    width: 34,
+    height: 2,
+    borderRadius: 1,
+  },
+  scrapbookGalleryKickerText: {
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.4,
+  },
+  neonGalleryKicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 7,
+  },
+  neonGallerySpark: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ff3df2',
+  },
+  neonGalleryKickerText: {
+    color: '#66e8ff',
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+  },
+  neonGalleryKickerLine: {
+    width: 44,
+    height: 2,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 61, 242, 0.72)',
+  },
+  pastelGalleryKicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 7,
+  },
+  pastelGalleryKickerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#d8b4dc',
+  },
+  pastelGalleryKickerText: {
+    color: '#9a8583',
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.35,
+  },
+  pastelGalleryKickerLine: {
+    width: 42,
+    height: 2,
+    borderRadius: 999,
+    backgroundColor: 'rgba(244, 184, 168, 0.72)',
+  },
+  popGalleryKicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  popGalleryKickerBadge: {
+    color: '#ffffff',
+    backgroundColor: '#ef2b3a',
+    borderWidth: 2,
+    borderColor: '#231f20',
+    borderRadius: 9,
+    overflow: 'hidden',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    fontSize: 10,
+    fontFamily: Fonts.outfit.extraBold,
+    letterSpacing: 0,
+  },
+  popGalleryKickerText: {
+    color: '#231f20',
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0,
+  },
+  popGalleryKickerBolt: {
+    width: 36,
+    height: 4,
+    backgroundColor: '#ffe84a',
+    borderWidth: 1,
+    borderColor: '#231f20',
+    transform: [{ rotate: '-4deg' }],
+  },
   galleryTitle: {
     fontSize: 24,
     color: '#fff',
     fontFamily: Fonts.outfit.bold,
+  },
+  scrapbookGalleryTitle: {
+    fontSize: 28,
+    letterSpacing: 0,
+  },
+  neonGalleryTitle: {
+    fontSize: 28,
+    letterSpacing: 0,
+    textTransform: 'uppercase',
+  },
+  pastelGalleryTitle: {
+    fontSize: 29,
+    letterSpacing: 0,
+  },
+  popGalleryTitle: {
+    fontSize: 30,
+    letterSpacing: 0,
+    textTransform: 'uppercase',
   },
   photoCount: {
     fontSize: 12,
@@ -3051,9 +4260,194 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: 'rgba(255,255,255,0.02)',
   },
+  scrapbookPhotoTile: {
+    padding: 9,
+    borderWidth: 1,
+    borderRadius: 22,
+    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.1,
+    shadowRadius: 18,
+    elevation: 2,
+    transform: [{ rotate: '-0.35deg' }],
+  },
+  scrapbookPhotoTileAlt: {
+    transform: [{ rotate: '0.35deg' }],
+  },
+  neonPhotoTile: {
+    borderWidth: 1,
+    borderRadius: 24,
+    overflow: 'hidden',
+    padding: 3,
+    backgroundColor: 'rgba(14, 12, 31, 0.9)',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.24,
+    shadowRadius: 22,
+    elevation: 5,
+  },
+  neonPhotoTileFeatured: {
+    borderWidth: 1.5,
+    shadowOpacity: 0.34,
+    transform: [{ scale: 0.995 }],
+  },
+  neonPhotoGlowLine: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    height: 2,
+    borderRadius: 999,
+    zIndex: 2,
+  },
+  neonPhotoGlowLineTop: {
+    top: 12,
+  },
+  neonPhotoGlowLineBottom: {
+    bottom: 12,
+  },
+  pastelPhotoTile: {
+    padding: 9,
+    borderWidth: 1,
+    borderRadius: 26,
+    overflow: 'hidden',
+    backgroundColor: '#fffdfb',
+    shadowOffset: { width: 0, height: 13 },
+    shadowOpacity: 0.13,
+    shadowRadius: 20,
+    elevation: 3,
+    transform: [{ rotate: '-0.2deg' }],
+  },
+  pastelPhotoTileAlt: {
+    transform: [{ rotate: '0.25deg' }],
+  },
+  pastelPhotoTape: {
+    position: 'absolute',
+    width: 58,
+    height: 18,
+    borderRadius: 6,
+    backgroundColor: 'rgba(216, 180, 220, 0.48)',
+    borderWidth: 1,
+    borderColor: 'rgba(201, 118, 139, 0.12)',
+    zIndex: 2,
+  },
+  pastelPhotoTapeLeft: {
+    top: 12,
+    left: 18,
+    transform: [{ rotate: '-7deg' }],
+  },
+  pastelPhotoTapeRight: {
+    right: 18,
+    bottom: 12,
+    transform: [{ rotate: '6deg' }],
+    backgroundColor: 'rgba(189, 223, 217, 0.52)',
+  },
+  pastelPhotoDot: {
+    position: 'absolute',
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    zIndex: 2,
+  },
+  pastelPhotoDotTop: {
+    top: 42,
+    right: 24,
+    backgroundColor: '#f4b8a8',
+  },
+  pastelPhotoDotBottom: {
+    left: 24,
+    bottom: 42,
+    backgroundColor: '#d8b4dc',
+  },
+  popPhotoTile: {
+    padding: 8,
+    borderWidth: 3,
+    borderRadius: 22,
+    overflow: 'hidden',
+    backgroundColor: '#fffdf3',
+    shadowOffset: { width: 7, height: 7 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 5,
+    transform: [{ rotate: '-0.45deg' }],
+  },
+  popPhotoTileAlt: {
+    transform: [{ rotate: '0.45deg' }],
+  },
+  popPhotoCorner: {
+    position: 'absolute',
+    width: 36,
+    height: 36,
+    zIndex: 3,
+    borderWidth: 3,
+    borderColor: '#231f20',
+    backgroundColor: '#ffe84a',
+  },
+  popPhotoCornerTopLeft: {
+    top: 12,
+    left: 12,
+    borderBottomRightRadius: 18,
+  },
+  popPhotoCornerBottomRight: {
+    right: 12,
+    bottom: 12,
+    borderTopLeftRadius: 18,
+    backgroundColor: '#ff4fb8',
+  },
+  popPhotoHalftone: {
+    position: 'absolute',
+    zIndex: 2,
+    width: 54,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: '#231f20',
+    backgroundColor: '#0080ff',
+    opacity: 0.88,
+  },
+  popPhotoHalftoneTop: {
+    top: 18,
+    right: 22,
+    transform: [{ rotate: '8deg' }],
+  },
+  popPhotoHalftoneBottom: {
+    left: 22,
+    bottom: 18,
+    backgroundColor: '#ef2b3a',
+    transform: [{ rotate: '-8deg' }],
+  },
+  scrapbookCorner: {
+    position: 'absolute',
+    width: 22,
+    height: 22,
+    opacity: 0.75,
+    zIndex: 2,
+  },
+  scrapbookCornerTopLeft: {
+    top: 14,
+    left: 14,
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+  },
+  scrapbookCornerBottomRight: {
+    right: 14,
+    bottom: 14,
+    borderRightWidth: 2,
+    borderBottomWidth: 2,
+  },
   galleryImg: {
     width: '100%',
     height: '100%',
+  },
+  scrapbookGalleryImg: {
+    borderRadius: 14,
+  },
+  neonGalleryImg: {
+    borderRadius: 20,
+  },
+  pastelGalleryImg: {
+    borderRadius: 18,
+  },
+  popGalleryImg: {
+    borderRadius: 14,
   },
   emptyGallery: {
     width: '100%',
@@ -3137,6 +4531,12 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 11,
     fontFamily: Fonts.inter.bold,
+  },
+  neonViewerActionCount: {
+    color: '#66e8ff',
+  },
+  popViewerActionCount: {
+    color: '#ffe84a',
   },
   guestbookPanel: {
     position: 'absolute',

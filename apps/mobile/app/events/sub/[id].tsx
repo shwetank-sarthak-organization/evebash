@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Dimensions, FlatList, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, Alert, useWindowDimensions } from 'react-native';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Dimensions, FlatList, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, Alert, useWindowDimensions, BackHandler } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -134,6 +134,38 @@ export default function SubEventPhotosScreen() {
     setSubmittingGuest(false);
   };
 
+  const goBackToParentEvent = useCallback(() => {
+    const parentId = subEvent?.parentId;
+
+    if (parentId) {
+      const params: Record<string, string> = {};
+      if (isPrivilegedViewer) params.mode = 'admin';
+      if (isShared) params.shared = 'true';
+
+      router.replace({
+        pathname: `/events/${parentId}`,
+        params,
+      } as any);
+      return;
+    }
+
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/gallery');
+    }
+  }, [isPrivilegedViewer, isShared, router, subEvent?.parentId]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (!subEvent?.parentId) return false;
+      goBackToParentEvent();
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [goBackToParentEvent, subEvent?.parentId]);
+
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -163,13 +195,7 @@ export default function SubEventPhotosScreen() {
           headerTintColor: '#ffffff',
           headerLeft: () => (
             <TouchableOpacity 
-              onPress={() => {
-                if (router.canGoBack()) {
-                  router.back();
-                } else {
-                  router.replace('/(tabs)/gallery');
-                }
-              }}
+              onPress={goBackToParentEvent}
               style={styles.nativeBackButton}
               hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
             >
