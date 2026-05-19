@@ -364,7 +364,6 @@ export default function ManageBusinessScreen() {
         
         <View style={{ alignItems: 'center' }}>
           <Text style={styles.headerTitle}>Business Manager</Text>
-          {business?.shortId && <Text style={styles.headerShortId}>{business.shortId}</Text>}
         </View>
         
         {isEditing ? (

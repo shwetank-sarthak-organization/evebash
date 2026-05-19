@@ -1430,3 +1430,35 @@ export async function getEnquiriesForBusiness(businessId: string, userId: string
         return [];
     }
 }
+
+export const BUSINESS_TYPE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+  'Venue': { bg: 'rgba(236, 72, 153, 0.12)', border: 'rgba(236, 72, 153, 0.3)', text: '#ec4899' }, // Pink
+  'Photography': { bg: 'rgba(56, 189, 248, 0.12)', border: 'rgba(56, 189, 248, 0.3)', text: '#38bdf8' }, // Sky Blue
+  'Videography': { bg: 'rgba(129, 140, 248, 0.12)', border: 'rgba(129, 140, 248, 0.3)', text: '#818cf8' }, // Indigo
+  'Catering': { bg: 'rgba(249, 115, 22, 0.12)', border: 'rgba(249, 115, 22, 0.3)', text: '#f97316' }, // Orange
+  'Food Stalls': { bg: 'rgba(234, 179, 8, 0.12)', border: 'rgba(234, 179, 8, 0.3)', text: '#eab308' }, // Yellow
+  'Music & DJ': { bg: 'rgba(168, 85, 247, 0.12)', border: 'rgba(168, 85, 247, 0.3)', text: '#a855f7' }, // Purple
+  'Lighting': { bg: 'rgba(253, 224, 71, 0.12)', border: 'rgba(253, 224, 71, 0.3)', text: '#fde047' }, // Gold/Yellow
+  'Decor': { bg: 'rgba(20, 184, 166, 0.12)', border: 'rgba(20, 184, 166, 0.3)', text: '#20b8a6' }, // Teal
+  'Event Planner': { bg: 'rgba(244, 63, 94, 0.12)', border: 'rgba(244, 63, 94, 0.3)', text: '#f43f5e' }, // Rose
+  'Security': { bg: 'rgba(100, 116, 139, 0.12)', border: 'rgba(100, 116, 139, 0.3)', text: '#64748b' }, // Slate
+  'Anchors': { bg: 'rgba(6, 182, 212, 0.12)', border: 'rgba(6, 182, 212, 0.3)', text: '#06b6d4' }, // Cyan
+  'Gifts': { bg: 'rgba(219, 39, 119, 0.12)', border: 'rgba(219, 39, 119, 0.3)', text: '#db2777' }, // Dark Pink
+  'Travel': { bg: 'rgba(14, 165, 233, 0.12)', border: 'rgba(14, 165, 233, 0.3)', text: '#0ea5e9' }, // Ocean Blue
+  'Staff': { bg: 'rgba(74, 222, 128, 0.12)', border: 'rgba(74, 222, 128, 0.3)', text: '#4ade80' }, // Green
+  'Invitations': { bg: 'rgba(251, 146, 60, 0.12)', border: 'rgba(251, 146, 60, 0.3)', text: '#fb923c' }, // Light Orange
+  'Makeup': { bg: 'rgba(244, 114, 182, 0.12)', border: 'rgba(244, 114, 182, 0.3)', text: '#f472b6' }, // Light Pink
+  'Apparel': { bg: 'rgba(167, 139, 250, 0.12)', border: 'rgba(167, 139, 250, 0.3)', text: '#a78bfa' }, // Violet
+  'Trophies': { bg: 'rgba(250, 204, 21, 0.12)', border: 'rgba(250, 204, 21, 0.3)', text: '#facc15' }, // Bright Gold
+};
+
+export const getBusinessTypeColor = (type: string) => {
+  const normalized = type ? type.trim() : '';
+  const match = Object.keys(BUSINESS_TYPE_COLORS).find(
+    key => key.toLowerCase() === normalized.toLowerCase()
+  );
+  if (match) {
+    return BUSINESS_TYPE_COLORS[match];
+  }
+  return { bg: 'rgba(212, 175, 55, 0.12)', border: 'rgba(212, 175, 55, 0.25)', text: '#d4af37' };
+};

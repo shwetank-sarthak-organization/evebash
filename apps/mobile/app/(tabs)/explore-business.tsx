@@ -21,7 +21,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter, Stack } from 'expo-router';
 import * as Location from 'expo-location';
-import { onTopRatedBusinesses, getTopRatedBusinesses, toggleShortlistBusiness, Business } from '@/lib/firestore';
+import { onTopRatedBusinesses, getTopRatedBusinesses, toggleShortlistBusiness, Business, getBusinessTypeColor } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
 
 const { width } = Dimensions.get('window');
@@ -143,7 +143,7 @@ export default function ExploreBusinessScreen() {
     lat: b.location.latitude,
     lng: b.location.longitude,
     image: b.coverImage,
-    verified: b.rating >= 4.8, // Auto-verify high rated ones
+    verified: true, // All listed businesses on WedAlbum are verified
     experience: b.experience || 0,
   }));
 
@@ -327,7 +327,14 @@ export default function ExploreBusinessScreen() {
                       )}
                     </View>
                     <View style={styles.metaRow}>
-                      <Text style={styles.featuredCategory}>{vendor.category}</Text>
+                      {(() => {
+                        const colors = getBusinessTypeColor(vendor.category);
+                        return (
+                          <View style={[styles.featuredCategoryBadge, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+                            <Text style={[styles.featuredCategoryText, { color: colors.text }]}>{vendor.category}</Text>
+                          </View>
+                        );
+                      })()}
                       <View style={styles.locationRow}>
                         <IconSymbol name="mappin.circle.fill" size={10} color="#94a3b8" />
                         <Text style={styles.locationText}>{vendor.location}</Text>
@@ -355,52 +362,70 @@ export default function ExploreBusinessScreen() {
               <Text style={styles.emptyText}>No vendors found in this category</Text>
             </View>
           ) : (
-            <View style={styles.gridContainer}>
+            <View style={styles.listContainer}>
               {filteredVendors.map((vendor) => (
                 <TouchableOpacity 
                   key={vendor.id} 
-                  style={styles.gridCard} 
+                  style={styles.listCard} 
                   activeOpacity={0.9}
                   onPress={() => router.push(`/business/${vendor.id}`)}
                 >
-                  <ExpoImage source={{ uri: vendor.image }} style={styles.gridImage} contentFit="cover" />
-                  {/* Shortlist Heart Button */}
-                  <TouchableOpacity 
-                    style={styles.shortlistHeartBtn} 
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      handleShortlistToggle(vendor.id);
-                    }}
-                  >
-                    <IconSymbol 
-                      name={isShortlisted(vendor.id) ? "heart.fill" : "heart"} 
-                      size={14} 
-                      color={isShortlisted(vendor.id) ? "#ef4444" : "#ffffff"} 
-                    />
-                  </TouchableOpacity>
-                  <View style={styles.gridInfo}>
-                    <View style={styles.nameRow}>
-                      <Text style={styles.gridName} numberOfLines={1}>{vendor.name}</Text>
-                      {vendor.rating >= 4.0 && (
-                        <View style={styles.verifiedIcon}>
-                          <IconSymbol name="checkmark.seal.fill" size={10} color="#ffffff" />
-                        </View>
+                  <ExpoImage source={{ uri: vendor.image }} style={styles.listImage} contentFit="cover" />
+                  
+                  <View style={styles.listInfo}>
+                    <View style={styles.listHeaderRow}>
+                      <View style={styles.listNameRow}>
+                        <Text style={styles.listName} numberOfLines={1}>{vendor.name}</Text>
+                      </View>
+                      <TouchableOpacity 
+                        style={styles.listHeartBtn} 
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleShortlistToggle(vendor.id);
+                        }}
+                      >
+                        <IconSymbol 
+                          name={isShortlisted(vendor.id) ? "heart.fill" : "heart"} 
+                          size={14} 
+                          color={isShortlisted(vendor.id) ? "#ef4444" : "#ffffff"} 
+                        />
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                      {(() => {
+                        const colors = getBusinessTypeColor(vendor.category);
+                        return (
+                          <View style={[styles.listCategoryBadge, { backgroundColor: colors.bg, borderColor: colors.border, marginBottom: 0 }]}>
+                            <Text style={[styles.listCategoryText, { color: colors.text }]}>{vendor.category}</Text>
+                          </View>
+                        );
+                      })()}
+                      {vendor.verified && (
+                        <IconSymbol name="checkmark.seal.fill" size={14} color="#3b82f6" />
                       )}
                     </View>
-                    <View style={styles.gridMeta}>
-                      <Text style={styles.gridCategory}>{vendor.category}</Text>
-                      <View style={styles.locationRow}>
+
+                    <View style={styles.listMetaRow}>
+                      <View style={styles.listMetaItem}>
                         <IconSymbol name="mappin.fill" size={10} color="#64748b" />
-                        <Text style={styles.locationText}>{vendor.location}</Text>
+                        <Text style={styles.listMetaText} numberOfLines={1}>{vendor.location}</Text>
                       </View>
-                      <View style={styles.gridExperienceRow}>
+                      <View style={styles.listMetaItem}>
                         <IconSymbol name="clock.fill" size={10} color="#d4af37" />
-                        <Text style={styles.gridExperienceText}>{vendor.experience}+ Years</Text>
+                        <Text style={styles.listMetaText}>{vendor.experience}+ Years</Text>
                       </View>
                     </View>
-                    <View style={styles.gridRatingRow}>
-                      <IconSymbol name="star.fill" size={10} color="#d4af37" />
-                      <Text style={styles.gridRating}>{vendor.rating}</Text>
+
+                    <View style={styles.listFooterRow}>
+                      <View style={styles.listRatingBadge}>
+                        <IconSymbol name="star.fill" size={10} color="#d4af37" />
+                        <Text style={styles.listRatingText}>{vendor.rating}</Text>
+                      </View>
+                      <View style={styles.listActionBtn}>
+                        <Text style={styles.listActionBtnText}>View Details</Text>
+                        <IconSymbol name="chevron.right" size={10} color="#818cf8" />
+                      </View>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -1174,5 +1199,138 @@ const styles = StyleSheet.create({
     color: '#d4af37',
     fontSize: 10,
     fontFamily: 'Outfit_700Bold',
+  },
+  listContainer: {
+    marginTop: 16,
+    gap: 16,
+  },
+  listCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 20,
+    marginHorizontal: 24,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    gap: 16,
+  },
+  listImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 14,
+  },
+  listInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  listHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  listNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    paddingRight: 8,
+  },
+  listName: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
+  },
+  listHeartBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  listCategory: {
+    color: '#818cf8',
+    fontSize: 12,
+    fontFamily: 'Outfit_600SemiBold',
+    marginBottom: 8,
+  },
+  listMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 8,
+  },
+  listMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  listMetaText: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+    maxWidth: 100,
+  },
+  listFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  listRatingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.2)',
+  },
+  listRatingText: {
+    color: '#d4af37',
+    fontSize: 11,
+    fontFamily: 'Outfit_700Bold',
+  },
+  listActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  listActionBtnText: {
+    color: '#818cf8',
+    fontSize: 12,
+    fontFamily: 'Outfit_700Bold',
+  },
+  featuredCategoryBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+  },
+  featuredCategoryText: {
+    fontSize: 9,
+    fontFamily: 'Outfit_800ExtraBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  listCategoryBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  listCategoryText: {
+    fontSize: 10,
+    fontFamily: 'Outfit_800ExtraBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });

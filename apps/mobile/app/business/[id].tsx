@@ -22,7 +22,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image as ExpoImage } from 'expo-image';
 import * as Location from 'expo-location';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { getBusinessById, updateBusiness, getEventsCountForVendor, Business, addEnquiry, getAnnouncementsForBusiness, getUserRatingForBusiness, saveUserRating, getReviewsForBusiness } from '@/lib/firestore';
+import { getBusinessById, updateBusiness, getEventsCountForVendor, Business, addEnquiry, getAnnouncementsForBusiness, getUserRatingForBusiness, saveUserRating, getReviewsForBusiness, getBusinessTypeColor } from '@/lib/firestore';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/context/AuthContext';
 import Svg, { Path } from 'react-native-svg';
@@ -464,9 +464,14 @@ export default function BusinessDetailScreen() {
           </View>
           
           <View style={styles.badgesRow}>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{business.type}</Text>
-            </View>
+            {(() => {
+              const colors = getBusinessTypeColor(business.type);
+              return (
+                <View style={[styles.categoryBadge, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+                  <Text style={[styles.categoryText, { color: colors.text }]}>{business.type}</Text>
+                </View>
+              );
+            })()}
             {business.vendorCode && (
               <TouchableOpacity 
                 style={[styles.categoryBadge, { borderColor: 'rgba(56, 189, 248, 0.35)', backgroundColor: 'rgba(56, 189, 248, 0.12)', flexDirection: 'row', alignItems: 'center', gap: 4 }]}

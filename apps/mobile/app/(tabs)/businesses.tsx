@@ -21,7 +21,7 @@ import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '@/context/AuthContext';
-import { createBusiness, getUserBusinesses, Business, generateShortId } from '@/lib/firestore';
+import { createBusiness, getUserBusinesses, Business, generateShortId, getBusinessTypeColor } from '@/lib/firestore';
 
 const { width } = Dimensions.get('window');
 
@@ -235,9 +235,15 @@ export default function BusinessLandingScreen() {
                 <View style={styles.bizManageInfo}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Text style={styles.bizManageName}>{biz.name}</Text>
-                    {biz.shortId && <Text style={styles.shortIdBadge}>{biz.shortId}</Text>}
                   </View>
-                  <Text style={styles.bizManageType}>{biz.type}</Text>
+                  {(() => {
+                    const colors = getBusinessTypeColor(biz.type);
+                    return (
+                      <View style={[styles.bizTypeBadge, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+                        <Text style={[styles.bizTypeText, { color: colors.text }]}>{biz.type}</Text>
+                      </View>
+                    );
+                  })()}
                   <View style={styles.statusBadge}>
                     <View style={[styles.statusDot, { backgroundColor: biz.status === 'published' ? '#22c55e' : '#f59e0b' }]} />
                     <Text style={styles.statusText}>{biz.status.toUpperCase()}</Text>
@@ -978,5 +984,20 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  bizTypeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    marginBottom: 6,
+  },
+  bizTypeText: {
+    fontSize: 10,
+    fontFamily: 'Outfit_800ExtraBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });
