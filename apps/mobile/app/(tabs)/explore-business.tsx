@@ -1039,6 +1039,8 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 32,
     padding: 24,
     paddingTop: 12,
+    width: '100%',
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
   },
   grabHandle: {
     width: 40,
@@ -1095,9 +1097,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1e293b',
     borderRadius: 12,
-    padding: 14,
+    padding: 16,
     color: '#ffffff',
     fontFamily: 'Inter_400Regular',
+    fontSize: 16,
+    minHeight: 56,
   },
   categoryPicker: {
     flexDirection: 'row',

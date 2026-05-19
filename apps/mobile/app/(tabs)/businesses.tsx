@@ -58,6 +58,7 @@ export default function BusinessLandingScreen() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [location, setLocation] = useState<{latitude: number, longitude: number} | null>(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [capturedAddress, setCapturedAddress] = useState('');
   
   // New profile fields
   const [description, setDescription] = useState('');
@@ -92,10 +93,29 @@ export default function BusinessLandingScreen() {
         return;
       }
       const loc = await Location.getCurrentPositionAsync({});
-      setLocation({
+      const coords = {
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude,
-      });
+      };
+      setLocation(coords);
+      
+      try {
+        const reverse = await Location.reverseGeocodeAsync(coords);
+        if (reverse && reverse.length > 0) {
+          const first = reverse[0];
+          const shortAddress = [
+            first.district || first.name || '',
+            first.city || first.subregion || '',
+            first.region || ''
+          ].filter(Boolean).join(', ');
+          
+          setCapturedAddress(shortAddress || `${coords.latitude.toFixed(4)}°, ${coords.longitude.toFixed(4)}°`);
+        } else {
+          setCapturedAddress(`${coords.latitude.toFixed(4)}°, ${coords.longitude.toFixed(4)}°`);
+        }
+      } catch (err) {
+        setCapturedAddress(`${coords.latitude.toFixed(4)}°, ${coords.longitude.toFixed(4)}°`);
+      }
     } catch (error) {
       Alert.alert('Error', 'Could not fetch your location.');
     } finally {
@@ -152,9 +172,11 @@ export default function BusinessLandingScreen() {
         setShowListingForm(false);
         // Reset form
         setName('');
+        setOwnerName(user?.displayName || '');
         setBusinessType('');
         setSelectedTags([]);
         setLocation(null);
+        setCapturedAddress('');
         setDescription('');
         setExperience('');
         setStartedDate(new Date());
@@ -310,29 +332,39 @@ export default function BusinessLandingScreen() {
                 />
               </View>
 
-              <View style={styles.row}>
-                <View style={[styles.inputGroup, { flex: 1 }]}>
-                  <Text style={styles.inputLabel}>Email *</Text>
-                  <TextInput 
-                    style={styles.formInput} 
-                    placeholder="email@example.com" 
-                    placeholderTextColor="#475569"
-                    value={ownerEmail}
-                    onChangeText={setOwnerEmail}
-                    keyboardType="email-address"
-                  />
-                </View>
-                <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
-                  <Text style={styles.inputLabel}>Phone *</Text>
-                  <TextInput 
-                    style={styles.formInput} 
-                    placeholder="+91..." 
-                    placeholderTextColor="#475569"
-                    value={ownerPhone}
-                    onChangeText={setOwnerPhone}
-                    keyboardType="phone-pad"
-                  />
-                </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Owner Name *</Text>
+                <TextInput 
+                  style={styles.formInput} 
+                  placeholder="e.g. John Doe" 
+                  placeholderTextColor="#475569"
+                  value={ownerName}
+                  onChangeText={setOwnerName}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Email *</Text>
+                <TextInput 
+                  style={styles.formInput} 
+                  placeholder="email@example.com" 
+                  placeholderTextColor="#475569"
+                  value={ownerEmail}
+                  onChangeText={setOwnerEmail}
+                  keyboardType="email-address"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Phone *</Text>
+                <TextInput 
+                  style={styles.formInput} 
+                  placeholder="+91..." 
+                  placeholderTextColor="#475569"
+                  value={ownerPhone}
+                  onChangeText={setOwnerPhone}
+                  keyboardType="phone-pad"
+                />
               </View>
 
               <View style={styles.inputGroup}>
@@ -354,7 +386,7 @@ export default function BusinessLandingScreen() {
                   onRequestClose={() => setShowCategoryPicker(false)}
                 >
                   <TouchableOpacity 
-                    style={styles.modalOverlay} 
+                    style={styles.pickerOverlay} 
                     activeOpacity={1} 
                     onPress={() => setShowCategoryPicker(false)}
                   >
@@ -448,7 +480,7 @@ export default function BusinessLandingScreen() {
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>About Business</Text>
                 <TextInput 
-                  style={[styles.formInput, { height: 80, textAlignVertical: 'top' }]} 
+                  style={[styles.formInput, { height: 120, textAlignVertical: 'top' }]} 
                   placeholder="Short description of your services..." 
                   placeholderTextColor="#475569"
                   multiline
@@ -469,8 +501,8 @@ export default function BusinessLandingScreen() {
                   ) : (
                     <>
                       <IconSymbol name="location.fill" size={18} color={location ? "#0f172a" : "#d4af37"} />
-                      <Text style={[styles.locationBtnText, location && styles.locationBtnTextActive]}>
-                        {location ? 'Location Captured' : 'Use Current GPS'}
+                      <Text style={[styles.locationBtnText, location && styles.locationBtnTextActive]} numberOfLines={1}>
+                        {location ? `Captured: ${capturedAddress || 'Location Captured'}` : 'Use Current GPS'}
                       </Text>
                     </>
                   )}
@@ -727,7 +759,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     maxHeight: '90%',
+    width: '100%',
     padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
   },
   formHeader: {
     flexDirection: 'row',
@@ -762,6 +796,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     borderWidth: 1,
     borderColor: '#1e293b',
+    fontSize: 16,
+    minHeight: 56,
   },
   typeGrid: {
     flexDirection: 'row',
@@ -835,19 +871,21 @@ const styles = StyleSheet.create({
   dropdownBtn: {
     backgroundColor: '#020617',
     borderRadius: 16,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: '#1e293b',
+    minHeight: 56,
   },
   dropdownBtnText: {
     color: '#ffffff',
     fontFamily: 'Inter_400Regular',
     fontSize: 15,
   },
-  modalOverlay: {
+  pickerOverlay: {
     flex: 1,
     backgroundColor: 'rgba(2, 6, 23, 0.95)',
     justifyContent: 'center',
