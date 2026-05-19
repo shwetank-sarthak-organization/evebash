@@ -102,7 +102,19 @@ service cloud.firestore {
         isKnownAdmin() || 
         isAdmin() || 
         (resource.data.createdBy == request.auth.uid) ||
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vendorCode']))
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vendorCode', 'rating']))
+      );
+    }
+
+    // --- ENQUIRIES & LEADS RULES ---
+    match /enquiries/{enquiryId} {
+      allow create: if true;
+      allow read, update, delete: if isAuthenticated() && (
+        isKnownAdmin() ||
+        isAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.vendorOwnerId == request.auth.uid ||
+        resource.data.vendorOwnerEmail == request.auth.token.email
       );
     }
 
@@ -114,6 +126,14 @@ service cloud.firestore {
         (resource == null || resource.data.createdBy == request.auth.uid) ||
         (request.resource != null && request.resource.data.createdBy == request.auth.uid)
       );
+    }
+
+    match /businessRatings/{ratingId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated() && 
+                            ratingId == request.auth.uid + "_" + request.resource.data.businessId &&
+                            request.resource.data.userId == request.auth.uid;
+      allow delete: if false;
     }
 
     match /events/{eventId} {

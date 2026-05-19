@@ -22,13 +22,25 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image as ExpoImage } from 'expo-image';
 import * as Location from 'expo-location';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { getBusinessById, updateBusiness, Business } from '@/lib/firestore';
+import { getBusinessById, updateBusiness, getEventsCountForVendor, Business, addEnquiry, getAnnouncementsForBusiness, getUserRatingForBusiness, saveUserRating, getReviewsForBusiness } from '@/lib/firestore';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/context/AuthContext';
+import Svg, { Path } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
 
-
+// Helper to calculate distance in KM using Haversine formula
+function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
 export default function BusinessDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -36,6 +48,7 @@ export default function BusinessDetailScreen() {
   const { user } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
+  const [announcementsList, setAnnouncementsList] = useState<any[]>([]);
   const [isFavorited, setIsFavorited] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showContactOptions, setShowContactOptions] = useState(false);
@@ -43,6 +56,8 @@ export default function BusinessDetailScreen() {
   const [activeTab, setActiveTab] = useState('About');
   const [locality, setLocality] = useState<string | null>(null);
   const [hasSeenAnnouncements, setHasSeenAnnouncements] = useState(false);
+  const [eventsLikedCount, setEventsLikedCount] = useState<number>(0);
+  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   
   // Enquiry form state
   const [enquiryName, setEnquiryName] = useState('');
@@ -50,52 +65,185 @@ export default function BusinessDetailScreen() {
   const [enquiryMessage, setEnquiryMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Rating Modal State
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [selectedRating, setSelectedRating] = useState(5);
+  const [submittingRating, setSubmittingRating] = useState(false);
+
+  // Reviews State
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [reviewComment, setReviewComment] = useState('');
+
+  const handleRatingSubmit = async () => {
+    if (!business || typeof id !== 'string') return;
+    if (!user || !user.uid) {
+      Alert.alert("Authentication Required", "Please sign in to submit a rating.");
+      return;
+    }
+    setSubmittingRating(true);
+    try {
+      // 1. Fetch user's existing rating if they have rated before
+      const existingUserRating = await getUserRatingForBusiness(user.uid, id);
+      
+      const currentRating = business.rating || 5.0;
+      const weight = 8; // Weighted average historical anchor
+      let roundedRating = currentRating;
+
+      if (existingUserRating !== null) {
+        // User is updating/changing their rating or written comment!
+        const delta = selectedRating - existingUserRating;
+        const totalWeight = weight + 1; // 8 baseline + 1 active rating
+        const calculatedRating = ((currentRating * totalWeight) + delta) / totalWeight;
+        roundedRating = Math.round(calculatedRating * 10) / 10;
+      } else {
+        // First-time rating!
+        const calculatedRating = ((currentRating * weight) + selectedRating) / (weight + 1);
+        roundedRating = Math.round(calculatedRating * 10) / 10;
+      }
+      
+      // 2. Securely persist user rating log with optional text review comment
+      const saveSuccess = await saveUserRating(user.uid, id, selectedRating, reviewComment, user.name);
+      if (!saveSuccess) {
+        Alert.alert("Error", "Failed to save rating log. Please try again.");
+        return;
+      }
+
+      // 3. Update the aggregate business profile rating field
+      const success = await updateBusiness(id, { rating: roundedRating });
+      if (success) {
+        setBusiness({
+          ...business,
+          rating: roundedRating
+        });
+        
+        // Refresh reviews list in background
+        getReviewsForBusiness(id).then(list => setReviews(list)).catch(err => console.log('Reviews refresh failed', err));
+        setReviewComment(''); // Clear review comment input state
+        
+        const message = existingUserRating !== null
+          ? `Your rating has been successfully updated to ${selectedRating} stars!`
+          : `Your ${selectedRating}-star rating has been submitted successfully.`;
+
+        Alert.alert("Thank you!", message);
+        setShowRatingModal(false);
+      } else {
+        Alert.alert("Error", "Failed to update business rating. Please try again.");
+      }
+    } catch (err) {
+      console.error("Error submitting rating:", err);
+      Alert.alert("Error", "An unexpected error occurred.");
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
+
   useFocusEffect(
     React.useCallback(() => {
       async function fetchBusiness() {
         if (typeof id === 'string') {
+          // 1. Fetch core business data as fast as possible
           let data = await getBusinessById(id);
           
-          if (data && !data.vendorCode) {
+          if (data) {
             // Generate a unique deterministic vendorCode based on the business ID prefix
-            const docIdCode = id.substring(0, 6).toUpperCase();
-            const vendorCode = `VEN-${docIdCode}`;
-            data = { ...data, vendorCode };
-            
-            // Only write to database if the logged-in user is the owner (who has write permissions)
-            if (user && (user.uid === data.createdBy || user.email === data.ownerEmail)) {
-              try {
-                await updateBusiness(id, { vendorCode });
-              } catch (err) {
-                console.warn("Silent ignore: Failed to save vendorCode to db", err);
+            if (!data.vendorCode) {
+              const docIdCode = id.substring(0, 6).toUpperCase();
+              const vendorCode = `VEN-${docIdCode}`;
+              data = { ...data, vendorCode };
+              
+              if (user && (user.uid === data.createdBy || user.email === data.ownerEmail)) {
+                // Background update (non-blocking)
+                updateBusiness(id, { vendorCode }).catch(err => 
+                  console.warn("Silent ignore: Failed to save vendorCode to db", err)
+                );
               }
             }
+            
+            setBusiness(data);
           }
           
-          setBusiness(data);
+          // 2. DISMISS LOADING STATE IMMEDIATELY!
+          // The screen transitions instantly, delivering an elite, responsive UX.
+          setLoading(false);
           
-          // Try to get locality from coordinates if address is missing
-          if (data && data.location && (data.location.latitude || data.location.longitude)) {
-            try {
-              const reverse = await Location.reverseGeocodeAsync({
+          // 3. Perform background updates (completely non-blocking)
+          if (data) {
+            // Fetch dynamic events count in background
+            getEventsCountForVendor(id).then(count => {
+              setEventsLikedCount(count);
+            }).catch(err => console.log('Background events fetch failed', err));
+
+            // Fetch dynamic announcements in background
+            getAnnouncementsForBusiness(id).then(list => {
+              setAnnouncementsList(list);
+            }).catch(err => console.log('Background announcements fetch failed', err));
+            
+            // Fetch dynamic reviews in background
+            setLoadingReviews(true);
+            getReviewsForBusiness(id).then(list => {
+              setReviews(list);
+            }).catch(err => console.log('Background reviews fetch failed', err))
+              .finally(() => setLoadingReviews(false));
+            
+            // Request permission & fetch location coordinates in background (eliminates GPS lock latency)
+            Location.requestForegroundPermissionsAsync().then(({ status }) => {
+              if (status === 'granted') {
+                return Location.getCurrentPositionAsync({
+                  accuracy: Location.Accuracy.Balanced
+                });
+              }
+              throw new Error('Permission denied');
+            }).then(userLoc => {
+              setUserCoords({
+                latitude: userLoc.coords.latitude,
+                longitude: userLoc.coords.longitude
+              });
+            }).catch(err => {
+              console.log('Background location fetch failed:', err);
+            });
+            
+            // Reverse geocode locality in background if needed
+            if (data.location && (data.location.latitude || data.location.longitude)) {
+              Location.reverseGeocodeAsync({
                 latitude: data.location.latitude,
                 longitude: data.location.longitude
+              }).then(reverse => {
+                if (reverse && reverse[0]) {
+                  const place = reverse[0];
+                  const name = place.district || place.city || place.subregion || place.region;
+                  if (name) setLocality(name);
+                }
+              }).catch(error => {
+                console.log('Background reverse geocoding failed', error);
               });
-              if (reverse[0]) {
-                const place = reverse[0];
-                const name = place.district || place.city || place.subregion || place.region;
-                if (name) setLocality(name);
-              }
-            } catch (error) {
-              console.log('Reverse geocoding failed', error);
             }
           }
+        } else {
+          setLoading(false);
         }
-        setLoading(false);
       }
       fetchBusiness();
     }, [id])
   );
+
+  const getDistanceString = () => {
+    if (!userCoords || !business?.location?.latitude || !business?.location?.longitude) {
+      return null;
+    }
+    const dist = getDistance(
+      userCoords.latitude,
+      userCoords.longitude,
+      business.location.latitude,
+      business.location.longitude
+    );
+    if (dist < 1) {
+      return `${Math.round(dist * 1000)}m away`;
+    }
+    return `${dist.toFixed(1)} km away`;
+  };
+
+  const distanceStr = getDistanceString();
 
   const handleCall = () => {
     if (business?.ownerPhone) {
@@ -115,17 +263,48 @@ export default function BusinessDetailScreen() {
     }
   };
 
-  const handleEnquirySubmit = () => {
+  const handleEnquirySubmit = async () => {
     if (!enquiryName || !enquiryDate) {
       Alert.alert('Missing Info', 'Please provide your name and event date.');
       return;
     }
+    
+    if (!business) return;
+
     setIsSubmitting(true);
-    setTimeout(() => {
+    try {
+      const success = await addEnquiry({
+        businessId: business.id,
+        businessName: business.name,
+        name: enquiryName,
+        date: enquiryDate,
+        message: enquiryMessage || `Hi ${business.name}, I'm interested in your services. Please share your availability.`,
+        phone: user?.phone || user?.phoneNumber || '',
+        email: user?.email || '',
+        userId: user?.uid || null,
+        vendorOwnerId: business.createdBy || '',
+        vendorOwnerEmail: business.ownerEmail || '',
+      });
+
+      if (success) {
+        setShowEnquiryForm(false);
+        // Clear fields on success
+        setEnquiryName('');
+        setEnquiryDate('');
+        setEnquiryMessage('');
+        Alert.alert(
+          'Enquiry Sent! 🎉',
+          `Your enquiry has been successfully submitted to ${business.name}. The vendor will get back to you shortly.`
+        );
+      } else {
+        Alert.alert('Submission Error', 'Failed to submit enquiry. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error submitting enquiry:', error);
+      Alert.alert('Submission Error', 'Something went wrong. Please try again.');
+    } finally {
       setIsSubmitting(false);
-      setShowEnquiryForm(false);
-      Alert.alert('Inquiry Sent', 'Your inquiry has been sent to the business. They will contact you shortly!');
-    }, 1500);
+    }
   };
 
   const handleShare = async () => {
@@ -173,8 +352,27 @@ export default function BusinessDetailScreen() {
 
   const highlights = [
     { id: '1', title: `${getExperienceYears()}+ Years`, subtitle: 'Experience', icon: 'clock.fill', color: '#6366f1' },
-    { id: '2', title: `${business.eventsHosted || 0}+`, subtitle: 'Events', icon: 'star.fill', color: '#f59e0b' },
-    { id: '3', title: 'Quick', subtitle: 'Response', icon: 'bolt.fill', color: '#10b981' },
+    { 
+      id: '2', 
+      title: `${eventsLikedCount}`, 
+      subtitle: 'Events', 
+      icon: 'sparkles.fill', 
+      color: '#f97316',
+      renderIcon: (color: string, size: number) => (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <Path d="M5.8 11.3 2 22l10.7-3.79" />
+          <Path d="M4 3h.01" />
+          <Path d="M22 8h.01" />
+          <Path d="M15 2h.01" />
+          <Path d="M22 20h.01" />
+          <Path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10" />
+          <Path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17" />
+          <Path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7" />
+          <Path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z" />
+        </Svg>
+      )
+    },
+    { id: '3', title: business.rating >= 4.8 ? 'Elite' : 'Verified', subtitle: 'Trusted', icon: 'checkmark.seal.fill', color: '#3b82f6' },
   ];
 
   return (
@@ -222,45 +420,78 @@ export default function BusinessDetailScreen() {
           </View>
         </View>
 
+        {/* ── HEADER ACTIONS (SCROLLS WITH CONTENT) ── */}
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.glassBtn} onPress={() => router.back()}>
+            <IconSymbol name="chevron.left" size={20} color="#ffffff" />
+          </TouchableOpacity>
+          <View style={styles.rightActions}>
+            <TouchableOpacity style={styles.glassBtn} onPress={handleShare}>
+              <IconSymbol name="square.and.arrow.up" size={18} color="#ffffff" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.glassBtn, isFavorited && styles.glassBtnActive]} 
+              onPress={() => setIsFavorited(!isFavorited)}
+            >
+              <IconSymbol 
+                name={isFavorited ? "heart.fill" : "heart"} 
+                size={18} 
+                color={isFavorited ? "#ef4444" : "#ffffff"} 
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* ── INFO SECTION ── */}
         <View style={styles.contentSection}>
-          <View style={styles.headerRow}>
-            <View style={styles.titleContainer}>
-              <View style={styles.nameRow}>
-                <View style={styles.verifiedBadgeIcon}>
-                  <IconSymbol name="checkmark.seal.fill" size={14} color="#ffffff" />
-                </View>
-                <Text style={styles.businessName}>{business.name}</Text>
-              </View>
-              
-              <View style={styles.locationRow}>
-                <IconSymbol name="mappin.and.ellipse" size={14} color="#94a3b8" />
-                <Text style={styles.locationText}>
-                  {business.location.address || locality || 'New Delhi'}
-                </Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.businessName} numberOfLines={1} ellipsizeMode="tail">
+              {business.name}
+            </Text>
+          </View>
+          
+          <View style={styles.locationRow}>
+            <IconSymbol name="mappin.and.ellipse" size={14} color="#94a3b8" />
+            <Text style={styles.locationText} numberOfLines={1} ellipsizeMode="tail">
+              {business.location.address || locality || 'New Delhi'}
+            </Text>
+            {distanceStr && (
+              <>
                 <View style={styles.dot} />
-                <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryText}>{business.type}</Text>
-                </View>
-                {business.vendorCode && (
-                  <TouchableOpacity 
-                    style={[styles.categoryBadge, { borderColor: 'rgba(59, 130, 246, 0.3)', backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}
-                    onPress={async () => {
-                      if (business.vendorCode) {
-                        await Clipboard.setStringAsync(business.vendorCode);
-                        Alert.alert("Copied!", "Vendor Code copied to clipboard.");
-                      }
-                    }}
-                  >
-                    <Text style={[styles.categoryText, { color: '#3b82f6' }]}>Code: {business.vendorCode} 📋</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+                <Text style={styles.distanceText}>{distanceStr}</Text>
+              </>
+            )}
+          </View>
+          
+          <View style={styles.badgesRow}>
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryText}>{business.type}</Text>
             </View>
-            <View style={styles.ratingBadge}>
-              <IconSymbol name="star.fill" size={16} color="#d4af37" />
+            {business.vendorCode && (
+              <TouchableOpacity 
+                style={[styles.categoryBadge, { borderColor: 'rgba(56, 189, 248, 0.35)', backgroundColor: 'rgba(56, 189, 248, 0.12)', flexDirection: 'row', alignItems: 'center', gap: 4 }]}
+                onPress={async () => {
+                  if (business.vendorCode) {
+                    await Clipboard.setStringAsync(business.vendorCode);
+                    Alert.alert("Copied!", "Vendor Code copied to clipboard.");
+                  }
+                }}
+              >
+                <Text style={[styles.categoryText, { color: '#38bdf8', textTransform: 'none' }]}>Code: {business.vendorCode}</Text>
+                <IconSymbol name="doc.on.doc.fill" size={10} color="#38bdf8" />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity 
+              style={styles.ratingBadge} 
+              activeOpacity={0.7}
+              onPress={() => {
+                setSelectedRating(5); // Default to 5 stars on open
+                setShowRatingModal(true);
+              }}
+            >
+              <IconSymbol name="star.fill" size={10} color="#d4af37" />
               <Text style={styles.ratingText}>{business.rating}</Text>
-            </View>
+            </TouchableOpacity>
           </View>
           
 
@@ -302,25 +533,25 @@ export default function BusinessDetailScreen() {
             })}
           </View>
 
+          {/* ── HIGHLIGHTS CARDS BELOW TABS ── */}
+          <View style={styles.highlightsRow}>
+            {highlights.map((item) => (
+              <View key={item.id} style={styles.highlightCard}>
+                <View style={[styles.highlightIcon, { backgroundColor: `${item.color}15` }]}>
+                  {item.renderIcon ? (
+                    item.renderIcon(item.color, 16)
+                  ) : (
+                    <IconSymbol name={item.icon as any} size={16} color={item.color} />
+                  )}
+                </View>
+                <Text style={styles.highlightTitle}>{item.title}</Text>
+                <Text style={styles.highlightSubtitle}>{item.subtitle}</Text>
+              </View>
+            ))}
+          </View>
+
           {activeTab === 'About' && (
             <View style={{ animationDuration: '300ms' }}>
-              {/* ── HIGHLIGHTS ── */}
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false} 
-                contentContainerStyle={styles.highlightsContainer}
-              >
-                {highlights.map((item) => (
-                  <View key={item.id} style={styles.highlightItem}>
-                    <View style={[styles.highlightIcon, { backgroundColor: `${item.color}15` }]}>
-                      <IconSymbol name={item.icon as any} size={18} color={item.color} />
-                    </View>
-                    <Text style={styles.highlightTitle}>{item.title}</Text>
-                    <Text style={styles.highlightSubtitle}>{item.subtitle}</Text>
-                  </View>
-                ))}
-              </ScrollView>
-
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>About</Text>
                 <Text style={styles.descriptionText}>
@@ -379,23 +610,65 @@ export default function BusinessDetailScreen() {
 
           {activeTab === 'Announcements' && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Announcements</Text>
-              {business.announcements && business.announcements.length > 0 ? (
-                business.announcements.map((item, index) => (
-                  <View key={index} style={styles.announcementCard}>
-                    <View style={styles.announcementHeader}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                        <IconSymbol name="megaphone.fill" size={18} color="#d4af37" />
-                        <Text style={styles.announcementDate}>{index === 0 ? 'Latest' : 'Update'}</Text>
+              <Text style={[styles.sectionTitle, { marginBottom: 20 }]}>
+                Announcements ({business?.announcements?.length || 0})
+              </Text>
+
+              {/* Announcements feed list */}
+              {business?.announcements && business.announcements.length > 0 ? (
+                business.announcements.map((item, index) => {
+                  const matchedActivity = announcementsList.find(
+                    (act: any) => act.content?.trim() === item?.trim()
+                  );
+                  
+                  const dateStr = matchedActivity && matchedActivity.createdAt 
+                    ? new Date(matchedActivity.createdAt.seconds * 1000).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })
+                    : 'Recently';
+                  
+                  return (
+                    <View key={index} style={[styles.announcementCard, index === 0 && styles.announcementCardLatest]}>
+                      {index === 0 && (
+                        <View style={styles.latestBanner}>
+                          <IconSymbol name="sparkles" size={10} color="#0f172a" />
+                          <Text style={styles.latestBannerText}>LATEST UPDATE</Text>
+                        </View>
+                      )}
+                      
+                      <View style={styles.announcementHeader}>
+                        <View style={styles.announcementIconWrapper}>
+                          <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <Path d="M11 6a13 13 0 0 0 8.4-2.8A1 1 0 0 1 21 4v12a1 1 0 0 1-1.6.8A13 13 0 0 0 11 14H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" />
+                            <Path d="M6 14a12 12 0 0 0 2.4 7.2 2 2 0 0 0 3.2-2.4A8 8 0 0 1 10 14" />
+                            <Path d="M8 6v8" />
+                          </Svg>
+                        </View>
+                        <View style={styles.announcementMeta}>
+                          <Text style={styles.announcementTitleText}>
+                            {matchedActivity?.title || 'Official Announcement'}
+                          </Text>
+                          <Text style={styles.announcementDateText}>{dateStr}</Text>
+                        </View>
                       </View>
+                      
+                      <Text style={styles.announcementBodyText}>{item}</Text>
                     </View>
-                    <Text style={styles.announcementBody}>{item}</Text>
-                  </View>
-                ))
+                  );
+                })
               ) : (
                 <View style={styles.emptyState}>
-                  <IconSymbol name="megaphone" size={40} color="#334155" />
-                  <Text style={styles.emptyStateText}>No announcements from this business yet.</Text>
+                  <View style={styles.emptyIconBg}>
+                    <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                      <Path d="M11 6a13 13 0 0 0 8.4-2.8A1 1 0 0 1 21 4v12a1 1 0 0 1-1.6.8A13 13 0 0 0 11 14H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" />
+                      <Path d="M6 14a12 12 0 0 0 2.4 7.2 2 2 0 0 0 3.2-2.4A8 8 0 0 1 10 14" />
+                      <Path d="M8 6v8" />
+                    </Svg>
+                  </View>
+                  <Text style={styles.emptyStateTitle}>No announcements yet</Text>
+                  <Text style={styles.emptyStateDesc}>Stay tuned! This business will post updates, offers, and announcements here.</Text>
                 </View>
               )}
             </View>
@@ -405,73 +678,105 @@ export default function BusinessDetailScreen() {
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>What Clients Say</Text>
-                <TouchableOpacity>
+                <TouchableOpacity onPress={() => {
+                  if (user && user.uid) {
+                    getUserRatingForBusiness(user.uid, id).then(r => {
+                      if (r !== null) setSelectedRating(r);
+                    }).catch(() => {});
+                  }
+                  setShowRatingModal(true);
+                }}>
                   <Text style={styles.viewAllText}>Write a review</Text>
                 </TouchableOpacity>
               </View>
-              <View style={styles.reviewCard}>
-                <View style={styles.reviewHeader}>
-                  <ExpoImage 
-                    source={{ uri: 'https://i.pravatar.cc/100?img=32' }} 
-                    style={styles.reviewerAvatar} 
-                  />
-                  <View style={styles.reviewerInfo}>
-                    <Text style={styles.reviewerName}>Ananya Sharma</Text>
-                    <Text style={styles.reviewDate}>2 weeks ago</Text>
+
+              {loadingReviews ? (
+                <ActivityIndicator color="#eab308" style={{ marginVertical: 32 }} />
+              ) : reviews.length === 0 ? (
+                <View style={styles.emptyReviewsState}>
+                  <View style={styles.emptyIconBg}>
+                    <IconSymbol name="star" size={28} color="#eab308" />
                   </View>
-                  <View style={styles.reviewStars}>
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <IconSymbol key={s} name="star.fill" size={10} color="#d4af37" />
-                    ))}
-                  </View>
+                  <Text style={styles.emptyStateTitle}>No reviews yet</Text>
+                  <Text style={styles.emptyStateDesc}>Be the first to share your experience with this vendor and help the community!</Text>
+                  
+                  <TouchableOpacity 
+                    style={styles.firstReviewBtn}
+                    onPress={() => setShowRatingModal(true)}
+                  >
+                    <Text style={styles.firstReviewBtnText}>Write First Review</Text>
+                  </TouchableOpacity>
                 </View>
-                <Text style={styles.reviewContent}>
-                  Absolutely amazing experience! The team was professional and captured every moment beautifully. Highly recommend for any wedding event.
-                </Text>
-              </View>
+              ) : (
+                reviews.map((item) => {
+                  let formattedDate = 'Recent review';
+                  if (item.createdAt) {
+                    const date = item.createdAt.toDate ? item.createdAt.toDate() : new Date(item.createdAt);
+                    formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                  }
+                  
+                  const initials = item.userName 
+                    ? item.userName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
+                    : 'U';
+
+                  return (
+                    <View key={item.id} style={styles.reviewCard}>
+                      <View style={styles.reviewHeader}>
+                        <View style={styles.avatarPlaceholder}>
+                          <Text style={styles.avatarPlaceholderText}>{initials}</Text>
+                        </View>
+                        <View style={styles.reviewerInfo}>
+                          <Text style={styles.reviewerName}>{item.userName || 'Anonymous User'}</Text>
+                          <Text style={styles.reviewDate}>{formattedDate}</Text>
+                        </View>
+                        <View style={styles.reviewStarsRow}>
+                          {[1, 2, 3, 4, 5].map((s) => {
+                            const isFilled = s <= item.rating;
+                            return (
+                              <IconSymbol 
+                                key={s} 
+                                name={isFilled ? "star.fill" : "star"} 
+                                size={12} 
+                                color={isFilled ? "#eab308" : "#334155"} 
+                              />
+                            );
+                          })}
+                        </View>
+                      </View>
+                      {item.comment ? (
+                        <Text style={styles.reviewContent}>{item.comment}</Text>
+                      ) : (
+                        <Text style={[styles.reviewContent, styles.ratingOnlyText]}>Rated {item.rating} out of 5 stars</Text>
+                      )}
+                    </View>
+                  );
+                })
+              )}
             </View>
           )}
         </View>
       </ScrollView>
 
-      {/* ── STICKY TOP ACTIONS ── */}
-      <SafeAreaView style={styles.headerActions} edges={['top']}>
-        <TouchableOpacity style={styles.glassBtn} onPress={() => router.back()}>
-          <IconSymbol name="chevron.left" size={20} color="#ffffff" />
-        </TouchableOpacity>
-        <View style={styles.rightActions}>
-          <TouchableOpacity style={styles.glassBtn} onPress={handleShare}>
-            <IconSymbol name="square.and.arrow.up" size={18} color="#ffffff" />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.glassBtn, isFavorited && styles.glassBtnActive]} 
-            onPress={() => setIsFavorited(!isFavorited)}
-          >
-            <IconSymbol 
-              name={isFavorited ? "heart.fill" : "heart"} 
-              size={18} 
-              color={isFavorited ? "#ef4444" : "#ffffff"} 
-            />
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-
       {/* ── BOTTOM CTA ── */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity 
-          style={styles.secondaryCTA}
-          onPress={() => {
-            setShowEnquiryForm(true);
-            setEnquiryMessage(`Hi ${business.name}, I'm interested in your services. Please share your availability.`);
-          }}
-        >
-          <IconSymbol name="bubble.left.and.bubble.right.fill" size={18} color="#d4af37" />
-          <Text style={styles.secondaryCTAText}>Enquire</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.primaryCTA} onPress={() => setShowContactOptions(true)}>
-          <Text style={styles.primaryCTAText}>Contact Now</Text>
-          <IconSymbol name="arrow.right" size={16} color="#020617" />
-        </TouchableOpacity>
+        <View style={styles.ctaContainer}>
+          <TouchableOpacity 
+            style={styles.secondaryCTA}
+            onPress={() => {
+              setShowEnquiryForm(true);
+              setEnquiryMessage(`Hi ${business.name}, I'm interested in your services. Please share your availability.`);
+            }}
+          >
+            <IconSymbol name="bubble.left.and.bubble.right.fill" size={18} color="#d4af37" />
+            <Text style={styles.secondaryCTAText}>Enquire</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.ctaContainer}>
+          <TouchableOpacity style={styles.primaryCTA} onPress={() => setShowContactOptions(true)}>
+            <Text style={styles.primaryCTAText}>Contact Now</Text>
+            <IconSymbol name="arrow.right" size={16} color="#020617" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ── CONTACT OPTIONS MODAL ── */}
@@ -618,6 +923,95 @@ export default function BusinessDetailScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* ── RATING MODAL ── */}
+      <Modal
+        visible={showRatingModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowRatingModal(false)}
+      >
+        <View style={styles.ratingModalOverlay}>
+          <View style={styles.ratingContainer}>
+            <View style={styles.ratingModalHeader}>
+              <Text style={styles.ratingModalTitle}>Submit Rating</Text>
+              <TouchableOpacity 
+                style={styles.closeRatingBtn} 
+                onPress={() => setShowRatingModal(false)}
+              >
+                <IconSymbol name="xmark" size={18} color="#94a3b8" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.ratingModalContent}>
+              <Text style={styles.ratingBizName}>{business.name}</Text>
+              
+              {/* Huge score indicator for clear visual feedback */}
+              <Text style={styles.ratingScoreNumber}>{selectedRating}.0</Text>
+              
+              {/* Stars selection row */}
+              <View style={styles.starsSelectRow}>
+                {[1, 2, 3, 4, 5].map((starValue) => {
+                  const isFilled = starValue <= selectedRating;
+                  return (
+                    <TouchableOpacity
+                      key={starValue}
+                      activeOpacity={0.7}
+                      onPress={() => setSelectedRating(starValue)}
+                      style={styles.starWrapper}
+                    >
+                      <IconSymbol 
+                        name={isFilled ? "star.fill" : "star"} 
+                        size={38} 
+                        color={isFilled ? "#eab308" : "#334155"} 
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Dynamic feedback text */}
+              <Text style={styles.ratingFeedbackText}>
+                {selectedRating === 1 && "Disappointing 😟"}
+                {selectedRating === 2 && "Mediocre 😐"}
+                {selectedRating === 3 && "Good experience 🙂"}
+                {selectedRating === 4 && "Very Professional! 😊"}
+                {selectedRating === 5 && "Exceptional Service! 🤩"}
+              </Text>
+
+              {/* Written review comment (Optional) */}
+              <View style={styles.reviewInputWrapper}>
+                <TextInput
+                  style={styles.reviewCommentInput}
+                  placeholder="Share details of your experience (optional)..."
+                  placeholderTextColor="#64748b"
+                  multiline
+                  numberOfLines={3}
+                  value={reviewComment}
+                  onChangeText={setReviewComment}
+                />
+              </View>
+
+              <Text style={styles.ratingInstruction}>
+                Your review helps the community book with confidence
+              </Text>
+
+              {/* Submit rating CTA button */}
+              <TouchableOpacity
+                style={[styles.submitRatingBtn, submittingRating && styles.btnDisabled]}
+                onPress={handleRatingSubmit}
+                disabled={submittingRating}
+              >
+                {submittingRating ? (
+                  <ActivityIndicator color="#0f172a" />
+                ) : (
+                  <Text style={styles.submitRatingBtnText}>Submit Rating</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -665,13 +1059,13 @@ const styles = StyleSheet.create({
   },
   headerActions: {
     position: 'absolute',
-    top: 0,
+    top: Platform.OS === 'ios' ? 60 : 40,
     left: 0,
     right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 0 : 40,
+    zIndex: 10,
   },
   glassBtn: {
     width: 44,
@@ -714,10 +1108,10 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   businessName: {
-    fontSize: 28,
+    fontSize: 24,
     color: '#ffffff',
     fontFamily: 'Outfit_800ExtraBold',
-    lineHeight: 34,
+    lineHeight: 30,
   },
   verifiedBadgeIcon: {
     width: 20,
@@ -734,12 +1128,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   locationText: {
     fontSize: 14,
     color: '#94a3b8',
     fontFamily: 'Inter_400Regular',
+    flexShrink: 1,
+  },
+  distanceText: {
+    fontSize: 14,
+    color: '#3b82f6',
+    fontFamily: 'Inter_600SemiBold',
+    flexShrink: 0,
+  },
+  badgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
   },
   categoryBadge: {
     backgroundColor: 'rgba(212, 175, 55, 0.12)',
@@ -748,6 +1155,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(212, 175, 55, 0.25)',
+    flexShrink: 0,
   },
   categoryText: {
     fontSize: 11,
@@ -765,18 +1173,20 @@ const styles = StyleSheet.create({
   ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    gap: 6,
+    backgroundColor: 'rgba(212, 175, 55, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: 'rgba(212, 175, 55, 0.25)',
+    flexShrink: 0,
   },
   ratingText: {
-    fontSize: 16,
+    fontSize: 11,
     color: '#ffffff',
-    fontFamily: 'Outfit_700Bold',
+    fontFamily: 'Outfit_800ExtraBold',
+    letterSpacing: 0.5,
   },
   announcementBanner: {
     flexDirection: 'row',
@@ -798,6 +1208,19 @@ const styles = StyleSheet.create({
     color: '#020617',
     fontFamily: 'Outfit_700Bold',
   },
+  announcementCountBadge: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  announcementCountText: {
+    color: '#ef4444',
+    fontSize: 11,
+    fontFamily: 'Outfit_700Bold',
+  },
   announcementCard: {
     backgroundColor: '#0f172a',
     padding: 20,
@@ -805,23 +1228,66 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
     marginBottom: 16,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  announcementCardLatest: {
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+  },
+  latestBanner: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderBottomLeftRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  latestBannerText: {
+    color: '#ffffff',
+    fontSize: 8,
+    fontFamily: 'Outfit_800ExtraBold',
+    letterSpacing: 0.5,
   },
   announcementHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 14,
   },
-  announcementDate: {
-    fontSize: 12,
+  announcementIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  announcementMeta: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  announcementTitleText: {
+    fontSize: 14,
+    color: '#ffffff',
+    fontFamily: 'Outfit_700Bold',
+  },
+  announcementDateText: {
+    fontSize: 11,
     color: '#64748b',
-    fontFamily: 'Inter_600SemiBold',
-    textTransform: 'uppercase',
+    fontFamily: 'Inter_500Medium',
+    marginTop: 1,
   },
-  announcementBody: {
-    fontSize: 15,
+  announcementBodyText: {
+    fontSize: 14,
     color: '#e2e8f0',
-    lineHeight: 24,
+    lineHeight: 22,
     fontFamily: 'Inter_400Regular',
   },
   emptyState: {
@@ -830,43 +1296,71 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
     gap: 12,
   },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#64748b',
-    fontFamily: 'Inter_500Medium',
+  emptyIconBg: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+  },
+  emptyStateTitle: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontFamily: 'Outfit_700Bold',
     textAlign: 'center',
   },
-  highlightsContainer: {
-    gap: 16,
-    paddingBottom: 24,
+  emptyStateDesc: {
+    fontSize: 13,
+    color: '#64748b',
+    fontFamily: 'Inter_400Regular',
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 24,
+    marginTop: 4,
   },
-  highlightItem: {
-    width: 85,
+  highlightsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 20,
+  },
+  highlightCard: {
+    flex: 1,
     alignItems: 'center',
     backgroundColor: '#0f172a',
     paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 16,
+    paddingHorizontal: 6,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
   highlightIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
   },
   highlightTitle: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#ffffff',
     fontFamily: 'Outfit_700Bold',
     textAlign: 'center',
+    marginBottom: 2,
   },
   highlightSubtitle: {
     fontSize: 9,
-    color: '#64748b',
+    color: '#94a3b8',
     fontFamily: 'Inter_500Medium',
     textAlign: 'center',
   },
@@ -875,7 +1369,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a',
     borderRadius: 16,
     padding: 6,
-    marginBottom: 32,
+    marginBottom: 20,
   },
   tabItem: {
     flex: 1,
@@ -883,9 +1377,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
     alignItems: 'center',
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   tabItemActive: {
-    backgroundColor: '#d4af37',
+    backgroundColor: 'rgba(212, 175, 55, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
   },
   tabText: {
     fontSize: 12,
@@ -893,7 +1391,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_600SemiBold',
   },
   tabTextActive: {
-    color: '#020617',
+    color: '#d4af37',
   },
   tabDot: {
     width: 6,
@@ -1087,15 +1585,82 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontFamily: 'Inter_400Regular',
   },
-  reviewStars: {
+  reviewStarsRow: {
     flexDirection: 'row',
     gap: 3,
+  },
+  avatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  avatarPlaceholderText: {
+    color: '#eab308',
+    fontSize: 14,
+    fontFamily: 'Outfit_700Bold',
+  },
+  ratingOnlyText: {
+    fontStyle: 'italic',
+    color: '#64748b',
+    fontSize: 13,
+  },
+  emptyReviewsState: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.04)',
+    marginTop: 12,
+  },
+  firstReviewBtn: {
+    backgroundColor: '#eab308',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginTop: 18,
+    shadowColor: '#eab308',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  firstReviewBtnText: {
+    color: '#0f172a',
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 14,
+  },
+  reviewInputWrapper: {
+    width: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+    marginTop: 12,
+  },
+  reviewCommentInput: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontFamily: 'Inter_500Medium',
+    height: 70,
+    textAlignVertical: 'top',
   },
   reviewContent: {
     fontSize: 14,
     color: '#cbd5e1',
     lineHeight: 22,
     fontFamily: 'Inter_400Regular',
+    marginTop: 12,
   },
   bottomBar: {
     position: 'absolute',
@@ -1111,8 +1676,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.05)',
   },
+  ctaContainer: {
+    flex: 1,
+  },
   secondaryCTA: {
-    width: 120,
+    width: '100%',
     height: 56,
     borderRadius: 16,
     backgroundColor: 'rgba(212, 175, 55, 0.1)',
@@ -1129,7 +1697,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
   },
   primaryCTA: {
-    flex: 1,
+    width: '100%',
     height: 56,
     backgroundColor: '#d4af37',
     borderRadius: 16,
@@ -1137,6 +1705,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   primaryCTAText: {
     color: '#020617',
@@ -1324,6 +1894,110 @@ const styles = StyleSheet.create({
   },
   backBtnLinkText: {
     color: '#020617',
+    fontFamily: 'Outfit_700Bold',
+  },
+  ratingModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(2, 6, 23, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ratingContainer: {
+    backgroundColor: '#0f172a',
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 24,
+    width: width * 0.88,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  ratingModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    paddingBottom: 16,
+  },
+  ratingModalTitle: {
+    fontSize: 18,
+    color: '#ffffff',
+    fontFamily: 'Outfit_700Bold',
+  },
+  closeRatingBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ratingModalContent: {
+    alignItems: 'center',
+    paddingTop: 16,
+  },
+  ratingBizName: {
+    fontSize: 18,
+    color: '#ffffff',
+    fontFamily: 'Outfit_700Bold',
+    textAlign: 'center',
+  },
+  ratingScoreNumber: {
+    fontSize: 58,
+    color: '#ffffff',
+    fontFamily: 'Outfit_900Black',
+    marginTop: 8,
+    marginBottom: 8,
+    textAlign: 'center',
+    letterSpacing: -1,
+  },
+  ratingInstruction: {
+    fontSize: 12,
+    color: '#64748b',
+    fontFamily: 'Inter_500Medium',
+    marginTop: 4,
+    marginBottom: 20,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 16,
+  },
+  starsSelectRow: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  starWrapper: {
+    padding: 4,
+  },
+  ratingFeedbackText: {
+    fontSize: 15,
+    color: '#eab308',
+    fontFamily: 'Outfit_700Bold',
+    marginTop: 14,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  submitRatingBtn: {
+    backgroundColor: '#eab308',
+    borderRadius: 18,
+    height: 52,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#eab308',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  submitRatingBtnText: {
+    color: '#0f172a',
+    fontSize: 15,
     fontFamily: 'Outfit_700Bold',
   },
 });

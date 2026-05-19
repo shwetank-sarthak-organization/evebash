@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,7 +21,8 @@ import { Image as ExpoImage } from 'expo-image';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { getBusinessById, updateBusiness, Business, addBusinessActivity } from '@/lib/firestore';
+import { getBusinessById, updateBusiness, Business, addBusinessActivity, getEnquiriesForBusiness, Enquiry } from '@/lib/firestore';
+import { useAuth } from '@/context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
@@ -34,11 +36,14 @@ const BUSINESS_TYPES = [
 export default function ManageBusinessScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const { user } = useAuth();
   
   const [loading, setLoading] = useState(true);
   const [business, setBusiness] = useState<Business | null>(null);
   const [activeTab, setActiveTab] = useState('Profile');
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingNews, setIsEditingNews] = useState(false);
+  const [isEditingFaqs, setIsEditingFaqs] = useState(false);
 
   // Editable fields
   const [businessName, setBusinessName] = useState('');
@@ -60,14 +65,32 @@ export default function ManageBusinessScreen() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [timeRange, setTimeRange] = useState('1 Month');
 
+  // Enquiries State
+  const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
+  const [loadingEnquiries, setLoadingEnquiries] = useState(false);
+
   const TIME_RANGES = ['1 Week', '1 Month', '3 Month', '6 Month', '1 Year', '3 Year', 'Overall'];
 
   useEffect(() => {
-    if (id) {
+    if (id && user) {
       const bizId = Array.isArray(id) ? id[0] : id;
       fetchBusiness(bizId);
+      fetchEnquiries(bizId);
     }
-  }, [id]);
+  }, [id, user]);
+
+  const fetchEnquiries = async (bizId: string) => {
+    if (!user) return;
+    setLoadingEnquiries(true);
+    try {
+      const data = await getEnquiriesForBusiness(bizId, user.uid);
+      setEnquiries(data);
+    } catch (error) {
+      console.error('Error fetching enquiries:', error);
+    } finally {
+      setLoadingEnquiries(false);
+    }
+  };
 
   const fetchBusiness = async (bizId: string) => {
     setLoading(true);
@@ -372,10 +395,16 @@ export default function ManageBusinessScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.tabs}>
-          {['Profile', 'Portfolio', 'Interactions', 'Analytics'].map((tab) => (
+          {['Profile', 'Portfolio', 'Enquiries', 'Interactions', 'Analytics'].map((tab) => (
             <TouchableOpacity
               key={tab}
-              onPress={() => setActiveTab(tab)}
+              onPress={() => {
+                setActiveTab(tab);
+                if (tab === 'Enquiries' && id) {
+                  const bizId = Array.isArray(id) ? id[0] : id;
+                  fetchEnquiries(bizId);
+                }
+              }}
               style={[styles.tab, activeTab === tab && styles.activeTab]}
             >
               <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
@@ -741,6 +770,117 @@ export default function ManageBusinessScreen() {
           </KeyboardAvoidingView>
         )}
 
+        {/* ── RECEIVED ENQUIRIES / LEADS ── */}
+        {activeTab === 'Enquiries' && (
+          <View style={styles.tabContent}>
+            {loadingEnquiries ? (
+              <View style={[styles.center, { paddingVertical: 40 }]}>
+                <ActivityIndicator size="large" color="#d4af37" />
+              </View>
+            ) : enquiries.length === 0 ? (
+              <View style={styles.emptyState}>
+                <View style={styles.emptyIconBg}>
+                  <IconSymbol name="bubble.right" size={48} color="#d4af37" />
+                </View>
+                <Text style={styles.emptyStateTitle}>No Enquiries Yet</Text>
+                <Text style={styles.emptyStateDesc}>
+                  Once event planners or couples contact you from the Marketplace, their leads will show up here instantly!
+                </Text>
+              </View>
+            ) : (
+              <View style={{ gap: 16, paddingBottom: 20 }}>
+                <View style={styles.leadsOverviewCard}>
+                  <Text style={styles.leadsOverviewTitle}>Active Customer Leads</Text>
+                  <View style={styles.leadsCountBadge}>
+                    <Text style={styles.leadsCountText}>{enquiries.length} RECEIVED</Text>
+                  </View>
+                </View>
+
+                {enquiries.map((enquiry) => {
+                  const cleanedPhone = enquiry.phone ? enquiry.phone.replace(/[^0-9]/g, '') : '';
+                  const formattedDate = enquiry.createdAt?.toDate 
+                    ? enquiry.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                    : 'Just now';
+
+                  return (
+                    <View key={enquiry.id} style={styles.leadCard}>
+                      {/* Lead Header */}
+                      <View style={styles.leadHeader}>
+                        <View style={styles.leadUserMeta}>
+                          <View style={styles.leadUserAvatar}>
+                            <Text style={styles.leadAvatarText}>
+                              {enquiry.name ? enquiry.name.charAt(0).toUpperCase() : 'C'}
+                            </Text>
+                          </View>
+                          <View>
+                            <Text style={styles.leadClientName}>{enquiry.name}</Text>
+                            <Text style={styles.leadTimestamp}>{formattedDate}</Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Event Details */}
+                      <View style={styles.leadDetailsRow}>
+                        <View style={styles.leadDetailPill}>
+                          <IconSymbol name="calendar" size={14} color="#d4af37" />
+                          <Text style={styles.leadDetailPillText}>Event Date: {enquiry.date}</Text>
+                        </View>
+                      </View>
+
+                      {/* Customer Message */}
+                      <View style={styles.leadMessageContainer}>
+                        <Text style={styles.leadMessageLabel}>Customer Message:</Text>
+                        <Text style={styles.leadMessageContent}>"{enquiry.message}"</Text>
+                      </View>
+
+                      {/* Contact Action Buttons */}
+                      <View style={styles.leadActionsRow}>
+                        {enquiry.phone ? (
+                          <>
+                            <TouchableOpacity 
+                              style={[styles.leadActionBtn, styles.callBtn]}
+                              onPress={() => Linking.openURL(`tel:${enquiry.phone}`)}
+                            >
+                              <IconSymbol name="phone.fill" size={14} color="#ffffff" />
+                              <Text style={styles.leadActionBtnText}>Call Client</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                              style={[styles.leadActionBtn, styles.whatsappBtn]}
+                              onPress={() => {
+                                const waUrl = `https://wa.me/${cleanedPhone}?text=${encodeURIComponent(`Hi ${enquiry.name}, thank you for your enquiry on WedAlbum. We'd love to help you plan your event!`)}`;
+                                Linking.openURL(waUrl);
+                              }}
+                            >
+                              <IconSymbol name="message.fill" size={14} color="#ffffff" />
+                              <Text style={styles.leadActionBtnText}>WhatsApp</Text>
+                            </TouchableOpacity>
+                          </>
+                        ) : null}
+                        
+                        {enquiry.email ? (
+                          <TouchableOpacity 
+                            style={[styles.leadActionBtn, styles.emailBtn, !enquiry.phone && { flex: 1 }]}
+                            onPress={() => Linking.openURL(`mailto:${enquiry.email}?subject=${encodeURIComponent(`Enquiry Response - ${business.name}`)}`)}
+                          >
+                            <IconSymbol name="envelope.fill" size={14} color="#ffffff" />
+                            <Text style={styles.leadActionBtnText}>Email</Text>
+                          </TouchableOpacity>
+                        ) : null}
+
+                        {!enquiry.phone && !enquiry.email && (
+                          <View style={styles.noContactBadge}>
+                            <Text style={styles.noContactText}>No direct contact info provided</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        )}
+
         {/* ── PORTFOLIO & ANALYTICS ── */}
         {activeTab === 'Portfolio' && (
           <View style={styles.tabContent}>
@@ -771,16 +911,16 @@ export default function ManageBusinessScreen() {
             <View style={[styles.inputGroup, { marginTop: 10 }]}>
               <View style={styles.sectionHeaderRow}>
                 <Text style={styles.inputLabel}>News & Updates ({news.length}/10)</Text>
-                {!isEditing && (
+                {!isEditingNews && (
                   <TouchableOpacity 
                     style={styles.manageBtn}
-                    onPress={() => setIsEditing(true)}
+                    onPress={() => setIsEditingNews(true)}
                   >
                     <IconSymbol name="megaphone.fill" size={14} color="#d4af37" />
                     <Text style={styles.manageBtnText}>Manage</Text>
                   </TouchableOpacity>
                 )}
-                {isEditing && (
+                {isEditingNews && (
                   <View style={[styles.statusBadge, { backgroundColor: news.length > 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(148, 163, 184, 0.1)' }]}>
                     <Text style={[styles.statusText, { color: news.length > 0 ? '#22c55e' : '#94a3b8' }]}>
                       {news.length > 0 ? `${news.length} Active` : 'No News'}
@@ -789,7 +929,7 @@ export default function ManageBusinessScreen() {
                 )}
               </View>
 
-              {isEditing && (
+              {isEditingNews && (
                 <View style={styles.addNewsContainer}>
                   <TextInput
                     style={[styles.input, styles.newsInputSmall, news.length >= 10 && styles.disabledInput]}
@@ -817,32 +957,97 @@ export default function ManageBusinessScreen() {
                       <View style={styles.newsDot} />
                       <Text style={styles.newsItemText}>{item}</Text>
                     </View>
-                    {isEditing && (
+                    {isEditingNews && (
                       <TouchableOpacity onPress={() => removeNewsItem(index)}>
-                        <IconSymbol name="xmark.circle.fill" size={18} color="#ef4444" />
+                        <IconSymbol name="trash.fill" size={16} color="#ef4444" />
                       </TouchableOpacity>
                     )}
                   </View>
                 ))}
-                {news.length === 0 && !isEditing && (
+                {news.length === 0 && !isEditingNews && (
                   <Text style={styles.emptyText}>No active news or updates.</Text>
                 )}
               </View>
+              
+              {isEditingNews && (
+                <View style={styles.inlineActionsRow}>
+                  <TouchableOpacity 
+                    style={[styles.inlineActionBtn, styles.inlineCancelBtn]}
+                    onPress={() => {
+                      setNews(business?.announcements || []);
+                      setIsEditingNews(false);
+                    }}
+                  >
+                    <Text style={styles.inlineCancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.inlineActionBtn, styles.inlineSaveBtn]}
+                    onPress={async () => {
+                      const bizId = Array.isArray(id) ? id[0] : id;
+                      if (!bizId) return;
+                      setIsUpdating(true);
+                      try {
+                        let finalNews = [...news];
+                        if (newNewsItem.trim()) {
+                          finalNews = [newNewsItem.trim(), ...finalNews];
+                        }
+
+                        const oldAnnouncements = business?.announcements || [];
+                        const newAnnouncements = finalNews.filter(n => n.trim() && !oldAnnouncements.includes(n));
+                        for (const ann of newAnnouncements) {
+                          await addBusinessActivity({
+                            businessId: bizId,
+                            businessName: businessName,
+                            businessCover: coverImages[0] || '',
+                            businessType: category,
+                            createdBy: business?.createdBy || '',
+                            activityType: 'announcement',
+                            title: 'Announcement',
+                            content: ann
+                          });
+                        }
+                        
+                        const success = await updateBusiness(bizId, { announcements: finalNews });
+                        if (success) {
+                          if (business) {
+                            setBusiness({ ...business, announcements: finalNews });
+                          }
+                          setNews(finalNews);
+                          setNewNewsItem('');
+                          setIsEditingNews(false);
+                          Alert.alert("Success", "News & Updates updated successfully!");
+                        }
+                      } catch (err) {
+                        console.error("Save news failed:", err);
+                      } finally {
+                        setIsUpdating(false);
+                      }
+                    }}
+                  >
+                    {isUpdating ? (
+                      <ActivityIndicator size="small" color="#0f172a" />
+                    ) : (
+                      <Text style={styles.inlineSaveBtnText}>Save News</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+              
               <Text style={styles.inputHint}>Owners can manage up to 10 active news items. Delete old ones to make space.</Text>
             </View>
 
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.inputLabel}>Manage FAQ ({faqs.length}/5)</Text>
-              {!isEditing && (
+              {!isEditingFaqs && (
                 <TouchableOpacity 
                   style={styles.manageBtn}
-                  onPress={() => setIsEditing(true)}
+                  onPress={() => setIsEditingFaqs(true)}
                 >
                   <IconSymbol name="questionmark.circle.fill" size={14} color="#d4af37" />
                   <Text style={styles.manageBtnText}>Manage</Text>
                 </TouchableOpacity>
               )}
-              {isEditing && (
+              {isEditingFaqs && (
                 <TouchableOpacity 
                   style={[styles.addBtn, faqs.length >= 5 && { opacity: 0.5 }]} 
                   onPress={addFaq}
@@ -858,28 +1063,28 @@ export default function ManageBusinessScreen() {
               <View key={index} style={styles.faqEditor}>
                 <View style={styles.faqHeader}>
                   <Text style={styles.faqNumber}>FAQ #{index + 1}</Text>
-                  {isEditing && (
+                  {isEditingFaqs && (
                     <TouchableOpacity onPress={() => removeFaq(index)}>
                       <IconSymbol name="trash.fill" size={16} color="#ef4444" />
                     </TouchableOpacity>
                   )}
                 </View>
                 <TextInput
-                  style={[styles.input, { marginBottom: 8 }, !isEditing && styles.disabledInput]}
+                  style={[styles.input, { marginBottom: 8 }, !isEditingFaqs && styles.disabledInput]}
                   value={faq.q}
                   onChangeText={(val) => updateFaq(index, 'q', val)}
                   placeholder="Question"
                   placeholderTextColor="#475569"
-                  editable={isEditing}
+                  editable={isEditingFaqs}
                 />
                 <TextInput
-                  style={[styles.input, styles.textArea, { height: 80 }, !isEditing && styles.disabledInput]}
+                  style={[styles.input, styles.textArea, { height: 80 }, !isEditingFaqs && styles.disabledInput]}
                   value={faq.a}
                   onChangeText={(val) => updateFaq(index, 'a', val)}
                   placeholder="Answer"
                   placeholderTextColor="#475569"
                   multiline
-                  editable={isEditing}
+                  editable={isEditingFaqs}
                 />
               </View>
             ))}
@@ -887,11 +1092,68 @@ export default function ManageBusinessScreen() {
               <View style={styles.emptyState}>
                 <IconSymbol name="questionmark.circle.fill" size={40} color="#334155" />
                 <Text style={styles.emptyStateText}>No FAQs added yet.</Text>
-                {isEditing && (
+                {isEditingFaqs && (
                   <TouchableOpacity style={styles.addBtn} onPress={addFaq}>
                     <Text style={styles.addBtnText}>Create first FAQ</Text>
                   </TouchableOpacity>
                 )}
+              </View>
+            )}
+
+            {isEditingFaqs && (
+              <View style={[styles.inlineActionsRow, { marginTop: 16 }]}>
+                <TouchableOpacity 
+                  style={[styles.inlineActionBtn, styles.inlineCancelBtn]}
+                  onPress={() => {
+                    setFaqs(business?.faqs || []);
+                    setIsEditingFaqs(false);
+                  }}
+                >
+                  <Text style={styles.inlineCancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.inlineActionBtn, styles.inlineSaveBtn]}
+                  onPress={async () => {
+                    const bizId = Array.isArray(id) ? id[0] : id;
+                    if (!bizId) return;
+                    setIsUpdating(true);
+                    try {
+                      const oldFaqs = business?.faqs || [];
+                      const newFaqsList = faqs.filter(f => f.q.trim() && f.a.trim() && !oldFaqs.some(oldF => oldF.q === f.q));
+                      for (const faqItem of newFaqsList) {
+                        await addBusinessActivity({
+                          businessId: bizId,
+                          businessName: businessName,
+                          businessCover: coverImages[0] || '',
+                          businessType: category,
+                          createdBy: business?.createdBy || '',
+                          activityType: 'faq',
+                          title: 'New FAQ Added',
+                          content: `Q: ${faqItem.q}\nA: ${faqItem.a}`
+                        });
+                      }
+                      
+                      const success = await updateBusiness(bizId, { faqs: faqs });
+                      if (success) {
+                        if (business) {
+                          setBusiness({ ...business, faqs: faqs });
+                        }
+                        setIsEditingFaqs(false);
+                        Alert.alert("Success", "FAQs updated successfully!");
+                      }
+                    } catch (err) {
+                      console.error("Save FAQs failed:", err);
+                    } finally {
+                      setIsUpdating(false);
+                    }
+                  }}
+                >
+                  {isUpdating ? (
+                    <ActivityIndicator size="small" color="#0f172a" />
+                  ) : (
+                    <Text style={styles.inlineSaveBtnText}>Save FAQs</Text>
+                  )}
+                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -2305,13 +2567,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
-  inputHint: {
-    fontSize: 11,
-    color: '#475569',
-    fontFamily: 'Inter_400Regular',
-    marginTop: 8,
-    paddingHorizontal: 4,
-  },
   datePickerBtn: {
     backgroundColor: '#020617',
     borderRadius: 16,
@@ -2450,6 +2705,218 @@ const styles = StyleSheet.create({
   manageBtnText: {
     color: '#d4af37',
     fontSize: 11,
+    fontFamily: 'Outfit_700Bold',
+  },
+  leadsOverviewCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(212, 175, 55, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.15)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 8,
+  },
+  leadsOverviewTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
+  },
+  leadsCountBadge: {
+    backgroundColor: '#d4af37',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  leadsCountText: {
+    color: '#0f172a',
+    fontSize: 10,
+    fontFamily: 'Outfit_800ExtraBold',
+    letterSpacing: 0.5,
+  },
+  leadCard: {
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 24,
+    padding: 20,
+    gap: 16,
+  },
+  leadHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  leadUserMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  leadUserAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  leadAvatarText: {
+    color: '#d4af37',
+    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
+  },
+  leadClientName: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
+  },
+  leadTimestamp: {
+    color: '#64748b',
+    fontSize: 11,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 2,
+  },
+  leadDetailsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  leadDetailPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(212, 175, 55, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  leadDetailPillText: {
+    color: '#d4af37',
+    fontSize: 12,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  leadMessageContainer: {
+    backgroundColor: '#020617',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+  },
+  leadMessageLabel: {
+    color: '#64748b',
+    fontSize: 11,
+    fontFamily: 'Outfit_700Bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  leadMessageContent: {
+    color: '#e2e8f0',
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+    lineHeight: 20,
+    fontStyle: 'italic',
+  },
+  leadActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  leadActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 44,
+    borderRadius: 12,
+  },
+  callBtn: {
+    backgroundColor: '#2563eb',
+  },
+  whatsappBtn: {
+    backgroundColor: '#16a34a',
+  },
+  emailBtn: {
+    backgroundColor: '#475569',
+  },
+  leadActionBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontFamily: 'Outfit_700Bold',
+  },
+  noContactBadge: {
+    flex: 1,
+    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  noContactText: {
+    color: '#ef4444',
+    fontSize: 12,
+    fontFamily: 'Inter_500Medium',
+  },
+  emptyIconBg: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    color: '#ffffff',
+    fontFamily: 'Outfit_700Bold',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyStateDesc: {
+    fontSize: 14,
+    color: '#64748b',
+    fontFamily: 'Inter_400Regular',
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 16,
+  },
+  inlineActionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  inlineActionBtn: {
+    flex: 1,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  inlineCancelBtn: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  inlineSaveBtn: {
+    backgroundColor: '#d4af37',
+  },
+  inlineCancelBtnText: {
+    color: '#94a3b8',
+    fontSize: 13,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  inlineSaveBtnText: {
+    color: '#0f172a',
+    fontSize: 13,
     fontFamily: 'Outfit_700Bold',
   },
 });

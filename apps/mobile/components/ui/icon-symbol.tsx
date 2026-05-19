@@ -20,6 +20,7 @@ const MAPPING = {
   'bubble.right': 'chat-bubble-outline',
   'xmark': 'close',
   'star.fill': 'star',
+  'star': 'star-border',
   'checkmark': 'check',
   'info.circle': 'info',
   'person.2.fill': 'people',
@@ -61,6 +62,7 @@ const MAPPING = {
   'bell.fill': 'notifications',
   'eye.fill': 'visibility',
   'chevron.down': 'keyboard-arrow-down',
+  'doc.on.doc.fill': 'content-copy',
 } as const;
 
 type IconSymbolName = keyof typeof MAPPING;

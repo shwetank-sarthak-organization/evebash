@@ -803,6 +803,19 @@ export async function getBusinessById(id: string): Promise<Business | null> {
   }
 }
 
+export async function getEventsCountForVendor(vendorId: string): Promise<number> {
+  try {
+    const eventsCol = collection(db, "events");
+    const q = query(eventsCol, where("vendors", "array-contains", vendorId));
+    const snapshot = await getDocs(q);
+    return snapshot.size;
+  } catch (e) {
+    console.error("Error fetching event count for vendor:", e);
+    return 0;
+  }
+}
+
+
 export async function getBusinessByVendorCode(code: string): Promise<Business | null> {
   try {
     const formattedCode = code.toUpperCase().trim();
@@ -847,6 +860,68 @@ export async function updateBusiness(bizId: string, data: Partial<Business>): Pr
   } catch (e) {
     console.error("Error updating business: ", e);
     return false;
+  }
+}
+
+export async function getUserRatingForBusiness(userId: string, bizId: string): Promise<number | null> {
+  try {
+    const docRef = doc(db, 'businessRatings', `${userId}_${bizId}`);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return docSnap.data().rating as number;
+    }
+    return null;
+  } catch (e) {
+    console.error("Error getting user rating for business: ", e);
+    return null;
+  }
+}
+
+export async function saveUserRating(
+  userId: string, 
+  bizId: string, 
+  rating: number, 
+  comment?: string, 
+  userName?: string
+): Promise<boolean> {
+  try {
+    const docRef = doc(db, 'businessRatings', `${userId}_${bizId}`);
+    await setDoc(docRef, {
+      userId,
+      businessId: bizId,
+      rating,
+      comment: comment || '',
+      userName: userName || 'Anonymous User',
+      createdAt: serverTimestamp()
+    });
+    return true;
+  } catch (e) {
+    console.error("Error saving user rating: ", e);
+    return false;
+  }
+}
+
+export async function getReviewsForBusiness(bizId: string): Promise<any[]> {
+  try {
+    const q = query(
+      collection(db, 'businessRatings'),
+      where('businessId', '==', bizId)
+    );
+    const querySnapshot = await getDocs(q);
+    const reviews: any[] = [];
+    querySnapshot.forEach((doc) => {
+      reviews.push({ id: doc.id, ...doc.data() });
+    });
+    
+    // Sort reviews locally by createdAt descending to avoid index errors on Firebase
+    return reviews.sort((a, b) => {
+      const timeA = a.createdAt?.seconds || 0;
+      const timeB = b.createdAt?.seconds || 0;
+      return timeB - timeA;
+    });
+  } catch (e) {
+    console.error("Error getting reviews for business: ", e);
+    return [];
   }
 }
 
@@ -1276,6 +1351,82 @@ export async function getBusinessActivities(creatorIds: string[]): Promise<any[]
         return allDocs;
     } catch (e) {
         console.error("Error fetching business activities:", e);
+        return [];
+    }
+}
+
+export async function getAnnouncementsForBusiness(bizId: string): Promise<any[]> {
+    try {
+        const activitiesCol = collection(db, 'businessActivities');
+        const q = query(
+            activitiesCol,
+            where('businessId', '==', bizId)
+        );
+        const snapshot = await getDocs(q);
+        const allActivities = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        
+        // Filter only announcement activities
+        const announcements = allActivities.filter((act: any) => act.activityType === 'announcement');
+        
+        // Sort descending by createdAt chronologically
+        announcements.sort((a: any, b: any) => {
+            const timeA = a.createdAt?.seconds || 0;
+            const timeB = b.createdAt?.seconds || 0;
+            return timeB - timeA;
+        });
+        
+        return announcements;
+    } catch (e) {
+        console.error("Error fetching announcements for business:", e);
+        return [];
+    }
+}
+
+export interface Enquiry {
+    id?: string;
+    businessId: string;
+    businessName: string;
+    name: string;
+    date: string;
+    message: string;
+    phone?: string;
+    email?: string;
+    userId?: string;
+    vendorOwnerId: string;
+    vendorOwnerEmail: string;
+    createdAt?: any;
+}
+
+export async function addEnquiry(enquiry: Omit<Enquiry, 'id' | 'createdAt'>) {
+    try {
+        const enquiriesCol = collection(db, "enquiries");
+        const docRef = await addDoc(enquiriesCol, {
+            ...enquiry,
+            createdAt: serverTimestamp()
+        });
+        return docRef.id;
+    } catch (error) {
+        console.error("Error adding enquiry:", error);
+        return null;
+    }
+}
+
+export async function getEnquiriesForBusiness(businessId: string, userId: string): Promise<Enquiry[]> {
+    try {
+        const enquiriesCol = collection(db, "enquiries");
+        const q = query(enquiriesCol, where("vendorOwnerId", "==", userId));
+        const snapshot = await getDocs(q);
+        const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Enquiry));
+        
+        // Filter by specific businessId locally and sort by createdAt descending
+        const filtered = list.filter(e => e.businessId === businessId);
+        return filtered.sort((a, b) => {
+            const timeA = a.createdAt?.seconds || a.createdAt?.getTime?.() / 1000 || 0;
+            const timeB = b.createdAt?.seconds || b.createdAt?.getTime?.() / 1000 || 0;
+            return timeB - timeA;
+        });
+    } catch (error) {
+        console.error("Error fetching enquiries for business:", error);
         return [];
     }
 }
