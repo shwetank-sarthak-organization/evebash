@@ -766,34 +766,42 @@ export default function PortfolioTabScreen() {
 
             {templateVisible ? (
               <ScrollView showsVerticalScrollIndicator={false} style={styles.templateModalContent}>
-                {MOBILE_TEMPLATE_THEMES.map((template, index) => (
-                  <TouchableOpacity
-                    key={template.id}
-                    style={[
-                      styles.templateOptionCard,
-                      { borderColor: (targetEvent?.templateId || 'hero') === template.id ? template.accent : 'rgba(255,255,255,0.08)' },
-                    ]}
-                    onPress={() => { handleTemplateSelect(template.id); setTemplateVisible(false); }}
-                    activeOpacity={0.9}
-                  >
-                    <View style={[styles.templatePreview, { backgroundColor: isDark ? template.background.dark : template.background.light }]}>
-                      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.1)' }]} />
-                      <Text style={[styles.templatePreviewLabel, { color: template.accent }]}>Template {index + 1}</Text>
-                      <Text style={[styles.templatePreviewTitle, { color: isDark ? template.text.dark : template.text.light }]}>{template.label}</Text>
-                    </View>
-                    <View style={styles.templateMeta}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.templateName}>{template.label}</Text>
-                        <Text style={styles.templateDesc}>{template.desc}</Text>
+                {MOBILE_TEMPLATE_THEMES.map((template) => {
+                  const isActive = (targetEvent?.templateId || 'hero') === template.id;
+                  return (
+                    <TouchableOpacity
+                      key={template.id}
+                      style={[
+                        styles.templateRowCard,
+                        isActive && styles.activeTemplateRowCard,
+                        { borderColor: isActive ? template.accent : 'rgba(255,255,255,0.06)' },
+                      ]}
+                      onPress={() => { handleTemplateSelect(template.id); setTemplateVisible(false); }}
+                      activeOpacity={0.9}
+                    >
+                      <View style={styles.templateRowLeft}>
+                        <View style={[styles.palettePreview, { backgroundColor: isDark ? template.background.dark : template.background.light }]}>
+                          <View style={[styles.paletteAccentDot, { backgroundColor: template.accent }]} />
+                        </View>
+                        
+                        <View style={styles.templateRowText}>
+                          <Text style={[styles.templateRowName, isActive && { color: template.accent }]}>
+                            {template.label}
+                          </Text>
+                          <Text style={styles.templateRowDesc} numberOfLines={1}>
+                            {template.desc}
+                          </Text>
+                        </View>
                       </View>
-                      {(targetEvent?.templateId || 'hero') === template.id && (
-                        <View style={[styles.templateCheck, { backgroundColor: template.accent }]}>
-                          <IconSymbol name="checkmark" size={14} color={template.background === '#000000' ? '#000000' : '#ffffff'} />
+
+                      {isActive && (
+                        <View style={[styles.templateCheckCircle, { backgroundColor: template.accent }]}>
+                          <IconSymbol name="checkmark" size={10} color="#000" />
                         </View>
                       )}
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
             ) : (
               <View style={styles.optionsList}>
@@ -1223,51 +1231,58 @@ const styles = StyleSheet.create({
   templateModalContent: {
     maxHeight: '82%',
   },
-  templateOptionCard: {
-    borderWidth: 2,
-    borderRadius: 22,
-    overflow: 'hidden',
-    marginBottom: 16,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  templatePreview: {
-    height: 112,
-    justifyContent: 'flex-end',
-    padding: 16,
-    overflow: 'hidden',
-  },
-  templatePreviewLabel: {
-    fontSize: 10,
-    fontFamily: Fonts.inter.bold,
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-  },
-  templatePreviewTitle: {
-    fontSize: 22,
-    fontFamily: Fonts.outfit.extraBold,
-    marginTop: 4,
-  },
-  templateMeta: {
+  templateRowCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    gap: 12,
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 10,
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
-  templateName: {
+  activeTemplateRowCard: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  templateRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  palettePreview: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  paletteAccentDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+  },
+  templateRowText: {
+    flex: 1,
+    marginRight: 8,
+  },
+  templateRowName: {
     color: '#fff',
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: Fonts.outfit.bold,
   },
-  templateDesc: {
+  templateRowDesc: {
     color: MidnightColors.slate400,
-    fontSize: 12,
-    fontFamily: Fonts.inter.medium,
-    marginTop: 3,
+    fontSize: 11,
+    fontFamily: Fonts.inter.regular,
+    marginTop: 1,
   },
-  templateCheck: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  templateCheckCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },

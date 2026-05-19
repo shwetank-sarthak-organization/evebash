@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Share, Keyboard, useWindowDimensions, useColorScheme, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Share, Keyboard, useWindowDimensions, useColorScheme, BackHandler, PanResponder } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,6 +19,19 @@ const PHOTO_GRID_GAP = 3;
 
 export default function EventDetailScreen() {
   const insets = useSafeAreaInsets();
+  const [isRepositioning, setIsRepositioning] = useState(false);
+  const [tempCoverOffset, setTempCoverOffset] = useState(0);
+  const [tempCoverScale, setTempCoverScale] = useState(1.0);
+  const offsetRef = React.useRef(0);
+  const scaleRef = React.useRef(1.0);
+
+  useEffect(() => {
+    offsetRef.current = tempCoverOffset;
+  }, [tempCoverOffset]);
+
+  useEffect(() => {
+    scaleRef.current = tempCoverScale;
+  }, [tempCoverScale]);
   const { width } = useWindowDimensions();
   const { id, shared, guestView, tab, share, mode } = useLocalSearchParams<{ id: string; shared?: string; guestView?: string; tab?: string; share?: string; mode?: 'admin' | 'visitor' }>();
   const router = useRouter();
@@ -27,6 +40,18 @@ export default function EventDetailScreen() {
   const [scrollY, setScrollY] = useState(0);
   const scrollViewRef = React.useRef<ScrollView>(null);
   const { height: windowHeight } = useWindowDimensions();
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const showToast = useCallback((msg: string) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    setToastMessage(msg);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage(null);
+    }, 2500);
+  }, []);
 
   const [event, setEvent] = useState<FirestoreEvent | null>(null);
   const [selectedGuest, setSelectedGuest] = useState<GuestLog | null>(null);
@@ -55,12 +80,13 @@ export default function EventDetailScreen() {
   const showAdminView = isAdminViewActive && isOwner;
 
   const selectedTemplate = React.useMemo(() => {
-    // If we are in Admin/Management View, we ALWAYS lock the palette to the default 'hero' (Midnight dark theme)
+    // If we are in Admin/Management View, we ALWAYS lock the palette to the default 'hero' (Midnight theme)
     // to keep the back-office controls consistent and standard for the app shell.
     const activeTemplateId = showAdminView ? 'hero' : (event?.templateId || 'hero');
     const base = MOBILE_TEMPLATE_THEMES.find((theme) => theme.id === activeTemplateId) || MOBILE_TEMPLATE_THEMES[0];
     const isClassic = base.id === 'classic';
     const isHero = base.id === 'hero';
+    const isEthereal = base.id === 'ethereal';
     return {
       ...base,
       background: isDark ? base.background.dark : base.background.light,
@@ -70,19 +96,53 @@ export default function EventDetailScreen() {
       accentBg: isDark ? base.accentBg.dark : base.accentBg.light,
       tileBg: isDark ? base.tileBg.dark : base.tileBg.light,
       overlay: isDark ? base.overlay.dark : base.overlay.light,
-      serifFont: (isClassic || isHero) ? Fonts.playfair.regular : Fonts.serif,
-      serifItalic: (isClassic || isHero) ? Fonts.playfair.italic : Fonts.serif,
-      serifBold: (isClassic || isHero) ? Fonts.playfair.bold : Fonts.serif,
+      serifFont: (isClassic || isHero || isEthereal) ? Fonts.playfair.regular : Fonts.serif,
+      serifItalic: (isClassic || isHero || isEthereal) ? Fonts.playfair.italic : Fonts.serif,
+      serifBold: (isClassic || isHero || isEthereal) ? Fonts.playfair.bold : Fonts.serif,
     };
   }, [event?.templateId, isDark, showAdminView]);
 
   const heroHeight = (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic' || event?.templateId === 'hero')) 
     ? windowHeight 
-    : ((!showAdminView && event?.templateId === 'pop') ? (465 + insets.top) : 400);
-  const isScrapbookTemplate = event?.templateId === 'scrapbook';
-  const isNeonTemplate = event?.templateId === 'neon';
-  const isPastelTemplate = event?.templateId === 'pastel';
-  const isPopTemplate = event?.templateId === 'pop';
+    : ((!showAdminView && event?.templateId === 'ethereal') ? (windowHeight * 0.8) : ((!showAdminView && event?.templateId === 'pop') ? (465 + insets.top) : 400));
+  const isScrapbookTemplate = !showAdminView && event?.templateId === 'scrapbook';
+  const isNeonTemplate = !showAdminView && event?.templateId === 'neon';
+  const isPastelTemplate = !showAdminView && event?.templateId === 'pastel';
+  const isPopTemplate = !showAdminView && event?.templateId === 'pop';
+  const isEtherealTemplate = !showAdminView && event?.templateId === 'ethereal';
+
+  const [tempCoverOffsetX, setTempCoverOffsetX] = useState(0);
+  const offsetXRef = React.useRef(0);
+
+  useEffect(() => {
+    offsetXRef.current = tempCoverOffsetX;
+  }, [tempCoverOffsetX]);
+
+  const panResponder = React.useMemo(() => {
+    let startOffsetY = 0;
+    let startOffsetX = 0;
+    return PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        startOffsetY = offsetRef.current;
+        startOffsetX = offsetXRef.current;
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        // Vertical offset has a base limit of 50, and scales with scaleFactor
+        const limitY = 50 + (heroHeight * scaleRef.current - heroHeight) / 2;
+        // Horizontal offset limit is strictly determined by extra width of scaling factor
+        const limitX = (SCREEN_WIDTH * scaleRef.current - SCREEN_WIDTH) / 2;
+
+        const nextOffsetY = Math.min(Math.max(startOffsetY + gestureState.dy, -limitY), limitY);
+        const nextOffsetX = Math.min(Math.max(startOffsetX + gestureState.dx, -limitX), limitX);
+
+        setTempCoverOffset(nextOffsetY);
+        setTempCoverOffsetX(nextOffsetX);
+      },
+      onPanResponderRelease: () => {}
+    });
+  }, [heroHeight]);
 
   // Modals
   const [showSubEventModal, setShowSubEventModal] = useState(false);
@@ -98,6 +158,11 @@ export default function EventDetailScreen() {
   const [activeSubEvent, setActiveSubEvent] = useState<FirestoreEvent | null>(null);
   const [photos, setPhotos] = useState<any[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
+
+  const activeCoverMode = activeSubEvent ? activeSubEvent.coverMode : event?.coverMode;
+  const activeCoverOffset = activeSubEvent ? activeSubEvent.coverOffset : event?.coverOffset;
+  const activeCoverOffsetX = activeSubEvent ? activeSubEvent.coverOffsetX : event?.coverOffsetX;
+  const activeCoverScale = activeSubEvent ? activeSubEvent.coverScale : event?.coverScale;
 
   // Gallery Welcome Text Settings State
   const [galleryDescModalVisible, setGalleryDescModalVisible] = useState(false);
@@ -451,14 +516,31 @@ export default function EventDetailScreen() {
       quality: 0.8,
     });
 
-    if (!result.canceled && event) {
+    if (!result.canceled) {
+      const target = activeSubEvent || event;
+      if (!target) return;
       setUpdating(true);
       try {
         const file = { uri: result.assets[0].uri, name: 'cover.jpg', type: 'image/jpeg' } as any;
         const upload = await uploadEventImage(file, event.id, user?.uid || 'anon');
-        await updateEvent(event.id, { coverImage: upload.url });
-        loadEvent();
-        Alert.alert("Success", "Cover image updated!");
+        
+        const updatedFields = {
+          coverImage: upload.url,
+          coverOffset: 0,
+          coverOffsetX: 0,
+          coverScale: 1.0
+        };
+
+        if (activeSubEvent) {
+          const newSub = { ...activeSubEvent, ...updatedFields };
+          setActiveSubEvent(newSub);
+          setSubEvents(prev => prev.map(sub => sub.id === activeSubEvent.id ? newSub : sub));
+        } else if (event) {
+          setEvent({ ...event, ...updatedFields });
+        }
+
+        await updateEvent(target.id, updatedFields);
+        showToast("Cover image updated successfully!");
       } catch (err) {
         Alert.alert("Error", "Failed to update cover.");
       } finally {
@@ -616,11 +698,12 @@ export default function EventDetailScreen() {
     const isRoyal = event?.templateId === 'royal';
     const isClassic = event?.templateId === 'classic';
     const isHero = event?.templateId === 'hero';
+    const isEthereal = event?.templateId === 'ethereal';
     const isScrapbook = event?.templateId === 'scrapbook';
     const isNeon = event?.templateId === 'neon';
     const isPastel = event?.templateId === 'pastel';
     const isPop = event?.templateId === 'pop';
-    const isThemeHeader = isRoyal || isClassic || isHero;
+    const isThemeHeader = isRoyal || isClassic || isHero || isEthereal;
     const birthdayTextColor = isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : MidnightColors.gold)));
     const birthdayActiveText = isScrapbook ? styles.scrapbookVisitorTabTextActive : (isNeon ? styles.neonVisitorTabTextActive : (isPastel ? styles.pastelVisitorTabTextActive : (isPop ? styles.popVisitorTabTextActive : styles.visitorTabTextActive)));
     const birthdayActiveTab = isScrapbook ? styles.scrapbookVisitorTabActive : (isNeon ? styles.neonVisitorTabActive : (isPastel ? styles.pastelVisitorTabActive : (isPop ? styles.popVisitorTabActive : styles.visitorTabActive)));
@@ -643,7 +726,7 @@ export default function EventDetailScreen() {
       alignSelf: 'center' as const,
     });
     const themeTextColor = (active: boolean) => active
-      ? (isHero ? '#cca43b' : (isRoyal ? '#fff' : '#cca43b'))
+      ? (isHero ? '#cca43b' : (isRoyal ? '#fff' : (isEthereal ? selectedTemplate.accent : '#cca43b')))
       : (isHero ? '#94a3b8' : selectedTemplate.muted);
     return (
       <View style={[
@@ -651,6 +734,7 @@ export default function EventDetailScreen() {
         isRoyal && { height: 70, marginTop: 12, marginBottom: 0 },
         isClassic && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', backgroundColor: '#FAF9F6' },
         isHero && { height: 64, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', backgroundColor: '#000000' },
+        isEthereal && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: selectedTemplate.accent + '26', backgroundColor: selectedTemplate.background },
         isScrapbook && styles.scrapbookVisitorHeaderContainer,
         isNeon && styles.neonVisitorHeaderContainer,
         isPastel && styles.pastelVisitorHeaderContainer,
@@ -701,6 +785,11 @@ export default function EventDetailScreen() {
                 <View style={{ width: 32, height: 1.2, backgroundColor: '#cca43b' }} />
               </View>
             )}
+            {isEthereal && !activeSubEvent && (
+              <View style={{ alignItems: 'center', marginTop: 4 }}>
+                <Text style={{ fontSize: 10, color: selectedTemplate.accent, fontFamily: selectedTemplate.serifItalic }}>❦</Text>
+              </View>
+            )}
           </TouchableOpacity>
 
           {subEvents.map((sub) => {
@@ -736,6 +825,11 @@ export default function EventDetailScreen() {
                 {isClassic && isActive && (
                   <View style={{ alignItems: 'center', marginTop: 4 }}>
                     <View style={{ width: 32, height: 1.2, backgroundColor: '#cca43b' }} />
+                  </View>
+                )}
+                {isEthereal && isActive && (
+                  <View style={{ alignItems: 'center', marginTop: 4 }}>
+                    <Text style={{ fontSize: 10, color: selectedTemplate.accent, fontFamily: selectedTemplate.serifItalic }}>❦</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -774,6 +868,11 @@ export default function EventDetailScreen() {
                 <View style={{ width: 32, height: 1.2, backgroundColor: '#cca43b' }} />
               </View>
             )}
+            {isEthereal && activeSubEvent?.id === 'event-partners' && (
+              <View style={{ alignItems: 'center', marginTop: 4 }}>
+                <Text style={{ fontSize: 10, color: selectedTemplate.accent, fontFamily: selectedTemplate.serifItalic }}>❦</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -809,27 +908,48 @@ export default function EventDetailScreen() {
         </View>
       );
     }
+    if (selectedTemplate.id === 'ethereal') {
+      return (
+        <View style={styles.etherealDividerContainer}>
+          <View style={[styles.etherealDividerLine, { backgroundColor: selectedTemplate.accent + '4d' }]} />
+          <Text style={[styles.etherealDividerAsterisk, { color: selectedTemplate.accent, fontFamily: selectedTemplate.serifFont }]}>❦</Text>
+          <View style={[styles.etherealDividerLine, { backgroundColor: selectedTemplate.accent + '4d' }]} />
+        </View>
+      );
+    }
     return null;
+  };
+
+  const getVendorInitials = (name: string): string[] => {
+    if (!name) return ['W', 'E', 'D'];
+    const words = name.split(/\s+/).filter(w => {
+      const lower = w.toLowerCase();
+      return lower !== 'by' && lower !== 'of' && lower !== 'and' && lower !== '&';
+    });
+    if (words.length === 0) return ['W', 'E', 'D'];
+    const letters = words.slice(0, 4).map(w => w.charAt(0).toUpperCase());
+    return letters;
   };
 
   return (
     <View style={[styles.safeArea, { backgroundColor: selectedTemplate.background }]}>
       <Stack.Screen
         options={{
-          headerShown: !(!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'pop')),
+          headerShown: showAdminView ? false : !(event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'pop' || event?.templateId === 'ethereal'),
           headerTransparent: true,
           headerTitle: '',
           headerLeft: () => {
-            const isPop = event?.templateId === 'pop';
-            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero')) ? null : (
+            if (showAdminView) return null; // Custom back button is rendered inline inside the cover container to scroll with content
+
+            const isPop = !showAdminView && event?.templateId === 'pop';
+            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal')) ? null : (
               <TouchableOpacity
                 onPress={handleEventBack}
                 style={[
                   styles.floatingBack,
-                  { marginTop: Platform.OS === 'ios' ? 44 : 10 },
+                  { marginLeft: 16 },
                   (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic')) && {
                     marginLeft: 24,
-                    marginTop: 36,
                     width: 40,
                     height: 40,
                     borderRadius: 6,
@@ -838,37 +958,13 @@ export default function EventDetailScreen() {
                   },
                   isPop && styles.popFloatingBack
                 ]}
-                hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
+                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
               >
                 <IconSymbol name="chevron.left" size={isPop ? 22 : 28} color={isPop ? '#ffffff' : selectedTemplate.accent} />
               </TouchableOpacity>
             );
           },
-          headerRight: () => {
-            const isPop = event?.templateId === 'pop';
-            return (!showAdminView && event?.templateId === 'classic') ? null : (
-              <TouchableOpacity
-                style={[
-                  styles.floatingBack,
-                  { marginTop: Platform.OS === 'ios' ? 44 : 10, marginRight: 16 },
-                  (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic')) && {
-                    marginRight: 24,
-                    marginTop: 36,
-                    width: 40,
-                    height: 40,
-                    borderRadius: 6,
-                    borderColor: selectedTemplate.accent,
-                    backgroundColor: 'rgba(0,0,0,0.15)',
-                  },
-                  isPop && styles.popFloatingShare
-                ]}
-                onPress={() => setShowShareModal(true)}
-                hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
-              >
-                <IconSymbol name="square.and.arrow.up" size={isPop ? 18 : 20} color={isPop ? '#ffffff' : selectedTemplate.accent} />
-              </TouchableOpacity>
-            );
-          }
+          headerRight: () => null
         }}
       />
 
@@ -882,7 +978,10 @@ export default function EventDetailScreen() {
         stickyHeaderIndices={!showAdminView ? [1] : undefined}
       >
         {/* ── HERO ── */}
-        <View style={[styles.hero, { height: heroHeight, backgroundColor: selectedTemplate.background }]}>
+        <View 
+          style={[styles.hero, { height: heroHeight, backgroundColor: selectedTemplate.background, overflow: 'hidden' }]}
+          {...(isRepositioning ? panResponder.panHandlers : {})}
+        >
           {!showAdminView && event?.templateId === 'pop' ? (
             <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#ffe84a' }]}>
               {/* Giant background comic decorative shapes */}
@@ -891,28 +990,163 @@ export default function EventDetailScreen() {
             </View>
           ) : !showAdminView && event?.templateId === 'classic' ? (
             <View style={styles.classicHeroImageContainer}>
-              <Image source={{ uri: activeSubEvent?.coverImage || event.coverImage }} style={styles.classicHeroImage} />
+              <Image 
+                source={{ uri: activeSubEvent?.coverImage || event?.coverImage || event?.coverUrl }} 
+                style={[
+                  styles.classicHeroImage,
+                  (activeCoverMode === 'fit') ? {
+                    resizeMode: 'contain',
+                  } : {
+                    height: '120%',
+                    top: '-10%',
+                    resizeMode: 'cover',
+                    transform: [
+                      { translateY: activeCoverOffset || 0 },
+                      { translateX: activeCoverOffsetX || 0 },
+                      { scale: activeCoverScale || 1.0 }
+                    ]
+                  }
+                ]} 
+              />
+            </View>
+          ) : !showAdminView && event?.templateId === 'ethereal' ? (
+            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: selectedTemplate.background }]}>
+              {/* Full-bleed Photo */}
+              <View style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+                <Image 
+                  source={{ uri: activeSubEvent?.coverImage || event?.coverImage || event?.coverUrl }} 
+                  style={{ width: '100%', height: '100%', resizeMode: 'cover', opacity: 0.88 }}
+                />
+                {/* Dark gradient overlay at bottom of image for readability */}
+                <LinearGradient
+                  colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.4)']}
+                  style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 200 }}
+                />
+              </View>
             </View>
           ) : (
-            <Image source={{ uri: activeSubEvent?.coverImage || event.coverImage }} style={styles.heroImage} />
+            <Image 
+              source={{ uri: activeSubEvent?.coverImage || event?.coverImage || event?.coverUrl }} 
+              style={[
+                styles.heroImage,
+                (!showAdminView && event?.templateId === 'pop') ? styles.popPolaroidImage : {},
+                (activeCoverMode === 'fit') ? {
+                  height: heroHeight,
+                  resizeMode: 'contain',
+                } : {
+                  height: heroHeight + 100,
+                  top: -50,
+                  resizeMode: 'cover',
+                  transform: [
+                    { translateY: isRepositioning ? tempCoverOffset : (activeCoverOffset || 0) },
+                    { translateX: isRepositioning ? tempCoverOffsetX : (activeCoverOffsetX || 0) },
+                    { scale: isRepositioning ? tempCoverScale : (activeCoverScale || 1.0) }
+                  ]
+                }
+              ]} 
+            />
           )}
-          {event?.templateId !== 'classic' && event?.templateId !== 'pop' && (
+          {selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && (
             <LinearGradient
               colors={selectedTemplate.overlay as [string, string]}
               style={styles.heroGradient}
             />
           )}
 
-
-
-
-
           {showAdminView && (
-            <TouchableOpacity style={styles.editCoverBtn} onPress={handleChangeCover} disabled={updating}>
-              <IconSymbol name="camera.fill" size={16} color="#fff" />
-              <Text style={styles.editCoverText}>{updating ? 'Updating...' : 'Change Cover'}</Text>
+            <TouchableOpacity
+              onPress={handleEventBack}
+              style={[
+                styles.floatingBack,
+                {
+                  position: 'absolute',
+                  top: insets.top > 0 ? insets.top + 8 : 16,
+                  left: 16,
+                  zIndex: 10,
+                }
+              ]}
+              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            >
+              <IconSymbol name="chevron.left" size={24} color={selectedTemplate.accent} />
             </TouchableOpacity>
           )}
+
+          {showAdminView && !isRepositioning && (
+            <View style={[styles.coverControlRow, { top: insets.top > 0 ? insets.top + 8 : 16 }]}>
+              {/* Fit / Toggle */}
+              <TouchableOpacity
+                style={styles.coverControlSubBtn}
+                onPress={async () => {
+                  const target = activeSubEvent || event;
+                  if (!target) return;
+                  const newMode = (target.coverMode || 'fill') === 'fill' ? 'fit' : 'fill';
+                  setUpdating(true);
+                  try {
+                    const updatedFields = {
+                      coverMode: newMode,
+                      coverOffset: 0,
+                      coverOffsetX: 0,
+                      coverScale: 1.0
+                    };
+                    
+                    if (activeSubEvent) {
+                      const newSub = { ...activeSubEvent, ...updatedFields };
+                      setActiveSubEvent(newSub);
+                      setSubEvents(prev => prev.map(sub => sub.id === activeSubEvent.id ? newSub : sub));
+                    } else if (event) {
+                      setEvent({ ...event, ...updatedFields });
+                    }
+                    
+                    showToast(newMode === 'fit' ? 'Cover set to Fit' : 'Cover set to Fill');
+                    await updateEvent(target.id, updatedFields);
+                  } catch (err) {
+                    console.log('Error updating cover mode:', err);
+                  } finally {
+                    setUpdating(false);
+                  }
+                }}
+                disabled={updating}
+              >
+                <IconSymbol
+                  name={(activeCoverMode || 'fill') === 'fill' ? 'arrow.down.right.and.arrow.up.left' : 'arrow.up.left.and.arrow.down.right.asymmetrical'}
+                  size={14}
+                  color="#fff"
+                />
+                <Text style={styles.coverControlText}>
+                  {(activeCoverMode || 'fill') === 'fill' ? 'Fit' : 'Fill'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Reposition Button (Only in Fill mode) */}
+              {(activeCoverMode || 'fill') === 'fill' && (
+                <TouchableOpacity
+                  style={styles.coverControlSubBtn}
+                  onPress={() => {
+                    const target = activeSubEvent || event;
+                    setTempCoverOffset(target?.coverOffset || 0);
+                    setTempCoverOffsetX(target?.coverOffsetX || 0);
+                    setTempCoverScale(target?.coverScale || 1.0);
+                    setIsRepositioning(true);
+                  }}
+                  disabled={updating}
+                >
+                  <IconSymbol name="arrow.up.and.down" size={14} color="#fff" />
+                  <Text style={styles.coverControlText}>Position</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Change Cover */}
+              <TouchableOpacity
+                style={styles.coverControlSubBtn}
+                onPress={handleChangeCover}
+                disabled={updating}
+              >
+                <IconSymbol name="camera.fill" size={14} color="#fff" />
+                <Text style={styles.coverControlText}>{updating ? '...' : 'Cover'}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
 
           {(!showAdminView && event?.templateId === 'royal') ? (
             <View style={styles.royalHeroOverlay}>
@@ -1017,6 +1251,50 @@ export default function EventDetailScreen() {
                 </TouchableOpacity>
               </View>
             </View>
+          ) : (!showAdminView && event?.templateId === 'ethereal') ? (
+            <View style={styles.etherealOverlayContainer}>
+              {/* Back button at top left */}
+              <TouchableOpacity
+                style={styles.etherealBackBtnRound}
+                onPress={() => router.replace('/(tabs)/gallery')}
+              >
+                <IconSymbol name="chevron.left" size={20} color="#ffffff" />
+              </TouchableOpacity>
+
+              {/* Share button at top right */}
+              <TouchableOpacity
+                style={styles.etherealShareBtnRound}
+                onPress={() => setShowShareModal(true)}
+              >
+                <IconSymbol name="square.and.arrow.up" size={18} color="#ffffff" />
+              </TouchableOpacity>
+
+              {/* Floating Details Card */}
+              <View style={[styles.etherealDetailsCard, { backgroundColor: selectedTemplate.panel, borderColor: selectedTemplate.accent + '26' }]}>
+                {/* Couple Names */}
+                <Text style={[styles.etherealCoupleNames, { fontFamily: selectedTemplate.serifBold, color: selectedTemplate.text }]}>
+                  {(activeSubEvent?.title || event.title).toUpperCase()}
+                </Text>
+
+                {/* Elegant Separator Ornament */}
+                <Text style={{ color: selectedTemplate.accent, fontSize: 16, marginVertical: 4 }}>❦</Text>
+
+                {/* Event Date */}
+                {(activeSubEvent?.date || event.date) && (
+                  <Text style={{ color: selectedTemplate.text, opacity: 0.75, fontFamily: selectedTemplate.serifItalic, fontSize: 14, fontStyle: 'italic', letterSpacing: 1, marginBottom: 16 }}>
+                    {activeSubEvent?.date || event.date}
+                  </Text>
+                )}
+
+                {/* "ENTER GALLERY" Button integrated inside card */}
+                <TouchableOpacity
+                  style={[styles.etherealEnterBtn, { backgroundColor: selectedTemplate.accent }]}
+                  onPress={() => scrollViewRef.current?.scrollTo({ y: heroHeight, animated: true })}
+                >
+                  <Text style={styles.etherealEnterBtnText}>ENTER GALLERY</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           ) : (!showAdminView && event?.templateId === 'hero') ? (
             <View style={styles.heroHeroOverlay}>
               {/* 1. Immersive dark linear gradient overlay for ultimate depth */}
@@ -1108,7 +1386,7 @@ export default function EventDetailScreen() {
                   <Image 
                     source={{ uri: activeSubEvent?.coverImage || event.coverImage }} 
                     style={styles.popPolaroidImage} 
-                    resizeMode="cover"
+                    resizeMode="contain"
                   />
                   <View style={styles.popPolaroidOverlay} />
                 </View>
@@ -1226,33 +1504,35 @@ export default function EventDetailScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-              <View style={[styles.heroMeta, isNeonTemplate && styles.neonHeroMeta, isPastelTemplate && styles.pastelHeroMeta, isPopTemplate && styles.popHeroMeta]}>
-                <IconSymbol name="calendar" size={12} color={selectedTemplate.accent} />
-                <Text style={[
-                  styles.heroDate,
-                  { color: selectedTemplate.accent },
-                  isNeonTemplate && styles.neonHeroDate,
-                  isPastelTemplate && styles.pastelHeroDate,
-                  isPopTemplate && styles.popHeroDate,
-                  selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic', letterSpacing: 2 }
-                ]}>{activeSubEvent?.date || event.date}</Text>
-                {showAdminView && !activeSubEvent && (
-                  <TouchableOpacity
-                    style={styles.editDateBtn}
-                    onPress={() => setShowDatePicker(true)}
-                  >
-                    <IconSymbol name="pencil" size={12} color={selectedTemplate.accent} />
-                  </TouchableOpacity>
-                )}
-              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: 8 }}>
+                <View style={[styles.heroMeta, { marginTop: 0 }, isNeonTemplate && styles.neonHeroMeta, isPastelTemplate && styles.pastelHeroMeta, isPopTemplate && styles.popHeroMeta]}>
+                  <IconSymbol name="calendar" size={12} color={selectedTemplate.accent} />
+                  <Text style={[
+                    styles.heroDate,
+                    { color: selectedTemplate.accent },
+                    isNeonTemplate && styles.neonHeroDate,
+                    isPastelTemplate && styles.pastelHeroDate,
+                    isPopTemplate && styles.popHeroDate,
+                    selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic', letterSpacing: 2 }
+                  ]}>{activeSubEvent?.date || event.date}</Text>
+                  {showAdminView && !activeSubEvent && (
+                    <TouchableOpacity
+                      style={styles.editDateBtn}
+                      onPress={() => setShowDatePicker(true)}
+                    >
+                      <IconSymbol name="pencil" size={12} color={selectedTemplate.accent} />
+                    </TouchableOpacity>
+                  )}
+                </View>
 
-              <TouchableOpacity
-                style={[styles.heroMeta, { marginTop: 12 }, isNeonTemplate && styles.neonShareButton, isPastelTemplate && styles.pastelShareButton, isPopTemplate && styles.popShareButton]}
-                onPress={handleShare}
-              >
-                <IconSymbol name="square.and.arrow.up" size={12} color={selectedTemplate.accent} />
-                <Text style={[styles.heroDate, { color: selectedTemplate.accent }, isNeonTemplate && styles.neonHeroDate, isPastelTemplate && styles.pastelHeroDate, isPopTemplate && styles.popHeroDate]}>Share Event</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.heroMeta, { marginTop: 0 }, isNeonTemplate && styles.neonShareButton, isPastelTemplate && styles.pastelShareButton, isPopTemplate && styles.popShareButton]}
+                  onPress={handleShare}
+                >
+                  <IconSymbol name="square.and.arrow.up" size={12} color={selectedTemplate.accent} />
+                  <Text style={[styles.heroDate, { color: selectedTemplate.accent }, isNeonTemplate && styles.neonHeroDate, isPastelTemplate && styles.pastelHeroDate, isPopTemplate && styles.popHeroDate]}>Share Event</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </View>
@@ -1774,29 +2054,31 @@ export default function EventDetailScreen() {
                       <Text style={styles.designLabel}>Event Type</Text>
                       <Text style={styles.designValue}>{event.category || 'Select Type'}</Text>
                     </View>
-                    <IconSymbol name="chevron.right" size={20} color={MidnightColors.gold} />
+                    <IconSymbol name="chevron.right" size={16} color={MidnightColors.gold} />
                   </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.designCard, { marginTop: 16 }]}
+                      style={[styles.designCard, { marginTop: 12 }]}
                       onPress={() => setShowTemplateModal(true)}
                     >
                       <View style={styles.designInfo}>
                         <Text style={styles.designLabel}>Change Template</Text>
                         <Text style={styles.designValue}>{event.templateId ? MOBILE_TEMPLATE_THEMES.find(t => t.id === event.templateId)?.label : 'Hero (Default)'}</Text>
                       </View>
-                      <IconSymbol name="chevron.right" size={20} color={MidnightColors.gold} />
+                      <IconSymbol name="chevron.right" size={16} color={MidnightColors.gold} />
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.designCard, { marginTop: 16, backgroundColor: 'rgba(212, 175, 55, 0.15)', borderColor: '#cca43b', borderWidth: 1 }]}
+                      style={[styles.designCard, { marginTop: 12, backgroundColor: 'rgba(212, 175, 55, 0.08)', borderColor: 'rgba(212, 175, 55, 0.3)', borderWidth: 1 }]}
                       onPress={() => setIsAdminViewActive(false)}
                     >
                       <View style={styles.designInfo}>
                         <Text style={[styles.designLabel, { color: '#cca43b' }]}>Preview Guest Theme</Text>
-                        <Text style={[styles.designValue, { color: '#cbd5e1' }]}>See how guests view your Pop Art theme</Text>
+                        <Text style={[styles.designValue, { color: '#cbd5e1', fontSize: 12, fontFamily: Fonts.inter.regular, marginTop: 2 }]}>
+                          See how guests view your {event.templateId ? MOBILE_TEMPLATE_THEMES.find(t => t.id === event.templateId)?.label : 'Hero'} theme
+                        </Text>
                       </View>
-                      <IconSymbol name="eye.fill" size={20} color="#cca43b" />
+                      <IconSymbol name="eye.fill" size={16} color="#cca43b" />
                     </TouchableOpacity>
                 </View>
               )}
@@ -1972,6 +2254,13 @@ export default function EventDetailScreen() {
                       borderRadius: 4,
                       padding: 12,
                       borderLeftWidth: 0.8, // override dynamic left border stripe
+                    },
+                    event.templateId === 'ethereal' && {
+                      borderWidth: 1,
+                      borderColor: selectedTemplate.accent + '4d',
+                      borderRadius: 2,
+                      padding: 8,
+                      borderLeftWidth: 1, // override dynamic left border stripe
                     }
                   ]}>
                     <View style={[
@@ -1999,6 +2288,16 @@ export default function EventDetailScreen() {
                         justifyContent: 'center',
                         position: 'relative'
                       },
+                      event.templateId === 'ethereal' && {
+                        borderWidth: 0.5,
+                        borderColor: selectedTemplate.accent + '33',
+                        borderRadius: 1,
+                        paddingVertical: 24,
+                        paddingHorizontal: 20,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative'
+                      },
                       { position: 'relative' }
                     ]}>
                       {isScrapbookTemplate && (
@@ -2013,6 +2312,9 @@ export default function EventDetailScreen() {
                       )}
                       {event.templateId === 'hero' && (
                         <Text style={{ color: selectedTemplate.accent, fontSize: 11, marginBottom: 14, letterSpacing: 2 }}>✦   ♦   ✦</Text>
+                      )}
+                      {event.templateId === 'ethereal' && (
+                        <Text style={{ color: selectedTemplate.accent, fontSize: 14, marginBottom: 12, fontFamily: selectedTemplate.serifFont }}>❦</Text>
                       )}
 
                       {isNeonTemplate && (
@@ -2288,9 +2590,9 @@ export default function EventDetailScreen() {
                                   {
                                     backgroundColor: selectedTemplate.tileBg,
                                     borderRadius: selectedTemplate.radius,
-                                    borderWidth: event.templateId === 'polaroid' || event.templateId === 'museum' || event.templateId === 'brutalist' || event.templateId === 'royal' || event.templateId === 'classic' ? 1 : 0,
-                                    borderColor: event.templateId === 'royal' ? selectedTemplate.accent : (event.templateId === 'classic' ? 'rgba(0,0,0,0.05)' : selectedTemplate.accentBg),
-                                    padding: event.templateId === 'polaroid' ? 4 : (event.templateId === 'royal' ? 3 : (event.templateId === 'classic' ? 8 : 0)),
+                                    borderWidth: event.templateId === 'polaroid' || event.templateId === 'museum' || event.templateId === 'brutalist' || event.templateId === 'royal' || event.templateId === 'classic' || event.templateId === 'ethereal' ? 1 : 0,
+                                    borderColor: event.templateId === 'royal' ? selectedTemplate.accent : (event.templateId === 'classic' ? 'rgba(0,0,0,0.05)' : (event.templateId === 'ethereal' ? 'rgba(45, 42, 41, 0.12)' : selectedTemplate.accentBg)),
+                                    padding: event.templateId === 'polaroid' ? 4 : (event.templateId === 'royal' ? 3 : (event.templateId === 'classic' ? 8 : (event.templateId === 'ethereal' ? 10 : 0))),
                                   },
                                   isScrapbookTemplate && [
                                     styles.scrapbookPhotoTile,
@@ -2338,6 +2640,15 @@ export default function EventDetailScreen() {
                                     shadowRadius: 3,
                                     elevation: 1,
                                     backgroundColor: '#ffffff',
+                                  },
+                                  event.templateId === 'ethereal' && {
+                                    paddingBottom: 24,
+                                    shadowColor: '#2d2a29',
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.08,
+                                    shadowRadius: 5,
+                                    elevation: 2,
+                                    backgroundColor: isDark ? '#262423' : '#ffffff',
                                   }
                                 ]}>
                                   {isScrapbookTemplate && (
@@ -2457,21 +2768,61 @@ export default function EventDetailScreen() {
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowCategoryModal(false)} />
           <View style={[styles.modalContent, { maxHeight: '80%' }]}>
-            <Text style={styles.modalTitle}>Event Type</Text>
-            <ScrollView>
-              {['Wedding', 'Birthday', 'Anniversary', 'Engagement', 'Reception', 'Corporate', 'Other'].map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  style={[styles.templateOption, event?.category === cat && styles.activeTemplate]}
-                  onPress={() => {
-                    handleUpdateCategory(cat);
-                    setShowCategoryModal(false);
-                  }}
-                >
-                  <Text style={[styles.templateText, event?.category === cat && styles.activeTemplateText]}>{cat}</Text>
-                  {event?.category === cat && <IconSymbol name="checkmark" size={16} color={MidnightColors.background} />}
-                </TouchableOpacity>
-              ))}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, width: '100%' }}>
+              <View style={{ flex: 1, marginRight: 16 }}>
+                <Text style={{ fontSize: 22, color: '#fff', fontFamily: Fonts.outfit.bold }}>Event Type</Text>
+                <Text style={{ color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.inter.regular, marginTop: 4 }}>
+                  Choose a category for your gallery
+                </Text>
+              </View>
+              <TouchableOpacity 
+                onPress={() => setShowCategoryModal(false)}
+                style={{ marginTop: 2 }}
+              >
+                <IconSymbol name="xmark.circle.fill" size={24} color={MidnightColors.slate400} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 8 }}>
+              {[
+                { name: 'Wedding', icon: 'heart.fill', color: '#ff4b72' },
+                { name: 'Birthday', icon: 'gift.fill', color: '#3b82f6' },
+                { name: 'Anniversary', icon: 'sparkles', color: '#eab308' },
+                { name: 'Engagement', icon: 'star.fill', color: '#a855f7' },
+                { name: 'Reception', icon: 'wineglass.fill', color: '#f97316' },
+                { name: 'Corporate', icon: 'briefcase.fill', color: '#10b981' },
+                { name: 'Sports', icon: 'figure.run' as any, color: '#06b6d4' },
+                { name: 'Other', icon: 'ellipsis.circle.fill', color: '#64748b' }
+              ].map((cat) => {
+                const isActive = event?.category === cat.name;
+                return (
+                  <TouchableOpacity
+                    key={cat.name}
+                    style={[
+                      styles.categoryOption,
+                      isActive && styles.activeCategoryOption
+                    ]}
+                    onPress={() => {
+                      handleUpdateCategory(cat.name);
+                      setShowCategoryModal(false);
+                    }}
+                  >
+                    <View style={styles.categoryLeft}>
+                      <View style={[styles.categoryIconWrapper, { backgroundColor: `${cat.color}15` }]}>
+                        <IconSymbol name={cat.icon as any} size={16} color={cat.color} />
+                      </View>
+                      <Text style={[styles.categoryText, isActive && styles.activeCategoryText]}>
+                        {cat.name}
+                      </Text>
+                    </View>
+                    {isActive && (
+                      <View style={styles.categoryCheckBadge}>
+                        <IconSymbol name="checkmark" size={10} color={MidnightColors.background} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
         </View>
@@ -2689,13 +3040,15 @@ export default function EventDetailScreen() {
             onPress={() => setShowTemplateModal(false)}
           />
           <View style={[styles.modalContent, { maxHeight: '85%' }]}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Choose Style</Text>
-                <Text style={styles.templateModalSub}>Select a design template for this {event?.category || 'Wedding'} event.</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, width: '100%' }}>
+              <View style={{ flex: 1, marginRight: 16 }}>
+                <Text style={{ fontSize: 22, color: '#fff', fontFamily: Fonts.outfit.bold }}>Choose Style</Text>
+                <Text style={{ color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.inter.regular, marginTop: 4 }}>
+                  Select a design template for this {event?.category || 'Wedding'} event.
+                </Text>
               </View>
               <TouchableOpacity
-                style={styles.closeModalCircle}
+                style={[styles.closeModalCircle, { marginTop: 2 }]}
                 onPress={() => setShowTemplateModal(false)}
               >
                 <IconSymbol name="xmark" size={20} color={MidnightColors.gold} />
@@ -2706,33 +3059,38 @@ export default function EventDetailScreen() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 40 }}
             >
-              {MOBILE_TEMPLATE_THEMES.filter(t => t.category === (event?.category || 'Wedding')).map((template, index) => {
+              {MOBILE_TEMPLATE_THEMES.filter(t => t.category === ((event?.category === 'Sports' ? 'Other' : event?.category) || 'Wedding')).map((template) => {
                 const isActive = (event?.templateId || 'hero') === template.id;
                 return (
                   <TouchableOpacity
                     key={template.id}
                     style={[
-                      styles.templateOptionCard,
-                      { borderColor: isActive ? template.accent : 'rgba(255,255,255,0.1)' }
+                      styles.templateRowCard,
+                      isActive && styles.activeTemplateRowCard,
+                      { borderColor: isActive ? template.accent : 'rgba(255,255,255,0.06)' }
                     ]}
                     onPress={() => handleUpdateTemplate(template.id)}
                   >
-                    <View style={[styles.templatePreview, { backgroundColor: isDark ? template.background.dark : template.background.light }]}>
-                      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.1)' }]} />
-                      <Text style={[styles.templatePreviewLabel, { color: template.accent }]}>Template {index + 1}</Text>
-                      <Text style={[styles.templatePreviewTitle, { color: isDark ? template.text.dark : template.text.light }]}>{template.label}</Text>
-                    </View>
-                    <View style={styles.templateMeta}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.templateText}>{template.label}</Text>
-                        <Text style={styles.templateDesc}>{template.desc}</Text>
+                    <View style={styles.templateRowLeft}>
+                      <View style={[styles.palettePreview, { backgroundColor: isDark ? template.background.dark : template.background.light }]}>
+                        <View style={[styles.paletteAccentDot, { backgroundColor: template.accent }]} />
                       </View>
-                      {isActive && (
-                        <View style={[styles.templateCheck, { backgroundColor: template.accent }]}>
-                          <IconSymbol name="checkmark" size={14} color="#000" />
-                        </View>
-                      )}
+                      
+                      <View style={styles.templateRowText}>
+                        <Text style={[styles.templateRowName, isActive && { color: template.accent }]}>
+                          {template.label}
+                        </Text>
+                        <Text style={styles.templateRowDesc} numberOfLines={1}>
+                          {template.desc}
+                        </Text>
+                      </View>
                     </View>
+
+                    {isActive && (
+                      <View style={[styles.templateCheckCircle, { backgroundColor: template.accent }]}>
+                        <IconSymbol name="checkmark" size={10} color="#000" />
+                      </View>
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -3058,7 +3416,84 @@ export default function EventDetailScreen() {
           </TouchableOpacity>
         </View>
       )}
+      {/* ── REPOSITION TOOLBAR OVERLAY ── */}
+      {showAdminView && isRepositioning && (
+        <View style={[styles.repositionToolbar, { top: insets.top > 0 ? insets.top + 8 : 16 }]}>
+          <Text style={styles.repositionInstruction}>Drag image</Text>
 
+          {/* Zoom controls */}
+          <View style={styles.zoomControlRow}>
+            <TouchableOpacity 
+              style={styles.zoomBtn} 
+              onPress={() => setTempCoverScale(prev => Math.max(1.0, prev - 0.1))}
+            >
+              <IconSymbol name="minus" size={12} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.zoomText}>{Math.round(tempCoverScale * 100)}%</Text>
+            <TouchableOpacity 
+              style={styles.zoomBtn} 
+              onPress={() => setTempCoverScale(prev => Math.min(2.5, prev + 0.1))}
+            >
+              <IconSymbol name="plus" size={12} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.repositionActions}>
+            <TouchableOpacity
+              style={[styles.repositionBtn, styles.repositionCancelBtn]}
+              onPress={() => {
+                setIsRepositioning(false);
+                showToast('Positioning cancelled');
+              }}
+            >
+              <Text style={styles.repositionBtnText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.repositionBtn, styles.repositionSaveBtn]}
+              onPress={async () => {
+                const target = activeSubEvent || event;
+                if (!target) return;
+                setIsRepositioning(false);
+                setUpdating(true);
+                try {
+                  const updatedFields = {
+                    coverOffset: tempCoverOffset,
+                    coverOffsetX: tempCoverOffsetX,
+                    coverScale: tempCoverScale
+                  };
+
+                  if (activeSubEvent) {
+                    const newSub = { ...activeSubEvent, ...updatedFields };
+                    setActiveSubEvent(newSub);
+                    setSubEvents(prev => prev.map(sub => sub.id === activeSubEvent.id ? newSub : sub));
+                  } else if (event) {
+                    setEvent({ ...event, ...updatedFields });
+                  }
+
+                  showToast('Cover position saved');
+                  await updateEvent(target.id, updatedFields);
+                } catch (err) {
+                  console.log('Error saving cover position:', err);
+                } finally {
+                  setUpdating(false);
+                }
+              }}
+            >
+              <Text style={[styles.repositionBtnText, { color: '#000' }]}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* ── TOAST MESSAGE FEEDBACK OVERLAY ── */}
+      {toastMessage && (
+        <View style={styles.toastContainer}>
+          <View style={styles.toastContent}>
+            <IconSymbol name="checkmark.circle.fill" size={16} color={MidnightColors.gold} />
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -3133,12 +3568,12 @@ const styles = StyleSheet.create({
     zIndex: 25,
   },
   floatingShare: { position: 'absolute', top: 20, right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  heroContent: { position: 'absolute', bottom: 30, left: 24, right: 24 },
+  heroContent: { position: 'absolute', bottom: 14, left: 24, right: 24 },
   heroTitle: { fontSize: 36, color: '#fff', fontFamily: Fonts.outfit.extraBold, letterSpacing: -1 },
   scrapbookHeroContent: {
     left: 18,
     right: 18,
-    bottom: 24,
+    bottom: 12,
     paddingHorizontal: 18,
     paddingVertical: 18,
     borderRadius: 22,
@@ -3170,7 +3605,7 @@ const styles = StyleSheet.create({
   neonHeroContent: {
     left: 18,
     right: 18,
-    bottom: 24,
+    bottom: 12,
     paddingHorizontal: 20,
     paddingVertical: 20,
     borderRadius: 28,
@@ -3278,7 +3713,7 @@ const styles = StyleSheet.create({
   pastelHeroContent: {
     left: 18,
     right: 18,
-    bottom: 24,
+    bottom: 12,
     paddingHorizontal: 20,
     paddingVertical: 20,
     borderRadius: 30,
@@ -3387,7 +3822,7 @@ const styles = StyleSheet.create({
   popHeroContent: {
     left: 18,
     right: 18,
-    bottom: 24,
+    bottom: 12,
     paddingHorizontal: 20,
     paddingVertical: 20,
     borderRadius: 24,
@@ -3945,10 +4380,25 @@ const styles = StyleSheet.create({
   modalCloseLinkText: { color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.inter.medium },
 
   // Design
-  designCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: MidnightColors.deepSlate, padding: 20, borderRadius: 20, borderWidth: 1, borderColor: MidnightColors.cardBorder },
-  designInfo: { flex: 1, paddingRight: 16 },
-  designLabel: { color: MidnightColors.slate400, fontSize: 11, fontFamily: Fonts.inter.bold, textTransform: 'uppercase' },
-  designValue: { color: '#fff', fontSize: 18, fontFamily: Fonts.outfit.bold, marginTop: 4 },
+  designCard: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    backgroundColor: 'rgba(30, 41, 59, 0.45)', 
+    paddingVertical: 12, 
+    paddingHorizontal: 16, 
+    borderRadius: 14, 
+    borderWidth: 1, 
+    borderColor: 'rgba(255, 255, 255, 0.04)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2
+  },
+  designInfo: { flex: 1, paddingRight: 12 },
+  designLabel: { color: MidnightColors.slate400, fontSize: 9.5, fontFamily: Fonts.inter.medium, textTransform: 'uppercase', letterSpacing: 0.5 },
+  designValue: { color: '#fff', fontSize: 14, fontFamily: Fonts.outfit.semiBold, marginTop: 2 },
 
   // Guest Access
   guestSection: { backgroundColor: MidnightColors.deepSlate, padding: 24, borderRadius: 28, borderWidth: 1, borderColor: MidnightColors.cardBorder },
@@ -3983,49 +4433,58 @@ const styles = StyleSheet.create({
   activeTemplate: { backgroundColor: MidnightColors.gold },
   templateText: { color: '#fff', fontSize: 15, fontFamily: Fonts.outfit.bold },
   activeTemplateText: { color: MidnightColors.background },
-  templateOptionCard: {
-    borderWidth: 2,
-    borderRadius: 22,
-    overflow: 'hidden',
-    marginBottom: 16,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  activeTemplateCard: {
-    transform: [{ scale: 0.99 }],
-  },
-  templatePreview: {
-    height: 112,
-    justifyContent: 'flex-end',
-    padding: 16,
-    overflow: 'hidden',
-  },
-  templatePreviewLabel: {
-    fontSize: 10,
-    fontFamily: Fonts.inter.bold,
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-  },
-  templatePreviewTitle: {
-    fontSize: 22,
-    fontFamily: Fonts.outfit.extraBold,
-    marginTop: 4,
-  },
-  templateMeta: {
+  templateRowCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 10,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  activeTemplateRowCard: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  templateRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
+    flex: 1,
   },
-  templateDesc: {
+  palettePreview: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  paletteAccentDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+  },
+  templateRowText: {
+    flex: 1,
+    marginRight: 8,
+  },
+  templateRowName: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: Fonts.outfit.bold,
+  },
+  templateRowDesc: {
     color: MidnightColors.slate400,
-    fontSize: 12,
-    fontFamily: Fonts.inter.medium,
-    marginTop: 3,
+    fontSize: 11,
+    fontFamily: Fonts.inter.regular,
+    marginTop: 1,
   },
-  templateCheck: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  templateCheckCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -5204,6 +5663,25 @@ const styles = StyleSheet.create({
   deleteMainBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: 12, marginTop: 32, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.2)' },
   deleteMainText: { color: '#ef4444', fontSize: 14, fontFamily: Fonts.inter.bold },
 
+  etherealDividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginVertical: 24,
+    alignSelf: 'center',
+    width: '60%',
+  },
+  etherealDividerLine: {
+    flex: 1,
+    height: 1,
+    opacity: 0.25,
+  },
+  etherealDividerAsterisk: {
+    fontSize: 14,
+    opacity: 0.8,
+  },
+
   royalDividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -5375,7 +5853,7 @@ const styles = StyleSheet.create({
   classicHeroImage: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
+    resizeMode: 'contain',
   },
   classicCenterContent: {
     position: 'absolute',
@@ -5605,5 +6083,298 @@ const styles = StyleSheet.create({
   heroChevron: {
     opacity: 0.85,
     marginTop: 4,
+  },
+  categoryOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  activeCategoryOption: {
+    backgroundColor: 'rgba(212, 175, 55, 0.08)',
+    borderColor: 'rgba(212, 175, 55, 0.35)',
+  },
+  categoryLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  categoryIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryText: {
+    color: '#cbd5e1',
+    fontSize: 14,
+    fontFamily: Fonts.inter.medium,
+  },
+  activeCategoryText: {
+    color: MidnightColors.gold,
+    fontFamily: Fonts.inter.bold,
+  },
+  categoryCheckBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: MidnightColors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coverControlRow: {
+    position: 'absolute',
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    zIndex: 15,
+  },
+  coverControlSubBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  coverControlText: {
+    color: '#fff',
+    fontSize: 11,
+    fontFamily: Fonts.inter.bold,
+  },
+  repositionToolbar: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    zIndex: 30,
+  },
+  repositionInstruction: {
+    color: '#fff',
+    fontSize: 12,
+    fontFamily: Fonts.inter.medium,
+  },
+  repositionActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  repositionBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  repositionCancelBtn: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  repositionSaveBtn: {
+    backgroundColor: MidnightColors.gold,
+  },
+  repositionBtnText: {
+    color: '#fff',
+    fontSize: 11,
+    fontFamily: Fonts.inter.bold,
+  },
+  toastContainer: {
+    position: 'absolute',
+    bottom: 100,
+    left: 20,
+    right: 20,
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  toastContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(9, 8, 24, 0.95)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.35)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  toastText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontFamily: Fonts.inter.bold,
+  },
+  zoomControlRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  zoomBtn: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zoomText: {
+    color: '#fff',
+    fontSize: 11,
+    fontFamily: Fonts.inter.bold,
+    minWidth: 32,
+    textAlign: 'center',
+  },
+
+  etherealHeroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  etherealOverlayContainer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  etherealBackBtnRound: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  etherealShareBtnRound: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  etherealDetailsCard: {
+    position: 'absolute',
+    bottom: 30,
+    width: '90%',
+    alignSelf: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  etherealEnterBtn: {
+    width: '100%',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+  },
+  etherealEnterBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    letterSpacing: 2,
+    fontWeight: 'bold',
+    fontFamily: Fonts.inter.bold,
+  },
+  etherealBrandSection: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  etherealBrandScriptText: {
+    fontSize: 18,
+    fontStyle: 'italic',
+    color: '#2d2a29',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  etherealMonogramRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  etherealMonogramCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: '#2d2a29',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  etherealMonogramLetter: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#2d2a29',
+  },
+  etherealSocialRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    marginBottom: 20,
+  },
+  etherealSocialIconBtn: {
+    padding: 4,
+  },
+  etherealCoupleNames: {
+    fontSize: 22,
+    letterSpacing: 2,
+    textAlign: 'center',
+    marginBottom: 14,
+  },
+  etherealCountsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 24,
+  },
+  etherealCountItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  etherealCountText: {
+    fontSize: 14,
+    color: '#555555',
+    fontWeight: '500',
   },
 });

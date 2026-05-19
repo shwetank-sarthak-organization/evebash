@@ -44,6 +44,10 @@ export interface Event {
     templateId?: string;
     vendors?: string[];
     createdAt?: any;
+    coverOffset?: number;
+    coverOffsetX?: number;
+    coverScale?: number;
+    coverMode?: 'fit' | 'fill';
 }
 
 export interface Photo {

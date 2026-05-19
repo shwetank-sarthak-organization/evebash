@@ -612,19 +612,19 @@ export default function SocialScreen() {
 
           {/* Quick Info & Experience */}
           <View style={styles.bizBottomContainer}>
-            {item.description && (
+            {!!item.description && (
               <Text style={styles.bizDescription} numberOfLines={2}>
                 {item.description}
               </Text>
             )}
             <View style={styles.bizFeaturesRow}>
-              {item.experience && (
+              {!!item.experience && (
                 <View style={styles.bizTagChip}>
                   <IconSymbol name="clock.fill" size={11} color="#818cf8" />
                   <Text style={styles.bizTagChipText}>{item.experience}+ Years Exp</Text>
                 </View>
               )}
-              {item.ownerName && (
+              {!!item.ownerName && (
                 <View style={styles.bizTagChip}>
                   <IconSymbol name="person.fill" size={11} color="#818cf8" />
                   <Text style={styles.bizTagChipText}>Owner: {item.ownerName}</Text>
