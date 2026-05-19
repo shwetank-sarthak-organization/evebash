@@ -344,7 +344,11 @@ export default function EventDetailScreen() {
       return;
     }
 
-    router.replace('/(tabs)/gallery');
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/dashboard');
+    }
   }, [activeSubEvent, event, router, selectedAdminGallery]);
 
   useEffect(() => {
@@ -662,7 +666,11 @@ export default function EventDetailScreen() {
             const success = await deleteEvent(event.id);
             if (success) {
               Alert.alert("Success", "Event deleted successfully.");
-              router.replace('/(tabs)/gallery');
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)/dashboard');
+              }
             } else {
               Alert.alert("Error", "Failed to delete event.");
             }
@@ -1213,7 +1221,7 @@ export default function EventDetailScreen() {
                   {/* Left: Symmetrical Gold Square Back Button */}
                   <TouchableOpacity
                     style={[styles.classicSideButton, { borderColor: '#cca43b' }]}
-                    onPress={() => router.replace('/(tabs)/gallery')}
+                    onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
                   >
                     <IconSymbol name="chevron.left" size={16} color="#cca43b" />
                   </TouchableOpacity>
@@ -1256,7 +1264,7 @@ export default function EventDetailScreen() {
               {/* Back button at top left */}
               <TouchableOpacity
                 style={styles.etherealBackBtnRound}
-                onPress={() => router.replace('/(tabs)/gallery')}
+                onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
               >
                 <IconSymbol name="chevron.left" size={20} color="#ffffff" />
               </TouchableOpacity>
@@ -1332,7 +1340,7 @@ export default function EventDetailScreen() {
                   {/* Left: Gold bordered Square back/chevron icon button */}
                   <TouchableOpacity
                     style={[styles.heroSideButton, { borderColor: '#cca43b' }]}
-                    onPress={() => router.replace('/(tabs)/gallery')}
+                    onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
                   >
                     <IconSymbol name="chevron.left" size={16} color="#cca43b" />
                   </TouchableOpacity>

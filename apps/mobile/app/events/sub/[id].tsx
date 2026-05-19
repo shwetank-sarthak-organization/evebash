@@ -152,7 +152,7 @@ export default function SubEventPhotosScreen() {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace('/(tabs)/gallery');
+      router.replace('/(tabs)/dashboard');
     }
   }, [isPrivilegedViewer, isShared, router, subEvent?.parentId]);
 

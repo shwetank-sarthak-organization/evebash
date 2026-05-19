@@ -60,10 +60,7 @@ export default function ProfileScreen() {
           colors={['#0f172a', '#020617']}
           style={styles.header}
         >
-          <View style={styles.headerTopRow}>
-            <Text style={styles.headerTitle}>My Profile</Text>
-          </View>
-          
+
           <View style={styles.profileRow}>
             <View style={styles.avatarRing}>
               {user.profileImage ? (
@@ -77,10 +74,6 @@ export default function ProfileScreen() {
             <View style={styles.profileInfo}>
               <Text style={styles.userName}>{user.name}</Text>
               <View style={styles.headerBadgeRow}>
-                <View style={styles.planChip}>
-                  <IconSymbol name="crown.fill" size={8} color="#d4af37" />
-                  <Text style={styles.planChipText}>{user.role || 'Elite User'}</Text>
-                </View>
                 <View style={styles.socialStatsRow}>
                   <Text style={styles.socialStatText}>
                     <Text style={styles.socialStatNumber}>{stats.followers}</Text> Followers
@@ -97,7 +90,11 @@ export default function ProfileScreen() {
 
         <View style={styles.content}>
           <View style={styles.sectionHead}>
-            <Text style={styles.sectionLabel}>Account Settings</Text>
+            <Text style={styles.sectionLabel}>Account Info</Text>
+            <TouchableOpacity style={styles.editBtn} activeOpacity={0.7}>
+              <IconSymbol name="pencil" size={14} color="#60a5fa" />
+              <Text style={styles.editBtnText}>Edit</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.settingsCard}>
@@ -125,12 +122,24 @@ export default function ProfileScreen() {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/usage')}>
-              <View style={[styles.menuIcon, { backgroundColor: '#d4af3720' }]}>
-                <IconSymbol name="chart.bar.fill" size={18} color="#d4af37" />
-              </View>
-              <Text style={styles.actionText}>Usage & Plan</Text>
-              <IconSymbol name="chevron.right" size={16} color="#475569" />
+            <TouchableOpacity style={styles.usageCard} activeOpacity={0.8} onPress={() => router.push('/usage')}>
+              <LinearGradient
+                colors={['rgba(212, 175, 55, 0.15)', 'rgba(212, 175, 55, 0.02)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.usageGradient}
+              >
+                <View style={styles.usageIconBox}>
+                  <IconSymbol name="chart.bar.fill" size={20} color="#d4af37" />
+                </View>
+                <View style={styles.usageTextContent}>
+                  <Text style={styles.usageTitle}>Usage & Plan</Text>
+                  <Text style={styles.usageSubtitle}>View limits and upgrade</Text>
+                </View>
+                <View style={styles.usageArrowBox}>
+                  <IconSymbol name="chevron.right" size={14} color="#d4af37" />
+                </View>
+              </LinearGradient>
             </TouchableOpacity>
 
             <View style={styles.divider} />
@@ -164,15 +173,7 @@ export default function ProfileScreen() {
               <IconSymbol name="chevron.right" size={16} color="#475569" />
             </TouchableOpacity>
 
-            <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.actionItem} activeOpacity={0.7}>
-              <View style={[styles.infoIconBox, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-                <IconSymbol name="pencil" size={18} color="#60a5fa" />
-              </View>
-              <Text style={styles.actionText}>Edit Profile Info</Text>
-              <IconSymbol name="chevron.right" size={16} color="#475569" />
-            </TouchableOpacity>
           </View>
 
           <TouchableOpacity style={styles.signOutBtn} activeOpacity={0.8} onPress={logout}>
@@ -202,18 +203,6 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     borderBottomWidth: 1.5,
     borderBottomColor: 'rgba(212, 175, 55, 0.25)',
-  },
-  headerTopRow: { 
-    paddingHorizontal: 24, 
-    marginBottom: 24, 
-    alignItems: 'center' 
-  },
-  headerTitle: { 
-    fontSize: 13, 
-    fontFamily: 'Inter_700Bold', 
-    color: '#94a3b8', 
-    textTransform: 'uppercase', 
-    letterSpacing: 2 
   },
   profileRow: { 
     flexDirection: 'row', 
@@ -251,26 +240,6 @@ const styles = StyleSheet.create({
     color: '#f8fafc', 
     letterSpacing: -0.5 
   },
-  planChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(212,175,55,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.25)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    marginTop: 6,
-    alignSelf: 'flex-start',
-  },
-  planChipText: {
-    fontSize: 10,
-    color: '#d4af37',
-    fontFamily: 'Outfit_700Bold',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
   headerBadgeRow: {
     flexDirection: 'column',
     alignItems: 'flex-start',
@@ -302,8 +271,25 @@ const styles = StyleSheet.create({
     marginTop: 32 
   },
   sectionHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
     marginLeft: 4,
+  },
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  editBtnText: {
+    color: '#60a5fa',
+    fontSize: 12,
+    fontFamily: 'Outfit_600SemiBold',
   },
   sectionLabel: {
     fontSize: 13,
@@ -323,6 +309,48 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3, 
     shadowRadius: 20, 
     elevation: 10 
+  },
+  usageCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.25)',
+  },
+  usageGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 16,
+  },
+  usageIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(212, 175, 55, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  usageTextContent: {
+    flex: 1,
+  },
+  usageTitle: {
+    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
+    color: '#d4af37',
+    marginBottom: 4,
+  },
+  usageSubtitle: {
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    color: '#94a3b8',
+  },
+  usageArrowBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(212, 175, 55, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   infoRow: {
     flexDirection: 'row',

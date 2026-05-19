@@ -21,7 +21,7 @@ import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '@/context/AuthContext';
-import { createBusiness, getUserBusinesses, Business, generateShortId, getBusinessTypeColor } from '@/lib/firestore';
+import { createBusiness, getUserBusinesses, Business, generateShortId, getBusinessTypeColor, getUserTotalStorage } from '@/lib/firestore';
 
 const { width } = Dimensions.get('window');
 
@@ -47,6 +47,7 @@ export default function BusinessLandingScreen() {
   const [loading, setLoading] = useState(false);
   const [fetchingBusinesses, setFetchingBusinesses] = useState(true);
   const [userBusinesses, setUserBusinesses] = useState<Business[]>([]);
+  const [storageUsed, setStorageUsed] = useState(0);
 
   // Form State
   const [name, setName] = useState('');
@@ -77,6 +78,12 @@ export default function BusinessLandingScreen() {
     try {
       const biz = await getUserBusinesses(user.uid);
       setUserBusinesses(biz);
+      
+      const identifiers = [user.uid];
+      if (user.email) identifiers.push(user.email);
+      if (user.phone) identifiers.push(user.phone);
+      const storage = await getUserTotalStorage(identifiers);
+      setStorageUsed(storage);
     } catch (error) {
       console.error('Error fetching businesses:', error);
     } finally {
@@ -217,6 +224,51 @@ export default function BusinessLandingScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
+        {/* ── USAGE STATS ── */}
+        <View style={styles.storageSection}>
+          {/* Storage Card */}
+          <View style={styles.storageCard}>
+            <View style={styles.storageHeader}>
+              <Text style={styles.storageLabel}>Storage</Text>
+              <TouchableOpacity style={styles.upgradeBtnMini} onPress={() => router.push('/pricing' as any)}>
+                <Text style={styles.upgradeTextMini}>UPGRADE</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ flex: 1, justifyContent: 'center', marginVertical: 12 }}>
+              <Text style={styles.storageSub} numberOfLines={1}>{(storageUsed / (1024 * 1024)).toFixed(1)} MB / 5 GB</Text>
+            </View>
+            <View style={styles.storageBarContainer}>
+              <View style={[styles.storageBar, { width: `${Math.min((storageUsed / (5 * 1024 * 1024 * 1024)) * 100, 100)}%` }]} />
+            </View>
+          </View>
+
+          {/* Businesses Card */}
+          <View style={styles.storageCard}>
+            <View style={styles.storageHeader}>
+              <Text style={styles.storageLabel}>Businesses</Text>
+              <TouchableOpacity style={styles.upgradeBtnMini} onPress={() => router.push('/pricing' as any)}>
+                <Text style={styles.upgradeTextMini}>UPGRADE</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ flex: 1, justifyContent: 'center', marginVertical: 12 }}>
+              <Text style={styles.storageSub} numberOfLines={1}>
+                {userBusinesses.length} / {user?.role === 'premium' || user?.role === 'elite' ? '∞' : (user?.role === 'standard' ? '5' : '1')}
+              </Text>
+            </View>
+            <View style={styles.storageBarContainer}>
+              <View 
+                style={[
+                  styles.storageBar, 
+                  { 
+                    width: `${Math.min((userBusinesses.length / (user?.role === 'standard' ? 5 : (user?.role === 'premium' || user?.role === 'elite' ? userBusinesses.length || 1 : 1))) * 100, 100)}%`,
+                    backgroundColor: '#818cf8' 
+                  }
+                ]} 
+              />
+            </View>
+          </View>
+        </View>
+
         {/* ── YOUR BUSINESSES SECTION ── */}
         {fetchingBusinesses ? (
           <View style={[styles.section, { alignItems: 'center' }]}>
@@ -296,10 +348,12 @@ export default function BusinessLandingScreen() {
             {BENEFITS.map((benefit) => (
               <View key={benefit.id} style={styles.benefitCard}>
                 <View style={styles.benefitIcon}>
-                  <IconSymbol name={benefit.icon as any} size={24} color="#d4af37" />
+                  <IconSymbol name={benefit.icon as any} size={20} color="#d4af37" />
                 </View>
-                <Text style={styles.benefitTitle}>{benefit.title}</Text>
-                <Text style={styles.benefitDesc}>{benefit.desc}</Text>
+                <View style={styles.benefitContent}>
+                  <Text style={styles.benefitTitle}>{benefit.title}</Text>
+                  <Text style={styles.benefitDesc}>{benefit.desc}</Text>
+                </View>
               </View>
             ))}
           </View>
@@ -553,7 +607,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingTop: 12,
+    paddingBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(212, 175, 55, 0.2)',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -679,35 +736,41 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   benefitsGrid: {
-    gap: 16,
+    gap: 12,
   },
   benefitCard: {
     backgroundColor: '#0f172a',
-    padding: 24,
-    borderRadius: 24,
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 16,
   },
   benefitIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     backgroundColor: 'rgba(212, 175, 55, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    flexShrink: 0,
+  },
+  benefitContent: {
+    flex: 1,
   },
   benefitTitle: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#ffffff',
     fontFamily: 'Outfit_700Bold',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   benefitDesc: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#64748b',
     fontFamily: 'Inter_400Regular',
-    lineHeight: 20,
+    lineHeight: 18,
   },
   bizManageCard: {
     backgroundColor: '#0f172a',
@@ -1000,4 +1063,43 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  
+  // Storage
+  storageSection: { 
+    flexDirection: 'row',
+    gap: 12,
+    marginHorizontal: 24, 
+    marginTop: 20, 
+    marginBottom: 8,
+  },
+  storageCard: {
+    flex: 1,
+    padding: 16, 
+    backgroundColor: '#0f172a', 
+    borderRadius: 20, 
+    borderWidth: 1, 
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  storageHeader: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+  },
+  storageLabel: { fontSize: 14, color: '#ffffff', fontFamily: 'Outfit_700Bold' },
+  upgradeBtnMini: {
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
+  },
+  upgradeTextMini: {
+    fontSize: 9,
+    color: '#d4af37',
+    fontFamily: 'Outfit_700Bold',
+  },
+  storageBarContainer: { height: 6, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' },
+  storageBar: { height: '100%', backgroundColor: '#d4af37', borderRadius: 3 },
+  storageSub: { fontSize: 11, color: '#94a3b8', fontFamily: 'Inter_400Regular', marginTop: 2 },
 });

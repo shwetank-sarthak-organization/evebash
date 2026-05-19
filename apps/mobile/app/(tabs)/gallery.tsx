@@ -409,45 +409,46 @@ export default function PortfolioTabScreen() {
       >
         {/* ── USAGE STATS ── */}
         <View style={styles.storageSection}>
-          {/* Storage Row */}
-          <View style={styles.storageHeader}>
-            <View>
-              <Text style={styles.storageLabel}>Cloud Storage</Text>
-              <Text style={styles.storageSub}>{(storageUsed / (1024 * 1024)).toFixed(1)} MB / 5 GB</Text>
+          {/* Storage Card */}
+          <View style={styles.storageCard}>
+            <View style={styles.storageHeader}>
+              <Text style={styles.storageLabel}>Storage</Text>
+              <TouchableOpacity style={styles.upgradeBtnMini} onPress={() => router.push('/pricing' as any)}>
+                <Text style={styles.upgradeTextMini}>UPGRADE</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity 
-              style={styles.upgradeBtn}
-              onPress={() => router.push('/pricing' as any)}
-            >
-              <Text style={styles.upgradeText}>Upgrade</Text>
-              <IconSymbol name={"arrow.up.right" as any} size={10} color={MidnightColors.gold} />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.storageBarContainer}>
-            <View style={[styles.storageBar, { width: `${Math.min((storageUsed / (5 * 1024 * 1024 * 1024)) * 100, 100)}%` }]} />
+            <View style={{ flex: 1, justifyContent: 'center', marginVertical: 12 }}>
+              <Text style={styles.storageSub} numberOfLines={1}>{(storageUsed / (1024 * 1024)).toFixed(1)} MB / 5 GB</Text>
+            </View>
+            <View style={styles.storageBarContainer}>
+              <View style={[styles.storageBar, { width: `${Math.min((storageUsed / (5 * 1024 * 1024 * 1024)) * 100, 100)}%` }]} />
+            </View>
           </View>
 
-          <View style={{ height: 16 }} />
-
-          {/* Events Row */}
-          <View style={styles.storageHeader}>
-            <View>
-              <Text style={styles.storageLabel}>Event Limit</Text>
-              <Text style={styles.storageSub}>
-                {events.length} / {user?.role === 'premium' || user?.role === 'elite' ? '∞' : (user?.role === 'standard' ? '20' : (user?.role === 'basic' ? '5' : '2'))} Events
+          {/* Events Card */}
+          <View style={styles.storageCard}>
+            <View style={styles.storageHeader}>
+              <Text style={styles.storageLabel}>Events</Text>
+              <TouchableOpacity style={styles.upgradeBtnMini} onPress={() => router.push('/pricing' as any)}>
+                <Text style={styles.upgradeTextMini}>UPGRADE</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ flex: 1, justifyContent: 'center', marginVertical: 12 }}>
+              <Text style={styles.storageSub} numberOfLines={1}>
+                {events.length} / {user?.role === 'premium' || user?.role === 'elite' ? '∞' : (user?.role === 'standard' ? '20' : (user?.role === 'basic' ? '5' : '2'))}
               </Text>
             </View>
-          </View>
-          <View style={styles.storageBarContainer}>
-            <View 
-              style={[
-                styles.storageBar, 
-                { 
-                  width: `${Math.min((events.length / (user?.role === 'standard' ? 20 : (user?.role === 'basic' ? 5 : (user?.role === 'premium' || user?.role === 'elite' ? events.length || 1 : 2)))) * 100, 100)}%`,
-                  backgroundColor: '#818cf8' 
-                }
-              ]} 
-            />
+            <View style={styles.storageBarContainer}>
+              <View 
+                style={[
+                  styles.storageBar, 
+                  { 
+                    width: `${Math.min((events.length / (user?.role === 'standard' ? 20 : (user?.role === 'basic' ? 5 : (user?.role === 'premium' || user?.role === 'elite' ? events.length || 1 : 2)))) * 100, 100)}%`,
+                    backgroundColor: '#818cf8' 
+                  }
+                ]} 
+              />
+            </View>
           </View>
         </View>
 
@@ -648,6 +649,43 @@ export default function PortfolioTabScreen() {
           </Modal>
           </View>
         )}
+
+        {/* ── HOST GUIDE ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Host Your Perfect Event</Text>
+          <View style={styles.benefitsGrid}>
+            <View style={styles.benefitCard}>
+              <View style={styles.benefitIcon}>
+                <IconSymbol name="photo.on.rectangle" size={20} color={MidnightColors.gold} />
+              </View>
+              <View style={styles.benefitContent}>
+                <Text style={styles.benefitTitle}>Stunning Galleries</Text>
+                <Text style={styles.benefitDesc}>Create unlimited, high-resolution albums to preserve every beautiful memory.</Text>
+              </View>
+            </View>
+            
+            <View style={styles.benefitCard}>
+              <View style={styles.benefitIcon}>
+                <IconSymbol name="person.2.fill" size={20} color={MidnightColors.gold} />
+              </View>
+              <View style={styles.benefitContent}>
+                <Text style={styles.benefitTitle}>Guest Sharing</Text>
+                <Text style={styles.benefitDesc}>Easily invite guests via QR codes and securely share photos directly with them.</Text>
+              </View>
+            </View>
+
+            <View style={styles.benefitCard}>
+              <View style={styles.benefitIcon}>
+                <IconSymbol name="video.fill" size={20} color={MidnightColors.gold} />
+              </View>
+              <View style={styles.benefitContent}>
+                <Text style={styles.benefitTitle}>Live Streaming</Text>
+                <Text style={styles.benefitDesc}>Broadcast your special moments live to loved ones who couldn't attend in person.</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
       </ScrollView>
 
       {/* ── JOIN EVENT MODAL ── */}
@@ -989,6 +1027,55 @@ const styles = StyleSheet.create({
   centered: { alignItems: 'center', justifyContent: 'center' },
   scrollContent: { paddingBottom: 40 },
   
+  // Guide Section
+  section: {
+    paddingHorizontal: 20,
+    marginVertical: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    color: '#ffffff',
+    fontFamily: Fonts.outfit.extraBold,
+    marginBottom: 16,
+  },
+  benefitsGrid: {
+    gap: 12,
+  },
+  benefitCard: {
+    backgroundColor: '#0f172a',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 16,
+  },
+  benefitIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  benefitContent: {
+    flex: 1,
+  },
+  benefitTitle: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontFamily: Fonts.outfit.bold,
+    marginBottom: 4,
+  },
+  benefitDesc: {
+    fontSize: 13,
+    color: '#64748b',
+    fontFamily: Fonts.inter.regular,
+    lineHeight: 18,
+  },
+
   // Header
   header: {
     flexDirection: 'row',
@@ -1121,11 +1208,16 @@ const styles = StyleSheet.create({
 
   // Storage
   storageSection: { 
+    flexDirection: 'row',
+    gap: 12,
     marginHorizontal: 20, 
     marginTop: 20, 
+  },
+  storageCard: {
+    flex: 1,
     padding: 16, 
     backgroundColor: MidnightColors.deepSlate, 
-    borderRadius: 24, 
+    borderRadius: 20, 
     borderWidth: 1, 
     borderColor: MidnightColors.cardBorder 
   },
@@ -1133,21 +1225,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center', 
-    marginBottom: 12 
   },
   storageLabel: { fontSize: 14, color: '#fff', fontFamily: Fonts.outfit.bold },
-  upgradeBtn: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 4, 
-    backgroundColor: 'rgba(212, 175, 55, 0.1)', 
-    paddingHorizontal: 10, 
-    paddingVertical: 6, 
-    borderRadius: 12,
+  upgradeBtnMini: {
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: 'rgba(212, 175, 55, 0.3)',
   },
-  upgradeText: { fontSize: 11, color: MidnightColors.gold, fontFamily: Fonts.outfit.bold, textTransform: 'uppercase' },
+  upgradeTextMini: {
+    fontSize: 9,
+    color: MidnightColors.gold,
+    fontFamily: Fonts.outfit.bold,
+  },
   storageBarContainer: { height: 6, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' },
   storageBar: { height: '100%', backgroundColor: MidnightColors.gold, borderRadius: 3 },
   storageSub: { fontSize: 11, color: MidnightColors.slate400, fontFamily: Fonts.inter.regular, marginTop: 2 },
