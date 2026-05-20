@@ -105,6 +105,7 @@ export interface UserProfile {
     delegatedBy?: string;
     assignedEvents?: string[];
     profileImage?: string;
+    username?: string;
     isPrivate?: boolean;
     createdAt?: Timestamp;
 }
@@ -299,6 +300,37 @@ export async function updateUserProfileImage(uid: string, imageUrl: string) {
         return true;
     } catch (error) {
         console.error("Error updating profile image:", error);
+        return false;
+    }
+}
+
+export async function isUsernameUnique(username: string, excludeUid?: string): Promise<boolean> {
+    try {
+        const usersCol = collection(db, "users");
+        const q = query(usersCol, where("username", "==", username.toLowerCase()));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) return true;
+        
+        if (excludeUid) {
+            const matches = snapshot.docs.filter(doc => doc.id !== excludeUid);
+            return matches.length === 0;
+        }
+        
+        return false;
+    } catch (error) {
+        console.error("Error checking username uniqueness:", error);
+        return false;
+    }
+}
+
+export async function updateUserProfile(uid: string, updateData: { name: string; username: string; profileImage?: string }) {
+    try {
+        const docRef = doc(db, "users", uid);
+        await updateDoc(docRef, updateData);
+        return true;
+    } catch (error) {
+        console.error("Error updating user profile:", error);
         return false;
     }
 }

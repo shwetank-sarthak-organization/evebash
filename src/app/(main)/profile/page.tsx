@@ -17,6 +17,9 @@ import {
     Images,
     Share2,
     Clock,
+    CheckCircle2,
+    XCircle,
+    AlertCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -28,6 +31,8 @@ import {
     getUserEvents,
     getUserVisits,
     getUserById,
+    isUsernameUnique,
+    updateUserProfile,
     Event as FirestoreEvent,
 } from "@/lib/firestore";
 import { uploadProfileImageToCloudinary } from "@/app/actions/userActions";
@@ -50,6 +55,14 @@ export default function ProfilePage() {
     // Usage Stats (Normal Users)
     const [storageUsed, setStorageUsed] = useState(0);
     const [eventCount, setEventCount] = useState(0);
+
+    // Edit Profile State
+    const [nameInput, setNameInput] = useState("");
+    const [usernameInput, setUsernameInput] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveSuccess, setSaveSuccess] = useState(false);
+    const [saveError, setSaveError] = useState("");
+    const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
 
     // Gallery data
     const [myGalleries, setMyGalleries] = useState<FirestoreEvent[]>([]);
@@ -130,6 +143,101 @@ export default function ProfilePage() {
 
         fetchGalleries();
     }, [user]);
+
+    useEffect(() => {
+        if (user) {
+            setNameInput(user.name || "");
+            setUsernameInput(user.username || "");
+            setUsernameStatus("idle");
+        }
+    }, [user]);
+
+    useEffect(() => {
+        if (!user || !usernameInput) {
+            setUsernameStatus("idle");
+            return;
+        }
+
+        // If it's unchanged, it's valid/available (idle)
+        if (usernameInput.toLowerCase() === user.username?.toLowerCase()) {
+            setUsernameStatus("idle");
+            return;
+        }
+
+        // Validate format: alphanumeric, underscores, dots, 3-30 chars
+        const isValidFormat = /^[a-z0-9_.]+$/.test(usernameInput) && usernameInput.length >= 3 && usernameInput.length <= 30;
+        if (!isValidFormat) {
+            setUsernameStatus("invalid");
+            return;
+        }
+
+        setUsernameStatus("checking");
+        const debounceTimer = setTimeout(async () => {
+            const isUnique = await isUsernameUnique(usernameInput, user.uid);
+            if (isUnique) {
+                setUsernameStatus("available");
+            } else {
+                setUsernameStatus("taken");
+            }
+        }, 500);
+
+        return () => clearTimeout(debounceTimer);
+    }, [usernameInput, user]);
+
+    const handleSaveChanges = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!user) return;
+
+        setSaveError("");
+        setSaveSuccess(false);
+
+        if (!nameInput.trim()) {
+            setSaveError("Full name is required.");
+            return;
+        }
+
+        const normalizedUsername = usernameInput.trim().toLowerCase();
+        if (!normalizedUsername) {
+            setSaveError("Username is required.");
+            return;
+        }
+
+        const isValidFormat = /^[a-z0-9_.]+$/.test(normalizedUsername) && normalizedUsername.length >= 3 && normalizedUsername.length <= 30;
+        if (!isValidFormat) {
+            setSaveError("Username must be between 3 and 30 characters and contain only lowercase letters, numbers, underscores, or dots.");
+            return;
+        }
+
+        setIsSaving(true);
+
+        try {
+            if (normalizedUsername !== user.username?.toLowerCase()) {
+                const isUnique = await isUsernameUnique(normalizedUsername, user.uid);
+                if (!isUnique) {
+                    setSaveError("This username is already taken.");
+                    setIsSaving(false);
+                    return;
+                }
+            }
+
+            const success = await updateUserProfile(user.uid, {
+                name: nameInput.trim(),
+                username: normalizedUsername,
+            });
+
+            if (success) {
+                setSaveSuccess(true);
+                setTimeout(() => setSaveSuccess(false), 3000);
+            } else {
+                setSaveError("Failed to update profile. Please try again.");
+            }
+        } catch (err) {
+            console.error("Error saving profile changes:", err);
+            setSaveError("An error occurred. Please try again.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -251,7 +359,19 @@ export default function ProfilePage() {
                             </div>
 
                             <h1 className="text-2xl font-bold text-slate-800 tracking-tight">{user.name}</h1>
-                            <p className="text-slate-600 text-sm font-sans flex items-center justify-center mt-1">
+                            {user.username ? (
+                                <p className="text-royal-gold text-xs font-semibold font-sans mt-0.5 tracking-wider lowercase">
+                                    @{user.username}
+                                </p>
+                            ) : (
+                                <button
+                                    onClick={() => setActiveTab("settings")}
+                                    className="text-stone-400 hover:text-royal-gold text-[11px] font-medium font-sans mt-1 tracking-wider transition-colors flex items-center justify-center space-x-1 cursor-pointer"
+                                >
+                                    <span>@set_username</span>
+                                </button>
+                            )}
+                            <p className="text-slate-600 text-sm font-sans flex items-center justify-center mt-2">
                                 {user.email ? <><Mail size={12} className="mr-1.5" />{user.email}</> : <><Phone size={12} className="mr-1.5" />{user.phone}</>}
                             </p>
 
@@ -582,25 +702,114 @@ export default function ProfilePage() {
                                     className="bg-white rounded-[2.5rem] p-12 border border-stone-100 shadow-sm"
                                 >
                                     <h3 className="text-xl font-bold text-slate-800 mb-8">Personal Information</h3>
-                                    <div className="space-y-6">
+                                    <form onSubmit={handleSaveChanges} className="space-y-6">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            {/* Full Name */}
                                             <div className="space-y-1">
                                                 <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1">Full Name</label>
-                                                <input readOnly value={user.name} className="w-full px-5 py-3.5 bg-stone-50 border border-stone-100 rounded-xl text-slate-700 font-sans focus:outline-none" />
+                                                <input
+                                                    type="text"
+                                                    value={nameInput}
+                                                    onChange={(e) => setNameInput(e.target.value)}
+                                                    className="w-full px-5 py-3.5 bg-white border border-stone-200 rounded-xl text-slate-700 font-sans focus:outline-none focus:ring-2 focus:ring-royal-gold/50 focus:border-transparent transition-all shadow-sm"
+                                                    placeholder="Your Full Name"
+                                                    required
+                                                />
                                             </div>
+
+                                            {/* Username */}
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1">Username</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-stone-400 font-sans font-medium text-sm">@</span>
+                                                    <input
+                                                        type="text"
+                                                        value={usernameInput}
+                                                        onChange={(e) => setUsernameInput(e.target.value)}
+                                                        className="w-full pl-9 pr-12 py-3.5 bg-white border border-stone-200 rounded-xl text-slate-700 font-sans focus:outline-none focus:ring-2 focus:ring-royal-gold/50 focus:border-transparent transition-all shadow-sm"
+                                                        placeholder="username"
+                                                        required
+                                                    />
+                                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center">
+                                                        {usernameStatus === "checking" && <Loader2 className="w-4 h-4 animate-spin text-royal-gold" />}
+                                                        {usernameStatus === "available" && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                                                        {usernameStatus === "taken" && <XCircle className="w-4 h-4 text-rose-500" />}
+                                                        {usernameStatus === "invalid" && <AlertCircle className="w-4 h-4 text-amber-500" />}
+                                                    </div>
+                                                </div>
+
+                                                <AnimatePresence>
+                                                    {usernameStatus !== "idle" && (
+                                                        <motion.p
+                                                            initial={{ opacity: 0, y: -5 }}
+                                                            animate={{ opacity: 1, y: 0 }}
+                                                            exit={{ opacity: 0, y: -5 }}
+                                                            className={cn(
+                                                                "text-[11px] font-sans ml-1 mt-1",
+                                                                usernameStatus === "checking" && "text-slate-500",
+                                                                usernameStatus === "available" && "text-emerald-600 font-medium",
+                                                                usernameStatus === "taken" && "text-rose-600 font-medium",
+                                                                usernameStatus === "invalid" && "text-amber-600"
+                                                            )}
+                                                        >
+                                                            {usernameStatus === "checking" && "Checking availability..."}
+                                                            {usernameStatus === "available" && "Username is available!"}
+                                                            {usernameStatus === "taken" && "This username is already taken."}
+                                                            {usernameStatus === "invalid" && "Use 3-30 chars: lowercase, numbers, underscores, or dots."}
+                                                        </motion.p>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+
+                                            {/* Email Address or Phone */}
                                             <div className="space-y-1">
                                                 <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1">
                                                     {user.email ? "Email Address" : "Phone Number"}
                                                 </label>
-                                                <input readOnly value={user.email || user.phone || ""} className="w-full px-5 py-3.5 bg-stone-50 border border-stone-100 rounded-xl text-slate-700 font-sans focus:outline-none" />
+                                                <input
+                                                    readOnly
+                                                    value={user.email || user.phone || ""}
+                                                    className="w-full px-5 py-3.5 bg-stone-50 border border-stone-100 rounded-xl text-slate-400 font-sans focus:outline-none cursor-not-allowed"
+                                                />
                                             </div>
                                         </div>
-                                        <div className="pt-6 border-t border-stone-50">
-                                            <p className="text-stone-600 text-xs font-sans italic">
-                                                To change your account details, please contact our support team.
-                                            </p>
+
+                                        {/* Error/Success Feedbacks & Button */}
+                                        <div className="pt-6 border-t border-stone-50 flex flex-col sm:flex-row items-center justify-between gap-4">
+                                            <div>
+                                                {saveError && (
+                                                    <p className="text-xs text-rose-500 font-sans font-semibold flex items-center">
+                                                        <AlertCircle className="w-3.5 h-3.5 mr-1" />
+                                                        {saveError}
+                                                    </p>
+                                                )}
+                                                {saveSuccess && (
+                                                    <p className="text-xs text-emerald-600 font-sans font-semibold flex items-center">
+                                                        <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                                                        Changes saved successfully!
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            <button
+                                                type="submit"
+                                                disabled={isSaving || usernameStatus === "taken" || usernameStatus === "invalid" || usernameStatus === "checking"}
+                                                className={cn(
+                                                    "px-8 py-3.5 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed",
+                                                    (usernameStatus === "taken" || usernameStatus === "invalid") && "bg-slate-300 hover:bg-slate-300 cursor-not-allowed"
+                                                )}
+                                            >
+                                                {isSaving ? (
+                                                    <>
+                                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                        <span>Saving...</span>
+                                                    </>
+                                                ) : (
+                                                    <span>Save Changes</span>
+                                                )}
+                                            </button>
                                         </div>
-                                    </div>
+                                    </form>
                                 </motion.div>
                             )}
                         </AnimatePresence>

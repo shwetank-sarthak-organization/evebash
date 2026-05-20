@@ -14,7 +14,8 @@ interface AuthContextType {
         assignedEvents?: string[];
         profileImage?: string;
         email?: string | null;
-        delegatedBy?: string
+        delegatedBy?: string;
+        username?: string;
     } | null;
     login: (email: string, password: string) => Promise<boolean>;
     signup: (email: string, password: string, name: string) => Promise<boolean>;
@@ -39,7 +40,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         assignedEvents?: string[];
         profileImage?: string;
         email?: string | null;
-        delegatedBy?: string
+        delegatedBy?: string;
+        username?: string;
     } | null>(null);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
@@ -54,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profileImage?: string;
         email?: string | null;
         delegatedBy?: string;
+        username?: string;
     }) => {
         setUser(userData);
         localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
@@ -98,7 +101,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         assignedEvents: profile?.assignedEvents || [],
                         profileImage: profile?.profileImage,
                         email: firebaseUser.email,
-                        delegatedBy: profile?.delegatedBy
+                        delegatedBy: profile?.delegatedBy,
+                        username: profile?.username || ""
                     };
 
                     syncUserSession(userData);
@@ -117,7 +121,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                                 assignedEvents: liveProfile?.assignedEvents || [],
                                 profileImage: liveProfile?.profileImage,
                                 email: firebaseUser.email,
-                                delegatedBy: liveProfile?.delegatedBy
+                                delegatedBy: liveProfile?.delegatedBy,
+                                username: liveProfile?.username
                             });
                         });
                     }
@@ -131,6 +136,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             if (parsed && typeof parsed.uid === "string" && parsed.uid.startsWith("phone_")) {
                                 console.log("[Auth] Valid guest phone session found, preserving user state.");
                                 setUser(parsed);
+
+                                if (db) {
+                                    unsubscribeProfile = onSnapshot(doc(db, "users", parsed.uid), (profileSnap) => {
+                                        if (!profileSnap.exists()) return;
+                                        const liveProfile = profileSnap.data();
+                                        syncUserSession({
+                                            uid: parsed.uid,
+                                            name: liveProfile?.name || parsed.name,
+                                            phone: liveProfile?.phone || parsed.phone || "No Phone",
+                                            role: liveProfile?.role || parsed.role || "user",
+                                            roleType: liveProfile?.roleType || parsed.roleType || "event",
+                                            assignedEvents: liveProfile?.assignedEvents || parsed.assignedEvents || [],
+                                            profileImage: liveProfile?.profileImage || parsed.profileImage,
+                                            email: parsed.email || null,
+                                            delegatedBy: liveProfile?.delegatedBy || parsed.delegatedBy,
+                                            username: liveProfile?.username
+                                        });
+                                    });
+                                }
                                 setLoading(false);
                                 return; // Exit early, do not clear session!
                             }
@@ -187,7 +211,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 assignedEvents: profile?.assignedEvents || [],
                 profileImage: profile?.profileImage,
                 email: userCredential.user.email,
-                delegatedBy: profile?.delegatedBy
+                delegatedBy: profile?.delegatedBy,
+                username: profile?.username
             };
             setUser(userData);
             localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
@@ -236,6 +261,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // We might still want to allow the user in even if sync fails
             }
 
+            const profile = await getUserProfile(user.uid);
             const userData = {
                 uid: user.uid,
                 name: name,
@@ -243,7 +269,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 role: "user",
                 roleType: "primary" as const,
                 profileImage: undefined,
-                email: user.email
+                email: user.email,
+                username: profile?.username || name.toLowerCase().replace(/[^a-z0-9_.]/g, "_")
             };
             setUser(userData);
             localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
@@ -298,7 +325,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 assignedEvents: profile?.assignedEvents || [],
                 profileImage: profile?.profileImage,
                 email: result.user.email,
-                delegatedBy: profile?.delegatedBy
+                delegatedBy: profile?.delegatedBy,
+                username: profile?.username
             };
 
             setUser(userData);
@@ -385,7 +413,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 assignedEvents: profile?.assignedEvents || [],
                 profileImage: profile?.profileImage,
                 email: null,
-                delegatedBy: profile?.delegatedBy
+                delegatedBy: profile?.delegatedBy,
+                username: profile?.username
             };
 
             setUser(userData);
@@ -453,7 +482,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 profileImage: profile?.profileImage,
                 email: email,
                 delegatedBy: profile?.delegatedBy,
-                loginMethod: phoneStr ? "phone" : "email"
+                loginMethod: phoneStr ? "phone" : "email",
+                username: profile?.username
             };
             setUser(userData as any);
             localStorage.setItem("wedding_guest_user", JSON.stringify(userData));

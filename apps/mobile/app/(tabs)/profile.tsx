@@ -8,13 +8,18 @@ import {
   TouchableOpacity,
   Dimensions,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter } from 'expo-router';
-import { getFollowersCount, getFollowingCount, updateUserPrivacy } from '@/lib/firestore';
+import * as ImagePicker from 'expo-image-picker';
+import { getFollowersCount, getFollowingCount, updateUserPrivacy, isUsernameUnique, updateUserProfile } from '@/lib/firestore';
+import { uploadProfileImage } from '@/lib/storage';
 
 const { width } = Dimensions.get('window');
 
@@ -24,6 +29,145 @@ export default function ProfileScreen() {
   const [stats, setStats] = useState({ followers: 0, following: 0 });
   const [isPrivate, setIsPrivate] = useState(user?.isPrivate || false);
   const [updatingPrivacy, setUpdatingPrivacy] = useState(false);
+
+  // Edit Profile States
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editUsername, setEditUsername] = useState('');
+  const [editImage, setEditImage] = useState<string | null>(null);
+  const [editImageBase64, setEditImageBase64] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Username validation state
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const [isUsernameValid, setIsUsernameValid] = useState(true);
+
+  // Debounced username checker
+  useEffect(() => {
+    if (!isEditing) return;
+
+    const normalized = editUsername.trim().toLowerCase();
+
+    // If it matches current username exactly, it's valid
+    if (normalized === user?.username?.toLowerCase()) {
+      setUsernameStatus('idle');
+      setIsUsernameValid(true);
+      return;
+    }
+
+    if (!normalized) {
+      setUsernameStatus('idle');
+      setIsUsernameValid(false);
+      return;
+    }
+
+    // Check syntax format (3-30 chars, lowercase alphanumeric, dot, underscore)
+    const regex = /^[a-z0-9_.]+$/;
+    if (normalized.length < 3 || normalized.length > 30 || !regex.test(normalized)) {
+      setUsernameStatus('invalid');
+      setIsUsernameValid(false);
+      return;
+    }
+
+    setUsernameStatus('checking');
+
+    const timer = setTimeout(async () => {
+      try {
+        const isUnique = await isUsernameUnique(normalized, user?.uid);
+        if (isUnique) {
+          setUsernameStatus('available');
+          setIsUsernameValid(true);
+        } else {
+          setUsernameStatus('taken');
+          setIsUsernameValid(false);
+        }
+      } catch (err) {
+        console.error('Error checking username uniqueness:', err);
+        setUsernameStatus('idle');
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [editUsername, isEditing, user]);
+
+  const openEditModal = () => {
+    setEditName(user?.name || '');
+    setEditUsername(user?.username || '');
+    setEditImage(user?.profileImage || null);
+    setEditImageBase64(null);
+    setUsernameStatus('idle');
+    setIsUsernameValid(true);
+    setIsEditing(true);
+  };
+
+  const handlePickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Needed', 'We need access to your photos to update your profile picture.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        setEditImage(asset.uri);
+        setEditImageBase64(`data:image/jpeg;base64,${asset.base64}`);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image.');
+    }
+  };
+
+  const handleSaveChanges = async () => {
+    if (!user?.uid) return;
+    if (!editName.trim()) {
+      Alert.alert('Error', 'Full name cannot be empty.');
+      return;
+    }
+    if (!isUsernameValid) {
+      Alert.alert('Error', 'Please choose a valid and available username.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      let finalImageUrl = user.profileImage || '';
+
+      if (editImageBase64) {
+        const uploadResult = await uploadProfileImage(editImageBase64, user.uid);
+        if (uploadResult && uploadResult.url) {
+          finalImageUrl = uploadResult.url;
+        }
+      }
+
+      const success = await updateUserProfile(user.uid, {
+        name: editName.trim(),
+        username: editUsername.trim().toLowerCase(),
+        profileImage: finalImageUrl,
+      });
+
+      if (success) {
+        Alert.alert('Success', 'Profile updated successfully.');
+        setIsEditing(false);
+      } else {
+        Alert.alert('Error', 'Failed to update profile. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'An unexpected error occurred.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -74,6 +218,9 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.profileInfo}>
               <Text style={styles.userName}>{user.name}</Text>
+              {user.username && (
+                <Text style={styles.userHandle}>@{user.username}</Text>
+              )}
               <View style={styles.headerBadgeRow}>
                 <View style={styles.socialStatsRow}>
                   <Text style={styles.socialStatText}>
@@ -92,7 +239,7 @@ export default function ProfileScreen() {
         <View style={styles.content}>
           <View style={styles.sectionHead}>
             <Text style={styles.sectionLabel}>Account Info</Text>
-            <TouchableOpacity style={styles.editBtn} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.editBtn} activeOpacity={0.7} onPress={openEditModal}>
               <IconSymbol name="pencil" size={14} color="#60a5fa" />
               <Text style={styles.editBtnText}>Edit</Text>
             </TouchableOpacity>
@@ -106,6 +253,18 @@ export default function ProfileScreen() {
               <View style={styles.infoTextContainer}>
                 <Text style={styles.infoLabel}>Full Name</Text>
                 <Text style={styles.infoValue}>{user.name}</Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconBox}>
+                <IconSymbol name="person.fill" size={18} color="#d4af37" />
+              </View>
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoLabel}>Username</Text>
+                <Text style={styles.infoValue}>@{user.username || 'Not set'}</Text>
               </View>
             </View>
 
@@ -187,6 +346,158 @@ export default function ProfileScreen() {
           <Text style={styles.footerText}>Wedding Album v1.0.4</Text>
         </View>
       </ScrollView>
+
+      {/* Edit Profile Modal */}
+      <Modal
+        visible={isEditing}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          if (!saving) setIsEditing(false);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Profile</Text>
+              <TouchableOpacity 
+                onPress={() => setIsEditing(false)} 
+                disabled={saving}
+                style={styles.modalCloseBtn}
+              >
+                <IconSymbol name="xmark" size={20} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.modalScrollContent}
+            >
+              {/* Profile Image Picking Area */}
+              <View style={styles.editAvatarSection}>
+                <TouchableOpacity 
+                  onPress={handlePickImage} 
+                  disabled={saving}
+                  activeOpacity={0.8}
+                  style={styles.editAvatarWrapper}
+                >
+                  {editImage ? (
+                    <Image source={{ uri: editImage }} style={styles.editAvatar} />
+                  ) : (
+                    <View style={styles.editAvatarPlaceholder}>
+                      <IconSymbol name="person.fill" size={40} color="#64748b" />
+                    </View>
+                  )}
+                  <View style={styles.changePhotoOverlay}>
+                    <IconSymbol name="camera.fill" size={16} color="#ffffff" />
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={handlePickImage} 
+                  disabled={saving}
+                  style={styles.changePhotoTextBtn}
+                >
+                  <Text style={styles.changePhotoText}>Change Profile Photo</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Edit Form */}
+              <View style={styles.formContainer}>
+                
+                {/* Full Name Input */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Full Name</Text>
+                  <View style={styles.inputWrapper}>
+                    <IconSymbol name="person.fill" size={16} color="#d4af37" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.textInput}
+                      value={editName}
+                      onChangeText={setEditName}
+                      placeholder="Enter full name"
+                      placeholderTextColor="#475569"
+                      editable={!saving}
+                    />
+                  </View>
+                </View>
+
+                {/* Username Input */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Username</Text>
+                  <View style={styles.inputWrapper}>
+                    <Text style={styles.usernamePrefix}>@</Text>
+                    <TextInput
+                      style={[styles.textInput, { paddingLeft: 4 }]}
+                      value={editUsername}
+                      onChangeText={(val) => setEditUsername(val.replace(/\s+/g, '').toLowerCase())}
+                      placeholder="username"
+                      placeholderTextColor="#475569"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      editable={!saving}
+                    />
+                    {usernameStatus === 'checking' && (
+                      <ActivityIndicator size="small" color="#d4af37" style={styles.inputSpinner} />
+                    )}
+                  </View>
+                  
+                  {/* Validation Feedback */}
+                  {editUsername.trim().toLowerCase() !== user?.username?.toLowerCase() && (
+                    <View style={styles.feedbackContainer}>
+                      {usernameStatus === 'available' && (
+                        <Text style={[styles.feedbackText, styles.feedbackAvailable]}>
+                          ✓ Username is available
+                        </Text>
+                      )}
+                      {usernameStatus === 'taken' && (
+                        <Text style={[styles.feedbackText, styles.feedbackTaken]}>
+                          ✗ Username is already taken
+                        </Text>
+                      )}
+                      {usernameStatus === 'invalid' && (
+                        <Text style={[styles.feedbackText, styles.feedbackInvalid]}>
+                          ⚠ 3-30 chars, lowercase, letters, numbers, underscores, or dots
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+
+              </View>
+
+              {/* Action Buttons */}
+              <View style={styles.modalActions}>
+                <TouchableOpacity 
+                  style={styles.cancelBtn} 
+                  onPress={() => setIsEditing(false)}
+                  disabled={saving}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[
+                    styles.saveBtn,
+                    (!editName.trim() || !isUsernameValid || saving) && styles.saveBtnDisabled
+                  ]} 
+                  onPress={handleSaveChanges}
+                  disabled={!editName.trim() || !isUsernameValid || saving}
+                  activeOpacity={0.7}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color="#020617" />
+                  ) : (
+                    <Text style={styles.saveBtnText}>Save Changes</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -240,6 +551,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_800ExtraBold', 
     color: '#f8fafc', 
     letterSpacing: -0.5 
+  },
+  userHandle: {
+    fontSize: 14,
+    fontFamily: 'Outfit_600SemiBold',
+    color: '#d4af37',
+    marginTop: 2,
+    textTransform: 'lowercase',
   },
   headerBadgeRow: {
     flexDirection: 'column',
@@ -446,5 +764,193 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#475569',
     fontFamily: 'Inter_400Regular',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(2, 6, 23, 0.85)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#0f172a',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: 'Outfit_800ExtraBold',
+    color: '#f8fafc',
+  },
+  modalCloseBtn: {
+    padding: 4,
+  },
+  modalScrollContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 48,
+  },
+  editAvatarSection: {
+    alignItems: 'center',
+    marginVertical: 28,
+  },
+  editAvatarWrapper: {
+    position: 'relative',
+    padding: 3,
+    borderRadius: 54,
+    borderWidth: 2,
+    borderColor: 'rgba(212, 175, 55, 0.4)',
+  },
+  editAvatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  editAvatarPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#020617',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  changePhotoOverlay: {
+    position: 'absolute',
+    bottom: 3,
+    right: 3,
+    backgroundColor: '#d4af37',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#0f172a',
+  },
+  changePhotoTextBtn: {
+    marginTop: 12,
+  },
+  changePhotoText: {
+    color: '#60a5fa',
+    fontSize: 14,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  formContainer: {
+    gap: 20,
+    marginBottom: 32,
+  },
+  inputGroup: {
+    gap: 8,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter_700Bold',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginLeft: 4,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#020617',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 16,
+    height: 56,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  usernamePrefix: {
+    fontSize: 16,
+    fontFamily: 'Outfit_600SemiBold',
+    color: '#d4af37',
+    marginRight: 2,
+  },
+  textInput: {
+    flex: 1,
+    color: '#f8fafc',
+    fontSize: 16,
+    fontFamily: 'Outfit_600SemiBold',
+    height: '100%',
+  },
+  inputSpinner: {
+    marginLeft: 8,
+  },
+  feedbackContainer: {
+    marginTop: 4,
+    marginLeft: 4,
+  },
+  feedbackText: {
+    fontSize: 12,
+    fontFamily: 'Inter_500Medium',
+  },
+  feedbackAvailable: {
+    color: '#10b981',
+  },
+  feedbackTaken: {
+    color: '#ef4444',
+  },
+  feedbackInvalid: {
+    color: '#f43f5e',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 56,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+  },
+  cancelBtnText: {
+    color: '#94a3b8',
+    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
+  },
+  saveBtn: {
+    flex: 2,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: '#d4af37',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#d4af37',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  saveBtnDisabled: {
+    backgroundColor: '#334155',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  saveBtnText: {
+    color: '#020617',
+    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
   },
 });

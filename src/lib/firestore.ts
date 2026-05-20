@@ -55,6 +55,7 @@ export interface UserProfile {
     profileImage?: string;
     createdAt?: Timestamp;
     lastLogin?: Timestamp;
+    username?: string;
 }
 
 export interface GuestLog {
@@ -478,6 +479,77 @@ export async function denyRequest(phone: string) {
     }
 }
 /**
+ * Checks if a username is unique in Firestore.
+ */
+export async function isUsernameUnique(username: string, excludeUid?: string): Promise<boolean> {
+    try {
+        const usersCol = collection(db, "users");
+        const q = query(usersCol, where("username", "==", username.toLowerCase()));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) return true;
+        
+        if (excludeUid) {
+            const matches = snapshot.docs.filter(doc => doc.id !== excludeUid);
+            return matches.length === 0;
+        }
+        
+        return false;
+    } catch (error) {
+        console.error("Error checking username uniqueness:", error);
+        return false;
+    }
+}
+
+/**
+ * Auto-generates a unique username based on email or name.
+ */
+export async function generateUniqueUsername(base: string): Promise<string> {
+    let username = base.toLowerCase().replace(/[^a-z0-9_.]/g, "_");
+    username = username.replace(/_+/g, "_").replace(/\.+/g, ".");
+    username = username.replace(/^[_.]+|[_.]+$/g, "");
+    
+    if (username.length < 3) {
+        username = "user_" + username;
+    }
+    if (username.length > 30) {
+        username = username.substring(0, 30);
+    }
+    
+    let candidate = username;
+    let suffix = 1;
+    let isUnique = false;
+    
+    while (!isUnique) {
+        const unique = await isUsernameUnique(candidate);
+        if (unique) {
+            isUnique = true;
+        } else {
+            const suffixStr = suffix.toString();
+            const maxBaseLen = 30 - suffixStr.length;
+            candidate = `${username.substring(0, maxBaseLen)}${suffixStr}`;
+            suffix++;
+        }
+    }
+    
+    return candidate;
+}
+
+/**
+ * Updates user profile details in Firestore.
+ */
+export async function updateUserProfile(uid: string, updateData: { name: string; username: string; email?: string }) {
+    try {
+        const docRef = doc(db, "users", uid);
+        await updateDoc(docRef, updateData);
+        return true;
+    } catch (error) {
+        console.error("Error updating user profile:", error);
+        return false;
+    }
+}
+
+/**
  * Creates or updates a user profile in the 'users' collection.
  */
 export async function createUserProfile(uid: string, name: string, email: string, phone: string = "", role: string = "user") {
@@ -487,6 +559,12 @@ export async function createUserProfile(uid: string, name: string, email: string
 
         const existingData = docSnap.exists() ? docSnap.data() : {};
 
+        let username = existingData.username;
+        if (!username) {
+            const base = email ? email.split("@")[0] : name;
+            username = await generateUniqueUsername(base);
+        }
+
         // Sync logic: Keep existing role if it exists, otherwise use provided role
         await setDoc(docRef, {
             name,
@@ -495,7 +573,8 @@ export async function createUserProfile(uid: string, name: string, email: string
             role: existingData.role || role,
             roleType: existingData.roleType || (existingData.delegatedBy ? 'event' : 'primary'),
             createdAt: existingData.createdAt || Timestamp.now(),
-            lastLogin: Timestamp.now()
+            lastLogin: Timestamp.now(),
+            username
         }, { merge: true });
         return true;
     } catch (error) {
