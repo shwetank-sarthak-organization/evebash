@@ -208,10 +208,10 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
     overlay: { light: ['rgba(248,247,243,0.05)', 'rgba(248,247,243,1)'], dark: ['rgba(23,23,22,0.2)', 'rgba(23,23,22,1)'] } 
   },
 
-  // ENGAGEMENT
+  // ENGAGEMENT (Mapped to Other)
   { 
     id: 'bohemian', 
-    category: 'Engagement', 
+    category: 'Other', 
     label: 'Bohemian Rhapsody', 
     desc: 'Earthy and organic', 
     background: { light: '#fff7ed', dark: '#2f241d' }, 
@@ -226,7 +226,7 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
   },
   { 
     id: 'diamond', 
-    category: 'Engagement', 
+    category: 'Other', 
     label: 'Diamond Shine', 
     desc: 'Cool blues and sparkle', 
     background: { light: '#f0f9ff', dark: '#082f49' }, 
@@ -241,7 +241,7 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
   },
   { 
     id: 'blush', 
-    category: 'Engagement', 
+    category: 'Other', 
     label: 'Blush & Bashful', 
     desc: 'Soft pink champagne', 
     background: { light: '#fff7ed', dark: '#431407' }, 
@@ -256,24 +256,25 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
   },
   { 
     id: 'garden', 
-    category: 'Engagement', 
+    category: 'Other', 
     label: 'Garden Path', 
     desc: 'Natural greens and ivory', 
-    background: { light: '#f0fdf4', dark: '#064e3b' }, 
-    panel: { light: '#ffffff', dark: 'rgba(22,163,74,0.05)' }, 
-    text: { light: '#14532d', dark: '#f0fdf4' }, 
-    muted: { light: '#166534', dark: '#4ade80' }, 
-    accent: '#16a34a', 
-    accentBg: { light: '#dcfce7', dark: 'rgba(22,163,74,0.2)' }, 
-    tileBg: { light: '#ffffff', dark: '#064e3b' }, 
-    radius: 50, 
-    overlay: { light: ['rgba(240,253,244,0.1)', 'rgba(240,253,244,1)'], dark: ['rgba(6,78,59,0.2)', 'rgba(6,78,59,1)'] } 
+    background: { light: '#E5ECE9', dark: '#112217' }, 
+    panel: { light: '#FDFBF7', dark: '#1B3224' }, 
+    text: { light: '#1A3322', dark: '#E5ECE9' }, 
+    muted: { light: '#4D6D53', dark: '#7FA485' }, 
+    accent: '#2E6F40', 
+    accentBg: { light: '#EAF2EB', dark: 'rgba(74, 222, 128, 0.15)' }, 
+    tileBg: { light: '#FDFBF7', dark: '#1B3224' }, 
+    radius: 22, 
+    overlay: { light: ['rgba(9, 13, 22, 0.45)', 'rgba(229, 236, 233, 0)', 'rgba(229, 236, 233, 1)'], dark: ['rgba(9, 13, 22, 0.55)', 'rgba(17, 34, 23, 0)', 'rgba(17, 34, 23, 1)'] },
+    useSerif: true
   },
 
-  // RECEPTION
+  // RECEPTION (Mapped to Other)
   { 
     id: 'midnight_glam', 
-    category: 'Reception', 
+    category: 'Other', 
     label: 'Midnight Glam', 
     desc: 'Dark blue and silver', 
     background: { light: '#eff6ff', dark: '#020617' }, 
@@ -288,7 +289,7 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
   },
   { 
     id: 'cinematic', 
-    category: 'Reception', 
+    category: 'Other', 
     label: 'Cinematic Noir', 
     desc: 'Dramatic and immersive', 
     background: { light: '#f5f5f5', dark: '#000000' }, 
@@ -303,7 +304,7 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
   },
   { 
     id: 'modern_lounge', 
-    category: 'Reception', 
+    category: 'Other', 
     label: 'Modern Lounge', 
     desc: 'Sleek and contemporary', 
     background: { light: '#f8fafc', dark: '#0f172a' }, 
@@ -318,7 +319,7 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
   },
   { 
     id: 'elegant_night', 
-    category: 'Reception', 
+    category: 'Other', 
     label: 'Elegant Night', 
     desc: 'Sophisticated design', 
     background: { light: '#fafafa', dark: '#111111' }, 

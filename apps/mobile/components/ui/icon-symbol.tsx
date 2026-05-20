@@ -60,10 +60,14 @@ const MAPPING = {
   'crown.fill': 'workspace-premium',
   'magnifyingglass': 'search',
   'bell.fill': 'notifications',
+  'bell': 'notifications',
+  'leaf.fill': 'eco',
   'eye.fill': 'visibility',
   'chevron.down': 'keyboard-arrow-down',
   'doc.on.doc.fill': 'content-copy',
   'graduationcap.fill': 'school',
+  'figure.run': 'directions-run',
+  'ellipsis.circle.fill': 'more-horiz',
 } as const;
 
 type IconSymbolName = keyof typeof MAPPING;

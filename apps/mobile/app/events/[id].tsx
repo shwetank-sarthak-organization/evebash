@@ -73,11 +73,17 @@ export default function EventDetailScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
+
   // Decide which view to show
   // We show Admin view ONLY if mode=admin AND user is owner.
   // Otherwise, we default to the premium Visitor view.
   const [isAdminViewActive, setIsAdminViewActive] = useState(mode === 'admin');
   const showAdminView = isAdminViewActive && isOwner;
+
+  // Theme colors are intentionally FIXED to the light palette for the visitor event view —
+  // the selected template must look the same regardless of the device OS dark/light setting.
+  // Only the admin back-office (which locks to the 'hero'/Midnight theme) follows the OS scheme.
+  const isThemeDark = showAdminView && isDark;
 
   const selectedTemplate = React.useMemo(() => {
     // If we are in Admin/Management View, we ALWAYS lock the palette to the default 'hero' (Midnight theme)
@@ -88,31 +94,45 @@ export default function EventDetailScreen() {
     const isHero = base.id === 'hero';
     const isEthereal = base.id === 'ethereal';
     const isAcademicEditorial = base.id === 'academic_editorial';
+    const isGarden = base.id === 'garden';
     return {
       ...base,
-      background: isDark ? base.background.dark : base.background.light,
-      panel: isDark ? base.panel.dark : base.panel.light,
-      text: isDark ? base.text.dark : base.text.light,
-      muted: isDark ? base.muted.dark : base.muted.light,
-      accentBg: isDark ? base.accentBg.dark : base.accentBg.light,
-      tileBg: isDark ? base.tileBg.dark : base.tileBg.light,
-      overlay: isDark ? base.overlay.dark : base.overlay.light,
-      serifFont: (isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.regular : Fonts.serif,
-      serifItalic: (isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.italic : Fonts.serif,
-      serifBold: (isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.bold : Fonts.serif,
+      background: isThemeDark ? base.background.dark : base.background.light,
+      panel: isThemeDark ? base.panel.dark : base.panel.light,
+      text: isThemeDark ? base.text.dark : base.text.light,
+      muted: isThemeDark ? base.muted.dark : base.muted.light,
+      accentBg: isThemeDark ? base.accentBg.dark : base.accentBg.light,
+      tileBg: isThemeDark ? base.tileBg.dark : base.tileBg.light,
+      overlay: isThemeDark ? base.overlay.dark : base.overlay.light,
+      serifFont: isGarden ? Fonts.cormorant.semiBold : ((isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.regular : Fonts.serif),
+      serifItalic: isGarden ? Fonts.cormorant.semiBold : ((isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.italic : Fonts.serif),
+      serifBold: isGarden ? Fonts.cormorant.bold : ((isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.bold : Fonts.serif),
     };
-  }, [event?.templateId, isDark, showAdminView]);
+  }, [event?.templateId, isThemeDark, showAdminView]);
 
-  const heroHeight = (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic' || event?.templateId === 'hero')) 
-    ? windowHeight 
-    : ((!showAdminView && event?.templateId === 'ethereal') ? (windowHeight * 0.8) 
-    : ((!showAdminView && event?.templateId === 'academic_editorial') ? (windowHeight * 0.75)
-    : ((!showAdminView && event?.templateId === 'golden_years') ? (540 + insets.top)
-    : ((!showAdminView && event?.templateId === 'rose') ? (560 + insets.top)
-    : ((!showAdminView && event?.templateId === 'vintage') ? (500 + insets.top)
-    : ((!showAdminView && event?.templateId === 'minimal_love') ? (455 + insets.top)
-    : ((!showAdminView && (event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade')) ? (SCREEN_WIDTH * 1.33 + 180 + insets.top)
-    : ((!showAdminView && (event?.templateId === 'pop' || event?.templateId === 'neon_carnival')) ? (465 + insets.top) : 400))))))));
+  const heroHeight = showAdminView
+    ? 400
+    : event?.templateId === 'royal' || event?.templateId === 'classic' || event?.templateId === 'hero'
+      ? windowHeight
+      : event?.templateId === 'ethereal'
+        ? windowHeight * 0.8
+        : event?.templateId === 'academic_editorial'
+          ? windowHeight * 0.75
+          : event?.templateId === 'garden'
+            ? windowHeight * 0.42
+            : event?.templateId === 'golden_years'
+              ? 540 + insets.top
+              : event?.templateId === 'rose'
+                ? 560 + insets.top
+                : event?.templateId === 'vintage'
+                  ? 500 + insets.top
+                  : event?.templateId === 'minimal_love'
+                    ? 455 + insets.top
+                    : event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade'
+                      ? SCREEN_WIDTH * 1.33 + 180 + insets.top
+                      : event?.templateId === 'pop' || event?.templateId === 'neon_carnival'
+                        ? 465 + insets.top
+                        : 400;
   const isScrapbookTemplate = !showAdminView && event?.templateId === 'scrapbook';
   const isNeonTemplate = !showAdminView && event?.templateId === 'neon';
   const isPastelTemplate = !showAdminView && event?.templateId === 'pastel';
@@ -127,6 +147,7 @@ export default function EventDetailScreen() {
   const isRetroArcadeTemplate = !showAdminView && event?.templateId === 'retro_arcade';
   const isAcademicEditorialTemplate = !showAdminView && event?.templateId === 'academic_editorial';
   const isNeonCarnivalTemplate = !showAdminView && event?.templateId === 'neon_carnival';
+  const isGardenTemplate = !showAdminView && event?.templateId === 'garden';
 
   const [tempCoverOffsetX, setTempCoverOffsetX] = useState(0);
   const offsetXRef = React.useRef(0);
@@ -740,7 +761,8 @@ export default function EventDetailScreen() {
     const isRetroArcade = event?.templateId === 'retro_arcade';
     const isAcademicEditorial = event?.templateId === 'academic_editorial';
     const isNeonCarnival = event?.templateId === 'neon_carnival';
-    const isThemeHeader = isRoyal || isClassic || isHero || isEthereal;
+    const isGarden = event?.templateId === 'garden';
+    const isThemeHeader = isRoyal || isClassic || isHero || isEthereal || isGarden;
     const birthdayTextColor = isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#F2E7D2' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d946ef' : MidnightColors.gold))))))));
     const birthdayActiveText = isScrapbook ? styles.scrapbookVisitorTabTextActive : (isNeon ? styles.neonVisitorTabTextActive : (isPastel ? styles.pastelVisitorTabTextActive : (isPop ? styles.popVisitorTabTextActive : (isGoldenYears ? styles.goldenVisitorTabTextActive : (isVintageNoir ? styles.vintageVisitorTabTextActive : (isCyberTech ? styles.cyberVisitorTabTextActive : (isRetroArcade ? styles.retroArcadeVisitorTabTextActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabTextActive : styles.visitorTabTextActive))))))));
     const birthdayActiveTab = isScrapbook ? styles.scrapbookVisitorTabActive : (isNeon ? styles.neonVisitorTabActive : (isPastel ? styles.pastelVisitorTabActive : (isPop ? styles.popVisitorTabActive : (isGoldenYears ? styles.goldenVisitorTabActive : (isVintageNoir ? styles.vintageVisitorTabActive : (isCyberTech ? styles.cyberVisitorTabActive : (isRetroArcade ? styles.retroArcadeVisitorTabActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabActive : styles.visitorTabActive))))))));
@@ -756,20 +778,21 @@ export default function EventDetailScreen() {
       isNeonCarnival && styles.neonCarnivalVisitorTab,
     ];
     const themeHeaderTab = (active: boolean) => ({
-      backgroundColor: isHero ? (active ? 'rgba(204, 164, 59, 0.08)' : 'transparent') : 'transparent',
-      borderWidth: isHero ? 0.8 : 0,
-      borderColor: isHero ? (active ? '#cca43b' : 'transparent') : 'transparent',
-      borderRadius: isHero ? 4 : 0,
-      paddingHorizontal: 16,
-      paddingVertical: isHero ? 8 : 6,
+      backgroundColor: isHero ? (active ? 'rgba(204, 164, 59, 0.08)' : 'transparent') 
+        : isGarden ? (active ? '#2E6F40' : 'transparent') : 'transparent',
+      borderWidth: isHero ? 0.8 : isGarden ? (active ? 0 : 0) : 0,
+      borderColor: 'transparent',
+      borderRadius: isHero ? 4 : isGarden ? 999 : 0,
+      paddingHorizontal: isGarden ? 18 : 16,
+      paddingVertical: isHero ? 8 : isGarden ? 8 : 6,
       flexDirection: isHero ? 'row' as const : 'column' as const,
       gap: 2,
-      marginHorizontal: isHero ? 4 : 0,
+      marginHorizontal: isHero ? 4 : isGarden ? 4 : 0,
       alignSelf: 'center' as const,
     });
     const themeTextColor = (active: boolean) => active
-      ? (isHero ? '#cca43b' : (isRoyal ? '#fff' : (isEthereal ? selectedTemplate.accent : '#cca43b')))
-      : (isHero ? '#94a3b8' : selectedTemplate.muted);
+      ? (isGarden ? '#FFFFFF' : (isHero ? '#cca43b' : (isRoyal ? '#fff' : (isEthereal ? selectedTemplate.accent : '#cca43b'))))
+      : (isGarden ? '#64748b' : (isHero ? '#94a3b8' : selectedTemplate.muted));
     return (
       <View style={[
         styles.visitorHeaderContainer,
@@ -778,6 +801,26 @@ export default function EventDetailScreen() {
         isHero && { height: 64, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', backgroundColor: '#000000' },
         isEthereal && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: selectedTemplate.accent + '26', backgroundColor: selectedTemplate.background },
         isAcademicEditorial && { height: 52, marginTop: 12, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: selectedTemplate.text + '1a', backgroundColor: selectedTemplate.background },
+        isGarden && {
+          height: 54,
+          marginTop: -27,  // negative half-height → straddles cover photo bottom edge
+          marginBottom: 8,
+          // Use left+right margin via paddingHorizontal on parent instead to avoid
+          // the width:'100%' + marginHorizontal overflow bug in React Native
+          marginHorizontal: 0,
+          paddingHorizontal: 16,
+          alignSelf: 'stretch',
+          borderRadius: 999,
+          backgroundColor: '#FFFFFF',
+          borderWidth: 1,
+          borderColor: '#2E6F40',
+          shadowColor: '#16a34a',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.12,
+          shadowRadius: 12,
+          elevation: 6,
+          zIndex: 10,
+        },
         isScrapbook && styles.scrapbookVisitorHeaderContainer,
         isNeon && styles.neonVisitorHeaderContainer,
         isPastel && styles.pastelVisitorHeaderContainer,
@@ -802,7 +845,14 @@ export default function EventDetailScreen() {
             isCyberTech && styles.cyberVisitorHeaderContent, 
             isRetroArcade && styles.retroArcadeVisitorHeaderContent,
             isNeonCarnival && styles.neonCarnivalVisitorHeaderContent,
-            isAcademicEditorial && { paddingHorizontal: 12 }
+            isAcademicEditorial && { paddingHorizontal: 12 },
+            isGarden && {
+              flexGrow: 1,
+              flexDirection: 'row',
+              justifyContent: 'space-evenly',
+              alignItems: 'center',
+              paddingHorizontal: 4,
+            },
           ]}
         >
           <TouchableOpacity
@@ -1065,6 +1115,15 @@ export default function EventDetailScreen() {
         </View>
       );
     }
+    if (selectedTemplate.id === 'garden') {
+      return (
+        <View style={styles.gardenDividerContainer}>
+          <View style={[styles.gardenDividerLine, { backgroundColor: 'rgba(22, 163, 74, 0.15)' }]} />
+          <IconSymbol name="leaf.fill" size={14} color="#16a34a" />
+          <View style={[styles.gardenDividerLine, { backgroundColor: 'rgba(22, 163, 74, 0.15)' }]} />
+        </View>
+      );
+    }
     return null;
   };
 
@@ -1083,7 +1142,7 @@ export default function EventDetailScreen() {
     <View style={[styles.safeArea, { backgroundColor: selectedTemplate.background }]}>
       <Stack.Screen
         options={{
-          headerShown: showAdminView ? false : !(event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'pop' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival'),
+          headerShown: showAdminView ? false : !(event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'pop' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden'),
           headerTransparent: true,
           headerTitle: '',
           headerLeft: () => {
@@ -1091,7 +1150,7 @@ export default function EventDetailScreen() {
 
             const isPop = !showAdminView && event?.templateId === 'pop';
             const isVintage = event?.templateId === 'vintage';
-            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival')) ? null : (
+            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden')) ? null : (
               <TouchableOpacity
                 onPress={handleEventBack}
                 style={[
@@ -1118,7 +1177,7 @@ export default function EventDetailScreen() {
             if (showAdminView) return null;
             const isPop = event?.templateId === 'pop';
             const isVintage = event?.templateId === 'vintage';
-            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival')) ? null : (
+            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden')) ? null : (
               <TouchableOpacity
                 style={[
                   styles.floatingBack,
@@ -1341,9 +1400,9 @@ export default function EventDetailScreen() {
               blurRadius={isGoldenYearsTemplate ? 0.8 : (isVintageTemplate ? 1.1 : 0)}
             />
           )}
-          {selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && selectedTemplate.id !== 'academic_editorial' && (
+          {selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && selectedTemplate.id !== 'academic_editorial' && selectedTemplate.id !== 'garden' && (
             <LinearGradient
-              colors={selectedTemplate.overlay as [string, string]}
+              colors={selectedTemplate.overlay as string[]}
               style={styles.heroGradient}
             />
           )}
@@ -1873,6 +1932,45 @@ export default function EventDetailScreen() {
             </View>
           ) : (!showAdminView && event?.templateId === 'academic_editorial') ? (
             null
+          ) : (!showAdminView && isGardenTemplate) ? (
+            <View style={[StyleSheet.absoluteFillObject, { paddingTop: insets.top + 2 }]}>
+              {/* Single top bar row: [← back  share↑]  ···  [title / date] */}
+              <View style={styles.gardenTopBar}>
+                {/* Left: back + share */}
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <TouchableOpacity
+                    style={styles.gardenHeaderButton}
+                    onPress={handleEventBack}
+                    hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                  >
+                    <IconSymbol name="chevron.left" size={20} color="#ffffff" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.gardenHeaderButton}
+                    onPress={() => setShowShareModal(true)}
+                    hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                  >
+                    <IconSymbol name="square.and.arrow.up" size={18} color="#ffffff" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Right: title + date stacked */}
+                <View style={{ alignItems: 'flex-end', flex: 1, paddingLeft: 12 }}>
+                  <Text
+                    style={[styles.gardenTitle, { fontFamily: selectedTemplate.serifBold, color: '#ffffff', textAlign: 'right', fontSize: 20, lineHeight: 26 }]}
+                    numberOfLines={2}
+                  >
+                    {activeSubEvent?.title || event.title}
+                  </Text>
+                  {(activeSubEvent?.date || event.date) && (
+                    <Text style={[styles.gardenDate, { fontFamily: selectedTemplate.serifItalic, color: 'rgba(255,255,255,0.85)', textAlign: 'right' }]}>
+                      {activeSubEvent?.date || event.date}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </View>
           ) : (!showAdminView && isGoldenYearsTemplate) ? (
             <View style={styles.goldenCeremonyHero}>
               <LinearGradient
@@ -2938,6 +3036,7 @@ export default function EventDetailScreen() {
                     isCyberTechTemplate && styles.cyberInfoBox,
                     isRetroArcadeTemplate && styles.retroArcadeInfoBox,
                     isNeonCarnivalTemplate && styles.neonCarnivalInfoBox,
+                    isGardenTemplate && styles.gardenInfoBox,
                     event.templateId === 'classic' && {
                       shadowColor: '#000',
                       shadowOffset: { width: 0, height: 1 },
@@ -2987,6 +3086,7 @@ export default function EventDetailScreen() {
                       isCyberTechTemplate && styles.cyberInfoInner,
                       isRetroArcadeTemplate && styles.retroArcadeInfoInner,
                       isNeonCarnivalTemplate && styles.neonCarnivalInfoInner,
+                      isGardenTemplate && styles.gardenInfoInner,
                       event.templateId === 'royal' && {
                         borderWidth: 1,
                         borderColor: 'rgba(204, 164, 59, 0.15)',
@@ -3103,6 +3203,16 @@ export default function EventDetailScreen() {
                         </View>
                       )}
 
+                      {isGardenTemplate && (
+                        <View style={styles.gardenInfoHeader}>
+                          <IconSymbol name="leaf.fill" size={14} color="#16a34a" />
+                          <Text style={[styles.gardenInfoKicker, { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic', color: '#16a34a' }]}>
+                            Garden Letter
+                          </Text>
+                          <View style={[styles.gardenInfoLine, { backgroundColor: 'rgba(22, 163, 74, 0.2)' }]} />
+                        </View>
+                      )}
+
                       {isAnniversaryTemplate && (
                         <View style={[
                           styles.anniversaryInfoHeader,
@@ -3148,6 +3258,7 @@ export default function EventDetailScreen() {
                         isCyberTechTemplate && styles.cyberVisitorDescription,
                         isRetroArcadeTemplate && styles.retroArcadeVisitorDescription,
                         isNeonCarnivalTemplate && styles.neonCarnivalVisitorDescription,
+                        isGardenTemplate && styles.gardenVisitorDescription,
                         selectedTemplate.useSerif && {
                           fontFamily: selectedTemplate.serifItalic,
                           fontStyle: 'italic',
@@ -3217,7 +3328,8 @@ export default function EventDetailScreen() {
                           elevation: 4,
                         },
                         isCyberTechTemplate && styles.cyberPartnerCard,
-                        isNeonCarnivalTemplate && styles.neonCarnivalPartnerCard
+                        isNeonCarnivalTemplate && styles.neonCarnivalPartnerCard,
+                        isGardenTemplate && [styles.gardenPartnerCard, { backgroundColor: isDark ? '#1B3224' : '#FDFBF7', borderColor: isDark ? 'rgba(74, 222, 128, 0.15)' : 'rgba(46, 111, 64, 0.08)' }]
                       ]}>
                          <IconSymbol name="building.2" size={32} color={isPopTemplate ? '#0080ff' : (isCyberTechTemplate ? '#00f0ff' : (isRetroArcadeTemplate ? '#ff3562' : (isNeonCarnivalTemplate ? '#d946ef' : selectedTemplate.accent)))} />
                          <Text style={[
@@ -3262,7 +3374,8 @@ export default function EventDetailScreen() {
                                 marginBottom: 6,
                               },
                               isCyberTechTemplate && styles.cyberPartnerCard,
-                              isNeonCarnivalTemplate && styles.neonCarnivalPartnerCard
+                              isNeonCarnivalTemplate && styles.neonCarnivalPartnerCard,
+                              isGardenTemplate && [styles.gardenPartnerCard, { backgroundColor: '#FDFBF7', borderColor: 'rgba(46, 111, 64, 0.08)' }]
                             ]}
                             onPress={() => router.push(`/business/${biz.id}`)}
                           >
@@ -3273,7 +3386,8 @@ export default function EventDetailScreen() {
                                 isPopTemplate && { borderWidth: 2.5, borderColor: '#231f20', borderRadius: 32 },
                                 isRetroArcadeTemplate && { borderWidth: 2.5, borderColor: '#231f20', borderRadius: 14 },
                                 isCyberTechTemplate && { borderWidth: 1, borderColor: '#00f0ff', borderRadius: 8 },
-                                isNeonCarnivalTemplate && { borderWidth: 1.5, borderColor: '#d946ef', borderRadius: 16 }
+                                isNeonCarnivalTemplate && { borderWidth: 1.5, borderColor: '#d946ef', borderRadius: 16 },
+                                isGardenTemplate && [styles.gardenPartnerImage, { borderColor: '#2E6F40' }]
                               ]} 
                             />
                             <View style={{ flex: 1 }}>
@@ -3312,9 +3426,19 @@ export default function EventDetailScreen() {
                   isRoseTemplate && styles.roseGalleryHeader,
                   isMinimalLoveTemplate && styles.minimalGalleryHeader,
                   isRetroArcadeTemplate && styles.retroArcadeGalleryHeader,
-                  isNeonCarnivalTemplate && styles.neonCarnivalGalleryHeader
+                  isNeonCarnivalTemplate && styles.neonCarnivalGalleryHeader,
+                  isGardenTemplate && styles.gardenGalleryHeader
                 ]}>
                   <View>
+                    {isGardenTemplate && (
+                      <View style={styles.gardenGalleryKicker}>
+                        <IconSymbol name="leaf.fill" size={12} color="#16a34a" />
+                        <Text style={[styles.gardenGalleryKickerText, { color: '#16a34a', fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }]}>
+                          organic feed
+                        </Text>
+                        <View style={[styles.gardenGalleryKickerLine, { backgroundColor: 'rgba(22, 163, 74, 0.2)' }]} />
+                      </View>
+                    )}
                     {isCyberTechTemplate && (
                       <View style={styles.cyberGalleryKicker}>
                         <Text style={styles.cyberGalleryKickerText}>[ ARCHIVE SECTION ]</Text>
@@ -3406,9 +3530,19 @@ export default function EventDetailScreen() {
                       isCyberTechTemplate && styles.cyberGalleryTitle,
                       isRetroArcadeTemplate && styles.retroArcadeGalleryTitle,
                       isNeonCarnivalTemplate && styles.neonCarnivalGalleryTitle,
+                      isGardenTemplate && styles.gardenGalleryTitle,
                       selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold' }
                     ]}>
-                      {isRetroArcadeTemplate ? (
+                      {isGardenTemplate ? (
+                        <>
+                          <Text style={{ color: '#14532d', fontFamily: selectedTemplate.serifBold }}>
+                            {activeSubEvent ? activeSubEvent.title : 'Highlights'}
+                          </Text>
+                          <Text style={{ color: '#16a34a', fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }}>
+                            {` (${photos.length})`}
+                          </Text>
+                        </>
+                      ) : isRetroArcadeTemplate ? (
                         <>
                           <Text style={{ color: '#ff3562' }}>
                             {(activeSubEvent ? activeSubEvent.title : 'Highlights').toUpperCase()}
@@ -3430,7 +3564,7 @@ export default function EventDetailScreen() {
                         activeSubEvent ? activeSubEvent.title : 'Highlights'
                       )}
                     </Text>
-                    {!isPopTemplate && !isRetroArcadeTemplate && (
+                    {!isPopTemplate && !isRetroArcadeTemplate && !isGardenTemplate && (
                       <Text style={[
                         styles.photoCount,
                         { color: selectedTemplate.accent },
@@ -3492,13 +3626,13 @@ export default function EventDetailScreen() {
                               entering={FadeInUp.delay(idx * 80).duration(600).springify().damping(14)}
                               style={[
                                 styles.photoCard,
-                                {
+                                !isGardenTemplate && {
                                   aspectRatio: 1 / ratio,
                                 }
                               ]}
                             >
                               <TouchableOpacity
-                                style={{ flex: 1 }}
+                                style={isGardenTemplate ? { width: '100%' } : { flex: 1 }}
                                 activeOpacity={0.9}
                                 onPress={() => openViewer(idx)}
                               >
@@ -3568,6 +3702,12 @@ export default function EventDetailScreen() {
                                       shadowColor: idx % 2 === 0 ? '#ff3562' : '#231f20',
                                     },
                                     idx % 2 === 1 && styles.retroArcadePhotoTileAlt,
+                                  ],
+                                  isGardenTemplate && [
+                                    styles.gardenPhotoTile,
+                                    {
+                                      backgroundColor: isDark ? '#1B3224' : '#FDFBF7',
+                                    }
                                   ],
                                   event.templateId === 'royal' && {
                                     shadowColor: selectedTemplate.accent,
@@ -3669,6 +3809,15 @@ export default function EventDetailScreen() {
                                       isRoseTemplate && styles.roseGalleryImg,
                                       isMinimalLoveTemplate && styles.minimalGalleryImg,
                                       isRetroArcadeTemplate && styles.retroArcadeGalleryImg,
+                                      isGardenTemplate ? {
+                                        width: '100%',
+                                        aspectRatio: 1 / ratio,
+                                        height: undefined,
+                                        borderTopLeftRadius: 22,
+                                        borderTopRightRadius: 22,
+                                        borderBottomLeftRadius: 0,
+                                        borderBottomRightRadius: 0,
+                                      } : {},
                                     ]}
                                     resizeMode="cover"
                                   />
@@ -3689,6 +3838,22 @@ export default function EventDetailScreen() {
                                         letterSpacing: 0.5,
                                       }}>
                                         {`[IMG_${String(idx + 1).padStart(3, '0')} // CAMPUS]`}
+                                      </Text>
+                                    </View>
+                                  )}
+                                  {isGardenTemplate && (
+                                    <View style={[
+                                      styles.gardenPhotoLabelContainer,
+                                      {
+                                        backgroundColor: '#FDFBF7',
+                                        borderTopColor: 'rgba(46, 111, 64, 0.08)',
+                                      }
+                                    ]}>
+                                      <Text style={[styles.gardenPhotoLabelText, { fontFamily: selectedTemplate.serifBold, color: '#1A3322' }]} numberOfLines={1}>
+                                        {photo.title || (idx % 3 === 0 ? 'Foliage Whisper' : (idx % 3 === 1 ? 'Garden Sun' : 'Botanical Frame'))}
+                                      </Text>
+                                      <Text style={[styles.gardenPhotoRatioText, { color: '#2E6F40' }]}>
+                                        {ratio > 1.2 ? 'PORTRAIT' : ratio < 0.8 ? 'LANDSCAPE' : 'SQUARE'}
                                       </Text>
                                     </View>
                                   )}
@@ -3794,11 +3959,9 @@ export default function EventDetailScreen() {
                 { name: 'Wedding', icon: 'heart.fill', color: '#ff4b72' },
                 { name: 'Birthday', icon: 'gift.fill', color: '#3b82f6' },
                 { name: 'Anniversary', icon: 'sparkles', color: '#eab308' },
-                { name: 'Engagement', icon: 'star.fill', color: '#a855f7' },
-                { name: 'Reception', icon: 'wineglass.fill', color: '#f97316' },
                 { name: 'Corporate', icon: 'briefcase.fill', color: '#10b981' },
-                { name: 'Sports', icon: 'figure.run' as any, color: '#06b6d4' },
-                { name: 'College', icon: 'graduationcap.fill' as any, color: '#6366f1' },
+                { name: 'Sports', icon: 'figure.run', color: '#06b6d4' },
+                { name: 'College', icon: 'graduationcap.fill', color: '#6366f1' },
                 { name: 'Other', icon: 'ellipsis.circle.fill', color: '#64748b' }
               ].map((cat) => {
                 const isActive = event?.category === cat.name;
@@ -9740,5 +9903,208 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#555555',
     fontWeight: '500',
+  },
+  // Garden Path Hero Overlay Styles
+  gardenTopBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginTop: 12,
+    width: '100%',
+  },
+  gardenHeaderButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#2E6F40',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  gardenCenterContent: {
+    alignItems: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    marginBottom: 16,
+    marginHorizontal: 20,
+    // Floating translucent invite card — set bg color dynamically in JSX
+    borderRadius: 24,
+    borderWidth: 1,
+    // borderColor set dynamically in JSX
+    shadowColor: '#14532d',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    elevation: 5,
+  },
+  gardenLeafContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(240, 253, 244, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  gardenTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+    lineHeight: 34,
+  },
+  gardenDate: {
+    fontSize: 13,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginTop: 6,
+    fontWeight: '500',
+  },
+  // Garden Divider
+  gardenDividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 20,
+  },
+  gardenDividerLine: {
+    width: 48,
+    height: 1,
+    borderRadius: 999,
+  },
+  // Garden Picture Grid Card Tile & Labels
+  gardenPhotoTile: {
+    padding: 0,
+    borderWidth: 0,
+    borderRadius: 22,
+    // overflow must be 'visible' (not 'hidden') so iOS renders the
+    // drop shadow correctly without clipping it to the card bounds.
+    overflow: 'visible',
+    shadowColor: '#14532d',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.09,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  gardenGalleryImg: {
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  gardenPhotoLabelContainer: {
+    width: '100%',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderTopWidth: 0.5,
+  },
+  gardenPhotoLabelText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: 0.3,
+  },
+  gardenPhotoRatioText: {
+    fontSize: 7,
+    fontWeight: '600',
+    letterSpacing: 1.2,
+    marginTop: 1.5,
+    textTransform: 'uppercase',
+  },
+  gardenPartnerCard: {
+    borderWidth: 1,
+    borderRadius: 22,
+    shadowColor: '#14532d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  gardenPartnerImage: {
+    borderRadius: 32,
+    borderWidth: 1.5,
+  },
+  // Garden Welcome Card styles
+  gardenInfoBox: {
+    borderWidth: 1,
+    borderRadius: 22,
+    padding: 12,
+    shadowColor: '#14532d',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
+    marginTop: 2,
+    marginBottom: 20,
+    marginHorizontal: 16,
+  },
+  gardenInfoInner: {
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  gardenInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  gardenInfoKicker: {
+    fontSize: 13,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    fontWeight: '600',
+  },
+  gardenInfoLine: {
+    width: 32,
+    height: 1,
+    marginLeft: 8,
+  },
+  gardenVisitorDescription: {
+    fontSize: 15,
+    lineHeight: 25,
+    textAlign: 'center',
+    paddingHorizontal: 8,
+  },
+  // Garden Gallery Header styles
+  gardenGalleryHeader: {
+    paddingHorizontal: 20,
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  gardenGalleryKicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  gardenGalleryKickerText: {
+    fontSize: 12,
+    letterSpacing: 1.2,
+    textTransform: 'lowercase',
+  },
+  gardenGalleryKickerLine: {
+    width: 24,
+    height: 1,
+    borderRadius: 999,
+    marginLeft: 6,
+  },
+  gardenGalleryTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
 });
