@@ -107,12 +107,21 @@ export default function EventDetailScreen() {
     ? windowHeight 
     : ((!showAdminView && event?.templateId === 'ethereal') ? (windowHeight * 0.8) 
     : ((!showAdminView && event?.templateId === 'academic_editorial') ? (windowHeight * 0.75)
+    : ((!showAdminView && event?.templateId === 'golden_years') ? (540 + insets.top)
+    : ((!showAdminView && event?.templateId === 'rose') ? (560 + insets.top)
+    : ((!showAdminView && event?.templateId === 'vintage') ? (500 + insets.top)
+    : ((!showAdminView && event?.templateId === 'minimal_love') ? (455 + insets.top)
     : ((!showAdminView && (event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade')) ? (SCREEN_WIDTH * 1.33 + 180 + insets.top)
-    : ((!showAdminView && (event?.templateId === 'pop' || event?.templateId === 'neon_carnival')) ? (465 + insets.top) : 400))));
+    : ((!showAdminView && (event?.templateId === 'pop' || event?.templateId === 'neon_carnival')) ? (465 + insets.top) : 400))))))));
   const isScrapbookTemplate = !showAdminView && event?.templateId === 'scrapbook';
   const isNeonTemplate = !showAdminView && event?.templateId === 'neon';
   const isPastelTemplate = !showAdminView && event?.templateId === 'pastel';
   const isPopTemplate = !showAdminView && event?.templateId === 'pop';
+  const isGoldenYearsTemplate = !showAdminView && event?.templateId === 'golden_years';
+  const isVintageTemplate = !showAdminView && event?.templateId === 'vintage';
+  const isRoseTemplate = !showAdminView && event?.templateId === 'rose';
+  const isMinimalLoveTemplate = !showAdminView && event?.templateId === 'minimal_love';
+  const isAnniversaryTemplate = isGoldenYearsTemplate || isVintageTemplate || isRoseTemplate || isMinimalLoveTemplate;
   const isEtherealTemplate = !showAdminView && event?.templateId === 'ethereal';
   const isCyberTechTemplate = !showAdminView && event?.templateId === 'cyber_tech';
   const isRetroArcadeTemplate = !showAdminView && event?.templateId === 'retro_arcade';
@@ -605,8 +614,14 @@ export default function EventDetailScreen() {
     if (!event) return;
     setUpdating(true);
     try {
-      setEvent({ ...event, category });
-      await updateEvent(event.id, { category });
+      const defaultTemplate = MOBILE_TEMPLATE_THEMES.find((theme) => theme.category === category);
+      const updates = {
+        category,
+        ...(defaultTemplate ? { templateId: defaultTemplate.id } : {}),
+      };
+
+      setEvent({ ...event, ...updates });
+      await updateEvent(event.id, updates);
     } catch (err) {
       Alert.alert("Error", "Failed to update event type.");
     } finally {
@@ -719,19 +734,23 @@ export default function EventDetailScreen() {
     const isNeon = event?.templateId === 'neon';
     const isPastel = event?.templateId === 'pastel';
     const isPop = event?.templateId === 'pop';
+    const isGoldenYears = event?.templateId === 'golden_years';
+    const isVintageNoir = event?.templateId === 'vintage';
     const isCyberTech = event?.templateId === 'cyber_tech';
     const isRetroArcade = event?.templateId === 'retro_arcade';
     const isAcademicEditorial = event?.templateId === 'academic_editorial';
     const isNeonCarnival = event?.templateId === 'neon_carnival';
     const isThemeHeader = isRoyal || isClassic || isHero || isEthereal;
-    const birthdayTextColor = isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d946ef' : MidnightColors.gold))))));
-    const birthdayActiveText = isScrapbook ? styles.scrapbookVisitorTabTextActive : (isNeon ? styles.neonVisitorTabTextActive : (isPastel ? styles.pastelVisitorTabTextActive : (isPop ? styles.popVisitorTabTextActive : (isCyberTech ? styles.cyberVisitorTabTextActive : (isRetroArcade ? styles.retroArcadeVisitorTabTextActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabTextActive : styles.visitorTabTextActive))))));
-    const birthdayActiveTab = isScrapbook ? styles.scrapbookVisitorTabActive : (isNeon ? styles.neonVisitorTabActive : (isPastel ? styles.pastelVisitorTabActive : (isPop ? styles.popVisitorTabActive : (isCyberTech ? styles.cyberVisitorTabActive : (isRetroArcade ? styles.retroArcadeVisitorTabActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabActive : styles.visitorTabActive))))));
+    const birthdayTextColor = isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#F2E7D2' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d946ef' : MidnightColors.gold))))))));
+    const birthdayActiveText = isScrapbook ? styles.scrapbookVisitorTabTextActive : (isNeon ? styles.neonVisitorTabTextActive : (isPastel ? styles.pastelVisitorTabTextActive : (isPop ? styles.popVisitorTabTextActive : (isGoldenYears ? styles.goldenVisitorTabTextActive : (isVintageNoir ? styles.vintageVisitorTabTextActive : (isCyberTech ? styles.cyberVisitorTabTextActive : (isRetroArcade ? styles.retroArcadeVisitorTabTextActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabTextActive : styles.visitorTabTextActive))))))));
+    const birthdayActiveTab = isScrapbook ? styles.scrapbookVisitorTabActive : (isNeon ? styles.neonVisitorTabActive : (isPastel ? styles.pastelVisitorTabActive : (isPop ? styles.popVisitorTabActive : (isGoldenYears ? styles.goldenVisitorTabActive : (isVintageNoir ? styles.vintageVisitorTabActive : (isCyberTech ? styles.cyberVisitorTabActive : (isRetroArcade ? styles.retroArcadeVisitorTabActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabActive : styles.visitorTabActive))))))));
     const birthdayTabStyles = [
       isScrapbook && styles.scrapbookVisitorTab,
       isNeon && styles.neonVisitorTab,
       isPastel && styles.pastelVisitorTab,
       isPop && styles.popVisitorTab,
+      isGoldenYears && styles.goldenVisitorTab,
+      isVintageNoir && styles.vintageVisitorTab,
       isCyberTech && styles.cyberVisitorTab,
       isRetroArcade && styles.retroArcadeVisitorTab,
       isNeonCarnival && styles.neonCarnivalVisitorTab,
@@ -763,6 +782,8 @@ export default function EventDetailScreen() {
         isNeon && styles.neonVisitorHeaderContainer,
         isPastel && styles.pastelVisitorHeaderContainer,
         isPop && styles.popVisitorHeaderContainer,
+        isGoldenYears && styles.goldenVisitorHeaderContainer,
+        isVintageNoir && styles.vintageVisitorHeaderContainer,
         isCyberTech && styles.cyberVisitorHeaderContainer,
         isRetroArcade && styles.retroArcadeVisitorHeaderContainer,
         isNeonCarnival && styles.neonCarnivalVisitorHeaderContainer,
@@ -776,6 +797,8 @@ export default function EventDetailScreen() {
             isNeon && styles.neonVisitorHeaderContent, 
             isPastel && styles.pastelVisitorHeaderContent, 
             isPop && styles.popVisitorHeaderContent, 
+            isGoldenYears && styles.goldenVisitorHeaderContent,
+            isVintageNoir && styles.vintageVisitorHeaderContent,
             isCyberTech && styles.cyberVisitorHeaderContent, 
             isRetroArcade && styles.retroArcadeVisitorHeaderContent,
             isNeonCarnival && styles.neonCarnivalVisitorHeaderContent,
@@ -805,16 +828,18 @@ export default function EventDetailScreen() {
                 <IconSymbol
                   name="house.fill"
                   size={14}
-                  color={!activeSubEvent ? (isCyberTech ? '#00f0ff' : (isScrapbook ? '#263331' : (isNeon ? '#66e8ff' : (isPastel ? '#c9768b' : (isPop ? '#ffffff' : (isRetroArcade ? '#ffffff' : (isNeonCarnival ? '#faf5ff' : MidnightColors.background))))))) : (isCyberTech ? 'rgba(0, 240, 255, 0.5)' : (isScrapbook ? selectedTemplate.accent : (isNeon ? '#b9b1d9' : (isPastel ? '#9a8583' : (isPop ? '#231f20' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d8b4fe' : MidnightColors.gold)))))))}
+                  color={!activeSubEvent ? (isCyberTech ? '#00f0ff' : (isScrapbook ? '#263331' : (isNeon ? '#66e8ff' : (isPastel ? '#c9768b' : (isPop ? '#ffffff' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#211A12' : (isRetroArcade ? '#ffffff' : (isNeonCarnival ? '#faf5ff' : MidnightColors.background))))))))) : (isCyberTech ? 'rgba(0, 240, 255, 0.5)' : (isScrapbook ? selectedTemplate.accent : (isNeon ? '#b9b1d9' : (isPastel ? '#9a8583' : (isPop ? '#231f20' : (isGoldenYears ? '#b8892d' : (isVintageNoir ? '#B89145' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d8b4fe' : MidnightColors.gold)))))))))}
                 />
               )}
               <Text style={[
                 styles.visitorTabText,
                 { color: isThemeHeader ? themeTextColor(!activeSubEvent) : birthdayTextColor },
                 isScrapbook && styles.scrapbookVisitorTabText,
-                isNeon && styles.neonVisitorTabText,
-                isPastel && styles.pastelVisitorTabText,
+                  isNeon && styles.neonVisitorTabText,
+                  isPastel && styles.pastelVisitorTabText,
                 isPop && styles.popVisitorTabText,
+                isGoldenYears && styles.goldenVisitorTabText,
+                isVintageNoir && styles.vintageVisitorTabText,
                 isCyberTech && styles.cyberVisitorTabText,
               isNeonCarnival && styles.neonCarnivalVisitorTabText,
                 isRetroArcade && styles.retroArcadeVisitorTabText,
@@ -883,6 +908,8 @@ export default function EventDetailScreen() {
                   isNeon && styles.neonVisitorTabText,
                   isPastel && styles.pastelVisitorTabText,
                   isPop && styles.popVisitorTabText,
+                  isGoldenYears && styles.goldenVisitorTabText,
+                  isVintageNoir && styles.vintageVisitorTabText,
                   isCyberTech && styles.cyberVisitorTabText,
               isNeonCarnival && styles.neonCarnivalVisitorTabText,
                   isRetroArcade && styles.retroArcadeVisitorTabText,
@@ -948,6 +975,8 @@ export default function EventDetailScreen() {
               isNeon && styles.neonVisitorTabText,
               isPastel && styles.pastelVisitorTabText,
               isPop && styles.popVisitorTabText,
+              isGoldenYears && styles.goldenVisitorTabText,
+              isVintageNoir && styles.vintageVisitorTabText,
               isCyberTech && styles.cyberVisitorTabText,
               isNeonCarnival && styles.neonCarnivalVisitorTabText,
               isRetroArcade && styles.retroArcadeVisitorTabText,
@@ -1061,6 +1090,7 @@ export default function EventDetailScreen() {
             if (showAdminView) return null; // Custom back button is rendered inline inside the cover container to scroll with content
 
             const isPop = !showAdminView && event?.templateId === 'pop';
+            const isVintage = event?.templateId === 'vintage';
             return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival')) ? null : (
               <TouchableOpacity
                 onPress={handleEventBack}
@@ -1075,7 +1105,8 @@ export default function EventDetailScreen() {
                     borderColor: selectedTemplate.accent,
                     backgroundColor: 'rgba(0,0,0,0.15)',
                   },
-                  isPop && styles.popFloatingBack
+                  isPop && styles.popFloatingBack,
+                  isVintage && styles.vintageFloatingButton,
                 ]}
                 hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
               >
@@ -1083,7 +1114,34 @@ export default function EventDetailScreen() {
               </TouchableOpacity>
             );
           },
-          headerRight: () => null
+          headerRight: () => {
+            if (showAdminView) return null;
+            const isPop = event?.templateId === 'pop';
+            const isVintage = event?.templateId === 'vintage';
+            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival')) ? null : (
+              <TouchableOpacity
+                style={[
+                  styles.floatingBack,
+                  { marginTop: Platform.OS === 'ios' ? 44 : 10, marginRight: 16 },
+                  (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic')) && {
+                    marginRight: 24,
+                    marginTop: 36,
+                    width: 40,
+                    height: 40,
+                    borderRadius: 6,
+                    borderColor: selectedTemplate.accent,
+                    backgroundColor: 'rgba(0,0,0,0.15)',
+                  },
+                  isPop && styles.popFloatingShare,
+                  isVintage && styles.vintageFloatingButton,
+                ]}
+                onPress={() => setShowShareModal(true)}
+                hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
+              >
+                <IconSymbol name="square.and.arrow.up" size={isPop ? 18 : 20} color={isPop ? '#ffffff' : selectedTemplate.accent} />
+              </TouchableOpacity>
+            );
+          }
         }}
       />
 
@@ -1264,6 +1322,8 @@ export default function EventDetailScreen() {
               style={[
                 styles.heroImage,
                 (!showAdminView && event?.templateId === 'pop') ? styles.popPolaroidImage : {},
+                isGoldenYearsTemplate && styles.goldenHeroImage,
+                isVintageTemplate && styles.vintageHeroImage,
                 (activeCoverMode === 'fit') ? {
                   height: heroHeight,
                   resizeMode: 'contain',
@@ -1275,9 +1335,10 @@ export default function EventDetailScreen() {
                     { translateY: isRepositioning ? tempCoverOffset : (activeCoverOffset || 0) },
                     { translateX: isRepositioning ? tempCoverOffsetX : (activeCoverOffsetX || 0) },
                     { scale: isRepositioning ? tempCoverScale : (activeCoverScale || 1.0) }
-                  ]
+                  ],
                 }
-              ]} 
+              ]}
+              blurRadius={isGoldenYearsTemplate ? 0.8 : (isVintageTemplate ? 1.1 : 0)}
             />
           )}
           {selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && selectedTemplate.id !== 'academic_editorial' && (
@@ -1812,8 +1873,195 @@ export default function EventDetailScreen() {
             </View>
           ) : (!showAdminView && event?.templateId === 'academic_editorial') ? (
             null
+          ) : (!showAdminView && isGoldenYearsTemplate) ? (
+            <View style={styles.goldenCeremonyHero}>
+              <LinearGradient
+                colors={['rgba(63, 47, 34, 0.18)', 'rgba(255, 250, 240, 0.18)', 'rgba(63, 47, 34, 0.38)']}
+                locations={[0, 0.48, 1]}
+                style={styles.goldenCeremonyVignette}
+              />
+              <LinearGradient
+                colors={['rgba(255, 250, 240, 0.56)', 'rgba(255, 250, 240, 0.16)', 'rgba(255, 250, 240, 0)']}
+                start={{ x: 0.1, y: 0 }}
+                end={{ x: 0.88, y: 0.78 }}
+                style={styles.goldenCeremonyCreamWash}
+              />
+              <View style={styles.goldenCeremonyTexture}>
+                <View style={[styles.goldenGrainLine, styles.goldenGrainLineOne]} />
+                <View style={[styles.goldenGrainLine, styles.goldenGrainLineTwo]} />
+                <View style={[styles.goldenGrainDot, styles.goldenGrainDotOne]} />
+                <View style={[styles.goldenGrainDot, styles.goldenGrainDotTwo]} />
+                <View style={[styles.goldenGrainDot, styles.goldenGrainDotThree]} />
+              </View>
+              <View style={styles.goldenCeremonyHalo} />
+              <View style={styles.goldenCeremonyFrame}>
+                <View style={[styles.goldenCeremonyCorner, styles.goldenCeremonyCornerTopLeft]} />
+                <View style={[styles.goldenCeremonyCorner, styles.goldenCeremonyCornerTopRight]} />
+                <View style={[styles.goldenCeremonyCorner, styles.goldenCeremonyCornerBottomLeft]} />
+                <View style={[styles.goldenCeremonyCorner, styles.goldenCeremonyCornerBottomRight]} />
+              </View>
+              <Animated.View
+                entering={FadeInUp.delay(90).duration(760).springify().damping(18)}
+                style={styles.goldenCeremonyPhotoMotion}
+              >
+                <View style={styles.goldenCeremonyPhotoCard}>
+                  <Image
+                    source={{ uri: activeSubEvent?.coverImage || event.coverImage }}
+                    style={styles.goldenCeremonyPhoto}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.goldenCeremonyPhotoVeil} />
+                </View>
+              </Animated.View>
+              <View style={styles.goldenCeremonyYearRail}>
+                <Text style={styles.goldenCeremonyYearRailText}>FOREVER</Text>
+              </View>
+              <Animated.View
+                entering={FadeInUp.delay(160).duration(820).springify().damping(20)}
+                style={styles.goldenCeremonyContent}
+              >
+                <Text style={styles.goldenCeremonyKicker}>Anniversary Legacy</Text>
+                <View style={styles.goldenCeremonySeal}>
+                  <Text style={styles.goldenCeremonySealText}>∞</Text>
+                </View>
+                <Text style={styles.goldenCeremonyTitle}>{activeSubEvent?.title || event.title}</Text>
+                <View style={styles.goldenCeremonyRule}>
+                  <View style={styles.goldenCeremonyRuleLine} />
+                  <View style={styles.goldenCeremonyRuleDot} />
+                  <View style={styles.goldenCeremonyRuleLine} />
+                </View>
+                <Text style={styles.goldenCeremonyDate}>{activeSubEvent?.date || event.date}</Text>
+                <TouchableOpacity style={styles.goldenCeremonyShare} onPress={handleShare}>
+                  <IconSymbol name="square.and.arrow.up" size={14} color="#3f2f22" />
+                  <Text style={styles.goldenCeremonyShareText}>Share Event</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            </View>
+          ) : (!showAdminView && isVintageTemplate) ? (
+            <View style={styles.vintageEditorialHero}>
+              <LinearGradient
+                colors={['rgba(15, 14, 11, 0.86)', 'rgba(28, 24, 18, 0.62)', 'rgba(15, 14, 11, 0.96)']}
+                locations={[0, 0.5, 1]}
+                style={styles.vintageEditorialVignette}
+              />
+              <View style={styles.vintageEditorialTexture}>
+                <View style={[styles.vintageGrainLine, styles.vintageGrainLineOne]} />
+                <View style={[styles.vintageGrainLine, styles.vintageGrainLineTwo]} />
+                <View style={[styles.vintageGrainDot, styles.vintageGrainDotOne]} />
+                <View style={[styles.vintageGrainDot, styles.vintageGrainDotTwo]} />
+                <View style={[styles.vintageGrainDot, styles.vintageGrainDotThree]} />
+              </View>
+              <View style={styles.vintageEditorialMasthead}>
+                <Text style={styles.vintageEditorialMastheadText}>THE ANNIVERSARY JOURNAL</Text>
+              </View>
+              <View style={styles.vintageEditorialTopBar}>
+                <Text style={styles.vintageEditorialEdition}>Vol. {new Date().getFullYear()}</Text>
+                <Text style={styles.vintageEditorialEdition}>Anniversary Archive</Text>
+              </View>
+              <Animated.View
+                entering={FadeInUp.delay(100).duration(780).springify().damping(19)}
+                style={styles.vintageEditorialFeatureRow}
+              >
+                <View style={styles.vintageEditorialImagePlate}>
+                  <View style={styles.vintageEditorialTape} />
+                  <View style={styles.vintageEditorialClip} />
+                  <Image
+                    source={{ uri: activeSubEvent?.coverImage || event.coverImage }}
+                    style={styles.vintageEditorialImage}
+                    resizeMode="cover"
+                  />
+                  <LinearGradient
+                    colors={['rgba(67, 46, 23, 0.16)', 'rgba(17, 14, 9, 0.28)']}
+                    style={styles.vintageEditorialImageFade}
+                  />
+                </View>
+                <View style={styles.vintageEditorialNumberBlock}>
+                  <Text style={styles.vintageEditorialNumber}>25</Text>
+                  <Text style={styles.vintageEditorialNumberLabel}>moments</Text>
+                </View>
+              </Animated.View>
+              <Animated.View
+                entering={FadeInUp.delay(170).duration(820).springify().damping(20)}
+                style={styles.vintageEditorialBand}
+              >
+                <Text style={styles.vintageEditorialTitle}>{activeSubEvent?.title || event.title}</Text>
+              </Animated.View>
+              <View style={styles.vintageEditorialFooter}>
+                <Text style={styles.vintageEditorialDate}>{activeSubEvent?.date || event.date}</Text>
+                <TouchableOpacity style={styles.vintageEditorialShare} onPress={handleShare}>
+                  <Text style={styles.vintageEditorialShareText}>Share</Text>
+                  <IconSymbol name="square.and.arrow.up" size={13} color="#B89145" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (!showAdminView && isRoseTemplate) ? (
+            <View style={styles.roseBloomHero}>
+              <View style={[styles.roseBloomOrb, styles.roseBloomOrbLarge]} />
+              <View style={[styles.roseBloomOrb, styles.roseBloomOrbSmall]} />
+              <View style={styles.roseBloomVine}>
+                <View style={[styles.roseBloomPetal, styles.roseBloomPetalA]} />
+                <View style={[styles.roseBloomPetal, styles.roseBloomPetalB]} />
+                <View style={[styles.roseBloomPetal, styles.roseBloomPetalC]} />
+              </View>
+              <View style={styles.roseBloomPhotoStamp}>
+                <Image
+                  source={{ uri: activeSubEvent?.coverImage || event.coverImage }}
+                  style={styles.roseBloomPhoto}
+                  resizeMode="cover"
+                />
+              </View>
+              <View style={styles.roseBloomCard}>
+                <Text style={styles.roseBloomKicker}>Rose Garden Anniversary</Text>
+                <Text style={styles.roseBloomTitle}>{activeSubEvent?.title || event.title}</Text>
+                <View style={styles.roseBloomStem}>
+                  <View style={styles.roseBloomLeaf} />
+                  <View style={styles.roseBloomStemLine} />
+                  <View style={[styles.roseBloomLeaf, styles.roseBloomLeafAlt]} />
+                </View>
+                <Text style={styles.roseBloomDate}>{activeSubEvent?.date || event.date}</Text>
+                <TouchableOpacity style={styles.roseBloomShare} onPress={handleShare}>
+                  <IconSymbol name="square.and.arrow.up" size={14} color="#5c2632" />
+                  <Text style={styles.roseBloomShareText}>Share Event</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (!showAdminView && isMinimalLoveTemplate) ? (
+            <View style={styles.minimalEditorialHero}>
+              <View style={styles.minimalEditorialPhotoPanel}>
+                <Image
+                  source={{ uri: activeSubEvent?.coverImage || event.coverImage }}
+                  style={styles.minimalEditorialPhoto}
+                  resizeMode="cover"
+                />
+              </View>
+              <View style={styles.minimalEditorialGridLineVertical} />
+              <View style={styles.minimalEditorialGridLineHorizontal} />
+              <View style={styles.minimalEditorialContent}>
+                <Text style={styles.minimalEditorialKicker}>Anniversary</Text>
+                <Text style={styles.minimalEditorialTitle}>{activeSubEvent?.title || event.title}</Text>
+                <View style={styles.minimalEditorialMetaRow}>
+                  <Text style={styles.minimalEditorialDate}>{activeSubEvent?.date || event.date}</Text>
+                  <TouchableOpacity style={styles.minimalEditorialShare} onPress={handleShare}>
+                    <IconSymbol name="square.and.arrow.up" size={14} color="#262522" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <View style={styles.minimalEditorialIndex}>
+                <Text style={styles.minimalEditorialIndexText}>01</Text>
+              </View>
+            </View>
           ) : (
-            <View style={[styles.heroContent, isScrapbookTemplate && styles.scrapbookHeroContent, isNeonTemplate && styles.neonHeroContent, isPastelTemplate && styles.pastelHeroContent, isPopTemplate && styles.popHeroContent]}>
+            <View style={[
+              styles.heroContent,
+              isScrapbookTemplate && styles.scrapbookHeroContent,
+              isNeonTemplate && styles.neonHeroContent,
+              isPastelTemplate && styles.pastelHeroContent,
+              isPopTemplate && styles.popHeroContent,
+              isGoldenYearsTemplate && styles.goldenHeroContent,
+              isVintageTemplate && styles.vintageHeroContent,
+              isRoseTemplate && styles.roseHeroContent,
+              isMinimalLoveTemplate && styles.minimalHeroContent,
+            ]}>
               {isScrapbookTemplate && (
                 <>
                   <View style={[styles.scrapbookTape, styles.scrapbookTapeLeft]} />
@@ -1873,6 +2121,37 @@ export default function EventDetailScreen() {
                   </View>
                 </>
               )}
+              {isGoldenYearsTemplate && (
+                <>
+                  <View style={[styles.anniversaryRibbon, styles.goldenRibbon]} />
+                  <Text style={styles.goldenHeroLabel}>Golden Years</Text>
+                  <View style={styles.goldenHeroRule}>
+                    <View style={styles.goldenHeroRuleLine} />
+                    <View style={styles.goldenHeroMedallion} />
+                    <View style={styles.goldenHeroRuleLine} />
+                  </View>
+                </>
+              )}
+              {isVintageTemplate && (
+                <>
+                  <Text style={styles.vintageHeroIssue}>Anniversary archive</Text>
+                  <View style={styles.vintageHeroRule} />
+                </>
+              )}
+              {isRoseTemplate && (
+                <>
+                  <View style={[styles.rosePetal, styles.rosePetalOne]} />
+                  <View style={[styles.rosePetal, styles.rosePetalTwo]} />
+                  <Text style={styles.roseHeroLabel}>Rose Garden</Text>
+                  <View style={styles.roseHeroVine} />
+                </>
+              )}
+              {isMinimalLoveTemplate && (
+                <>
+                  <Text style={styles.minimalHeroLabel}>A quiet love story</Text>
+                  <View style={styles.minimalHeroRule} />
+                </>
+              )}
               <View style={styles.titleRowMain}>
                 <Text style={[
                   styles.heroTitle,
@@ -1881,6 +2160,10 @@ export default function EventDetailScreen() {
                   isNeonTemplate && styles.neonHeroTitle,
                   isPastelTemplate && styles.pastelHeroTitle,
                   isPopTemplate && styles.popHeroTitle,
+                  isGoldenYearsTemplate && styles.goldenHeroTitle,
+                  isVintageTemplate && styles.vintageHeroTitle,
+                  isRoseTemplate && styles.roseHeroTitle,
+                  isMinimalLoveTemplate && styles.minimalHeroTitle,
                   selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' }
                 ]}>
                   {activeSubEvent?.title || event.title}
@@ -1897,35 +2180,57 @@ export default function EventDetailScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: 8 }}>
-                <View style={[styles.heroMeta, { marginTop: 0 }, isNeonTemplate && styles.neonHeroMeta, isPastelTemplate && styles.pastelHeroMeta, isPopTemplate && styles.popHeroMeta]}>
-                  <IconSymbol name="calendar" size={12} color={selectedTemplate.accent} />
-                  <Text style={[
-                    styles.heroDate,
-                    { color: selectedTemplate.accent },
-                    isNeonTemplate && styles.neonHeroDate,
-                    isPastelTemplate && styles.pastelHeroDate,
-                    isPopTemplate && styles.popHeroDate,
-                    selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic', letterSpacing: 2 }
-                  ]}>{activeSubEvent?.date || event.date}</Text>
-                  {showAdminView && !activeSubEvent && (
-                    <TouchableOpacity
-                      style={styles.editDateBtn}
-                      onPress={() => setShowDatePicker(true)}
-                    >
-                      <IconSymbol name="pencil" size={12} color={selectedTemplate.accent} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                <TouchableOpacity
-                  style={[styles.heroMeta, { marginTop: 0 }, isNeonTemplate && styles.neonShareButton, isPastelTemplate && styles.pastelShareButton, isPopTemplate && styles.popShareButton]}
-                  onPress={handleShare}
-                >
-                  <IconSymbol name="square.and.arrow.up" size={12} color={selectedTemplate.accent} />
-                  <Text style={[styles.heroDate, { color: selectedTemplate.accent }, isNeonTemplate && styles.neonHeroDate, isPastelTemplate && styles.pastelHeroDate, isPopTemplate && styles.popHeroDate]}>Share Event</Text>
-                </TouchableOpacity>
+              <View style={[
+                styles.heroMeta,
+                isNeonTemplate && styles.neonHeroMeta,
+                isPastelTemplate && styles.pastelHeroMeta,
+                isPopTemplate && styles.popHeroMeta,
+                isGoldenYearsTemplate && styles.goldenHeroMeta,
+                isVintageTemplate && styles.vintageHeroMeta,
+                isRoseTemplate && styles.roseHeroMeta,
+                isMinimalLoveTemplate && styles.minimalHeroMeta,
+              ]}>
+                <IconSymbol name="calendar" size={12} color={selectedTemplate.accent} />
+                <Text style={[
+                  styles.heroDate,
+                  { color: selectedTemplate.accent },
+                  isNeonTemplate && styles.neonHeroDate,
+                  isPastelTemplate && styles.pastelHeroDate,
+                  isPopTemplate && styles.popHeroDate,
+                  isAnniversaryTemplate && styles.anniversaryHeroDate,
+                  selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic', letterSpacing: 2 }
+                ]}>{activeSubEvent?.date || event.date}</Text>
+                {showAdminView && !activeSubEvent && (
+                  <TouchableOpacity
+                    style={styles.editDateBtn}
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <IconSymbol name="pencil" size={12} color={selectedTemplate.accent} />
+                  </TouchableOpacity>
+                )}
               </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.heroMeta,
+                  { marginTop: 12 },
+                  isNeonTemplate && styles.neonShareButton,
+                  isPastelTemplate && styles.pastelShareButton,
+                  isPopTemplate && styles.popShareButton,
+                  isAnniversaryTemplate && styles.anniversaryShareButton,
+                ]}
+                onPress={handleShare}
+              >
+                <IconSymbol name="square.and.arrow.up" size={12} color={selectedTemplate.accent} />
+                <Text style={[
+                  styles.heroDate,
+                  { color: selectedTemplate.accent },
+                  isNeonTemplate && styles.neonHeroDate,
+                  isPastelTemplate && styles.pastelHeroDate,
+                  isPopTemplate && styles.popHeroDate,
+                  isAnniversaryTemplate && styles.anniversaryHeroDate,
+                ]}>Share Event</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -2626,6 +2931,10 @@ export default function EventDetailScreen() {
                     isNeonTemplate && styles.neonInfoBox,
                     isPastelTemplate && styles.pastelInfoBox,
                     isPopTemplate && styles.popInfoBox,
+                    isGoldenYearsTemplate && styles.goldenInfoBox,
+                    isVintageTemplate && styles.vintageInfoBox,
+                    isRoseTemplate && styles.roseInfoBox,
+                    isMinimalLoveTemplate && styles.minimalInfoBox,
                     isCyberTechTemplate && styles.cyberInfoBox,
                     isRetroArcadeTemplate && styles.retroArcadeInfoBox,
                     isNeonCarnivalTemplate && styles.neonCarnivalInfoBox,
@@ -2671,6 +2980,10 @@ export default function EventDetailScreen() {
                       isNeonTemplate && styles.neonInfoInner,
                       isPastelTemplate && styles.pastelInfoInner,
                       isPopTemplate && styles.popInfoInner,
+                      isGoldenYearsTemplate && styles.goldenInfoInner,
+                      isVintageTemplate && styles.vintageInfoInner,
+                      isRoseTemplate && styles.roseInfoInner,
+                      isMinimalLoveTemplate && styles.minimalInfoInner,
                       isCyberTechTemplate && styles.cyberInfoInner,
                       isRetroArcadeTemplate && styles.retroArcadeInfoInner,
                       isNeonCarnivalTemplate && styles.neonCarnivalInfoInner,
@@ -2790,12 +3103,48 @@ export default function EventDetailScreen() {
                         </View>
                       )}
 
+                      {isAnniversaryTemplate && (
+                        <View style={[
+                          styles.anniversaryInfoHeader,
+                          isVintageTemplate && styles.vintageInfoHeader,
+                          isMinimalLoveTemplate && styles.minimalInfoHeader,
+                        ]}>
+                          <View style={[
+                            styles.anniversaryInfoMark,
+                            isGoldenYearsTemplate && styles.goldenInfoMark,
+                            isVintageTemplate && styles.vintageInfoMark,
+                            isRoseTemplate && styles.roseInfoMark,
+                            isMinimalLoveTemplate && styles.minimalInfoMark,
+                          ]} />
+                          <Text style={[
+                            styles.anniversaryInfoKicker,
+                            isGoldenYearsTemplate && styles.goldenInfoKicker,
+                            isVintageTemplate && styles.vintageInfoKicker,
+                            isRoseTemplate && styles.roseInfoKicker,
+                            isMinimalLoveTemplate && styles.minimalInfoKicker,
+                          ]}>
+                            {isGoldenYearsTemplate ? 'Legacy notes' : isVintageTemplate ? 'Archive note' : isRoseTemplate ? 'Garden letter' : 'Love note'}
+                          </Text>
+                          <View style={[
+                            styles.anniversaryInfoLine,
+                            isGoldenYearsTemplate && styles.goldenInfoLine,
+                            isVintageTemplate && styles.vintageInfoLine,
+                            isRoseTemplate && styles.roseInfoLine,
+                            isMinimalLoveTemplate && styles.minimalInfoLine,
+                          ]} />
+                        </View>
+                      )}
+
                       <Text style={[
                         styles.visitorDescription,
                         { color: event.templateId === 'royal' ? selectedTemplate.accent : selectedTemplate.text },
                         isNeonTemplate && styles.neonVisitorDescription,
                         isPastelTemplate && styles.pastelVisitorDescription,
                         isPopTemplate && styles.popVisitorDescription,
+                        isGoldenYearsTemplate && styles.goldenVisitorDescription,
+                        isVintageTemplate && styles.vintageVisitorDescription,
+                        isRoseTemplate && styles.roseVisitorDescription,
+                        isMinimalLoveTemplate && styles.minimalVisitorDescription,
                         isCyberTechTemplate && styles.cyberVisitorDescription,
                         isRetroArcadeTemplate && styles.retroArcadeVisitorDescription,
                         isNeonCarnivalTemplate && styles.neonCarnivalVisitorDescription,
@@ -2958,6 +3307,10 @@ export default function EventDetailScreen() {
                   isNeonTemplate && styles.neonGalleryHeader,
                   isPastelTemplate && styles.pastelGalleryHeader,
                   isPopTemplate && styles.popGalleryHeader,
+                  isGoldenYearsTemplate && styles.goldenGalleryHeader,
+                  isVintageTemplate && styles.vintageGalleryHeader,
+                  isRoseTemplate && styles.roseGalleryHeader,
+                  isMinimalLoveTemplate && styles.minimalGalleryHeader,
                   isRetroArcadeTemplate && styles.retroArcadeGalleryHeader,
                   isNeonCarnivalTemplate && styles.neonCarnivalGalleryHeader
                 ]}>
@@ -3008,17 +3361,52 @@ export default function EventDetailScreen() {
                         <View style={styles.popGalleryKickerBolt} />
                       </View>
                     )}
+                    {isAnniversaryTemplate && (
+                      <View style={[
+                        styles.anniversaryGalleryKicker,
+                        isVintageTemplate && styles.vintageGalleryKicker,
+                        isMinimalLoveTemplate && styles.minimalGalleryKicker,
+                      ]}>
+                        <View style={[
+                          styles.anniversaryGalleryDot,
+                          isGoldenYearsTemplate && styles.goldenGalleryDot,
+                          isVintageTemplate && styles.vintageGalleryDot,
+                          isRoseTemplate && styles.roseGalleryDot,
+                          isMinimalLoveTemplate && styles.minimalGalleryDot,
+                        ]} />
+                        <Text style={[
+                          styles.anniversaryGalleryKickerText,
+                          isGoldenYearsTemplate && styles.goldenGalleryKickerText,
+                          isVintageTemplate && styles.vintageGalleryKickerText,
+                          isRoseTemplate && styles.roseGalleryKickerText,
+                          isMinimalLoveTemplate && styles.minimalGalleryKickerText,
+                        ]}>
+                          {isGoldenYearsTemplate ? 'Golden reel' : isVintageTemplate ? 'Noir frames' : isRoseTemplate ? 'Bloom reel' : 'Quiet frames'}
+                        </Text>
+                        <View style={[
+                          styles.anniversaryGalleryLine,
+                          isGoldenYearsTemplate && styles.goldenGalleryLine,
+                          isVintageTemplate && styles.vintageGalleryLine,
+                          isRoseTemplate && styles.roseGalleryLine,
+                          isMinimalLoveTemplate && styles.minimalGalleryLine,
+                        ]} />
+                      </View>
+                    )}
                     <Text style={[
-                       styles.galleryTitle,
-                       { color: selectedTemplate.text },
-                       isScrapbookTemplate && styles.scrapbookGalleryTitle,
-                       isNeonTemplate && styles.neonGalleryTitle,
-                       isPastelTemplate && styles.pastelGalleryTitle,
-                       isPopTemplate && styles.popGalleryTitle,
-                       isCyberTechTemplate && styles.cyberGalleryTitle,
-                       isRetroArcadeTemplate && styles.retroArcadeGalleryTitle,
-                       isNeonCarnivalTemplate && styles.neonCarnivalGalleryTitle,
-                       selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold' }
+                      styles.galleryTitle,
+                      { color: selectedTemplate.text },
+                      isScrapbookTemplate && styles.scrapbookGalleryTitle,
+                      isNeonTemplate && styles.neonGalleryTitle,
+                      isPastelTemplate && styles.pastelGalleryTitle,
+                      isPopTemplate && styles.popGalleryTitle,
+                      isGoldenYearsTemplate && styles.goldenGalleryTitle,
+                      isVintageTemplate && styles.vintageGalleryTitle,
+                      isRoseTemplate && styles.roseGalleryTitle,
+                      isMinimalLoveTemplate && styles.minimalGalleryTitle,
+                      isCyberTechTemplate && styles.cyberGalleryTitle,
+                      isRetroArcadeTemplate && styles.retroArcadeGalleryTitle,
+                      isNeonCarnivalTemplate && styles.neonCarnivalGalleryTitle,
+                      selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold' }
                     ]}>
                       {isRetroArcadeTemplate ? (
                         <>
@@ -3147,6 +3535,24 @@ export default function EventDetailScreen() {
                                     },
                                     idx % 2 === 1 && styles.pastelPhotoTileAlt,
                                   ],
+                                  isGoldenYearsTemplate && [
+                                    styles.goldenPhotoTile,
+                                    { shadowColor: selectedTemplate.accent },
+                                    idx % 2 === 1 && styles.goldenPhotoTileAlt,
+                                  ],
+                                  isVintageTemplate && [
+                                    styles.vintagePhotoTile,
+                                    idx % 2 === 1 && styles.vintagePhotoTileAlt,
+                                  ],
+                                  isRoseTemplate && [
+                                    styles.rosePhotoTile,
+                                    { shadowColor: '#c75f72' },
+                                    idx % 2 === 1 && styles.rosePhotoTileAlt,
+                                  ],
+                                  isMinimalLoveTemplate && [
+                                    styles.minimalPhotoTile,
+                                    idx % 2 === 1 && styles.minimalPhotoTileAlt,
+                                  ],
                                   isPopTemplate && [
                                     styles.popPhotoTile,
                                     {
@@ -3227,9 +3633,43 @@ export default function EventDetailScreen() {
                                       <View style={[styles.pastelPhotoDot, styles.pastelPhotoDotBottom]} />
                                     </>
                                   )}
+                                  {isGoldenYearsTemplate && (
+                                    <>
+                                      <View style={[styles.anniversaryPhotoAccent, styles.goldenPhotoAccentTop]} />
+                                      <View style={[styles.anniversaryPhotoAccent, styles.goldenPhotoAccentBottom]} />
+                                    </>
+                                  )}
+                                  {isVintageTemplate && (
+                                    <>
+                                      <View style={[styles.vintagePhotoFrameLine, styles.vintagePhotoFrameLineTop]} />
+                                      <View style={[styles.vintagePhotoFrameLine, styles.vintagePhotoFrameLineBottom]} />
+                                    </>
+                                  )}
+                                  {isRoseTemplate && (
+                                    <>
+                                      <View style={[styles.rosePhotoPetal, styles.rosePhotoPetalTop]} />
+                                      <View style={[styles.rosePhotoPetal, styles.rosePhotoPetalBottom]} />
+                                    </>
+                                  )}
+                                  {isMinimalLoveTemplate && (
+                                    <View style={styles.minimalPhotoIndex}>
+                                      <Text style={styles.minimalPhotoIndexText}>{String(idx + 1).padStart(2, '0')}</Text>
+                                    </View>
+                                  )}
                                   <Image
                                     source={{ uri: photo.url }}
-                                    style={[styles.galleryImg, isScrapbookTemplate && styles.scrapbookGalleryImg, isNeonTemplate && styles.neonGalleryImg, isPastelTemplate && styles.pastelGalleryImg, isPopTemplate && styles.popGalleryImg, isRetroArcadeTemplate && styles.retroArcadeGalleryImg]}
+                                    style={[
+                                      styles.galleryImg,
+                                      isScrapbookTemplate && styles.scrapbookGalleryImg,
+                                      isNeonTemplate && styles.neonGalleryImg,
+                                      isPastelTemplate && styles.pastelGalleryImg,
+                                      isPopTemplate && styles.popGalleryImg,
+                                      isGoldenYearsTemplate && styles.goldenGalleryImg,
+                                      isVintageTemplate && styles.vintageGalleryImg,
+                                      isRoseTemplate && styles.roseGalleryImg,
+                                      isMinimalLoveTemplate && styles.minimalGalleryImg,
+                                      isRetroArcadeTemplate && styles.retroArcadeGalleryImg,
+                                    ]}
                                     resizeMode="cover"
                                   />
                                   {event.templateId === 'academic_editorial' && (
@@ -4066,8 +4506,9 @@ export default function EventDetailScreen() {
 }
 
 const FunkyFonts = {
-  marker: Fonts.permanentMarker.regular,
-  comic: Fonts.permanentMarker.regular,
+  marker: Fonts.permanentMarker?.regular ?? Fonts.outfit.extraBold,
+  comic: Fonts.bubblegum?.regular ?? Fonts.outfit.extraBold,
+  display: Fonts.monofett?.regular ?? Fonts.outfit.extraBold,
   retro: Platform.select({
     ios: 'American Typewriter',
     android: 'monospace',
@@ -4083,6 +4524,12 @@ const styles = StyleSheet.create({
   // Hero
   hero: { height: 400, width: '100%' },
   heroImage: { ...StyleSheet.absoluteFillObject },
+  goldenHeroImage: {
+    transform: [{ scale: 1.02 }],
+  },
+  vintageHeroImage: {
+    opacity: 0.42,
+  },
   heroGradient: { ...StyleSheet.absoluteFillObject },
   floatingBack: {
     width: 40,
@@ -4133,6 +4580,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     zIndex: 25,
+  },
+  vintageFloatingButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(21, 19, 15, 0.92)',
+    borderColor: 'rgba(184, 145, 69, 0.72)',
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    elevation: 4,
   },
   floatingShare: { position: 'absolute', top: 20, right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   heroContent: { position: 'absolute', bottom: 14, left: 24, right: 24 },
@@ -4385,6 +4845,958 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(216, 180, 220, 0.2)',
     borderWidth: 1,
     borderColor: 'rgba(201, 118, 139, 0.2)',
+  },
+  anniversaryRibbon: {
+    position: 'absolute',
+    height: 3,
+    left: 20,
+    right: 20,
+    top: 18,
+    borderRadius: 999,
+  },
+  goldenRibbon: {
+    backgroundColor: 'rgba(201, 154, 46, 0.72)',
+  },
+  goldenHeroContent: {
+    left: 18,
+    right: 18,
+    bottom: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 250, 240, 0.82)',
+    borderWidth: 1,
+    borderColor: 'rgba(201, 154, 46, 0.34)',
+    shadowColor: '#c99a2e',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.2,
+    shadowRadius: 26,
+    elevation: 5,
+  },
+  goldenHeroLabel: {
+    color: '#8a6421',
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.6,
+    marginBottom: 12,
+  },
+  goldenHeroRule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  goldenHeroRuleLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(201, 154, 46, 0.38)',
+  },
+  goldenHeroMedallion: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#c99a2e',
+    backgroundColor: '#fff7e6',
+  },
+  goldenHeroTitle: {
+    fontSize: 39,
+    lineHeight: 42,
+    fontFamily: Fonts.cormorant.bold,
+    color: '#3f2f22',
+    letterSpacing: 0,
+  },
+  goldenHeroMeta: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(201, 154, 46, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(201, 154, 46, 0.26)',
+  },
+  vintageHeroContent: {
+    left: 20,
+    right: 20,
+    bottom: 28,
+    paddingHorizontal: 22,
+    paddingVertical: 22,
+    borderRadius: 2,
+    backgroundColor: 'rgba(245, 239, 228, 0.9)',
+    borderWidth: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.14,
+    shadowRadius: 26,
+    elevation: 4,
+  },
+  vintageHeroIssue: {
+    color: '#5e5348',
+    fontSize: 11,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 2.2,
+    marginBottom: 12,
+  },
+  vintageHeroRule: {
+    height: 1,
+    backgroundColor: 'rgba(23, 23, 23, 0.16)',
+    marginBottom: 14,
+  },
+  vintageHeroTitle: {
+    fontSize: 40,
+    lineHeight: 42,
+    fontFamily: Fonts.cormorant.bold,
+    letterSpacing: 0.25,
+    textTransform: 'uppercase',
+  },
+  vintageHeroMeta: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 0,
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(23, 23, 23, 0.46)',
+    backgroundColor: 'rgba(23, 23, 23, 0.045)',
+  },
+  roseHeroContent: {
+    left: 18,
+    right: 18,
+    bottom: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 253, 252, 0.78)',
+    borderWidth: 1,
+    borderColor: 'rgba(199, 95, 114, 0.22)',
+    shadowColor: '#c75f72',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.16,
+    shadowRadius: 26,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  rosePetal: {
+    position: 'absolute',
+    borderRadius: 999,
+    backgroundColor: 'rgba(199, 95, 114, 0.16)',
+  },
+  rosePetalOne: {
+    width: 92,
+    height: 92,
+    right: -28,
+    top: -28,
+  },
+  rosePetalTwo: {
+    width: 64,
+    height: 64,
+    left: -20,
+    bottom: -18,
+    backgroundColor: 'rgba(237, 178, 187, 0.2)',
+  },
+  roseHeroLabel: {
+    color: '#9b6871',
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    marginBottom: 10,
+  },
+  roseHeroVine: {
+    width: 88,
+    height: 2,
+    borderRadius: 999,
+    backgroundColor: '#c75f72',
+    marginBottom: 12,
+  },
+  roseHeroTitle: {
+    fontSize: 36,
+    lineHeight: 41,
+    letterSpacing: 0,
+  },
+  roseHeroMeta: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(199, 95, 114, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(199, 95, 114, 0.2)',
+  },
+  minimalHeroContent: {
+    left: 20,
+    right: 20,
+    bottom: 26,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.78)',
+    borderWidth: 1,
+    borderColor: 'rgba(38, 37, 34, 0.1)',
+  },
+  minimalHeroLabel: {
+    color: '#7c776f',
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.8,
+    marginBottom: 10,
+  },
+  minimalHeroRule: {
+    width: 48,
+    height: 1,
+    backgroundColor: '#8f8577',
+    marginBottom: 12,
+  },
+  minimalHeroTitle: {
+    fontSize: 34,
+    lineHeight: 38,
+    letterSpacing: 0,
+  },
+  minimalHeroMeta: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 0,
+    paddingVertical: 6,
+    borderRadius: 0,
+    backgroundColor: 'transparent',
+  },
+  anniversaryHeroDate: {
+    letterSpacing: 1,
+  },
+  anniversaryShareButton: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  goldenCeremonyHero: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 22,
+    paddingBottom: 40,
+    overflow: 'hidden',
+  },
+  goldenCeremonyVignette: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  goldenCeremonyCreamWash: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  goldenCeremonyTexture: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.42,
+  },
+  goldenGrainLine: {
+    position: 'absolute',
+    height: 1,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 250, 240, 0.2)',
+  },
+  goldenGrainLineOne: {
+    left: 30,
+    right: 54,
+    top: 182,
+  },
+  goldenGrainLineTwo: {
+    left: 76,
+    right: 26,
+    bottom: 218,
+    backgroundColor: 'rgba(201, 154, 46, 0.1)',
+  },
+  goldenGrainDot: {
+    position: 'absolute',
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 250, 240, 0.26)',
+  },
+  goldenGrainDotOne: {
+    left: 52,
+    top: 140,
+  },
+  goldenGrainDotTwo: {
+    right: 82,
+    top: 272,
+  },
+  goldenGrainDotThree: {
+    left: 112,
+    bottom: 168,
+    backgroundColor: 'rgba(201, 154, 46, 0.16)',
+  },
+  goldenCeremonyHalo: {
+    position: 'absolute',
+    top: 70,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: 'rgba(201, 154, 46, 0.14)',
+    transform: [{ scaleX: 1.42 }],
+  },
+  goldenCeremonyFrame: {
+    position: 'absolute',
+    top: 94,
+    left: 22,
+    right: 22,
+    bottom: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 247, 230, 0.32)',
+    borderRadius: 36,
+  },
+  goldenCeremonyCorner: {
+    position: 'absolute',
+    width: 32,
+    height: 32,
+    borderColor: 'rgba(201, 154, 46, 0.38)',
+  },
+  goldenCeremonyCornerTopLeft: {
+    top: 12,
+    left: 12,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderTopLeftRadius: 16,
+  },
+  goldenCeremonyCornerTopRight: {
+    top: 12,
+    right: 12,
+    borderTopWidth: 1,
+    borderRightWidth: 1,
+    borderTopRightRadius: 16,
+  },
+  goldenCeremonyCornerBottomLeft: {
+    bottom: 12,
+    left: 12,
+    borderBottomWidth: 1,
+    borderLeftWidth: 1,
+    borderBottomLeftRadius: 16,
+  },
+  goldenCeremonyCornerBottomRight: {
+    bottom: 12,
+    right: 12,
+    borderBottomWidth: 1,
+    borderRightWidth: 1,
+    borderBottomRightRadius: 16,
+  },
+  goldenCeremonyPhotoMotion: {
+    position: 'absolute',
+    top: 122,
+    right: 30,
+    width: 138,
+    height: 178,
+  },
+  goldenCeremonyPhotoCard: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 999,
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: 'rgba(255, 250, 240, 0.82)',
+    transform: [{ rotate: '2deg' }],
+    shadowColor: '#3f2f22',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.16,
+    shadowRadius: 28,
+    elevation: 5,
+  },
+  goldenCeremonyPhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  goldenCeremonyPhotoVeil: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(201, 154, 46, 0.1)',
+  },
+  goldenCeremonyYearRail: {
+    position: 'absolute',
+    left: 26,
+    top: 136,
+    paddingVertical: 12,
+    paddingHorizontal: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 250, 240, 0.58)',
+    borderWidth: 0,
+  },
+  goldenCeremonyYearRailText: {
+    color: '#8a6421',
+    fontSize: 9,
+    fontFamily: Fonts.nunitoSans.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 2.3,
+    writingDirection: 'ltr',
+    transform: [{ rotate: '-90deg' }],
+  },
+  goldenCeremonyContent: {
+    width: '92%',
+    alignItems: 'center',
+    paddingHorizontal: 26,
+    paddingTop: 36,
+    paddingBottom: 26,
+    borderTopLeftRadius: 48,
+    borderTopRightRadius: 48,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    backgroundColor: 'rgba(255, 250, 240, 0.86)',
+    borderWidth: 0,
+    shadowColor: '#c99a2e',
+    shadowOffset: { width: 0, height: 24 },
+    shadowOpacity: 0.18,
+    shadowRadius: 38,
+    elevation: 6,
+  },
+  goldenCeremonyKicker: {
+    color: '#9a6f22',
+    fontSize: 10.5,
+    fontFamily: Fonts.nunitoSans.semiBold,
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+    marginBottom: 13,
+  },
+  goldenCeremonySeal: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#c99a2e',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 247, 230, 0.86)',
+    marginBottom: 18,
+  },
+  goldenCeremonySealText: {
+    color: '#fff7e6',
+    fontSize: 24,
+    fontFamily: Fonts.cormorant.bold,
+  },
+  goldenCeremonyTitle: {
+    color: '#3f2f22',
+    fontSize: 40,
+    lineHeight: 45,
+    fontFamily: Fonts.cormorant.semiBold,
+    textAlign: 'center',
+    letterSpacing: 0,
+    marginHorizontal: 4,
+  },
+  goldenCeremonyRule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    width: '82%',
+    marginTop: 18,
+    marginBottom: 13,
+  },
+  goldenCeremonyRuleLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(201, 154, 46, 0.32)',
+  },
+  goldenCeremonyRuleDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(201, 154, 46, 0.78)',
+  },
+  goldenCeremonyDate: {
+    color: '#81633f',
+    fontSize: 12,
+    fontFamily: Fonts.nunitoSans.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.55,
+  },
+  goldenCeremonyShare: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 11,
+    borderRadius: 999,
+    backgroundColor: 'rgba(201, 154, 46, 0.18)',
+    borderWidth: 0,
+  },
+  goldenCeremonyShareText: {
+    color: '#3f2f22',
+    fontSize: 11,
+    fontFamily: Fonts.nunitoSans.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  vintageEditorialHero: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'space-between',
+    paddingTop: 76,
+    paddingBottom: 30,
+    paddingHorizontal: 22,
+    overflow: 'hidden',
+    backgroundColor: '#0F0E0B',
+  },
+  vintageEditorialVignette: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  vintageEditorialTexture: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.34,
+  },
+  vintageGrainLine: {
+    position: 'absolute',
+    height: 1,
+    backgroundColor: 'rgba(184, 145, 69, 0.18)',
+  },
+  vintageGrainLineOne: {
+    left: 24,
+    right: 40,
+    top: 132,
+  },
+  vintageGrainLineTwo: {
+    left: 58,
+    right: 22,
+    bottom: 88,
+    backgroundColor: 'rgba(239, 227, 199, 0.08)',
+  },
+  vintageGrainDot: {
+    position: 'absolute',
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: 'rgba(184, 145, 69, 0.22)',
+  },
+  vintageGrainDotOne: {
+    left: 46,
+    top: 188,
+  },
+  vintageGrainDotTwo: {
+    right: 54,
+    top: 256,
+  },
+  vintageGrainDotThree: {
+    left: 132,
+    bottom: 132,
+    backgroundColor: 'rgba(239, 227, 199, 0.13)',
+  },
+  vintageEditorialMasthead: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(184, 145, 69, 0.46)',
+    backgroundColor: 'rgba(15, 14, 11, 0.78)',
+  },
+  vintageEditorialMastheadText: {
+    color: '#F2E7D2',
+    fontSize: 12,
+    fontFamily: Fonts.cormorant.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 2.6,
+  },
+  vintageEditorialTopBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(184, 145, 69, 0.34)',
+    paddingVertical: 10,
+  },
+  vintageEditorialFeatureRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 13,
+  },
+  vintageEditorialImagePlate: {
+    flex: 1,
+    height: 148,
+    padding: 8,
+    backgroundColor: '#D6C29A',
+    borderWidth: 1,
+    borderColor: 'rgba(184, 145, 69, 0.62)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.34,
+    shadowRadius: 28,
+    elevation: 4,
+  },
+  vintageEditorialTape: {
+    position: 'absolute',
+    top: -8,
+    left: 28,
+    width: 54,
+    height: 17,
+    backgroundColor: 'rgba(232, 216, 184, 0.58)',
+    borderWidth: 1,
+    borderColor: 'rgba(184, 145, 69, 0.24)',
+    transform: [{ rotate: '-3deg' }],
+    zIndex: 4,
+  },
+  vintageEditorialClip: {
+    position: 'absolute',
+    top: 12,
+    right: 18,
+    width: 13,
+    height: 38,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(33, 26, 18, 0.45)',
+    backgroundColor: 'rgba(239, 227, 199, 0.26)',
+    zIndex: 4,
+  },
+  vintageEditorialImage: {
+    width: '100%',
+    height: '100%',
+    opacity: 0.86,
+  },
+  vintageEditorialImageFade: {
+    ...StyleSheet.absoluteFillObject,
+    margin: 8,
+  },
+  vintageEditorialNumberBlock: {
+    width: 84,
+    height: 148,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2A241B',
+    borderWidth: 1,
+    borderColor: 'rgba(184, 145, 69, 0.52)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.28,
+    shadowRadius: 22,
+    elevation: 3,
+  },
+  vintageEditorialNumber: {
+    color: '#B89145',
+    fontSize: 50,
+    lineHeight: 52,
+    fontFamily: Fonts.cormorant.bold,
+  },
+  vintageEditorialNumberLabel: {
+    color: '#F2E7D2',
+    fontSize: 9,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.9,
+  },
+  vintageEditorialEdition: {
+    color: '#C7A96B',
+    fontSize: 10,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.7,
+  },
+  vintageEditorialBand: {
+    alignSelf: 'stretch',
+    backgroundColor: '#E8D8B8',
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(184, 145, 69, 0.6)',
+    borderLeftWidth: 3,
+    borderLeftColor: '#B89145',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    elevation: 4,
+  },
+  vintageEditorialTitle: {
+    color: '#211A12',
+    fontSize: 43,
+    lineHeight: 43,
+    fontFamily: Fonts.cormorant.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  vintageEditorialFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  vintageEditorialDate: {
+    color: '#C7A96B',
+    fontSize: 12,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.6,
+  },
+  vintageEditorialShare: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#15130F',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(184, 145, 69, 0.62)',
+  },
+  vintageEditorialShareText: {
+    color: '#B89145',
+    fontSize: 11,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.25,
+  },
+  roseBloomHero: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 20,
+    paddingBottom: 26,
+    overflow: 'hidden',
+  },
+  roseBloomOrb: {
+    position: 'absolute',
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 246, 247, 0.72)',
+  },
+  roseBloomOrbLarge: {
+    width: 300,
+    height: 300,
+    right: -105,
+    top: 70,
+  },
+  roseBloomOrbSmall: {
+    width: 118,
+    height: 118,
+    left: -34,
+    bottom: 92,
+    backgroundColor: 'rgba(199, 95, 114, 0.28)',
+  },
+  roseBloomVine: {
+    position: 'absolute',
+    top: 112,
+    left: 22,
+    width: 86,
+    height: 230,
+    borderLeftWidth: 2,
+    borderColor: 'rgba(255, 246, 247, 0.68)',
+    borderTopLeftRadius: 80,
+  },
+  roseBloomPetal: {
+    position: 'absolute',
+    width: 42,
+    height: 26,
+    borderTopLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    backgroundColor: 'rgba(255, 246, 247, 0.74)',
+  },
+  roseBloomPetalA: {
+    top: 20,
+    left: 16,
+    transform: [{ rotate: '-18deg' }],
+  },
+  roseBloomPetalB: {
+    top: 96,
+    left: -8,
+    backgroundColor: 'rgba(237, 178, 187, 0.64)',
+    transform: [{ rotate: '18deg' }],
+  },
+  roseBloomPetalC: {
+    top: 160,
+    left: 20,
+    transform: [{ rotate: '-8deg' }],
+  },
+  roseBloomPhotoStamp: {
+    position: 'absolute',
+    top: 122,
+    right: 24,
+    width: 150,
+    height: 184,
+    padding: 8,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 253, 252, 0.9)',
+    transform: [{ rotate: '6deg' }],
+    shadowColor: '#5c2632',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 7,
+  },
+  roseBloomPhoto: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+  },
+  roseBloomCard: {
+    width: '100%',
+    paddingHorizontal: 24,
+    paddingTop: 30,
+    paddingBottom: 24,
+    borderTopLeftRadius: 54,
+    borderTopRightRadius: 30,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 44,
+    backgroundColor: 'rgba(255, 253, 252, 0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(199, 95, 114, 0.22)',
+    shadowColor: '#c75f72',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.16,
+    shadowRadius: 28,
+    elevation: 7,
+  },
+  roseBloomKicker: {
+    color: '#9b6871',
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    marginBottom: 10,
+  },
+  roseBloomTitle: {
+    color: '#5c2632',
+    fontSize: 40,
+    lineHeight: 43,
+    fontFamily: Fonts.playfair.bold,
+    letterSpacing: 0,
+  },
+  roseBloomStem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 14,
+    marginBottom: 10,
+  },
+  roseBloomStemLine: {
+    width: 86,
+    height: 2,
+    borderRadius: 999,
+    backgroundColor: '#c75f72',
+  },
+  roseBloomLeaf: {
+    width: 10,
+    height: 10,
+    borderRadius: 6,
+    backgroundColor: '#c75f72',
+  },
+  roseBloomLeafAlt: {
+    backgroundColor: '#edb2bb',
+  },
+  roseBloomDate: {
+    color: '#9b6871',
+    fontSize: 12,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  roseBloomShare: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderTopLeftRadius: 999,
+    borderTopRightRadius: 999,
+    borderBottomLeftRadius: 999,
+    borderBottomRightRadius: 14,
+    backgroundColor: 'rgba(199, 95, 114, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(199, 95, 114, 0.2)',
+  },
+  roseBloomShareText: {
+    color: '#5c2632',
+    fontSize: 11,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  minimalEditorialHero: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 24,
+    paddingBottom: 30,
+    overflow: 'hidden',
+  },
+  minimalEditorialPhotoPanel: {
+    position: 'absolute',
+    top: 88,
+    right: 24,
+    width: 154,
+    height: 174,
+    borderRadius: 4,
+    overflow: 'hidden',
+    opacity: 0.86,
+  },
+  minimalEditorialPhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  minimalEditorialGridLineVertical: {
+    position: 'absolute',
+    top: 78,
+    bottom: 30,
+    left: 72,
+    width: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.28)',
+  },
+  minimalEditorialGridLineHorizontal: {
+    position: 'absolute',
+    top: 292,
+    left: 24,
+    right: 24,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.28)',
+  },
+  minimalEditorialContent: {
+    width: '76%',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.72)',
+    paddingTop: 20,
+  },
+  minimalEditorialKicker: {
+    color: '#f8f7f3',
+    fontSize: 11,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    marginBottom: 10,
+  },
+  minimalEditorialTitle: {
+    color: '#ffffff',
+    fontSize: 42,
+    lineHeight: 44,
+    fontFamily: Fonts.playfair.bold,
+    letterSpacing: 0,
+  },
+  minimalEditorialMetaRow: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  minimalEditorialDate: {
+    color: '#f8f7f3',
+    fontSize: 12,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.4,
+  },
+  minimalEditorialShare: {
+    width: 42,
+    height: 42,
+    borderRadius: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.82)',
+  },
+  minimalEditorialIndex: {
+    position: 'absolute',
+    top: 86,
+    left: 24,
+    width: 42,
+    height: 72,
+    borderRadius: 0,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.62)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  minimalEditorialIndexText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontFamily: Fonts.inter.bold,
   },
   popHeroContent: {
     left: 18,
@@ -5831,6 +7243,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     gap: 12,
   },
+  goldenVisitorHeaderContainer: {
+    height: 68,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  goldenVisitorHeaderContent: {
+    paddingHorizontal: 20,
+    gap: 14,
+  },
+  vintageVisitorHeaderContainer: {
+    height: 70,
+    marginTop: 14,
+    marginBottom: 8,
+  },
+  vintageVisitorHeaderContent: {
+    paddingHorizontal: 20,
+    gap: 14,
+  },
   visitorTab: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -5944,6 +7374,42 @@ const styles = StyleSheet.create({
     borderColor: '#231f20',
     transform: [{ translateY: -2 }, { rotate: '-1.5deg' }],
   },
+  goldenVisitorTab: {
+    paddingHorizontal: 21,
+    paddingVertical: 9,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 250, 240, 0.58)',
+    borderWidth: 1,
+    borderColor: 'rgba(201, 154, 46, 0.12)',
+    shadowColor: '#c99a2e',
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 1,
+  },
+  goldenVisitorTabActive: {
+    backgroundColor: 'rgba(201, 154, 46, 0.18)',
+    borderColor: 'rgba(201, 154, 46, 0.24)',
+    transform: [{ translateY: -1 }],
+  },
+  vintageVisitorTab: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: '#15130F',
+    borderWidth: 1,
+    borderColor: 'rgba(184, 145, 69, 0.44)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 3,
+  },
+  vintageVisitorTabActive: {
+    backgroundColor: '#B89145',
+    borderColor: '#B89145',
+    transform: [{ translateY: -1 }],
+  },
   visitorTabText: {
     color: MidnightColors.gold,
     fontSize: 14,
@@ -5971,8 +7437,29 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0,
   },
+  goldenVisitorTabText: {
+    fontSize: 12.5,
+    fontFamily: Fonts.nunitoSans.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.85,
+  },
   visitorTabTextActive: {
     color: MidnightColors.background,
+  },
+  goldenVisitorTabTextActive: {
+    color: '#3f2f22',
+    fontFamily: Fonts.nunitoSans.bold,
+  },
+  vintageVisitorTabText: {
+    fontSize: 12.5,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.25,
+    color: '#F2E7D2',
+  },
+  vintageVisitorTabTextActive: {
+    color: '#211A12',
+    fontFamily: Fonts.inter.bold,
   },
   scrapbookVisitorTabTextActive: {
     color: '#263331',
@@ -6241,6 +7728,164 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(201, 118, 139, 0.18)',
   },
+  goldenInfoBox: {
+    marginHorizontal: 18,
+    marginTop: 18,
+    marginBottom: 30,
+    padding: 8,
+    borderRadius: 26,
+    borderWidth: 0,
+    backgroundColor: 'rgba(255, 250, 240, 0.26)',
+    shadowColor: '#c99a2e',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.08,
+    shadowRadius: 28,
+    elevation: 2,
+  },
+  goldenInfoInner: {
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    borderRadius: 22,
+    borderWidth: 0,
+    backgroundColor: 'rgba(255, 250, 240, 0.68)',
+  },
+  vintageInfoBox: {
+    marginHorizontal: 18,
+    marginTop: 20,
+    marginBottom: 32,
+    padding: 1,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(184, 145, 69, 0.42)',
+    backgroundColor: '#15130F',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.28,
+    shadowRadius: 30,
+    elevation: 4,
+  },
+  vintageInfoInner: {
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    borderRadius: 17,
+    backgroundColor: '#1C1812',
+  },
+  roseInfoBox: {
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 24,
+    padding: 10,
+    borderRadius: 30,
+    borderColor: 'rgba(199, 95, 114, 0.18)',
+    shadowColor: '#c75f72',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.11,
+    shadowRadius: 22,
+    elevation: 3,
+  },
+  roseInfoInner: {
+    paddingHorizontal: 18,
+    paddingVertical: 22,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(199, 95, 114, 0.12)',
+    backgroundColor: 'rgba(255, 253, 252, 0.58)',
+  },
+  minimalInfoBox: {
+    marginHorizontal: 18,
+    marginTop: 14,
+    marginBottom: 24,
+    padding: 0,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(38, 37, 34, 0.08)',
+    backgroundColor: '#ffffff',
+  },
+  minimalInfoInner: {
+    paddingHorizontal: 18,
+    paddingVertical: 20,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+  },
+  anniversaryInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    marginBottom: 12,
+  },
+  vintageInfoHeader: {
+    gap: 10,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderStyle: 'dashed',
+    borderBottomColor: 'rgba(184, 145, 69, 0.34)',
+  },
+  minimalInfoHeader: {
+    marginBottom: 14,
+  },
+  anniversaryInfoMark: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+  },
+  goldenInfoMark: {
+    backgroundColor: '#c99a2e',
+  },
+  vintageInfoMark: {
+    width: 22,
+    height: 1,
+    borderRadius: 0,
+    backgroundColor: '#B89145',
+  },
+  roseInfoMark: {
+    backgroundColor: '#c75f72',
+  },
+  minimalInfoMark: {
+    width: 18,
+    height: 1,
+    borderRadius: 0,
+    backgroundColor: '#8f8577',
+  },
+  anniversaryInfoKicker: {
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.25,
+  },
+  goldenInfoKicker: {
+    color: '#9a6f22',
+    fontSize: 10.5,
+    fontFamily: Fonts.nunitoSans.semiBold,
+    letterSpacing: 1.8,
+  },
+  vintageInfoKicker: {
+    color: '#C7A96B',
+    fontFamily: Fonts.inter.semiBold,
+    letterSpacing: 2,
+  },
+  roseInfoKicker: {
+    color: '#9b6871',
+  },
+  minimalInfoKicker: {
+    color: '#7c776f',
+    letterSpacing: 1.5,
+  },
+  anniversaryInfoLine: {
+    flex: 1,
+    height: 1,
+  },
+  goldenInfoLine: {
+    backgroundColor: 'rgba(201, 154, 46, 0.28)',
+  },
+  vintageInfoLine: {
+    backgroundColor: 'rgba(184, 145, 69, 0.28)',
+  },
+  roseInfoLine: {
+    backgroundColor: 'rgba(199, 95, 114, 0.18)',
+  },
+  minimalInfoLine: {
+    backgroundColor: 'rgba(38, 37, 34, 0.1)',
+  },
   popInfoBox: {
     marginHorizontal: 10,
     marginTop: 16,
@@ -6339,6 +7984,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: -0.2,
   },
+  goldenVisitorDescription: {
+    color: '#4d3928',
+    fontFamily: Fonts.nunitoSans.regular,
+    fontSize: 15,
+    lineHeight: 24,
+    letterSpacing: 0.05,
+  },
+  vintageVisitorDescription: {
+    color: '#EFE3C7',
+    fontFamily: Fonts.inter.regular,
+    lineHeight: 25,
+    letterSpacing: 0.05,
+  },
+  roseVisitorDescription: {
+    color: '#5c2632',
+    lineHeight: 24,
+  },
+  minimalVisitorDescription: {
+    color: '#3a3834',
+    lineHeight: 25,
+  },
   categoryBadge: {
     alignSelf: 'flex-start',
     backgroundColor: 'rgba(212, 175, 55, 0.1)',
@@ -6385,6 +8051,37 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(201, 118, 139, 0.12)',
+  },
+  goldenGalleryHeader: {
+    marginTop: 24,
+    marginBottom: 28,
+    paddingHorizontal: 22,
+    paddingBottom: 18,
+    borderBottomWidth: 0,
+  },
+  vintageGalleryHeader: {
+    marginTop: 28,
+    marginBottom: 28,
+    paddingHorizontal: 22,
+    paddingBottom: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(184, 145, 69, 0.24)',
+  },
+  roseGalleryHeader: {
+    marginTop: 18,
+    marginBottom: 22,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(199, 95, 114, 0.14)',
+  },
+  minimalGalleryHeader: {
+    marginTop: 18,
+    marginBottom: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(38, 37, 34, 0.08)',
   },
   popGalleryHeader: {
     marginTop: 24,
@@ -6499,6 +8196,84 @@ const styles = StyleSheet.create({
     borderColor: '#231f20',
     transform: [{ rotate: '-4deg' }],
   },
+  anniversaryGalleryKicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  vintageGalleryKicker: {
+    gap: 11,
+  },
+  minimalGalleryKicker: {
+    gap: 10,
+  },
+  anniversaryGalleryDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  goldenGalleryDot: {
+    backgroundColor: 'rgba(201, 154, 46, 0.78)',
+  },
+  vintageGalleryDot: {
+    borderRadius: 0,
+    width: 22,
+    height: 1,
+    backgroundColor: '#B89145',
+  },
+  roseGalleryDot: {
+    backgroundColor: '#c75f72',
+  },
+  minimalGalleryDot: {
+    width: 20,
+    height: 1,
+    borderRadius: 0,
+    backgroundColor: '#8f8577',
+  },
+  anniversaryGalleryKickerText: {
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.35,
+  },
+  goldenGalleryKickerText: {
+    color: '#9a6f22',
+    fontSize: 10.5,
+    fontFamily: Fonts.nunitoSans.semiBold,
+    letterSpacing: 1.85,
+  },
+  vintageGalleryKickerText: {
+    color: '#C7A96B',
+    fontFamily: Fonts.inter.semiBold,
+    letterSpacing: 2,
+  },
+  roseGalleryKickerText: {
+    color: '#9b6871',
+  },
+  minimalGalleryKickerText: {
+    color: '#7c776f',
+    letterSpacing: 1.5,
+  },
+  anniversaryGalleryLine: {
+    width: 42,
+    height: 2,
+    borderRadius: 999,
+  },
+  goldenGalleryLine: {
+    backgroundColor: 'rgba(201, 154, 46, 0.36)',
+  },
+  vintageGalleryLine: {
+    height: 1,
+    backgroundColor: 'rgba(184, 145, 69, 0.34)',
+  },
+  roseGalleryLine: {
+    backgroundColor: 'rgba(199, 95, 114, 0.58)',
+  },
+  minimalGalleryLine: {
+    height: 1,
+    backgroundColor: 'rgba(38, 37, 34, 0.16)',
+  },
   galleryTitle: {
     fontSize: 24,
     color: '#fff',
@@ -6523,6 +8298,28 @@ const styles = StyleSheet.create({
     fontFamily: FunkyFonts.marker,
     textTransform: 'uppercase',
     letterSpacing: -0.5,
+  },
+  goldenGalleryTitle: {
+    fontSize: 34,
+    lineHeight: 39,
+    fontFamily: Fonts.cormorant.semiBold,
+    letterSpacing: 0,
+  },
+  vintageGalleryTitle: {
+    color: '#F2E7D2',
+    fontSize: 34,
+    lineHeight: 38,
+    fontFamily: Fonts.cormorant.bold,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  roseGalleryTitle: {
+    fontSize: 29,
+    letterSpacing: 0,
+  },
+  minimalGalleryTitle: {
+    fontSize: 28,
+    letterSpacing: 0,
   },
   photoCount: {
     fontSize: 12,
@@ -6658,6 +8455,125 @@ const styles = StyleSheet.create({
     bottom: 42,
     backgroundColor: '#d8b4dc',
   },
+  goldenPhotoTile: {
+    padding: 8,
+    borderWidth: 0,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 250, 240, 0.88)',
+    shadowColor: '#8a6421',
+    shadowOffset: { width: 0, height: 13 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 2,
+  },
+  goldenPhotoTileAlt: {
+    transform: [{ rotate: '0.18deg' }],
+  },
+  anniversaryPhotoAccent: {
+    position: 'absolute',
+    left: 18,
+    right: 18,
+    height: 2,
+    borderRadius: 999,
+    zIndex: 2,
+  },
+  goldenPhotoAccentTop: {
+    top: 13,
+    backgroundColor: 'rgba(201, 154, 46, 0.28)',
+  },
+  goldenPhotoAccentBottom: {
+    bottom: 13,
+    backgroundColor: 'rgba(201, 154, 46, 0.16)',
+  },
+  vintagePhotoTile: {
+    padding: 8,
+    borderWidth: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#D6C29A',
+    borderColor: 'rgba(184, 145, 69, 0.44)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.26,
+    shadowRadius: 24,
+    elevation: 4,
+  },
+  vintagePhotoTileAlt: {
+    transform: [{ rotate: '-0.16deg' }],
+  },
+  vintagePhotoFrameLine: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    height: 1,
+    backgroundColor: 'rgba(33, 26, 18, 0.22)',
+    zIndex: 2,
+  },
+  vintagePhotoFrameLineTop: {
+    top: 14,
+  },
+  vintagePhotoFrameLineBottom: {
+    bottom: 14,
+  },
+  rosePhotoTile: {
+    padding: 8,
+    borderWidth: 1,
+    borderRadius: 28,
+    overflow: 'hidden',
+    backgroundColor: '#fffdfc',
+    borderColor: 'rgba(199, 95, 114, 0.16)',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 3,
+  },
+  rosePhotoTileAlt: {
+    transform: [{ rotate: '0.2deg' }],
+  },
+  rosePhotoPetal: {
+    position: 'absolute',
+    width: 34,
+    height: 34,
+    borderRadius: 18,
+    backgroundColor: 'rgba(199, 95, 114, 0.2)',
+    zIndex: 2,
+  },
+  rosePhotoPetalTop: {
+    top: 14,
+    right: 16,
+  },
+  rosePhotoPetalBottom: {
+    left: 16,
+    bottom: 14,
+    backgroundColor: 'rgba(237, 178, 187, 0.26)',
+  },
+  minimalPhotoTile: {
+    padding: 0,
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#ffffff',
+    borderColor: 'rgba(38, 37, 34, 0.08)',
+  },
+  minimalPhotoTileAlt: {
+    opacity: 0.98,
+  },
+  minimalPhotoIndex: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    zIndex: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.74)',
+  },
+  minimalPhotoIndexText: {
+    color: '#262522',
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+  },
   popPhotoTile: {
     padding: 8,
     borderWidth: 3,
@@ -6749,6 +8665,19 @@ const styles = StyleSheet.create({
   },
   popGalleryImg: {
     borderRadius: 14,
+  },
+  goldenGalleryImg: {
+    borderRadius: 16,
+  },
+  vintageGalleryImg: {
+    borderRadius: 10,
+    opacity: 0.88,
+  },
+  roseGalleryImg: {
+    borderRadius: 22,
+  },
+  minimalGalleryImg: {
+    borderRadius: 11,
   },
   emptyGallery: {
     width: '100%',

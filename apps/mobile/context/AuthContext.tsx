@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }, { merge: true });
             }
           } catch (docErr) {
-            console.warn('[Auth] Profile fetch error (offline?):', docErr);
+            console.log('[Auth] Profile fetch skipped while offline:', docErr);
             // Non-blocking: just show them as a basic user for now
             setUser({
               uid: firebaseUser.uid,

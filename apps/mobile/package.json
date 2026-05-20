@@ -12,8 +12,10 @@
   },
   "dependencies": {
     "@expo-google-fonts/bubblegum-sans": "^0.4.1",
+    "@expo-google-fonts/cormorant-garamond": "^0.4.1",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/monofett": "^0.4.1",
+    "@expo-google-fonts/nunito-sans": "^0.4.2",
     "@expo-google-fonts/outfit": "^0.4.3",
     "@expo-google-fonts/playfair-display": "^0.4.2",
     "@expo-google-fonts/tilt-neon": "^0.4.1",

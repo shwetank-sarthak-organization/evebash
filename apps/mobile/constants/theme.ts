@@ -68,6 +68,15 @@ export const Fonts = {
     semiBold: 'PlayfairDisplay_600SemiBold',
     bold: 'PlayfairDisplay_700Bold',
   },
+  cormorant: {
+    semiBold: 'CormorantGaramond_600SemiBold',
+    bold: 'CormorantGaramond_700Bold',
+  },
+  nunitoSans: {
+    regular: 'NunitoSans_400Regular',
+    semiBold: 'NunitoSans_600SemiBold',
+    bold: 'NunitoSans_700Bold',
+  },
   outfit: {
     regular: 'Outfit_400Regular',
     semiBold: 'Outfit_600SemiBold',

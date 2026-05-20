@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import * as React from 'react';
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, LogBox, Platform } from 'react-native';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
@@ -34,9 +34,33 @@ import {
 import {
   TiltNeon_400Regular
 } from '@expo-google-fonts/tilt-neon';
+import {
+  CormorantGaramond_600SemiBold,
+  CormorantGaramond_700Bold,
+} from '@expo-google-fonts/cormorant-garamond';
+import {
+  NunitoSans_400Regular,
+  NunitoSans_600SemiBold,
+  NunitoSans_700Bold,
+} from '@expo-google-fonts/nunito-sans';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
+
+LogBox.ignoreLogs([
+  '@firebase/firestore: Firestore',
+  'Could not reach Cloud Firestore backend',
+  'Backend didn\'t respond within 10 seconds',
+  'backTitle prop is not available on Android',
+  'backTitleFontFamily prop is not available on Android',
+  'backTitleVisible prop is not available on Android',
+  'disableBackButtonMenu prop is not available on Android',
+  'largeTitleFontFamily prop is not available on Android',
+  'largeTitleFontWeight prop is not available on Android',
+  'largeTitleHideShadow prop is not available on Android',
+  'topInsetEnabled prop is not available on Android',
+  'userInterfaceStyle prop is not available on Android',
+]);
 
 export const unstable_settings = {
   // Ensure any route can link back to `/`
@@ -103,6 +127,11 @@ export default function RootLayout() {
     PlayfairDisplay_700Bold,
     VT323_400Regular,
     TiltNeon_400Regular,
+    CormorantGaramond_600SemiBold,
+    CormorantGaramond_700Bold,
+    NunitoSans_400Regular,
+    NunitoSans_600SemiBold,
+    NunitoSans_700Bold,
     'Monofett_400Regular': require('../assets/fonts/Monofett-Regular.ttf'),
     'BubblegumSans_400Regular': require('../assets/fonts/BubblegumSans-Regular.ttf'),
     'PermanentMarker_400Regular': require('../assets/fonts/PermanentMarker-Regular.ttf'),
@@ -131,7 +160,7 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <AuthGate>
           <Stack screenOptions={{
-            headerBackTitle: '',
+            ...(Platform.OS === 'ios' ? { headerBackTitle: '' } : {}),
             headerTintColor: '#0f172a',
             headerStyle: { backgroundColor: 'transparent' },
             headerShadowVisible: false,
