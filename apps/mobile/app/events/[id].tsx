@@ -87,6 +87,7 @@ export default function EventDetailScreen() {
     const isClassic = base.id === 'classic';
     const isHero = base.id === 'hero';
     const isEthereal = base.id === 'ethereal';
+    const isAcademicEditorial = base.id === 'academic_editorial';
     return {
       ...base,
       background: isDark ? base.background.dark : base.background.light,
@@ -96,17 +97,18 @@ export default function EventDetailScreen() {
       accentBg: isDark ? base.accentBg.dark : base.accentBg.light,
       tileBg: isDark ? base.tileBg.dark : base.tileBg.light,
       overlay: isDark ? base.overlay.dark : base.overlay.light,
-      serifFont: (isClassic || isHero || isEthereal) ? Fonts.playfair.regular : Fonts.serif,
-      serifItalic: (isClassic || isHero || isEthereal) ? Fonts.playfair.italic : Fonts.serif,
-      serifBold: (isClassic || isHero || isEthereal) ? Fonts.playfair.bold : Fonts.serif,
+      serifFont: (isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.regular : Fonts.serif,
+      serifItalic: (isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.italic : Fonts.serif,
+      serifBold: (isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.bold : Fonts.serif,
     };
   }, [event?.templateId, isDark, showAdminView]);
 
   const heroHeight = (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic' || event?.templateId === 'hero')) 
     ? windowHeight 
     : ((!showAdminView && event?.templateId === 'ethereal') ? (windowHeight * 0.8) 
+    : ((!showAdminView && event?.templateId === 'academic_editorial') ? (windowHeight * 0.75)
     : ((!showAdminView && (event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade')) ? (SCREEN_WIDTH * 1.33 + 180 + insets.top)
-    : ((!showAdminView && event?.templateId === 'pop') ? (465 + insets.top) : 400)));
+    : ((!showAdminView && event?.templateId === 'pop') ? (465 + insets.top) : 400))));
   const isScrapbookTemplate = !showAdminView && event?.templateId === 'scrapbook';
   const isNeonTemplate = !showAdminView && event?.templateId === 'neon';
   const isPastelTemplate = !showAdminView && event?.templateId === 'pastel';
@@ -114,6 +116,7 @@ export default function EventDetailScreen() {
   const isEtherealTemplate = !showAdminView && event?.templateId === 'ethereal';
   const isCyberTechTemplate = !showAdminView && event?.templateId === 'cyber_tech';
   const isRetroArcadeTemplate = !showAdminView && event?.templateId === 'retro_arcade';
+  const isAcademicEditorialTemplate = !showAdminView && event?.templateId === 'academic_editorial';
 
   const [tempCoverOffsetX, setTempCoverOffsetX] = useState(0);
   const offsetXRef = React.useRef(0);
@@ -717,6 +720,7 @@ export default function EventDetailScreen() {
     const isPop = event?.templateId === 'pop';
     const isCyberTech = event?.templateId === 'cyber_tech';
     const isRetroArcade = event?.templateId === 'retro_arcade';
+    const isAcademicEditorial = event?.templateId === 'academic_editorial';
     const isThemeHeader = isRoyal || isClassic || isHero || isEthereal;
     const birthdayTextColor = isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : MidnightColors.gold)))));
     const birthdayActiveText = isScrapbook ? styles.scrapbookVisitorTabTextActive : (isNeon ? styles.neonVisitorTabTextActive : (isPastel ? styles.pastelVisitorTabTextActive : (isPop ? styles.popVisitorTabTextActive : (isCyberTech ? styles.cyberVisitorTabTextActive : (isRetroArcade ? styles.retroArcadeVisitorTabTextActive : styles.visitorTabTextActive)))));
@@ -751,6 +755,7 @@ export default function EventDetailScreen() {
         isClassic && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', backgroundColor: '#FAF9F6' },
         isHero && { height: 64, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', backgroundColor: '#000000' },
         isEthereal && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: selectedTemplate.accent + '26', backgroundColor: selectedTemplate.background },
+        isAcademicEditorial && { height: 52, marginTop: 12, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: selectedTemplate.text + '1a', backgroundColor: selectedTemplate.background },
         isScrapbook && styles.scrapbookVisitorHeaderContainer,
         isNeon && styles.neonVisitorHeaderContainer,
         isPastel && styles.pastelVisitorHeaderContainer,
@@ -761,17 +766,37 @@ export default function EventDetailScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[styles.visitorHeaderContent, isScrapbook && styles.scrapbookVisitorHeaderContent, isNeon && styles.neonVisitorHeaderContent, isPastel && styles.pastelVisitorHeaderContent, isPop && styles.popVisitorHeaderContent, isCyberTech && styles.cyberVisitorHeaderContent, isRetroArcade && styles.retroArcadeVisitorHeaderContent]}
+          contentContainerStyle={[
+            styles.visitorHeaderContent, 
+            isScrapbook && styles.scrapbookVisitorHeaderContent, 
+            isNeon && styles.neonVisitorHeaderContent, 
+            isPastel && styles.pastelVisitorHeaderContent, 
+            isPop && styles.popVisitorHeaderContent, 
+            isCyberTech && styles.cyberVisitorHeaderContent, 
+            isRetroArcade && styles.retroArcadeVisitorHeaderContent,
+            isAcademicEditorial && { paddingHorizontal: 12 }
+          ]}
         >
           <TouchableOpacity
             style={[
               styles.visitorTab,
-              isThemeHeader ? themeHeaderTab(!activeSubEvent) : [...birthdayTabStyles, !activeSubEvent && birthdayActiveTab]
+              isThemeHeader ? themeHeaderTab(!activeSubEvent) : [...birthdayTabStyles, !activeSubEvent && birthdayActiveTab],
+              isAcademicEditorial && {
+                backgroundColor: 'transparent',
+                borderWidth: 0,
+                borderRadius: 0,
+                paddingHorizontal: 14,
+                paddingVertical: 6,
+                alignSelf: 'center',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 0,
+              }
             ]}
             onPress={() => handleSubEventChange(null)}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              {!isThemeHeader && (
+              {!isThemeHeader && !isAcademicEditorial && (
                 <IconSymbol
                   name="house.fill"
                   size={14}
@@ -788,9 +813,16 @@ export default function EventDetailScreen() {
                 isCyberTech && styles.cyberVisitorTabText,
                 isRetroArcade && styles.retroArcadeVisitorTabText,
                 selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
-                !activeSubEvent && !isThemeHeader && birthdayActiveText
+                isAcademicEditorial && {
+                  fontFamily: selectedTemplate.serifBold,
+                  fontSize: 13,
+                  textTransform: 'uppercase',
+                  letterSpacing: 1.5,
+                  color: !activeSubEvent ? selectedTemplate.accent : selectedTemplate.muted,
+                },
+                !activeSubEvent && !isThemeHeader && !isAcademicEditorial && birthdayActiveText
               ]}>
-                {isCyberTech ? (!activeSubEvent ? '[ HOME ]' : '  HOME  ') : (isRetroArcade ? 'HOME' : 'Home')}
+                {isCyberTech ? (!activeSubEvent ? '[ HOME ]' : '  HOME  ') : (isRetroArcade ? 'HOME' : (isAcademicEditorial ? '01 / HOME' : 'Home'))}
               </Text>
             </View>
 
@@ -810,16 +842,31 @@ export default function EventDetailScreen() {
                 <Text style={{ fontSize: 10, color: selectedTemplate.accent, fontFamily: selectedTemplate.serifItalic }}>❦</Text>
               </View>
             )}
+            {isAcademicEditorial && !activeSubEvent && (
+              <View style={{ width: '100%', height: 2, backgroundColor: selectedTemplate.accent, marginTop: 4 }} />
+            )}
           </TouchableOpacity>
 
-          {subEvents.map((sub) => {
+          {subEvents.map((sub, idx) => {
             const isActive = activeSubEvent?.id === sub.id;
+            const indexStr = String(idx + 2).padStart(2, '0');
             return (
               <TouchableOpacity
                 key={sub.id}
                 style={[
                   styles.visitorTab,
-                  isThemeHeader ? themeHeaderTab(isActive) : [...birthdayTabStyles, isActive && birthdayActiveTab]
+                  isThemeHeader ? themeHeaderTab(isActive) : [...birthdayTabStyles, isActive && birthdayActiveTab],
+                  isAcademicEditorial && {
+                    backgroundColor: 'transparent',
+                    borderWidth: 0,
+                    borderRadius: 0,
+                    paddingHorizontal: 14,
+                    paddingVertical: 6,
+                    alignSelf: 'center',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 0,
+                  }
                 ]}
                 onPress={() => handleSubEventChange(sub)}
               >
@@ -833,9 +880,16 @@ export default function EventDetailScreen() {
                   isCyberTech && styles.cyberVisitorTabText,
                   isRetroArcade && styles.retroArcadeVisitorTabText,
                   selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
-                  isActive && !isThemeHeader && birthdayActiveText
+                  isAcademicEditorial && {
+                    fontFamily: selectedTemplate.serifBold,
+                    fontSize: 13,
+                    textTransform: 'uppercase',
+                    letterSpacing: 1.5,
+                    color: isActive ? selectedTemplate.accent : selectedTemplate.muted,
+                  },
+                  isActive && !isThemeHeader && !isAcademicEditorial && birthdayActiveText
                 ]}>
-                  {isCyberTech ? (isActive ? `[ ${sub.title.toUpperCase()} ]` : `  ${sub.title.toUpperCase()}  `) : (isRetroArcade ? sub.title.toUpperCase() : sub.title)}
+                  {isCyberTech ? (isActive ? `[ ${sub.title.toUpperCase()} ]` : `  ${sub.title.toUpperCase()}  `) : (isRetroArcade ? sub.title.toUpperCase() : (isAcademicEditorial ? `${indexStr} / ${sub.title.toUpperCase()}` : sub.title))}
                 </Text>
 
                 {isRoyal && isActive && (
@@ -854,6 +908,9 @@ export default function EventDetailScreen() {
                     <Text style={{ fontSize: 10, color: selectedTemplate.accent, fontFamily: selectedTemplate.serifItalic }}>❦</Text>
                   </View>
                 )}
+                {isAcademicEditorial && isActive && (
+                  <View style={{ width: '100%', height: 2, backgroundColor: selectedTemplate.accent, marginTop: 4 }} />
+                )}
               </TouchableOpacity>
             );
           })}
@@ -862,7 +919,18 @@ export default function EventDetailScreen() {
           <TouchableOpacity
             style={[
               styles.visitorTab,
-              isThemeHeader ? themeHeaderTab(activeSubEvent?.id === 'event-partners') : [...birthdayTabStyles, activeSubEvent?.id === 'event-partners' && birthdayActiveTab]
+              isThemeHeader ? themeHeaderTab(activeSubEvent?.id === 'event-partners') : [...birthdayTabStyles, activeSubEvent?.id === 'event-partners' && birthdayActiveTab],
+              isAcademicEditorial && {
+                backgroundColor: 'transparent',
+                borderWidth: 0,
+                borderRadius: 0,
+                paddingHorizontal: 14,
+                paddingVertical: 6,
+                alignSelf: 'center',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 0,
+              }
             ]}
             onPress={() => setActiveSubEvent({ id: 'event-partners', title: 'Event Partners' } as any)}
           >
@@ -876,11 +944,18 @@ export default function EventDetailScreen() {
               isCyberTech && styles.cyberVisitorTabText,
               isRetroArcade && styles.retroArcadeVisitorTabText,
               selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
-              activeSubEvent?.id === 'event-partners' && !isThemeHeader && birthdayActiveText
+              isAcademicEditorial && {
+                fontFamily: selectedTemplate.serifBold,
+                fontSize: 13,
+                textTransform: 'uppercase',
+                letterSpacing: 1.5,
+                color: activeSubEvent?.id === 'event-partners' ? selectedTemplate.accent : selectedTemplate.muted,
+              },
+              activeSubEvent?.id === 'event-partners' && !isThemeHeader && !isAcademicEditorial && birthdayActiveText
             ]}>
-              {isCyberTech ? (activeSubEvent?.id === 'event-partners' ? '[ PARTNERS ]' : '  PARTNERS  ') : (isRetroArcade ? 'PARTNERS 🤝' : (
+              {isCyberTech ? (activeSubEvent?.id === 'event-partners' ? '[ PARTNERS ]' : '  PARTNERS  ') : (isRetroArcade ? 'PARTNERS 🤝' : (isAcademicEditorial ? `${String(subEvents.length + 2).padStart(2, '0')} / PARTNERS` : (
                 <>Event Partners <Text style={{ fontSize: 10 }}>🤝</Text></>
-              ))}
+              )))}
             </Text>
 
             {isRoyal && activeSubEvent?.id === 'event-partners' && (
@@ -898,6 +973,9 @@ export default function EventDetailScreen() {
               <View style={{ alignItems: 'center', marginTop: 4 }}>
                 <Text style={{ fontSize: 10, color: selectedTemplate.accent, fontFamily: selectedTemplate.serifItalic }}>❦</Text>
               </View>
+            )}
+            {isAcademicEditorial && activeSubEvent?.id === 'event-partners' && (
+              <View style={{ width: '100%', height: 2, backgroundColor: selectedTemplate.accent, marginTop: 4 }} />
             )}
           </TouchableOpacity>
         </ScrollView>
@@ -943,6 +1021,13 @@ export default function EventDetailScreen() {
         </View>
       );
     }
+    if (selectedTemplate.id === 'academic_editorial') {
+      return (
+        <View style={{ paddingHorizontal: 20, paddingVertical: 16 }}>
+          <View style={{ height: 1, backgroundColor: selectedTemplate.text, opacity: 0.12 }} />
+        </View>
+      );
+    }
     return null;
   };
 
@@ -961,14 +1046,14 @@ export default function EventDetailScreen() {
     <View style={[styles.safeArea, { backgroundColor: selectedTemplate.background }]}>
       <Stack.Screen
         options={{
-          headerShown: showAdminView ? false : !(event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'pop' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade'),
+          headerShown: showAdminView ? false : !(event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'pop' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial'),
           headerTransparent: true,
           headerTitle: '',
           headerLeft: () => {
             if (showAdminView) return null; // Custom back button is rendered inline inside the cover container to scroll with content
 
             const isPop = !showAdminView && event?.templateId === 'pop';
-            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade')) ? null : (
+            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial')) ? null : (
               <TouchableOpacity
                 onPress={handleEventBack}
                 style={[
@@ -1050,6 +1135,121 @@ export default function EventDetailScreen() {
                 />
               </View>
             </View>
+          ) : !showAdminView && event?.templateId === 'academic_editorial' ? (
+            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: selectedTemplate.background, paddingTop: insets.top }]}>
+              <View style={{ flex: 1, paddingHorizontal: 20, paddingBottom: 16, flexDirection: 'column' }}>
+
+                {/* Top Bar: Back | Kicker label | Share */}
+                <View style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  paddingHorizontal: 4,
+                  marginTop: 12,
+                  marginBottom: 12,
+                }}>
+                  <TouchableOpacity
+                    onPress={handleEventBack}
+                    hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                  >
+                    <IconSymbol name="chevron.left" size={20} color={selectedTemplate.text} />
+                  </TouchableOpacity>
+
+                  <Text style={{
+                    fontFamily: selectedTemplate.serifFont,
+                    fontSize: 11,
+                    textTransform: 'uppercase',
+                    letterSpacing: 2.5,
+                    color: selectedTemplate.muted,
+                  }}>
+                    {`· ${activeSubEvent ? 'EXCERPT' : 'CAMPUS JOURNAL'} ·`}
+                  </Text>
+
+                  <TouchableOpacity
+                    onPress={() => setShowShareModal(true)}
+                    hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                  >
+                    <IconSymbol name="square.and.arrow.up" size={18} color={selectedTemplate.text} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Cover Image — fills remaining space */}
+                <View style={{
+                  flex: 1,
+                  borderWidth: 1,
+                  borderColor: selectedTemplate.text + '60',
+                  padding: 6,
+                  backgroundColor: selectedTemplate.panel,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 6,
+                  elevation: 2,
+                }}>
+                  <Image
+                    source={{ uri: activeSubEvent?.coverImage || event?.coverImage || event?.coverUrl }}
+                    style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
+                  />
+                </View>
+
+                {/* Title + Date — below the image, solid background for guaranteed visibility */}
+                <View style={{
+                  marginTop: 10,
+                  backgroundColor: isDark ? '#13161F' : '#FFFFFF',
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  borderTopWidth: 2,
+                  borderTopColor: isDark ? '#CC1010' : '#800020',
+                }}>
+                  {/* Event Title */}
+                  <Text style={{
+                    fontFamily: selectedTemplate.serifBold,
+                    fontSize: 24,
+                    fontWeight: '800',
+                    color: isDark ? '#FFFFFF' : '#000000',
+                    textAlign: 'center',
+                    letterSpacing: 0.4,
+                    lineHeight: 32,
+                  }} numberOfLines={2}>
+                    {(activeSubEvent?.title || event.title || '').toUpperCase()}
+                  </Text>
+
+                  {/* Thin accent divider */}
+                  <View style={{
+                    height: 1,
+                    backgroundColor: isDark ? '#CC1010' : '#800020',
+                    opacity: 0.4,
+                    marginVertical: 8,
+                    marginHorizontal: 24,
+                  }} />
+
+                  {/* Date */}
+                  <Text style={{
+                    fontFamily: selectedTemplate.serifBold,
+                    fontSize: 15,
+                    color: isDark ? '#FF4040' : '#800020',
+                    textAlign: 'center',
+                    letterSpacing: 1.2,
+                    marginBottom: 2,
+                  }}>
+                    {activeSubEvent?.date || event.date || '—'}
+                  </Text>
+
+                  {/* Category label */}
+                  <Text style={{
+                    fontFamily: selectedTemplate.serifFont,
+                    fontSize: 11,
+                    color: isDark ? '#9CA3AF' : '#4B5563',
+                    textAlign: 'center',
+                    letterSpacing: 2,
+                    textTransform: 'uppercase',
+                  }}>
+                    {`Vol. I · ${event.category || 'CAMPUS'}`}
+                  </Text>
+                </View>
+
+              </View>
+            </View>
           ) : (
             <Image 
               source={{ uri: activeSubEvent?.coverImage || event?.coverImage || event?.coverUrl }} 
@@ -1072,7 +1272,7 @@ export default function EventDetailScreen() {
               ]} 
             />
           )}
-          {selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && (
+          {selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && selectedTemplate.id !== 'academic_editorial' && (
             <LinearGradient
               colors={selectedTemplate.overlay as [string, string]}
               style={styles.heroGradient}
@@ -1174,7 +1374,7 @@ export default function EventDetailScreen() {
           )}
 
 
-          {(!showAdminView && event?.templateId === 'royal') ? (
+          {(!showAdminView && event?.templateId === 'academic_editorial') ? null : (!showAdminView && event?.templateId === 'royal') ? (
             <View style={styles.royalHeroOverlay}>
               {/* 1. Elegant Thin Inset Frame */}
               <View style={[styles.royalFrame, { borderColor: selectedTemplate.accent }]} />
@@ -1556,6 +1756,8 @@ export default function EventDetailScreen() {
                 </View>
               </View>
             </View>
+          ) : (!showAdminView && event?.templateId === 'academic_editorial') ? (
+            null
           ) : (
             <View style={[styles.heroContent, isScrapbookTemplate && styles.scrapbookHeroContent, isNeonTemplate && styles.neonHeroContent, isPastelTemplate && styles.pastelHeroContent, isPopTemplate && styles.popHeroContent]}>
               {isScrapbookTemplate && (
@@ -2400,6 +2602,13 @@ export default function EventDetailScreen() {
                       borderRadius: 2,
                       padding: 8,
                       borderLeftWidth: 1, // override dynamic left border stripe
+                    },
+                    event.templateId === 'academic_editorial' && {
+                      borderWidth: 1,
+                      borderColor: selectedTemplate.text,
+                      borderRadius: 0,
+                      padding: 6,
+                      borderLeftWidth: 1, // override dynamic left border stripe
                     }
                   ]}>
                     <View style={[
@@ -2439,6 +2648,17 @@ export default function EventDetailScreen() {
                         justifyContent: 'center',
                         position: 'relative'
                       },
+                      event.templateId === 'academic_editorial' && {
+                        borderWidth: 0.5,
+                        borderColor: selectedTemplate.text + '26',
+                        borderRadius: 0,
+                        paddingVertical: 20,
+                        paddingHorizontal: 16,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative',
+                        backgroundColor: selectedTemplate.background,
+                      },
                       { position: 'relative' }
                     ]}>
                       {isScrapbookTemplate && (
@@ -2456,6 +2676,9 @@ export default function EventDetailScreen() {
                       )}
                       {event.templateId === 'ethereal' && (
                         <Text style={{ color: selectedTemplate.accent, fontSize: 14, marginBottom: 12, fontFamily: selectedTemplate.serifFont }}>❦</Text>
+                      )}
+                      {event.templateId === 'academic_editorial' && (
+                        <Text style={{ color: selectedTemplate.accent, fontSize: 14, marginBottom: 12, fontFamily: selectedTemplate.serifFont }}>§</Text>
                       )}
 
                       {isCyberTechTemplate && (
@@ -2813,9 +3036,9 @@ export default function EventDetailScreen() {
                                   {
                                     backgroundColor: selectedTemplate.tileBg,
                                     borderRadius: selectedTemplate.radius,
-                                    borderWidth: event.templateId === 'polaroid' || event.templateId === 'museum' || event.templateId === 'brutalist' || event.templateId === 'royal' || event.templateId === 'classic' || event.templateId === 'ethereal' ? 1 : 0,
-                                    borderColor: event.templateId === 'royal' ? selectedTemplate.accent : (event.templateId === 'classic' ? 'rgba(0,0,0,0.05)' : (event.templateId === 'ethereal' ? 'rgba(45, 42, 41, 0.12)' : selectedTemplate.accentBg)),
-                                    padding: event.templateId === 'polaroid' ? 4 : (event.templateId === 'royal' ? 3 : (event.templateId === 'classic' ? 8 : (event.templateId === 'ethereal' ? 10 : 0))),
+                                    borderWidth: event.templateId === 'polaroid' || event.templateId === 'museum' || event.templateId === 'brutalist' || event.templateId === 'royal' || event.templateId === 'classic' || event.templateId === 'ethereal' || event.templateId === 'academic_editorial' ? 1 : 0,
+                                    borderColor: event.templateId === 'royal' ? selectedTemplate.accent : (event.templateId === 'classic' ? 'rgba(0,0,0,0.05)' : (event.templateId === 'ethereal' ? 'rgba(45, 42, 41, 0.12)' : (event.templateId === 'academic_editorial' ? selectedTemplate.text + '26' : selectedTemplate.accentBg))),
+                                    padding: event.templateId === 'polaroid' ? 4 : (event.templateId === 'royal' ? 3 : (event.templateId === 'classic' ? 8 : (event.templateId === 'ethereal' ? 10 : (event.templateId === 'academic_editorial' ? 6 : 0)))),
                                   },
                                   isScrapbookTemplate && [
                                     styles.scrapbookPhotoTile,
@@ -2880,6 +3103,15 @@ export default function EventDetailScreen() {
                                     shadowRadius: 5,
                                     elevation: 2,
                                     backgroundColor: isDark ? '#262423' : '#ffffff',
+                                  },
+                                  event.templateId === 'academic_editorial' && {
+                                    paddingBottom: 22,
+                                    shadowColor: '#000000',
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.04,
+                                    shadowRadius: 4,
+                                    elevation: 1,
+                                    backgroundColor: selectedTemplate.tileBg,
                                   }
                                 ]}>
                                   {isScrapbookTemplate && (
@@ -2917,6 +3149,26 @@ export default function EventDetailScreen() {
                                     style={[styles.galleryImg, isScrapbookTemplate && styles.scrapbookGalleryImg, isNeonTemplate && styles.neonGalleryImg, isPastelTemplate && styles.pastelGalleryImg, isPopTemplate && styles.popGalleryImg, isRetroArcadeTemplate && styles.retroArcadeGalleryImg]}
                                     resizeMode="cover"
                                   />
+                                  {event.templateId === 'academic_editorial' && (
+                                    <View style={{
+                                      paddingTop: 6,
+                                      paddingBottom: 2,
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      borderTopWidth: 0.5,
+                                      borderTopColor: selectedTemplate.text + '1a',
+                                      marginTop: 4,
+                                    }}>
+                                      <Text style={{
+                                        fontFamily: 'Courier',
+                                        fontSize: 8,
+                                        color: selectedTemplate.muted,
+                                        letterSpacing: 0.5,
+                                      }}>
+                                        {`[IMG_${String(idx + 1).padStart(3, '0')} // CAMPUS]`}
+                                      </Text>
+                                    </View>
+                                  )}
                                 </View>
                               </TouchableOpacity>
                             </Animated.View>
