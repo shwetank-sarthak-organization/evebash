@@ -31,6 +31,9 @@ import {
 import {
   VT323_400Regular
 } from '@expo-google-fonts/vt323';
+import {
+  TiltNeon_400Regular
+} from '@expo-google-fonts/tilt-neon';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -99,6 +102,7 @@ export default function RootLayout() {
     PlayfairDisplay_600SemiBold,
     PlayfairDisplay_700Bold,
     VT323_400Regular,
+    TiltNeon_400Regular,
     'Monofett_400Regular': require('../assets/fonts/Monofett-Regular.ttf'),
     'BubblegumSans_400Regular': require('../assets/fonts/BubblegumSans-Regular.ttf'),
     'PermanentMarker_400Regular': require('../assets/fonts/PermanentMarker-Regular.ttf'),

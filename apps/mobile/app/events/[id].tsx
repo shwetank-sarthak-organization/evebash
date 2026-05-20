@@ -108,7 +108,7 @@ export default function EventDetailScreen() {
     : ((!showAdminView && event?.templateId === 'ethereal') ? (windowHeight * 0.8) 
     : ((!showAdminView && event?.templateId === 'academic_editorial') ? (windowHeight * 0.75)
     : ((!showAdminView && (event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade')) ? (SCREEN_WIDTH * 1.33 + 180 + insets.top)
-    : ((!showAdminView && event?.templateId === 'pop') ? (465 + insets.top) : 400))));
+    : ((!showAdminView && (event?.templateId === 'pop' || event?.templateId === 'neon_carnival')) ? (465 + insets.top) : 400))));
   const isScrapbookTemplate = !showAdminView && event?.templateId === 'scrapbook';
   const isNeonTemplate = !showAdminView && event?.templateId === 'neon';
   const isPastelTemplate = !showAdminView && event?.templateId === 'pastel';
@@ -117,6 +117,7 @@ export default function EventDetailScreen() {
   const isCyberTechTemplate = !showAdminView && event?.templateId === 'cyber_tech';
   const isRetroArcadeTemplate = !showAdminView && event?.templateId === 'retro_arcade';
   const isAcademicEditorialTemplate = !showAdminView && event?.templateId === 'academic_editorial';
+  const isNeonCarnivalTemplate = !showAdminView && event?.templateId === 'neon_carnival';
 
   const [tempCoverOffsetX, setTempCoverOffsetX] = useState(0);
   const offsetXRef = React.useRef(0);
@@ -721,10 +722,11 @@ export default function EventDetailScreen() {
     const isCyberTech = event?.templateId === 'cyber_tech';
     const isRetroArcade = event?.templateId === 'retro_arcade';
     const isAcademicEditorial = event?.templateId === 'academic_editorial';
+    const isNeonCarnival = event?.templateId === 'neon_carnival';
     const isThemeHeader = isRoyal || isClassic || isHero || isEthereal;
-    const birthdayTextColor = isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : MidnightColors.gold)))));
-    const birthdayActiveText = isScrapbook ? styles.scrapbookVisitorTabTextActive : (isNeon ? styles.neonVisitorTabTextActive : (isPastel ? styles.pastelVisitorTabTextActive : (isPop ? styles.popVisitorTabTextActive : (isCyberTech ? styles.cyberVisitorTabTextActive : (isRetroArcade ? styles.retroArcadeVisitorTabTextActive : styles.visitorTabTextActive)))));
-    const birthdayActiveTab = isScrapbook ? styles.scrapbookVisitorTabActive : (isNeon ? styles.neonVisitorTabActive : (isPastel ? styles.pastelVisitorTabActive : (isPop ? styles.popVisitorTabActive : (isCyberTech ? styles.cyberVisitorTabActive : (isRetroArcade ? styles.retroArcadeVisitorTabActive : styles.visitorTabActive)))));
+    const birthdayTextColor = isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d946ef' : MidnightColors.gold))))));
+    const birthdayActiveText = isScrapbook ? styles.scrapbookVisitorTabTextActive : (isNeon ? styles.neonVisitorTabTextActive : (isPastel ? styles.pastelVisitorTabTextActive : (isPop ? styles.popVisitorTabTextActive : (isCyberTech ? styles.cyberVisitorTabTextActive : (isRetroArcade ? styles.retroArcadeVisitorTabTextActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabTextActive : styles.visitorTabTextActive))))));
+    const birthdayActiveTab = isScrapbook ? styles.scrapbookVisitorTabActive : (isNeon ? styles.neonVisitorTabActive : (isPastel ? styles.pastelVisitorTabActive : (isPop ? styles.popVisitorTabActive : (isCyberTech ? styles.cyberVisitorTabActive : (isRetroArcade ? styles.retroArcadeVisitorTabActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabActive : styles.visitorTabActive))))));
     const birthdayTabStyles = [
       isScrapbook && styles.scrapbookVisitorTab,
       isNeon && styles.neonVisitorTab,
@@ -732,6 +734,7 @@ export default function EventDetailScreen() {
       isPop && styles.popVisitorTab,
       isCyberTech && styles.cyberVisitorTab,
       isRetroArcade && styles.retroArcadeVisitorTab,
+      isNeonCarnival && styles.neonCarnivalVisitorTab,
     ];
     const themeHeaderTab = (active: boolean) => ({
       backgroundColor: isHero ? (active ? 'rgba(204, 164, 59, 0.08)' : 'transparent') : 'transparent',
@@ -762,6 +765,7 @@ export default function EventDetailScreen() {
         isPop && styles.popVisitorHeaderContainer,
         isCyberTech && styles.cyberVisitorHeaderContainer,
         isRetroArcade && styles.retroArcadeVisitorHeaderContainer,
+        isNeonCarnival && styles.neonCarnivalVisitorHeaderContainer,
       ]}>
         <ScrollView
           horizontal
@@ -774,6 +778,7 @@ export default function EventDetailScreen() {
             isPop && styles.popVisitorHeaderContent, 
             isCyberTech && styles.cyberVisitorHeaderContent, 
             isRetroArcade && styles.retroArcadeVisitorHeaderContent,
+            isNeonCarnival && styles.neonCarnivalVisitorHeaderContent,
             isAcademicEditorial && { paddingHorizontal: 12 }
           ]}
         >
@@ -800,7 +805,7 @@ export default function EventDetailScreen() {
                 <IconSymbol
                   name="house.fill"
                   size={14}
-                  color={!activeSubEvent ? (isCyberTech ? '#00f0ff' : (isScrapbook ? '#263331' : (isNeon ? '#66e8ff' : (isPastel ? '#c9768b' : (isPop ? '#ffffff' : (isRetroArcade ? '#ffffff' : MidnightColors.background)))))) : (isCyberTech ? 'rgba(0, 240, 255, 0.5)' : (isScrapbook ? selectedTemplate.accent : (isNeon ? '#b9b1d9' : (isPastel ? '#9a8583' : (isPop ? '#231f20' : (isRetroArcade ? '#231f20' : MidnightColors.gold))))))}
+                  color={!activeSubEvent ? (isCyberTech ? '#00f0ff' : (isScrapbook ? '#263331' : (isNeon ? '#66e8ff' : (isPastel ? '#c9768b' : (isPop ? '#ffffff' : (isRetroArcade ? '#ffffff' : (isNeonCarnival ? '#faf5ff' : MidnightColors.background))))))) : (isCyberTech ? 'rgba(0, 240, 255, 0.5)' : (isScrapbook ? selectedTemplate.accent : (isNeon ? '#b9b1d9' : (isPastel ? '#9a8583' : (isPop ? '#231f20' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d8b4fe' : MidnightColors.gold)))))))}
                 />
               )}
               <Text style={[
@@ -811,6 +816,7 @@ export default function EventDetailScreen() {
                 isPastel && styles.pastelVisitorTabText,
                 isPop && styles.popVisitorTabText,
                 isCyberTech && styles.cyberVisitorTabText,
+              isNeonCarnival && styles.neonCarnivalVisitorTabText,
                 isRetroArcade && styles.retroArcadeVisitorTabText,
                 selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
                 isAcademicEditorial && {
@@ -822,7 +828,7 @@ export default function EventDetailScreen() {
                 },
                 !activeSubEvent && !isThemeHeader && !isAcademicEditorial && birthdayActiveText
               ]}>
-                {isCyberTech ? (!activeSubEvent ? '[ HOME ]' : '  HOME  ') : (isRetroArcade ? 'HOME' : (isAcademicEditorial ? '01 / HOME' : 'Home'))}
+                {(isCyberTech || isNeonCarnival) ? (!activeSubEvent ? '[ HOME ]' : '  HOME  ') : (isRetroArcade ? 'HOME' : (isAcademicEditorial ? '01 / HOME' : 'Home'))}
               </Text>
             </View>
 
@@ -878,6 +884,7 @@ export default function EventDetailScreen() {
                   isPastel && styles.pastelVisitorTabText,
                   isPop && styles.popVisitorTabText,
                   isCyberTech && styles.cyberVisitorTabText,
+              isNeonCarnival && styles.neonCarnivalVisitorTabText,
                   isRetroArcade && styles.retroArcadeVisitorTabText,
                   selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
                   isAcademicEditorial && {
@@ -889,7 +896,7 @@ export default function EventDetailScreen() {
                   },
                   isActive && !isThemeHeader && !isAcademicEditorial && birthdayActiveText
                 ]}>
-                  {isCyberTech ? (isActive ? `[ ${sub.title.toUpperCase()} ]` : `  ${sub.title.toUpperCase()}  `) : (isRetroArcade ? sub.title.toUpperCase() : (isAcademicEditorial ? `${indexStr} / ${sub.title.toUpperCase()}` : sub.title))}
+                  {(isCyberTech || isNeonCarnival) ? (isActive ? `[ ${sub.title.toUpperCase()} ]` : `  ${sub.title.toUpperCase()}  `) : (isRetroArcade ? sub.title.toUpperCase() : (isAcademicEditorial ? `${indexStr} / ${sub.title.toUpperCase()}` : sub.title))}
                 </Text>
 
                 {isRoyal && isActive && (
@@ -942,6 +949,7 @@ export default function EventDetailScreen() {
               isPastel && styles.pastelVisitorTabText,
               isPop && styles.popVisitorTabText,
               isCyberTech && styles.cyberVisitorTabText,
+              isNeonCarnival && styles.neonCarnivalVisitorTabText,
               isRetroArcade && styles.retroArcadeVisitorTabText,
               selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
               isAcademicEditorial && {
@@ -953,7 +961,7 @@ export default function EventDetailScreen() {
               },
               activeSubEvent?.id === 'event-partners' && !isThemeHeader && !isAcademicEditorial && birthdayActiveText
             ]}>
-              {isCyberTech ? (activeSubEvent?.id === 'event-partners' ? '[ PARTNERS ]' : '  PARTNERS  ') : (isRetroArcade ? 'PARTNERS 🤝' : (isAcademicEditorial ? `${String(subEvents.length + 2).padStart(2, '0')} / PARTNERS` : (
+              {(isCyberTech || isNeonCarnival) ? (activeSubEvent?.id === 'event-partners' ? '[ PARTNERS ]' : '  PARTNERS  ') : (isRetroArcade ? 'PARTNERS 🤝' : (isAcademicEditorial ? `${String(subEvents.length + 2).padStart(2, '0')} / PARTNERS` : (
                 <>Event Partners <Text style={{ fontSize: 10 }}>🤝</Text></>
               )))}
             </Text>
@@ -1046,14 +1054,14 @@ export default function EventDetailScreen() {
     <View style={[styles.safeArea, { backgroundColor: selectedTemplate.background }]}>
       <Stack.Screen
         options={{
-          headerShown: showAdminView ? false : !(event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'pop' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial'),
+          headerShown: showAdminView ? false : !(event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'pop' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival'),
           headerTransparent: true,
           headerTitle: '',
           headerLeft: () => {
             if (showAdminView) return null; // Custom back button is rendered inline inside the cover container to scroll with content
 
             const isPop = !showAdminView && event?.templateId === 'pop';
-            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial')) ? null : (
+            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival')) ? null : (
               <TouchableOpacity
                 onPress={handleEventBack}
                 style={[
@@ -1227,7 +1235,7 @@ export default function EventDetailScreen() {
                   <Text style={{
                     fontFamily: selectedTemplate.serifBold,
                     fontSize: 15,
-                    color: isDark ? '#FF4040' : '#800020',
+                    color: isDark ? '#CC1010' : '#800020',
                     textAlign: 'center',
                     letterSpacing: 1.2,
                     marginBottom: 2,
@@ -1752,6 +1760,52 @@ export default function EventDetailScreen() {
                 <View style={styles.retroDateContainer}>
                   <Text style={styles.retroDateText}>
                     {`JOIN US ON: ${activeSubEvent?.date || event.date || 'PENDING'}`.toUpperCase()}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          ) : (!showAdminView && event?.templateId === 'neon_carnival') ? (
+            <View style={[styles.neonCarnivalHeroOverlay, { paddingTop: insets.top }]}>
+              {/* Cover Image spanning full background, blending top & bottom */}
+              <View style={styles.neonCarnivalCoverWrapper}>
+                <Image 
+                  source={{ uri: activeSubEvent?.coverImage || event?.coverImage || event?.coverUrl }} 
+                  style={styles.neonCarnivalCoverImg}
+                  resizeMode="cover"
+                />
+                <LinearGradient
+                  colors={['rgba(12, 7, 20, 0.75)', 'rgba(12, 7, 20, 0.15)', '#0c0714']}
+                  style={styles.neonCarnivalGradient}
+                />
+              </View>
+
+              {/* Top status bar with Event Name and navigation icons */}
+              <View style={styles.neonCarnivalTopBar}>
+                <TouchableOpacity
+                  style={styles.neonCarnivalHeaderButton}
+                  onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
+                >
+                  <IconSymbol name="chevron.left" size={16} color="#faf5ff" />
+                </TouchableOpacity>
+
+                {/* Right: Share Button */}
+                <TouchableOpacity
+                  style={styles.neonCarnivalHeaderButton}
+                  onPress={() => setShowShareModal(true)}
+                >
+                  <IconSymbol name="square.and.arrow.up" size={16} color="#faf5ff" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.neonCarnivalContent}>
+                {/* Title and Date */}
+                <Text style={styles.neonCarnivalDateText}>
+                  {activeSubEvent?.date || event.date || 'DATE TBD'}
+                </Text>
+                
+                <View style={styles.neonCarnivalTitleWrapper}>
+                  <Text style={styles.neonCarnivalTitle} numberOfLines={2} adjustsFontSizeToFit>
+                    {(activeSubEvent?.title || event.title).toUpperCase()}
                   </Text>
                 </View>
               </View>
@@ -2574,6 +2628,7 @@ export default function EventDetailScreen() {
                     isPopTemplate && styles.popInfoBox,
                     isCyberTechTemplate && styles.cyberInfoBox,
                     isRetroArcadeTemplate && styles.retroArcadeInfoBox,
+                    isNeonCarnivalTemplate && styles.neonCarnivalInfoBox,
                     event.templateId === 'classic' && {
                       shadowColor: '#000',
                       shadowOffset: { width: 0, height: 1 },
@@ -2618,6 +2673,7 @@ export default function EventDetailScreen() {
                       isPopTemplate && styles.popInfoInner,
                       isCyberTechTemplate && styles.cyberInfoInner,
                       isRetroArcadeTemplate && styles.retroArcadeInfoInner,
+                      isNeonCarnivalTemplate && styles.neonCarnivalInfoInner,
                       event.templateId === 'royal' && {
                         borderWidth: 1,
                         borderColor: 'rgba(204, 164, 59, 0.15)',
@@ -2726,6 +2782,14 @@ export default function EventDetailScreen() {
                         </View>
                       )}
 
+                      {isNeonCarnivalTemplate && (
+                        <View style={styles.neonCarnivalInfoHeader}>
+                          <View style={styles.neonCarnivalInfoPulse} />
+                          <Text style={styles.neonCarnivalInfoKicker}>CARNIVAL BROADCAST</Text>
+                          <View style={styles.neonCarnivalInfoLine} />
+                        </View>
+                      )}
+
                       <Text style={[
                         styles.visitorDescription,
                         { color: event.templateId === 'royal' ? selectedTemplate.accent : selectedTemplate.text },
@@ -2734,6 +2798,7 @@ export default function EventDetailScreen() {
                         isPopTemplate && styles.popVisitorDescription,
                         isCyberTechTemplate && styles.cyberVisitorDescription,
                         isRetroArcadeTemplate && styles.retroArcadeVisitorDescription,
+                        isNeonCarnivalTemplate && styles.neonCarnivalVisitorDescription,
                         selectedTemplate.useSerif && {
                           fontFamily: selectedTemplate.serifItalic,
                           fontStyle: 'italic',
@@ -2741,7 +2806,7 @@ export default function EventDetailScreen() {
                           lineHeight: 26,
                           textAlign: 'center',
                         }
-                      ]}>{activeSubEvent ? activeSubEvent.description : event.description}{(isCyberTechTemplate || isRetroArcadeTemplate) ? '' : ' 🤍'}</Text>
+                      ]}>{activeSubEvent ? activeSubEvent.description : event.description}{(isCyberTechTemplate || isRetroArcadeTemplate || isNeonCarnivalTemplate) ? '' : ' 🤍'}</Text>
 
                       {isScrapbookTemplate && (
                         <View style={[styles.scrapbookInfoRule, styles.scrapbookInfoRuleBottom]}>
@@ -2763,13 +2828,15 @@ export default function EventDetailScreen() {
                         isPopTemplate && { fontFamily: FunkyFonts.marker, fontSize: 32, color: '#0080ff', textTransform: 'uppercase', letterSpacing: -0.5 },
                         isRetroArcadeTemplate && { fontFamily: FunkyFonts.marker, fontSize: 32, color: '#ff3562', textTransform: 'uppercase', letterSpacing: 0.5 },
                         isCyberTechTemplate && styles.cyberPartnersTitle,
+                        isNeonCarnivalTemplate && styles.neonCarnivalPartnersTitle,
                         selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
                       ]}>The Dream Team</Text>
                       <Text style={[
                         { fontSize: 14, color: selectedTemplate.muted, textAlign: 'center', lineHeight: 22, maxWidth: '80%' },
                         isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', fontSize: 13, textTransform: 'uppercase', letterSpacing: -0.2 },
                         isRetroArcadeTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.2 },
-                        isCyberTechTemplate && styles.cyberPartnersSubtitle
+                        isCyberTechTemplate && styles.cyberPartnersSubtitle,
+                        isNeonCarnivalTemplate && styles.neonCarnivalPartnersSubtitle
                       ]}>
                         {`The incredible businesses and vendors who brought this beautiful ${event?.category?.toLowerCase() === 'birthday' ? 'birthday' : event?.category?.toLowerCase() === 'wedding' ? 'wedding' : `${event?.category?.toLowerCase() || 'event'} event`} to life.`}
                       </Text>
@@ -2800,14 +2867,16 @@ export default function EventDetailScreen() {
                           shadowRadius: 0,
                           elevation: 4,
                         },
-                        isCyberTechTemplate && styles.cyberPartnerCard
+                        isCyberTechTemplate && styles.cyberPartnerCard,
+                        isNeonCarnivalTemplate && styles.neonCarnivalPartnerCard
                       ]}>
-                         <IconSymbol name="building.2" size={32} color={isPopTemplate ? '#0080ff' : (isCyberTechTemplate ? '#00f0ff' : (isRetroArcadeTemplate ? '#ff3562' : selectedTemplate.accent))} />
+                         <IconSymbol name="building.2" size={32} color={isPopTemplate ? '#0080ff' : (isCyberTechTemplate ? '#00f0ff' : (isRetroArcadeTemplate ? '#ff3562' : (isNeonCarnivalTemplate ? '#d946ef' : selectedTemplate.accent)))} />
                          <Text style={[
                            { color: selectedTemplate.muted, marginTop: 16, fontSize: 15, fontWeight: '500' },
                            isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', textTransform: 'uppercase', fontSize: 13 },
                            isRetroArcadeTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', textTransform: 'uppercase', fontSize: 13 },
-                           isCyberTechTemplate && styles.cyberEmptyText
+                           isCyberTechTemplate && styles.cyberEmptyText,
+                           isNeonCarnivalTemplate && styles.neonCarnivalEmptyText
                          ]}>Vendor list coming soon...</Text>
                       </View>
                     ) : (
@@ -2843,7 +2912,8 @@ export default function EventDetailScreen() {
                                 padding: 14,
                                 marginBottom: 6,
                               },
-                              isCyberTechTemplate && styles.cyberPartnerCard
+                              isCyberTechTemplate && styles.cyberPartnerCard,
+                              isNeonCarnivalTemplate && styles.neonCarnivalPartnerCard
                             ]}
                             onPress={() => router.push(`/business/${biz.id}`)}
                           >
@@ -2853,7 +2923,8 @@ export default function EventDetailScreen() {
                                 { width: 64, height: 64, borderRadius: 32, marginRight: 16, borderWidth: 1, borderColor: selectedTemplate.accent },
                                 isPopTemplate && { borderWidth: 2.5, borderColor: '#231f20', borderRadius: 32 },
                                 isRetroArcadeTemplate && { borderWidth: 2.5, borderColor: '#231f20', borderRadius: 14 },
-                                isCyberTechTemplate && { borderWidth: 1, borderColor: '#00f0ff', borderRadius: 8 }
+                                isCyberTechTemplate && { borderWidth: 1, borderColor: '#00f0ff', borderRadius: 8 },
+                                isNeonCarnivalTemplate && { borderWidth: 1.5, borderColor: '#d946ef', borderRadius: 16 }
                               ]} 
                             />
                             <View style={{ flex: 1 }}>
@@ -2861,13 +2932,15 @@ export default function EventDetailScreen() {
                                 { color: selectedTemplate.text, fontSize: 18, fontWeight: '600', marginBottom: 4 },
                                 isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', fontSize: 18, fontWeight: undefined, textTransform: 'uppercase' },
                                 isRetroArcadeTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', fontSize: 18, fontWeight: undefined, textTransform: 'uppercase' },
-                                isCyberTechTemplate && styles.cyberPartnerName
+                                isCyberTechTemplate && styles.cyberPartnerName,
+                                isNeonCarnivalTemplate && styles.neonCarnivalPartnerName
                               ]}>{biz.name}</Text>
                               <Text style={[
                                 { color: selectedTemplate.accent, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, fontWeight: '700' },
                                 isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#ff4fb8', fontSize: 12, fontWeight: undefined, letterSpacing: 0.5 },
                                 isRetroArcadeTemplate && { fontFamily: FunkyFonts.marker, color: '#ff3562', fontSize: 12, fontWeight: undefined, letterSpacing: 0.5 },
-                                isCyberTechTemplate && styles.cyberPartnerType
+                                isCyberTechTemplate && styles.cyberPartnerType,
+                                isNeonCarnivalTemplate && styles.neonCarnivalPartnerType
                               ]}>{biz.type}</Text>
                             </View>
                             <IconSymbol name="chevron.right" size={20} color={isPopTemplate ? '#231f20' : (isCyberTechTemplate ? '#00f0ff' : (isRetroArcadeTemplate ? '#231f20' : selectedTemplate.muted))} />
@@ -2885,12 +2958,20 @@ export default function EventDetailScreen() {
                   isNeonTemplate && styles.neonGalleryHeader,
                   isPastelTemplate && styles.pastelGalleryHeader,
                   isPopTemplate && styles.popGalleryHeader,
-                  isRetroArcadeTemplate && styles.retroArcadeGalleryHeader
+                  isRetroArcadeTemplate && styles.retroArcadeGalleryHeader,
+                  isNeonCarnivalTemplate && styles.neonCarnivalGalleryHeader
                 ]}>
                   <View>
                     {isCyberTechTemplate && (
                       <View style={styles.cyberGalleryKicker}>
                         <Text style={styles.cyberGalleryKickerText}>[ ARCHIVE SECTION ]</Text>
+                      </View>
+                    )}
+                    {isNeonCarnivalTemplate && (
+                      <View style={styles.neonCarnivalGalleryKicker}>
+                        <View style={styles.neonCarnivalGalleryPulse} />
+                        <Text style={styles.neonCarnivalGalleryKickerText}>Carnival Feed</Text>
+                        <View style={styles.neonCarnivalGalleryKickerLine} />
                       </View>
                     )}
                     {isRetroArcadeTemplate && (
@@ -2936,6 +3017,7 @@ export default function EventDetailScreen() {
                        isPopTemplate && styles.popGalleryTitle,
                        isCyberTechTemplate && styles.cyberGalleryTitle,
                        isRetroArcadeTemplate && styles.retroArcadeGalleryTitle,
+                       isNeonCarnivalTemplate && styles.neonCarnivalGalleryTitle,
                        selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold' }
                     ]}>
                       {isRetroArcadeTemplate ? (
@@ -2965,9 +3047,10 @@ export default function EventDetailScreen() {
                         styles.photoCount,
                         { color: selectedTemplate.accent },
                         isCyberTechTemplate && styles.cyberPhotoCount,
+                        isNeonCarnivalTemplate && styles.neonCarnivalPhotoCount,
                         selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
                       ]}>
-                        {isCyberTechTemplate ? `// ARCHIVED_FILES: ${photos.length}` : `${photos.length} ${photos.length === 1 ? 'Photo' : 'Photos'}`}
+                        {isCyberTechTemplate ? `// ARCHIVED_FILES: ${photos.length}` : (isNeonCarnivalTemplate ? `STAGE CAPTURES: ${photos.length}` : `${photos.length} ${photos.length === 1 ? 'Photo' : 'Photos'}`)}
                       </Text>
                     )}
                   </View>
@@ -4446,6 +4529,260 @@ const styles = StyleSheet.create({
     borderColor: '#231f20',
   },
   // CYBER TECH TEMPLATE STYLES
+
+  neonCarnivalHeroOverlay: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    backgroundColor: '#0c0714',
+    zIndex: 2,
+    justifyContent: 'space-between',
+  },
+  neonCarnivalTopBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    zIndex: 10,
+  },
+  neonCarnivalHeaderButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(24, 15, 38, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(217, 70, 239, 0.2)',
+  },
+  neonCarnivalContent: {
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    marginTop: 20,
+    zIndex: 10,
+  },
+  neonCarnivalDateText: {
+    fontFamily: 'TiltNeon_400Regular',
+    fontSize: 14,
+    color: '#d8b4fe',
+    letterSpacing: 3,
+    marginBottom: 8,
+  },
+  neonCarnivalTitleWrapper: {
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+  neonCarnivalTitle: {
+    fontFamily: 'TiltNeon_400Regular',
+    fontSize: 48,
+    color: '#faf5ff',
+    textAlign: 'center',
+    textShadowColor: 'rgba(217, 70, 239, 0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 15,
+  },
+  neonCarnivalCoverWrapper: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  neonCarnivalCoverImg: {
+    width: '100%',
+    height: '100%',
+    opacity: 0.8,
+  },
+  neonCarnivalGradient: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    bottom: 0,
+  },
+  neonCarnivalInfoBox: {
+    backgroundColor: 'rgba(20, 12, 33, 0.72)',
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: 'rgba(217, 70, 239, 0.25)',
+    padding: 12,
+    shadowColor: '#d946ef',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  neonCarnivalInfoInner: {
+    borderWidth: 1,
+    borderColor: 'rgba(217, 70, 239, 0.15)',
+    borderRadius: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    backgroundColor: 'rgba(12, 7, 20, 0.5)',
+  },
+  neonCarnivalInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    justifyContent: 'center',
+  },
+  neonCarnivalInfoPulse: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#d946ef',
+    shadowColor: '#d946ef',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 6,
+  },
+  neonCarnivalInfoKicker: {
+    fontFamily: 'TiltNeon_400Regular',
+    fontSize: 12,
+    color: '#d946ef',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  neonCarnivalInfoLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(217, 70, 239, 0.2)',
+    marginLeft: 8,
+  },
+  neonCarnivalVisitorDescription: {
+    fontFamily: 'TiltNeon_400Regular',
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#d8b4fe',
+    textAlign: 'center',
+  },
+  neonCarnivalPartnersTitle: {
+    fontFamily: 'TiltNeon_400Regular',
+    fontSize: 26,
+    color: '#faf5ff',
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    textShadowColor: 'rgba(217, 70, 239, 0.6)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
+  },
+  neonCarnivalPartnersSubtitle: {
+    fontFamily: 'TiltNeon_400Regular',
+    fontSize: 13,
+    color: '#d8b4fe',
+    textAlign: 'center',
+    lineHeight: 20,
+    letterSpacing: 0.5,
+  },
+  neonCarnivalPartnerCard: {
+    backgroundColor: 'rgba(20, 12, 33, 0.8)',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(217, 70, 239, 0.15)',
+    padding: 16,
+    shadowColor: '#d946ef',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  neonCarnivalEmptyText: {
+    fontFamily: 'TiltNeon_400Regular',
+    color: '#d8b4fe',
+    fontSize: 14,
+    letterSpacing: 1,
+  },
+  neonCarnivalPartnerName: {
+    fontFamily: 'TiltNeon_400Regular',
+    color: '#faf5ff',
+    fontSize: 18,
+    letterSpacing: 0.5,
+  },
+  neonCarnivalPartnerType: {
+    fontFamily: 'TiltNeon_400Regular',
+    color: '#d946ef',
+    fontSize: 12,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  neonCarnivalGalleryKicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  neonCarnivalGalleryPulse: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#d946ef',
+    shadowColor: '#d946ef',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+  },
+  neonCarnivalGalleryKickerText: {
+    fontFamily: 'TiltNeon_400Regular',
+    fontSize: 11,
+    color: '#d946ef',
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+  },
+  neonCarnivalGalleryKickerLine: {
+    width: 40,
+    height: 1,
+    backgroundColor: 'rgba(217, 70, 239, 0.3)',
+  },
+  neonCarnivalGalleryTitle: {
+    fontFamily: 'TiltNeon_400Regular',
+    fontSize: 24,
+    color: '#faf5ff',
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    textShadowColor: 'rgba(217, 70, 239, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 6,
+  },
+  neonCarnivalPhotoCount: {
+    fontFamily: 'TiltNeon_400Regular',
+    fontSize: 12,
+    color: '#d8b4fe',
+    letterSpacing: 1,
+    marginTop: 2,
+    textTransform: 'uppercase',
+  },
+  neonCarnivalPhotoTile: {
+    borderWidth: 1.5,
+    borderRadius: 16,
+    padding: 0,
+    backgroundColor: 'rgba(20, 12, 33, 0.8)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  neonCarnivalPhotoTileFeatured: {
+    borderWidth: 2,
+    shadowOpacity: 0.5,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  neonCarnivalGalleryImg: {
+    borderRadius: 14,
+  },
+  neonCarnivalViewerActionCount: {
+    fontFamily: 'TiltNeon_400Regular',
+    color: '#d8b4fe',
+  },
+  neonCarnivalText: {
+    fontFamily: 'TiltNeon_400Regular',
+  },
   cyberHeroOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#05070c',
@@ -5447,6 +5784,48 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffde4a',
     borderBottomWidth: 3,
     borderColor: '#231f20',
+  },
+
+  neonCarnivalVisitorHeaderContainer: {
+    height: 72,
+    marginTop: 10,
+    backgroundColor: '#0c0714',
+    borderBottomWidth: 1,
+    borderColor: 'rgba(217, 70, 239, 0.2)',
+  },
+  neonCarnivalVisitorHeaderContent: {
+    paddingHorizontal: 18,
+    gap: 12,
+  },
+  neonCarnivalVisitorTab: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: 'rgba(12, 7, 20, 0.9)',
+    borderWidth: 2,
+    borderColor: 'rgba(217, 70, 239, 0.15)',
+  },
+  neonCarnivalVisitorTabActive: {
+    backgroundColor: 'rgba(217, 70, 239, 0.08)',
+    borderColor: '#d946ef',
+    shadowColor: '#d946ef',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  neonCarnivalVisitorTabText: {
+    fontFamily: 'TiltNeon_400Regular',
+    fontSize: 13,
+    color: 'rgba(216, 180, 254, 0.7)',
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+  },
+  neonCarnivalVisitorTabTextActive: {
+    color: '#d946ef',
+    textShadowColor: 'rgba(217, 70, 239, 0.6)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 6,
   },
   retroArcadeVisitorHeaderContent: {
     paddingHorizontal: 18,
