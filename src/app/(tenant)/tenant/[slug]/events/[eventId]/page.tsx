@@ -20,9 +20,6 @@ import { TemplateRoyal } from "@/components/TemplateRoyal";
 import { TemplateScrapbook } from "@/components/TemplateScrapbook";
 import { TemplatePop } from "@/components/TemplatePop";
 
-import EventHome from "@/components/templates/template_1/src/components/EventHome";
-import TemplateEditorial_2 from "@/components/templates/template_2/src/app/EventHome";
-
 export default async function SubEventPage({ params }: { params: Promise<{ slug: string; eventId: string }> }) {
     const { slug, eventId } = await params;
 
@@ -90,47 +87,6 @@ export default async function SubEventPage({ params }: { params: Promise<{ slug:
         case 'royal': return <TemplateRoyal event={plainSubEvent}>{galleryBlock}</TemplateRoyal>;
         case 'scrapbook': return <TemplateScrapbook event={plainSubEvent}>{galleryBlock}</TemplateScrapbook>;
         case 'pop': return <TemplatePop event={plainSubEvent}>{galleryBlock}</TemplatePop>;
-
-        // Legacy components without {children} support need the legacy layout
-        case 'template_1':
-        case 'template_2':
-        case 'template_3':
-        case 'template_4':
-        case 'template_5':
-        case 'template_6':
-        case 'template_7':
-        case 'template_8':
-        case 'template_9':
-        case 'template_10':
-            return (
-                <>
-                    {/* Event Hero */}
-                    <div className="relative h-[60vh] w-full overflow-hidden flex items-end justify-center pb-20">
-                        <div className="absolute inset-0">
-                            {subEvent.coverImage && (
-                                <img
-                                    src={subEvent.coverImage}
-                                    alt={subEvent.title}
-                                    className="w-full h-full object-cover"
-                                />
-                            )}
-                            <div className="absolute inset-0 bg-black/40" />
-                        </div>
-                        <div className="relative z-10 text-center text-white p-4">
-                            <p className="text-gold-600 tracking-[0.3em] text-sm uppercase font-semibold mb-2">
-                                {subEvent.description || "A Beautiful Celebration"}
-                            </p>
-                            <h1 className="font-serif text-5xl md:text-7xl font-bold tracking-tight">
-                                {subEvent.title}
-                            </h1>
-                        </div>
-                    </div>
-                    {galleryBlock}
-                    <footer className="bg-stone-900 text-stone-600 py-12 text-center text-sm border-t border-stone-800">
-                        <p>© {new Date().getFullYear()} Wedding Album.</p>
-                    </footer>
-                </>
-            );
 
         default: return <TemplateHero event={plainSubEvent}>{galleryBlock}</TemplateHero>;
     }

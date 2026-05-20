@@ -1,5 +1,4 @@
 import { RoyalNavbar } from "@/components/RoyalNavbar";
-import EditorialNavbar from "@/components/templates/template_2/src/components/Navbar";
 import { EventNavbar } from "@/components/EventNavbar";
 import { getEventById, getSubEvents, serializeFirestoreData } from "@/lib/firestore";
 import { notFound } from "next/navigation";
@@ -34,16 +33,7 @@ export default async function TenantLayout({
     let NavbarComponent;
     let wrapperClass = "min-h-screen font-sans";
 
-    if (templateId === 'editorial' || templateId === 'template_2') {
-        NavbarComponent = (
-            <EditorialNavbar
-                event={event} // Pass raw event if compatible, or specialized serialized if needed
-                subEvents={validSubEvents}
-                basePath={`/tenant/${slug}`}
-            />
-        );
-        wrapperClass = "bg-editorial-white text-editorial-black font-sans min-h-screen";
-    } else if (templateId === 'royal') {
+    if (templateId === 'royal') {
         NavbarComponent = (
             <RoyalNavbar
                 event={serializedEvent}

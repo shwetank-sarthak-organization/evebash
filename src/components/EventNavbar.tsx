@@ -30,6 +30,7 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, 
             const saved = sessionStorage.getItem("wedding_guest_details");
             if (saved) {
                 try {
+                    // eslint-disable-next-line react-hooks/set-state-in-effect
                     setGuestDetails(JSON.parse(saved));
                 } catch(e){}
             }

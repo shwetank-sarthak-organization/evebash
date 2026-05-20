@@ -23,7 +23,7 @@ export function RoyalNavbar({ event, subEvents, basePath }: RoyalNavbarProps) {
     // We infer slug from basePath: /tenant/[slug]
     const slug = basePath?.split('/tenant/')[1]?.split('/')[0];
 
-    // eslint-disable-next-line react-hooks/rules-of-hooks
+     
     useEffect(() => {
         if (!slug) return;
 

@@ -46,7 +46,7 @@ export function TemplatePolaroid({ event, children }: TemplatePolaroidProps) {
 
                     <ScrollReveal delay={0.2}>
                         <p className="font-serif italic text-xl text-stone-600">
-                            "{event.description}"
+                            &ldquo;{event.description}&rdquo;
                         </p>
                     </ScrollReveal>
                 </div>

@@ -19,8 +19,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path } from 'react-native-svg';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../constants/theme';
-import { getUserEvents, getApprovedSharedEventsForUser } from '@/lib/firestore';
-import { FirestoreEvent } from '@/types/event';
+import { getUserEvents, getApprovedSharedEventsForUser, Event as FirestoreEvent } from '@/lib/firestore';
 
 const { width } = Dimensions.get('window');
 

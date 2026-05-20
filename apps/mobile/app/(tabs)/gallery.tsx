@@ -680,7 +680,7 @@ export default function PortfolioTabScreen() {
               </View>
               <View style={styles.benefitContent}>
                 <Text style={styles.benefitTitle}>Live Streaming</Text>
-                <Text style={styles.benefitDesc}>Broadcast your special moments live to loved ones who couldn't attend in person.</Text>
+                <Text style={styles.benefitDesc}>{"Broadcast your special moments live to loved ones who couldn't attend in person."}</Text>
               </View>
             </View>
           </View>

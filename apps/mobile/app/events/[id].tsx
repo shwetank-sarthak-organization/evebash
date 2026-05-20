@@ -104,12 +104,16 @@ export default function EventDetailScreen() {
 
   const heroHeight = (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic' || event?.templateId === 'hero')) 
     ? windowHeight 
-    : ((!showAdminView && event?.templateId === 'ethereal') ? (windowHeight * 0.8) : ((!showAdminView && event?.templateId === 'pop') ? (465 + insets.top) : 400));
+    : ((!showAdminView && event?.templateId === 'ethereal') ? (windowHeight * 0.8) 
+    : ((!showAdminView && (event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade')) ? (SCREEN_WIDTH * 1.33 + 180 + insets.top)
+    : ((!showAdminView && event?.templateId === 'pop') ? (465 + insets.top) : 400)));
   const isScrapbookTemplate = !showAdminView && event?.templateId === 'scrapbook';
   const isNeonTemplate = !showAdminView && event?.templateId === 'neon';
   const isPastelTemplate = !showAdminView && event?.templateId === 'pastel';
   const isPopTemplate = !showAdminView && event?.templateId === 'pop';
   const isEtherealTemplate = !showAdminView && event?.templateId === 'ethereal';
+  const isCyberTechTemplate = !showAdminView && event?.templateId === 'cyber_tech';
+  const isRetroArcadeTemplate = !showAdminView && event?.templateId === 'retro_arcade';
 
   const [tempCoverOffsetX, setTempCoverOffsetX] = useState(0);
   const offsetXRef = React.useRef(0);
@@ -711,15 +715,19 @@ export default function EventDetailScreen() {
     const isNeon = event?.templateId === 'neon';
     const isPastel = event?.templateId === 'pastel';
     const isPop = event?.templateId === 'pop';
+    const isCyberTech = event?.templateId === 'cyber_tech';
+    const isRetroArcade = event?.templateId === 'retro_arcade';
     const isThemeHeader = isRoyal || isClassic || isHero || isEthereal;
-    const birthdayTextColor = isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : MidnightColors.gold)));
-    const birthdayActiveText = isScrapbook ? styles.scrapbookVisitorTabTextActive : (isNeon ? styles.neonVisitorTabTextActive : (isPastel ? styles.pastelVisitorTabTextActive : (isPop ? styles.popVisitorTabTextActive : styles.visitorTabTextActive)));
-    const birthdayActiveTab = isScrapbook ? styles.scrapbookVisitorTabActive : (isNeon ? styles.neonVisitorTabActive : (isPastel ? styles.pastelVisitorTabActive : (isPop ? styles.popVisitorTabActive : styles.visitorTabActive)));
+    const birthdayTextColor = isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : MidnightColors.gold)))));
+    const birthdayActiveText = isScrapbook ? styles.scrapbookVisitorTabTextActive : (isNeon ? styles.neonVisitorTabTextActive : (isPastel ? styles.pastelVisitorTabTextActive : (isPop ? styles.popVisitorTabTextActive : (isCyberTech ? styles.cyberVisitorTabTextActive : (isRetroArcade ? styles.retroArcadeVisitorTabTextActive : styles.visitorTabTextActive)))));
+    const birthdayActiveTab = isScrapbook ? styles.scrapbookVisitorTabActive : (isNeon ? styles.neonVisitorTabActive : (isPastel ? styles.pastelVisitorTabActive : (isPop ? styles.popVisitorTabActive : (isCyberTech ? styles.cyberVisitorTabActive : (isRetroArcade ? styles.retroArcadeVisitorTabActive : styles.visitorTabActive)))));
     const birthdayTabStyles = [
       isScrapbook && styles.scrapbookVisitorTab,
       isNeon && styles.neonVisitorTab,
       isPastel && styles.pastelVisitorTab,
       isPop && styles.popVisitorTab,
+      isCyberTech && styles.cyberVisitorTab,
+      isRetroArcade && styles.retroArcadeVisitorTab,
     ];
     const themeHeaderTab = (active: boolean) => ({
       backgroundColor: isHero ? (active ? 'rgba(204, 164, 59, 0.08)' : 'transparent') : 'transparent',
@@ -747,11 +755,13 @@ export default function EventDetailScreen() {
         isNeon && styles.neonVisitorHeaderContainer,
         isPastel && styles.pastelVisitorHeaderContainer,
         isPop && styles.popVisitorHeaderContainer,
+        isCyberTech && styles.cyberVisitorHeaderContainer,
+        isRetroArcade && styles.retroArcadeVisitorHeaderContainer,
       ]}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[styles.visitorHeaderContent, isScrapbook && styles.scrapbookVisitorHeaderContent, isNeon && styles.neonVisitorHeaderContent, isPastel && styles.pastelVisitorHeaderContent, isPop && styles.popVisitorHeaderContent]}
+          contentContainerStyle={[styles.visitorHeaderContent, isScrapbook && styles.scrapbookVisitorHeaderContent, isNeon && styles.neonVisitorHeaderContent, isPastel && styles.pastelVisitorHeaderContent, isPop && styles.popVisitorHeaderContent, isCyberTech && styles.cyberVisitorHeaderContent, isRetroArcade && styles.retroArcadeVisitorHeaderContent]}
         >
           <TouchableOpacity
             style={[
@@ -765,7 +775,7 @@ export default function EventDetailScreen() {
                 <IconSymbol
                   name="house.fill"
                   size={14}
-                  color={!activeSubEvent ? (isScrapbook ? '#263331' : (isNeon ? '#66e8ff' : (isPastel ? '#c9768b' : (isPop ? '#ffffff' : MidnightColors.background)))) : (isScrapbook ? selectedTemplate.accent : (isNeon ? '#b9b1d9' : (isPastel ? '#9a8583' : (isPop ? '#231f20' : MidnightColors.gold))))}
+                  color={!activeSubEvent ? (isCyberTech ? '#00f0ff' : (isScrapbook ? '#263331' : (isNeon ? '#66e8ff' : (isPastel ? '#c9768b' : (isPop ? '#ffffff' : (isRetroArcade ? '#ffffff' : MidnightColors.background)))))) : (isCyberTech ? 'rgba(0, 240, 255, 0.5)' : (isScrapbook ? selectedTemplate.accent : (isNeon ? '#b9b1d9' : (isPastel ? '#9a8583' : (isPop ? '#231f20' : (isRetroArcade ? '#231f20' : MidnightColors.gold))))))}
                 />
               )}
               <Text style={[
@@ -775,10 +785,12 @@ export default function EventDetailScreen() {
                 isNeon && styles.neonVisitorTabText,
                 isPastel && styles.pastelVisitorTabText,
                 isPop && styles.popVisitorTabText,
+                isCyberTech && styles.cyberVisitorTabText,
+                isRetroArcade && styles.retroArcadeVisitorTabText,
                 selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
                 !activeSubEvent && !isThemeHeader && birthdayActiveText
               ]}>
-                Home
+                {isCyberTech ? (!activeSubEvent ? '[ HOME ]' : '  HOME  ') : (isRetroArcade ? 'HOME' : 'Home')}
               </Text>
             </View>
 
@@ -818,10 +830,12 @@ export default function EventDetailScreen() {
                   isNeon && styles.neonVisitorTabText,
                   isPastel && styles.pastelVisitorTabText,
                   isPop && styles.popVisitorTabText,
+                  isCyberTech && styles.cyberVisitorTabText,
+                  isRetroArcade && styles.retroArcadeVisitorTabText,
                   selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
                   isActive && !isThemeHeader && birthdayActiveText
                 ]}>
-                  {sub.title}
+                  {isCyberTech ? (isActive ? `[ ${sub.title.toUpperCase()} ]` : `  ${sub.title.toUpperCase()}  `) : (isRetroArcade ? sub.title.toUpperCase() : sub.title)}
                 </Text>
 
                 {isRoyal && isActive && (
@@ -859,10 +873,14 @@ export default function EventDetailScreen() {
               isNeon && styles.neonVisitorTabText,
               isPastel && styles.pastelVisitorTabText,
               isPop && styles.popVisitorTabText,
+              isCyberTech && styles.cyberVisitorTabText,
+              isRetroArcade && styles.retroArcadeVisitorTabText,
               selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
               activeSubEvent?.id === 'event-partners' && !isThemeHeader && birthdayActiveText
             ]}>
-              Event Partners <Text style={{ fontSize: 10 }}>🤝</Text>
+              {isCyberTech ? (activeSubEvent?.id === 'event-partners' ? '[ PARTNERS ]' : '  PARTNERS  ') : (isRetroArcade ? 'PARTNERS 🤝' : (
+                <>Event Partners <Text style={{ fontSize: 10 }}>🤝</Text></>
+              ))}
             </Text>
 
             {isRoyal && activeSubEvent?.id === 'event-partners' && (
@@ -943,14 +961,14 @@ export default function EventDetailScreen() {
     <View style={[styles.safeArea, { backgroundColor: selectedTemplate.background }]}>
       <Stack.Screen
         options={{
-          headerShown: showAdminView ? false : !(event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'pop' || event?.templateId === 'ethereal'),
+          headerShown: showAdminView ? false : !(event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'pop' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade'),
           headerTransparent: true,
           headerTitle: '',
           headerLeft: () => {
             if (showAdminView) return null; // Custom back button is rendered inline inside the cover container to scroll with content
 
             const isPop = !showAdminView && event?.templateId === 'pop';
-            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal')) ? null : (
+            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade')) ? null : (
               <TouchableOpacity
                 onPress={handleEventBack}
                 style={[
@@ -1424,6 +1442,117 @@ export default function EventDetailScreen() {
                 {/* Birthday Cap Emoji Sticker */}
                 <View style={styles.popStickerCapContainer}>
                   <Text style={styles.popStickerCapEmoji}>🥳</Text>
+                </View>
+              </View>
+            </View>
+          ) : (!showAdminView && event?.templateId === 'cyber_tech') ? (
+            <View style={[styles.cyberHeroOverlay, { paddingTop: insets.top }]}>
+              {/* Scanline Background & Ambient glow backdrops */}
+              <View style={styles.cyberGridLines} />
+              <View style={styles.cyberGlowDot1} />
+              <View style={styles.cyberGlowDot2} />
+
+              {/* Top status bar with centered Event Name and navigation icons */}
+              <View style={styles.cyberTopBar}>
+                {/* Left: Back Button */}
+                <TouchableOpacity
+                  style={styles.cyberHeaderButton}
+                  onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
+                >
+                  <IconSymbol name="chevron.left" size={16} color="#00f0ff" />
+                </TouchableOpacity>
+
+                {/* Center: Centered Event Name */}
+                <View style={styles.cyberTitleContainer}>
+                  <Text style={styles.cyberPathText} numberOfLines={1} ellipsizeMode="tail">
+                    {(activeSubEvent?.title || event.title).toUpperCase()}
+                  </Text>
+                </View>
+
+                {/* Right: Share Button */}
+                <TouchableOpacity
+                  style={styles.cyberHeaderButton}
+                  onPress={() => setShowShareModal(true)}
+                >
+                  <IconSymbol name="square.and.arrow.up" size={16} color="#00f0ff" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Poster frame in middle */}
+              <View style={styles.cyberMiddleFrame}>
+                <View style={styles.cyberPosterWrapper}>
+                  {/* Decorative neon corners */}
+                  <View style={[styles.cyberCorner, styles.cyberCornerTL]} />
+                  <View style={[styles.cyberCorner, styles.cyberCornerTR]} />
+                  <View style={[styles.cyberCorner, styles.cyberCornerBL]} />
+                  <View style={[styles.cyberCorner, styles.cyberCornerBR]} />
+                  
+                  <Image 
+                    source={{ uri: activeSubEvent?.coverImage || event?.coverImage || event?.coverUrl }} 
+                    style={styles.cyberPosterImg}
+                    resizeMode="cover"
+                  />
+                  {/* Scanning scanline bar */}
+                  <View style={styles.cyberScanBar} />
+                </View>
+                <Text style={styles.cyberScanStatus}>[DECRYPTING MEMORIES... 100% SUCCESS]</Text>
+              </View>
+
+              {/* Bottom terminal console */}
+              <View style={styles.cyberBottomConsole}>
+                {/* Cyberpunk date display */}
+                <View style={styles.cyberDateContainer}>
+                  <Text style={styles.cyberDateText}>
+                    {`JOIN US ON: ${activeSubEvent?.date || event.date || 'PENDING'}`.toUpperCase()}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          ) : (!showAdminView && event?.templateId === 'retro_arcade') ? (
+            <View style={[styles.retroHeroOverlay, { paddingTop: insets.top }]}>
+              {/* Arcade Top Bar Header */}
+              <View style={styles.retroTopBar}>
+                {/* Left: Back Button styled as a round arcade button */}
+                <TouchableOpacity
+                  style={styles.retroHeaderButtonBack}
+                  onPress={handleEventBack}
+                >
+                  <IconSymbol name="chevron.left" size={18} color="#ffffff" />
+                </TouchableOpacity>
+
+                {/* Center: Uppercase Title */}
+                <View style={styles.retroTitleContainer}>
+                  <Text style={styles.retroPathText} numberOfLines={1} ellipsizeMode="tail">
+                    {(activeSubEvent?.title || event.title).toUpperCase()}
+                  </Text>
+                </View>
+
+                {/* Right: Share Button styled as a round arcade button */}
+                <TouchableOpacity
+                  style={styles.retroHeaderButtonShare}
+                  onPress={() => setShowShareModal(true)}
+                >
+                  <IconSymbol name="square.and.arrow.up" size={18} color="#ffffff" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Poster frame in middle */}
+              <View style={styles.retroMiddleFrame}>
+                <View style={styles.retroPosterWrapper}>
+                  <Image 
+                    source={{ uri: activeSubEvent?.coverImage || event?.coverImage || event?.coverUrl }} 
+                    style={styles.retroPosterImg}
+                    resizeMode="cover"
+                  />
+                </View>
+              </View>
+
+              {/* High-Score / Ticket Date Console */}
+              <View style={styles.retroBottomConsole}>
+                <View style={styles.retroDateContainer}>
+                  <Text style={styles.retroDateText}>
+                    {`JOIN US ON: ${activeSubEvent?.date || event.date || 'PENDING'}`.toUpperCase()}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -2241,6 +2370,8 @@ export default function EventDetailScreen() {
                     isNeonTemplate && styles.neonInfoBox,
                     isPastelTemplate && styles.pastelInfoBox,
                     isPopTemplate && styles.popInfoBox,
+                    isCyberTechTemplate && styles.cyberInfoBox,
+                    isRetroArcadeTemplate && styles.retroArcadeInfoBox,
                     event.templateId === 'classic' && {
                       shadowColor: '#000',
                       shadowOffset: { width: 0, height: 1 },
@@ -2276,6 +2407,8 @@ export default function EventDetailScreen() {
                       isNeonTemplate && styles.neonInfoInner,
                       isPastelTemplate && styles.pastelInfoInner,
                       isPopTemplate && styles.popInfoInner,
+                      isCyberTechTemplate && styles.cyberInfoInner,
+                      isRetroArcadeTemplate && styles.retroArcadeInfoInner,
                       event.templateId === 'royal' && {
                         borderWidth: 1,
                         borderColor: 'rgba(204, 164, 59, 0.15)',
@@ -2325,6 +2458,12 @@ export default function EventDetailScreen() {
                         <Text style={{ color: selectedTemplate.accent, fontSize: 14, marginBottom: 12, fontFamily: selectedTemplate.serifFont }}>❦</Text>
                       )}
 
+                      {isCyberTechTemplate && (
+                        <View style={styles.cyberInfoHeader}>
+                          <Text style={styles.cyberInfoKicker}>[BROADCAST INCOMING]</Text>
+                        </View>
+                      )}
+
                       {isNeonTemplate && (
                         <View style={styles.neonInfoHeader}>
                           <View style={styles.neonInfoPulse} />
@@ -2345,7 +2484,7 @@ export default function EventDetailScreen() {
                         <>
                           <View style={styles.popInfoHeader}>
                             <Text style={styles.popInfoBang}>!</Text>
-                            <Text style={styles.popInfoKicker}>Host's Broadcast</Text>
+                            <Text style={styles.popInfoKicker}>{"Host's Broadcast"}</Text>
                             <View style={styles.popInfoStripe} />
                           </View>
                           {/* Speech Bubble Tail */}
@@ -2355,12 +2494,23 @@ export default function EventDetailScreen() {
                         </>
                       )}
 
+                      {isRetroArcadeTemplate && (
+                        <View style={styles.retroArcadeInfoHeader}>
+                          <View style={styles.retroArcadeInfoBadge}>
+                            <Text style={styles.retroArcadeInfoBadgeText}>! BROADCAST</Text>
+                          </View>
+                          <View style={styles.retroArcadeInfoStripe} />
+                        </View>
+                      )}
+
                       <Text style={[
                         styles.visitorDescription,
                         { color: event.templateId === 'royal' ? selectedTemplate.accent : selectedTemplate.text },
                         isNeonTemplate && styles.neonVisitorDescription,
                         isPastelTemplate && styles.pastelVisitorDescription,
                         isPopTemplate && styles.popVisitorDescription,
+                        isCyberTechTemplate && styles.cyberVisitorDescription,
+                        isRetroArcadeTemplate && styles.retroArcadeVisitorDescription,
                         selectedTemplate.useSerif && {
                           fontFamily: selectedTemplate.serifItalic,
                           fontStyle: 'italic',
@@ -2368,7 +2518,7 @@ export default function EventDetailScreen() {
                           lineHeight: 26,
                           textAlign: 'center',
                         }
-                      ]}>{activeSubEvent ? activeSubEvent.description : event.description} 🤍</Text>
+                      ]}>{activeSubEvent ? activeSubEvent.description : event.description}{(isCyberTechTemplate || isRetroArcadeTemplate) ? '' : ' 🤍'}</Text>
 
                       {isScrapbookTemplate && (
                         <View style={[styles.scrapbookInfoRule, styles.scrapbookInfoRuleBottom]}>
@@ -2383,18 +2533,22 @@ export default function EventDetailScreen() {
                 {renderThemeDivider()}
 
                 {activeSubEvent?.id === 'event-partners' ? (
-                  <View style={{ paddingTop: isPopTemplate ? 10 : 40, paddingBottom: 24, paddingHorizontal: 20 }}>
+                  <View style={{ paddingTop: (isPopTemplate || isRetroArcadeTemplate) ? 10 : 40, paddingBottom: 24, paddingHorizontal: 20 }}>
                     <View style={{ alignItems: 'center', marginBottom: 32 }}>
                       <Text style={[
                         { fontSize: 28, color: selectedTemplate.text, marginBottom: 8 },
                         isPopTemplate && { fontFamily: FunkyFonts.marker, fontSize: 32, color: '#0080ff', textTransform: 'uppercase', letterSpacing: -0.5 },
+                        isRetroArcadeTemplate && { fontFamily: FunkyFonts.marker, fontSize: 32, color: '#ff3562', textTransform: 'uppercase', letterSpacing: 0.5 },
+                        isCyberTechTemplate && styles.cyberPartnersTitle,
                         selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
                       ]}>The Dream Team</Text>
                       <Text style={[
                         { fontSize: 14, color: selectedTemplate.muted, textAlign: 'center', lineHeight: 22, maxWidth: '80%' },
-                        isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', fontSize: 13, textTransform: 'uppercase', letterSpacing: -0.2 }
+                        isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', fontSize: 13, textTransform: 'uppercase', letterSpacing: -0.2 },
+                        isRetroArcadeTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.2 },
+                        isCyberTechTemplate && styles.cyberPartnersSubtitle
                       ]}>
-                        {`The incredible businesses and vendors who brought this beautiful ${event?.category === 'birthday' ? 'birthday' : 'wedding'} to life.`}
+                        {`The incredible businesses and vendors who brought this beautiful ${event?.category?.toLowerCase() === 'birthday' ? 'birthday' : event?.category?.toLowerCase() === 'wedding' ? 'wedding' : `${event?.category?.toLowerCase() || 'event'} event`} to life.`}
                       </Text>
                     </View>
 
@@ -2411,16 +2565,30 @@ export default function EventDetailScreen() {
                           shadowOpacity: 1,
                           shadowRadius: 0,
                           elevation: 4,
-                        }
+                        },
+                        isRetroArcadeTemplate && {
+                          backgroundColor: '#ffffff',
+                          borderWidth: 3,
+                          borderColor: '#231f20',
+                          borderRadius: 18,
+                          shadowColor: '#231f20',
+                          shadowOffset: { width: 5, height: 5 },
+                          shadowOpacity: 1,
+                          shadowRadius: 0,
+                          elevation: 4,
+                        },
+                        isCyberTechTemplate && styles.cyberPartnerCard
                       ]}>
-                         <IconSymbol name="building.2" size={32} color={isPopTemplate ? '#0080ff' : selectedTemplate.accent} />
+                         <IconSymbol name="building.2" size={32} color={isPopTemplate ? '#0080ff' : (isCyberTechTemplate ? '#00f0ff' : (isRetroArcadeTemplate ? '#ff3562' : selectedTemplate.accent))} />
                          <Text style={[
                            { color: selectedTemplate.muted, marginTop: 16, fontSize: 15, fontWeight: '500' },
-                           isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', textTransform: 'uppercase', fontSize: 13 }
+                           isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', textTransform: 'uppercase', fontSize: 13 },
+                           isRetroArcadeTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', textTransform: 'uppercase', fontSize: 13 },
+                           isCyberTechTemplate && styles.cyberEmptyText
                          ]}>Vendor list coming soon...</Text>
                       </View>
                     ) : (
-                      <View style={{ gap: isPopTemplate ? 20 : 16 }}>
+                      <View style={{ gap: (isPopTemplate || isRetroArcadeTemplate) ? 20 : 16 }}>
                         {linkedVendors.map((biz) => (
                           <TouchableOpacity
                             key={biz.id}
@@ -2438,7 +2606,21 @@ export default function EventDetailScreen() {
                                 elevation: 4,
                                 padding: 14,
                                 marginBottom: 6,
-                              }
+                              },
+                              isRetroArcadeTemplate && {
+                                backgroundColor: '#ffffff',
+                                borderWidth: 3,
+                                borderColor: '#231f20',
+                                borderRadius: 18,
+                                shadowColor: '#231f20',
+                                shadowOffset: { width: 5, height: 5 },
+                                shadowOpacity: 1,
+                                shadowRadius: 0,
+                                elevation: 4,
+                                padding: 14,
+                                marginBottom: 6,
+                              },
+                              isCyberTechTemplate && styles.cyberPartnerCard
                             ]}
                             onPress={() => router.push(`/business/${biz.id}`)}
                           >
@@ -2446,20 +2628,26 @@ export default function EventDetailScreen() {
                               source={{ uri: biz.coverImage || 'https://via.placeholder.com/150' }} 
                               style={[
                                 { width: 64, height: 64, borderRadius: 32, marginRight: 16, borderWidth: 1, borderColor: selectedTemplate.accent },
-                                isPopTemplate && { borderWidth: 2.5, borderColor: '#231f20', borderRadius: 32 }
+                                isPopTemplate && { borderWidth: 2.5, borderColor: '#231f20', borderRadius: 32 },
+                                isRetroArcadeTemplate && { borderWidth: 2.5, borderColor: '#231f20', borderRadius: 14 },
+                                isCyberTechTemplate && { borderWidth: 1, borderColor: '#00f0ff', borderRadius: 8 }
                               ]} 
                             />
                             <View style={{ flex: 1 }}>
                               <Text style={[
                                 { color: selectedTemplate.text, fontSize: 18, fontWeight: '600', marginBottom: 4 },
-                                isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', fontSize: 18, fontWeight: undefined, textTransform: 'uppercase' }
+                                isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', fontSize: 18, fontWeight: undefined, textTransform: 'uppercase' },
+                                isRetroArcadeTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', fontSize: 18, fontWeight: undefined, textTransform: 'uppercase' },
+                                isCyberTechTemplate && styles.cyberPartnerName
                               ]}>{biz.name}</Text>
                               <Text style={[
                                 { color: selectedTemplate.accent, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, fontWeight: '700' },
-                                isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#ff4fb8', fontSize: 12, fontWeight: undefined, letterSpacing: 0.5 }
+                                isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#ff4fb8', fontSize: 12, fontWeight: undefined, letterSpacing: 0.5 },
+                                isRetroArcadeTemplate && { fontFamily: FunkyFonts.marker, color: '#ff3562', fontSize: 12, fontWeight: undefined, letterSpacing: 0.5 },
+                                isCyberTechTemplate && styles.cyberPartnerType
                               ]}>{biz.type}</Text>
                             </View>
-                            <IconSymbol name="chevron.right" size={20} color={isPopTemplate ? '#231f20' : selectedTemplate.muted} />
+                            <IconSymbol name="chevron.right" size={20} color={isPopTemplate ? '#231f20' : (isCyberTechTemplate ? '#00f0ff' : (isRetroArcadeTemplate ? '#231f20' : selectedTemplate.muted))} />
                           </TouchableOpacity>
                         ))}
                       </View>
@@ -2473,9 +2661,22 @@ export default function EventDetailScreen() {
                   isScrapbookTemplate && styles.scrapbookGalleryHeader,
                   isNeonTemplate && styles.neonGalleryHeader,
                   isPastelTemplate && styles.pastelGalleryHeader,
-                  isPopTemplate && styles.popGalleryHeader
+                  isPopTemplate && styles.popGalleryHeader,
+                  isRetroArcadeTemplate && styles.retroArcadeGalleryHeader
                 ]}>
                   <View>
+                    {isCyberTechTemplate && (
+                      <View style={styles.cyberGalleryKicker}>
+                        <Text style={styles.cyberGalleryKickerText}>[ ARCHIVE SECTION ]</Text>
+                      </View>
+                    )}
+                    {isRetroArcadeTemplate && (
+                      <View style={styles.retroArcadeGalleryKicker}>
+                        <Text style={styles.retroArcadeGalleryKickerBadge}>ARCADE</Text>
+                        <Text style={styles.retroArcadeGalleryKickerText}>Memory slot</Text>
+                        <View style={styles.retroArcadeGalleryKickerBolt} />
+                      </View>
+                    )}
                     {isScrapbookTemplate && (
                       <View style={styles.scrapbookGalleryKicker}>
                         <View style={[styles.scrapbookGalleryKickerLine, { backgroundColor: selectedTemplate.accent }]} />
@@ -2504,15 +2705,26 @@ export default function EventDetailScreen() {
                       </View>
                     )}
                     <Text style={[
-                      styles.galleryTitle,
-                      { color: selectedTemplate.text },
-                      isScrapbookTemplate && styles.scrapbookGalleryTitle,
-                      isNeonTemplate && styles.neonGalleryTitle,
-                      isPastelTemplate && styles.pastelGalleryTitle,
-                      isPopTemplate && styles.popGalleryTitle,
-                      selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold' }
+                       styles.galleryTitle,
+                       { color: selectedTemplate.text },
+                       isScrapbookTemplate && styles.scrapbookGalleryTitle,
+                       isNeonTemplate && styles.neonGalleryTitle,
+                       isPastelTemplate && styles.pastelGalleryTitle,
+                       isPopTemplate && styles.popGalleryTitle,
+                       isCyberTechTemplate && styles.cyberGalleryTitle,
+                       isRetroArcadeTemplate && styles.retroArcadeGalleryTitle,
+                       selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold' }
                     ]}>
-                      {isPopTemplate ? (
+                      {isRetroArcadeTemplate ? (
+                        <>
+                          <Text style={{ color: '#ff3562' }}>
+                            {(activeSubEvent ? activeSubEvent.title : 'Highlights').toUpperCase()}
+                          </Text>
+                          <Text style={{ color: '#231f20' }}>
+                            {` (${photos.length})`}
+                          </Text>
+                        </>
+                      ) : isPopTemplate ? (
                         <>
                           <Text style={{ color: '#0080ff' }}>
                             {activeSubEvent ? activeSubEvent.title : 'Highlights'}
@@ -2525,13 +2737,14 @@ export default function EventDetailScreen() {
                         activeSubEvent ? activeSubEvent.title : 'Highlights'
                       )}
                     </Text>
-                    {!isPopTemplate && (
+                    {!isPopTemplate && !isRetroArcadeTemplate && (
                       <Text style={[
                         styles.photoCount,
                         { color: selectedTemplate.accent },
+                        isCyberTechTemplate && styles.cyberPhotoCount,
                         selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
                       ]}>
-                        {photos.length} {photos.length === 1 ? 'Photo' : 'Photos'}
+                        {isCyberTechTemplate ? `// ARCHIVED_FILES: ${photos.length}` : `${photos.length} ${photos.length === 1 ? 'Photo' : 'Photos'}`}
                       </Text>
                     )}
                   </View>
@@ -2541,14 +2754,16 @@ export default function EventDetailScreen() {
 
                 {loadingPhotos ? (
                   <View style={styles.photoLoading}>
-                    <ActivityIndicator color={selectedTemplate.accent} />
+                    <ActivityIndicator color={isCyberTechTemplate ? '#00f0ff' : selectedTemplate.accent} />
                   </View>
                 ) : (
                   <View style={styles.photoGrid}>
                     {photos.length === 0 ? (
                       <View style={styles.emptyGallery}>
-                        <IconSymbol name="photo.on.rectangle" size={40} color="rgba(255,255,255,0.05)" />
-                        <Text style={styles.emptyText}>No photos yet.</Text>
+                        <IconSymbol name="photo.on.rectangle" size={40} color={isCyberTechTemplate ? 'rgba(0, 240, 255, 0.15)' : 'rgba(255,255,255,0.05)'} />
+                        <Text style={[styles.emptyText, isCyberTechTemplate && styles.cyberEmptyText]}>
+                          {isCyberTechTemplate ? '// NO_DATA_AVAILABLE' : 'No photos yet.'}
+                        </Text>
                       </View>
                     ) : (
                       (() => {
@@ -2634,6 +2849,14 @@ export default function EventDetailScreen() {
                                     },
                                     idx % 2 === 1 && styles.popPhotoTileAlt,
                                   ],
+                                  isRetroArcadeTemplate && [
+                                    styles.retroArcadePhotoTile,
+                                    {
+                                      borderColor: idx % 3 === 0 ? '#ff3562' : '#231f20',
+                                      shadowColor: idx % 2 === 0 ? '#ff3562' : '#231f20',
+                                    },
+                                    idx % 2 === 1 && styles.retroArcadePhotoTileAlt,
+                                  ],
                                   event.templateId === 'royal' && {
                                     shadowColor: selectedTemplate.accent,
                                     shadowOffset: { width: 0, height: 2 },
@@ -2691,7 +2914,7 @@ export default function EventDetailScreen() {
                                   )}
                                   <Image
                                     source={{ uri: photo.url }}
-                                    style={[styles.galleryImg, isScrapbookTemplate && styles.scrapbookGalleryImg, isNeonTemplate && styles.neonGalleryImg, isPastelTemplate && styles.pastelGalleryImg, isPopTemplate && styles.popGalleryImg]}
+                                    style={[styles.galleryImg, isScrapbookTemplate && styles.scrapbookGalleryImg, isNeonTemplate && styles.neonGalleryImg, isPastelTemplate && styles.pastelGalleryImg, isPopTemplate && styles.popGalleryImg, isRetroArcadeTemplate && styles.retroArcadeGalleryImg]}
                                     resizeMode="cover"
                                   />
                                 </View>
@@ -2800,6 +3023,7 @@ export default function EventDetailScreen() {
                 { name: 'Reception', icon: 'wineglass.fill', color: '#f97316' },
                 { name: 'Corporate', icon: 'briefcase.fill', color: '#10b981' },
                 { name: 'Sports', icon: 'figure.run' as any, color: '#06b6d4' },
+                { name: 'College', icon: 'graduationcap.fill' as any, color: '#6366f1' },
                 { name: 'Other', icon: 'ellipsis.circle.fill', color: '#64748b' }
               ].map((cat) => {
                 const isActive = event?.category === cat.name;
@@ -3067,7 +3291,7 @@ export default function EventDetailScreen() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 40 }}
             >
-              {MOBILE_TEMPLATE_THEMES.filter(t => t.category === ((event?.category === 'Sports' ? 'Other' : event?.category) || 'Wedding')).map((template) => {
+              {MOBILE_TEMPLATE_THEMES.filter(t => t.category === (event?.category === 'Sports' ? 'Other' : (event?.category || 'Wedding'))).map((template) => {
                 const isActive = (event?.templateId || 'hero') === template.id;
                 return (
                   <TouchableOpacity
@@ -3969,6 +4193,400 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#231f20',
   },
+  // CYBER TECH TEMPLATE STYLES
+  cyberHeroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#05070c',
+    justifyContent: 'space-between',
+    paddingHorizontal: 0,
+    paddingBottom: 24,
+  },
+  cyberGridLines: {
+    ...StyleSheet.absoluteFillObject,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.03)',
+  },
+  cyberGlowDot1: {
+    position: 'absolute',
+    top: '15%',
+    left: '-10%',
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: '#00f0ff',
+    opacity: 0.06,
+  },
+  cyberGlowDot2: {
+    position: 'absolute',
+    bottom: '20%',
+    right: '-10%',
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: '#d946ef',
+    opacity: 0.05,
+  },
+  cyberTopBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.15)',
+  },
+  cyberPathText: {
+    fontFamily: Fonts.vt323.regular,
+    fontSize: 22,
+    color: '#00f0ff',
+    letterSpacing: 1.5,
+    textAlign: 'center',
+  },
+  cyberHeaderButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0, 240, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cyberTitleContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 12,
+  },
+  cyberMiddleFrame: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  cyberPosterWrapper: {
+    width: '100%',
+    aspectRatio: 3 / 4,
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.3)',
+    backgroundColor: '#090d16',
+    padding: 6,
+  },
+  cyberPosterImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 2,
+  },
+  cyberCorner: {
+    position: 'absolute',
+    width: 14,
+    height: 14,
+    borderColor: '#00f0ff',
+    zIndex: 5,
+  },
+  cyberCornerTL: {
+    top: -2,
+    left: -2,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+  },
+  cyberCornerTR: {
+    top: -2,
+    right: -2,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+  },
+  cyberCornerBL: {
+    bottom: -2,
+    left: -2,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+  },
+  cyberCornerBR: {
+    bottom: -2,
+    right: -2,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+  },
+  cyberScanBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: '35%',
+    height: 2,
+    backgroundColor: '#00f0ff',
+    opacity: 0.6,
+  },
+  cyberScanStatus: {
+    marginTop: 12,
+    color: '#627fa7',
+    fontFamily: Fonts.vt323.regular,
+    fontSize: 14,
+    letterSpacing: 1.2,
+  },
+  cyberBottomConsole: {
+    width: '100%',
+    paddingHorizontal: 20,
+    marginTop: 10,
+    gap: 12,
+  },
+  cyberTerminalCard: {
+    width: '100%',
+    backgroundColor: 'rgba(9, 13, 22, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.15)',
+    borderRadius: 8,
+    padding: 12,
+    gap: 4,
+  },
+  cyberTerminalPrompt: {
+    fontFamily: Fonts.vt323.regular,
+    fontSize: 16,
+    color: '#e2eafc',
+  },
+  cyberDateContainer: {
+    width: '100%',
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.2)',
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 240, 255, 0.03)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cyberDateText: {
+    color: '#00f0ff',
+    fontSize: 18,
+    fontFamily: Fonts.vt323.regular,
+    letterSpacing: 2,
+  },
+  // RETRO ARCADE TEMPLATE STYLES
+  retroHeroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#ffde4a',
+    justifyContent: 'space-between',
+    paddingHorizontal: 0,
+    paddingBottom: 24,
+  },
+  retroTopBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderBottomWidth: 3,
+    borderColor: '#231f20',
+  },
+  retroHeaderButtonBack: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#ff3562',
+    borderWidth: 3,
+    borderColor: '#231f20',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  retroHeaderButtonShare: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#0080ff',
+    borderWidth: 3,
+    borderColor: '#231f20',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  retroTitleContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 12,
+  },
+  retroPathText: {
+    fontFamily: FunkyFonts.marker,
+    fontSize: 20,
+    color: '#231f20',
+    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  retroMiddleFrame: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 16,
+    paddingHorizontal: 20,
+  },
+  retroPosterWrapper: {
+    width: '100%',
+    aspectRatio: 3 / 4,
+    position: 'relative',
+    borderWidth: 3,
+    borderColor: '#231f20',
+    borderRadius: 18,
+    backgroundColor: '#ffffff',
+    padding: 6,
+    shadowColor: '#ff3562',
+    shadowOffset: { width: 6, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 6,
+  },
+  retroPosterImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  retroBottomConsole: {
+    width: '100%',
+    paddingHorizontal: 20,
+    marginTop: 10,
+    gap: 12,
+  },
+  retroDateContainer: {
+    width: '100%',
+    paddingVertical: 12,
+    borderWidth: 3,
+    borderColor: '#231f20',
+    borderRadius: 18,
+    backgroundColor: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#231f20',
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 4,
+  },
+  retroDateText: {
+    color: '#ff3562',
+    fontSize: 16,
+    fontFamily: FunkyFonts.marker,
+    letterSpacing: 0.5,
+  },
+  retroArcadeInfoBox: {
+    borderWidth: 3,
+    borderColor: '#231f20',
+    borderRadius: 18,
+    padding: 4,
+    shadowColor: '#ff3562',
+    shadowOffset: { width: 6, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 6,
+    backgroundColor: '#ffde4a',
+  },
+  retroArcadeInfoInner: {
+    borderWidth: 3,
+    borderColor: '#231f20',
+    borderRadius: 14,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    backgroundColor: '#ffffff',
+  },
+  retroArcadeInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    width: '100%',
+  },
+  retroArcadeInfoBadge: {
+    backgroundColor: '#ff3562',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 3,
+    borderColor: '#231f20',
+    borderRadius: 10,
+    transform: [{ rotate: '-2deg' }],
+  },
+  retroArcadeInfoBadgeText: {
+    color: '#ffffff',
+    fontFamily: FunkyFonts.marker,
+    fontSize: 13,
+    letterSpacing: 0.5,
+  },
+  retroArcadeInfoStripe: {
+    flex: 1,
+    height: 6,
+    backgroundColor: '#231f20',
+    marginLeft: 10,
+    borderRadius: 3,
+  },
+  retroArcadeVisitorDescription: {
+    fontFamily: FunkyFonts.marker,
+    fontSize: 15,
+    lineHeight: 24,
+    color: '#231f20',
+    textAlign: 'center',
+    textTransform: 'uppercase',
+  },
+  retroArcadeGalleryHeader: {
+    marginBottom: 20,
+    paddingHorizontal: 4,
+  },
+  retroArcadeGalleryKicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  retroArcadeGalleryKickerBadge: {
+    backgroundColor: '#0080ff',
+    color: '#ffffff',
+    fontFamily: FunkyFonts.marker,
+    fontSize: 11,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 2,
+    borderColor: '#231f20',
+    borderRadius: 6,
+    textTransform: 'uppercase',
+  },
+  retroArcadeGalleryKickerText: {
+    fontFamily: FunkyFonts.marker,
+    fontSize: 12,
+    color: '#231f20',
+    marginLeft: 8,
+    textTransform: 'uppercase',
+  },
+  retroArcadeGalleryKickerBolt: {
+    width: 14,
+    height: 14,
+    backgroundColor: '#ff3562',
+    marginLeft: 6,
+    borderRadius: 7,
+  },
+  retroArcadeGalleryTitle: {
+    fontFamily: FunkyFonts.marker,
+    fontSize: 28,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  retroArcadePhotoTile: {
+    backgroundColor: '#ffffff',
+    borderWidth: 3,
+    borderColor: '#231f20',
+    borderRadius: 18,
+    padding: 4,
+    shadowOffset: { width: 5, height: 5 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  retroArcadePhotoTileAlt: {
+    transform: [{ rotate: '1.5deg' }],
+  },
+  retroArcadeGalleryImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
   popHeroCanvas: {
     width: '100%',
     height: 465,
@@ -4560,6 +5178,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     gap: 12,
   },
+  cyberVisitorHeaderContainer: {
+    height: 72,
+    marginTop: 10,
+    backgroundColor: '#05070c',
+    borderBottomWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.1)',
+  },
+  cyberVisitorHeaderContent: {
+    paddingHorizontal: 18,
+    gap: 12,
+  },
+  retroArcadeVisitorHeaderContainer: {
+    height: 74,
+    marginTop: 10,
+    backgroundColor: '#ffde4a',
+    borderBottomWidth: 3,
+    borderColor: '#231f20',
+  },
+  retroArcadeVisitorHeaderContent: {
+    paddingHorizontal: 18,
+    gap: 12,
+  },
   visitorTab: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -4644,6 +5284,35 @@ const styles = StyleSheet.create({
     borderColor: '#231f20',
     transform: [{ translateY: -2 }, { rotate: '-1deg' }],
   },
+  cyberVisitorTab: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 4,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cyberVisitorTabActive: {
+    backgroundColor: 'rgba(0, 240, 255, 0.08)',
+  },
+  retroArcadeVisitorTab: {
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 18,
+    backgroundColor: '#ffffff',
+    borderColor: '#231f20',
+    borderWidth: 2,
+    shadowColor: '#231f20',
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 3,
+  },
+  retroArcadeVisitorTabActive: {
+    backgroundColor: '#ff3562',
+    borderColor: '#231f20',
+    transform: [{ translateY: -2 }, { rotate: '-1.5deg' }],
+  },
   visitorTabText: {
     color: MidnightColors.gold,
     fontSize: 14,
@@ -4685,6 +5354,133 @@ const styles = StyleSheet.create({
   },
   popVisitorTabTextActive: {
     color: '#ffffff',
+  },
+  cyberVisitorTabText: {
+    fontSize: 16,
+    fontFamily: Fonts.vt323.regular,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    color: 'rgba(0, 240, 255, 0.5)',
+  },
+  cyberVisitorTabTextActive: {
+    color: '#00f0ff',
+    fontFamily: Fonts.vt323.regular,
+    fontSize: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    textShadowColor: 'rgba(0, 240, 255, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 4,
+  },
+  retroArcadeVisitorTabText: {
+    fontSize: 13,
+    fontFamily: FunkyFonts.marker,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    color: '#231f20',
+  },
+  retroArcadeVisitorTabTextActive: {
+    color: '#ffffff',
+  },
+  cyberInfoBox: {
+    backgroundColor: '#05070c',
+    borderColor: 'rgba(0, 240, 255, 0.15)',
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 12,
+  },
+  cyberInfoInner: {
+    borderWidth: 1,
+    borderColor: 'rgba(0, 240, 255, 0.08)',
+    borderRadius: 6,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cyberInfoHeader: {
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  cyberInfoKicker: {
+    fontFamily: Fonts.vt323.regular,
+    fontSize: 16,
+    color: '#00f0ff',
+    letterSpacing: 1.5,
+  },
+  cyberVisitorDescription: {
+    fontFamily: Fonts.vt323.regular,
+    fontSize: 18,
+    lineHeight: 22,
+    textAlign: 'center',
+    color: '#e2eafc',
+    textTransform: 'uppercase',
+  },
+  cyberPartnersTitle: {
+    fontFamily: Fonts.vt323.regular,
+    fontSize: 28,
+    color: '#00f0ff',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  cyberPartnersSubtitle: {
+    fontFamily: Fonts.vt323.regular,
+    fontSize: 16,
+    color: 'rgba(0, 240, 255, 0.6)',
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: '85%',
+  },
+  cyberEmptyText: {
+    fontFamily: Fonts.vt323.regular,
+    fontSize: 18,
+    color: 'rgba(0, 240, 255, 0.5)',
+    textTransform: 'uppercase',
+    marginTop: 12,
+  },
+  cyberPartnerCard: {
+    backgroundColor: 'rgba(0, 240, 255, 0.02)',
+    borderColor: 'rgba(0, 240, 255, 0.15)',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 4,
+  },
+  cyberPartnerName: {
+    fontFamily: Fonts.vt323.regular,
+    fontSize: 20,
+    color: '#e2eafc',
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  cyberPartnerType: {
+    fontFamily: Fonts.vt323.regular,
+    fontSize: 14,
+    color: '#00f0ff',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  cyberGalleryKicker: {
+    marginBottom: 4,
+  },
+  cyberGalleryKickerText: {
+    fontFamily: Fonts.vt323.regular,
+    fontSize: 14,
+    color: 'rgba(0, 240, 255, 0.5)',
+    letterSpacing: 1.5,
+  },
+  cyberGalleryTitle: {
+    fontFamily: Fonts.vt323.regular,
+    fontSize: 26,
+    color: '#e2eafc',
+    textTransform: 'uppercase',
+  },
+  cyberPhotoCount: {
+    fontFamily: Fonts.vt323.regular,
+    fontSize: 16,
+    color: '#00f0ff',
+    marginTop: 2,
   },
 
   visitorContent: {

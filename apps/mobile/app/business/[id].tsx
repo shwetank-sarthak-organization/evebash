@@ -1209,10 +1209,6 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     fontFamily: 'Outfit_700Bold',
   },
-  backBtnLinkText: {
-    color: '#020617',
-    fontFamily: 'Outfit_700Bold',
-  },
   announcementCountBadge: {
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
     borderWidth: 1,

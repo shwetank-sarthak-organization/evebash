@@ -88,5 +88,8 @@ export const Fonts = {
   },
   permanentMarker: {
     regular: 'PermanentMarker_400Regular',
+  },
+  vt323: {
+    regular: 'VT323_400Regular',
   }
 };

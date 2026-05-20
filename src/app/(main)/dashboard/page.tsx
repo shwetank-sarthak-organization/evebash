@@ -106,7 +106,7 @@ function DashboardContent() {
     const searchParams = useSearchParams();
     const [view, setView] = useState<"main" | "manage" | "permissions">("main");
     const [manageMode, setManageMode] = useState<"list" | "add-event" | "add-image">("list");
-    const [manageLevel, setManageLevel] = useState<"events" | "galleries" | "photos">("events");
+    const [manageLevel, setManageLevel] = useState<"events" | "galleries" | "photos" | "event-details">("events");
     const [selectedMainEvent, setSelectedMainEvent] = useState<Event | null>(null);
     const [viewingPhoto, setViewingPhoto] = useState<any | null>(null);
     const [galleryViewMode, setGalleryViewMode] = useState<"grid" | "list">("grid");
@@ -403,7 +403,7 @@ function DashboardContent() {
         } else {
             // Root level: Fetch by identity pool
             const events = await getUserEvents(identifiers, type, parentId, selectedMainEvent?.legacyId);
-            let combinedEvents = [...events];
+            const combinedEvents = [...events];
 
             if (user.roleType === 'event') {
                 const assignedEvents = user.assignedEvents || [];

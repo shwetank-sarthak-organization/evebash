@@ -63,6 +63,7 @@ const MAPPING = {
   'eye.fill': 'visibility',
   'chevron.down': 'keyboard-arrow-down',
   'doc.on.doc.fill': 'content-copy',
+  'graduationcap.fill': 'school',
 } as const;
 
 type IconSymbolName = keyof typeof MAPPING;

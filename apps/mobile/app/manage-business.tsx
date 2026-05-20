@@ -829,7 +829,7 @@ export default function ManageBusinessScreen() {
                       {/* Customer Message */}
                       <View style={styles.leadMessageContainer}>
                         <Text style={styles.leadMessageLabel}>Customer Message:</Text>
-                        <Text style={styles.leadMessageContent}>"{enquiry.message}"</Text>
+                        <Text style={styles.leadMessageContent}>{"\""}{enquiry.message}{"\""}</Text>
                       </View>
 
                       {/* Contact Action Buttons */}

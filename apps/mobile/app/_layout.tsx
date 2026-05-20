@@ -28,6 +28,9 @@ import {
   PlayfairDisplay_600SemiBold,
   PlayfairDisplay_700Bold
 } from '@expo-google-fonts/playfair-display';
+import {
+  VT323_400Regular
+} from '@expo-google-fonts/vt323';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -95,6 +98,7 @@ export default function RootLayout() {
     PlayfairDisplay_400Regular_Italic,
     PlayfairDisplay_600SemiBold,
     PlayfairDisplay_700Bold,
+    VT323_400Regular,
     'Monofett_400Regular': require('../assets/fonts/Monofett-Regular.ttf'),
     'BubblegumSans_400Regular': require('../assets/fonts/BubblegumSans-Regular.ttf'),
     'PermanentMarker_400Regular': require('../assets/fonts/PermanentMarker-Regular.ttf'),
