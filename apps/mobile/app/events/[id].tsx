@@ -14,6 +14,10 @@ import { uploadEventImage } from '@/lib/storage';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import Sortable from 'react-native-sortables';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_GRID_GAP = 3;
@@ -62,8 +66,26 @@ export default function EventDetailScreen() {
   const [guestStatus, setGuestStatus] = useState<string | null>(null);
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
+  const [submittedIdentifier, setSubmittedIdentifier] = useState<string | null>(null);
 
   const [isOwner, setIsOwner] = useState(false);
+
+  const isPrivilegedViewer = React.useMemo(() => {
+    if (!user || !event) return false;
+    return (
+      user.role === 'admin' ||
+      user.uid === event.createdBy ||
+      (user.roleType === 'primary' && user.delegatedBy === event.createdBy) ||
+      !!user.assignedEvents?.some((eventId) =>
+        eventId === event.id ||
+        eventId === event.legacyId ||
+        eventId === event.parentId
+      )
+    );
+  }, [user, event]);
+
+  const canViewContent = isOwner || isPrivilegedViewer || guestStatus === 'approved';
+
   const [activeTab, setActiveTab] = useState<'galleries' | 'permissions' | 'design' | 'partners'>((tab as any) || 'galleries');
   const [linkingVendor, setLinkingVendor] = useState(false);
   const [vendorCode, setVendorCode] = useState('');
@@ -193,6 +215,7 @@ export default function EventDetailScreen() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [editTitle, setEditTitle] = useState('');
+  const [editTitleAlign, setEditTitleAlign] = useState<'left' | 'center' | 'right'>('left');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showShareModal, setShowShareModal] = useState(share === 'true');
   const [showApproved, setShowApproved] = useState(false);
@@ -575,18 +598,164 @@ export default function EventDetailScreen() {
     loadEvent();
   }, [id, user]);
 
+  useEffect(() => {
+    if (user) {
+      setGuestName(user.name || '');
+      const identifier = user.phone || user.email || user.uid || '';
+      setGuestPhone(identifier);
+      setSubmittedIdentifier(identifier);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const loadStoredGuestInfo = async () => {
+      if (!user) {
+        try {
+          const storedName = await AsyncStorage.getItem('@guest_name');
+          const storedPhone = await AsyncStorage.getItem('@guest_phone');
+          if (storedName) setGuestName(storedName);
+          if (storedPhone) {
+            setGuestPhone(storedPhone);
+            setSubmittedIdentifier(storedPhone);
+          }
+        } catch (e) {
+          console.error('[EventDetail] Failed to load guest info from storage:', e);
+        }
+      }
+    };
+    loadStoredGuestInfo();
+  }, [user]);
+
+  useEffect(() => {
+    if (!id || isOwner || isPrivilegedViewer) {
+      return;
+    }
+
+    let unsubscribe: (() => void) | null = null;
+    let isActive = true;
+
+    const checkGuestAccess = async () => {
+      const identifiers: string[] = [];
+      if (user) {
+        if (user.phone) identifiers.push(user.phone);
+        if (user.email) identifiers.push(user.email);
+        if (user.uid) identifiers.push(user.uid);
+      } else if (submittedIdentifier) {
+        const normalized = submittedIdentifier.replace(/\D/g, '');
+        if (normalized) identifiers.push(normalized);
+      }
+
+      if (identifiers.length === 0) {
+        if (isActive) setGuestStatus(null);
+        return;
+      }
+
+      let foundLogId: string | null = null;
+      let foundStatus: string | null = null;
+
+      for (const identifier of identifiers) {
+        const logId = `${identifier}_${id}`;
+        const docRef = doc(db, 'guests', logId);
+        try {
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            foundLogId = logId;
+            foundStatus = docSnap.data().status || 'pending';
+            break;
+          }
+        } catch (err) {
+          console.error('[GuestCheck] Error fetching document:', err);
+        }
+      }
+
+      if (!isActive) return;
+
+      if (foundLogId && foundStatus) {
+        setGuestStatus(foundStatus);
+        const docRef = doc(db, 'guests', foundLogId);
+        unsubscribe = onSnapshot(docRef, (snapshot) => {
+          if (snapshot.exists() && isActive) {
+            setGuestStatus(snapshot.data().status || 'pending');
+          }
+        });
+      } else {
+        setGuestStatus(null);
+      }
+    };
+
+    checkGuestAccess();
+
+    return () => {
+      isActive = false;
+      if (unsubscribe) unsubscribe();
+    };
+  }, [id, user, submittedIdentifier, isOwner, isPrivilegedViewer]);
+
   const handleGuestAccess = async () => {
-    if (!guestName || !guestPhone) return;
-    const logId = `${guestPhone}_${id}`;
+    const nameToSubmit = user ? (user.name || guestName || 'Guest') : guestName.trim();
+    const rawPhone = user ? (user.phone || user.email || user.uid) : guestPhone.trim();
+
+    if (!nameToSubmit) {
+      Alert.alert("Error", "Please enter your name.");
+      return;
+    }
+    if (!rawPhone) {
+      Alert.alert("Error", "Please enter your phone number or email.");
+      return;
+    }
+
+    const normalizedIdentifier = (!user && !rawPhone.includes('@'))
+      ? rawPhone.replace(/\D/g, '')
+      : rawPhone;
+
+    if (!normalizedIdentifier) {
+      Alert.alert("Error", "Invalid phone number or email.");
+      return;
+    }
+
     setUpdating(true);
     try {
-      await logGuestLogin(guestName, guestPhone, id, event?.parentId, event?.title, event?.createdBy, 'pending');
-      onGuestStatusChange(logId, (status) => setGuestStatus(status));
+      const success = await logGuestLogin(
+        nameToSubmit,
+        normalizedIdentifier,
+        id,
+        event?.parentId || event?.id,
+        event?.title,
+        event?.createdBy,
+        'pending'
+      );
+      if (success) {
+        if (!user) {
+          try {
+            await AsyncStorage.setItem('@guest_name', nameToSubmit);
+            await AsyncStorage.setItem('@guest_phone', normalizedIdentifier);
+          } catch (e) {
+            console.error('[GuestAccess] Failed to save credentials to AsyncStorage:', e);
+          }
+        }
+        setSubmittedIdentifier(normalizedIdentifier);
+        const logId = `${normalizedIdentifier}_${id}`;
+        setGuestStatus('pending');
+        const docRef = doc(db, 'guests', logId);
+        onSnapshot(docRef, (snapshot) => {
+          if (snapshot.exists()) {
+            setGuestStatus(snapshot.data().status || 'pending');
+          }
+        });
+      } else {
+        Alert.alert("Error", "Failed to send access request.");
+      }
     } catch (err) {
-      Alert.alert("Error", "Failed to send request.");
+      console.error('[GuestAccess] Request error:', err);
+      Alert.alert("Error", "An error occurred while sending the request.");
     } finally {
       setUpdating(false);
     }
+  };
+
+  const handleRequestAccessAgain = () => {
+    setGuestStatus(null);
+    setSubmittedIdentifier(null);
   };
 
   const handleChangeCover = async () => {
@@ -699,18 +868,19 @@ export default function EventDetailScreen() {
     if (!target || !editTitle.trim()) return;
     setUpdating(true);
     try {
-      const success = await updateEvent(target.id, { title: editTitle.trim() });
+      const success = await updateEvent(target.id, { title: editTitle.trim(), titleAlign: editTitleAlign });
       if (success) {
+        const updated = { title: editTitle.trim(), titleAlign: editTitleAlign };
         if (selectedAdminGallery) {
-          const newGallery = { ...selectedAdminGallery, title: editTitle.trim() };
+          const newGallery = { ...selectedAdminGallery, ...updated };
           setSelectedAdminGallery(newGallery);
           setSubEvents(prev => prev.map(sub => sub.id === selectedAdminGallery.id ? newGallery : sub));
         } else if (activeSubEvent && activeSubEvent.id === target.id) {
-          const newSub = { ...activeSubEvent, title: editTitle.trim() };
+          const newSub = { ...activeSubEvent, ...updated };
           setActiveSubEvent(newSub);
           setSubEvents(prev => prev.map(sub => sub.id === activeSubEvent.id ? newSub : sub));
         } else if (event) {
-          setEvent({ ...event, title: editTitle.trim() });
+          setEvent({ ...event, ...updated } as any);
         }
         setShowRenameModal(false);
       } else {
@@ -1252,6 +1422,280 @@ export default function EventDetailScreen() {
     if (words.length === 0) return ['W', 'E', 'D'];
     const letters = words.slice(0, 4).map(w => w.charAt(0).toUpperCase());
     return letters;
+  };
+
+  const renderGatedAccessPanel = () => {
+    const isRoyal = event?.templateId === 'royal';
+    const isClassic = event?.templateId === 'classic';
+    const isHero = event?.templateId === 'hero';
+    const isEthereal = event?.templateId === 'ethereal';
+    const isScrapbook = event?.templateId === 'scrapbook';
+    const isNeon = event?.templateId === 'neon';
+    const isPastel = event?.templateId === 'pastel';
+    const isPop = event?.templateId === 'pop';
+    const isGoldenYears = event?.templateId === 'golden_years';
+    const isVintageNoir = event?.templateId === 'vintage';
+    const isRoseGarden = event?.templateId === 'rose';
+    const isMinimalLove = event?.templateId === 'minimal_love';
+    const isCyberTech = event?.templateId === 'cyber_tech';
+    const isRetroArcade = event?.templateId === 'retro_arcade';
+    const isAcademicEditorial = event?.templateId === 'academic_editorial';
+    const isNeonCarnival = event?.templateId === 'neon_carnival';
+    const isGarden = event?.templateId === 'garden';
+
+    return (
+      <View style={[
+        styles.gatedCard,
+        {
+          backgroundColor: selectedTemplate.panel,
+          borderColor: isClassic ? 'rgba(0,0,0,0.05)' : selectedTemplate.accentBg,
+          borderRadius: selectedTemplate.radius,
+        },
+        isScrapbook && styles.scrapbookInfoBox,
+        isNeon && styles.neonInfoBox,
+        isPastel && styles.pastelInfoBox,
+        isPop && styles.popInfoBox,
+        isGoldenYears && styles.goldenInfoBox,
+        isVintageNoir && styles.vintageInfoBox,
+        isRoseGarden && styles.roseInfoBox,
+        isMinimalLove && styles.minimalInfoBox,
+        isCyberTech && styles.cyberInfoBox,
+        isRetroArcade && styles.retroArcadeInfoBox,
+        isNeonCarnival && styles.neonCarnivalInfoBox,
+        isGarden && styles.gardenInfoBox,
+        isClassic && {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.04,
+          shadowRadius: 2,
+          elevation: 1,
+          borderWidth: 1,
+        },
+        isRoyal && {
+          borderWidth: 1,
+          borderColor: 'rgba(204, 164, 59, 0.35)',
+          borderRadius: 12,
+          padding: 10,
+        },
+        isHero && {
+          borderWidth: 0.8,
+          borderColor: '#cca43b',
+          borderRadius: 4,
+          padding: 12,
+        },
+        isEthereal && {
+          borderWidth: 1,
+          borderColor: selectedTemplate.accent + '4d',
+          borderRadius: 2,
+          padding: 8,
+        },
+        isAcademicEditorial && {
+          borderWidth: 1,
+          borderColor: selectedTemplate.text,
+          borderRadius: 0,
+          padding: 6,
+        }
+      ]}>
+        <View style={[
+          styles.gatedInner,
+          isScrapbook && styles.scrapbookInfoInner,
+          isNeon && styles.neonInfoInner,
+          isPastel && styles.pastelInfoInner,
+          isPop && styles.popInfoInner,
+          isGoldenYears && styles.goldenInfoInner,
+          isVintageNoir && styles.vintageInfoInner,
+          isRoseGarden && styles.roseInfoInner,
+          isMinimalLove && styles.minimalInfoInner,
+          isCyberTech && styles.cyberInfoInner,
+          isRetroArcade && styles.retroArcadeInfoInner,
+          isNeonCarnival && styles.neonCarnivalInfoInner,
+          isGarden && styles.gardenInfoInner,
+          isRoyal && {
+            borderWidth: 1,
+            borderColor: 'rgba(204, 164, 59, 0.15)',
+            borderRadius: 8,
+            paddingVertical: 24,
+            paddingHorizontal: 20,
+            alignItems: 'center',
+          },
+          isHero && {
+            borderWidth: 0.8,
+            borderColor: 'rgba(204, 164, 59, 0.25)',
+            borderRadius: 2,
+            paddingVertical: 24,
+            paddingHorizontal: 20,
+            alignItems: 'center',
+          },
+          isEthereal && {
+            borderWidth: 0.5,
+            borderColor: selectedTemplate.accent + '33',
+            borderRadius: 1,
+            paddingVertical: 24,
+            paddingHorizontal: 20,
+            alignItems: 'center',
+          },
+          isAcademicEditorial && {
+            borderWidth: 0.5,
+            borderColor: selectedTemplate.text + '26',
+            borderRadius: 0,
+            paddingVertical: 24,
+            paddingHorizontal: 20,
+            alignItems: 'center',
+            backgroundColor: selectedTemplate.background,
+          }
+        ]}>
+          {guestStatus === 'pending' ? (
+            <View style={styles.gatedContentCenter}>
+              <View style={[
+                styles.gatedIconWrapper,
+                { backgroundColor: selectedTemplate.accentBg }
+              ]}>
+                <IconSymbol name="clock.fill" size={32} color={selectedTemplate.accent} />
+              </View>
+              <Text style={[
+                styles.gatedTitle,
+                { color: selectedTemplate.text },
+                selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' }
+              ]}>
+                Request Pending
+              </Text>
+              <Text style={[
+                styles.gatedDesc,
+                { color: selectedTemplate.muted },
+                selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
+              ]}>
+                Your access request has been sent to the host. You will be able to view photos and write in the guestbook once approved.
+              </Text>
+              
+              <View style={[
+                styles.statusBadge,
+                { backgroundColor: selectedTemplate.accentBg, borderColor: selectedTemplate.accent }
+              ]}>
+                <Text style={[styles.statusBadgeText, { color: selectedTemplate.accent }]}>
+                  Pending Approval
+                </Text>
+              </View>
+            </View>
+          ) : guestStatus === 'rejected' ? (
+            <View style={styles.gatedContentCenter}>
+              <View style={[
+                styles.gatedIconWrapper,
+                { backgroundColor: 'rgba(239, 68, 68, 0.1)' }
+              ]}>
+                <IconSymbol name="shield.fill" size={32} color="#ef4444" />
+              </View>
+              <Text style={[
+                styles.gatedTitle,
+                { color: selectedTemplate.text },
+                selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' }
+              ]}>
+                Access Restricted
+              </Text>
+              <Text style={[
+                styles.gatedDesc,
+                { color: selectedTemplate.muted },
+                selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
+              ]}>
+                Your request to join this private gallery was declined by the host. Please check your details and try again.
+              </Text>
+              
+              <TouchableOpacity
+                style={[
+                  styles.gatedBtn,
+                  { backgroundColor: selectedTemplate.accent, borderRadius: selectedTemplate.radius || 12 }
+                ]}
+                onPress={handleRequestAccessAgain}
+              >
+                <Text style={[
+                  styles.gatedBtnText,
+                  { color: isThemeDark || isRoyal || isHero ? '#000000' : '#ffffff' }
+                ]}>
+                  Request Access Again
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={{ width: '100%', alignItems: 'center' }}>
+              <View style={[
+                styles.gatedIconWrapper,
+                { backgroundColor: selectedTemplate.accentBg }
+              ]}>
+                <IconSymbol name="lock.fill" size={32} color={selectedTemplate.accent} />
+              </View>
+              <Text style={[
+                styles.gatedTitle,
+                { color: selectedTemplate.text },
+                selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' }
+              ]}>
+                Private Event
+              </Text>
+              <Text style={[
+                styles.gatedDesc,
+                { color: selectedTemplate.muted },
+                selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
+              ]}>
+                This event is private. Please request access to view the event memories.
+              </Text>
+
+              {!user && (
+                <View style={{ width: '100%', marginTop: 8 }}>
+                  <TextInput
+                    style={[
+                      styles.gatedInput,
+                      {
+                        backgroundColor: isThemeDark ? 'rgba(255,255,255,0.03)' : '#ffffff',
+                        borderColor: isThemeDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0',
+                        color: selectedTemplate.text,
+                      }
+                    ]}
+                    value={guestName}
+                    onChangeText={setGuestName}
+                    placeholder="Your Name"
+                    placeholderTextColor={selectedTemplate.muted}
+                  />
+                  <TextInput
+                    style={[
+                      styles.gatedInput,
+                      {
+                        backgroundColor: isThemeDark ? 'rgba(255,255,255,0.03)' : '#ffffff',
+                        borderColor: isThemeDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0',
+                        color: selectedTemplate.text,
+                      }
+                    ]}
+                    value={guestPhone}
+                    onChangeText={setGuestPhone}
+                    placeholder="Phone Number"
+                    placeholderTextColor={selectedTemplate.muted}
+                    keyboardType="phone-pad"
+                  />
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.gatedBtn,
+                  { backgroundColor: selectedTemplate.accent, borderRadius: selectedTemplate.radius || 12 },
+                  updating && { opacity: 0.7 }
+                ]}
+                onPress={handleGuestAccess}
+                disabled={updating}
+              >
+                {updating ? (
+                  <ActivityIndicator color={isThemeDark || isRoyal || isHero ? '#000000' : '#ffffff'} />
+                ) : (
+                  <Text style={[
+                    styles.gatedBtnText,
+                    { color: isThemeDark || isRoyal || isHero ? '#000000' : '#ffffff' }
+                  ]}>
+                    Request Access
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </View>
+    );
   };
 
   return (
@@ -2444,7 +2888,8 @@ export default function EventDetailScreen() {
                   isVintageTemplate && styles.vintageHeroTitle,
                   isRoseTemplate && styles.roseHeroTitle,
                   isMinimalLoveTemplate && styles.minimalHeroTitle,
-                  selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' }
+                  selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' },
+                  { textAlign: (currentActiveEvent as any)?.titleAlign || (event as any)?.titleAlign || 'left' }
                 ]}>
                   {currentActiveEvent?.title || event.title}
                 </Text>
@@ -2453,6 +2898,7 @@ export default function EventDetailScreen() {
                     style={styles.renameHeroBtn}
                     onPress={() => {
                       setEditTitle(currentActiveEvent?.title || event.title);
+                      setEditTitleAlign((currentActiveEvent as any)?.titleAlign || (event as any)?.titleAlign || 'left');
                       setShowRenameModal(true);
                     }}
                   >
@@ -2460,63 +2906,66 @@ export default function EventDetailScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-              <View style={[
-                styles.heroMeta,
-                isNeonTemplate && styles.neonHeroMeta,
-                isPastelTemplate && styles.pastelHeroMeta,
-                isPopTemplate && styles.popHeroMeta,
-                isGoldenYearsTemplate && styles.goldenHeroMeta,
-                isVintageTemplate && styles.vintageHeroMeta,
-                isRoseTemplate && styles.roseHeroMeta,
-                isMinimalLoveTemplate && styles.minimalHeroMeta,
-              ]}>
-                <IconSymbol name="calendar" size={12} color={selectedTemplate.accent} />
-                <Text style={[
-                  styles.heroDate,
-                  { color: selectedTemplate.accent },
-                  isNeonTemplate && styles.neonHeroDate,
-                  isPastelTemplate && styles.pastelHeroDate,
-                  isPopTemplate && styles.popHeroDate,
-                  isAnniversaryTemplate && styles.anniversaryHeroDate,
-                  selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic', letterSpacing: 2 }
-                ]}>{currentActiveEvent?.date || event.date}</Text>
-                {showAdminView && (
-                  <TouchableOpacity
-                    style={styles.editDateBtn}
-                    onPress={() => setShowDatePicker(true)}
-                  >
-                    <IconSymbol name="pencil" size={12} color={selectedTemplate.accent} />
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              <TouchableOpacity
-                style={[
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                <View style={[
                   styles.heroMeta,
-                  { marginTop: 12 },
-                  isNeonTemplate && styles.neonShareButton,
-                  isPastelTemplate && styles.pastelShareButton,
-                  isPopTemplate && styles.popShareButton,
-                  isAnniversaryTemplate && styles.anniversaryShareButton,
-                ]}
-                onPress={handleShare}
-              >
-                <IconSymbol name="square.and.arrow.up" size={12} color={selectedTemplate.accent} />
-                <Text style={[
-                  styles.heroDate,
-                  { color: selectedTemplate.accent },
-                  isNeonTemplate && styles.neonHeroDate,
-                  isPastelTemplate && styles.pastelHeroDate,
-                  isPopTemplate && styles.popHeroDate,
-                  isAnniversaryTemplate && styles.anniversaryHeroDate,
-                ]}>Share Event</Text>
-              </TouchableOpacity>
+                  { marginTop: 0 },
+                  isNeonTemplate && styles.neonHeroMeta,
+                  isPastelTemplate && styles.pastelHeroMeta,
+                  isPopTemplate && styles.popHeroMeta,
+                  isGoldenYearsTemplate && styles.goldenHeroMeta,
+                  isVintageTemplate && styles.vintageHeroMeta,
+                  isRoseTemplate && styles.roseHeroMeta,
+                  isMinimalLoveTemplate && styles.minimalHeroMeta,
+                ]}>
+                  <IconSymbol name="calendar" size={12} color={selectedTemplate.accent} />
+                  <Text style={[
+                    styles.heroDate,
+                    { color: selectedTemplate.accent },
+                    isNeonTemplate && styles.neonHeroDate,
+                    isPastelTemplate && styles.pastelHeroDate,
+                    isPopTemplate && styles.popHeroDate,
+                    isAnniversaryTemplate && styles.anniversaryHeroDate,
+                    selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic', letterSpacing: 2 }
+                  ]}>{currentActiveEvent?.date || event.date}</Text>
+                  {showAdminView && (
+                    <TouchableOpacity
+                      style={styles.editDateBtn}
+                      onPress={() => setShowDatePicker(true)}
+                    >
+                      <IconSymbol name="pencil" size={12} color={selectedTemplate.accent} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.heroMeta,
+                    { marginTop: 0 },
+                    isNeonTemplate && styles.neonShareButton,
+                    isPastelTemplate && styles.pastelShareButton,
+                    isPopTemplate && styles.popShareButton,
+                    isAnniversaryTemplate && styles.anniversaryShareButton,
+                  ]}
+                  onPress={handleShare}
+                >
+                  <IconSymbol name="square.and.arrow.up" size={12} color={selectedTemplate.accent} />
+                  <Text style={[
+                    styles.heroDate,
+                    { color: selectedTemplate.accent },
+                    isNeonTemplate && styles.neonHeroDate,
+                    isPastelTemplate && styles.pastelHeroDate,
+                    isPopTemplate && styles.popHeroDate,
+                    isAnniversaryTemplate && styles.anniversaryHeroDate,
+                  ]}>Share Event</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </View>
 
         {/* Visitor Navigation Tabs placed BELOW the Cover Photo screen */}
-        {!showAdminView && renderVisitorHeader()}
+        {!showAdminView && canViewContent && renderVisitorHeader()}
 
         {/* ── CONTENT ── */}
         <View style={[styles.content, showAdminView && { paddingBottom: 60 + insets.bottom }]}>
@@ -3329,8 +3778,12 @@ export default function EventDetailScreen() {
             </>
           ) : (
             <>
-              {/* ── VISITOR IMMERSIVE CONTENT ── */}
-              <View style={[styles.visitorContent, { backgroundColor: selectedTemplate.background }]}>
+              {!canViewContent ? (
+                renderGatedAccessPanel()
+              ) : (
+                <>
+                  {/* ── VISITOR IMMERSIVE CONTENT ── */}
+                  <View style={[styles.visitorContent, { backgroundColor: selectedTemplate.background }]}>
                 {(event as any).showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && (
                   <View style={[
                     styles.mainInfoBox,
@@ -4224,7 +4677,9 @@ export default function EventDetailScreen() {
                     </TouchableOpacity>
                   </View>
                 )}
-              </View>
+                  </View>
+                </>
+              )}
             </>
           )}
         </View>
@@ -4594,17 +5049,35 @@ export default function EventDetailScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowRenameModal(false)} />
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Rename Event</Text>
+            {/* Header */}
+            <Text style={styles.modalTitle}>Edit Event Title</Text>
+
+            {/* Multiline text input */}
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  minHeight: 90,
+                  textAlignVertical: 'top',
+                  paddingTop: 12,
+                }
+              ]}
               value={editTitle}
               onChangeText={setEditTitle}
               placeholder="Event Name"
               placeholderTextColor={MidnightColors.slate400}
               autoFocus
+              multiline
+              blurOnSubmit={false}
             />
+
+            {/* Helper hint */}
+            <Text style={{ fontSize: 11, color: MidnightColors.slate400, marginTop: 6, marginBottom: 12 }}>
+              Tip: Press Enter / Return to add a new line.
+            </Text>
+
             <TouchableOpacity style={styles.submitBtn} onPress={handleRenameEvent} disabled={updating}>
-              <Text style={styles.submitBtnText}>{updating ? 'Updating...' : 'Save Name'}</Text>
+              <Text style={styles.submitBtnText}>{updating ? 'Updating...' : 'Save Title'}</Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -10886,5 +11359,74 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     letterSpacing: 0.2,
+  },
+  gatedCard: {
+    borderWidth: 1,
+    padding: 12,
+    marginHorizontal: 16,
+    marginTop: 2,
+    marginBottom: 20,
+  },
+  gatedInner: {
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gatedContentCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  gatedIconWrapper: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  gatedTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  gatedDesc: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+    paddingHorizontal: 12,
+  },
+  gatedInput: {
+    width: '100%',
+    height: 50,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    fontSize: 15,
+  },
+  gatedBtn: {
+    width: '100%',
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  gatedBtnText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  statusBadge: {
+    borderWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 99,
+  },
+  statusBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

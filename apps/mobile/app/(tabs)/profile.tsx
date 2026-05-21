@@ -19,7 +19,8 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { getFollowersCount, getFollowingCount, updateUserPrivacy, isUsernameUnique, updateUserProfile } from '@/lib/firestore';
+import { updateUserPrivacy, isUsernameUnique, updateUserProfile } from '@/lib/firestore';
+import { collection, query, where, onSnapshot, getFirestore } from 'firebase/firestore';
 import { uploadProfileImage } from '@/lib/storage';
 
 const { width } = Dimensions.get('window');
@@ -173,18 +174,30 @@ export default function ProfileScreen() {
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (user?.uid) {
-        const [followers, following] = await Promise.all([
-          getFollowersCount(user.uid),
-          getFollowingCount(user.uid)
-        ]);
-        setStats({ followers, following });
-        if (user.isPrivate !== undefined) setIsPrivate(user.isPrivate);
-      }
+    if (!user?.uid) return;
+
+    const db = getFirestore();
+    const relCol = collection(db, 'relationships');
+
+    // Real-time listener for followers count (people who follow ME)
+    const followersQ = query(relCol, where('followedId', '==', user.uid));
+    const unsubFollowers = onSnapshot(followersQ, (snap) => {
+      setStats((prev) => ({ ...prev, followers: snap.size }));
+    });
+
+    // Real-time listener for following count (people I follow)
+    const followingQ = query(relCol, where('followerId', '==', user.uid));
+    const unsubFollowing = onSnapshot(followingQ, (snap) => {
+      setStats((prev) => ({ ...prev, following: snap.size }));
+    });
+
+    if (user.isPrivate !== undefined) setIsPrivate(user.isPrivate);
+
+    return () => {
+      unsubFollowers();
+      unsubFollowing();
     };
-    fetchData();
-  }, [user]);
+  }, [user?.uid]);
 
   const togglePrivacy = async () => {
     if (!user?.uid || updatingPrivacy) return;
