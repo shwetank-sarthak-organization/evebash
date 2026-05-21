@@ -136,6 +136,7 @@ function DashboardContent() {
 
     // Form State
     const [eventName, setEventName] = useState("");
+    const [eventDate, setEventDate] = useState("");
     const [selectedEventId, setSelectedEventId] = useState("");
     const [selectedEventName, setSelectedEventName] = useState("");
     const [status, setStatus] = useState<"idle" | "uploading" | "success" | "error">("idle");
@@ -210,6 +211,7 @@ function DashboardContent() {
     const [activeMenu, setActiveMenu] = useState<string | null>(null);
     const [renamingEvent, setRenamingEvent] = useState<Event | null>(null);
     const [newTitle, setNewTitle] = useState("");
+    const [newDate, setNewDate] = useState("");
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
     // Template Selection State
@@ -761,7 +763,7 @@ function DashboardContent() {
             const newEvent: Event = {
                 id: eventId,
                 title: eventName,
-                date: new Date().toLocaleDateString(),
+                date: eventDate.trim() || new Date().toLocaleDateString(),
                 coverImage: randomPlaceholder,
                 description: isSubEvent ? `Gallery of ${selectedMainEvent.title}` : `Main Event: ${eventName}`,
                 createdBy: user.uid, // Using secure UID for new events
@@ -775,6 +777,7 @@ function DashboardContent() {
             setStatus("success");
             setMessage("Event created! Click it to add images. ✨");
             setEventName("");
+            setEventDate("");
             setSelectedTemplate("hero"); // Reset to default
             fetchUserEvents();
 
@@ -962,6 +965,42 @@ function DashboardContent() {
         }
     };
 
+    const handleSubEventCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !selectedEventId || !user) return;
+
+        setStatus("uploading");
+        setMessage("Optimizing and uploading cover picture...");
+
+        try {
+            const optimizedFile = await compressImage(file);
+            if (optimizedFile.size !== file.size) {
+                console.log(`[Dashboard] Optimized sub-event cover: ${Math.round(file.size / 1024 / 1024 * 10) / 10}MB -> ${Math.round(optimizedFile.size / 1024 / 1024 * 10) / 10}MB`);
+            }
+
+            const uploadResult = await uploadEventImage(optimizedFile, selectedEventId, user.uid || "anonymous");
+            await updateEvent(selectedEventId, { coverImage: uploadResult.url });
+
+            setStatus("success");
+            setMessage("Cover picture updated! ✨");
+
+            await fetchUserEvents();
+
+            setTimeout(() => {
+                setStatus("idle");
+                setMessage("");
+            }, 2000);
+        } catch (err: any) {
+            console.error("Error uploading sub-event cover:", err);
+            setStatus("error");
+            setMessage("Failed to update cover picture.");
+            setTimeout(() => {
+                setStatus("idle");
+                setMessage("");
+            }, 3000);
+        }
+    };
+
     const openUploadForEvent = (eventId: string, title: string) => {
         const params = new URLSearchParams(searchParams);
         params.set("view", "manage");
@@ -982,6 +1021,7 @@ function DashboardContent() {
         e.stopPropagation();
         setRenamingEvent(evt);
         setNewTitle(evt.title);
+        setNewDate(evt.date || "");
         setActiveMenu(null);
     };
 
@@ -991,18 +1031,26 @@ function DashboardContent() {
 
         // Optimistic Update
         const updatedEvents = userEvents.map(evt =>
-            evt.id === renamingEvent.id ? { ...evt, title: newTitle } : evt
+            evt.id === renamingEvent.id ? { ...evt, title: newTitle, date: newDate } : evt
         );
         setUserEvents(updatedEvents);
 
+        const currentRenamingEvent = renamingEvent;
         setRenamingEvent(null);
         setNewTitle("");
-        setMessage("Event renamed! ✍️");
+        setNewDate("");
+        setMessage(currentRenamingEvent.type === "sub" ? "Gallery updated! ✍️" : "Event updated! ✍️");
         setStatus("success");
         setTimeout(() => setStatus("idle"), 2000);
 
         try {
-            await updateEvent(renamingEvent.id, { title: newTitle });
+            await updateEvent(currentRenamingEvent.id, { title: newTitle, date: newDate });
+            if (currentRenamingEvent.id === selectedEventId) {
+                setSelectedEventName(newTitle);
+            }
+            if (selectedMainEvent && currentRenamingEvent.id === selectedMainEvent.id) {
+                setSelectedMainEvent(prev => prev ? { ...prev, title: newTitle, date: newDate } : null);
+            }
         } catch (error) {
             console.error("Failed to rename event:", error);
             setMessage("Failed to save changes.");
@@ -1106,6 +1154,8 @@ function DashboardContent() {
     };
 
     const ownEventIdentifiers = new Set([user.uid, user.email].filter(Boolean) as string[]);
+    const activeSubEvent = userEvents.find(e => e.id === selectedEventId);
+    const coverUrl = activeSubEvent?.coverImage || "/placeholder-event.jpg";
     const createdEvents = userEvents.filter(evt => evt.createdBy && ownEventIdentifiers.has(evt.createdBy));
     const sharedEvents = userEvents.filter(evt => !evt.createdBy || !ownEventIdentifiers.has(evt.createdBy));
     const permissionMainEvents = userEvents.filter(e => e.type === 'main' || (!e.type && !e.parentId));
@@ -1595,6 +1645,17 @@ function DashboardContent() {
                                             />
                                         </div>
 
+                                        <div>
+                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-700 mb-4 ml-1">Date</label>
+                                            <input
+                                                type="text"
+                                                value={eventDate}
+                                                onChange={(e) => setEventDate(e.target.value)}
+                                                placeholder="e.g. 12 May 2026"
+                                                className="w-full px-6 py-5 bg-stone-50 border border-stone-200 rounded-3xl focus:ring-2 focus:ring-royal-gold focus:border-transparent transition-all outline-none text-xl font-medium"
+                                            />
+                                        </div>
+
                                         {manageLevel === "events" && (
                                             <div>
                                                 <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-700 mb-4 ml-1">Choose Style</label>
@@ -1660,6 +1721,59 @@ function DashboardContent() {
                                     animate={{ opacity: 1, scale: 1 }}
                                     className="max-w-7xl mx-auto bg-white p-8 md:p-12 rounded-[2.5rem] shadow-xl border border-stone-100"
                                 >
+                                    {/* Sub-event Cover Banner */}
+                                    <div className="relative w-full h-64 md:h-80 rounded-[2rem] overflow-hidden mb-8 group/cover shadow-md border border-stone-100">
+                                        <img
+                                            src={coverUrl}
+                                            alt={`${selectedEventName} Cover`}
+                                            className="w-full h-full object-cover transition-transform duration-700 group-hover/cover:scale-105"
+                                        />
+                                        {/* Elegant dark overlay */}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/40 transition-opacity duration-300" />
+                                        
+                                        {/* Floating Glassmorphic "Change Cover" Button */}
+                                        <div className="absolute top-6 right-6 z-10">
+                                            <label className="flex items-center space-x-2 px-5 py-3 bg-white/20 hover:bg-white/30 active:bg-white/40 backdrop-blur-md text-white rounded-full text-sm font-bold cursor-pointer transition-all border border-white/30 shadow-lg active:scale-95">
+                                                <Camera className="w-4 h-4" />
+                                                <span>Change Cover</span>
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={handleSubEventCoverUpload}
+                                                    className="hidden"
+                                                    disabled={status === "uploading"}
+                                                />
+                                            </label>
+                                        </div>
+
+                                        {/* Information overlay */}
+                                        <div className="absolute bottom-6 left-8 right-8 flex items-end justify-between">
+                                            <div className="text-white">
+                                                <span className="text-[10px] font-sans font-bold uppercase tracking-[0.2em] text-royal-gold">Sub-Event Cover</span>
+                                                <div className="flex items-center space-x-3 mt-1">
+                                                    <h4 className="text-2xl md:text-3xl font-bold font-serif tracking-tight">{selectedEventName}</h4>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            if (activeSubEvent) {
+                                                                handleRenameClick(e, activeSubEvent);
+                                                            }
+                                                        }}
+                                                        className="p-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-lg text-white transition-all active:scale-95 border border-white/20"
+                                                        title="Rename sub-event"
+                                                    >
+                                                        <Pencil className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                                {activeSubEvent?.date && (
+                                                    <p className="text-xs text-stone-200 mt-1.5 font-sans flex items-center gap-1.5">
+                                                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-royal-gold" />
+                                                        {activeSubEvent.date}
+                                                     </p>
+                                                 )}
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-10">
                                         <div>
                                             <h3 className="text-3xl font-bold tracking-tight">Gallery Editor</h3>
@@ -2473,7 +2587,9 @@ function DashboardContent() {
                                 exit={{ opacity: 0, scale: 0.9 }}
                                 className="bg-white rounded-[2.5rem] p-8 md:p-12 w-full max-w-md shadow-2xl"
                             >
-                                <h3 className="text-2xl font-bold mb-6 italic tracking-tight">Rename Event</h3>
+                                <h3 className="text-2xl font-bold mb-6 italic tracking-tight">
+                                    {renamingEvent.type === "sub" ? "Edit Gallery Details" : "Edit Event Details"}
+                                </h3>
                                 <form onSubmit={handleRenameSubmit} className="space-y-6">
                                     <div>
                                         <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-700 mb-4 ml-1">New Name</label>
@@ -2486,10 +2602,24 @@ function DashboardContent() {
                                             autoFocus
                                         />
                                     </div>
+                                    <div>
+                                        <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-700 mb-4 ml-1">Date</label>
+                                        <input
+                                            type="text"
+                                            value={newDate}
+                                            onChange={(e) => setNewDate(e.target.value)}
+                                            placeholder="e.g. 12 May 2026"
+                                            className="w-full px-6 py-4 bg-stone-50 border border-stone-200 rounded-2xl focus:ring-2 focus:ring-royal-gold focus:border-transparent transition-all outline-none text-lg font-medium"
+                                        />
+                                    </div>
                                     <div className="flex space-x-3 pt-2">
                                         <button
                                             type="button"
-                                            onClick={() => setRenamingEvent(null)}
+                                            onClick={() => {
+                                                setRenamingEvent(null);
+                                                setNewTitle("");
+                                                setNewDate("");
+                                            }}
                                             className="flex-1 py-4 px-6 border border-stone-200 rounded-2xl font-bold text-stone-600 hover:bg-stone-50 transition-all active:scale-95"
                                             title="Discard changes"
                                         >
@@ -2499,7 +2629,7 @@ function DashboardContent() {
                                             type="submit"
                                             disabled={status === "uploading"}
                                             className="flex-1 py-4 px-6 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-95 disabled:bg-stone-300"
-                                            title="Save new name"
+                                            title="Save changes"
                                         >
                                             {status === "uploading" ? "Saving..." : "Save Changes"}
                                         </button>

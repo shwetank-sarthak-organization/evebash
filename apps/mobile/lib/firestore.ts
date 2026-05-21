@@ -48,6 +48,7 @@ export interface Event {
     coverOffsetX?: number;
     coverScale?: number;
     coverMode?: 'fit' | 'fill';
+    order?: number;
 }
 
 export interface Photo {
@@ -378,6 +379,10 @@ export async function getSubEvents(parentId: string, legacyParentId?: string): P
         const subEvents = snapshot.docs
             .map(mapDocToEvent)
             .filter(e => e.id !== parentId && (!legacyParentId || e.id !== legacyParentId));
+        const hasOrder = subEvents.some(s => typeof s.order === 'number');
+        if (hasOrder) {
+            return subEvents.sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999));
+        }
         return subEvents.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
     } catch (error) {
         console.error("Error fetching sub-events:", error);
@@ -416,6 +421,21 @@ export async function updatePhotosOrder(orderedIds: string[]): Promise<boolean> 
         return true;
     } catch (error) {
         console.error("Error updating photo order:", error);
+        return false;
+    }
+}
+
+/** Save the display order for a batch of sub-events/galleries (called after drag-reorder in admin) */
+export async function updateSubEventsOrder(orderedIds: string[]): Promise<boolean> {
+    try {
+        await Promise.all(
+            orderedIds.map((id, index) =>
+                updateDoc(doc(db, "events", id), { order: index })
+            )
+        );
+        return true;
+    } catch (error) {
+        console.error("Error updating sub-events order:", error);
         return false;
     }
 }

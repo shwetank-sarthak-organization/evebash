@@ -5,7 +5,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event as FirestoreEvent, updateEvent, createEvent, getGuestLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, onPhotoInteractions, toggleLike, addComment, deletePhotoComment, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder } from '@/lib/firestore';
+import { getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event as FirestoreEvent, updateEvent, createEvent, getGuestLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, onPhotoInteractions, toggleLike, addComment, deletePhotoComment, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { MOBILE_TEMPLATE_THEMES } from '../../constants/templates';
@@ -201,11 +201,6 @@ export default function EventDetailScreen() {
   const [photos, setPhotos] = useState<any[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
 
-  const activeCoverMode = activeSubEvent ? activeSubEvent.coverMode : event?.coverMode;
-  const activeCoverOffset = activeSubEvent ? activeSubEvent.coverOffset : event?.coverOffset;
-  const activeCoverOffsetX = activeSubEvent ? activeSubEvent.coverOffsetX : event?.coverOffsetX;
-  const activeCoverScale = activeSubEvent ? activeSubEvent.coverScale : event?.coverScale;
-
   // Gallery Welcome Text Settings State
   const [galleryDescModalVisible, setGalleryDescModalVisible] = useState(false);
   const [galleryDescText, setGalleryDescText] = useState('');
@@ -213,6 +208,15 @@ export default function EventDetailScreen() {
   // Admin Gallery Manager — which gallery is the host currently managing
   // null = Home gallery, FirestoreEvent = a sub-event gallery
   const [selectedAdminGallery, setSelectedAdminGallery] = useState<FirestoreEvent | null | undefined>(undefined);
+
+  const currentActiveEvent = selectedAdminGallery !== undefined
+    ? (selectedAdminGallery || event)
+    : (activeSubEvent || event);
+
+  const activeCoverMode = currentActiveEvent ? currentActiveEvent.coverMode : event?.coverMode;
+  const activeCoverOffset = currentActiveEvent ? currentActiveEvent.coverOffset : event?.coverOffset;
+  const activeCoverOffsetX = currentActiveEvent ? currentActiveEvent.coverOffsetX : event?.coverOffsetX;
+  const activeCoverScale = currentActiveEvent ? currentActiveEvent.coverScale : event?.coverScale;
 
   // Image Viewer State
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -482,6 +486,16 @@ export default function EventDetailScreen() {
     }
   };
 
+  const handleReorderSubEvents = async (newOrder: any[]) => {
+    const reorderedIds = newOrder.map((s: any) => s.id);
+    setSubEvents(newOrder);
+    try {
+      await updateSubEventsOrder(reorderedIds);
+    } catch (err) {
+      console.error('[ReorderSubEvents] Error saving order:', err);
+    }
+  };
+
   const handleDeleteGalleryPhoto = async (photoId: string) => {
     Alert.alert(
       "Delete Photo",
@@ -584,12 +598,12 @@ export default function EventDetailScreen() {
     });
 
     if (!result.canceled) {
-      const target = activeSubEvent || event;
+      const target = currentActiveEvent;
       if (!target) return;
       setUpdating(true);
       try {
         const file = { uri: result.assets[0].uri, name: 'cover.jpg', type: 'image/jpeg' } as any;
-        const upload = await uploadEventImage(file, event.id, user?.uid || 'anon');
+        const upload = await uploadEventImage(file, event?.id || target.id, user?.uid || 'anon');
         
         const updatedFields = {
           coverImage: upload.url,
@@ -598,7 +612,11 @@ export default function EventDetailScreen() {
           coverScale: 1.0
         };
 
-        if (activeSubEvent) {
+        if (selectedAdminGallery) {
+          const newSub = { ...selectedAdminGallery, ...updatedFields };
+          setSelectedAdminGallery(newSub);
+          setSubEvents(prev => prev.map(sub => sub.id === selectedAdminGallery.id ? newSub : sub));
+        } else if (activeSubEvent && activeSubEvent.id === target.id) {
           const newSub = { ...activeSubEvent, ...updatedFields };
           setActiveSubEvent(newSub);
           setSubEvents(prev => prev.map(sub => sub.id === activeSubEvent.id ? newSub : sub));
@@ -630,7 +648,8 @@ export default function EventDetailScreen() {
         createdBy: user?.uid,
         type: 'sub',
         parentId: event.id,
-        templateId: event.templateId || 'hero'
+        templateId: event.templateId || 'hero',
+        order: subEvents.length
       });
       setNewSubTitle('');
       setShowSubEventModal(false);
@@ -676,16 +695,26 @@ export default function EventDetailScreen() {
   };
 
   const handleRenameEvent = async () => {
-    if (!event || !editTitle.trim()) return;
+    const target = currentActiveEvent;
+    if (!target || !editTitle.trim()) return;
     setUpdating(true);
     try {
-      const success = await updateEvent(event.id, { title: editTitle.trim() });
+      const success = await updateEvent(target.id, { title: editTitle.trim() });
       if (success) {
-        // Update local state immediately for snappiness
-        setEvent({ ...event, title: editTitle.trim() });
+        if (selectedAdminGallery) {
+          const newGallery = { ...selectedAdminGallery, title: editTitle.trim() };
+          setSelectedAdminGallery(newGallery);
+          setSubEvents(prev => prev.map(sub => sub.id === selectedAdminGallery.id ? newGallery : sub));
+        } else if (activeSubEvent && activeSubEvent.id === target.id) {
+          const newSub = { ...activeSubEvent, title: editTitle.trim() };
+          setActiveSubEvent(newSub);
+          setSubEvents(prev => prev.map(sub => sub.id === activeSubEvent.id ? newSub : sub));
+        } else if (event) {
+          setEvent({ ...event, title: editTitle.trim() });
+        }
         setShowRenameModal(false);
       } else {
-        Alert.alert("Error", "Failed to rename event in database.");
+        Alert.alert("Error", "Failed to rename in database.");
       }
     } catch (err) {
       console.error("[RenameEvent] Error:", err);
@@ -696,7 +725,8 @@ export default function EventDetailScreen() {
   };
   const handleDateChange = async (e: DateTimePickerEvent, selectedDate?: Date) => {
     setShowDatePicker(false);
-    if (e.type === 'set' && selectedDate && event) {
+    const target = currentActiveEvent;
+    if (e.type === 'set' && selectedDate && target) {
       const formattedDate = selectedDate.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
@@ -705,9 +735,19 @@ export default function EventDetailScreen() {
 
       setUpdating(true);
       try {
-        const success = await updateEvent(event.id, { date: formattedDate });
+        const success = await updateEvent(target.id, { date: formattedDate });
         if (success) {
-          setEvent({ ...event, date: formattedDate });
+          if (selectedAdminGallery) {
+            const newGallery = { ...selectedAdminGallery, date: formattedDate };
+            setSelectedAdminGallery(newGallery);
+            setSubEvents(prev => prev.map(sub => sub.id === selectedAdminGallery.id ? newGallery : sub));
+          } else if (activeSubEvent && activeSubEvent.id === target.id) {
+            const newSub = { ...activeSubEvent, date: formattedDate };
+            setActiveSubEvent(newSub);
+            setSubEvents(prev => prev.map(sub => sub.id === activeSubEvent.id ? newSub : sub));
+          } else if (event) {
+            setEvent({ ...event, date: formattedDate });
+          }
         } else {
           Alert.alert("Error", "Failed to update date in database.");
         }
@@ -1307,7 +1347,7 @@ export default function EventDetailScreen() {
           ) : !showAdminView && event?.templateId === 'classic' ? (
             <View style={styles.classicHeroImageContainer}>
               <Image 
-                source={{ uri: activeSubEvent?.coverImage || event?.coverImage || event?.coverUrl }} 
+                source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }} 
                 style={[
                   styles.classicHeroImage,
                   (activeCoverMode === 'fit') ? {
@@ -1330,7 +1370,7 @@ export default function EventDetailScreen() {
               {/* Full-bleed Photo */}
               <View style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
                 <Image 
-                  source={{ uri: activeSubEvent?.coverImage || event?.coverImage || event?.coverUrl }} 
+                  source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }} 
                   style={{ width: '100%', height: '100%', resizeMode: 'cover', opacity: 0.88 }}
                 />
                 {/* Dark gradient overlay at bottom of image for readability */}
@@ -1392,7 +1432,7 @@ export default function EventDetailScreen() {
                   elevation: 2,
                 }}>
                   <Image
-                    source={{ uri: activeSubEvent?.coverImage || event?.coverImage || event?.coverUrl }}
+                    source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
                     style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
                   />
                 </View>
@@ -1416,7 +1456,7 @@ export default function EventDetailScreen() {
                     letterSpacing: 0.4,
                     lineHeight: 32,
                   }} numberOfLines={2}>
-                    {(activeSubEvent?.title || event.title || '').toUpperCase()}
+                    {(currentActiveEvent?.title || event.title || '').toUpperCase()}
                   </Text>
 
                   {/* Thin accent divider */}
@@ -1437,7 +1477,7 @@ export default function EventDetailScreen() {
                     letterSpacing: 1.2,
                     marginBottom: 2,
                   }}>
-                    {activeSubEvent?.date || event.date || '—'}
+                    {currentActiveEvent?.date || event.date || '—'}
                   </Text>
 
                   {/* Category label */}
@@ -1457,7 +1497,7 @@ export default function EventDetailScreen() {
             </View>
           ) : (
             <Image 
-              source={{ uri: activeSubEvent?.coverImage || event?.coverImage || event?.coverUrl }} 
+              source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }} 
               style={[
                 styles.heroImage,
                 (!showAdminView && event?.templateId === 'pop') ? styles.popPolaroidImage : {},
@@ -1482,7 +1522,7 @@ export default function EventDetailScreen() {
           )}
           {selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && selectedTemplate.id !== 'academic_editorial' && selectedTemplate.id !== 'garden' && (
             <LinearGradient
-              colors={selectedTemplate.overlay as string[]}
+              colors={selectedTemplate.overlay as any}
               style={styles.heroGradient}
             />
           )}
@@ -1511,9 +1551,9 @@ export default function EventDetailScreen() {
               <TouchableOpacity
                 style={styles.coverControlSubBtn}
                 onPress={async () => {
-                  const target = activeSubEvent || event;
+                  const target = currentActiveEvent;
                   if (!target) return;
-                  const newMode = (target.coverMode || 'fill') === 'fill' ? 'fit' : 'fill';
+                  const newMode: 'fit' | 'fill' = (target.coverMode || 'fill') === 'fill' ? 'fit' : 'fill';
                   setUpdating(true);
                   try {
                     const updatedFields = {
@@ -1523,12 +1563,16 @@ export default function EventDetailScreen() {
                       coverScale: 1.0
                     };
                     
-                    if (activeSubEvent) {
+                    if (selectedAdminGallery) {
+                      const newSub = { ...selectedAdminGallery, ...updatedFields };
+                      setSelectedAdminGallery(newSub as any);
+                      setSubEvents(prev => prev.map(sub => sub.id === selectedAdminGallery.id ? newSub as any : sub));
+                    } else if (activeSubEvent && activeSubEvent.id === target.id) {
                       const newSub = { ...activeSubEvent, ...updatedFields };
-                      setActiveSubEvent(newSub);
-                      setSubEvents(prev => prev.map(sub => sub.id === activeSubEvent.id ? newSub : sub));
+                      setActiveSubEvent(newSub as any);
+                      setSubEvents(prev => prev.map(sub => sub.id === activeSubEvent.id ? newSub as any : sub));
                     } else if (event) {
-                      setEvent({ ...event, ...updatedFields });
+                      setEvent({ ...event, ...updatedFields } as any);
                     }
                     
                     showToast(newMode === 'fit' ? 'Cover set to Fit' : 'Cover set to Fill');
@@ -1542,7 +1586,7 @@ export default function EventDetailScreen() {
                 disabled={updating}
               >
                 <IconSymbol
-                  name={(activeCoverMode || 'fill') === 'fill' ? 'arrow.down.right.and.arrow.up.left' : 'arrow.up.left.and.arrow.down.right.asymmetrical'}
+                  name={((activeCoverMode || 'fill') === 'fill' ? 'arrow.down.right.and.arrow.up.left' : 'arrow.up.left.and.arrow.down.right.asymmetrical') as any}
                   size={14}
                   color="#fff"
                 />
@@ -1556,7 +1600,7 @@ export default function EventDetailScreen() {
                 <TouchableOpacity
                   style={styles.coverControlSubBtn}
                   onPress={() => {
-                    const target = activeSubEvent || event;
+                    const target = currentActiveEvent;
                     setTempCoverOffset(target?.coverOffset || 0);
                     setTempCoverOffsetX(target?.coverOffsetX || 0);
                     setTempCoverScale(target?.coverScale || 1.0);
@@ -1564,7 +1608,7 @@ export default function EventDetailScreen() {
                   }}
                   disabled={updating}
                 >
-                  <IconSymbol name="arrow.up.and.down" size={14} color="#fff" />
+                  <IconSymbol name={"arrow.up.and.down" as any} size={14} color="#fff" />
                   <Text style={styles.coverControlText}>Position</Text>
                 </TouchableOpacity>
               )}
@@ -1590,11 +1634,11 @@ export default function EventDetailScreen() {
               {/* 2. Centered Text & Button */}
               <View style={styles.royalCenterContent}>
                 <Text style={[styles.royalTitle, { color: '#fff' }]}>
-                  {(activeSubEvent?.title || event.title).toUpperCase()}
+                  {(currentActiveEvent?.title || event.title).toUpperCase()}
                 </Text>
 
                 <Text style={[styles.royalDateText, { color: selectedTemplate.accent }]}>
-                  {(activeSubEvent?.date || event.date || '').toUpperCase()}
+                  {(currentActiveEvent?.date || event.date || '').toUpperCase()}
                 </Text>
 
                 <TouchableOpacity
@@ -1630,7 +1674,7 @@ export default function EventDetailScreen() {
               {/* 2. Center Content with Spaced-out Fine-Art Typography */}
               <View style={styles.classicCenterContent}>
                 <Text style={[styles.classicTitle, { color: selectedTemplate.text, fontFamily: selectedTemplate.serifFont }]}>
-                  {activeSubEvent?.title || event.title}
+                  {currentActiveEvent?.title || event.title}
                 </Text>
 
                 <View style={styles.classicDividerOrnament}>
@@ -1640,7 +1684,7 @@ export default function EventDetailScreen() {
                 </View>
 
                 <Text style={[styles.classicDateText, { color: '#cca43b', fontFamily: selectedTemplate.serifItalic }]}>
-                  {`— ${activeSubEvent?.date || event.date || ''} —`.toUpperCase()}
+                  {`— ${currentActiveEvent?.date || event.date || ''} —`.toUpperCase()}
                 </Text>
 
                 <View style={styles.classicActionRow}>
@@ -1707,16 +1751,16 @@ export default function EventDetailScreen() {
               <View style={[styles.etherealDetailsCard, { backgroundColor: selectedTemplate.panel, borderColor: selectedTemplate.accent + '26' }]}>
                 {/* Couple Names */}
                 <Text style={[styles.etherealCoupleNames, { fontFamily: selectedTemplate.serifBold, color: selectedTemplate.text }]}>
-                  {(activeSubEvent?.title || event.title).toUpperCase()}
+                  {(currentActiveEvent?.title || event.title).toUpperCase()}
                 </Text>
 
                 {/* Elegant Separator Ornament */}
                 <Text style={{ color: selectedTemplate.accent, fontSize: 16, marginVertical: 4 }}>❦</Text>
 
                 {/* Event Date */}
-                {(activeSubEvent?.date || event.date) && (
+                {(currentActiveEvent?.date || event.date) && (
                   <Text style={{ color: selectedTemplate.text, opacity: 0.75, fontFamily: selectedTemplate.serifItalic, fontSize: 14, fontStyle: 'italic', letterSpacing: 1, marginBottom: 16 }}>
-                    {activeSubEvent?.date || event.date}
+                    {currentActiveEvent?.date || event.date}
                   </Text>
                 )}
 
@@ -1746,7 +1790,7 @@ export default function EventDetailScreen() {
 
                 {/* Event Title - Poetic fluid Playfair Display Serif Italic */}
                 <Text style={[styles.heroTitleMain, { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }]}>
-                  {activeSubEvent?.title || event.title}
+                  {currentActiveEvent?.title || event.title}
                 </Text>
 
                 {/* Micro-thin gold sparkle separator */}
@@ -1758,7 +1802,7 @@ export default function EventDetailScreen() {
 
                 {/* Wide tracked starlight-gold date */}
                 <Text style={styles.heroDateMain}>
-                  {`— ${activeSubEvent?.date || event.date || 'SAVE THE DATE'} —`.toUpperCase()}
+                  {`— ${currentActiveEvent?.date || event.date || 'SAVE THE DATE'} —`.toUpperCase()}
                 </Text>
 
                 {/* Symmetrical parallel buttons block */}
@@ -1809,7 +1853,7 @@ export default function EventDetailScreen() {
                 <View style={styles.popTitleContainerShadow} />
                 <View style={styles.popTitleContainer}>
                   <Text style={styles.popTitleText}>
-                    {activeSubEvent?.title || event.title}
+                    {currentActiveEvent?.title || event.title}
                   </Text>
                 </View>
               </View>
@@ -1818,7 +1862,7 @@ export default function EventDetailScreen() {
               <View style={[styles.popPolaroidFrame, { marginTop: insets.top + 78 }]}>
                 <View style={styles.popPolaroidInner}>
                   <Image 
-                    source={{ uri: activeSubEvent?.coverImage || event.coverImage }} 
+                    source={{ uri: currentActiveEvent?.coverImage || event.coverImage }} 
                     style={styles.popPolaroidImage} 
                     resizeMode="contain"
                   />
@@ -1832,7 +1876,7 @@ export default function EventDetailScreen() {
                   </TouchableOpacity>
 
                   <Text style={styles.popPolaroidCaption}>
-                    {`${activeSubEvent?.date || event.date || 'PARTY TIME'}`.toUpperCase()}
+                    {`${currentActiveEvent?.date || event.date || 'PARTY TIME'}`.toUpperCase()}
                   </Text>
 
                   <TouchableOpacity onPress={() => setShowShareModal(true)} style={styles.popCaptionShareBtn}>
@@ -1873,7 +1917,7 @@ export default function EventDetailScreen() {
                 {/* Center: Centered Event Name */}
                 <View style={styles.cyberTitleContainer}>
                   <Text style={styles.cyberPathText} numberOfLines={1} ellipsizeMode="tail">
-                    {(activeSubEvent?.title || event.title).toUpperCase()}
+                    {(currentActiveEvent?.title || event.title).toUpperCase()}
                   </Text>
                 </View>
 
@@ -1896,7 +1940,7 @@ export default function EventDetailScreen() {
                   <View style={[styles.cyberCorner, styles.cyberCornerBR]} />
                   
                   <Image 
-                    source={{ uri: activeSubEvent?.coverImage || event?.coverImage || event?.coverUrl }} 
+                    source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }} 
                     style={styles.cyberPosterImg}
                     resizeMode="cover"
                   />
@@ -1911,7 +1955,7 @@ export default function EventDetailScreen() {
                 {/* Cyberpunk date display */}
                 <View style={styles.cyberDateContainer}>
                   <Text style={styles.cyberDateText}>
-                    {`JOIN US ON: ${activeSubEvent?.date || event.date || 'PENDING'}`.toUpperCase()}
+                    {`JOIN US ON: ${currentActiveEvent?.date || event.date || 'PENDING'}`.toUpperCase()}
                   </Text>
                 </View>
               </View>
@@ -1931,7 +1975,7 @@ export default function EventDetailScreen() {
                 {/* Center: Uppercase Title */}
                 <View style={styles.retroTitleContainer}>
                   <Text style={styles.retroPathText} numberOfLines={1} ellipsizeMode="tail">
-                    {(activeSubEvent?.title || event.title).toUpperCase()}
+                    {(currentActiveEvent?.title || event.title).toUpperCase()}
                   </Text>
                 </View>
 
@@ -1948,7 +1992,7 @@ export default function EventDetailScreen() {
               <View style={styles.retroMiddleFrame}>
                 <View style={styles.retroPosterWrapper}>
                   <Image 
-                    source={{ uri: activeSubEvent?.coverImage || event?.coverImage || event?.coverUrl }} 
+                    source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }} 
                     style={styles.retroPosterImg}
                     resizeMode="cover"
                   />
@@ -1959,7 +2003,7 @@ export default function EventDetailScreen() {
               <View style={styles.retroBottomConsole}>
                 <View style={styles.retroDateContainer}>
                   <Text style={styles.retroDateText}>
-                    {`JOIN US ON: ${activeSubEvent?.date || event.date || 'PENDING'}`.toUpperCase()}
+                    {`JOIN US ON: ${currentActiveEvent?.date || event.date || 'PENDING'}`.toUpperCase()}
                   </Text>
                 </View>
               </View>
@@ -1969,7 +2013,7 @@ export default function EventDetailScreen() {
               {/* Cover Image spanning full background, blending top & bottom */}
               <View style={styles.neonCarnivalCoverWrapper}>
                 <Image 
-                  source={{ uri: activeSubEvent?.coverImage || event?.coverImage || event?.coverUrl }} 
+                  source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }} 
                   style={styles.neonCarnivalCoverImg}
                   resizeMode="cover"
                 />
@@ -2000,12 +2044,12 @@ export default function EventDetailScreen() {
               <View style={styles.neonCarnivalContent}>
                 {/* Title and Date */}
                 <Text style={styles.neonCarnivalDateText}>
-                  {activeSubEvent?.date || event.date || 'DATE TBD'}
+                  {currentActiveEvent?.date || event.date || 'DATE TBD'}
                 </Text>
                 
                 <View style={styles.neonCarnivalTitleWrapper}>
                   <Text style={styles.neonCarnivalTitle} numberOfLines={2} adjustsFontSizeToFit>
-                    {(activeSubEvent?.title || event.title).toUpperCase()}
+                    {(currentActiveEvent?.title || event.title).toUpperCase()}
                   </Text>
                 </View>
               </View>
@@ -2041,11 +2085,11 @@ export default function EventDetailScreen() {
                     style={[styles.gardenTitle, { fontFamily: selectedTemplate.serifBold, color: '#ffffff', textAlign: 'right', fontSize: 20, lineHeight: 26 }]}
                     numberOfLines={2}
                   >
-                    {activeSubEvent?.title || event.title}
+                    {currentActiveEvent?.title || event.title}
                   </Text>
-                  {(activeSubEvent?.date || event.date) && (
+                  {(currentActiveEvent?.date || event.date) && (
                     <Text style={[styles.gardenDate, { fontFamily: selectedTemplate.serifItalic, color: 'rgba(255,255,255,0.85)', textAlign: 'right' }]}>
-                      {activeSubEvent?.date || event.date}
+                      {currentActiveEvent?.date || event.date}
                     </Text>
                   )}
                 </View>
@@ -2084,7 +2128,7 @@ export default function EventDetailScreen() {
               >
                 <View style={styles.goldenCeremonyPhotoCard}>
                   <Image
-                    source={{ uri: activeSubEvent?.coverImage || event.coverImage }}
+                    source={{ uri: currentActiveEvent?.coverImage || event.coverImage }}
                     style={styles.goldenCeremonyPhoto}
                     resizeMode="cover"
                   />
@@ -2102,13 +2146,13 @@ export default function EventDetailScreen() {
                 <View style={styles.goldenCeremonySeal}>
                   <Text style={styles.goldenCeremonySealText}>∞</Text>
                 </View>
-                <Text style={styles.goldenCeremonyTitle}>{activeSubEvent?.title || event.title}</Text>
+                <Text style={styles.goldenCeremonyTitle}>{currentActiveEvent?.title || event.title}</Text>
                 <View style={styles.goldenCeremonyRule}>
                   <View style={styles.goldenCeremonyRuleLine} />
                   <View style={styles.goldenCeremonyRuleDot} />
                   <View style={styles.goldenCeremonyRuleLine} />
                 </View>
-                <Text style={styles.goldenCeremonyDate}>{activeSubEvent?.date || event.date}</Text>
+                <Text style={styles.goldenCeremonyDate}>{currentActiveEvent?.date || event.date}</Text>
                 <TouchableOpacity style={styles.goldenCeremonyShare} onPress={handleShare}>
                   <IconSymbol name="square.and.arrow.up" size={14} color="#3f2f22" />
                   <Text style={styles.goldenCeremonyShareText}>Share Event</Text>
@@ -2144,7 +2188,7 @@ export default function EventDetailScreen() {
                   <View style={styles.vintageEditorialTape} />
                   <View style={styles.vintageEditorialClip} />
                   <Image
-                    source={{ uri: activeSubEvent?.coverImage || event.coverImage }}
+                    source={{ uri: currentActiveEvent?.coverImage || event.coverImage }}
                     style={styles.vintageEditorialImage}
                     resizeMode="cover"
                   />
@@ -2162,10 +2206,10 @@ export default function EventDetailScreen() {
                 entering={FadeInUp.delay(170).duration(820).springify().damping(20)}
                 style={styles.vintageEditorialBand}
               >
-                <Text style={styles.vintageEditorialTitle}>{activeSubEvent?.title || event.title}</Text>
+                <Text style={styles.vintageEditorialTitle}>{currentActiveEvent?.title || event.title}</Text>
               </Animated.View>
               <View style={styles.vintageEditorialFooter}>
-                <Text style={styles.vintageEditorialDate}>{activeSubEvent?.date || event.date}</Text>
+                <Text style={styles.vintageEditorialDate}>{currentActiveEvent?.date || event.date}</Text>
                 <TouchableOpacity style={styles.vintageEditorialShare} onPress={handleShare}>
                   <Text style={styles.vintageEditorialShareText}>Share</Text>
                   <IconSymbol name="square.and.arrow.up" size={13} color="#B89145" />
@@ -2209,7 +2253,7 @@ export default function EventDetailScreen() {
                 <View style={styles.roseBloomPhotoTape} />
                 <View style={styles.roseBloomPhotoCorner} />
                 <Image
-                  source={{ uri: activeSubEvent?.coverImage || event.coverImage }}
+                  source={{ uri: currentActiveEvent?.coverImage || event.coverImage }}
                   style={styles.roseBloomPhoto}
                   resizeMode="cover"
                 />
@@ -2225,13 +2269,13 @@ export default function EventDetailScreen() {
                   <Text style={styles.roseBloomKicker}>Rose Garden Anniversary</Text>
                   <View style={styles.roseBloomKickerLine} />
                 </View>
-                <Text style={styles.roseBloomTitle}>{activeSubEvent?.title || event.title}</Text>
+                <Text style={styles.roseBloomTitle}>{currentActiveEvent?.title || event.title}</Text>
                 <View style={styles.roseBloomStem}>
                   <View style={styles.roseBloomLeaf} />
                   <View style={styles.roseBloomStemLine} />
                   <View style={[styles.roseBloomLeaf, styles.roseBloomLeafAlt]} />
                 </View>
-                <Text style={styles.roseBloomDate}>{activeSubEvent?.date || event.date}</Text>
+                <Text style={styles.roseBloomDate}>{currentActiveEvent?.date || event.date}</Text>
                 <TouchableOpacity style={styles.roseBloomShare} onPress={handleShare}>
                   <IconSymbol name="square.and.arrow.up" size={14} color="#5c2632" />
                   <Text style={styles.roseBloomShareText}>Share Event</Text>
@@ -2258,7 +2302,7 @@ export default function EventDetailScreen() {
               <View style={styles.minimalEditorialPhotoPanel}>
                 <View style={styles.minimalEditorialTape} />
                 <Image
-                  source={{ uri: activeSubEvent?.coverImage || event.coverImage }}
+                  source={{ uri: currentActiveEvent?.coverImage || event.coverImage }}
                   style={styles.minimalEditorialPhoto}
                   resizeMode="cover"
                 />
@@ -2268,14 +2312,14 @@ export default function EventDetailScreen() {
               <View style={styles.minimalEditorialGridLineHorizontal} />
               <View style={styles.minimalEditorialContent}>
                 <Text style={styles.minimalEditorialKicker}>Anniversary Journal</Text>
-                <Text style={styles.minimalEditorialTitle}>{activeSubEvent?.title || event.title}</Text>
+                <Text style={styles.minimalEditorialTitle}>{currentActiveEvent?.title || event.title}</Text>
                 <View style={styles.minimalEditorialDivider}>
                   <View style={styles.minimalEditorialDividerLine} />
                   <View style={styles.minimalEditorialDividerOrnament} />
                   <View style={styles.minimalEditorialDividerLine} />
                 </View>
                 <View style={styles.minimalEditorialMetaRow}>
-                  <Text style={styles.minimalEditorialDate}>{activeSubEvent?.date || event.date}</Text>
+                  <Text style={styles.minimalEditorialDate}>{currentActiveEvent?.date || event.date}</Text>
                   <TouchableOpacity style={styles.minimalEditorialShare} onPress={handleShare}>
                     <IconSymbol name="square.and.arrow.up" size={14} color="#fffaf2" />
                   </TouchableOpacity>
@@ -2402,13 +2446,13 @@ export default function EventDetailScreen() {
                   isMinimalLoveTemplate && styles.minimalHeroTitle,
                   selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' }
                 ]}>
-                  {activeSubEvent?.title || event.title}
+                  {currentActiveEvent?.title || event.title}
                 </Text>
-                {showAdminView && !activeSubEvent && (
+                {showAdminView && (
                   <TouchableOpacity
                     style={styles.renameHeroBtn}
                     onPress={() => {
-                      setEditTitle(event.title);
+                      setEditTitle(currentActiveEvent?.title || event.title);
                       setShowRenameModal(true);
                     }}
                   >
@@ -2435,8 +2479,8 @@ export default function EventDetailScreen() {
                   isPopTemplate && styles.popHeroDate,
                   isAnniversaryTemplate && styles.anniversaryHeroDate,
                   selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic', letterSpacing: 2 }
-                ]}>{activeSubEvent?.date || event.date}</Text>
-                {showAdminView && !activeSubEvent && (
+                ]}>{currentActiveEvent?.date || event.date}</Text>
+                {showAdminView && (
                   <TouchableOpacity
                     style={styles.editDateBtn}
                     onPress={() => setShowDatePicker(true)}
@@ -2523,8 +2567,20 @@ export default function EventDetailScreen() {
                           <Text style={styles.addBtnText}>Add Gallery</Text>
                         </TouchableOpacity>
                       </View>
-                      <View style={styles.subGrid}>
-                        {/* Home Gallery Card */}
+                      
+                      {/* PRIMARY GALLERY */}
+                      <View style={{ width: '100%', marginBottom: 20 }}>
+                        <Text style={{
+                          fontSize: 12,
+                          color: MidnightColors.gold,
+                          fontFamily: Fonts.outfit.bold,
+                          textTransform: 'uppercase',
+                          letterSpacing: 1,
+                          marginBottom: 8,
+                          marginTop: 4
+                        }}>
+                          Primary Gallery
+                        </Text>
                         {event && (
                           <TouchableOpacity
                             style={[
@@ -2567,66 +2623,114 @@ export default function EventDetailScreen() {
                             </View>
                           </TouchableOpacity>
                         )}
-                        {subEvents.map((sub) => (
-                          <TouchableOpacity
-                            key={sub.id}
-                            style={styles.subCard}
-                            onPress={() => {
-                              loadPhotos(sub.id, sub.legacyId);
-                              setGalleryDescText(sub.description || '');
-                              setSelectedAdminGallery(sub);
-                            }}
-                            activeOpacity={0.85}
-                          >
-                            <Image source={{ uri: sub.coverImage }} style={styles.subImageFull} />
-                            <LinearGradient
-                              colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0.85)']}
-                              style={StyleSheet.absoluteFillObject}
-                            />
+                      </View>
 
-                            {/* Sub-gallery Badge */}
-                            <View style={styles.badgeContainer}>
-                              <View style={styles.subBadge}>
-                                <IconSymbol name="photo.on.rectangle" size={10} color="rgba(255, 255, 255, 0.9)" />
-                                <Text style={styles.subBadgeTextLabel}>SUB-GALLERY</Text>
-                              </View>
-                            </View>
+                      {/* SUB-GALLERIES (DRAG TO REORDER) */}
+                      <View style={{ width: '100%', marginBottom: 16 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <Text style={{
+                            fontSize: 12,
+                            color: MidnightColors.gold,
+                            fontFamily: Fonts.outfit.bold,
+                            textTransform: 'uppercase',
+                            letterSpacing: 1,
+                            marginTop: 4
+                          }}>
+                            Sub-Galleries
+                          </Text>
+                          {subEvents.length > 1 && (
+                            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>
+                              ✦ Hold & drag
+                            </Text>
+                          )}
+                        </View>
 
-                            {/* Card Delete Option */}
-                            <TouchableOpacity
-                              style={{
-                                position: 'absolute',
-                                top: 10,
-                                right: 10,
-                                zIndex: 20,
-                                width: 28,
-                                height: 28,
-                                borderRadius: 14,
-                                backgroundColor: 'rgba(0, 0, 0, 0.65)',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderWidth: 1,
-                                borderColor: 'rgba(255, 255, 255, 0.15)',
-                              }}
-                              onPress={(e) => {
-                                e.stopPropagation();
-                                handleDeleteSubGallery(sub);
-                              }}
-                              activeOpacity={0.7}
-                            >
-                              <IconSymbol name="trash.fill" size={12} color="#ef4444" />
-                            </TouchableOpacity>
+                        {subEvents.length === 0 ? (
+                          <View style={{
+                            backgroundColor: 'rgba(255,255,255,0.03)',
+                            borderRadius: 16,
+                            padding: 24,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderWidth: 1,
+                            borderColor: 'rgba(255,255,255,0.05)',
+                            borderStyle: 'dashed'
+                          }}>
+                            <IconSymbol name="photo.on.rectangle" size={24} color={MidnightColors.slate400} />
+                            <Text style={{ color: MidnightColors.slate400, marginTop: 8, fontSize: 13, fontFamily: Fonts.inter.regular }}>
+                              No sub-galleries created yet.
+                            </Text>
+                          </View>
+                        ) : (
+                          <Sortable.Grid
+                            data={subEvents}
+                            keyExtractor={(item: any) => item.id}
+                            columns={2}
+                            columnGap={12}
+                            rowGap={12}
+                            onDragEnd={({ data: newData }: { data: any[] }) => handleReorderSubEvents(newData)}
+                            renderItem={({ item: sub }: { item: any }) => (
+                              <TouchableOpacity
+                                key={sub.id}
+                                style={[styles.subCard, { width: '100%' }]}
+                                onPress={() => {
+                                  loadPhotos(sub.id, sub.legacyId);
+                                  setGalleryDescText(sub.description || '');
+                                  setSelectedAdminGallery(sub);
+                                }}
+                                activeOpacity={0.85}
+                              >
+                                <Image source={{ uri: sub.coverImage }} style={styles.subImageFull} />
+                                <LinearGradient
+                                  colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0.85)']}
+                                  style={StyleSheet.absoluteFillObject}
+                                />
 
-                            <View style={styles.subInfoOverlay}>
-                              <Text style={styles.subTitleOverlay} numberOfLines={2}>
-                                {sub.title}
-                              </Text>
-                              <View style={styles.subArrowCircle}>
-                                <IconSymbol name="chevron.right" size={10} color="#ffffff" />
-                              </View>
-                            </View>
-                          </TouchableOpacity>
-                        ))}
+                                {/* Sub-gallery Badge */}
+                                <View style={styles.badgeContainer}>
+                                  <View style={styles.subBadge}>
+                                    <IconSymbol name="photo.on.rectangle" size={10} color="rgba(255, 255, 255, 0.9)" />
+                                    <Text style={styles.subBadgeTextLabel}>SUB-GALLERY</Text>
+                                  </View>
+                                </View>
+
+                                {/* Card Delete Option */}
+                                <TouchableOpacity
+                                  style={{
+                                    position: 'absolute',
+                                    top: 10,
+                                    right: 10,
+                                    zIndex: 20,
+                                    width: 28,
+                                    height: 28,
+                                    borderRadius: 14,
+                                    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    borderWidth: 1,
+                                    borderColor: 'rgba(255, 255, 255, 0.15)',
+                                  }}
+                                  onPress={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteSubGallery(sub);
+                                  }}
+                                  activeOpacity={0.7}
+                                >
+                                  <IconSymbol name="trash.fill" size={12} color="#ef4444" />
+                                </TouchableOpacity>
+
+                                <View style={styles.subInfoOverlay}>
+                                  <Text style={styles.subTitleOverlay} numberOfLines={2}>
+                                    {sub.title}
+                                  </Text>
+                                  <View style={styles.subArrowCircle}>
+                                    <IconSymbol name="chevron.right" size={10} color="#ffffff" />
+                                  </View>
+                                </View>
+                              </TouchableOpacity>
+                            )}
+                          />
+                        )}
                       </View>
 
                       {/* Delete Event */}
@@ -2639,49 +2743,17 @@ export default function EventDetailScreen() {
                     // ── INLINE GALLERY MANAGER ──
                     <>
                       {/* Header with back button */}
-                      <View style={[styles.sectionHeader, { marginBottom: 16 }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                         <TouchableOpacity
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 }}
                           onPress={() => setSelectedAdminGallery(undefined)}
                         >
                           <IconSymbol name="chevron.left" size={18} color={MidnightColors.gold} />
-                          <Text style={{ color: MidnightColors.gold, fontSize: 14, fontWeight: '600' }}>Galleries</Text>
+                          <Text style={{ color: MidnightColors.gold, fontSize: 14, fontWeight: '600', fontFamily: Fonts.outfit.semiBold }}>Back to Galleries</Text>
                         </TouchableOpacity>
-
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                          <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>
-                            {selectedAdminGallery === null ? '🏠 Home' : selectedAdminGallery.title}
-                          </Text>
-                          <TouchableOpacity
-                            style={{ backgroundColor: 'rgba(204,164,59,0.12)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: MidnightColors.gold, flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                            onPress={async () => {
-                              const targetId = selectedAdminGallery === null ? event!.id : selectedAdminGallery.id;
-                              const result = await ImagePicker.launchImageLibraryAsync({
-                                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                                allowsEditing: true,
-                                aspect: [16, 9],
-                                quality: 0.8,
-                              });
-                              if (!result.canceled) {
-                                setUpdating(true);
-                                try {
-                                  const file = { uri: result.assets[0].uri, name: 'cover.jpg', type: 'image/jpeg' } as any;
-                                  const upload = await uploadEventImage(file, event!.id, user?.uid || 'anon');
-                                  await updateEvent(targetId, { coverImage: upload.url });
-                                  loadEvent();
-                                  Alert.alert("Success", "Cover image updated!");
-                                } catch (err) {
-                                  Alert.alert("Error", "Failed to update cover.");
-                                } finally {
-                                  setUpdating(false);
-                                }
-                              }
-                            }}
-                          >
-                            <IconSymbol name="camera.fill" size={12} color={MidnightColors.gold} />
-                            <Text style={{ color: MidnightColors.gold, fontSize: 11, fontWeight: '600' }}>Change Cover</Text>
-                          </TouchableOpacity>
-                        </View>
+                        <Text style={{ color: '#fff', fontSize: 12, fontFamily: Fonts.inter.bold, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          {selectedAdminGallery === null ? 'PRIMARY' : 'SUB-GALLERY'}
+                        </Text>
                       </View>
 
                       {/* Welcome Message Editor */}
@@ -3259,7 +3331,7 @@ export default function EventDetailScreen() {
             <>
               {/* ── VISITOR IMMERSIVE CONTENT ── */}
               <View style={[styles.visitorContent, { backgroundColor: selectedTemplate.background }]}>
-                {event.showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && (
+                {(event as any).showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && (
                   <View style={[
                     styles.mainInfoBox,
                     {
@@ -3573,7 +3645,7 @@ export default function EventDetailScreen() {
                         isNeonCarnivalTemplate && styles.neonCarnivalPartnerCard,
                         isGardenTemplate && [styles.gardenPartnerCard, { backgroundColor: isDark ? '#1B3224' : '#FDFBF7', borderColor: isDark ? 'rgba(74, 222, 128, 0.15)' : 'rgba(46, 111, 64, 0.08)' }]
                       ]}>
-                         <IconSymbol name="building.2" size={32} color={isPopTemplate ? '#0080ff' : (isCyberTechTemplate ? '#00f0ff' : (isRetroArcadeTemplate ? '#ff3562' : (isNeonCarnivalTemplate ? '#d946ef' : selectedTemplate.accent)))} />
+                         <IconSymbol name={"building.2" as any} size={32} color={isPopTemplate ? '#0080ff' : (isCyberTechTemplate ? '#00f0ff' : (isRetroArcadeTemplate ? '#ff3562' : (isNeonCarnivalTemplate ? '#d946ef' : selectedTemplate.accent)))} />
                          <Text style={[
                            { color: selectedTemplate.muted, marginTop: 16, fontSize: 15, fontWeight: '500' },
                            isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', textTransform: 'uppercase', fontSize: 13 },
@@ -4195,7 +4267,7 @@ export default function EventDetailScreen() {
                 onPress={() => setShowCategoryModal(false)}
                 style={{ marginTop: 2 }}
               >
-                <IconSymbol name="xmark.circle.fill" size={24} color={MidnightColors.slate400} />
+                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
               </TouchableOpacity>
             </View>
 
@@ -4588,14 +4660,26 @@ export default function EventDetailScreen() {
       </Modal>
 
       {/* ── DATE PICKER ── */}
-      {showDatePicker && (
-        <DateTimePicker
-          value={event.date ? new Date(event.date) : new Date()}
-          mode="date"
-          display="spinner"
-          onChange={handleDateChange}
-        />
-      )}
+      {showDatePicker && (() => {
+        const targetDateStr = selectedAdminGallery !== undefined
+          ? (selectedAdminGallery ? selectedAdminGallery.date : event?.date)
+          : event?.date;
+        let pickerVal = new Date();
+        if (targetDateStr) {
+          const parsed = Date.parse(targetDateStr);
+          if (!isNaN(parsed)) {
+            pickerVal = new Date(parsed);
+          }
+        }
+        return (
+          <DateTimePicker
+            value={pickerVal}
+            mode="date"
+            display="spinner"
+            onChange={handleDateChange}
+          />
+        );
+      })()}
       {/* ── SHARE MODAL ── */}
       <Modal visible={showShareModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
@@ -4842,7 +4926,7 @@ export default function EventDetailScreen() {
               style={styles.zoomBtn} 
               onPress={() => setTempCoverScale(prev => Math.max(1.0, prev - 0.1))}
             >
-              <IconSymbol name="minus" size={12} color="#fff" />
+              <IconSymbol name={"minus" as any} size={12} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.zoomText}>{Math.round(tempCoverScale * 100)}%</Text>
             <TouchableOpacity 
@@ -4866,7 +4950,7 @@ export default function EventDetailScreen() {
             <TouchableOpacity
               style={[styles.repositionBtn, styles.repositionSaveBtn]}
               onPress={async () => {
-                const target = activeSubEvent || event;
+                const target = currentActiveEvent;
                 if (!target) return;
                 setIsRepositioning(false);
                 setUpdating(true);
@@ -4877,7 +4961,11 @@ export default function EventDetailScreen() {
                     coverScale: tempCoverScale
                   };
 
-                  if (activeSubEvent) {
+                  if (selectedAdminGallery) {
+                    const newSub = { ...selectedAdminGallery, ...updatedFields };
+                    setSelectedAdminGallery(newSub);
+                    setSubEvents(prev => prev.map(sub => sub.id === selectedAdminGallery.id ? newSub : sub));
+                  } else if (activeSubEvent && activeSubEvent.id === target.id) {
                     const newSub = { ...activeSubEvent, ...updatedFields };
                     setActiveSubEvent(newSub);
                     setSubEvents(prev => prev.map(sub => sub.id === activeSubEvent.id ? newSub : sub));
@@ -4904,7 +4992,7 @@ export default function EventDetailScreen() {
       {toastMessage && (
         <View style={styles.toastContainer}>
           <View style={styles.toastContent}>
-            <IconSymbol name="checkmark.circle.fill" size={16} color={MidnightColors.gold} />
+            <IconSymbol name={"checkmark.circle.fill" as any} size={16} color={MidnightColors.gold} />
             <Text style={styles.toastText}>{toastMessage}</Text>
           </View>
         </View>
@@ -4925,6 +5013,26 @@ const FunkyFonts = {
 };
 
 const styles = StyleSheet.create({
+  headerGreeting: {
+    color: MidnightColors.slate400,
+    fontSize: 13,
+    fontFamily: Fonts.inter.regular,
+    marginTop: 4,
+  },
+  form: {
+    gap: 16,
+  },
+  inputGroup: {
+    gap: 8,
+  },
+  inputLabel: {
+    fontSize: 11,
+    color: '#cbd5e1',
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginBottom: 8,
+  },
   safeArea: { flex: 1, backgroundColor: MidnightColors.background },
   centered: { justifyContent: 'center', alignItems: 'center' },
   container: { flex: 1 },
@@ -6835,6 +6943,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
+  neonCarnivalGalleryHeader: {},
   neonCarnivalGalleryKicker: {
     flexDirection: 'row',
     alignItems: 'center',
