@@ -4,6 +4,7 @@ import "../globals.css";
 import Navbar from "@/components/Navbar";
 
 import { AuthProvider } from "@/context/AuthContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import Footer from "@/components/Footer";
 
 const playfair = Playfair_Display({
@@ -33,11 +34,13 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
       <body className={`${playfair.variable} ${lato.variable} antialiased bg-slate-50 text-slate-600 font-sans`}>
         <AuthProvider>
-          <Navbar />
-          <main className="pt-20 min-h-screen">
-            {children}
-          </main>
-          <Footer />
+          <ThemeProvider>
+            <Navbar />
+            <main className="pt-20 min-h-screen">
+              {children}
+            </main>
+            <Footer />
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>

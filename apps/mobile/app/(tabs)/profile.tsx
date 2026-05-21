@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
+import { useAppTheme } from '@/context/ThemeContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -25,6 +26,8 @@ const { width } = Dimensions.get('window');
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
+  const { theme, setTheme, colors, isDark } = useAppTheme();
+  const styles = getStyles(colors, isDark);
   const router = useRouter();
   const [stats, setStats] = useState({ followers: 0, following: 0 });
   const [isPrivate, setIsPrivate] = useState(user?.isPrivate || false);
@@ -202,7 +205,7 @@ export default function ProfileScreen() {
         
         {/* Profile Header */}
         <LinearGradient
-          colors={['#0f172a', '#020617']}
+          colors={[colors.deepSlate, colors.background]}
           style={styles.header}
         >
 
@@ -325,12 +328,42 @@ export default function ProfileScreen() {
 
             <View style={styles.divider} />
 
+            <View style={styles.actionItem}>
+              <View style={[styles.infoIconBox, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}>
+                <IconSymbol name={isDark ? "moon.fill" : "sun.max.fill"} size={18} color="#d4af37" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.actionText}>App Theme</Text>
+                <Text style={{ fontSize: 11, color: colors.slate400, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
+                  Switch appearance style
+                </Text>
+              </View>
+              <View style={styles.themeToggleContainer}>
+                <TouchableOpacity 
+                  style={[styles.themePill, isDark && styles.themePillActive]} 
+                  activeOpacity={0.8}
+                  onPress={() => setTheme('dark')}
+                >
+                  <Text style={[styles.themePillText, isDark && styles.themePillTextActive]}>Dark</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.themePill, !isDark && styles.themePillActive]} 
+                  activeOpacity={0.8}
+                  onPress={() => setTheme('light')}
+                >
+                  <Text style={[styles.themePillText, !isDark && styles.themePillTextActive]}>Light</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
             <TouchableOpacity style={styles.actionItem} activeOpacity={0.7} onPress={() => router.push('/(tabs)/')}>
               <View style={[styles.infoIconBox, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}>
                 <IconSymbol name="house.fill" size={18} color="#d4af37" />
               </View>
               <Text style={styles.actionText}>About Us</Text>
-              <IconSymbol name="chevron.right" size={16} color="#475569" />
+              <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
             </TouchableOpacity>
 
 
@@ -502,10 +535,10 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   safeArea: { 
     flex: 1, 
-    backgroundColor: '#020617' 
+    backgroundColor: colors.background 
   },
   container: { 
     flex: 1 
@@ -514,7 +547,7 @@ const styles = StyleSheet.create({
     paddingTop: 20, 
     paddingBottom: 40,
     borderBottomWidth: 1.5,
-    borderBottomColor: 'rgba(212, 175, 55, 0.25)',
+    borderBottomColor: colors.border,
   },
   profileRow: { 
     flexDirection: 'row', 
@@ -529,7 +562,7 @@ const styles = StyleSheet.create({
     padding: 3,
     borderRadius: 44,
     borderWidth: 2,
-    borderColor: 'rgba(212, 175, 55, 0.4)',
+    borderColor: colors.border,
   },
   avatar: { 
     width: 80, 
@@ -540,22 +573,22 @@ const styles = StyleSheet.create({
     width: 80, 
     height: 80, 
     borderRadius: 40, 
-    backgroundColor: '#0f172a', 
+    backgroundColor: colors.slate900, 
     justifyContent: 'center', 
     alignItems: 'center', 
     borderWidth: 1, 
-    borderColor: 'rgba(255,255,255,0.05)' 
+    borderColor: colors.cardBorder 
   },
   userName: { 
     fontSize: 26, 
     fontFamily: 'Outfit_800ExtraBold', 
-    color: '#f8fafc', 
+    color: colors.white, 
     letterSpacing: -0.5 
   },
   userHandle: {
     fontSize: 14,
     fontFamily: 'Outfit_600SemiBold',
-    color: '#d4af37',
+    color: colors.gold,
     marginTop: 2,
     textTransform: 'lowercase',
   },
@@ -572,18 +605,18 @@ const styles = StyleSheet.create({
   },
   socialStatText: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: colors.slate400,
     fontFamily: 'Inter_400Regular',
   },
   socialStatNumber: {
-    color: '#f1f5f9',
+    color: colors.white,
     fontFamily: 'Outfit_700Bold',
   },
   dotSeparator: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: '#334155',
+    backgroundColor: colors.slate700,
   },
   content: { 
     paddingHorizontal: 24, 
@@ -612,28 +645,28 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 13,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Inter_700Bold',
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   settingsCard: { 
-    backgroundColor: '#0f172a', 
+    backgroundColor: colors.deepSlate, 
     borderRadius: 24, 
     padding: 24, 
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: colors.cardBorder,
     shadowColor: '#000', 
     shadowOffset: { width: 0, height: 10 }, 
-    shadowOpacity: 0.3, 
+    shadowOpacity: isDark ? 0.3 : 0.05, 
     shadowRadius: 20, 
-    elevation: 10 
+    elevation: isDark ? 10 : 2 
   },
   usageCard: {
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.25)',
+    borderColor: colors.border,
   },
   usageGradient: {
     flexDirection: 'row',
@@ -655,13 +688,13 @@ const styles = StyleSheet.create({
   usageTitle: {
     fontSize: 16,
     fontFamily: 'Outfit_700Bold',
-    color: '#d4af37',
+    color: colors.gold,
     marginBottom: 4,
   },
   usageSubtitle: {
     fontSize: 12,
     fontFamily: 'Inter_400Regular',
-    color: '#94a3b8',
+    color: colors.slate400,
   },
   usageArrowBox: {
     width: 28,
@@ -690,19 +723,19 @@ const styles = StyleSheet.create({
   infoLabel: { 
     fontSize: 11, 
     fontFamily: 'Inter_700Bold', 
-    color: '#64748b', 
+    color: colors.slate400, 
     textTransform: 'uppercase', 
     letterSpacing: 0.5 
   },
   infoValue: { 
     fontSize: 16, 
     fontFamily: 'Outfit_600SemiBold', 
-    color: '#f1f5f9',
+    color: colors.white,
     marginTop: 2,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: colors.cardBorder,
     marginVertical: 20,
   },
   actionItem: { 
@@ -714,13 +747,13 @@ const styles = StyleSheet.create({
     flex: 1, 
     fontSize: 16, 
     fontFamily: 'Outfit_600SemiBold', 
-    color: '#f1f5f9' 
+    color: colors.white 
   },
   toggleBtn: {
     width: 44,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#334155',
+    backgroundColor: colors.slate800,
     padding: 2,
     justifyContent: 'center',
   },
@@ -762,24 +795,24 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 12,
-    color: '#475569',
+    color: colors.slate400,
     fontFamily: 'Inter_400Regular',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(2, 6, 23, 0.85)',
+    backgroundColor: isDark ? 'rgba(2, 6, 23, 0.85)' : 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: colors.cardBorder,
     maxHeight: '90%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -10 },
-    shadowOpacity: 0.5,
+    shadowOpacity: isDark ? 0.5 : 0.08,
     shadowRadius: 20,
     elevation: 20,
   },
@@ -791,12 +824,12 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: colors.cardBorder,
   },
   modalTitle: {
     fontSize: 20,
     fontFamily: 'Outfit_800ExtraBold',
-    color: '#f8fafc',
+    color: colors.white,
   },
   modalCloseBtn: {
     padding: 4,
@@ -814,7 +847,7 @@ const styles = StyleSheet.create({
     padding: 3,
     borderRadius: 54,
     borderWidth: 2,
-    borderColor: 'rgba(212, 175, 55, 0.4)',
+    borderColor: colors.border,
   },
   editAvatar: {
     width: 100,
@@ -825,7 +858,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#020617',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -833,14 +866,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 3,
     right: 3,
-    backgroundColor: '#d4af37',
+    backgroundColor: colors.gold,
     width: 28,
     height: 28,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#0f172a',
+    borderColor: colors.deepSlate,
   },
   changePhotoTextBtn: {
     marginTop: 12,
@@ -860,7 +893,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 12,
     fontFamily: 'Inter_700Bold',
-    color: '#64748b',
+    color: colors.slate400,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginLeft: 4,
@@ -868,10 +901,10 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#020617',
+    backgroundColor: colors.background,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: colors.cardBorder,
     paddingHorizontal: 16,
     height: 56,
   },
@@ -881,12 +914,12 @@ const styles = StyleSheet.create({
   usernamePrefix: {
     fontSize: 16,
     fontFamily: 'Outfit_600SemiBold',
-    color: '#d4af37',
+    color: colors.gold,
     marginRight: 2,
   },
   textInput: {
     flex: 1,
-    color: '#f8fafc',
+    color: colors.white,
     fontSize: 16,
     fontFamily: 'Outfit_600SemiBold',
     height: '100%',
@@ -920,13 +953,13 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: colors.cardBorder,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
   },
   cancelBtnText: {
-    color: '#94a3b8',
+    color: colors.slate400,
     fontSize: 16,
     fontFamily: 'Outfit_700Bold',
   },
@@ -934,17 +967,17 @@ const styles = StyleSheet.create({
     flex: 2,
     height: 56,
     borderRadius: 16,
-    backgroundColor: '#d4af37',
+    backgroundColor: colors.gold,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#d4af37',
+    shadowColor: colors.gold,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
   saveBtnDisabled: {
-    backgroundColor: '#334155',
+    backgroundColor: colors.slate800,
     shadowOpacity: 0,
     elevation: 0,
   },
@@ -952,5 +985,32 @@ const styles = StyleSheet.create({
     color: '#020617',
     fontSize: 16,
     fontFamily: 'Outfit_700Bold',
+  },
+  themeToggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: isDark ? 'rgba(0, 0, 0, 0.25)' : 'rgba(0, 0, 0, 0.05)',
+    borderRadius: 12,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  themePill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    minWidth: 52,
+    alignItems: 'center',
+  },
+  themePillActive: {
+    backgroundColor: colors.gold,
+  },
+  themePillText: {
+    fontSize: 12,
+    fontFamily: 'Inter_600SemiBold',
+    color: colors.slate400,
+  },
+  themePillTextActive: {
+    color: '#020617',
+    fontFamily: 'Inter_700Bold',
   },
 });

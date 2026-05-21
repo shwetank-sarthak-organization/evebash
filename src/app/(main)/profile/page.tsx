@@ -38,11 +38,13 @@ import {
 import { uploadProfileImageToCloudinary } from "@/app/actions/userActions";
 import Image from "next/image";
 import { navigateWithModifierClick } from "@/lib/navigation";
+import { useTheme } from "@/context/ThemeContext";
 
 type GalleryTab = "my" | "shared";
 
 export default function ProfilePage() {
     const { user, loading: authLoading, logout } = useAuth();
+    const { theme, setTheme } = useTheme();
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<"activity" | "settings">("activity");
     const [galleryTab, setGalleryTab] = useState<GalleryTab>("my");
@@ -471,6 +473,57 @@ export default function ProfilePage() {
                                 </button>
                             </motion.div>
                         )}
+
+                        {/* App Preferences Sidebar Card */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                            className="bg-white rounded-[2.5rem] p-6 shadow-2xl shadow-slate-200/50 border border-stone-100"
+                        >
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600 mb-4">App Preferences</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <span className="text-xs font-sans text-slate-700 font-medium">Select Theme</span>
+                                    <p className="text-[10px] text-stone-500 font-sans mt-0.5 leading-relaxed">
+                                        Choose the visual theme for your application layout.
+                                    </p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setTheme("royal")}
+                                        className={cn(
+                                            "flex flex-col items-center p-3 rounded-2xl border transition-all text-center cursor-pointer focus:outline-none",
+                                            theme === "royal"
+                                                ? "border-royal-gold bg-amber-50/10 shadow-sm"
+                                                : "border-stone-100 bg-stone-50/30 hover:border-stone-200"
+                                        )}
+                                    >
+                                        <div className="w-10 h-6 rounded-md bg-[#FFFDD0] border border-stone-200/40 mb-2 relative overflow-hidden flex items-center justify-center">
+                                            <div className="w-6 h-1 bg-[#5D001E] rounded-full"></div>
+                                        </div>
+                                        <span className="text-[11px] font-bold text-slate-800">Royal Cream</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setTheme("light")}
+                                        className={cn(
+                                            "flex flex-col items-center p-3 rounded-2xl border transition-all text-center cursor-pointer focus:outline-none",
+                                            theme === "light"
+                                                ? "border-sky-500 bg-sky-50/10 shadow-sm"
+                                                : "border-stone-100 bg-stone-50/30 hover:border-stone-200"
+                                        )}
+                                    >
+                                        <div className="w-10 h-6 rounded-md bg-[#f8fafc] border border-stone-200/40 mb-2 relative overflow-hidden flex items-center justify-center">
+                                            <div className="w-6 h-1 bg-sky-500 rounded-full"></div>
+                                        </div>
+                                        <span className="text-[11px] font-bold text-slate-800">Modern Light</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
                     </div>
 
                     {/* ── Main Content ── */}
@@ -810,6 +863,99 @@ export default function ProfilePage() {
                                             </button>
                                         </div>
                                     </form>
+
+                                    {/* App Preferences */}
+                                    <div className="mt-12 pt-8 border-t border-stone-100">
+                                        <h3 className="text-xl font-bold text-slate-800 mb-6 font-serif">App Preferences</h3>
+                                        <div className="space-y-6">
+                                            <div>
+                                                <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1">App Theme</label>
+                                                <p className="text-xs text-stone-600 font-sans mt-0.5 ml-1 leading-relaxed">
+                                                    Choose the visual aesthetic of the application layout. This selection applies only to your app experience and does not affect the styling of guest galleries.
+                                                </p>
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-xl">
+                                                {/* Royal Theme Preview */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setTheme("royal")}
+                                                    className={cn(
+                                                        "group relative flex flex-col p-5 rounded-[2rem] border-2 transition-all text-left cursor-pointer overflow-hidden focus:outline-none",
+                                                        theme === "royal"
+                                                            ? "border-royal-gold bg-amber-50/10 shadow-md"
+                                                            : "border-stone-100 bg-stone-50/30 hover:border-stone-200 hover:shadow-sm"
+                                                    )}
+                                                >
+                                                    {/* Visual Preview */}
+                                                    <div className="w-full h-24 rounded-2xl bg-[#FFFDD0] border border-stone-200/40 p-3 mb-4 flex flex-col justify-between relative overflow-hidden transition-transform group-hover:scale-[1.02] duration-300">
+                                                        {/* Simulated Header */}
+                                                        <div className="flex justify-between items-center">
+                                                            <div className="w-8 h-2.5 bg-[#5D001E] rounded-md"></div>
+                                                            <div className="flex gap-1.5">
+                                                                <div className="w-3.5 h-1.5 bg-[#D4AF37] rounded-sm"></div>
+                                                                <div className="w-3.5 h-1.5 bg-[#D4AF37] rounded-sm"></div>
+                                                            </div>
+                                                        </div>
+                                                        {/* Simulated Hero */}
+                                                        <div className="space-y-1.5">
+                                                            <div className="w-16 h-3 bg-[#5D001E] rounded-md"></div>
+                                                            <div className="w-24 h-2 bg-[#5D001E]/60 rounded-md"></div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="flex justify-between items-center w-full">
+                                                        <div>
+                                                            <p className="text-sm font-bold text-slate-800">Royal Cream</p>
+                                                            <p className="text-[10px] text-stone-600 font-sans mt-0.5">Classic warm aesthetics</p>
+                                                        </div>
+                                                        {theme === "royal" && (
+                                                            <CheckCircle2 className="w-5 h-5 text-royal-gold shrink-0" />
+                                                        )}
+                                                    </div>
+                                                </button>
+
+                                                {/* Light Theme Preview */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setTheme("light")}
+                                                    className={cn(
+                                                        "group relative flex flex-col p-5 rounded-[2rem] border-2 transition-all text-left cursor-pointer overflow-hidden focus:outline-none",
+                                                        theme === "light"
+                                                            ? "border-sky-500 bg-sky-50/10 shadow-md"
+                                                            : "border-stone-100 bg-stone-50/30 hover:border-stone-200 hover:shadow-sm"
+                                                    )}
+                                                >
+                                                    {/* Visual Preview */}
+                                                    <div className="w-full h-24 rounded-2xl bg-[#f8fafc] border border-stone-200/40 p-3 mb-4 flex flex-col justify-between relative overflow-hidden transition-transform group-hover:scale-[1.02] duration-300">
+                                                        {/* Simulated Header */}
+                                                        <div className="flex justify-between items-center">
+                                                            <div className="w-8 h-2.5 bg-[#0ea5e9] rounded-md"></div>
+                                                            <div className="flex gap-1.5">
+                                                                <div className="w-3.5 h-1.5 bg-stone-300 rounded-sm"></div>
+                                                                <div className="w-3.5 h-1.5 bg-stone-300 rounded-sm"></div>
+                                                            </div>
+                                                        </div>
+                                                        {/* Simulated Hero */}
+                                                        <div className="space-y-1.5">
+                                                            <div className="w-16 h-3 bg-stone-800 rounded-md"></div>
+                                                            <div className="w-24 h-2 bg-stone-500 rounded-md"></div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="flex justify-between items-center w-full">
+                                                        <div>
+                                                            <p className="text-sm font-bold text-slate-800">Modern Light</p>
+                                                            <p className="text-[10px] text-stone-600 font-sans mt-0.5">Bright clean aesthetics</p>
+                                                        </div>
+                                                        {theme === "light" && (
+                                                            <CheckCircle2 className="w-5 h-5 text-sky-500 shrink-0" />
+                                                        )}
+                                                    </div>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </motion.div>
                             )}
                         </AnimatePresence>

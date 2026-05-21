@@ -33,12 +33,12 @@ export default function Home() {
                 </motion.div>
 
                 {/* Subtle gradient for text readability */}
-                <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/70 via-black/20 to-transparent z-0"></div>
+                <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/70 via-black/20 to-transparent z-0 hero-overlay"></div>
 
                 {/* Hero Content */}
                 <div className="relative z-10 text-center space-y-8 px-4 mt-20 max-w-5xl mx-auto">
                     <ScrollReveal direction="down" delay={0.2}>
-                        <div className="inline-flex items-center space-x-3 px-6 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/20 shadow-2xl">
+                        <div className="inline-flex items-center space-x-3 px-6 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/20 shadow-2xl hero-chip">
                             <Sparkles className="w-4 h-4 text-royal-gold" />
                             <p className="text-xs md:text-sm text-white font-bold uppercase tracking-[0.3em]">
                                 Premium Wedding Photography
@@ -47,13 +47,13 @@ export default function Home() {
                     </ScrollReveal>
 
                     <ScrollReveal delay={0.4}>
-                        <h1 className="text-5xl md:text-8xl font-bold text-white drop-shadow-2xl tracking-tight leading-tight italic">
+                        <h1 className="text-5xl md:text-8xl font-bold text-white drop-shadow-2xl tracking-tight leading-tight italic hero-title">
                             Capturing <span className="text-royal-gold">Timeless</span> Moments
                         </h1>
                     </ScrollReveal>
 
                     <ScrollReveal delay={0.6}>
-                        <p className="text-lg md:text-2xl text-white/90 font-sans font-light tracking-wide max-w-2xl mx-auto leading-relaxed drop-shadow-lg">
+                        <p className="text-lg md:text-2xl text-white/90 font-sans font-light tracking-wide max-w-2xl mx-auto leading-relaxed drop-shadow-lg hero-subtitle">
                             Where every frame tells a story of elegance, and every moment becomes a masterpiece.
                         </p>
                     </ScrollReveal>
@@ -61,7 +61,7 @@ export default function Home() {
                     <div className="mt-12 flex flex-col md:flex-row gap-6 justify-center items-center">
                         <ScrollReveal direction="left" delay={0.8}>
                             <Link href="/sample-galleries" className="group">
-                                <span className="inline-flex items-center space-x-3 px-10 py-5 bg-white text-slate-900 hover:bg-royal-cream transition-all duration-500 uppercase tracking-widest text-sm font-bold rounded-full shadow-2xl hover:scale-105 transform">
+                                <span className="inline-flex items-center space-x-3 px-10 py-5 bg-white text-slate-900 hover:bg-royal-cream transition-all duration-500 uppercase tracking-widest text-sm font-bold rounded-full shadow-2xl hover:scale-105 transform hero-btn-portfolio">
                                     <span>View Portfolio</span>
                                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                                 </span>
@@ -70,7 +70,7 @@ export default function Home() {
 
                         <ScrollReveal direction="right" delay={1.0}>
                             <Link href="/contact-us" className="group">
-                                <span className="inline-flex items-center space-x-3 px-10 py-5 bg-transparent border-2 border-white/60 text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-500 uppercase tracking-widest text-sm font-bold rounded-full hover:shadow-2xl hover:scale-105 transform">
+                                <span className="inline-flex items-center space-x-3 px-10 py-5 bg-transparent border-2 border-white/60 text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-500 uppercase tracking-widest text-sm font-bold rounded-full hover:shadow-2xl hover:scale-105 transform hero-btn-book">
                                     <span>Book a Session</span>
                                 </span>
                             </Link>

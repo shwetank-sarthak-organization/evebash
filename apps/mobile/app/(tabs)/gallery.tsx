@@ -24,6 +24,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image as ExpoImage } from 'expo-image';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAuth } from '@/context/AuthContext';
+import { useAppTheme } from '@/context/ThemeContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { MOBILE_TEMPLATE_THEMES } from '../../constants/templates';
 import { 
@@ -58,8 +59,8 @@ function createSlug(value: string) {
 export default function PortfolioTabScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useAppTheme();
+  const styles = getStyles(colors, isDark);
 
   const [activeTab, setActiveTab] = useState<'my' | 'shared' | 'requests'>('my');
   const [events, setEvents] = useState<FirestoreEvent[]>([]);
@@ -370,13 +371,13 @@ export default function PortfolioTabScreen() {
           transition={300}
         />
         <LinearGradient
-          colors={['transparent', 'rgba(2, 6, 23, 0.95)']}
+          colors={isDark ? ['transparent', 'rgba(2, 6, 23, 0.95)'] : ['transparent', 'rgba(255, 255, 255, 0.95)']}
           style={styles.cardGradient}
         />
         <View style={styles.cardContent}>
           <Text style={styles.cardTitle} numberOfLines={1}>{event.title}</Text>
           <View style={styles.cardMeta}>
-            <IconSymbol name="calendar" size={10} color={MidnightColors.slate400} />
+            <IconSymbol name="calendar" size={10} color={colors.slate400} />
             <Text style={styles.cardDate}>{event.date}</Text>
           </View>
         </View>
@@ -388,7 +389,7 @@ export default function PortfolioTabScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* ── HEADER ── */}
       <LinearGradient
-        colors={['#0f172a', '#020617']}
+        colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]}
         style={styles.header}
       >
         <View>
@@ -396,15 +397,15 @@ export default function PortfolioTabScreen() {
           <Text style={styles.headerGreeting}>Management</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity style={[styles.createBtnHeader, { backgroundColor: MidnightColors.gold }]} onPress={() => setCreateModalVisible(true)}>
-            <Text style={[styles.createBtnText, { color: MidnightColors.background }]}>Create</Text>
+          <TouchableOpacity style={[styles.createBtnHeader, { backgroundColor: colors.gold }]} onPress={() => setCreateModalVisible(true)}>
+            <Text style={[styles.createBtnText, { color: '#020617' }]}>Create</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
 
       <ScrollView
         style={styles.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={MidnightColors.gold} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
         contentContainerStyle={styles.scrollContent}
       >
         {/* ── USAGE STATS ── */}
@@ -461,7 +462,7 @@ export default function PortfolioTabScreen() {
             <IconSymbol 
               name="camera.fill" 
               size={14} 
-              color={activeTab === 'my' ? MidnightColors.gold : MidnightColors.slate400} 
+              color={activeTab === 'my' ? colors.gold : colors.slate400} 
             />
             <Text style={[styles.tabText, activeTab === 'my' && styles.tabTextActive]}>Host</Text>
           </TouchableOpacity>
@@ -473,7 +474,7 @@ export default function PortfolioTabScreen() {
             <IconSymbol 
               name="person.2.fill" 
               size={14} 
-              color={activeTab === 'shared' ? MidnightColors.gold : MidnightColors.slate400} 
+              color={activeTab === 'shared' ? colors.gold : colors.slate400} 
             />
             <Text style={[styles.tabText, activeTab === 'shared' && styles.tabTextActive]}>Shared</Text>
           </TouchableOpacity>
@@ -485,7 +486,7 @@ export default function PortfolioTabScreen() {
               <IconSymbol 
                 name="envelope.fill" 
                 size={14} 
-                color={activeTab === 'requests' ? MidnightColors.gold : MidnightColors.slate400} 
+                color={activeTab === 'requests' ? colors.gold : colors.slate400} 
               />
               <Text style={[styles.tabText, activeTab === 'requests' && styles.tabTextActive]}>Requests</Text>
               
@@ -500,13 +501,13 @@ export default function PortfolioTabScreen() {
         </View>
 
         {loading && !refreshing ? (
-          <ActivityIndicator color={MidnightColors.gold} style={{ marginTop: 60 }} />
+          <ActivityIndicator color={colors.gold} style={{ marginTop: 60 }} />
         ) : (
           <View style={styles.grid}>
             {activeTab === 'my' && (
               events.length === 0 ? (
                 <View style={styles.emptyState}>
-                  <IconSymbol name="photo.on.rectangle" size={40} color={MidnightColors.slate700} />
+                  <IconSymbol name="photo.on.rectangle" size={40} color={colors.slate400} />
                   <Text style={styles.emptyTitle}>No events yet</Text>
                   <Text style={styles.emptyBody}>Create your first album to see it here.</Text>
                 </View>
@@ -518,7 +519,7 @@ export default function PortfolioTabScreen() {
             {activeTab === 'shared' && (
               sharedEvents.length === 0 ? (
                 <View style={styles.emptyState}>
-                  <IconSymbol name="person.2.fill" size={40} color={MidnightColors.slate700} />
+                  <IconSymbol name="person.2.fill" size={40} color={colors.slate400} />
                   <Text style={styles.emptyTitle}>Nothing shared</Text>
                   <Text style={styles.emptyBody}>Events shared with you will appear here.</Text>
                 </View>
@@ -583,7 +584,7 @@ export default function PortfolioTabScreen() {
                 >
                   <View style={styles.modalHeader}>
                     <View style={styles.largeAvatar}>
-                      <LinearGradient colors={[MidnightColors.gold, '#b8860b']} style={styles.avatarGradient}>
+                      <LinearGradient colors={[colors.gold, '#b8860b']} style={styles.avatarGradient}>
                         <Text style={styles.largeAvatarText}>{selectedRequest?.name.charAt(0)}</Text>
                       </LinearGradient>
                     </View>
@@ -656,7 +657,7 @@ export default function PortfolioTabScreen() {
           <View style={styles.benefitsGrid}>
             <View style={styles.benefitCard}>
               <View style={styles.benefitIcon}>
-                <IconSymbol name="photo.on.rectangle" size={20} color={MidnightColors.gold} />
+                <IconSymbol name="photo.on.rectangle" size={20} color={colors.gold} />
               </View>
               <View style={styles.benefitContent}>
                 <Text style={styles.benefitTitle}>Stunning Galleries</Text>
@@ -666,7 +667,7 @@ export default function PortfolioTabScreen() {
             
             <View style={styles.benefitCard}>
               <View style={styles.benefitIcon}>
-                <IconSymbol name="person.2.fill" size={20} color={MidnightColors.gold} />
+                <IconSymbol name="person.2.fill" size={20} color={colors.gold} />
               </View>
               <View style={styles.benefitContent}>
                 <Text style={styles.benefitTitle}>Guest Sharing</Text>
@@ -676,7 +677,7 @@ export default function PortfolioTabScreen() {
 
             <View style={styles.benefitCard}>
               <View style={styles.benefitIcon}>
-                <IconSymbol name="video.fill" size={20} color={MidnightColors.gold} />
+                <IconSymbol name="video.fill" size={20} color={colors.gold} />
               </View>
               <View style={styles.benefitContent}>
                 <Text style={styles.benefitTitle}>Live Streaming</Text>
@@ -703,7 +704,7 @@ export default function PortfolioTabScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Join Event</Text>
               <TouchableOpacity onPress={() => { setShowJoinModal(false); setIsScanning(false); }}>
-                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
+                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={colors.slate400} />
               </TouchableOpacity>
             </View>
 
@@ -741,7 +742,7 @@ export default function PortfolioTabScreen() {
                     value={joinCode} 
                     onChangeText={setJoinCode} 
                     placeholder="E.G. A1B2C3" 
-                    placeholderTextColor={MidnightColors.slate700}
+                    placeholderTextColor={colors.slate400}
                     autoCapitalize="characters"
                   />
                 </View>
@@ -752,7 +753,7 @@ export default function PortfolioTabScreen() {
                   disabled={joining}
                 >
                   {joining ? (
-                    <ActivityIndicator color={MidnightColors.background} />
+                    <ActivityIndicator color={'#020617'} />
                   ) : (
                     <Text style={styles.submitBtnText}>Join with Code</Text>
                   )}
@@ -768,7 +769,7 @@ export default function PortfolioTabScreen() {
                   style={styles.scanBtn} 
                   onPress={() => setIsScanning(true)}
                 >
-                  <IconSymbol name={"qrcode.viewfinder" as any} size={20} color={MidnightColors.gold} />
+                  <IconSymbol name={"qrcode.viewfinder" as any} size={20} color={colors.gold} />
                   <Text style={styles.scanBtnText}>Scan QR Code</Text>
                 </TouchableOpacity>
               </View>
@@ -798,7 +799,7 @@ export default function PortfolioTabScreen() {
                 setTemplateVisible(false);
                 setOptionsVisible(false);
               }}>
-                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
+                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={colors.slate400} />
               </TouchableOpacity>
             </View>
 
@@ -851,7 +852,7 @@ export default function PortfolioTabScreen() {
                     setRenameVisible(true);
                   }}
                 >
-                  <IconSymbol name="pencil" size={20} color={MidnightColors.gold} />
+                  <IconSymbol name="pencil" size={20} color={colors.gold} />
                   <Text style={styles.optionText}>Rename Event</Text>
                 </TouchableOpacity>
 
@@ -862,7 +863,7 @@ export default function PortfolioTabScreen() {
                     router.push({ pathname: `/events/${targetEvent?.id}`, params: { tab: 'photos', mode: 'admin' } } as any);
                   }}
                 >
-                  <IconSymbol name="photo.fill" size={20} color={MidnightColors.gold} />
+                  <IconSymbol name="photo.fill" size={20} color={colors.gold} />
                   <Text style={styles.optionText}>Edit Photos</Text>
                 </TouchableOpacity>
 
@@ -870,7 +871,7 @@ export default function PortfolioTabScreen() {
                   style={styles.optionItem}
                   onPress={() => setTemplateVisible(true)}
                 >
-                  <IconSymbol name="paintbrush.fill" size={20} color={MidnightColors.gold} />
+                  <IconSymbol name="paintbrush.fill" size={20} color={colors.gold} />
                   <Text style={styles.optionText}>Change Template</Text>
                 </TouchableOpacity>
 
@@ -881,7 +882,7 @@ export default function PortfolioTabScreen() {
                     if (targetEvent) handleVisitWebsite(targetEvent);
                   }}
                 >
-                  <IconSymbol name="globe" size={20} color={MidnightColors.gold} />
+                  <IconSymbol name="globe" size={20} color={colors.gold} />
                   <Text style={styles.optionText}>Visit Website</Text>
                 </TouchableOpacity>
 
@@ -892,7 +893,7 @@ export default function PortfolioTabScreen() {
                     if (targetEvent) handleShareLink(targetEvent);
                   }}
                 >
-                  <IconSymbol name="square.and.arrow.up" size={20} color={MidnightColors.gold} />
+                  <IconSymbol name="square.and.arrow.up" size={20} color={colors.gold} />
                   <Text style={styles.optionText}>Share Link</Text>
                 </TouchableOpacity>
 
@@ -929,7 +930,7 @@ export default function PortfolioTabScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Rename Event</Text>
               <TouchableOpacity onPress={() => setRenameVisible(false)}>
-                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
+                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={colors.slate400} />
               </TouchableOpacity>
             </View>
             
@@ -941,7 +942,7 @@ export default function PortfolioTabScreen() {
                   value={editTitle} 
                   onChangeText={setEditTitle} 
                   placeholder="Enter new name..." 
-                  placeholderTextColor={MidnightColors.slate700}
+                  placeholderTextColor={colors.slate400}
                   autoFocus
                 />
               </View>
@@ -972,7 +973,7 @@ export default function PortfolioTabScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New Event</Text>
               <TouchableOpacity onPress={() => setCreateModalVisible(false)}>
-                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
+                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={colors.slate400} />
               </TouchableOpacity>
             </View>
             
@@ -984,7 +985,7 @@ export default function PortfolioTabScreen() {
                   value={newEventTitle} 
                   onChangeText={setNewEventTitle} 
                   placeholder="e.g. Wedding of John & Jane" 
-                  placeholderTextColor={MidnightColors.slate700}
+                  placeholderTextColor={colors.slate400}
                 />
               </View>
 
@@ -995,7 +996,7 @@ export default function PortfolioTabScreen() {
                   value={newEventDate} 
                   onChangeText={setNewEventDate} 
                   placeholder="e.g. June 12, 2025" 
-                  placeholderTextColor={MidnightColors.slate700}
+                  placeholderTextColor={colors.slate400}
                 />
               </View>
 
@@ -1005,11 +1006,11 @@ export default function PortfolioTabScreen() {
                 disabled={creating}
               >
                 {creating ? (
-                  <ActivityIndicator color={MidnightColors.background} />
+                  <ActivityIndicator color={'#020617'} />
                 ) : (
                   <>
                     <Text style={styles.submitBtnText}>Create Event</Text>
-                    <IconSymbol name="sparkles" size={16} color={MidnightColors.background} />
+                    <IconSymbol name="sparkles" size={16} color={'#020617'} />
                   </>
                 )}
               </TouchableOpacity>
@@ -1021,8 +1022,8 @@ export default function PortfolioTabScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: MidnightColors.background },
+const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
   centered: { alignItems: 'center', justifyContent: 'center' },
   scrollContent: { paddingBottom: 40 },
@@ -1034,7 +1035,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: Fonts.outfit.extraBold,
     marginBottom: 16,
   },
@@ -1042,11 +1043,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   benefitCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     padding: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 16,
@@ -1065,13 +1066,13 @@ const styles = StyleSheet.create({
   },
   benefitTitle: {
     fontSize: 16,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: Fonts.outfit.bold,
     marginBottom: 4,
   },
   benefitDesc: {
     fontSize: 13,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: Fonts.inter.regular,
     lineHeight: 18,
   },
@@ -1085,10 +1086,10 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 24,
     borderBottomWidth: 1,
-    borderBottomColor: MidnightColors.border,
+    borderBottomColor: colors.border,
   },
-  headerGreeting: { fontSize: 12, color: MidnightColors.slate400, fontFamily: Fonts.inter.medium, textTransform: 'uppercase', letterSpacing: 1.2 },
-  headerName: { fontSize: 32, color: MidnightColors.white, fontFamily: Fonts.outfit.extraBold, letterSpacing: -0.5, marginTop: 2 },
+  headerGreeting: { fontSize: 12, color: colors.slate400, fontFamily: Fonts.inter.medium, textTransform: 'uppercase', letterSpacing: 1.2 },
+  headerName: { fontSize: 32, color: colors.white, fontFamily: Fonts.outfit.extraBold, letterSpacing: -0.5, marginTop: 2 },
   createBtnHeader: { 
     paddingHorizontal: 16, 
     paddingVertical: 10, 
@@ -1101,7 +1102,7 @@ const styles = StyleSheet.create({
   },
   createBtnText: { 
     fontSize: 13, 
-    color: MidnightColors.gold, 
+    color: colors.gold, 
     fontFamily: Fonts.outfit.bold, 
     textTransform: 'uppercase', 
     letterSpacing: 0.5 
@@ -1113,10 +1114,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 20, 
     marginTop: 24, 
     padding: 6, 
-    backgroundColor: MidnightColors.deepSlate, 
+    backgroundColor: colors.deepSlate, 
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: MidnightColors.cardBorder,
+    borderColor: colors.cardBorder,
   },
   tabButton: { 
     flex: 1, 
@@ -1129,58 +1130,58 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'visible'
   },
-  tabBadge: { position: 'absolute', top: 4, right: 8, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: MidnightColors.background },
-  tabBadgeText: { color: '#fff', fontSize: 9, fontFamily: Fonts.inter.bold },
+  tabBadge: { position: 'absolute', top: 4, right: 8, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: colors.background },
+  tabBadgeText: { color: colors.white, fontSize: 9, fontFamily: Fonts.inter.bold },
   tabButtonActive: { 
     backgroundColor: 'rgba(212, 175, 55, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: colors.border,
   },
-  tabText: { fontSize: 13, color: MidnightColors.slate400, fontFamily: Fonts.inter.medium },
-  tabTextActive: { color: MidnightColors.gold, fontFamily: Fonts.inter.bold },
+  tabText: { fontSize: 13, color: colors.slate400, fontFamily: Fonts.inter.medium },
+  tabTextActive: { color: colors.gold, fontFamily: Fonts.inter.bold },
 
   // Grid
   grid: { paddingHorizontal: 20, paddingTop: 20, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   eventCard: {
     width: (width - 54) / 2, height: 220,
     borderRadius: 24, overflow: 'hidden',
-    backgroundColor: MidnightColors.deepSlate,
-    borderWidth: 1, borderColor: MidnightColors.cardBorder,
+    backgroundColor: colors.deepSlate,
+    borderWidth: 1, borderColor: colors.cardBorder,
     marginBottom: 14,
   },
   cardOpenArea: { ...StyleSheet.absoluteFillObject },
   cardGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%' },
   cardContent: { position: 'absolute', bottom: 14, left: 16, right: 16 },
-  cardTitle: { fontSize: 16, color: '#fff', fontFamily: Fonts.outfit.bold, marginBottom: 4 },
+  cardTitle: { fontSize: 16, color: colors.white, fontFamily: Fonts.outfit.bold, marginBottom: 4 },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cardDate: { fontSize: 10, color: MidnightColors.slate400, fontFamily: Fonts.inter.medium },
+  cardDate: { fontSize: 10, color: colors.slate400, fontFamily: Fonts.inter.medium },
   cardAction: { position: 'absolute', top: 12, right: 12, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', zIndex: 5, elevation: 5 },
 
   // Empty State
   emptyState: { width: '100%', alignItems: 'center', paddingVertical: 80 },
-  emptyTitle: { fontSize: 18, color: '#fff', fontFamily: Fonts.outfit.bold, marginTop: 16 },
-  emptyBody: { fontSize: 12, color: MidnightColors.slate400, fontFamily: Fonts.inter.regular, textAlign: 'center', marginTop: 8, paddingHorizontal: 40 },
+  emptyTitle: { fontSize: 18, color: colors.white, fontFamily: Fonts.outfit.bold, marginTop: 16 },
+  emptyBody: { fontSize: 12, color: colors.slate400, fontFamily: Fonts.inter.regular, textAlign: 'center', marginTop: 8, paddingHorizontal: 40 },
 
   // Requests Tab Styles
   requestCard: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    backgroundColor: 'rgba(255,255,255,0.03)', 
+    backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', 
     borderRadius: 24, 
     padding: 12, 
     width: '100%',
     borderWidth: 1, 
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
     gap: 16,
     marginBottom: 12
   },
   requestAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(212, 175, 55, 0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(212, 175, 55, 0.2)' },
-  avatarTextSmall: { color: MidnightColors.gold, fontSize: 20, fontFamily: Fonts.outfit.bold },
+  avatarTextSmall: { color: colors.gold, fontSize: 20, fontFamily: Fonts.outfit.bold },
   requestInfo: { flex: 1, gap: 2 },
-  requestName: { color: '#fff', fontSize: 16, fontFamily: Fonts.outfit.bold },
+  requestName: { color: colors.white, fontSize: 16, fontFamily: Fonts.outfit.bold },
   requestEventRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  requestEventLabel: { color: MidnightColors.slate700, fontSize: 10, fontFamily: Fonts.inter.medium },
-  requestEventTitle: { color: MidnightColors.gold, fontSize: 10, fontFamily: Fonts.inter.bold, flex: 1 },
+  requestEventLabel: { color: colors.slate400, fontSize: 10, fontFamily: Fonts.inter.medium },
+  requestEventTitle: { color: colors.gold, fontSize: 10, fontFamily: Fonts.inter.bold, flex: 1 },
   requestActionsMini: { flexDirection: 'row', gap: 10, paddingRight: 4 },
   miniActionBtnGreen: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#10b981', alignItems: 'center', justifyContent: 'center' },
   miniActionBtnRed: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center' },
@@ -1191,20 +1192,20 @@ const styles = StyleSheet.create({
   largeAvatar: { width: 80, height: 80, borderRadius: 40, overflow: 'hidden', marginBottom: 16 },
   avatarGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   largeAvatarText: { color: MidnightColors.background, fontSize: 32, fontFamily: Fonts.outfit.extraBold },
-  modalRequestTitle: { color: '#fff', fontSize: 22, fontFamily: Fonts.outfit.bold, textAlign: 'center' },
-  modalRequestSub: { color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.inter.medium, marginTop: 4 },
+  modalRequestTitle: { color: colors.white, fontSize: 22, fontFamily: Fonts.outfit.bold, textAlign: 'center' },
+  modalRequestSub: { color: colors.slate400, fontSize: 12, fontFamily: Fonts.inter.medium, marginTop: 4 },
   modalBody: { gap: 16, marginBottom: 24, marginTop: 24 },
-  detailRow: { backgroundColor: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 20 },
-  detailLabel: { color: MidnightColors.slate700, fontSize: 10, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', marginBottom: 4 },
-  detailValue: { color: '#fff', fontSize: 15, fontFamily: Fonts.inter.medium },
+  detailRow: { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', padding: 16, borderRadius: 20 },
+  detailLabel: { color: colors.slate400, fontSize: 10, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', marginBottom: 4 },
+  detailValue: { color: colors.white, fontSize: 15, fontFamily: Fonts.inter.medium },
   modalFooter: { flexDirection: 'row', gap: 12 },
   modalActionBtn: { flex: 1, paddingVertical: 16, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   modalActionBtnApprove: { flex: 2, borderRadius: 16, overflow: 'hidden' },
   approveGradient: { flex: 1, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
   modalActionText: { fontSize: 14, fontFamily: Fonts.outfit.bold },
-  modalActionTextWhite: { color: '#fff', fontSize: 14, fontFamily: Fonts.outfit.bold },
+  modalActionTextWhite: { color: colors.white, fontSize: 14, fontFamily: Fonts.outfit.bold },
   modalCloseLink: { marginTop: 20, alignSelf: 'center' },
-  modalCloseLinkText: { color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.inter.medium },
+  modalCloseLinkText: { color: colors.slate400, fontSize: 13, fontFamily: Fonts.inter.medium },
 
   // Storage
   storageSection: { 
@@ -1216,17 +1217,17 @@ const styles = StyleSheet.create({
   storageCard: {
     flex: 1,
     padding: 16, 
-    backgroundColor: MidnightColors.deepSlate, 
+    backgroundColor: colors.deepSlate, 
     borderRadius: 20, 
     borderWidth: 1, 
-    borderColor: MidnightColors.cardBorder 
+    borderColor: colors.cardBorder 
   },
   storageHeader: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center', 
   },
-  storageLabel: { fontSize: 14, color: '#fff', fontFamily: Fonts.outfit.bold },
+  storageLabel: { fontSize: 14, color: colors.white, fontFamily: Fonts.outfit.bold },
   upgradeBtnMini: {
     backgroundColor: 'rgba(212, 175, 55, 0.1)',
     paddingHorizontal: 8,
@@ -1237,38 +1238,38 @@ const styles = StyleSheet.create({
   },
   upgradeTextMini: {
     fontSize: 9,
-    color: MidnightColors.gold,
+    color: colors.gold,
     fontFamily: Fonts.outfit.bold,
   },
-  storageBarContainer: { height: 6, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' },
+  storageBarContainer: { height: 6, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderRadius: 3, overflow: 'hidden' },
   storageBar: { height: '100%', backgroundColor: MidnightColors.gold, borderRadius: 3 },
-  storageSub: { fontSize: 11, color: MidnightColors.slate400, fontFamily: Fonts.inter.regular, marginTop: 2 },
+  storageSub: { fontSize: 11, color: colors.slate400, fontFamily: Fonts.inter.regular, marginTop: 2 },
 
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'flex-end' },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2, 6, 23, 0.8)' },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.modalBackdrop },
   modalContent: { 
-    backgroundColor: '#0f172a', 
+    backgroundColor: colors.deepSlate, 
     borderTopLeftRadius: 32, 
     borderTopRightRadius: 32, 
     padding: 24, 
     paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: colors.border,
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  modalTitle: { fontSize: 24, color: '#fff', fontFamily: Fonts.outfit.extraBold },
+  modalTitle: { fontSize: 24, color: colors.white, fontFamily: Fonts.outfit.extraBold },
   form: { gap: 16 },
   inputGroup: { gap: 8 },
-  inputLabel: { fontSize: 13, color: MidnightColors.gold, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', letterSpacing: 0.5 },
+  inputLabel: { fontSize: 13, color: colors.gold, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', letterSpacing: 0.5 },
   input: { 
-    backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)', 
     padding: 16, 
     borderRadius: 16, 
-    color: '#fff', 
+    color: colors.white, 
     fontFamily: Fonts.inter.regular,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: colors.border,
   },
   submitBtn: { 
     backgroundColor: MidnightColors.gold, 
@@ -1291,11 +1292,11 @@ const styles = StyleSheet.create({
   scannerContainer: { width: '100%', height: 350, borderRadius: 24, overflow: 'hidden', backgroundColor: '#000', justifyContent: 'center' },
   scanner: { flex: 1 },
   scannerCloseBtn: { position: 'absolute', bottom: 20, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },
-  scannerCloseText: { color: '#fff', fontFamily: Fonts.inter.bold, fontSize: 12 },
-  permissionText: { color: '#fff', textAlign: 'center', marginBottom: 20, fontFamily: Fonts.inter.medium },
+  scannerCloseText: { color: colors.white, fontFamily: Fonts.inter.bold, fontSize: 12 },
+  permissionText: { color: colors.white, textAlign: 'center', marginBottom: 20, fontFamily: Fonts.inter.medium },
   modalDivider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 24 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
-  dividerText: { color: MidnightColors.slate700, fontSize: 12, fontFamily: Fonts.inter.bold },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { color: colors.slate400, fontSize: 12, fontFamily: Fonts.inter.bold },
   scanBtn: { 
     flexDirection: 'row', 
     alignItems: 'center', 
@@ -1307,7 +1308,7 @@ const styles = StyleSheet.create({
     borderColor: MidnightColors.gold, 
     backgroundColor: 'rgba(212,175,55,0.05)' 
   },
-  scanBtnText: { color: MidnightColors.gold, fontSize: 16, fontFamily: Fonts.outfit.bold },
+  scanBtnText: { color: colors.gold, fontSize: 16, fontFamily: Fonts.outfit.bold },
   
   // Options List
   optionsList: { gap: 4, marginTop: 8 },
@@ -1319,7 +1320,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 16,
   },
-  optionText: { fontSize: 16, color: '#fff', fontFamily: Fonts.inter.medium },
+  optionText: { fontSize: 16, color: colors.white, fontFamily: Fonts.inter.medium },
   templateModalContent: {
     maxHeight: '82%',
   },
@@ -1331,7 +1332,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     marginBottom: 10,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
   },
   activeTemplateRowCard: {
     backgroundColor: 'rgba(255,255,255,0.06)',
@@ -1349,7 +1350,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: colors.border,
   },
   paletteAccentDot: {
     width: 14,
@@ -1361,12 +1362,12 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   templateRowName: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 14,
     fontFamily: Fonts.outfit.bold,
   },
   templateRowDesc: {
-    color: MidnightColors.slate400,
+    color: colors.slate400,
     fontSize: 11,
     fontFamily: Fonts.inter.regular,
     marginTop: 1,

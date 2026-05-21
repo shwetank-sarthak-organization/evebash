@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAuth } from '@/context/AuthContext';
+import { useAppTheme } from '@/context/ThemeContext';
 import { useRouter } from 'expo-router';
 import { 
   getUsers, 
@@ -67,6 +68,8 @@ type TabType = 'feed' | 'suggestions' | 'following';
 
 export default function SocialScreen() {
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
+  const styles = getStyles(colors, isDark);
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('feed');
@@ -882,7 +885,7 @@ export default function SocialScreen() {
                 disabled={!commentText.trim() || postingComment}
               >
                 {postingComment ? (
-                  <ActivityIndicator size="small" color="#d4af37" />
+                  <ActivityIndicator size="small" color={colors.gold} />
                 ) : (
                   <Text style={styles.postBtnText}>Post</Text>
                 )}
@@ -906,7 +909,7 @@ export default function SocialScreen() {
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         
         {/* Header */}
-        <LinearGradient colors={['#0f172a', '#020617']} style={styles.header}>
+        <LinearGradient colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]} style={styles.header}>
           <View style={styles.topRow}>
             <Text style={styles.headerTitle}>Social Hub</Text>
           </View>
@@ -932,11 +935,11 @@ export default function SocialScreen() {
           style={styles.content} 
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 60 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#d4af37" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
           keyboardShouldPersistTaps="handled"
         >
           {loading && feedItems.length === 0 ? (
-            <View style={styles.centerContainer}><ActivityIndicator color="#d4af37" size="large" /></View>
+            <View style={styles.centerContainer}><ActivityIndicator color={colors.gold} size="large" /></View>
           ) : activeTab === 'feed' ? (
             <View style={styles.feedList}>
               {feedItems.length > 0 ? (
@@ -983,17 +986,17 @@ export default function SocialScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#020617' },
+const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
   header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  headerTitle: { fontSize: 32, fontFamily: 'Outfit_800ExtraBold', color: '#f8fafc', letterSpacing: -1 },
+  headerTitle: { fontSize: 32, fontFamily: 'Outfit_800ExtraBold', color: colors.white, letterSpacing: -1 },
   pillTabBarContainer: { alignItems: 'center' },
-  pillTabBar: { flexDirection: 'row', backgroundColor: 'rgba(255, 255, 255, 0.04)', borderRadius: 25, padding: 4, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' },
+  pillTabBar: { flexDirection: 'row', backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)', borderRadius: 25, padding: 4, borderWidth: 1, borderColor: colors.cardBorder },
   pillTab: { paddingVertical: 8, paddingHorizontal: 20, borderRadius: 20 },
   activePillTab: { backgroundColor: '#d4af37' },
-  pillTabText: { fontSize: 13, fontFamily: 'Inter_700Bold', color: '#94a3b8' },
+  pillTabText: { fontSize: 13, fontFamily: 'Inter_700Bold', color: colors.slate400 },
   activePillTabText: { color: '#020617' },
   content: { flex: 1 },
   centerContainer: { paddingTop: 100, alignItems: 'center', justifyContent: 'center' },
@@ -1001,12 +1004,12 @@ const styles = StyleSheet.create({
 
   // === Post Card ===
   postContainer: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     marginHorizontal: 14,
     marginBottom: 14,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.12)',
+    borderColor: colors.border,
     overflow: 'hidden',
     // Subtle elevation
     shadowColor: '#000',
@@ -1039,7 +1042,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.slate800,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1049,18 +1052,18 @@ const styles = StyleSheet.create({
     borderRadius: 15,
   },
   postAvatarText: {
-    color: '#d4af37',
+    color: colors.gold,
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },
   postUserName: {
-    color: '#f1f5f9',
+    color: colors.white,
     fontSize: 13,
     fontFamily: 'Outfit_700Bold',
     letterSpacing: 0.1,
   },
   postTimeText: {
-    color: '#475569',
+    color: colors.slate400,
     fontSize: 10,
     fontFamily: 'Inter_400Regular',
     marginTop: 1,
@@ -1078,7 +1081,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   postImagePlaceholder: {
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.slate800,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1089,7 +1092,7 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    backgroundColor: 'rgba(2,6,23,0.72)',
+    backgroundColor: isDark ? 'rgba(2,6,23,0.72)' : 'rgba(255,255,255,0.85)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(212,175,55,0.1)',
   },
@@ -1100,19 +1103,19 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   postGlassBadgeText: {
-    color: '#d4af37',
+    color: colors.gold,
     fontSize: 9,
     fontFamily: 'Inter_700Bold',
     letterSpacing: 1.5,
   },
   postEventTitle: {
-    color: '#f8fafc',
+    color: colors.white,
     fontSize: 15,
     fontFamily: 'Outfit_700Bold',
     letterSpacing: 0.1,
   },
   postEventSubtitle: {
-    color: '#64748b',
+    color: colors.slate400,
     fontSize: 11,
     fontFamily: 'Inter_400Regular',
     marginTop: 2,
@@ -1126,7 +1129,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.04)',
+    borderTopColor: colors.border,
   },
   actionLeft: {
     flexDirection: 'row',
@@ -1145,7 +1148,7 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   actionCount: {
-    color: '#64748b',
+    color: colors.slate400,
     fontSize: 12,
     fontFamily: 'Inter_700Bold',
   },
@@ -1155,7 +1158,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingBottom: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.04)',
+    borderTopColor: colors.border,
     paddingTop: 8,
   },
   viewAllCommentsBtn: {
@@ -1163,7 +1166,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   viewAllCommentsText: {
-    color: '#d4af37',
+    color: colors.gold,
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },
@@ -1173,13 +1176,13 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   commentUser: {
-    color: '#f1f5f9',
+    color: colors.white,
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
     marginRight: 5,
   },
   commentBody: {
-    color: '#94a3b8',
+    color: colors.slate400,
     fontSize: 12,
     fontFamily: 'Inter_400Regular',
     flex: 1,
@@ -1188,15 +1191,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0, 0, 0, 0.02)',
     borderRadius: 20,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
+    borderColor: colors.cardBorder,
   },
   commentInput: {
     flex: 1,
-    color: '#e2e8f0',
+    color: colors.white,
     fontSize: 13,
     fontFamily: 'Inter_400Regular',
     paddingVertical: 9,
@@ -1205,32 +1208,32 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
   },
   postBtnText: {
-    color: '#d4af37',
+    color: colors.gold,
     fontSize: 13,
     fontFamily: 'Outfit_700Bold',
   },
 
   // === Empty State ===
   emptyContainer: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 40 },
-  emptyTitle: { color: '#fff', fontSize: 20, fontFamily: 'Outfit_700Bold', marginTop: 16, textAlign: 'center' },
-  emptySubtitle: { color: '#64748b', fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 8, textAlign: 'center', lineHeight: 20 },
+  emptyTitle: { color: colors.white, fontSize: 20, fontFamily: 'Outfit_700Bold', marginTop: 16, textAlign: 'center' },
+  emptySubtitle: { color: colors.slate400, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 8, textAlign: 'center', lineHeight: 20 },
   discoverBtn: { marginTop: 24, backgroundColor: '#d4af37', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 16 },
   discoverBtnText: { color: '#020617', fontSize: 15, fontFamily: 'Outfit_700Bold' },
 
   // === User List ===
   userList: { padding: 16 },
-  sectionTitle: { fontSize: 13, color: '#475569', fontFamily: 'Inter_800ExtraBold', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 20, marginTop: 24 },
-  userCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 20, padding: 16, marginBottom: 12 },
+  sectionTitle: { fontSize: 13, color: colors.slate400, fontFamily: 'Inter_800ExtraBold', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 20, marginTop: 24 },
+  userCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0, 0, 0, 0.02)', borderRadius: 20, padding: 16, marginBottom: 12 },
   userInfoSimple: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  avatarSimple: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#1e293b', alignItems: 'center', justifyContent: 'center' },
+  avatarSimple: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.slate800, alignItems: 'center', justifyContent: 'center' },
   avatarImg: { width: 44, height: 44, borderRadius: 22 },
-  avatarChar: { color: '#d4af37', fontSize: 18, fontFamily: 'Outfit_700Bold' },
-  userNameText: { color: '#fff', fontSize: 16, fontFamily: 'Outfit_700Bold' },
-  userRoleText: { color: '#64748b', fontSize: 12, fontFamily: 'Inter_400Regular' },
+  avatarChar: { color: colors.gold, fontSize: 18, fontFamily: 'Outfit_700Bold' },
+  userNameText: { color: colors.white, fontSize: 16, fontFamily: 'Outfit_700Bold' },
+  userRoleText: { color: colors.slate400, fontSize: 12, fontFamily: 'Inter_400Regular' },
   followBtn: { backgroundColor: '#d4af37', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
-  followingBtn: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#334155' },
+  followingBtn: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.slate800 },
   followBtnText: { color: '#020617', fontSize: 13, fontFamily: 'Outfit_700Bold' },
-  followingBtnText: { color: '#94a3b8' },
+  followingBtnText: { color: colors.slate400 },
 
   // === Business Card Feed Styles ===
   bizPostContainer: {
@@ -1241,7 +1244,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(129, 140, 248, 0.3)',
   },
   bizAvatarText: {
-    color: '#818cf8',
+    color: isDark ? '#818cf8' : '#4f46e5',
   },
   bizHeaderNameRow: {
     flexDirection: 'row',
@@ -1260,7 +1263,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
   },
   followedBadgeText: {
-    color: '#818cf8',
+    color: isDark ? '#818cf8' : '#4f46e5',
     fontSize: 10,
     fontFamily: 'Outfit_700Bold',
   },
@@ -1282,7 +1285,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(129, 140, 248, 0.4)',
   },
   bizGlassBadgeText: {
-    color: '#818cf8',
+    color: isDark ? '#818cf8' : '#4f46e5',
   },
   bizRatingBadge: {
     flexDirection: 'row',
@@ -1294,16 +1297,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   bizRatingText: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 10,
     fontFamily: 'Outfit_700Bold',
   },
   bizBottomContainer: {
     padding: 14,
-    backgroundColor: 'rgba(2, 6, 23, 0.4)',
+    backgroundColor: isDark ? 'rgba(2, 6, 23, 0.4)' : 'rgba(255, 255, 255, 0.4)',
   },
   bizDescription: {
-    color: '#94a3b8',
+    color: colors.slate400,
     fontSize: 13,
     fontFamily: 'Inter_400Regular',
     lineHeight: 18,
@@ -1327,7 +1330,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(129, 140, 248, 0.15)',
   },
   bizTagChipText: {
-    color: '#a5b4fc',
+    color: isDark ? '#a5b4fc' : '#4f46e5',
     fontSize: 11,
     fontFamily: 'Inter_500Medium',
   },
@@ -1346,7 +1349,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(129, 140, 248, 0.04)',
   },
   bizViewProfileText: {
-    color: '#a5b4fc',
+    color: isDark ? '#a5b4fc' : '#4f46e5',
     fontSize: 13,
     fontFamily: 'Outfit_700Bold',
   },
@@ -1364,24 +1367,24 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   bizInquireText: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 13,
     fontFamily: 'Outfit_700Bold',
   },
   selfBadgeText: {
-    color: '#818cf8',
+    color: isDark ? '#818cf8' : '#4f46e5',
     fontSize: 10,
     fontFamily: 'Outfit_700Bold',
     marginLeft: 2,
   },
   bizViewAllCommentsText: {
-    color: '#818cf8',
+    color: isDark ? '#818cf8' : '#4f46e5',
   },
   bizCommentUser: {
-    color: '#a5b4fc',
+    color: isDark ? '#a5b4fc' : '#4f46e5',
   },
   bizPostBtnText: {
-    color: '#818cf8',
+    color: isDark ? '#818cf8' : '#4f46e5',
   },
   activityBodyContainer: {
     paddingHorizontal: 16,
@@ -1400,7 +1403,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   announcementText: {
-    color: '#e2e8f0',
+    color: colors.white,
     fontSize: 13,
     lineHeight: 20,
     fontFamily: 'Inter_500Medium',
@@ -1419,7 +1422,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   faqQuestion: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 14,
     fontFamily: 'Outfit_700Bold',
     lineHeight: 20,
@@ -1430,7 +1433,7 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   faqAnswer: {
-    color: '#cbd5e1',
+    color: colors.slate400,
     fontSize: 13,
     fontFamily: 'Inter_500Medium',
     lineHeight: 18,
@@ -1447,7 +1450,7 @@ const styles = StyleSheet.create({
     height: 180,
   },
   portfolioPhotoCaption: {
-    color: '#94a3b8',
+    color: colors.slate400,
     fontSize: 12,
     padding: 10,
     fontFamily: 'Inter_500Medium',

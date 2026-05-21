@@ -41,6 +41,20 @@ export const MidnightColors = {
   cardBorder: 'rgba(255, 255, 255, 0.05)',
 };
 
+export const LightColors = {
+  background: '#f8fafc',
+  deepSlate: '#ffffff',
+  slate900: '#f1f5f9',
+  slate800: '#e2e8f0',
+  slate700: '#cbd5e1',
+  slate400: '#64748b',
+  gold: '#d4af37',
+  white: '#0f172a',
+  ghostWhite: '#1e293b',
+  border: 'rgba(212, 175, 55, 0.25)',
+  cardBorder: 'rgba(0, 0, 0, 0.05)',
+};
+
 export const RoyalColors = {
   maroon: '#5D001E',
   gold: '#D4AF37',

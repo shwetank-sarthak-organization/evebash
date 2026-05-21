@@ -1,16 +1,34 @@
 @import "tailwindcss";
 
-@theme {
-  --color-primary-500: #0ea5e9;
-  --color-secondary-800: #1e293b;
-  --color-secondary-600: #475569;
-  --color-secondary-50: #f8fafc;
-
-  /* Royal Theme Colors */
+:root {
   --color-royal-maroon: #5D001E;
   --color-royal-gold: #D4AF37;
   --color-royal-cream: #FFFDD0;
   --color-royal-green: #005D4B;
+  --color-slate-800: #1e293b;
+  --opacity-noise: 0.4;
+}
+
+.theme-light {
+  --color-royal-maroon: #0ea5e9; /* Sky blue */
+  --color-royal-gold: #0ea5e9; /* Sky blue */
+  --color-royal-cream: #f8fafc; /* Very light slate-50 gray */
+  --color-royal-green: #0ea5e9;
+  --color-slate-800: #0f172a;
+  --opacity-noise: 0.15; /* Subtler noise */
+}
+
+@theme {
+  --color-primary-500: #0ea5e9;
+  --color-secondary-800: var(--color-slate-800);
+  --color-secondary-600: #475569;
+  --color-secondary-50: #f8fafc;
+
+  /* Royal Theme Colors */
+  --color-royal-maroon: var(--color-royal-maroon);
+  --color-royal-gold: var(--color-royal-gold);
+  --color-royal-cream: var(--color-royal-cream);
+  --color-royal-green: var(--color-royal-green);
 
   --font-serif: var(--font-playfair), serif;
   --font-sans: var(--font-lato), sans-serif;
@@ -36,7 +54,7 @@
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
     pointer-events: none;
     z-index: 50;
-    opacity: 0.4;
+    opacity: var(--opacity-noise);
   }
 
   h1,
@@ -65,4 +83,50 @@ body[data-lightbox-open="true"] .lightbox-hide-ui {
 nav,
 header {
   transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+/* Hero Adaptive styles for Modern Light theme */
+.theme-light .hero-overlay {
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0.15) 100%) !important;
+}
+
+.theme-light .hero-title {
+  color: #0f172a !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+.theme-light .hero-subtitle {
+  color: #334155 !important;
+  text-shadow: none !important;
+}
+
+.theme-light .hero-chip {
+  background-color: rgba(14, 165, 233, 0.1) !important;
+  border-color: rgba(14, 165, 233, 0.2) !important;
+}
+
+.theme-light .hero-chip p {
+  color: #0369a1 !important;
+}
+
+.theme-light .hero-chip svg {
+  color: #0ea5e9 !important;
+}
+
+.theme-light .hero-btn-portfolio {
+  background-color: #0ea5e9 !important;
+  color: #ffffff !important;
+}
+
+.theme-light .hero-btn-portfolio:hover {
+  background-color: #0284c7 !important;
+}
+
+.theme-light .hero-btn-book {
+  border-color: rgba(14, 165, 233, 0.5) !important;
+  color: #0369a1 !important;
+}
+
+.theme-light .hero-btn-book:hover {
+  background-color: rgba(14, 165, 233, 0.05) !important;
 }

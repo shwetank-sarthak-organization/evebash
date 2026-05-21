@@ -23,6 +23,7 @@ import { useRouter, Stack } from 'expo-router';
 import * as Location from 'expo-location';
 import { onTopRatedBusinesses, getTopRatedBusinesses, toggleShortlistBusiness, Business, getBusinessTypeColor } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
+import { useAppTheme } from '@/context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -58,6 +59,8 @@ function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
 export default function ExploreBusinessScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
+  const styles = getStyles(colors, isDark);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedVendor, setSelectedVendor] = useState<any>(null);
@@ -174,7 +177,7 @@ export default function ExploreBusinessScreen() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <IconSymbol name="chevron.left" size={24} color="#ffffff" />
+            <IconSymbol name="chevron.left" size={24} color={colors.white} />
           </TouchableOpacity>
           <View>
             <Text style={styles.headerTitle}>Marketplace</Text>
@@ -182,7 +185,7 @@ export default function ExploreBusinessScreen() {
           </View>
         </View>
         <TouchableOpacity style={styles.iconBtn}>
-          <IconSymbol name="bell.fill" size={20} color="#818cf8" />
+          <IconSymbol name="bell.fill" size={20} color={isDark ? "#818cf8" : "#6366f1"} />
         </TouchableOpacity>
       </View>
 
@@ -214,7 +217,7 @@ export default function ExploreBusinessScreen() {
             style={styles.filterBtn}
             onPress={() => setShowFilterModal(true)}
           >
-            <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <Path d="M10 5H3"/><Path d="M12 19H3"/><Path d="M14 3v4"/><Path d="M16 17v4"/><Path d="M21 12h-9"/><Path d="M21 19h-5"/><Path d="M21 5h-7"/><Path d="M8 10v4"/><Path d="M8 12H3"/>
             </Svg>
           </TouchableOpacity>
@@ -235,7 +238,7 @@ export default function ExploreBusinessScreen() {
               <IconSymbol
                 name={cat.icon as any}
                 size={16}
-                color={selectedCategory === cat.name ? '#0f172a' : '#94a3b8'}
+                color={selectedCategory === cat.name ? (isDark ? '#0f172a' : '#ffffff') : colors.slate400}
               />
               <Text style={[styles.categoryText, selectedCategory === cat.name && styles.categoryTextActive]}>
                 {cat.name}
@@ -298,7 +301,7 @@ export default function ExploreBusinessScreen() {
                 >
                   <ExpoImage source={{ uri: vendor.image }} style={styles.featuredImage} contentFit="cover" />
                   <LinearGradient
-                    colors={['transparent', 'rgba(2, 6, 23, 0.9)']}
+                    colors={isDark ? ['transparent', 'rgba(2, 6, 23, 0.9)'] : ['transparent', 'rgba(255, 255, 255, 0.9)']}
                     style={styles.cardGradient}
                   />
                   {/* Shortlist Heart Button */}
@@ -312,7 +315,7 @@ export default function ExploreBusinessScreen() {
                     <IconSymbol 
                       name={isShortlisted(vendor.id) ? "heart.fill" : "heart"} 
                       size={16} 
-                      color={isShortlisted(vendor.id) ? "#ef4444" : "#ffffff"} 
+                      color={isShortlisted(vendor.id) ? "#ef4444" : colors.white} 
                     />
                   </TouchableOpacity>
                   <View style={styles.featuredBadge}>
@@ -387,7 +390,7 @@ export default function ExploreBusinessScreen() {
                         <IconSymbol 
                           name={isShortlisted(vendor.id) ? "heart.fill" : "heart"} 
                           size={14} 
-                          color={isShortlisted(vendor.id) ? "#ef4444" : "#ffffff"} 
+                          color={isShortlisted(vendor.id) ? "#ef4444" : colors.white} 
                         />
                       </TouchableOpacity>
                     </View>
@@ -589,10 +592,10 @@ export default function ExploreBusinessScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     paddingBottom: 40,
@@ -605,7 +608,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 24,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(212, 175, 55, 0.2)',
+    borderBottomColor: colors.border,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -622,12 +625,12 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: colors.slate400,
     fontFamily: 'Inter_500Medium',
   },
   headerTitle: {
     fontSize: 28,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_800ExtraBold',
     marginTop: -2,
   },
@@ -635,11 +638,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(129, 140, 248, 0.1)',
+    backgroundColor: isDark ? 'rgba(129, 140, 248, 0.1)' : 'rgba(99, 102, 241, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(129, 140, 248, 0.2)',
+    borderColor: isDark ? 'rgba(129, 140, 248, 0.2)' : 'rgba(99, 102, 241, 0.2)',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -651,17 +654,17 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderRadius: 16,
     paddingHorizontal: 16,
     height: 50,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.border,
   },
   searchInput: {
     flex: 1,
     marginLeft: 10,
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 15,
     fontFamily: 'Inter_400Regular',
   },
@@ -669,7 +672,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 16,
-    backgroundColor: '#818cf8',
+    backgroundColor: isDark ? '#818cf8' : '#6366f1',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -681,25 +684,25 @@ const styles = StyleSheet.create({
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.border,
     gap: 8,
   },
   categoryChipActive: {
-    backgroundColor: '#818cf8',
-    borderColor: '#818cf8',
+    backgroundColor: isDark ? '#818cf8' : '#6366f1',
+    borderColor: isDark ? '#818cf8' : '#6366f1',
   },
   categoryText: {
-    color: '#94a3b8',
+    color: colors.slate400,
     fontSize: 14,
     fontFamily: 'Outfit_600SemiBold',
   },
   categoryTextActive: {
-    color: '#0f172a',
+    color: isDark ? '#0f172a' : '#ffffff',
   },
   heroCard: {
     marginHorizontal: 24,
@@ -707,7 +710,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 24,
     elevation: 4,
-    shadowColor: '#818cf8',
+    shadowColor: isDark ? '#818cf8' : '#6366f1',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
@@ -730,13 +733,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   heroBadgeText: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 9,
     fontFamily: 'Outfit_800ExtraBold',
     letterSpacing: 0.8,
   },
   heroTitle: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 18,
     fontFamily: 'Outfit_800ExtraBold',
     marginBottom: 2,
@@ -752,14 +755,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
     alignSelf: 'flex-start',
   },
   heroBtnText: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },
@@ -778,12 +781,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_800ExtraBold',
     paddingHorizontal: 24,
   },
   viewAllText: {
-    color: '#818cf8',
+    color: isDark ? '#818cf8' : '#6366f1',
     fontSize: 14,
     fontFamily: 'Outfit_700Bold',
   },
@@ -796,7 +799,7 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 24,
     overflow: 'hidden',
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
   },
   featuredImage: {
     width: '100%',
@@ -809,7 +812,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.8)' : 'rgba(255, 255, 255, 0.8)',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
@@ -817,10 +820,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 4,
     borderWidth: 1,
-    borderColor: 'rgba(129, 140, 248, 0.3)',
+    borderColor: colors.border,
   },
   featuredBadgeText: {
-    color: '#818cf8',
+    color: isDark ? '#818cf8' : '#6366f1',
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },
@@ -836,12 +839,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   featuredName: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 18,
     fontFamily: 'Outfit_700Bold',
   },
   featuredCategory: {
-    color: '#94a3b8',
+    color: colors.slate400,
     fontSize: 13,
     fontFamily: 'Inter_500Medium',
   },
@@ -857,7 +860,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   locationText: {
-    color: '#94a3b8',
+    color: colors.slate400,
     fontSize: 12,
     fontFamily: 'Inter_500Medium',
   },
@@ -869,26 +872,26 @@ const styles = StyleSheet.create({
   },
   gridCard: {
     width: (width - 48) / 2,
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderRadius: 20,
     marginHorizontal: 8,
     marginBottom: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.border,
   },
   shortlistHeartBtn: {
     position: 'absolute',
     top: 10,
     left: 10,
-    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.7)' : 'rgba(255, 255, 255, 0.7)',
     width: 30,
     height: 30,
     borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: colors.border,
     zIndex: 10,
   },
   gridImage: {
@@ -899,7 +902,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   gridName: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 15,
     fontFamily: 'Outfit_700Bold',
     flex: 1,
@@ -925,7 +928,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   gridCategory: {
-    color: '#64748b',
+    color: colors.slate400,
     fontSize: 12,
     fontFamily: 'Inter_500Medium',
   },
@@ -935,18 +938,18 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   gridRating: {
-    color: '#d4af37',
+    color: colors.gold,
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },
   // ── Modal Styles ──
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(2, 6, 23, 0.95)',
+    backgroundColor: colors.modalBackdrop,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     height: '90%',
@@ -974,32 +977,32 @@ const styles = StyleSheet.create({
   },
   modalVendorName: {
     fontSize: 28,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_800ExtraBold',
   },
   modalVendorCat: {
     fontSize: 16,
-    color: '#d4af37',
+    color: colors.gold,
     fontFamily: 'Outfit_600SemiBold',
     marginTop: 4,
   },
   modalRating: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.1)' : 'rgba(212, 175, 55, 0.05)',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
     gap: 6,
   },
   modalRatingText: {
-    color: '#d4af37',
+    color: colors.gold,
     fontSize: 16,
     fontFamily: 'Outfit_700Bold',
   },
   modalDesc: {
     fontSize: 15,
-    color: '#94a3b8',
+    color: colors.slate400,
     fontFamily: 'Inter_400Regular',
     lineHeight: 24,
     marginBottom: 24,
@@ -1015,7 +1018,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   featureText: {
-    color: '#f8fafc',
+    color: colors.white,
     fontSize: 13,
     fontFamily: 'Inter_500Medium',
   },
@@ -1028,7 +1031,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#d4af37',
+    backgroundColor: colors.gold,
     paddingVertical: 16,
     borderRadius: 16,
     gap: 10,
@@ -1043,21 +1046,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.1)' : 'rgba(212, 175, 55, 0.05)',
     paddingVertical: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: colors.border,
     gap: 10,
   },
   secondaryActionText: {
-    color: '#d4af37',
+    color: colors.gold,
     fontSize: 16,
     fontFamily: 'Outfit_700Bold',
   },
   // ── Form Styles ──
   formContainer: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     padding: 24,
@@ -1081,7 +1084,7 @@ const styles = StyleSheet.create({
   },
   formTitle: {
     fontSize: 24,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_800ExtraBold',
   },
   formBody: {
@@ -1096,32 +1099,32 @@ const styles = StyleSheet.create({
   detectBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.1)' : 'rgba(212, 175, 55, 0.05)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: colors.border,
     gap: 6,
   },
   detectBtnText: {
-    color: '#d4af37',
+    color: colors.gold,
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },
   inputLabel: {
     fontSize: 14,
-    color: '#d4af37',
+    color: colors.gold,
     fontFamily: 'Outfit_700Bold',
     marginBottom: 4,
   },
   formInput: {
-    backgroundColor: '#020617',
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.border,
     borderRadius: 12,
     padding: 16,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Inter_400Regular',
     fontSize: 16,
     minHeight: 56,
@@ -1133,20 +1136,20 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   pickerChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.border,
   },
   pickerChipText: {
-    color: '#94a3b8',
+    color: colors.slate400,
     fontSize: 12,
     fontFamily: 'Inter_500Medium',
   },
   submitFormBtn: {
-    backgroundColor: '#d4af37',
+    backgroundColor: colors.gold,
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: 'center',
@@ -1166,7 +1169,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   emptyText: {
-    color: '#64748b',
+    color: colors.slate400,
     fontSize: 16,
     fontFamily: 'Inter_500Medium',
     textAlign: 'center',
@@ -1174,7 +1177,7 @@ const styles = StyleSheet.create({
   experienceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.04)',
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -1183,7 +1186,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   experienceText: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 10,
     fontFamily: 'Outfit_700Bold',
   },
@@ -1194,7 +1197,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   gridExperienceText: {
-    color: '#d4af37',
+    color: colors.gold,
     fontSize: 10,
     fontFamily: 'Outfit_700Bold',
   },
@@ -1203,14 +1206,14 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   listCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderRadius: 20,
     marginHorizontal: 24,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.border,
     gap: 16,
   },
   listImage: {
@@ -1236,22 +1239,22 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   listName: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 16,
     fontFamily: 'Outfit_700Bold',
   },
   listHeartBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
     width: 28,
     height: 28,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: colors.cardBorder,
   },
   listCategory: {
-    color: '#818cf8',
+    color: isDark ? '#818cf8' : '#6366f1',
     fontSize: 12,
     fontFamily: 'Outfit_600SemiBold',
     marginBottom: 8,
@@ -1268,7 +1271,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   listMetaText: {
-    color: '#94a3b8',
+    color: colors.slate400,
     fontSize: 11,
     fontFamily: 'Inter_500Medium',
     maxWidth: 100,
@@ -1281,16 +1284,16 @@ const styles = StyleSheet.create({
   listRatingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.1)' : 'rgba(212, 175, 55, 0.05)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
     gap: 4,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: colors.border,
   },
   listRatingText: {
-    color: '#d4af37',
+    color: colors.gold,
     fontSize: 11,
     fontFamily: 'Outfit_700Bold',
   },
@@ -1300,7 +1303,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   listActionBtnText: {
-    color: '#818cf8',
+    color: isDark ? '#818cf8' : '#6366f1',
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },

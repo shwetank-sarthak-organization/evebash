@@ -18,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
+import { useAppTheme } from '@/context/ThemeContext';
 import {
   getUserEvents,
   Event as FirestoreEvent,
@@ -39,7 +40,10 @@ const { width, height } = Dimensions.get('window');
 
 export default function DashboardScreen() {
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
+  const styles = getStyles(colors, isDark);
   const router = useRouter();
+
 
   const [refreshing, setRefreshing] = useState(false);
   const [events, setEvents] = useState<FirestoreEvent[]>([]);
@@ -181,7 +185,7 @@ export default function DashboardScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* ── FIXED HEADER ── */}
       <LinearGradient
-        colors={['#0f172a', '#020617']}
+        colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]}
         style={styles.header}
       >
         <View>
@@ -202,7 +206,7 @@ export default function DashboardScreen() {
             activeOpacity={0.7}
             onPress={() => Alert.alert("Notifications", "Coming Soon: Updates on your albums, events, and shortlist activity.")}
           >
-            <IconSymbol name="bell.fill" size={20} color="#f8fafc" />
+            <IconSymbol name="bell.fill" size={20} color={colors.white} />
             <View style={styles.notificationBadge} />
           </TouchableOpacity>
         </View>
@@ -217,7 +221,7 @@ export default function DashboardScreen() {
           ? <ActivityIndicator color="#d4af37" style={{ marginTop: 60 }} />
           : <>
               {/* ── SECTION 1: EVENTS (Deep Midnight) ── */}
-              <View style={[styles.section, { backgroundColor: '#020617' }]}>
+              <View style={[styles.section, { backgroundColor: colors.background }]}>
                 <View style={styles.sectionHead}>
                   <View>
                     <Text style={styles.sectionLabel}>Events</Text>
@@ -228,7 +232,7 @@ export default function DashboardScreen() {
                     activeOpacity={0.8}
                     onPress={() => setShowJoinModal(true)}
                   >
-                    <IconSymbol name="plus.circle.fill" size={12} color="#020617" />
+                    <IconSymbol name="plus.circle.fill" size={12} color={'#020617'} />
                     <Text style={styles.catchyActionPillText}>Join Event</Text>
                   </TouchableOpacity>
                 </View>
@@ -292,7 +296,7 @@ export default function DashboardScreen() {
                        
                        <View style={styles.miniGalleryBtn}>
                           <Text style={styles.miniGalleryBtnText}>Explore All</Text>
-                          <IconSymbol name="arrow.right" size={14} color="#020617" />
+                          <IconSymbol name="arrow.right" size={14} color={'#020617'} />
                        </View>
                     </View>
                   </TouchableOpacity>
@@ -300,7 +304,7 @@ export default function DashboardScreen() {
               </View>
 
               <LinearGradient 
-                colors={['#020617', '#0f172a']} 
+                colors={isDark ? ['#020617', '#0f172a'] : [colors.background, colors.deepSlate]} 
                 style={[styles.section, { paddingTop: 40 }]}
               >
                 <View style={styles.sectionHead}>
@@ -309,7 +313,7 @@ export default function DashboardScreen() {
                     <Text style={styles.sectionSub}>Photographers, venues & more</Text>
                   </View>
                   <TouchableOpacity 
-                    style={[styles.catchyActionPill, { backgroundColor: '#818cf8' }]}
+                    style={[styles.catchyActionPill, { backgroundColor: isDark ? '#818cf8' : '#6366f1' }]}
                     activeOpacity={0.8}
                     onPress={() => router.push('/shortlist')}
                   >
@@ -330,7 +334,7 @@ export default function DashboardScreen() {
                       key={biz.id} 
                       style={styles.recentBusinessCard}
                       activeOpacity={0.9}
-                      onPress={() => router.push(`/(tabs)/explore-business`)} // Navigate to details or explore
+                      onPress={() => router.push(`/(tabs)/explore-business`)}
                     >
                       <ExpoImage 
                         source={{ uri: biz.coverImage }} 
@@ -339,24 +343,24 @@ export default function DashboardScreen() {
                         transition={400}
                       />
                       <LinearGradient 
-                        colors={['transparent', 'rgba(15,23,42,0.9)']} 
+                        colors={isDark ? ['transparent', 'rgba(15,23,42,0.9)'] : ['transparent', 'rgba(248,250,252,0.9)']} 
                         style={StyleSheet.absoluteFill} 
                       />
                       <View style={styles.recentEventInfo}>
-                        <Text style={styles.recentEventTitle} numberOfLines={1}>{biz.name}</Text>
+                        <Text style={[styles.recentEventTitle, { color: colors.white }]} numberOfLines={1}>{biz.name}</Text>
                         <View style={styles.recentEventMeta}>
-                          <IconSymbol name="tag.fill" size={10} color="rgba(129,140,248,0.6)" />
-                          <Text style={[styles.recentEventDate, { color: 'rgba(129,140,248,0.8)' }]}>{biz.type}</Text>
-                          <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                          <IconSymbol name="tag.fill" size={10} color={isDark ? 'rgba(129,140,248,0.6)' : 'rgba(99,102,241,0.6)'} />
+                          <Text style={[styles.recentEventDate, { color: isDark ? 'rgba(129,140,248,0.8)' : 'rgba(99,102,241,0.8)' }]}>{biz.type}</Text>
+                          <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)' }} />
                           <IconSymbol name="star.fill" size={10} color="#d4af37" />
-                          <Text style={styles.recentEventDate}>{biz.rating}</Text>
+                          <Text style={[styles.recentEventDate, { color: colors.slate400 }]}>{biz.rating}</Text>
                         </View>
                       </View>
                     </TouchableOpacity>
                   ))}
                   
                   <TouchableOpacity 
-                    style={[styles.viewAllMemoriesCard, { borderColor: 'rgba(129,140,248,0.3)', shadowColor: '#818cf8' }]}
+                    style={[styles.viewAllMemoriesCard, { borderColor: isDark ? 'rgba(129,140,248,0.3)' : 'rgba(99,102,241,0.15)', shadowColor: isDark ? '#818cf8' : '#6366f1' }]}
                     activeOpacity={0.8}
                     onPress={() => router.push('/(tabs)/explore-business')}
                   >
@@ -367,18 +371,18 @@ export default function DashboardScreen() {
                       transition={400}
                     />
                     <LinearGradient 
-                      colors={['rgba(15,23,42,0.3)', 'rgba(15,23,42,0.95)']} 
+                      colors={isDark ? ['rgba(15,23,42,0.3)', 'rgba(15,23,42,0.95)'] : ['rgba(248,250,252,0.3)', 'rgba(248,250,252,0.95)']} 
                       style={StyleSheet.absoluteFill} 
                     />
                     <View style={styles.viewAllMemoriesContent}>
                        <View style={{ alignItems: 'center', gap: 6, marginBottom: 28, zIndex: 1 }}>
-                         <Text style={[styles.viewAllMemoriesText, { fontSize: 22 }]}>Marketplace</Text>
-                         <View style={[styles.countPill, { backgroundColor: 'rgba(129,140,248,0.1)', borderColor: 'rgba(129,140,248,0.2)' }]}>
-                           <Text style={[styles.viewAllMemoriesSub, { color: '#818cf8' }]}>{businesses.length > 0 ? businesses.length : '50+'}+ Vendors</Text>
+                         <Text style={[styles.viewAllMemoriesText, { fontSize: 22, color: colors.white }]}>Marketplace</Text>
+                         <View style={[styles.countPill, { backgroundColor: isDark ? 'rgba(129,140,248,0.1)' : 'rgba(99,102,241,0.1)', borderColor: isDark ? 'rgba(129,140,248,0.2)' : 'rgba(99,102,241,0.2)' }]}>
+                           <Text style={[styles.viewAllMemoriesSub, { color: isDark ? '#818cf8' : '#6366f1' }]}>{businesses.length > 0 ? businesses.length : '50+'}+ Vendors</Text>
                          </View>
                        </View>
                        
-                       <View style={[styles.miniGalleryBtn, { backgroundColor: '#818cf8' }]}>
+                       <View style={[styles.miniGalleryBtn, { backgroundColor: isDark ? '#818cf8' : '#6366f1' }]}>
                           <Text style={[styles.miniGalleryBtnText, { color: '#fff' }]}>Explore All</Text>
                           <IconSymbol name="arrow.right" size={14} color="#fff" />
                        </View>
@@ -568,10 +572,10 @@ export default function DashboardScreen() {
 const CARD_W = width * 0.65;
 const CARD_H = 180;
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#020617' },
+const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: colors.background },
   centered: { justifyContent: 'center', alignItems: 'center' },
-  container: { flex: 1, backgroundColor: '#020617' },
+  container: { flex: 1, backgroundColor: colors.background },
 
   // ── Header ──
   header: {
@@ -581,19 +585,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 20,
-    backgroundColor: '#020617',
+    backgroundColor: colors.background,
     borderBottomWidth: 1.5,
-    borderBottomColor: 'rgba(212, 175, 55, 0.25)',
+    borderBottomColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 10,
     elevation: 8,
   },
   greetingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  greeting: { fontSize: 13, color: '#94a3b8', fontFamily: 'Inter_500Medium', textTransform: 'uppercase', letterSpacing: 1.2 },
+  greeting: { fontSize: 13, color: colors.slate400, fontFamily: 'Inter_500Medium', textTransform: 'uppercase', letterSpacing: 1.2 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
-  userName: { fontSize: 32, color: '#f8fafc', fontFamily: 'Outfit_800ExtraBold', letterSpacing: -0.5, marginTop: 2 },
+  userName: { fontSize: 32, color: colors.white, fontFamily: 'Outfit_800ExtraBold', letterSpacing: -0.5, marginTop: 2 },
   planChip: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     backgroundColor: 'rgba(212,175,55,0.12)',
@@ -601,15 +605,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7, paddingVertical: 2, borderRadius: 20,
     marginTop: -2, // Slight adjustment for baseline alignment with greeting
   },
-  planChipText: { fontSize: 9, color: '#d4af37', fontFamily: 'Outfit_700Bold', textTransform: 'uppercase', letterSpacing: 0.8 },
+  planChipText: { fontSize: 9, color: colors.gold, fontFamily: 'Outfit_700Bold', textTransform: 'uppercase', letterSpacing: 0.8 },
   avatarRing: {
     padding: 2, borderRadius: 22,
-    borderWidth: 1.5, borderColor: 'rgba(212,175,55,0.3)',
+    borderWidth: 1.5, borderColor: colors.border,
   },
   avatar: { width: 38, height: 38, borderRadius: 19 },
   avatarFallback: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: '#1e293b', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: colors.slate800, justifyContent: 'center', alignItems: 'center',
   },
   headerRight: {
     flexDirection: 'row',
@@ -620,12 +624,12 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: colors.cardBorder,
   },
   notificationBadge: {
     position: 'absolute',
@@ -634,9 +638,9 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#d4af37',
+    backgroundColor: colors.gold,
     borderWidth: 1.5,
-    borderColor: '#0f172a',
+    borderColor: colors.background,
   },
 
   // ── Sections ──
@@ -645,26 +649,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', paddingHorizontal: 24, marginBottom: 18,
   },
-  sectionLabel: { fontSize: 22, color: '#f1f5f9', fontFamily: 'Outfit_800ExtraBold', letterSpacing: -0.3 },
-  sectionSub: { fontSize: 13, color: '#64748b', fontFamily: 'Inter_400Regular', marginTop: -2 },
+  sectionLabel: { fontSize: 22, color: colors.white, fontFamily: 'Outfit_800ExtraBold', letterSpacing: -0.3 },
+  sectionSub: { fontSize: 13, color: colors.slate400, fontFamily: 'Inter_400Regular', marginTop: -2 },
   viewAllPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 10, paddingVertical: 5,
-    backgroundColor: 'rgba(212,175,55,0.08)',
-    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(212,175,55,0.2)',
+    backgroundColor: isDark ? 'rgba(212,175,55,0.08)' : 'rgba(212,175,55,0.04)',
+    borderRadius: 20, borderWidth: 1, borderColor: colors.border,
   },
-  viewAllLabel: { fontSize: 11, color: '#d4af37', fontFamily: 'Outfit_700Bold' },
+  viewAllLabel: { fontSize: 11, color: colors.gold, fontFamily: 'Outfit_700Bold' },
   catchyActionPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#d4af37',
+    backgroundColor: colors.gold,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: isDark ? 0.2 : 0.05,
     shadowRadius: 4,
     elevation: 4,
   },
@@ -680,11 +684,11 @@ const styles = StyleSheet.create({
   eventCard: {
     width: CARD_W, height: CARD_H,
     borderRadius: 24, overflow: 'hidden',
-    backgroundColor: '#020617',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: colors.background,
+    borderWidth: 1, borderColor: colors.cardBorder,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.4,
+    shadowOpacity: isDark ? 0.4 : 0.05,
     shadowRadius: 16,
     elevation: 12,
   },
@@ -692,7 +696,7 @@ const styles = StyleSheet.create({
   vignetteBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 120 },
   eventCardBody: { position: 'absolute', bottom: 14, left: 18, right: 18 },
   eventCardTitle: {
-    fontSize: 16, color: '#fff',
+    fontSize: 16, color: colors.white,
     fontFamily: 'Outfit_700Bold',
     letterSpacing: 0.1,
     textShadowColor: 'rgba(0,0,0,0.5)',
@@ -706,27 +710,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 3,
     backgroundColor: 'rgba(15,23,42,0.65)',
     paddingHorizontal: 7, paddingVertical: 3, borderRadius: 20,
-    borderWidth: 1, borderColor: 'rgba(212,175,55,0.3)',
+    borderWidth: 1, borderColor: colors.border,
   },
-  ratingText: { fontSize: 10, color: '#d4af37', fontFamily: 'Outfit_700Bold' },
+  ratingText: { fontSize: 10, color: colors.gold, fontFamily: 'Outfit_700Bold' },
 
   // ── Empty State ──
   emptySlate: {
     marginHorizontal: 24, paddingVertical: 20,
     alignItems: 'center',
-    borderWidth: 1, borderColor: '#1e293b',
+    borderWidth: 1, borderColor: colors.slate800,
     borderRadius: 20, borderStyle: 'dashed',
   },
   emptyIconRing: {
     width: 44, height: 44, borderRadius: 22,
-    backgroundColor: '#0f172a', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.slate900, alignItems: 'center', justifyContent: 'center',
     marginBottom: 10,
   },
-  emptyTitle: { fontSize: 15, color: '#f1f5f9', fontFamily: 'Outfit_700Bold' },
-  emptyBody: { fontSize: 12, color: '#64748b', fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 4, paddingHorizontal: 40 },
+  emptyTitle: { fontSize: 15, color: colors.white, fontFamily: 'Outfit_700Bold' },
+  emptyBody: { fontSize: 12, color: colors.slate400, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 4, paddingHorizontal: 40 },
 
   // ── Divider ──
-  hairline: { marginHorizontal: 24, height: 1, backgroundColor: '#0f172a' },
+  hairline: { marginHorizontal: 24, height: 1, backgroundColor: colors.slate900 },
 
   // ── CTA ──
   // Hero Banner Styles
@@ -738,7 +742,7 @@ const styles = StyleSheet.create({
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 10,
   },
   heroGradient: {
@@ -759,13 +763,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   heroBadgeText: {
-    color: '#ffffff',
+    color: isDark ? '#ffffff' : '#0f172a',
     fontSize: 9,
     fontFamily: 'Outfit_800ExtraBold',
     letterSpacing: 0.8,
   },
   heroTitle: {
-    color: '#ffffff',
+    color: isDark ? '#ffffff' : '#0f172a',
     fontSize: 18,
     fontFamily: 'Outfit_800ExtraBold',
     marginBottom: 2,
@@ -781,14 +785,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.slate900,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
     alignSelf: 'flex-start',
   },
   heroBtnText: {
-    color: '#ffffff',
+    color: isDark ? '#ffffff' : '#0f172a',
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },
@@ -798,39 +802,39 @@ const styles = StyleSheet.create({
 
   // ── Modal Styles ──
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(2, 6, 23, 0.9)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  modalContent: { backgroundColor: '#0f172a', width: '100%', borderRadius: 28, padding: 28, borderWidth: 1, borderColor: '#1e293b' },
-  modalTitle: { fontSize: 24, color: '#f8fafc', fontFamily: 'Outfit_800ExtraBold', marginBottom: 12, letterSpacing: -0.5 },
-  modalText: { fontSize: 16, color: '#94a3b8', fontFamily: 'Inter_400Regular', lineHeight: 26, marginBottom: 28 },
-  modalCloseBtn: { backgroundColor: '#d4af37', paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
+  modalContent: { backgroundColor: colors.slate900, width: '100%', borderRadius: 28, padding: 28, borderWidth: 1, borderColor: colors.border },
+  modalTitle: { fontSize: 24, color: colors.white, fontFamily: 'Outfit_800ExtraBold', marginBottom: 12, letterSpacing: -0.5 },
+  modalText: { fontSize: 16, color: colors.slate400, fontFamily: 'Inter_400Regular', lineHeight: 26, marginBottom: 28 },
+  modalCloseBtn: { backgroundColor: colors.gold, paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
   modalCloseBtnText: { color: '#0f172a', fontFamily: 'Outfit_800ExtraBold', fontSize: 14, textTransform: 'uppercase', letterSpacing: 0.8 },
 
   // ── Join Event Modal Specific ──
   joinModalOverlay: { flex: 1, justifyContent: 'flex-end' },
   joinModalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2, 6, 23, 0.8)' },
   joinModalContent: { 
-    backgroundColor: '#0f172a', 
+    backgroundColor: colors.slate900, 
     borderTopLeftRadius: 32, 
     borderTopRightRadius: 32, 
     padding: 24, 
     paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: colors.border,
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   form: { gap: 16 },
   inputGroup: { gap: 8 },
-  inputLabel: { fontSize: 13, color: '#d4af37', fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 0.5 },
+  inputLabel: { fontSize: 13, color: colors.gold, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 0.5 },
   input: { 
-    backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)', 
     padding: 16, 
     borderRadius: 16, 
-    color: '#fff', 
+    color: colors.white, 
     fontFamily: 'Inter_400Regular',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: colors.cardBorder,
   },
   submitBtn: { 
-    backgroundColor: '#d4af37', 
+    backgroundColor: colors.gold, 
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -851,28 +855,28 @@ const styles = StyleSheet.create({
     paddingVertical: 16, 
     borderRadius: 16, 
     borderWidth: 1, 
-    borderColor: '#d4af37', 
-    backgroundColor: 'rgba(212,175,55,0.05)' 
+    borderColor: colors.gold, 
+    backgroundColor: isDark ? 'rgba(212,175,55,0.05)' : 'rgba(212,175,55,0.02)' 
   },
-  scanBtnText: { color: '#d4af37', fontSize: 16, fontFamily: 'Outfit_700Bold' },
+  scanBtnText: { color: colors.gold, fontSize: 16, fontFamily: 'Outfit_700Bold' },
   scannerContainer: { width: '100%', height: 350, borderRadius: 24, overflow: 'hidden', backgroundColor: '#000', justifyContent: 'center' },
   scanner: { flex: 1 },
   scannerCloseBtn: { position: 'absolute', bottom: 20, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },
-  scannerCloseText: { color: '#fff', fontFamily: 'Inter_700Bold', fontSize: 12 },
-  permissionText: { color: '#fff', textAlign: 'center', marginBottom: 20, fontFamily: 'Inter_500Medium' },
+  scannerCloseText: { color: colors.white, fontFamily: 'Inter_700Bold', fontSize: 12 },
+  permissionText: { color: colors.white, textAlign: 'center', marginBottom: 20, fontFamily: 'Inter_500Medium' },
 
   // ── All Events Card Styles ──
   allEventsCard: {
     marginHorizontal: 24,
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.slate900,
     borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.2)',
+    borderColor: colors.border,
     padding: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
+    shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 20,
     elevation: 10,
   },
@@ -885,7 +889,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 16,
-    backgroundColor: 'rgba(212,175,55,0.1)',
+    backgroundColor: isDark ? 'rgba(212,175,55,0.1)' : 'rgba(212,175,55,0.04)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -896,26 +900,26 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   countBadge: {
-    backgroundColor: 'rgba(212,175,55,0.2)',
+    backgroundColor: isDark ? 'rgba(212,175,55,0.2)' : 'rgba(212,175,55,0.1)',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.3)',
+    borderColor: colors.border,
   },
   countBadgeText: {
-    color: '#d4af37',
+    color: colors.gold,
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },
   allEventsTitle: {
     fontSize: 18,
-    color: '#f8fafc',
+    color: colors.white,
     fontFamily: 'Outfit_700Bold',
   },
   allEventsSub: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: colors.slate400,
     fontFamily: 'Inter_400Regular',
     marginTop: 2,
   },
@@ -927,7 +931,7 @@ const styles = StyleSheet.create({
   cardActionBtnMain: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: '#d4af37',
+    backgroundColor: colors.gold,
     paddingVertical: 12,
     borderRadius: 12,
     justifyContent: 'center',
@@ -942,17 +946,17 @@ const styles = StyleSheet.create({
   cardActionBtnSecondary: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
     paddingVertical: 12,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 6,
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.3)',
+    borderColor: colors.border,
   },
   cardActionBtnSecondaryText: {
-    color: '#d4af37',
+    color: colors.gold,
     fontSize: 14,
     fontFamily: 'Outfit_700Bold',
   },
@@ -968,13 +972,13 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 24,
     overflow: 'hidden',
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.slate900,
     borderWidth: 1,
-    borderColor: 'rgba(129,140,248,0.1)',
+    borderColor: colors.cardBorder,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
+    shadowOpacity: isDark ? 0.4 : 0.05,
     shadowRadius: 12,
   },
   recentEventCard: {
@@ -982,13 +986,13 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 24,
     overflow: 'hidden',
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.slate900,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
+    shadowOpacity: isDark ? 0.4 : 0.05,
     shadowRadius: 12,
   },
   recentEventInfo: {
@@ -999,7 +1003,7 @@ const styles = StyleSheet.create({
   },
   recentEventTitle: {
     fontSize: 18,
-    color: '#fff',
+    color: colors.white,
     fontFamily: 'Outfit_700Bold',
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
@@ -1021,13 +1025,13 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 32,
     overflow: 'hidden',
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.slate900,
     borderWidth: 1.5,
-    borderColor: 'rgba(212,175,55,0.18)',
+    borderColor: colors.border,
     elevation: 12,
-    shadowColor: '#d4af37',
+    shadowColor: colors.gold,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
+    shadowOpacity: isDark ? 0.2 : 0.05,
     shadowRadius: 16,
   },
   cardGlow: {
@@ -1037,7 +1041,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: 'rgba(212,175,55,0.1)',
+    backgroundColor: isDark ? 'rgba(212,175,55,0.1)' : 'rgba(212,175,55,0.04)',
     filter: 'blur(30px)',
   },
   watermarkContainer: {
@@ -1056,34 +1060,34 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 18,
-    backgroundColor: 'rgba(212,175,55,0.08)',
+    backgroundColor: isDark ? 'rgba(212,175,55,0.08)' : 'rgba(212,175,55,0.04)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.2)',
+    borderColor: colors.border,
     marginBottom: 14,
-    shadowColor: '#d4af37',
+    shadowColor: colors.gold,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
+    shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 8,
   },
   viewAllMemoriesText: {
     fontSize: 16,
-    color: '#f8fafc',
+    color: colors.white,
     fontFamily: 'Outfit_800ExtraBold',
     letterSpacing: -0.2,
   },
   countPill: {
-    backgroundColor: 'rgba(212,175,55,0.1)',
+    backgroundColor: isDark ? 'rgba(212,175,55,0.1)' : 'rgba(212,175,55,0.04)',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
     borderWidth: 0.5,
-    borderColor: 'rgba(212,175,55,0.2)',
+    borderColor: colors.border,
   },
   viewAllMemoriesSub: {
     fontSize: 10,
-    color: '#d4af37',
+    color: colors.gold,
     fontFamily: 'Inter_700Bold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -1093,7 +1097,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#d4af37',
+    backgroundColor: colors.gold,
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 14,

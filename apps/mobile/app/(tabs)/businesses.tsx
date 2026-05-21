@@ -21,6 +21,7 @@ import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '@/context/AuthContext';
+import { useAppTheme } from '@/context/ThemeContext';
 import { createBusiness, getUserBusinesses, Business, generateShortId, getBusinessTypeColor, getUserTotalStorage } from '@/lib/firestore';
 
 const { width } = Dimensions.get('window');
@@ -42,6 +43,8 @@ const BENEFITS = [
 export default function BusinessLandingScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
+  const styles = getStyles(colors, isDark);
   
   const [showListingForm, setShowListingForm] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -311,7 +314,7 @@ export default function BusinessLandingScreen() {
         {!fetchingBusinesses && userBusinesses.length === 0 && (
           <View style={styles.heroSection}>
             <LinearGradient
-              colors={['#0f172a', '#020617']}
+              colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]}
               style={styles.heroGradient}
             >
               <View style={styles.heroBadge}>
@@ -482,7 +485,7 @@ export default function BusinessLandingScreen() {
                           ))}
                         </ScrollView>
                         <LinearGradient
-                          colors={['transparent', 'rgba(15, 23, 42, 0.9)', '#0f172a']}
+                          colors={isDark ? ['transparent', 'rgba(15, 23, 42, 0.9)', '#0f172a'] : ['transparent', 'rgba(255, 255, 255, 0.9)', colors.background]}
                           style={styles.pickerFade}
                           pointerEvents="none"
                         />
@@ -504,7 +507,7 @@ export default function BusinessLandingScreen() {
                     onPress={() => setShowDatePicker(true)}
                   >
                     <IconSymbol name="calendar" size={16} color="#d4af37" />
-                    <Text style={{ color: '#ffffff', fontFamily: 'Inter_400Regular' }}>
+                    <Text style={{ color: colors.white, fontFamily: 'Inter_400Regular' }}>
                       Started: {startedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                     </Text>
                   </TouchableOpacity>
@@ -590,10 +593,10 @@ export default function BusinessLandingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     paddingBottom: 40,
@@ -610,7 +613,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 24,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(212, 175, 55, 0.2)',
+    borderBottomColor: colors.border,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -625,7 +628,7 @@ const styles = StyleSheet.create({
   newBizBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#d4af37',
+    backgroundColor: colors.gold,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
@@ -643,24 +646,24 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 28,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_800ExtraBold',
     marginTop: -2,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: colors.slate400,
     fontFamily: 'Inter_500Medium',
   },
   iconBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.1)' : 'rgba(212, 175, 55, 0.05)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: colors.border,
   },
   heroGradient: {
     padding: 32,
@@ -671,7 +674,7 @@ const styles = StyleSheet.create({
   heroBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.1)' : 'rgba(212, 175, 55, 0.05)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -679,7 +682,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: colors.border,
   },
   heroBadgeText: {
     color: '#d4af37',
@@ -689,14 +692,14 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     fontSize: 36,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_800ExtraBold',
     lineHeight: 42,
     marginBottom: 16,
   },
   heroSubtitle: {
     fontSize: 16,
-    color: '#94a3b8',
+    color: colors.slate400,
     fontFamily: 'Inter_400Regular',
     lineHeight: 24,
     marginBottom: 32,
@@ -721,7 +724,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   primaryBtnText: {
-    color: '#0f172a',
+    color: isDark ? '#0f172a' : '#ffffff',
     fontSize: 18,
     fontFamily: 'Outfit_800ExtraBold',
   },
@@ -731,7 +734,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 22,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_800ExtraBold',
     marginBottom: 20,
   },
@@ -739,11 +742,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   benefitCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     padding: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 16,
@@ -752,7 +755,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.1)' : 'rgba(212, 175, 55, 0.05)',
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
@@ -762,24 +765,24 @@ const styles = StyleSheet.create({
   },
   benefitTitle: {
     fontSize: 16,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_700Bold',
     marginBottom: 4,
   },
   benefitDesc: {
     fontSize: 13,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Inter_400Regular',
     lineHeight: 18,
   },
   bizManageCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderRadius: 24,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
     marginBottom: 16,
   },
   bizManageImage: {
@@ -793,12 +796,12 @@ const styles = StyleSheet.create({
   },
   bizManageName: {
     fontSize: 18,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_700Bold',
   },
   bizManageType: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: colors.slate400,
     fontFamily: 'Inter_400Regular',
     marginBottom: 4,
   },
@@ -814,17 +817,17 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 10,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Outfit_800ExtraBold',
     letterSpacing: 0.5,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(2, 6, 23, 0.9)',
+    backgroundColor: colors.modalBackdrop,
     justifyContent: 'flex-end',
   },
   formContainer: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     maxHeight: '90%',
@@ -840,7 +843,7 @@ const styles = StyleSheet.create({
   },
   formTitle: {
     fontSize: 24,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_800ExtraBold',
   },
   formBody: {
@@ -858,13 +861,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
   },
   formInput: {
-    backgroundColor: '#020617',
+    backgroundColor: colors.background,
     borderRadius: 16,
     padding: 16,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Inter_400Regular',
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.border,
     fontSize: 16,
     minHeight: 56,
   },
@@ -877,16 +880,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: '#020617',
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.border,
   },
   typeChipActive: {
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.1)' : 'rgba(212, 175, 55, 0.05)',
     borderColor: '#d4af37',
   },
   typeChipText: {
-    color: '#64748b',
+    color: colors.slate400,
     fontSize: 13,
     fontFamily: 'Outfit_600SemiBold',
   },
@@ -898,15 +901,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: 'rgba(212, 175, 55, 0.05)',
+    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.05)' : 'rgba(212, 175, 55, 0.02)',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: colors.border,
     borderStyle: 'dashed',
     paddingVertical: 16,
     borderRadius: 16,
   },
   locationBtnActive: {
-    backgroundColor: '#d4af37',
+    backgroundColor: colors.gold,
     borderStyle: 'solid',
     borderColor: '#d4af37',
   },
@@ -918,7 +921,7 @@ const styles = StyleSheet.create({
     color: '#0f172a',
   },
   submitFormBtn: {
-    backgroundColor: '#d4af37',
+    backgroundColor: colors.gold,
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: 'center',
@@ -938,7 +941,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   dropdownBtn: {
-    backgroundColor: '#020617',
+    backgroundColor: colors.background,
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -946,29 +949,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.border,
     minHeight: 56,
   },
   dropdownBtnText: {
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Inter_400Regular',
     fontSize: 15,
   },
   pickerOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(2, 6, 23, 0.95)',
+    backgroundColor: colors.modalBackdrop,
     justifyContent: 'center',
     alignItems: 'center',
   },
   pickerModalContainer: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     width: '85%',
     maxHeight: '70%',
     minHeight: 400,
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.5,
@@ -982,11 +985,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: colors.border,
   },
   pickerTitle: {
     fontSize: 18,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_700Bold',
   },
   pickerList: {
@@ -999,14 +1002,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 4,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.02)',
+    borderBottomColor: colors.cardBorder,
   },
   pickerItemActive: {
-    backgroundColor: 'rgba(212, 175, 55, 0.05)',
+    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.05)' : 'rgba(212, 175, 55, 0.02)',
   },
   pickerItemText: {
     fontSize: 15,
-    color: '#94a3b8',
+    color: colors.slate400,
     fontFamily: 'Inter_500Medium',
   },
   pickerItemTextActive: {
@@ -1030,23 +1033,23 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
+    borderTopColor: colors.border,
   },
   pickerFooterText: {
     fontSize: 11,
-    color: '#475569',
+    color: colors.slate400,
     fontFamily: 'Inter_500Medium',
   },
   shortIdBadge: {
     fontSize: 10,
-    color: '#94a3b8',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    color: colors.slate400,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
     fontFamily: 'Outfit_700Bold',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: colors.cardBorder,
   },
   bizTypeBadge: {
     paddingHorizontal: 8,
@@ -1075,31 +1078,31 @@ const styles = StyleSheet.create({
   storageCard: {
     flex: 1,
     padding: 16, 
-    backgroundColor: '#0f172a', 
+    backgroundColor: colors.deepSlate, 
     borderRadius: 20, 
     borderWidth: 1, 
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
   },
   storageHeader: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center', 
   },
-  storageLabel: { fontSize: 14, color: '#ffffff', fontFamily: 'Outfit_700Bold' },
+  storageLabel: { fontSize: 14, color: colors.white, fontFamily: 'Outfit_700Bold' },
   upgradeBtnMini: {
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.1)' : 'rgba(212, 175, 55, 0.05)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: colors.border,
   },
   upgradeTextMini: {
     fontSize: 9,
     color: '#d4af37',
     fontFamily: 'Outfit_700Bold',
   },
-  storageBarContainer: { height: 6, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' },
-  storageBar: { height: '100%', backgroundColor: '#d4af37', borderRadius: 3 },
-  storageSub: { fontSize: 11, color: '#94a3b8', fontFamily: 'Inter_400Regular', marginTop: 2 },
+  storageBarContainer: { height: 6, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderRadius: 3, overflow: 'hidden' },
+  storageBar: { height: '100%', backgroundColor: colors.gold, borderRadius: 3 },
+  storageSub: { fontSize: 11, color: colors.slate400, fontFamily: 'Inter_400Regular', marginTop: 2 },
 });

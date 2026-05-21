@@ -8,6 +8,7 @@ import { View, ActivityIndicator, LogBox, Platform } from 'react-native';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { AppThemeProvider, useAppTheme } from '@/context/ThemeContext';
 import * as SplashScreen from 'expo-splash-screen';
 import { 
   useFonts, 
@@ -81,6 +82,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const segments = useSegments();
   const router = useRouter();
   const rootNavigationState = useRootNavigationState();
+  const { colors } = useAppTheme();
 
   useEffect(() => {
     if (loading || !rootNavigationState?.key) return;
@@ -108,8 +110,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (loading || !rootNavigationState?.key) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#020617' }}>
-        <ActivityIndicator size="large" color="#d4af37" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.gold} />
       </View>
     );
   }
@@ -117,9 +119,43 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+function RootLayoutContent() {
+  const { isDark, colors } = useAppTheme();
 
+  const customTheme = {
+    ...(isDark ? DarkTheme : DefaultTheme),
+    dark: isDark,
+    colors: {
+      ...(isDark ? DarkTheme.colors : DefaultTheme.colors),
+      primary: colors.gold,
+      background: colors.background,
+      card: colors.deepSlate,
+      text: colors.white,
+      border: colors.cardBorder,
+    }
+  };
+
+  return (
+    <ThemeProvider value={customTheme}>
+      <AuthGate>
+        <Stack screenOptions={{
+          ...(Platform.OS === 'ios' ? { headerBackTitle: '' } : {}),
+          headerTintColor: colors.white,
+          headerStyle: { backgroundColor: 'transparent' },
+          headerShadowVisible: false,
+          headerTransparent: true,
+        }}>
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '' }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        </Stack>
+      </AuthGate>
+      <StatusBar style={isDark ? "light" : "dark"} />
+    </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Outfit_400Regular,
     Outfit_600SemiBold,
@@ -170,23 +206,10 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <AuthGate>
-          <Stack screenOptions={{
-            ...(Platform.OS === 'ios' ? { headerBackTitle: '' } : {}),
-            headerTintColor: '#0f172a',
-            headerStyle: { backgroundColor: 'transparent' },
-            headerShadowVisible: false,
-            headerTransparent: true,
-          }}>
-            <Stack.Screen name="login" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '' }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          </Stack>
-        </AuthGate>
-        <StatusBar style="auto" />
-      </ThemeProvider>
-    </AuthProvider>
+    <AppThemeProvider>
+      <AuthProvider>
+        <RootLayoutContent />
+      </AuthProvider>
+    </AppThemeProvider>
   );
 }

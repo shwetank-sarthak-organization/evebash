@@ -3,6 +3,7 @@ import { Playfair_Display, Lato } from "next/font/google";
 import "../globals.css";
 
 import { AuthProvider } from "@/context/AuthContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import Footer from "@/components/Footer";
 
 const playfair = Playfair_Display({
@@ -32,11 +33,13 @@ export default function PublicLayout({
         <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
             <body className={`${playfair.variable} ${lato.variable} antialiased bg-slate-50 text-slate-600 font-sans`}>
                 <AuthProvider>
-                    {/* No global Navbar here */}
-                    <main className="min-h-screen">
-                        {children}
-                    </main>
-                    <Footer />
+                    <ThemeProvider>
+                        {/* No global Navbar here */}
+                        <main className="min-h-screen">
+                            {children}
+                        </main>
+                        <Footer />
+                    </ThemeProvider>
                 </AuthProvider>
             </body>
         </html>

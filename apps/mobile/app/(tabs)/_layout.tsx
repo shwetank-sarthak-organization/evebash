@@ -8,23 +8,25 @@ import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAppTheme } from '@/context/ThemeContext';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#d4af37',
-        tabBarInactiveTintColor: '#94a3b8',
+        tabBarActiveTintColor: colors.gold,
+        tabBarInactiveTintColor: colors.slate400,
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarStyle: {
-          backgroundColor: '#020617',
-          borderTopWidth: 0,
+          backgroundColor: colors.background,
+          borderTopWidth: 1,
+          borderTopColor: colors.cardBorder,
           paddingTop: 8,
           height: 55 + insets.bottom,
           paddingBottom: insets.bottom > 0 ? insets.bottom - 5 : 10,
