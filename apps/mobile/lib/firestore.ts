@@ -61,6 +61,7 @@ export interface Photo {
     height?: number;
     size?: number;
     format?: string;
+    order?: number;
 }
 
 export interface Business {
@@ -391,12 +392,31 @@ export async function getEventPhotos(eventId: string, legacyId?: string): Promis
         const photosCol = collection(db, "photos");
         const q = query(photosCol, where("eventId", "in", ids));
         const snapshot = await getDocs(q);
-        return snapshot.docs
-            .map(doc => ({ ...doc.data(), id: doc.id } as Photo))
-            .sort((a, b) => ((b.uploadedAt?.seconds || 0) - (a.uploadedAt?.seconds || 0)));
+        const photos = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Photo));
+        // Sort by custom order if available, otherwise fall back to newest-first
+        const hasOrder = photos.some(p => typeof p.order === 'number');
+        if (hasOrder) {
+            return photos.sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999));
+        }
+        return photos.sort((a, b) => ((b.uploadedAt?.seconds || 0) - (a.uploadedAt?.seconds || 0)));
     } catch (error) {
         console.error("Error fetching photos:", error);
         return [];
+    }
+}
+
+/** Save the display order for a batch of photos (called after drag-reorder in admin) */
+export async function updatePhotosOrder(orderedIds: string[]): Promise<boolean> {
+    try {
+        await Promise.all(
+            orderedIds.map((id, index) =>
+                updateDoc(doc(db, "photos", id), { order: index })
+            )
+        );
+        return true;
+    } catch (error) {
+        console.error("Error updating photo order:", error);
+        return false;
     }
 }
 

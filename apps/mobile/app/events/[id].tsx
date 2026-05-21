@@ -5,7 +5,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event as FirestoreEvent, updateEvent, createEvent, getGuestLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, onPhotoInteractions, toggleLike, addComment, deletePhotoComment, deleteEvent, getBusinessByVendorCode, getBusinessById, Business } from '@/lib/firestore';
+import { getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event as FirestoreEvent, updateEvent, createEvent, getGuestLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, onPhotoInteractions, toggleLike, addComment, deletePhotoComment, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { MOBILE_TEMPLATE_THEMES } from '../../constants/templates';
@@ -13,6 +13,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { uploadEventImage } from '@/lib/storage';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import Sortable from 'react-native-sortables';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_GRID_GAP = 3;
@@ -432,7 +433,12 @@ export default function EventDetailScreen() {
 
   const handleUploadGalleryPhoto = async () => {
     if (!event) return;
-    const activeId = activeSubEvent ? activeSubEvent.id : event.id;
+    const activeId = selectedAdminGallery !== undefined
+      ? (selectedAdminGallery ? selectedAdminGallery.id : event.id)
+      : (activeSubEvent ? activeSubEvent.id : event.id);
+    const activeLegacyId = selectedAdminGallery !== undefined
+      ? (selectedAdminGallery ? selectedAdminGallery.legacyId : event.legacyId)
+      : (activeSubEvent ? activeSubEvent.legacyId : event.legacyId);
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -455,7 +461,7 @@ export default function EventDetailScreen() {
           userId: user?.uid || 'anon'
         });
 
-        loadPhotos(activeId, activeSubEvent ? activeSubEvent.legacyId : event.legacyId);
+        loadPhotos(activeId, activeLegacyId);
         Alert.alert("Success", "Photo uploaded successfully!");
       } catch (err) {
         console.error('[UploadPhoto] Error:', err);
@@ -463,6 +469,16 @@ export default function EventDetailScreen() {
       } finally {
         setUpdating(false);
       }
+    }
+  };
+
+  const handleReorderPhotos = async (newOrder: any[]) => {
+    const reorderedIds = newOrder.map((p: any) => p.id);
+    setPhotos(newOrder);
+    try {
+      await updatePhotosOrder(reorderedIds);
+    } catch (err) {
+      console.error('[ReorderPhotos] Error saving order:', err);
     }
   };
 
@@ -481,8 +497,14 @@ export default function EventDetailScreen() {
               const { deletePhoto } = await import('@/lib/firestore');
               await deletePhoto(photoId);
 
-              const activeId = activeSubEvent ? activeSubEvent.id : event!.id;
-              loadPhotos(activeId, activeSubEvent ? activeSubEvent.legacyId : event!.legacyId);
+              const activeId = selectedAdminGallery !== undefined
+                ? (selectedAdminGallery ? selectedAdminGallery.id : event!.id)
+                : (activeSubEvent ? activeSubEvent.id : event!.id);
+              const activeLegacyId = selectedAdminGallery !== undefined
+                ? (selectedAdminGallery ? selectedAdminGallery.legacyId : event!.legacyId)
+                : (activeSubEvent ? activeSubEvent.legacyId : event!.legacyId);
+
+              loadPhotos(activeId, activeLegacyId);
               Alert.alert("Success", "Photo removed from gallery.");
             } catch (err) {
               console.error('[DeletePhoto] Error:', err);
@@ -722,6 +744,42 @@ export default function EventDetailScreen() {
               Alert.alert("Error", "Failed to delete event.");
             }
             setUpdating(false);
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteSubGallery = async (targetGallery?: FirestoreEvent) => {
+    const gallery = targetGallery || selectedAdminGallery;
+    if (!gallery) return;
+    Alert.alert(
+      "Delete Gallery",
+      `Are you sure you want to delete the gallery "${gallery.title}"? This will permanently remove all photos inside this gallery.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setUpdating(true);
+            try {
+              const success = await deleteEvent(gallery.id);
+              if (success) {
+                Alert.alert("Success", "Gallery deleted successfully.");
+                if (selectedAdminGallery?.id === gallery.id) {
+                  setSelectedAdminGallery(undefined);
+                }
+                loadEvent();
+              } else {
+                Alert.alert("Error", "Failed to delete gallery.");
+              }
+            } catch (err) {
+              console.error("[DeleteSubGallery] Error:", err);
+              Alert.alert("Error", "Failed to delete gallery.");
+            } finally {
+              setUpdating(false);
+            }
           }
         }
       ]
@@ -2461,7 +2519,7 @@ export default function EventDetailScreen() {
                       <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>Galleries</Text>
                         <TouchableOpacity style={styles.addBtn} onPress={() => setShowSubEventModal(true)}>
-                          <IconSymbol name="plus" size={14} color={MidnightColors.gold} />
+                          <IconSymbol name="plus" size={12} color={MidnightColors.gold} />
                           <Text style={styles.addBtnText}>Add Gallery</Text>
                         </TouchableOpacity>
                       </View>
@@ -2469,16 +2527,43 @@ export default function EventDetailScreen() {
                         {/* Home Gallery Card */}
                         {event && (
                           <TouchableOpacity
-                            style={[styles.subCard, { borderColor: selectedTemplate.accent, borderWidth: 1, backgroundColor: 'rgba(204,164,59,0.05)' }]}
+                            style={[
+                              styles.subCard,
+                              { borderColor: selectedTemplate.accent, borderWidth: 1.5 }
+                            ]}
                             onPress={() => {
                               loadPhotos(event.id, event.legacyId);
                               setGalleryDescText(event.description || '');
                               setSelectedAdminGallery(null);
                             }}
+                            activeOpacity={0.85}
                           >
-                            <Image source={{ uri: event.coverImage }} style={styles.subImage} />
-                            <View style={styles.subInfo}>
-                              <Text style={[styles.subTitle, { color: selectedTemplate.accent, fontWeight: 'bold' }]} numberOfLines={1}>🏠 Home</Text>
+                            <Image source={{ uri: event.coverImage }} style={styles.subImageFull} />
+                            <LinearGradient
+                              colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0.85)']}
+                              style={StyleSheet.absoluteFillObject}
+                            />
+                            
+                            {/* Premium Badge */}
+                            <View style={styles.badgeContainer}>
+                              <LinearGradient
+                                colors={['#e2c262', '#cfa126']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.badgeGradient}
+                              >
+                                <IconSymbol name="house.fill" size={10} color="#000000" />
+                                <Text style={styles.badgeTextLabel}>PRIMARY</Text>
+                              </LinearGradient>
+                            </View>
+
+                            <View style={styles.subInfoOverlay}>
+                              <Text style={styles.subTitleOverlay} numberOfLines={2}>
+                                {event.title || 'Home'}
+                              </Text>
+                              <View style={styles.subArrowCircle}>
+                                <IconSymbol name="chevron.right" size={10} color="#ffffff" />
+                              </View>
                             </View>
                           </TouchableOpacity>
                         )}
@@ -2491,10 +2576,54 @@ export default function EventDetailScreen() {
                               setGalleryDescText(sub.description || '');
                               setSelectedAdminGallery(sub);
                             }}
+                            activeOpacity={0.85}
                           >
-                            <Image source={{ uri: sub.coverImage }} style={styles.subImage} />
-                            <View style={styles.subInfo}>
-                              <Text style={styles.subTitle} numberOfLines={1}>{sub.title}</Text>
+                            <Image source={{ uri: sub.coverImage }} style={styles.subImageFull} />
+                            <LinearGradient
+                              colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0.85)']}
+                              style={StyleSheet.absoluteFillObject}
+                            />
+
+                            {/* Sub-gallery Badge */}
+                            <View style={styles.badgeContainer}>
+                              <View style={styles.subBadge}>
+                                <IconSymbol name="photo.on.rectangle" size={10} color="rgba(255, 255, 255, 0.9)" />
+                                <Text style={styles.subBadgeTextLabel}>SUB-GALLERY</Text>
+                              </View>
+                            </View>
+
+                            {/* Card Delete Option */}
+                            <TouchableOpacity
+                              style={{
+                                position: 'absolute',
+                                top: 10,
+                                right: 10,
+                                zIndex: 20,
+                                width: 28,
+                                height: 28,
+                                borderRadius: 14,
+                                backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderWidth: 1,
+                                borderColor: 'rgba(255, 255, 255, 0.15)',
+                              }}
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                handleDeleteSubGallery(sub);
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <IconSymbol name="trash.fill" size={12} color="#ef4444" />
+                            </TouchableOpacity>
+
+                            <View style={styles.subInfoOverlay}>
+                              <Text style={styles.subTitleOverlay} numberOfLines={2}>
+                                {sub.title}
+                              </Text>
+                              <View style={styles.subArrowCircle}>
+                                <IconSymbol name="chevron.right" size={10} color="#ffffff" />
+                              </View>
                             </View>
                           </TouchableOpacity>
                         ))}
@@ -2627,7 +2756,7 @@ export default function EventDetailScreen() {
                         </TouchableOpacity>
                       </View>
 
-                      {/* Photo Grid */}
+                      {/* Photo Grid — drag to reorder */}
                       {loadingPhotos ? (
                         <ActivityIndicator color={MidnightColors.gold} style={{ marginTop: 24 }} />
                       ) : photos.length === 0 ? (
@@ -2636,23 +2765,56 @@ export default function EventDetailScreen() {
                           <Text style={{ color: MidnightColors.slate400, marginTop: 10, fontSize: 14 }}>No photos yet. Tap Add Photo!</Text>
                         </View>
                       ) : (
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                          {photos.map((photo) => (
-                            <View key={photo.id} style={{ position: 'relative' }}>
-                              <Image
-                                source={{ uri: photo.url }}
-                                style={{ width: (SCREEN_WIDTH - 76) / 3, height: (SCREEN_WIDTH - 76) / 3, borderRadius: 10 }}
-                                resizeMode="contain"
-                              />
-                              <TouchableOpacity
-                                style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(239,68,68,0.9)', alignItems: 'center', justifyContent: 'center' }}
-                                onPress={() => handleDeleteGalleryPhoto(photo.id)}
-                              >
-                                <IconSymbol name="trash.fill" size={10} color="#fff" />
-                              </TouchableOpacity>
-                            </View>
-                          ))}
+                        <View>
+                          <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginBottom: 8, letterSpacing: 0.4 }}>
+                            ✦ Hold & drag a photo to reorder
+                          </Text>
+                          <Sortable.Grid
+                            data={photos}
+                            keyExtractor={(item: any) => item.id}
+                            columns={3}
+                            columnGap={8}
+                            rowGap={8}
+                            onDragEnd={({ data: newData }: { data: any[] }) => handleReorderPhotos(newData)}
+                            renderItem={({ item }: { item: any }) => (
+                              <View style={{ position: 'relative', borderRadius: 10, overflow: 'hidden' }}>
+                                <Image
+                                  source={{ uri: item.url }}
+                                  style={{
+                                    width: '100%',
+                                    aspectRatio: 1,
+                                    borderRadius: 10,
+                                  }}
+                                  resizeMode="cover"
+                                />
+                                <TouchableOpacity
+                                  style={{
+                                    position: 'absolute',
+                                    top: 4,
+                                    right: 4,
+                                    width: 22,
+                                    height: 22,
+                                    borderRadius: 11,
+                                    backgroundColor: 'rgba(239,68,68,0.9)',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}
+                                  onPress={() => handleDeleteGalleryPhoto(item.id)}
+                                >
+                                  <IconSymbol name="trash.fill" size={10} color="#fff" />
+                                </TouchableOpacity>
+                              </View>
+                            )}
+                          />
                         </View>
+                      )}
+
+                      {/* Delete Sub-Gallery Option */}
+                      {selectedAdminGallery !== null && (
+                        <TouchableOpacity style={[styles.deleteMainBtn, { marginTop: 24, marginBottom: 10 }]} onPress={() => handleDeleteSubGallery()}>
+                          <IconSymbol name="trash.fill" size={16} color="#ef4444" />
+                          <Text style={styles.deleteMainText}>Delete Gallery</Text>
+                        </TouchableOpacity>
                       )}
                     </>
                   )}
@@ -7418,14 +7580,23 @@ const styles = StyleSheet.create({
   section: { marginBottom: 32 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   sectionTitle: { fontSize: 22, color: '#fff', fontFamily: Fonts.outfit.bold },
-  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(212,175,55,0.1)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(212,175,55,0.12)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(212,175,55,0.25)' },
   addBtnText: { color: MidnightColors.gold, fontSize: 12, fontFamily: Fonts.outfit.bold },
 
   subGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  subCard: { width: (SCREEN_WIDTH - 60) / 2, height: 160, borderRadius: 20, overflow: 'hidden', backgroundColor: MidnightColors.deepSlate, borderWidth: 1, borderColor: MidnightColors.cardBorder },
+  subCard: { width: (SCREEN_WIDTH - 60) / 2, height: 185, borderRadius: 16, overflow: 'hidden', backgroundColor: MidnightColors.deepSlate, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)' },
   subImage: { width: '100%', height: 110 },
+  subImageFull: { position: 'absolute', width: '100%', height: '100%', resizeMode: 'cover' },
   subInfo: { padding: 10 },
+  subInfoOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 },
   subTitle: { fontSize: 14, color: '#fff', fontFamily: Fonts.outfit.bold },
+  subTitleOverlay: { fontSize: 13, color: '#ffffff', fontFamily: Fonts.outfit.bold, flex: 1, lineHeight: 17, textShadowColor: 'rgba(0, 0, 0, 0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
+  subArrowCircle: { width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(255, 255, 255, 0.2)', alignItems: 'center', justifyContent: 'center', borderWidth: 0.5, borderColor: 'rgba(255, 255, 255, 0.3)' },
+  badgeContainer: { position: 'absolute', top: 10, left: 10, zIndex: 10 },
+  badgeGradient: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  badgeTextLabel: { color: '#000000', fontSize: 8, fontFamily: Fonts.inter.bold, letterSpacing: 0.5 },
+  subBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0, 0, 0, 0.65)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 0.5, borderColor: 'rgba(255, 255, 255, 0.2)' },
+  subBadgeTextLabel: { color: 'rgba(255, 255, 255, 0.95)', fontSize: 8, fontFamily: Fonts.inter.bold, letterSpacing: 0.5 },
 
   // Logs
   logCard: { backgroundColor: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 16, borderLeftWidth: 3, borderLeftColor: MidnightColors.gold, marginBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
