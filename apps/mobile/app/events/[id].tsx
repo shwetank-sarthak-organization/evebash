@@ -104,9 +104,12 @@ export default function EventDetailScreen() {
       accentBg: isThemeDark ? base.accentBg.dark : base.accentBg.light,
       tileBg: isThemeDark ? base.tileBg.dark : base.tileBg.light,
       overlay: isThemeDark ? base.overlay.dark : base.overlay.light,
-      serifFont: isGarden ? Fonts.cormorant.semiBold : ((isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.regular : Fonts.serif),
-      serifItalic: isGarden ? Fonts.cormorant.semiBold : ((isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.italic : Fonts.serif),
+      serifFont: isGarden ? Fonts.cormorant.regular : ((isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.regular : Fonts.serif),
+      serifItalic: isGarden ? Fonts.cormorant.italic : ((isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.italic : Fonts.serif),
       serifBold: isGarden ? Fonts.cormorant.bold : ((isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.bold : Fonts.serif),
+      bodyFont: isGarden ? Fonts.lora.regular : (base.useSerif ? Fonts.serif : Fonts.sans),
+      bodyMedium: isGarden ? Fonts.lora.semiBold : (base.useSerif ? Fonts.serif : Fonts.sans),
+      bodyBold: isGarden ? Fonts.lora.bold : (base.useSerif ? Fonts.serif : Fonts.sans),
     };
   }, [event?.templateId, isThemeDark, showAdminView]);
 
@@ -787,11 +790,11 @@ export default function EventDetailScreen() {
       borderWidth: isHero ? 0.8 : isGarden ? (active ? 0 : 0) : 0,
       borderColor: 'transparent',
       borderRadius: isHero ? 4 : isGarden ? 999 : 0,
-      paddingHorizontal: isGarden ? 18 : 16,
+      paddingHorizontal: isGarden ? 12 : 16,
       paddingVertical: isHero ? 8 : isGarden ? 8 : 6,
       flexDirection: isHero ? 'row' as const : 'column' as const,
       gap: 2,
-      marginHorizontal: isHero ? 4 : isGarden ? 4 : 0,
+      marginHorizontal: isHero ? 4 : isGarden ? 0 : 0,
       alignSelf: 'center' as const,
     });
     const themeTextColor = (active: boolean) => active
@@ -857,9 +860,10 @@ export default function EventDetailScreen() {
             isGarden && {
               flexGrow: 1,
               flexDirection: 'row',
-              justifyContent: 'space-evenly',
+              justifyContent: 'center',
               alignItems: 'center',
               paddingHorizontal: 4,
+              gap: 4,
             },
           ]}
         >
@@ -903,7 +907,7 @@ export default function EventDetailScreen() {
                 isCyberTech && styles.cyberVisitorTabText,
               isNeonCarnival && styles.neonCarnivalVisitorTabText,
                 isRetroArcade && styles.retroArcadeVisitorTabText,
-                selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
+                selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
                 isAcademicEditorial && {
                   fontFamily: selectedTemplate.serifBold,
                   fontSize: 13,
@@ -975,7 +979,7 @@ export default function EventDetailScreen() {
                   isCyberTech && styles.cyberVisitorTabText,
               isNeonCarnival && styles.neonCarnivalVisitorTabText,
                   isRetroArcade && styles.retroArcadeVisitorTabText,
-                  selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
+                  selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
                   isAcademicEditorial && {
                     fontFamily: selectedTemplate.serifBold,
                     fontSize: 13,
@@ -1044,7 +1048,7 @@ export default function EventDetailScreen() {
               isCyberTech && styles.cyberVisitorTabText,
               isNeonCarnival && styles.neonCarnivalVisitorTabText,
               isRetroArcade && styles.retroArcadeVisitorTabText,
-              selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
+              selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
               isAcademicEditorial && {
                 fontFamily: selectedTemplate.serifBold,
                 fontSize: 13,
@@ -3336,10 +3340,10 @@ export default function EventDetailScreen() {
                         isNeonCarnivalTemplate && styles.neonCarnivalVisitorDescription,
                         isGardenTemplate && styles.gardenVisitorDescription,
                         selectedTemplate.useSerif && {
-                          fontFamily: selectedTemplate.serifItalic,
-                          fontStyle: 'italic',
-                          fontSize: 16,
-                          lineHeight: 26,
+                          fontFamily: isGardenTemplate ? selectedTemplate.bodyFont : selectedTemplate.serifItalic,
+                          fontStyle: isGardenTemplate ? 'normal' : 'italic',
+                          fontSize: isGardenTemplate ? 15 : 16,
+                          lineHeight: isGardenTemplate ? 24 : 26,
                           textAlign: 'center',
                         }
                       ]}>{activeSubEvent ? activeSubEvent.description : event.description}{(isCyberTechTemplate || isRetroArcadeTemplate || isNeonCarnivalTemplate) ? '' : ' 🤍'}</Text>
@@ -3357,7 +3361,7 @@ export default function EventDetailScreen() {
                 {renderThemeDivider()}
 
                 {activeSubEvent?.id === 'event-partners' ? (
-                  <View style={{ paddingTop: (isPopTemplate || isRetroArcadeTemplate) ? 10 : 40, paddingBottom: 24, paddingHorizontal: 20 }}>
+                  <View style={{ paddingTop: (isPopTemplate || isRetroArcadeTemplate) ? 10 : isGardenTemplate ? 12 : 40, paddingBottom: 24, paddingHorizontal: 20 }}>
                     <View style={{ alignItems: 'center', marginBottom: 32 }}>
                       <Text style={[
                         { fontSize: 28, color: selectedTemplate.text, marginBottom: 8 },
@@ -3368,13 +3372,13 @@ export default function EventDetailScreen() {
                         selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
                       ]}>The Dream Team</Text>
                       <Text style={[
-                        { fontSize: 14, color: selectedTemplate.muted, textAlign: 'center', lineHeight: 22, maxWidth: '80%' },
+                        { fontSize: 14, color: selectedTemplate.muted, textAlign: 'center', lineHeight: 22, maxWidth: '90%' },
                         isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', fontSize: 13, textTransform: 'uppercase', letterSpacing: -0.2 },
                         isRetroArcadeTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.2 },
                         isCyberTechTemplate && styles.cyberPartnersSubtitle,
                         isNeonCarnivalTemplate && styles.neonCarnivalPartnersSubtitle
                       ]}>
-                        {`The incredible businesses and vendors who brought this beautiful ${event?.category?.toLowerCase() === 'birthday' ? 'birthday' : event?.category?.toLowerCase() === 'wedding' ? 'wedding' : `${event?.category?.toLowerCase() || 'event'} event`} to life.`}
+                        {`The creative team and vendors behind this beautiful ${event?.category?.toLowerCase() || 'event'}.`}
                       </Text>
                     </View>
 
@@ -3413,7 +3417,8 @@ export default function EventDetailScreen() {
                            isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', textTransform: 'uppercase', fontSize: 13 },
                            isRetroArcadeTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', textTransform: 'uppercase', fontSize: 13 },
                            isCyberTechTemplate && styles.cyberEmptyText,
-                           isNeonCarnivalTemplate && styles.neonCarnivalEmptyText
+                           isNeonCarnivalTemplate && styles.neonCarnivalEmptyText,
+                           isGardenTemplate && { fontFamily: selectedTemplate.bodyMedium, color: selectedTemplate.muted }
                          ]}>Vendor list coming soon...</Text>
                       </View>
                     ) : (
@@ -3469,17 +3474,19 @@ export default function EventDetailScreen() {
                             <View style={{ flex: 1 }}>
                               <Text style={[
                                 { color: selectedTemplate.text, fontSize: 18, fontWeight: '600', marginBottom: 4 },
-                                isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', fontSize: 18, fontWeight: undefined, textTransform: 'uppercase' },
+                               isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', fontSize: 18, fontWeight: undefined, textTransform: 'uppercase' },
                                 isRetroArcadeTemplate && { fontFamily: FunkyFonts.marker, color: '#231f20', fontSize: 18, fontWeight: undefined, textTransform: 'uppercase' },
                                 isCyberTechTemplate && styles.cyberPartnerName,
-                                isNeonCarnivalTemplate && styles.neonCarnivalPartnerName
+                                isNeonCarnivalTemplate && styles.neonCarnivalPartnerName,
+                                isGardenTemplate && { fontFamily: selectedTemplate.bodyBold, fontWeight: '700', color: '#1A3322' }
                               ]}>{biz.name}</Text>
                               <Text style={[
                                 { color: selectedTemplate.accent, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, fontWeight: '700' },
-                                isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#ff4fb8', fontSize: 12, fontWeight: undefined, letterSpacing: 0.5 },
+                               isPopTemplate && { fontFamily: FunkyFonts.marker, color: '#ff4fb8', fontSize: 12, fontWeight: undefined, letterSpacing: 0.5 },
                                 isRetroArcadeTemplate && { fontFamily: FunkyFonts.marker, color: '#ff3562', fontSize: 12, fontWeight: undefined, letterSpacing: 0.5 },
                                 isCyberTechTemplate && styles.cyberPartnerType,
-                                isNeonCarnivalTemplate && styles.neonCarnivalPartnerType
+                                isNeonCarnivalTemplate && styles.neonCarnivalPartnerType,
+                                isGardenTemplate && { fontFamily: selectedTemplate.bodyMedium, fontWeight: '600', color: '#2E6F40' }
                               ]}>{biz.type}</Text>
                             </View>
                             <IconSymbol name="chevron.right" size={20} color={isPopTemplate ? '#231f20' : (isCyberTechTemplate ? '#00f0ff' : (isRetroArcadeTemplate ? '#231f20' : selectedTemplate.muted))} />
@@ -10457,7 +10464,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    paddingVertical: 20,
+    marginTop: -8,
+    paddingTop: 4,
+    paddingBottom: 12,
   },
   gardenDividerLine: {
     width: 48,
@@ -10502,6 +10511,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   gardenPhotoRatioText: {
+    fontFamily: Fonts.lora.semiBold,
     fontSize: 7,
     fontWeight: '600',
     letterSpacing: 1.2,
@@ -10563,6 +10573,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   gardenVisitorDescription: {
+    fontFamily: Fonts.lora.regular,
     fontSize: 15,
     lineHeight: 25,
     textAlign: 'center',

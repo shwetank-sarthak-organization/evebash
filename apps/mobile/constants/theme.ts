@@ -69,8 +69,16 @@ export const Fonts = {
     bold: 'PlayfairDisplay_700Bold',
   },
   cormorant: {
+    regular: 'CormorantGaramond_400Regular',
+    italic: 'CormorantGaramond_400Regular_Italic',
     semiBold: 'CormorantGaramond_600SemiBold',
     bold: 'CormorantGaramond_700Bold',
+  },
+  lora: {
+    regular: 'Lora_400Regular',
+    italic: 'Lora_400Regular_Italic',
+    semiBold: 'Lora_600SemiBold',
+    bold: 'Lora_700Bold',
   },
   nunitoSans: {
     regular: 'NunitoSans_400Regular',

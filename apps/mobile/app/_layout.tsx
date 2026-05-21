@@ -35,9 +35,17 @@ import {
   TiltNeon_400Regular
 } from '@expo-google-fonts/tilt-neon';
 import {
+  CormorantGaramond_400Regular,
+  CormorantGaramond_400Regular_Italic,
   CormorantGaramond_600SemiBold,
   CormorantGaramond_700Bold,
 } from '@expo-google-fonts/cormorant-garamond';
+import {
+  Lora_400Regular,
+  Lora_400Regular_Italic,
+  Lora_600SemiBold,
+  Lora_700Bold,
+} from '@expo-google-fonts/lora';
 import {
   NunitoSans_400Regular,
   NunitoSans_600SemiBold,
@@ -127,8 +135,14 @@ export default function RootLayout() {
     PlayfairDisplay_700Bold,
     VT323_400Regular,
     TiltNeon_400Regular,
+    CormorantGaramond_400Regular,
+    CormorantGaramond_400Regular_Italic,
     CormorantGaramond_600SemiBold,
     CormorantGaramond_700Bold,
+    Lora_400Regular,
+    Lora_400Regular_Italic,
+    Lora_600SemiBold,
+    Lora_700Bold,
     NunitoSans_400Regular,
     NunitoSans_600SemiBold,
     NunitoSans_700Bold,
