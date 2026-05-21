@@ -757,15 +757,17 @@ export default function EventDetailScreen() {
     const isPop = event?.templateId === 'pop';
     const isGoldenYears = event?.templateId === 'golden_years';
     const isVintageNoir = event?.templateId === 'vintage';
+    const isRoseGarden = event?.templateId === 'rose';
+    const isMinimalLove = event?.templateId === 'minimal_love';
     const isCyberTech = event?.templateId === 'cyber_tech';
     const isRetroArcade = event?.templateId === 'retro_arcade';
     const isAcademicEditorial = event?.templateId === 'academic_editorial';
     const isNeonCarnival = event?.templateId === 'neon_carnival';
     const isGarden = event?.templateId === 'garden';
     const isThemeHeader = isRoyal || isClassic || isHero || isEthereal || isGarden;
-    const birthdayTextColor = isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#F2E7D2' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d946ef' : MidnightColors.gold))))))));
-    const birthdayActiveText = isScrapbook ? styles.scrapbookVisitorTabTextActive : (isNeon ? styles.neonVisitorTabTextActive : (isPastel ? styles.pastelVisitorTabTextActive : (isPop ? styles.popVisitorTabTextActive : (isGoldenYears ? styles.goldenVisitorTabTextActive : (isVintageNoir ? styles.vintageVisitorTabTextActive : (isCyberTech ? styles.cyberVisitorTabTextActive : (isRetroArcade ? styles.retroArcadeVisitorTabTextActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabTextActive : styles.visitorTabTextActive))))))));
-    const birthdayActiveTab = isScrapbook ? styles.scrapbookVisitorTabActive : (isNeon ? styles.neonVisitorTabActive : (isPastel ? styles.pastelVisitorTabActive : (isPop ? styles.popVisitorTabActive : (isGoldenYears ? styles.goldenVisitorTabActive : (isVintageNoir ? styles.vintageVisitorTabActive : (isCyberTech ? styles.cyberVisitorTabActive : (isRetroArcade ? styles.retroArcadeVisitorTabActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabActive : styles.visitorTabActive))))))));
+    const birthdayTextColor = isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#F2E7D2' : (isRoseGarden ? '#562733' : (isMinimalLove ? '#4a2f1d' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d946ef' : MidnightColors.gold))))))))));
+    const birthdayActiveText = isScrapbook ? styles.scrapbookVisitorTabTextActive : (isNeon ? styles.neonVisitorTabTextActive : (isPastel ? styles.pastelVisitorTabTextActive : (isPop ? styles.popVisitorTabTextActive : (isGoldenYears ? styles.goldenVisitorTabTextActive : (isVintageNoir ? styles.vintageVisitorTabTextActive : (isRoseGarden ? styles.roseVisitorTabTextActive : (isMinimalLove ? styles.minimalVisitorTabTextActive : (isCyberTech ? styles.cyberVisitorTabTextActive : (isRetroArcade ? styles.retroArcadeVisitorTabTextActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabTextActive : styles.visitorTabTextActive))))))))));
+    const birthdayActiveTab = isScrapbook ? styles.scrapbookVisitorTabActive : (isNeon ? styles.neonVisitorTabActive : (isPastel ? styles.pastelVisitorTabActive : (isPop ? styles.popVisitorTabActive : (isGoldenYears ? styles.goldenVisitorTabActive : (isVintageNoir ? styles.vintageVisitorTabActive : (isRoseGarden ? styles.roseVisitorTabActive : (isMinimalLove ? styles.minimalVisitorTabActive : (isCyberTech ? styles.cyberVisitorTabActive : (isRetroArcade ? styles.retroArcadeVisitorTabActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabActive : styles.visitorTabActive))))))))));
     const birthdayTabStyles = [
       isScrapbook && styles.scrapbookVisitorTab,
       isNeon && styles.neonVisitorTab,
@@ -773,6 +775,8 @@ export default function EventDetailScreen() {
       isPop && styles.popVisitorTab,
       isGoldenYears && styles.goldenVisitorTab,
       isVintageNoir && styles.vintageVisitorTab,
+      isRoseGarden && styles.roseVisitorTab,
+      isMinimalLove && styles.minimalVisitorTab,
       isCyberTech && styles.cyberVisitorTab,
       isRetroArcade && styles.retroArcadeVisitorTab,
       isNeonCarnival && styles.neonCarnivalVisitorTab,
@@ -827,6 +831,8 @@ export default function EventDetailScreen() {
         isPop && styles.popVisitorHeaderContainer,
         isGoldenYears && styles.goldenVisitorHeaderContainer,
         isVintageNoir && styles.vintageVisitorHeaderContainer,
+        isRoseGarden && styles.roseVisitorHeaderContainer,
+        isMinimalLove && styles.minimalVisitorHeaderContainer,
         isCyberTech && styles.cyberVisitorHeaderContainer,
         isRetroArcade && styles.retroArcadeVisitorHeaderContainer,
         isNeonCarnival && styles.neonCarnivalVisitorHeaderContainer,
@@ -842,6 +848,8 @@ export default function EventDetailScreen() {
             isPop && styles.popVisitorHeaderContent, 
             isGoldenYears && styles.goldenVisitorHeaderContent,
             isVintageNoir && styles.vintageVisitorHeaderContent,
+            isRoseGarden && styles.roseVisitorHeaderContent,
+            isMinimalLove && styles.minimalVisitorHeaderContent,
             isCyberTech && styles.cyberVisitorHeaderContent, 
             isRetroArcade && styles.retroArcadeVisitorHeaderContent,
             isNeonCarnival && styles.neonCarnivalVisitorHeaderContent,
@@ -878,7 +886,7 @@ export default function EventDetailScreen() {
                 <IconSymbol
                   name="house.fill"
                   size={14}
-                  color={!activeSubEvent ? (isCyberTech ? '#00f0ff' : (isScrapbook ? '#263331' : (isNeon ? '#66e8ff' : (isPastel ? '#c9768b' : (isPop ? '#ffffff' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#211A12' : (isRetroArcade ? '#ffffff' : (isNeonCarnival ? '#faf5ff' : MidnightColors.background))))))))) : (isCyberTech ? 'rgba(0, 240, 255, 0.5)' : (isScrapbook ? selectedTemplate.accent : (isNeon ? '#b9b1d9' : (isPastel ? '#9a8583' : (isPop ? '#231f20' : (isGoldenYears ? '#b8892d' : (isVintageNoir ? '#B89145' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d8b4fe' : MidnightColors.gold)))))))))}
+                  color={!activeSubEvent ? (isCyberTech ? '#00f0ff' : (isScrapbook ? '#263331' : (isNeon ? '#66e8ff' : (isPastel ? '#c9768b' : (isPop ? '#ffffff' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#211A12' : (isRoseGarden ? '#562733' : (isRetroArcade ? '#ffffff' : (isNeonCarnival ? '#faf5ff' : MidnightColors.background)))))))))) : (isCyberTech ? 'rgba(0, 240, 255, 0.5)' : (isScrapbook ? selectedTemplate.accent : (isNeon ? '#b9b1d9' : (isPastel ? '#9a8583' : (isPop ? '#231f20' : (isGoldenYears ? '#b8892d' : (isVintageNoir ? '#B89145' : (isRoseGarden ? '#b76578' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d8b4fe' : MidnightColors.gold))))))))))}
                 />
               )}
               <Text style={[
@@ -890,6 +898,8 @@ export default function EventDetailScreen() {
                 isPop && styles.popVisitorTabText,
                 isGoldenYears && styles.goldenVisitorTabText,
                 isVintageNoir && styles.vintageVisitorTabText,
+                isRoseGarden && styles.roseVisitorTabText,
+                isMinimalLove && styles.minimalVisitorTabText,
                 isCyberTech && styles.cyberVisitorTabText,
               isNeonCarnival && styles.neonCarnivalVisitorTabText,
                 isRetroArcade && styles.retroArcadeVisitorTabText,
@@ -960,6 +970,8 @@ export default function EventDetailScreen() {
                   isPop && styles.popVisitorTabText,
                   isGoldenYears && styles.goldenVisitorTabText,
                   isVintageNoir && styles.vintageVisitorTabText,
+                  isRoseGarden && styles.roseVisitorTabText,
+                  isMinimalLove && styles.minimalVisitorTabText,
                   isCyberTech && styles.cyberVisitorTabText,
               isNeonCarnival && styles.neonCarnivalVisitorTabText,
                   isRetroArcade && styles.retroArcadeVisitorTabText,
@@ -1027,6 +1039,8 @@ export default function EventDetailScreen() {
               isPop && styles.popVisitorTabText,
               isGoldenYears && styles.goldenVisitorTabText,
               isVintageNoir && styles.vintageVisitorTabText,
+              isRoseGarden && styles.roseVisitorTabText,
+              isMinimalLove && styles.minimalVisitorTabText,
               isCyberTech && styles.cyberVisitorTabText,
               isNeonCarnival && styles.neonCarnivalVisitorTabText,
               isRetroArcade && styles.retroArcadeVisitorTabText,
@@ -1150,6 +1164,7 @@ export default function EventDetailScreen() {
 
             const isPop = !showAdminView && event?.templateId === 'pop';
             const isVintage = event?.templateId === 'vintage';
+            const isMinimal = event?.templateId === 'minimal_love';
             return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden')) ? null : (
               <TouchableOpacity
                 onPress={handleEventBack}
@@ -1166,10 +1181,11 @@ export default function EventDetailScreen() {
                   },
                   isPop && styles.popFloatingBack,
                   isVintage && styles.vintageFloatingButton,
+                  isMinimal && styles.minimalFloatingButton,
                 ]}
                 hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
               >
-                <IconSymbol name="chevron.left" size={isPop ? 22 : 28} color={isPop ? '#ffffff' : selectedTemplate.accent} />
+                <IconSymbol name="chevron.left" size={isPop ? 22 : 28} color={(isPop || isMinimal) ? '#fffaf2' : selectedTemplate.accent} />
               </TouchableOpacity>
             );
           },
@@ -1177,6 +1193,7 @@ export default function EventDetailScreen() {
             if (showAdminView) return null;
             const isPop = event?.templateId === 'pop';
             const isVintage = event?.templateId === 'vintage';
+            const isMinimal = event?.templateId === 'minimal_love';
             return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden')) ? null : (
               <TouchableOpacity
                 style={[
@@ -1193,11 +1210,12 @@ export default function EventDetailScreen() {
                   },
                   isPop && styles.popFloatingShare,
                   isVintage && styles.vintageFloatingButton,
+                  isMinimal && styles.minimalFloatingButton,
                 ]}
                 onPress={() => setShowShareModal(true)}
                 hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
               >
-                <IconSymbol name="square.and.arrow.up" size={isPop ? 18 : 20} color={isPop ? '#ffffff' : selectedTemplate.accent} />
+                <IconSymbol name="square.and.arrow.up" size={isPop ? 18 : 20} color={(isPop || isMinimal) ? '#fffaf2' : selectedTemplate.accent} />
               </TouchableOpacity>
             );
           }
@@ -2094,22 +2112,57 @@ export default function EventDetailScreen() {
             </View>
           ) : (!showAdminView && isRoseTemplate) ? (
             <View style={styles.roseBloomHero}>
+              <LinearGradient
+                colors={['rgba(255, 249, 245, 0.74)', 'rgba(248, 218, 224, 0.38)', 'rgba(255, 249, 245, 0.94)']}
+                locations={[0, 0.46, 1]}
+                style={styles.roseBloomWash}
+              />
               <View style={[styles.roseBloomOrb, styles.roseBloomOrbLarge]} />
               <View style={[styles.roseBloomOrb, styles.roseBloomOrbSmall]} />
+              <View style={styles.roseBloomGrain}>
+                <View style={[styles.roseBloomGrainDot, styles.roseBloomGrainDotOne]} />
+                <View style={[styles.roseBloomGrainDot, styles.roseBloomGrainDotTwo]} />
+                <View style={[styles.roseBloomGrainDot, styles.roseBloomGrainDotThree]} />
+              </View>
               <View style={styles.roseBloomVine}>
                 <View style={[styles.roseBloomPetal, styles.roseBloomPetalA]} />
                 <View style={[styles.roseBloomPetal, styles.roseBloomPetalB]} />
                 <View style={[styles.roseBloomPetal, styles.roseBloomPetalC]} />
               </View>
+              <View style={styles.roseBloomHeader}>
+                <Text style={styles.roseBloomHeaderTitle}>Rose Garden Anniversary</Text>
+                <Text style={styles.roseBloomHeaderSubtitle}>Our Story, Our Forever</Text>
+                <View style={styles.roseBloomHeaderDivider}>
+                  <View style={styles.roseBloomHeaderLine} />
+                  <View style={styles.roseBloomHeaderFlower}>
+                    <View style={[styles.roseBloomHeaderPetal, styles.roseBloomHeaderPetalTop]} />
+                    <View style={[styles.roseBloomHeaderPetal, styles.roseBloomHeaderPetalRight]} />
+                    <View style={[styles.roseBloomHeaderPetal, styles.roseBloomHeaderPetalBottom]} />
+                    <View style={[styles.roseBloomHeaderPetal, styles.roseBloomHeaderPetalLeft]} />
+                  </View>
+                  <View style={styles.roseBloomHeaderLine} />
+                </View>
+              </View>
               <View style={styles.roseBloomPhotoStamp}>
+                <View style={styles.roseBloomPhotoTape} />
+                <View style={styles.roseBloomPhotoCorner} />
                 <Image
                   source={{ uri: activeSubEvent?.coverImage || event.coverImage }}
                   style={styles.roseBloomPhoto}
                   resizeMode="cover"
                 />
               </View>
+              <View style={styles.roseBloomMomentCard}>
+                <Text style={styles.roseBloomMomentNumber}>{photos.length || 25}</Text>
+                <Text style={styles.roseBloomMomentLabel}>Moments</Text>
+                <View style={styles.roseBloomMomentDivider} />
+              </View>
               <View style={styles.roseBloomCard}>
-                <Text style={styles.roseBloomKicker}>Rose Garden Anniversary</Text>
+                <View style={styles.roseBloomKickerRow}>
+                  <View style={styles.roseBloomKickerDot} />
+                  <Text style={styles.roseBloomKicker}>Rose Garden Anniversary</Text>
+                  <View style={styles.roseBloomKickerLine} />
+                </View>
                 <Text style={styles.roseBloomTitle}>{activeSubEvent?.title || event.title}</Text>
                 <View style={styles.roseBloomStem}>
                   <View style={styles.roseBloomLeaf} />
@@ -2125,27 +2178,50 @@ export default function EventDetailScreen() {
             </View>
           ) : (!showAdminView && isMinimalLoveTemplate) ? (
             <View style={styles.minimalEditorialHero}>
+              <LinearGradient
+                colors={['rgba(247, 239, 228, 0.16)', 'rgba(247, 239, 228, 0.78)', '#f7efe4']}
+                locations={[0, 0.58, 1]}
+                style={styles.minimalEditorialWash}
+              />
+              <View style={[styles.minimalEditorialBotanical, styles.minimalEditorialBotanicalLeft]}>
+                <View style={styles.minimalEditorialStem} />
+                <View style={[styles.minimalEditorialLeaf, styles.minimalEditorialLeafOne]} />
+                <View style={[styles.minimalEditorialLeaf, styles.minimalEditorialLeafTwo]} />
+              </View>
+              <View style={[styles.minimalEditorialBotanical, styles.minimalEditorialBotanicalRight]}>
+                <View style={styles.minimalEditorialStem} />
+                <View style={[styles.minimalEditorialLeaf, styles.minimalEditorialLeafOne]} />
+                <View style={[styles.minimalEditorialLeaf, styles.minimalEditorialLeafTwo]} />
+              </View>
               <View style={styles.minimalEditorialPhotoPanel}>
+                <View style={styles.minimalEditorialTape} />
                 <Image
                   source={{ uri: activeSubEvent?.coverImage || event.coverImage }}
                   style={styles.minimalEditorialPhoto}
                   resizeMode="cover"
                 />
+                <View style={styles.minimalEditorialPhotoFade} />
               </View>
               <View style={styles.minimalEditorialGridLineVertical} />
               <View style={styles.minimalEditorialGridLineHorizontal} />
               <View style={styles.minimalEditorialContent}>
-                <Text style={styles.minimalEditorialKicker}>Anniversary</Text>
+                <Text style={styles.minimalEditorialKicker}>Anniversary Journal</Text>
                 <Text style={styles.minimalEditorialTitle}>{activeSubEvent?.title || event.title}</Text>
+                <View style={styles.minimalEditorialDivider}>
+                  <View style={styles.minimalEditorialDividerLine} />
+                  <View style={styles.minimalEditorialDividerOrnament} />
+                  <View style={styles.minimalEditorialDividerLine} />
+                </View>
                 <View style={styles.minimalEditorialMetaRow}>
                   <Text style={styles.minimalEditorialDate}>{activeSubEvent?.date || event.date}</Text>
                   <TouchableOpacity style={styles.minimalEditorialShare} onPress={handleShare}>
-                    <IconSymbol name="square.and.arrow.up" size={14} color="#262522" />
+                    <IconSymbol name="square.and.arrow.up" size={14} color="#fffaf2" />
                   </TouchableOpacity>
                 </View>
               </View>
               <View style={styles.minimalEditorialIndex}>
-                <Text style={styles.minimalEditorialIndexText}>01</Text>
+                <Text style={styles.minimalEditorialIndexText}>{photos.length || 1}</Text>
+                <Text style={styles.minimalEditorialIndexLabel}>Moments</Text>
               </View>
             </View>
           ) : (
@@ -4757,6 +4833,19 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 4,
   },
+  minimalFloatingButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#4a2f1d',
+    borderColor: 'rgba(255, 250, 242, 0.36)',
+    borderWidth: 1,
+    shadowColor: '#6d4b34',
+    shadowOffset: { width: 0, height: 9 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 4,
+  },
   floatingShare: { position: 'absolute', top: 20, right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   heroContent: { position: 'absolute', bottom: 14, left: 24, right: 24 },
   heroTitle: { fontSize: 36, color: '#fff', fontFamily: Fonts.outfit.extraBold, letterSpacing: -1 },
@@ -5130,10 +5219,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 20,
     borderRadius: 30,
-    backgroundColor: 'rgba(255, 253, 252, 0.78)',
+    backgroundColor: 'rgba(255, 252, 247, 0.82)',
     borderWidth: 1,
-    borderColor: 'rgba(199, 95, 114, 0.22)',
-    shadowColor: '#c75f72',
+    borderColor: 'rgba(183, 101, 120, 0.18)',
+    shadowColor: '#b76578',
     shadowOffset: { width: 0, height: 16 },
     shadowOpacity: 0.16,
     shadowRadius: 26,
@@ -5159,23 +5248,25 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(237, 178, 187, 0.2)',
   },
   roseHeroLabel: {
-    color: '#9b6871',
+    color: '#9a6c74',
     fontSize: 10,
-    fontFamily: Fonts.inter.bold,
+    fontFamily: Fonts.nunitoSans.semiBold,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
     marginBottom: 10,
   },
   roseHeroVine: {
     width: 88,
-    height: 2,
+    height: 1,
     borderRadius: 999,
-    backgroundColor: '#c75f72',
+    backgroundColor: '#b76578',
     marginBottom: 12,
   },
   roseHeroTitle: {
-    fontSize: 36,
-    lineHeight: 41,
+    fontSize: 38,
+    lineHeight: 42,
+    fontFamily: Fonts.cormorant.bold,
+    color: '#562733',
     letterSpacing: 0,
   },
   roseHeroMeta: {
@@ -5183,25 +5274,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: 'rgba(199, 95, 114, 0.12)',
+    backgroundColor: 'rgba(183, 101, 120, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(199, 95, 114, 0.2)',
+    borderColor: 'rgba(183, 101, 120, 0.2)',
   },
   minimalHeroContent: {
     left: 20,
     right: 20,
     bottom: 26,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.78)',
+    paddingHorizontal: 22,
+    paddingVertical: 22,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 250, 242, 0.9)',
     borderWidth: 1,
-    borderColor: 'rgba(38, 37, 34, 0.1)',
+    borderColor: 'rgba(109, 75, 52, 0.1)',
   },
   minimalHeroLabel: {
-    color: '#7c776f',
+    color: '#8a7461',
     fontSize: 10,
-    fontFamily: Fonts.inter.bold,
+    fontFamily: Fonts.nunitoSans.semiBold,
     textTransform: 'uppercase',
     letterSpacing: 1.8,
     marginBottom: 10,
@@ -5209,12 +5300,14 @@ const styles = StyleSheet.create({
   minimalHeroRule: {
     width: 48,
     height: 1,
-    backgroundColor: '#8f8577',
+    backgroundColor: '#6d4b34',
     marginBottom: 12,
   },
   minimalHeroTitle: {
-    fontSize: 34,
-    lineHeight: 38,
+    color: '#3b2618',
+    fontSize: 38,
+    lineHeight: 40,
+    fontFamily: Fonts.cormorant.bold,
     letterSpacing: 0,
   },
   minimalHeroMeta: {
@@ -5703,27 +5796,118 @@ const styles = StyleSheet.create({
   roseBloomHero: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
-    paddingHorizontal: 20,
-    paddingBottom: 26,
+    paddingHorizontal: 22,
+    paddingBottom: 30,
     overflow: 'hidden',
+    backgroundColor: '#fff9f5',
+  },
+  roseBloomWash: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  roseBloomGrain: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.42,
+  },
+  roseBloomGrainDot: {
+    position: 'absolute',
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(154, 108, 116, 0.16)',
+  },
+  roseBloomGrainDotOne: {
+    top: 112,
+    left: 62,
+  },
+  roseBloomGrainDotTwo: {
+    top: 238,
+    right: 46,
+    backgroundColor: 'rgba(143, 159, 123, 0.16)',
+  },
+  roseBloomGrainDotThree: {
+    bottom: 118,
+    left: 118,
+  },
+  roseBloomHeader: {
+    position: 'absolute',
+    top: 78,
+    left: 24,
+    right: 24,
+    alignItems: 'center',
+    zIndex: 3,
+  },
+  roseBloomHeaderTitle: {
+    color: '#562733',
+    fontSize: 14,
+    lineHeight: 18,
+    fontFamily: Fonts.cormorant.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 2.2,
+  },
+  roseBloomHeaderSubtitle: {
+    color: '#8b5962',
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily: Fonts.nunitoSans.semiBold,
+    letterSpacing: 0.5,
+    marginTop: 3,
+  },
+  roseBloomHeaderDivider: {
+    marginTop: 10,
+    width: '58%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  roseBloomHeaderLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(183, 101, 120, 0.28)',
+  },
+  roseBloomHeaderFlower: {
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roseBloomHeaderPetal: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 5,
+    backgroundColor: 'rgba(183, 101, 120, 0.34)',
+  },
+  roseBloomHeaderPetalTop: {
+    top: 1,
+  },
+  roseBloomHeaderPetalRight: {
+    right: 1,
+    backgroundColor: 'rgba(143, 159, 123, 0.24)',
+  },
+  roseBloomHeaderPetalBottom: {
+    bottom: 1,
+  },
+  roseBloomHeaderPetalLeft: {
+    left: 1,
+    backgroundColor: 'rgba(143, 159, 123, 0.24)',
   },
   roseBloomOrb: {
     position: 'absolute',
     borderRadius: 999,
-    backgroundColor: 'rgba(255, 246, 247, 0.72)',
+    backgroundColor: 'rgba(248, 218, 224, 0.48)',
   },
   roseBloomOrbLarge: {
     width: 300,
     height: 300,
     right: -105,
-    top: 70,
+    top: 58,
   },
   roseBloomOrbSmall: {
     width: 118,
     height: 118,
     left: -34,
     bottom: 92,
-    backgroundColor: 'rgba(199, 95, 114, 0.28)',
+    backgroundColor: 'rgba(183, 101, 120, 0.16)',
   },
   roseBloomVine: {
     position: 'absolute',
@@ -5731,8 +5915,8 @@ const styles = StyleSheet.create({
     left: 22,
     width: 86,
     height: 230,
-    borderLeftWidth: 2,
-    borderColor: 'rgba(255, 246, 247, 0.68)',
+    borderLeftWidth: 1,
+    borderColor: 'rgba(143, 159, 123, 0.34)',
     borderTopLeftRadius: 80,
   },
   roseBloomPetal: {
@@ -5741,7 +5925,7 @@ const styles = StyleSheet.create({
     height: 26,
     borderTopLeftRadius: 24,
     borderBottomRightRadius: 24,
-    backgroundColor: 'rgba(255, 246, 247, 0.74)',
+    backgroundColor: 'rgba(255, 252, 247, 0.72)',
   },
   roseBloomPetalA: {
     top: 20,
@@ -5751,7 +5935,7 @@ const styles = StyleSheet.create({
   roseBloomPetalB: {
     top: 96,
     left: -8,
-    backgroundColor: 'rgba(237, 178, 187, 0.64)',
+    backgroundColor: 'rgba(215, 155, 166, 0.38)',
     transform: [{ rotate: '18deg' }],
   },
   roseBloomPetalC: {
@@ -5761,205 +5945,402 @@ const styles = StyleSheet.create({
   },
   roseBloomPhotoStamp: {
     position: 'absolute',
-    top: 122,
+    top: 150,
     right: 24,
-    width: 150,
-    height: 184,
-    padding: 8,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255, 253, 252, 0.9)',
-    transform: [{ rotate: '6deg' }],
-    shadowColor: '#5c2632',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.18,
+    width: 142,
+    height: 172,
+    padding: 7,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255, 252, 247, 0.94)',
+    borderWidth: 1,
+    borderColor: 'rgba(183, 101, 120, 0.14)',
+    transform: [{ rotate: '4deg' }],
+    shadowColor: '#b76578',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.15,
     shadowRadius: 24,
     elevation: 7,
+  },
+  roseBloomPhotoTape: {
+    position: 'absolute',
+    top: -8,
+    left: 28,
+    width: 56,
+    height: 18,
+    borderRadius: 7,
+    backgroundColor: 'rgba(255, 235, 225, 0.66)',
+    borderWidth: 1,
+    borderColor: 'rgba(183, 101, 120, 0.12)',
+    transform: [{ rotate: '-5deg' }],
+    zIndex: 5,
+  },
+  roseBloomPhotoCorner: {
+    position: 'absolute',
+    right: 13,
+    bottom: 13,
+    width: 28,
+    height: 28,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(143, 159, 123, 0.38)',
+    borderBottomRightRadius: 10,
+    zIndex: 5,
   },
   roseBloomPhoto: {
     width: '100%',
     height: '100%',
-    borderRadius: 20,
+    borderRadius: 19,
+    opacity: 0.92,
+  },
+  roseBloomMomentCard: {
+    position: 'absolute',
+    top: 212,
+    left: 26,
+    width: 94,
+    minHeight: 102,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 252, 247, 0.82)',
+    borderWidth: 1,
+    borderColor: 'rgba(183, 101, 120, 0.2)',
+    shadowColor: '#b76578',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.13,
+    shadowRadius: 22,
+    elevation: 5,
+    alignItems: 'center',
+  },
+  roseBloomMomentNumber: {
+    color: '#562733',
+    fontSize: 42,
+    lineHeight: 43,
+    fontFamily: Fonts.cormorant.bold,
+  },
+  roseBloomMomentLabel: {
+    color: '#9a6c74',
+    fontSize: 9.5,
+    fontFamily: Fonts.nunitoSans.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.4,
+    marginTop: 2,
+  },
+  roseBloomMomentDivider: {
+    width: 34,
+    height: 1,
+    backgroundColor: 'rgba(143, 159, 123, 0.42)',
+    marginTop: 9,
   },
   roseBloomCard: {
     width: '100%',
     paddingHorizontal: 24,
-    paddingTop: 30,
+    paddingTop: 28,
     paddingBottom: 24,
-    borderTopLeftRadius: 54,
+    borderTopLeftRadius: 46,
     borderTopRightRadius: 30,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 44,
-    backgroundColor: 'rgba(255, 253, 252, 0.9)',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 42,
+    backgroundColor: 'rgba(255, 252, 247, 0.88)',
     borderWidth: 1,
-    borderColor: 'rgba(199, 95, 114, 0.22)',
-    shadowColor: '#c75f72',
+    borderColor: 'rgba(183, 101, 120, 0.2)',
+    shadowColor: '#b76578',
     shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.16,
-    shadowRadius: 28,
+    shadowOpacity: 0.14,
+    shadowRadius: 30,
     elevation: 7,
   },
+  roseBloomKickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    marginBottom: 12,
+  },
+  roseBloomKickerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#8f9f7b',
+  },
+  roseBloomKickerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(183, 101, 120, 0.22)',
+  },
   roseBloomKicker: {
-    color: '#9b6871',
-    fontSize: 10,
-    fontFamily: Fonts.inter.bold,
+    color: '#9a6c74',
+    fontSize: 10.5,
+    fontFamily: Fonts.nunitoSans.semiBold,
     textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    marginBottom: 10,
+    letterSpacing: 1.8,
   },
   roseBloomTitle: {
-    color: '#5c2632',
-    fontSize: 40,
-    lineHeight: 43,
-    fontFamily: Fonts.playfair.bold,
+    color: '#562733',
+    fontSize: 42,
+    lineHeight: 44,
+    fontFamily: Fonts.cormorant.bold,
     letterSpacing: 0,
   },
   roseBloomStem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 14,
-    marginBottom: 10,
+    marginTop: 16,
+    marginBottom: 12,
   },
   roseBloomStemLine: {
     width: 86,
-    height: 2,
+    height: 1,
     borderRadius: 999,
-    backgroundColor: '#c75f72',
+    backgroundColor: 'rgba(183, 101, 120, 0.56)',
   },
   roseBloomLeaf: {
     width: 10,
     height: 10,
     borderRadius: 6,
-    backgroundColor: '#c75f72',
+    backgroundColor: '#8f9f7b',
   },
   roseBloomLeafAlt: {
-    backgroundColor: '#edb2bb',
+    backgroundColor: '#d79ba6',
   },
   roseBloomDate: {
-    color: '#9b6871',
+    color: '#8b5962',
     fontSize: 12,
-    fontFamily: Fonts.inter.bold,
+    fontFamily: Fonts.nunitoSans.semiBold,
     textTransform: 'uppercase',
-    letterSpacing: 1.2,
+    letterSpacing: 1.35,
   },
   roseBloomShare: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 14,
-    paddingHorizontal: 18,
+    marginTop: 18,
+    paddingHorizontal: 19,
     paddingVertical: 11,
-    borderTopLeftRadius: 999,
-    borderTopRightRadius: 999,
-    borderBottomLeftRadius: 999,
-    borderBottomRightRadius: 14,
-    backgroundColor: 'rgba(199, 95, 114, 0.14)',
+    borderRadius: 999,
+    backgroundColor: 'rgba(183, 101, 120, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(199, 95, 114, 0.2)',
+    borderColor: 'rgba(183, 101, 120, 0.24)',
   },
   roseBloomShareText: {
-    color: '#5c2632',
+    color: '#562733',
     fontSize: 11,
-    fontFamily: Fonts.inter.bold,
+    fontFamily: Fonts.nunitoSans.bold,
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 1,
   },
   minimalEditorialHero: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
     paddingHorizontal: 24,
-    paddingBottom: 30,
+    paddingBottom: 28,
     overflow: 'hidden',
+    backgroundColor: '#f7efe4',
+  },
+  minimalEditorialWash: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  minimalEditorialBotanical: {
+    position: 'absolute',
+    width: 92,
+    height: 118,
+    opacity: 0.28,
+  },
+  minimalEditorialBotanicalLeft: {
+    left: -20,
+    bottom: 72,
+    transform: [{ rotate: '-18deg' }],
+  },
+  minimalEditorialBotanicalRight: {
+    right: -18,
+    top: 126,
+    transform: [{ rotate: '164deg' }],
+  },
+  minimalEditorialStem: {
+    position: 'absolute',
+    left: 44,
+    top: 8,
+    width: 1,
+    height: 104,
+    backgroundColor: 'rgba(109, 75, 52, 0.34)',
+  },
+  minimalEditorialLeaf: {
+    position: 'absolute',
+    width: 30,
+    height: 15,
+    borderTopLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    backgroundColor: 'rgba(178, 151, 119, 0.42)',
+  },
+  minimalEditorialLeafOne: {
+    top: 30,
+    left: 45,
+    transform: [{ rotate: '22deg' }],
+  },
+  minimalEditorialLeafTwo: {
+    top: 66,
+    left: 15,
+    transform: [{ rotate: '-28deg' }],
   },
   minimalEditorialPhotoPanel: {
     position: 'absolute',
-    top: 88,
-    right: 24,
-    width: 154,
-    height: 174,
-    borderRadius: 4,
+    top: 92,
+    right: 22,
+    width: 166,
+    height: 198,
+    borderRadius: 18,
     overflow: 'hidden',
-    opacity: 0.86,
+    backgroundColor: '#fffaf2',
+    padding: 9,
+    paddingBottom: 22,
+    shadowColor: '#6d4b34',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.18,
+    shadowRadius: 28,
+    elevation: 5,
+    transform: [{ rotate: '2deg' }],
+  },
+  minimalEditorialTape: {
+    position: 'absolute',
+    top: -5,
+    left: 48,
+    width: 68,
+    height: 20,
+    borderRadius: 5,
+    backgroundColor: 'rgba(214, 190, 156, 0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(109, 75, 52, 0.08)',
+    zIndex: 3,
+    transform: [{ rotate: '-5deg' }],
   },
   minimalEditorialPhoto: {
     width: '100%',
     height: '100%',
+    borderRadius: 12,
+  },
+  minimalEditorialPhotoFade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(109, 75, 52, 0.04)',
   },
   minimalEditorialGridLineVertical: {
     position: 'absolute',
-    top: 78,
-    bottom: 30,
-    left: 72,
+    top: 82,
+    bottom: 42,
+    left: 56,
     width: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.28)',
+    backgroundColor: 'rgba(109, 75, 52, 0.08)',
   },
   minimalEditorialGridLineHorizontal: {
     position: 'absolute',
-    top: 292,
+    top: 304,
     left: 24,
     right: 24,
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.28)',
+    backgroundColor: 'rgba(109, 75, 52, 0.08)',
   },
   minimalEditorialContent: {
-    width: '76%',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.72)',
-    paddingTop: 20,
+    width: '86%',
+    paddingHorizontal: 22,
+    paddingVertical: 24,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255, 250, 242, 0.91)',
+    borderWidth: 1,
+    borderColor: 'rgba(109, 75, 52, 0.1)',
+    shadowColor: '#6d4b34',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.12,
+    shadowRadius: 28,
+    elevation: 4,
   },
   minimalEditorialKicker: {
-    color: '#f8f7f3',
-    fontSize: 11,
-    fontFamily: Fonts.inter.bold,
+    color: '#8a7461',
+    fontSize: 10.5,
+    fontFamily: Fonts.nunitoSans.semiBold,
     textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginBottom: 10,
+    letterSpacing: 2.1,
+    marginBottom: 12,
   },
   minimalEditorialTitle: {
-    color: '#ffffff',
-    fontSize: 42,
-    lineHeight: 44,
-    fontFamily: Fonts.playfair.bold,
+    color: '#3b2618',
+    fontSize: 43,
+    lineHeight: 45,
+    fontFamily: Fonts.cormorant.bold,
     letterSpacing: 0,
   },
-  minimalEditorialMetaRow: {
+  minimalEditorialDivider: {
     marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  minimalEditorialDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(109, 75, 52, 0.18)',
+  },
+  minimalEditorialDividerOrnament: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#6d4b34',
+  },
+  minimalEditorialMetaRow: {
+    marginTop: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   minimalEditorialDate: {
-    color: '#f8f7f3',
+    color: '#6d4b34',
     fontSize: 12,
-    fontFamily: Fonts.inter.bold,
+    fontFamily: Fonts.nunitoSans.bold,
     textTransform: 'uppercase',
     letterSpacing: 1.4,
   },
   minimalEditorialShare: {
     width: 42,
     height: 42,
-    borderRadius: 2,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.82)',
+    backgroundColor: '#4a2f1d',
+    shadowColor: '#6d4b34',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 14,
+    elevation: 3,
   },
   minimalEditorialIndex: {
     position: 'absolute',
-    top: 86,
+    top: 96,
     left: 24,
-    width: 42,
-    height: 72,
-    borderRadius: 0,
+    width: 70,
+    height: 82,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.62)',
+    borderColor: 'rgba(255, 250, 242, 0.26)',
+    backgroundColor: '#4a2f1d',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#6d4b34',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.16,
+    shadowRadius: 22,
+    elevation: 3,
   },
   minimalEditorialIndexText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontFamily: Fonts.inter.bold,
+    color: '#fffaf2',
+    fontSize: 27,
+    lineHeight: 29,
+    fontFamily: Fonts.cormorant.bold,
+  },
+  minimalEditorialIndexLabel: {
+    marginTop: 1,
+    color: '#d6be9c',
+    fontSize: 8.5,
+    fontFamily: Fonts.nunitoSans.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   popHeroContent: {
     left: 18,
@@ -7424,6 +7805,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     gap: 14,
   },
+  roseVisitorHeaderContainer: {
+    height: 70,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  roseVisitorHeaderContent: {
+    paddingHorizontal: 20,
+    gap: 13,
+  },
+  minimalVisitorHeaderContainer: {
+    height: 68,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  minimalVisitorHeaderContent: {
+    paddingHorizontal: 20,
+    gap: 13,
+  },
   visitorTab: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -7573,6 +7972,42 @@ const styles = StyleSheet.create({
     borderColor: '#B89145',
     transform: [{ translateY: -1 }],
   },
+  roseVisitorTab: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 252, 247, 0.78)',
+    borderWidth: 1,
+    borderColor: 'rgba(183, 101, 120, 0.18)',
+    shadowColor: '#b76578',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
+  },
+  roseVisitorTabActive: {
+    backgroundColor: 'rgba(183, 101, 120, 0.18)',
+    borderColor: 'rgba(183, 101, 120, 0.34)',
+    transform: [{ translateY: -1 }],
+  },
+  minimalVisitorTab: {
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 250, 242, 0.82)',
+    borderWidth: 1,
+    borderColor: 'rgba(109, 75, 52, 0.12)',
+    shadowColor: '#6d4b34',
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.07,
+    shadowRadius: 16,
+    elevation: 2,
+  },
+  minimalVisitorTabActive: {
+    backgroundColor: '#4a2f1d',
+    borderColor: '#4a2f1d',
+    transform: [{ translateY: -1 }],
+  },
   visitorTabText: {
     color: MidnightColors.gold,
     fontSize: 14,
@@ -7623,6 +8058,28 @@ const styles = StyleSheet.create({
   vintageVisitorTabTextActive: {
     color: '#211A12',
     fontFamily: Fonts.inter.bold,
+  },
+  roseVisitorTabText: {
+    fontSize: 12.5,
+    fontFamily: Fonts.nunitoSans.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.85,
+    color: '#562733',
+  },
+  roseVisitorTabTextActive: {
+    color: '#562733',
+    fontFamily: Fonts.nunitoSans.bold,
+  },
+  minimalVisitorTabText: {
+    fontSize: 12.5,
+    fontFamily: Fonts.nunitoSans.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.9,
+    color: '#4a2f1d',
+  },
+  minimalVisitorTabTextActive: {
+    color: '#fffaf2',
+    fontFamily: Fonts.nunitoSans.bold,
   },
   scrapbookVisitorTabTextActive: {
     color: '#263331',
@@ -7935,40 +8392,47 @@ const styles = StyleSheet.create({
   },
   roseInfoBox: {
     marginHorizontal: 16,
-    marginTop: 14,
-    marginBottom: 24,
-    padding: 10,
-    borderRadius: 30,
-    borderColor: 'rgba(199, 95, 114, 0.18)',
-    shadowColor: '#c75f72',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.11,
-    shadowRadius: 22,
+    marginTop: 18,
+    marginBottom: 30,
+    padding: 8,
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(183, 101, 120, 0.14)',
+    backgroundColor: 'rgba(255, 249, 245, 0.42)',
+    shadowColor: '#b76578',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.1,
+    shadowRadius: 26,
     elevation: 3,
   },
   roseInfoInner: {
-    paddingHorizontal: 18,
-    paddingVertical: 22,
-    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    borderRadius: 26,
     borderWidth: 1,
-    borderColor: 'rgba(199, 95, 114, 0.12)',
-    backgroundColor: 'rgba(255, 253, 252, 0.58)',
+    borderColor: 'rgba(183, 101, 120, 0.13)',
+    backgroundColor: 'rgba(255, 252, 247, 0.82)',
   },
   minimalInfoBox: {
     marginHorizontal: 18,
-    marginTop: 14,
-    marginBottom: 24,
+    marginTop: 18,
+    marginBottom: 28,
     padding: 0,
-    borderRadius: 12,
+    borderRadius: 26,
     borderWidth: 1,
-    borderColor: 'rgba(38, 37, 34, 0.08)',
-    backgroundColor: '#ffffff',
+    borderColor: 'rgba(109, 75, 52, 0.1)',
+    backgroundColor: '#fffaf2',
+    shadowColor: '#6d4b34',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.1,
+    shadowRadius: 26,
+    elevation: 3,
   },
   minimalInfoInner: {
-    paddingHorizontal: 18,
-    paddingVertical: 20,
-    borderRadius: 12,
-    backgroundColor: '#ffffff',
+    paddingHorizontal: 22,
+    paddingVertical: 24,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255, 250, 242, 0.92)',
   },
   anniversaryInfoHeader: {
     flexDirection: 'row',
@@ -8001,13 +8465,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#B89145',
   },
   roseInfoMark: {
-    backgroundColor: '#c75f72',
+    backgroundColor: '#8f9f7b',
   },
   minimalInfoMark: {
-    width: 18,
+    width: 24,
     height: 1,
     borderRadius: 0,
-    backgroundColor: '#8f8577',
+    backgroundColor: '#6d4b34',
   },
   anniversaryInfoKicker: {
     fontSize: 10,
@@ -8027,11 +8491,14 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   roseInfoKicker: {
-    color: '#9b6871',
+    color: '#9a6c74',
+    fontFamily: Fonts.nunitoSans.semiBold,
+    letterSpacing: 1.7,
   },
   minimalInfoKicker: {
-    color: '#7c776f',
-    letterSpacing: 1.5,
+    color: '#8a7461',
+    fontFamily: Fonts.nunitoSans.semiBold,
+    letterSpacing: 1.8,
   },
   anniversaryInfoLine: {
     flex: 1,
@@ -8044,10 +8511,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(184, 145, 69, 0.28)',
   },
   roseInfoLine: {
-    backgroundColor: 'rgba(199, 95, 114, 0.18)',
+    backgroundColor: 'rgba(183, 101, 120, 0.22)',
   },
   minimalInfoLine: {
-    backgroundColor: 'rgba(38, 37, 34, 0.1)',
+    backgroundColor: 'rgba(109, 75, 52, 0.14)',
   },
   popInfoBox: {
     marginHorizontal: 10,
@@ -8161,11 +8628,15 @@ const styles = StyleSheet.create({
     letterSpacing: 0.05,
   },
   roseVisitorDescription: {
-    color: '#5c2632',
-    lineHeight: 24,
+    color: '#562733',
+    fontFamily: Fonts.nunitoSans.regular,
+    fontSize: 15,
+    lineHeight: 25,
   },
   minimalVisitorDescription: {
-    color: '#3a3834',
+    color: '#5b3e29',
+    fontFamily: Fonts.nunitoSans.regular,
+    fontSize: 15,
     lineHeight: 25,
   },
   categoryBadge: {
@@ -8231,20 +8702,20 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(184, 145, 69, 0.24)',
   },
   roseGalleryHeader: {
-    marginTop: 18,
-    marginBottom: 22,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    marginTop: 24,
+    marginBottom: 28,
+    paddingHorizontal: 22,
+    paddingBottom: 18,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(199, 95, 114, 0.14)',
+    borderBottomColor: 'rgba(183, 101, 120, 0.16)',
   },
   minimalGalleryHeader: {
-    marginTop: 18,
-    marginBottom: 20,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    marginTop: 24,
+    marginBottom: 28,
+    paddingHorizontal: 22,
+    paddingBottom: 18,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(38, 37, 34, 0.08)',
+    borderBottomColor: 'rgba(109, 75, 52, 0.12)',
   },
   popGalleryHeader: {
     marginTop: 24,
@@ -8386,13 +8857,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#B89145',
   },
   roseGalleryDot: {
-    backgroundColor: '#c75f72',
+    backgroundColor: '#8f9f7b',
   },
   minimalGalleryDot: {
-    width: 20,
+    width: 24,
     height: 1,
     borderRadius: 0,
-    backgroundColor: '#8f8577',
+    backgroundColor: '#6d4b34',
   },
   anniversaryGalleryKickerText: {
     fontSize: 10,
@@ -8412,11 +8883,14 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   roseGalleryKickerText: {
-    color: '#9b6871',
+    color: '#9a6c74',
+    fontFamily: Fonts.nunitoSans.semiBold,
+    letterSpacing: 1.65,
   },
   minimalGalleryKickerText: {
-    color: '#7c776f',
-    letterSpacing: 1.5,
+    color: '#8a7461',
+    fontFamily: Fonts.nunitoSans.semiBold,
+    letterSpacing: 1.8,
   },
   anniversaryGalleryLine: {
     width: 42,
@@ -8431,11 +8905,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(184, 145, 69, 0.34)',
   },
   roseGalleryLine: {
-    backgroundColor: 'rgba(199, 95, 114, 0.58)',
+    backgroundColor: 'rgba(183, 101, 120, 0.42)',
   },
   minimalGalleryLine: {
     height: 1,
-    backgroundColor: 'rgba(38, 37, 34, 0.16)',
+    backgroundColor: 'rgba(109, 75, 52, 0.18)',
   },
   galleryTitle: {
     fontSize: 24,
@@ -8477,11 +8951,17 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   roseGalleryTitle: {
-    fontSize: 29,
+    color: '#562733',
+    fontSize: 32,
+    lineHeight: 37,
+    fontFamily: Fonts.cormorant.bold,
     letterSpacing: 0,
   },
   minimalGalleryTitle: {
-    fontSize: 28,
+    color: '#3b2618',
+    fontSize: 34,
+    lineHeight: 38,
+    fontFamily: Fonts.cormorant.bold,
     letterSpacing: 0,
   },
   photoCount: {
@@ -8682,13 +9162,14 @@ const styles = StyleSheet.create({
   rosePhotoTile: {
     padding: 8,
     borderWidth: 1,
-    borderRadius: 28,
+    borderRadius: 26,
     overflow: 'hidden',
-    backgroundColor: '#fffdfc',
-    borderColor: 'rgba(199, 95, 114, 0.16)',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
+    backgroundColor: '#fffdfa',
+    borderColor: 'rgba(183, 101, 120, 0.14)',
+    shadowColor: '#b76578',
+    shadowOffset: { width: 0, height: 13 },
+    shadowOpacity: 0.1,
+    shadowRadius: 22,
     elevation: 3,
   },
   rosePhotoTileAlt: {
@@ -8699,7 +9180,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 18,
-    backgroundColor: 'rgba(199, 95, 114, 0.2)',
+    backgroundColor: 'rgba(183, 101, 120, 0.14)',
     zIndex: 2,
   },
   rosePhotoPetalTop: {
@@ -8709,18 +9190,25 @@ const styles = StyleSheet.create({
   rosePhotoPetalBottom: {
     left: 16,
     bottom: 14,
-    backgroundColor: 'rgba(237, 178, 187, 0.26)',
+    backgroundColor: 'rgba(143, 159, 123, 0.16)',
   },
   minimalPhotoTile: {
-    padding: 0,
+    padding: 8,
+    paddingBottom: 20,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 22,
     overflow: 'hidden',
-    backgroundColor: '#ffffff',
-    borderColor: 'rgba(38, 37, 34, 0.08)',
+    backgroundColor: '#fffaf2',
+    borderColor: 'rgba(109, 75, 52, 0.1)',
+    shadowColor: '#6d4b34',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.1,
+    shadowRadius: 22,
+    elevation: 3,
   },
   minimalPhotoTileAlt: {
     opacity: 0.98,
+    transform: [{ rotate: '-0.35deg' }],
   },
   minimalPhotoIndex: {
     position: 'absolute',
@@ -8730,12 +9218,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: 'rgba(255, 255, 255, 0.74)',
+    backgroundColor: 'rgba(74, 47, 29, 0.88)',
   },
   minimalPhotoIndexText: {
-    color: '#262522',
+    color: '#fffaf2',
     fontSize: 10,
-    fontFamily: Fonts.inter.bold,
+    fontFamily: Fonts.nunitoSans.bold,
   },
   popPhotoTile: {
     padding: 8,
@@ -8837,10 +9325,11 @@ const styles = StyleSheet.create({
     opacity: 0.88,
   },
   roseGalleryImg: {
-    borderRadius: 22,
+    borderRadius: 19,
+    opacity: 0.94,
   },
   minimalGalleryImg: {
-    borderRadius: 11,
+    borderRadius: 16,
   },
   emptyGallery: {
     width: '100%',
