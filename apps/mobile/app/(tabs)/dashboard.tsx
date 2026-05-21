@@ -188,17 +188,9 @@ export default function DashboardScreen() {
         colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]}
         style={styles.header}
       >
-        <View>
-          <View style={styles.greetingRow}>
-            <Text style={styles.greeting}>{getGreeting()}</Text>
-            <View style={styles.planChip}>
-              <IconSymbol name="crown.fill" size={8} color="#d4af37" />
-              <Text style={styles.planChipText}>{user.role || 'Elite'}</Text>
-            </View>
-          </View>
-          <View style={styles.nameRow}>
-            <Text style={styles.userName}>{user.name?.split(' ')[0]}</Text>
-          </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>WedAlbum</Text>
+          <Text style={styles.tagline}>Let's capture moments ✨</Text>
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity 
@@ -206,7 +198,7 @@ export default function DashboardScreen() {
             activeOpacity={0.7}
             onPress={() => Alert.alert("Notifications", "Coming Soon: Updates on your albums, events, and shortlist activity.")}
           >
-            <IconSymbol name="bell.fill" size={20} color={colors.white} />
+            <IconSymbol name="bell.fill" size={18} color={colors.white} />
             <View style={styles.notificationBadge} />
           </TouchableOpacity>
         </View>
@@ -287,8 +279,8 @@ export default function DashboardScreen() {
                       style={StyleSheet.absoluteFill} 
                     />
                     <View style={styles.viewAllMemoriesContent}>
-                       <View style={{ alignItems: 'center', gap: 6, marginBottom: 28, zIndex: 1 }}>
-                         <Text style={[styles.viewAllMemoriesText, { fontSize: 22 }]}>Your memories</Text>
+                       <View style={{ alignItems: 'center', gap: 4, marginBottom: 14, zIndex: 1 }}>
+                         <Text style={[styles.viewAllMemoriesText, { fontSize: 18 }]}>Your memories</Text>
                          <View style={styles.countPill}>
                            <Text style={styles.viewAllMemoriesSub}>{events.length} Collections</Text>
                          </View>
@@ -375,10 +367,10 @@ export default function DashboardScreen() {
                       style={StyleSheet.absoluteFill} 
                     />
                     <View style={styles.viewAllMemoriesContent}>
-                       <View style={{ alignItems: 'center', gap: 6, marginBottom: 28, zIndex: 1 }}>
-                         <Text style={[styles.viewAllMemoriesText, { fontSize: 22, color: colors.white }]}>Marketplace</Text>
-                         <View style={[styles.countPill, { backgroundColor: isDark ? 'rgba(129,140,248,0.1)' : 'rgba(99,102,241,0.1)', borderColor: isDark ? 'rgba(129,140,248,0.2)' : 'rgba(99,102,241,0.2)' }]}>
-                           <Text style={[styles.viewAllMemoriesSub, { color: isDark ? '#818cf8' : '#6366f1' }]}>{businesses.length > 0 ? businesses.length : '50+'}+ Vendors</Text>
+                       <View style={{ alignItems: 'center', gap: 4, marginBottom: 14, zIndex: 1 }}>
+                         <Text style={[styles.viewAllMemoriesText, { fontSize: 18, color: colors.white }]}>Marketplace</Text>
+                         <View style={[styles.countPill, { backgroundColor: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.2)' }]}>
+                           <Text style={[styles.viewAllMemoriesSub, { color: '#ffffff' }]}>{businesses.length > 0 ? businesses.length : '50+'}+ Vendors</Text>
                          </View>
                        </View>
                        
@@ -569,8 +561,8 @@ export default function DashboardScreen() {
   );
 }
 
-const CARD_W = width * 0.65;
-const CARD_H = 180;
+const CARD_W = width * 0.55;
+const CARD_H = 155;
 
 const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
@@ -588,6 +580,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: colors.background,
     borderBottomWidth: 1.5,
     borderBottomColor: colors.border,
+    gap: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: isDark ? 0.3 : 0.05,
@@ -596,29 +589,32 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   greetingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   greeting: { fontSize: 13, color: colors.slate400, fontFamily: 'Inter_500Medium', textTransform: 'uppercase', letterSpacing: 1.2 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
-  userName: { fontSize: 32, color: colors.white, fontFamily: 'Outfit_800ExtraBold', letterSpacing: -0.5, marginTop: 2 },
-  planChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: 'rgba(212,175,55,0.12)',
-    borderWidth: 1, borderColor: 'rgba(212,175,55,0.25)',
-    paddingHorizontal: 7, paddingVertical: 2, borderRadius: 20,
-    marginTop: -2, // Slight adjustment for baseline alignment with greeting
+  datePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: isDark ? 'rgba(212,175,55,0.08)' : 'rgba(212,175,55,0.04)',
+    borderWidth: 1, borderColor: isDark ? 'rgba(212,175,55,0.15)' : 'rgba(212,175,55,0.1)',
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20,
   },
-  planChipText: { fontSize: 9, color: colors.gold, fontFamily: 'Outfit_700Bold', textTransform: 'uppercase', letterSpacing: 0.8 },
-  avatarRing: {
-    padding: 2, borderRadius: 22,
-    borderWidth: 1.5, borderColor: colors.border,
+  datePillText: { fontSize: 10, color: colors.gold, fontFamily: 'Outfit_700Bold', letterSpacing: 0.3 },
+  headerTitle: { fontSize: 32, fontFamily: 'Yellowtail_400Regular', color: colors.white, letterSpacing: 0.5 },
+  tagline: { fontSize: 13, color: colors.slate400, fontFamily: 'Inter_400Regular', marginTop: 4 },
+  avatarRingHeader: {
+    padding: 3, borderRadius: 30,
+    borderWidth: 1.5, borderColor: colors.gold,
   },
-  avatar: { width: 38, height: 38, borderRadius: 19 },
-  avatarFallback: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: colors.slate800, justifyContent: 'center', alignItems: 'center',
+  avatarHeader: { width: 54, height: 54, borderRadius: 27 },
+  avatarFallbackHeader: {
+    width: 54, height: 54, borderRadius: 27,
+    backgroundColor: isDark ? 'rgba(212,175,55,0.15)' : 'rgba(212,175,55,0.08)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  avatarFallbackText: {
+    fontSize: 22, color: colors.gold, fontFamily: 'Outfit_800ExtraBold',
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 12,
   },
   headerIconButton: {
     width: 42,
@@ -969,8 +965,8 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   recentBusinessCard: {
     width: CARD_W,
-    height: 200,
-    borderRadius: 24,
+    height: 165,
+    borderRadius: 20,
     overflow: 'hidden',
     backgroundColor: colors.slate900,
     borderWidth: 1,
@@ -983,8 +979,8 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   recentEventCard: {
     width: CARD_W,
-    height: 200,
-    borderRadius: 24,
+    height: 165,
+    borderRadius: 20,
     overflow: 'hidden',
     backgroundColor: colors.slate900,
     borderWidth: 1,
@@ -997,12 +993,12 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   recentEventInfo: {
     position: 'absolute',
-    bottom: 16,
-    left: 16,
-    right: 16,
+    bottom: 12,
+    left: 14,
+    right: 14,
   },
   recentEventTitle: {
-    fontSize: 18,
+    fontSize: 16,
     color: colors.white,
     fontFamily: 'Outfit_700Bold',
     textShadowColor: 'rgba(0,0,0,0.5)',
@@ -1021,9 +1017,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     fontFamily: 'Inter_500Medium',
   },
   viewAllMemoriesCard: {
-    width: width * 0.52,
-    height: 200,
-    borderRadius: 32,
+    width: width * 0.45,
+    height: 165,
+    borderRadius: 28,
     overflow: 'hidden',
     backgroundColor: colors.slate900,
     borderWidth: 1.5,

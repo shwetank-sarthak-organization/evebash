@@ -13,13 +13,16 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { IconSymbol, IconSymbolName } from '@/components/ui/icon-symbol';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useRouter } from 'expo-router';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { 
   getUsers, 
   followUser, 
@@ -34,6 +37,7 @@ import {
   getTopRatedBusinesses,
   toggleShortlistBusiness,
   getBusinessActivities,
+  logGuestLogin,
 } from '@/lib/firestore';
 
 const { width } = Dimensions.get('window');
@@ -64,21 +68,26 @@ const formatInstagramDate = (createdAt: any) => {
   }
 };
 
-type TabType = 'feed' | 'suggestions' | 'following';
-
 export default function SocialScreen() {
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
   const styles = getStyles(colors, isDark);
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>('feed');
+  const [searchModalVisible, setSearchModalVisible] = useState(false);
   const [usersList, setUsersList] = useState<any[]>([]);
   const [followingIds, setFollowingIds] = useState<string[]>([]);
   const [feedItems, setFeedItems] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Access modal state
+  const [accessModalVisible, setAccessModalVisible] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [accessStatus, setAccessStatus] = useState<'none' | 'pending' | 'rejected'>('none');
+  const [checkingAccess, setCheckingAccess] = useState<string | null>(null);
+  const [requestingAccess, setRequestingAccess] = useState(false);
 
   // Like & Comment state
   const [likedEvents, setLikedEvents] = useState<Record<string, boolean>>({});
@@ -101,13 +110,6 @@ export default function SocialScreen() {
       initFeed();
     }
   }, [user]);
-
-
-  useEffect(() => {
-    if (activeTab === 'feed' && user?.uid && !loading && mountedRef.current) {
-      fetchFeed();
-    }
-  }, [activeTab]);
 
   const initFeed = async () => {
     if (!user) return;
@@ -228,6 +230,57 @@ export default function SocialScreen() {
     }
   };
 
+  const refreshFeedWithIds = async (currentFollowingIds: string[]) => {
+    if (!user?.uid) return;
+    try {
+      const queryIds = [user.uid, ...currentFollowingIds];
+      const feed = await getSocialFeed(queryIds);
+      const eventOnlyFeed = feed.filter(item => item.type === 'event');
+      const mappedEvents = eventOnlyFeed.map(item => ({ ...item, feedType: 'event' }));
+
+      let combinedBizList: any[] = [];
+      let activitiesList: any[] = [];
+      try {
+        const allBusinesses = await getTopRatedBusinesses(100);
+        const followedBiz = allBusinesses.filter(b => b.createdBy && currentFollowingIds.includes(b.createdBy));
+        const shortlistedBiz = allBusinesses.filter(b => b.id && user.shortlisted?.includes(b.id));
+        const selfBiz = allBusinesses.filter(b => b.createdBy === user.uid);
+
+        const combinedBizMap = new Map<string, any>();
+        followedBiz.forEach(b => combinedBizMap.set(b.id, { ...b, feedType: 'business', feedSubType: 'followed' }));
+        shortlistedBiz.forEach(b => combinedBizMap.set(b.id, { ...b, feedType: 'business', feedSubType: 'shortlisted' }));
+        selfBiz.forEach(b => combinedBizMap.set(b.id, { ...b, feedType: 'business', feedSubType: 'self' }));
+        combinedBizList = Array.from(combinedBizMap.values());
+      } catch (bizErr) {
+        console.error("Error fetching businesses in refreshFeedWithIds:", bizErr);
+      }
+
+      try {
+        const rawActivities = await getBusinessActivities(queryIds);
+        activitiesList = rawActivities.map(act => ({ ...act, feedType: 'activity' }));
+      } catch (actErr) {
+        console.error("Error fetching business activities in refreshFeedWithIds:", actErr);
+      }
+
+      const fullFeed = [...mappedEvents, ...combinedBizList, ...activitiesList];
+      fullFeed.sort((a, b) => {
+        const dateA = a.createdAt?.seconds || (a.createdAt instanceof Date ? a.createdAt.getTime() / 1000 : 0);
+        const dateB = b.createdAt?.seconds || (b.createdAt instanceof Date ? b.createdAt.getTime() / 1000 : 0);
+        return dateB - dateA;
+      });
+
+      setFeedItems(fullFeed);
+      loadInteractions(fullFeed);
+    } catch (error) {
+      console.error("Error refreshing feed:", error);
+    }
+  };
+
+  const handleCloseSearchModal = () => {
+    setSearchModalVisible(false);
+    setSearchQuery('');
+  };
+
   const loadInteractions = async (events: any[]) => {
     if (!user?.uid) return;
     for (const item of events) {
@@ -313,11 +366,15 @@ export default function SocialScreen() {
     try {
       if (followingIds.includes(targetUser.id)) {
         await unfollowUser(user.uid, targetUser.id);
-        setFollowingIds(prev => prev.filter(id => id !== targetUser.id));
+        const updatedFollowing = followingIds.filter(id => id !== targetUser.id);
+        setFollowingIds(updatedFollowing);
+        refreshFeedWithIds(updatedFollowing);
       } else {
         const result = await followUser(user.uid, targetUser.id);
         if (result.success && result.status === 'accepted') {
-          setFollowingIds(prev => [...prev, targetUser.id]);
+          const updatedFollowing = [...followingIds, targetUser.id];
+          setFollowingIds(updatedFollowing);
+          refreshFeedWithIds(updatedFollowing);
         }
       }
     } catch (error) {
@@ -327,9 +384,94 @@ export default function SocialScreen() {
     }
   };
 
-  const navigateToDetail = (item: any) => {
-    const id = item.eventId || item.id;
-    if (id) router.push(`/events/${id}`);
+  const navigateToDetail = async (item: any) => {
+    if (!user?.uid) {
+      Alert.alert("Login Required", "Please log in to view event details.");
+      return;
+    }
+    const eventId = item.eventId || item.id;
+    if (!eventId) return;
+
+    setCheckingAccess(eventId);
+
+    try {
+      // 1. Check if user is owner of the event
+      const isOwner = item.createdBy === user.uid || item.userId === user.uid;
+
+      // 2. Check if user is privileged viewer
+      const isPrivileged = 
+        user.role === 'admin' ||
+        (user.roleType === 'primary' && user.delegatedBy === item.createdBy) ||
+        !!user.assignedEvents?.some((id: string) => id === eventId || id === item.legacyId || id === item.parentId);
+
+      if (isOwner || isPrivileged) {
+        router.push(`/events/${eventId}`);
+        setCheckingAccess(null);
+        return;
+      }
+
+      // 3. Check guest status
+      const identifiers: string[] = [];
+      if (user.phone) identifiers.push(user.phone);
+      if (user.email) identifiers.push(user.email);
+      if (user.uid) identifiers.push(user.uid);
+
+      let foundStatus: 'none' | 'pending' | 'approved' | 'rejected' = 'none';
+
+      for (const identifier of identifiers) {
+        const logId = `${identifier}_${eventId}`;
+        const docRef = doc(db, 'guests', logId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          foundStatus = (docSnap.data().status || 'pending') as any;
+          break;
+        }
+      }
+
+      if (foundStatus === 'approved') {
+        router.push(`/events/${eventId}`);
+      } else {
+        setSelectedEvent(item);
+        setAccessStatus(foundStatus);
+        setAccessModalVisible(true);
+      }
+    } catch (error) {
+      console.error("Error checking event access:", error);
+      Alert.alert("Error", "Unable to verify event access. Please try again.");
+    } finally {
+      setCheckingAccess(null);
+    }
+  };
+
+  const handleSendJoinRequest = async () => {
+    if (!selectedEvent || !user || requestingAccess) return;
+    setRequestingAccess(true);
+    try {
+      const nameToSubmit = user.name || user.email?.split('@')[0] || 'Guest';
+      const rawPhone = user.phone || user.email || user.uid;
+      
+      const success = await logGuestLogin(
+        nameToSubmit,
+        rawPhone,
+        selectedEvent.id,
+        selectedEvent.parentId || selectedEvent.id,
+        selectedEvent.title,
+        selectedEvent.createdBy,
+        'pending'
+      );
+
+      if (success) {
+        setAccessStatus('pending');
+        Alert.alert("Request Sent", "Your request to join the event has been sent to the creator.");
+      } else {
+        Alert.alert("Error", "Failed to send request. Please try again.");
+      }
+    } catch (err) {
+      console.error("Error sending join request:", err);
+      Alert.alert("Error", "An error occurred while sending the request.");
+    } finally {
+      setRequestingAccess(false);
+    }
   };
 
   const renderFeedItem = (item: any) => {
@@ -348,7 +490,7 @@ export default function SocialScreen() {
 
       // Determine pill text & color
       let pillText = 'UPDATE';
-      let pillIcon = 'sparkles';
+      let pillIcon: IconSymbolName = 'sparkles';
       if (item.activityType === 'announcement') {
         pillText = 'ANNOUNCEMENT';
         pillIcon = 'megaphone.fill';
@@ -801,6 +943,11 @@ export default function SocialScreen() {
                 <IconSymbol name="photo" size={32} color="#334155" />
               </View>
             )}
+            {checkingAccess === item.id && (
+              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(2, 6, 23, 0.7)', justifyContent: 'center', alignItems: 'center', zIndex: 20 }]}>
+                <ActivityIndicator size="large" color="#d4af37" />
+              </View>
+            )}
             {/* Gradient overlay bottom strip */}
             <View style={styles.postGlassOverlay}>
               <View style={styles.postGlassBadge}>
@@ -897,12 +1044,21 @@ export default function SocialScreen() {
     );
   };
 
-  const filteredUsers = usersList.filter(u => 
-    u.id !== user?.uid && (
-      u.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      u.email?.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-  );
+  const getFilteredUsers = () => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
+      // Suggestion mode: return users we are not following (excluding ourselves)
+      return usersList.filter(u => u.id !== user?.uid && !followingIds.includes(u.id));
+    }
+    // Search mode: return users matching name, username or email (excluding ourselves)
+    return usersList.filter(u => 
+      u.id !== user?.uid && (
+        u.name?.toLowerCase().includes(query) || 
+        (u.username && u.username.toLowerCase().includes(query)) ||
+        (u.email && u.email.toLowerCase().includes(query))
+      )
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -912,23 +1068,14 @@ export default function SocialScreen() {
         <LinearGradient colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]} style={styles.header}>
           <View style={styles.topRow}>
             <Text style={styles.headerTitle}>Social Hub</Text>
+            <TouchableOpacity 
+              style={styles.searchHeaderBtn}
+              onPress={() => setSearchModalVisible(true)}
+            >
+              <IconSymbol name="magnifyingglass" size={22} color={colors.white} />
+            </TouchableOpacity>
           </View>
-          
-          <View style={styles.pillTabBarContainer}>
-            <View style={styles.pillTabBar}>
-              {['feed', 'suggestions', 'following'].map((tab) => (
-                <TouchableOpacity 
-                  key={tab}
-                  style={[styles.pillTab, activeTab === tab && styles.activePillTab]}
-                  onPress={() => setActiveTab(tab as TabType)}
-                >
-                  <Text style={[styles.pillTabText, activeTab === tab && styles.activePillTabText]}>
-                    {tab === 'feed' ? 'Feed' : tab === 'suggestions' ? 'Discover' : 'Network'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+          <Text style={styles.headerSubtitle}>Connect with loved ones ✨</Text>
         </LinearGradient>
 
         <ScrollView 
@@ -940,7 +1087,7 @@ export default function SocialScreen() {
         >
           {loading && feedItems.length === 0 ? (
             <View style={styles.centerContainer}><ActivityIndicator color={colors.gold} size="large" /></View>
-          ) : activeTab === 'feed' ? (
+          ) : (
             <View style={styles.feedList}>
               {feedItems.length > 0 ? (
                 feedItems.map(renderFeedItem)
@@ -949,38 +1096,193 @@ export default function SocialScreen() {
                   <IconSymbol name="sparkles" size={48} color="#1e293b" />
                   <Text style={styles.emptyTitle}>Feed is empty</Text>
                   <Text style={styles.emptySubtitle}>Follow users who have created events to see them here.</Text>
-                  <TouchableOpacity style={styles.discoverBtn} onPress={() => setActiveTab('suggestions')}>
+                  <TouchableOpacity style={styles.discoverBtn} onPress={() => setSearchModalVisible(true)}>
                     <Text style={styles.discoverBtnText}>Discover People</Text>
                   </TouchableOpacity>
                 </View>
               )}
             </View>
-          ) : (
-             <View style={styles.userList}>
-               <Text style={styles.sectionTitle}>{activeTab === 'following' ? 'Your Network' : 'People to Follow'}</Text>
-               {(activeTab === 'following' ? filteredUsers.filter(u => followingIds.includes(u.id)) : filteredUsers.filter(u => !followingIds.includes(u.id))).map((item) => (
-                 <View key={item.id} style={styles.userCard}>
-                    <View style={styles.userInfoSimple}>
-                      <View style={styles.avatarSimple}>
-                        {item.profileImage ? <Image source={{ uri: item.profileImage }} style={styles.avatarImg} /> : <Text style={styles.avatarChar}>{item.name?.charAt(0).toUpperCase()}</Text>}
-                      </View>
-                      <View>
-                        <Text style={styles.userNameText}>{item.name}</Text>
-                        <Text style={styles.userRoleText}>{item.role || 'Member'}</Text>
-                      </View>
-                    </View>
-                    <TouchableOpacity 
-                      style={[styles.followBtn, followingIds.includes(item.id) && styles.followingBtn]}
-                      onPress={() => handleFollowToggle(item)}
-                      disabled={actionLoading === item.id}
-                    >
-                      {actionLoading === item.id ? <ActivityIndicator size="small" color="#000" /> : <Text style={[styles.followBtnText, followingIds.includes(item.id) && styles.followingBtnText]}>{followingIds.includes(item.id) ? 'Unfollow' : 'Follow'}</Text>}
-                    </TouchableOpacity>
-                 </View>
-               ))}
-             </View>
           )}
         </ScrollView>
+
+        {/* Instagram-Style Search/Discover Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={searchModalVisible}
+          onRequestClose={handleCloseSearchModal}
+        >
+          <SafeAreaView style={styles.searchModalOverlay} edges={['top', 'bottom']}>
+            <KeyboardAvoidingView 
+              style={styles.searchModalContainer} 
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            >
+              {/* Header Search Bar */}
+              <View style={styles.searchModalHeader}>
+                <View style={styles.searchBarContainer}>
+                  <IconSymbol name="magnifyingglass" size={18} color={colors.slate400} style={styles.searchBarIcon} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search users..."
+                    placeholderTextColor={colors.slate400}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    autoFocus={true}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+                      <IconSymbol name="xmark.circle.fill" size={16} color={colors.slate400} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+                <TouchableOpacity onPress={handleCloseSearchModal} style={styles.cancelSearchBtn}>
+                  <Text style={styles.cancelSearchText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Scrollable list of suggestions / search results */}
+              <ScrollView 
+                style={styles.searchScroll}
+                contentContainerStyle={styles.searchScrollContent}
+                keyboardShouldPersistTaps="handled"
+              >
+                <Text style={styles.searchSectionTitle}>
+                  {searchQuery.trim() ? 'Search Results' : 'Suggested for You'}
+                </Text>
+
+                {getFilteredUsers().length > 0 ? (
+                  getFilteredUsers().map((item) => {
+                    const isFollowing = followingIds.includes(item.id);
+                    return (
+                      <View key={item.id} style={styles.searchUserCard}>
+                        <View style={styles.searchUserInfoSimple}>
+                          <View style={styles.searchAvatarSimple}>
+                            {item.profileImage ? (
+                              <Image source={{ uri: item.profileImage }} style={styles.searchAvatarImg} />
+                            ) : (
+                              <Text style={styles.searchAvatarChar}>{item.name?.charAt(0).toUpperCase()}</Text>
+                            )}
+                          </View>
+                          <View style={styles.searchUserInfoText}>
+                            <Text style={styles.searchUserNameText} numberOfLines={1}>
+                              {item.name}
+                            </Text>
+                            {item.username && (
+                              <Text style={styles.searchUserHandleText} numberOfLines={1}>
+                                @{item.username}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                        <TouchableOpacity 
+                          style={[styles.searchFollowBtn, isFollowing && styles.searchFollowingBtn]}
+                          onPress={() => handleFollowToggle(item)}
+                          disabled={actionLoading === item.id}
+                        >
+                          {actionLoading === item.id ? (
+                            <ActivityIndicator size="small" color={isFollowing ? colors.slate400 : '#020617'} />
+                          ) : (
+                            <Text style={[styles.searchFollowBtnText, isFollowing && styles.searchFollowingBtnText]}>
+                              {isFollowing ? 'Following' : 'Follow'}
+                            </Text>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })
+                ) : (
+                  <View style={styles.searchEmptyContainer}>
+                    <IconSymbol name="person.2.fill" size={40} color={colors.slate800} />
+                    <Text style={styles.searchEmptyText}>No users found</Text>
+                  </View>
+                )}
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </SafeAreaView>
+        </Modal>
+
+        {/* Event Join Request Modal */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={accessModalVisible}
+          onRequestClose={() => setAccessModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <TouchableOpacity 
+                style={styles.modalCloseBtn} 
+                onPress={() => setAccessModalVisible(false)}
+              >
+                <IconSymbol name="xmark" size={18} color={colors.slate400} />
+              </TouchableOpacity>
+
+              <View style={styles.modalHeader}>
+                <IconSymbol name="lock.fill" size={28} color="#d4af37" />
+                <Text style={styles.modalTitle}>Private Event</Text>
+              </View>
+              
+              <Text style={styles.modalSubtitle}>
+                {selectedEvent?.title ? `"${selectedEvent.title}"` : 'This event'} is private.
+              </Text>
+
+              {accessStatus === 'none' ? (
+                <>
+                  <Text style={styles.modalMessage}>
+                    You must request access to join this event and view its content. A request will be sent to the creator.
+                  </Text>
+                  <View style={styles.modalButtons}>
+                    <TouchableOpacity 
+                      style={[styles.modalBtn, styles.modalBtnSecondary]} 
+                      onPress={() => setAccessModalVisible(false)}
+                      disabled={requestingAccess}
+                    >
+                      <Text style={styles.modalBtnSecondaryText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.modalBtn, styles.modalBtnPrimary]} 
+                      onPress={handleSendJoinRequest}
+                      disabled={requestingAccess}
+                    >
+                      {requestingAccess ? (
+                        <ActivityIndicator size="small" color="#020617" />
+                      ) : (
+                        <Text style={styles.modalBtnPrimaryText}>Send Request</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : accessStatus === 'pending' ? (
+                <>
+                  <Text style={styles.modalMessage}>
+                    Your request to join this event is currently pending approval from the creator.
+                  </Text>
+                  <TouchableOpacity 
+                    style={[styles.modalBtn, styles.modalBtnSingle]} 
+                    onPress={() => setAccessModalVisible(false)}
+                  >
+                    <Text style={styles.modalBtnPrimaryText}>OK</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.modalMessage}>
+                    Your request to join this event has been declined.
+                  </Text>
+                  <TouchableOpacity 
+                    style={[styles.modalBtn, styles.modalBtnSingle]} 
+                    onPress={() => setAccessModalVisible(false)}
+                  >
+                    <Text style={styles.modalBtnPrimaryText}>OK</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </View>
+        </Modal>
+
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -989,15 +1291,26 @@ export default function SocialScreen() {
 const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
-  header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20 },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1.5,
+    borderBottomColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: isDark ? 0.3 : 0.05,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { fontSize: 32, fontFamily: 'Outfit_800ExtraBold', color: colors.white, letterSpacing: -1 },
-  pillTabBarContainer: { alignItems: 'center' },
-  pillTabBar: { flexDirection: 'row', backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)', borderRadius: 25, padding: 4, borderWidth: 1, borderColor: colors.cardBorder },
-  pillTab: { paddingVertical: 8, paddingHorizontal: 20, borderRadius: 20 },
-  activePillTab: { backgroundColor: '#d4af37' },
-  pillTabText: { fontSize: 13, fontFamily: 'Inter_700Bold', color: colors.slate400 },
-  activePillTabText: { color: '#020617' },
+  headerSubtitle: {
+    fontSize: 13,
+    color: colors.slate400,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 4,
+  },
   content: { flex: 1 },
   centerContainer: { paddingTop: 100, alignItems: 'center', justifyContent: 'center' },
   feedList: { paddingTop: 8 },
@@ -1453,6 +1766,265 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     color: colors.slate400,
     fontSize: 12,
     padding: 10,
+    fontFamily: 'Inter_500Medium',
+  },
+  // === Modal Styles ===
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(2, 6, 23, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: colors.deepSlate,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+    // shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalCloseBtn: {
+    position: 'absolute',
+    top: 18,
+    right: 18,
+    padding: 6,
+    zIndex: 10,
+  },
+  modalHeader: {
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    color: colors.white,
+    fontSize: 20,
+    fontFamily: 'Outfit_700Bold',
+    marginTop: 4,
+  },
+  modalSubtitle: {
+    color: '#d4af37',
+    fontSize: 15,
+    fontFamily: 'Outfit_700Bold',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  modalMessage: {
+    color: colors.slate400,
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  modalBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBtnPrimary: {
+    backgroundColor: '#d4af37',
+  },
+  modalBtnSecondary: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalBtnSingle: {
+    backgroundColor: '#d4af37',
+    width: '100%',
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBtnPrimaryText: {
+    color: '#020617',
+    fontSize: 14,
+    fontFamily: 'Outfit_700Bold',
+  },
+  modalBtnSecondaryText: {
+    color: colors.slate400,
+    fontSize: 14,
+    fontFamily: 'Outfit_700Bold',
+  },
+
+  // === Search Header Button ===
+  searchHeaderBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+
+  // === Instagram-style Search Modal Styles ===
+  searchModalOverlay: {
+    flex: 1,
+    backgroundColor: isDark ? '#020617' : colors.background,
+  },
+  searchModalContainer: {
+    flex: 1,
+  },
+  searchModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: 12,
+  },
+  searchBarContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 40,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  searchBarIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.white,
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+    paddingVertical: 8,
+  },
+  clearSearchBtn: {
+    padding: 4,
+  },
+  cancelSearchBtn: {
+    paddingVertical: 8,
+    paddingLeft: 4,
+  },
+  cancelSearchText: {
+    color: colors.gold,
+    fontSize: 14,
+    fontFamily: 'Outfit_700Bold',
+  },
+  searchScroll: {
+    flex: 1,
+  },
+  searchScrollContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  searchSectionTitle: {
+    fontSize: 12,
+    color: colors.slate400,
+    fontFamily: 'Inter_800ExtraBold',
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  searchUserCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.01)',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  searchUserInfoSimple: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    marginRight: 12,
+  },
+  searchAvatarSimple: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.slate800,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.gold,
+  },
+  searchAvatarImg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  searchAvatarChar: {
+    color: colors.gold,
+    fontSize: 18,
+    fontFamily: 'Outfit_700Bold',
+  },
+  searchUserInfoText: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  searchUserNameText: {
+    color: colors.white,
+    fontSize: 15,
+    fontFamily: 'Outfit_700Bold',
+  },
+  searchUserHandleText: {
+    color: colors.slate400,
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 2,
+  },
+  searchFollowBtn: {
+    backgroundColor: '#d4af37',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    minWidth: 85,
+    alignItems: 'center',
+  },
+  searchFollowingBtn: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.slate800,
+  },
+  searchFollowBtnText: {
+    color: '#020617',
+    fontSize: 13,
+    fontFamily: 'Outfit_700Bold',
+  },
+  searchFollowingBtnText: {
+    color: colors.slate400,
+  },
+  searchEmptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    gap: 12,
+  },
+  searchEmptyText: {
+    color: colors.slate400,
+    fontSize: 14,
     fontFamily: 'Inter_500Medium',
   },
 });

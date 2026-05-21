@@ -22,6 +22,7 @@ interface AppUser {
   phone?: string;
   shortlisted?: string[];
   username?: string;
+  isPrivate?: boolean;
 }
 
 interface AuthContextType {
@@ -67,6 +68,7 @@ async function fetchOrCreateProfile(firebaseUser: FirebaseUser): Promise<AppUser
     role: snap.data()?.role || 'user',
     profileImage: snap.data()?.profileImage,
     username: snap.data()?.username,
+    isPrivate: snap.data()?.isPrivate ?? false,
   };
 }
 
@@ -110,6 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               email: firebaseUser.email,
               role: 'user',
               username: undefined,
+              isPrivate: false,
             });
             setLoading(false);
             // Don't setup onSnapshot if we're clearly offline/having issues
@@ -133,6 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 profileImage: data.profileImage,
                 phone: data.phone,
                 username: data.username,
+                isPrivate: data.isPrivate ?? false,
               });
             }
             setLoading(false);

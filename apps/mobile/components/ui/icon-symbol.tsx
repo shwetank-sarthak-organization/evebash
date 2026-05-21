@@ -68,9 +68,26 @@ const MAPPING = {
   'graduationcap.fill': 'school',
   'figure.run': 'directions-run',
   'ellipsis.circle.fill': 'more-horiz',
+  'tag.fill': 'local-offer',
+  'bookmark': 'bookmark-border',
+  'quote.opening': 'format-quote',
+  'megaphone.fill': 'campaign',
+  'photo.on.rectangle.angled': 'collections',
+  'eye.slash.fill': 'visibility-off',
+  'xmark.circle.fill': 'cancel',
+  'plus.circle.fill': 'add-circle',
+  'arrow.up.right': 'arrow-outward',
+  'heart.circle.fill': 'favorite',
+  'mappin.and.ellipse': 'location-on',
+  'mappin.fill': 'location-on',
+  'calendar.badge.plus': 'event',
+  'arrow.right': 'arrow-forward',
+  'qrcode.viewfinder': 'qr-code-scanner',
+  'moon.fill': 'nights-stay',
+  'sun.max.fill': 'wb-sunny',
 } as const;
 
-type IconSymbolName = keyof typeof MAPPING;
+export type IconSymbolName = keyof typeof MAPPING;
 
 /**
  * An icon component that uses native SF Symbols on iOS, and Material Icons on Android and web.

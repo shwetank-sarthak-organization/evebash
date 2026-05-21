@@ -186,6 +186,10 @@ export default function RootLayout() {
     'Monofett_400Regular': require('../assets/fonts/Monofett-Regular.ttf'),
     'BubblegumSans_400Regular': require('../assets/fonts/BubblegumSans-Regular.ttf'),
     'PermanentMarker_400Regular': require('../assets/fonts/PermanentMarker-Regular.ttf'),
+    'Yellowtail_400Regular': require('../assets/fonts/Yellowtail-Regular.ttf'),
+    'AlexBrush_400Regular': require('../assets/fonts/AlexBrush-Regular.ttf'),
+    'Cookie_400Regular': require('../assets/fonts/Cookie-Regular.ttf'),
+    'GrandHotel_400Regular': require('../assets/fonts/GrandHotel-Regular.ttf'),
   });
 
   console.log('--- Font Diagnostics ---');

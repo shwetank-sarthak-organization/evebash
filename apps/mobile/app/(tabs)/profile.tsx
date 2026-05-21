@@ -19,7 +19,14 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { updateUserPrivacy, isUsernameUnique, updateUserProfile } from '@/lib/firestore';
+import { 
+  updateUserPrivacy, 
+  isUsernameUnique, 
+  updateUserProfile,
+  getUsers,
+  followUser,
+  unfollowUser
+} from '@/lib/firestore';
 import { collection, query, where, onSnapshot, getFirestore } from 'firebase/firestore';
 import { uploadProfileImage } from '@/lib/storage';
 
@@ -33,6 +40,14 @@ export default function ProfileScreen() {
   const [stats, setStats] = useState({ followers: 0, following: 0 });
   const [isPrivate, setIsPrivate] = useState(user?.isPrivate || false);
   const [updatingPrivacy, setUpdatingPrivacy] = useState(false);
+
+  // Network list modal states
+  const [networkModalVisible, setNetworkModalVisible] = useState(false);
+  const [networkModalType, setNetworkModalType] = useState<'followers' | 'following'>('followers');
+  const [networkSearchQuery, setNetworkSearchQuery] = useState('');
+  const [allUsersList, setAllUsersList] = useState<any[]>([]);
+  const [followerRelations, setFollowerRelations] = useState<any[]>([]);
+  const [followingRelations, setFollowingRelations] = useState<any[]>([]);
 
   // Edit Profile States
   const [isEditing, setIsEditing] = useState(false);
@@ -179,25 +194,103 @@ export default function ProfileScreen() {
     const db = getFirestore();
     const relCol = collection(db, 'relationships');
 
-    // Real-time listener for followers count (people who follow ME)
-    const followersQ = query(relCol, where('followedId', '==', user.uid));
+    // Real-time listener for followers (people who follow ME)
+    const followersQ = query(relCol, where('followedId', '==', user.uid), where('status', '==', 'accepted'));
     const unsubFollowers = onSnapshot(followersQ, (snap) => {
-      setStats((prev) => ({ ...prev, followers: snap.size }));
+      const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setFollowerRelations(list);
+      setStats((prev) => ({ ...prev, followers: list.length }));
     });
 
-    // Real-time listener for following count (people I follow)
-    const followingQ = query(relCol, where('followerId', '==', user.uid));
+    // Real-time listener for following (people I follow)
+    const followingQ = query(relCol, where('followerId', '==', user.uid), where('status', '==', 'accepted'));
     const unsubFollowing = onSnapshot(followingQ, (snap) => {
-      setStats((prev) => ({ ...prev, following: snap.size }));
+      const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setFollowingRelations(list);
+      setStats((prev) => ({ ...prev, following: list.length }));
     });
 
     if (user.isPrivate !== undefined) setIsPrivate(user.isPrivate);
+
+    // Fetch all users list once on mount
+    const fetchAllUsers = async () => {
+      try {
+        const list = await getUsers();
+        setAllUsersList(list);
+      } catch (err) {
+        console.error('Error fetching users:', err);
+      }
+    };
+    fetchAllUsers();
 
     return () => {
       unsubFollowers();
       unsubFollowing();
     };
   }, [user?.uid]);
+
+  const openNetworkModal = (type: 'followers' | 'following') => {
+    setNetworkModalType(type);
+    setNetworkSearchQuery('');
+    setNetworkModalVisible(true);
+  };
+
+  const handleUnfollow = async (targetUserId: string) => {
+    if (!user?.uid) return;
+    try {
+      await unfollowUser(user.uid, targetUserId);
+    } catch (error) {
+      console.error("Error unfollowing user:", error);
+      Alert.alert("Error", "Unable to unfollow user. Please try again.");
+    }
+  };
+
+  const handleFollow = async (targetUserId: string) => {
+    if (!user?.uid) return;
+    try {
+      await followUser(user.uid, targetUserId);
+    } catch (error) {
+      console.error("Error following user:", error);
+      Alert.alert("Error", "Unable to follow user. Please try again.");
+    }
+  };
+
+  const handleRemoveFollower = async (targetUserId: string) => {
+    if (!user?.uid) return;
+    Alert.alert(
+      "Remove Follower?",
+      "They won't be notified that you removed them from your followers.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Remove", 
+          style: "destructive", 
+          onPress: async () => {
+            try {
+              await unfollowUser(targetUserId, user.uid);
+            } catch (error) {
+              console.error("Error removing follower:", error);
+              Alert.alert("Error", "Unable to remove follower. Please try again.");
+            }
+          } 
+        }
+      ]
+    );
+  };
+
+  const getNetworkList = () => {
+    const list = networkModalType === 'followers'
+      ? allUsersList.filter(u => followerRelations.some(r => r.followerId === u.id))
+      : allUsersList.filter(u => followingRelations.some(r => r.followedId === u.id));
+
+    if (!networkSearchQuery.trim()) return list;
+
+    const queryStr = networkSearchQuery.toLowerCase().trim();
+    return list.filter(u => 
+      u.name?.toLowerCase().includes(queryStr) || 
+      u.username?.toLowerCase().includes(queryStr)
+    );
+  };
 
   const togglePrivacy = async () => {
     if (!user?.uid || updatingPrivacy) return;
@@ -239,13 +332,27 @@ export default function ProfileScreen() {
               )}
               <View style={styles.headerBadgeRow}>
                 <View style={styles.socialStatsRow}>
-                  <Text style={styles.socialStatText}>
-                    <Text style={styles.socialStatNumber}>{stats.followers}</Text> Followers
-                  </Text>
+                  <TouchableOpacity 
+                    activeOpacity={0.7} 
+                    onPress={() => openNetworkModal('followers')}
+                    style={styles.socialStatBtn}
+                  >
+                    <Text style={styles.socialStatText}>
+                      <Text style={styles.socialStatNumber}>{stats.followers}</Text> Followers
+                    </Text>
+                  </TouchableOpacity>
+                  
                   <View style={styles.dotSeparator} />
-                  <Text style={styles.socialStatText}>
-                    <Text style={styles.socialStatNumber}>{stats.following}</Text> Following
-                  </Text>
+                  
+                  <TouchableOpacity 
+                    activeOpacity={0.7} 
+                    onPress={() => openNetworkModal('following')}
+                    style={styles.socialStatBtn}
+                  >
+                    <Text style={styles.socialStatText}>
+                      <Text style={styles.socialStatNumber}>{stats.following}</Text> Following
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
@@ -371,7 +478,7 @@ export default function ProfileScreen() {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.actionItem} activeOpacity={0.7} onPress={() => router.push('/(tabs)/')}>
+            <TouchableOpacity style={styles.actionItem} activeOpacity={0.7} onPress={() => router.push('/' as any)}>
               <View style={[styles.infoIconBox, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}>
                 <IconSymbol name="house.fill" size={18} color="#d4af37" />
               </View>
@@ -540,6 +647,116 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
 
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Followers & Following Network Modal */}
+      <Modal
+        visible={networkModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setNetworkModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { height: '80%' }]}>
+            
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {networkModalType === 'followers' ? 'Followers' : 'Following'}
+              </Text>
+              <TouchableOpacity 
+                onPress={() => setNetworkModalVisible(false)} 
+                style={styles.modalCloseBtn}
+              >
+                <IconSymbol name="xmark" size={20} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Search Input */}
+            <View style={styles.networkSearchContainer}>
+              <TextInput
+                style={styles.networkSearchInput}
+                placeholder="Search..."
+                placeholderTextColor={colors.slate400}
+                value={networkSearchQuery}
+                onChangeText={setNetworkSearchQuery}
+              />
+            </View>
+
+            {/* List */}
+            <ScrollView 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.networkScrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              {getNetworkList().length > 0 ? (
+                getNetworkList().map((item) => {
+                  const isFollowingBack = followingRelations.some(r => r.followedId === item.id);
+                  return (
+                    <View key={item.id} style={styles.networkUserCard}>
+                      <View style={styles.networkUserInfoSimple}>
+                        {item.profileImage ? (
+                          <Image source={{ uri: item.profileImage }} style={styles.networkAvatarImg} />
+                        ) : (
+                          <View style={styles.networkAvatarPlaceholder}>
+                            <Text style={styles.networkAvatarChar}>{item.name?.charAt(0).toUpperCase()}</Text>
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.networkUserNameText} numberOfLines={1}>{item.name}</Text>
+                          {item.username && (
+                            <Text style={styles.networkUserHandleText} numberOfLines={1}>@{item.username}</Text>
+                          )}
+                        </View>
+                      </View>
+
+                      {/* Network Action Buttons */}
+                      {networkModalType === 'following' ? (
+                        <TouchableOpacity 
+                          style={[styles.networkActionBtn, styles.networkUnfollowBtn]}
+                          onPress={() => handleUnfollow(item.id)}
+                        >
+                          <Text style={[styles.networkActionBtnText, styles.networkUnfollowBtnText]}>Following</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        // Followers tab
+                        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                          <TouchableOpacity 
+                            style={[
+                              styles.networkActionBtn, 
+                              isFollowingBack ? styles.networkUnfollowBtn : styles.networkFollowBtn
+                            ]}
+                            onPress={() => isFollowingBack ? handleUnfollow(item.id) : handleFollow(item.id)}
+                          >
+                            <Text style={[
+                              styles.networkActionBtnText, 
+                              isFollowingBack ? styles.networkUnfollowBtnText : styles.networkFollowBtnText
+                            ]}>
+                              {isFollowingBack ? 'Following' : 'Follow Back'}
+                            </Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity 
+                            style={styles.networkRemoveFollowerBtn}
+                            onPress={() => handleRemoveFollower(item.id)}
+                          >
+                            <Text style={styles.networkRemoveFollowerText}>Remove</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })
+              ) : (
+                <View style={styles.networkEmptyState}>
+                  <Text style={styles.networkEmptyStateText}>
+                    {networkSearchQuery.trim() ? 'No users found' : (networkModalType === 'followers' ? 'No followers yet' : 'Not following anyone yet')}
+                  </Text>
+                </View>
+              )}
             </ScrollView>
           </View>
         </View>
@@ -1025,5 +1242,128 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   themePillTextActive: {
     color: '#020617',
     fontFamily: 'Inter_700Bold',
+  },
+  socialStatBtn: {
+    paddingVertical: 4,
+  },
+  networkSearchContainer: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.cardBorder,
+  },
+  networkSearchInput: {
+    height: 44,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    color: colors.white,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  networkScrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 40,
+  },
+  networkUserCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  networkUserInfoSimple: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    marginRight: 12,
+  },
+  networkAvatarImg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  networkAvatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.slate900,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  networkAvatarChar: {
+    color: colors.gold,
+    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
+  },
+  networkUserNameText: {
+    color: colors.white,
+    fontSize: 15,
+    fontFamily: 'Outfit_700Bold',
+  },
+  networkUserHandleText: {
+    color: colors.slate400,
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 2,
+  },
+  networkActionBtn: {
+    height: 32,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  networkActionBtnText: {
+    fontSize: 12,
+    fontFamily: 'Outfit_700Bold',
+  },
+  networkFollowBtn: {
+    backgroundColor: colors.gold,
+  },
+  networkFollowBtnText: {
+    color: '#020617',
+    fontSize: 12,
+    fontFamily: 'Outfit_700Bold',
+  },
+  networkUnfollowBtn: {
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  networkUnfollowBtnText: {
+    color: colors.slate400,
+    fontSize: 12,
+    fontFamily: 'Outfit_700Bold',
+  },
+  networkRemoveFollowerBtn: {
+    height: 32,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(248, 113, 113, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(248, 113, 113, 0.15)',
+  },
+  networkRemoveFollowerText: {
+    color: '#f87171',
+    fontSize: 12,
+    fontFamily: 'Outfit_700Bold',
+  },
+  networkEmptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  networkEmptyStateText: {
+    color: colors.slate400,
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
   },
 });
