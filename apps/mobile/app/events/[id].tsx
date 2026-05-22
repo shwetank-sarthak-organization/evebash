@@ -116,6 +116,8 @@ export default function EventDetailScreen() {
     const isClassic = base.id === 'classic';
     const isHero = base.id === 'hero';
     const isEthereal = base.id === 'ethereal';
+    const isMuseum = base.id === 'museum';
+    const isBrutalist = base.id === 'brutalist';
     const isAcademicEditorial = base.id === 'academic_editorial';
     const isGarden = base.id === 'garden';
     return {
@@ -130,9 +132,9 @@ export default function EventDetailScreen() {
       serifFont: isGarden ? Fonts.cormorant.regular : ((isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.regular : Fonts.serif),
       serifItalic: isGarden ? Fonts.cormorant.italic : ((isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.italic : Fonts.serif),
       serifBold: isGarden ? Fonts.cormorant.bold : ((isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.bold : Fonts.serif),
-      bodyFont: isGarden ? Fonts.lora.regular : (base.useSerif ? Fonts.serif : Fonts.sans),
-      bodyMedium: isGarden ? Fonts.lora.semiBold : (base.useSerif ? Fonts.serif : Fonts.sans),
-      bodyBold: isGarden ? Fonts.lora.bold : (base.useSerif ? Fonts.serif : Fonts.sans),
+      bodyFont: (isMuseum || isBrutalist) ? Fonts.inter.regular : (isGarden ? Fonts.lora.regular : (base.useSerif ? Fonts.serif : Fonts.sans)),
+      bodyMedium: (isMuseum || isBrutalist) ? Fonts.inter.semiBold : (isGarden ? Fonts.lora.semiBold : (base.useSerif ? Fonts.serif : Fonts.sans)),
+      bodyBold: (isMuseum || isBrutalist) ? Fonts.spaceGrotesk.bold : (isGarden ? Fonts.lora.bold : (base.useSerif ? Fonts.serif : Fonts.sans)),
     };
   }, [event?.templateId, isThemeDark, showAdminView]);
 
@@ -144,6 +146,10 @@ export default function EventDetailScreen() {
         ? windowHeight * 0.8
         : event?.templateId === 'academic_editorial'
           ? windowHeight * 0.75
+          : event?.templateId === 'museum'
+            ? 560 + insets.top
+          : event?.templateId === 'brutalist'
+            ? 545 + insets.top
           : event?.templateId === 'garden'
             ? windowHeight * 0.42
             : event?.templateId === 'golden_years'
@@ -174,6 +180,8 @@ export default function EventDetailScreen() {
   const isAcademicEditorialTemplate = !showAdminView && event?.templateId === 'academic_editorial';
   const isNeonCarnivalTemplate = !showAdminView && event?.templateId === 'neon_carnival';
   const isGardenTemplate = !showAdminView && event?.templateId === 'garden';
+  const isMuseumTemplate = !showAdminView && event?.templateId === 'museum';
+  const isBrutalistTemplate = !showAdminView && event?.templateId === 'brutalist';
 
   const [tempCoverOffsetX, setTempCoverOffsetX] = useState(0);
   const offsetXRef = React.useRef(0);
@@ -1030,15 +1038,17 @@ export default function EventDetailScreen() {
     const isVintageNoir = event?.templateId === 'vintage';
     const isRoseGarden = event?.templateId === 'rose';
     const isMinimalLove = event?.templateId === 'minimal_love';
+    const isMuseum = event?.templateId === 'museum';
+    const isBrutalist = event?.templateId === 'brutalist';
     const isCyberTech = event?.templateId === 'cyber_tech';
     const isRetroArcade = event?.templateId === 'retro_arcade';
     const isAcademicEditorial = event?.templateId === 'academic_editorial';
     const isNeonCarnival = event?.templateId === 'neon_carnival';
     const isGarden = event?.templateId === 'garden';
     const isThemeHeader = isRoyal || isClassic || isHero || isEthereal || isGarden;
-    const birthdayTextColor = isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#F2E7D2' : (isRoseGarden ? '#562733' : (isMinimalLove ? '#4a2f1d' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d946ef' : MidnightColors.gold))))))))));
-    const birthdayActiveText = isScrapbook ? styles.scrapbookVisitorTabTextActive : (isNeon ? styles.neonVisitorTabTextActive : (isPastel ? styles.pastelVisitorTabTextActive : (isPop ? styles.popVisitorTabTextActive : (isGoldenYears ? styles.goldenVisitorTabTextActive : (isVintageNoir ? styles.vintageVisitorTabTextActive : (isRoseGarden ? styles.roseVisitorTabTextActive : (isMinimalLove ? styles.minimalVisitorTabTextActive : (isCyberTech ? styles.cyberVisitorTabTextActive : (isRetroArcade ? styles.retroArcadeVisitorTabTextActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabTextActive : styles.visitorTabTextActive))))))))));
-    const birthdayActiveTab = isScrapbook ? styles.scrapbookVisitorTabActive : (isNeon ? styles.neonVisitorTabActive : (isPastel ? styles.pastelVisitorTabActive : (isPop ? styles.popVisitorTabActive : (isGoldenYears ? styles.goldenVisitorTabActive : (isVintageNoir ? styles.vintageVisitorTabActive : (isRoseGarden ? styles.roseVisitorTabActive : (isMinimalLove ? styles.minimalVisitorTabActive : (isCyberTech ? styles.cyberVisitorTabActive : (isRetroArcade ? styles.retroArcadeVisitorTabActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabActive : styles.visitorTabActive))))))))));
+    const birthdayTextColor = isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#F2E7D2' : (isRoseGarden ? '#562733' : (isMinimalLove ? '#4a2f1d' : (isMuseum ? '#17202b' : (isBrutalist ? '#111113' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d946ef' : MidnightColors.gold))))))))))));
+    const birthdayActiveText = isScrapbook ? styles.scrapbookVisitorTabTextActive : (isNeon ? styles.neonVisitorTabTextActive : (isPastel ? styles.pastelVisitorTabTextActive : (isPop ? styles.popVisitorTabTextActive : (isGoldenYears ? styles.goldenVisitorTabTextActive : (isVintageNoir ? styles.vintageVisitorTabTextActive : (isRoseGarden ? styles.roseVisitorTabTextActive : (isMinimalLove ? styles.minimalVisitorTabTextActive : (isMuseum ? styles.museumVisitorTabTextActive : (isBrutalist ? styles.brutalistVisitorTabTextActive : (isCyberTech ? styles.cyberVisitorTabTextActive : (isRetroArcade ? styles.retroArcadeVisitorTabTextActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabTextActive : styles.visitorTabTextActive))))))))))));
+    const birthdayActiveTab = isScrapbook ? styles.scrapbookVisitorTabActive : (isNeon ? styles.neonVisitorTabActive : (isPastel ? styles.pastelVisitorTabActive : (isPop ? styles.popVisitorTabActive : (isGoldenYears ? styles.goldenVisitorTabActive : (isVintageNoir ? styles.vintageVisitorTabActive : (isRoseGarden ? styles.roseVisitorTabActive : (isMinimalLove ? styles.minimalVisitorTabActive : (isMuseum ? styles.museumVisitorTabActive : (isBrutalist ? styles.brutalistVisitorTabActive : (isCyberTech ? styles.cyberVisitorTabActive : (isRetroArcade ? styles.retroArcadeVisitorTabActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabActive : styles.visitorTabActive))))))))))));
     const birthdayTabStyles = [
       isScrapbook && styles.scrapbookVisitorTab,
       isNeon && styles.neonVisitorTab,
@@ -1048,6 +1058,8 @@ export default function EventDetailScreen() {
       isVintageNoir && styles.vintageVisitorTab,
       isRoseGarden && styles.roseVisitorTab,
       isMinimalLove && styles.minimalVisitorTab,
+      isMuseum && styles.museumVisitorTab,
+      isBrutalist && styles.brutalistVisitorTab,
       isCyberTech && styles.cyberVisitorTab,
       isRetroArcade && styles.retroArcadeVisitorTab,
       isNeonCarnival && styles.neonCarnivalVisitorTab,
@@ -1068,6 +1080,30 @@ export default function EventDetailScreen() {
     const themeTextColor = (active: boolean) => active
       ? (isGarden ? '#FFFFFF' : (isHero ? '#cca43b' : (isRoyal ? '#fff' : (isEthereal ? selectedTemplate.accent : '#cca43b'))))
       : (isGarden ? '#64748b' : (isHero ? '#94a3b8' : selectedTemplate.muted));
+    const homeIconActiveColor = isCyberTech ? '#00f0ff'
+      : isScrapbook ? '#263331'
+      : isNeon ? '#66e8ff'
+      : isPastel ? '#c9768b'
+      : isPop ? '#ffffff'
+      : isGoldenYears ? '#5b432c'
+      : isVintageNoir ? '#211A12'
+      : isRoseGarden ? '#562733'
+      : isRetroArcade ? '#ffffff'
+      : (isMuseum || isBrutalist) ? '#f8f6ef'
+      : isNeonCarnival ? '#faf5ff'
+      : MidnightColors.background;
+    const homeIconInactiveColor = isCyberTech ? 'rgba(0, 240, 255, 0.5)'
+      : isScrapbook ? selectedTemplate.accent
+      : isNeon ? '#b9b1d9'
+      : isPastel ? '#9a8583'
+      : isPop ? '#231f20'
+      : isGoldenYears ? '#b8892d'
+      : isVintageNoir ? '#B89145'
+      : isRoseGarden ? '#b76578'
+      : isRetroArcade ? '#231f20'
+      : isBrutalist ? '#111113'
+      : isNeonCarnival ? '#d8b4fe'
+      : MidnightColors.gold;
     return (
       <View style={[
         styles.visitorHeaderContainer,
@@ -1104,6 +1140,8 @@ export default function EventDetailScreen() {
         isVintageNoir && styles.vintageVisitorHeaderContainer,
         isRoseGarden && styles.roseVisitorHeaderContainer,
         isMinimalLove && styles.minimalVisitorHeaderContainer,
+        isMuseum && styles.museumVisitorHeaderContainer,
+        isBrutalist && styles.brutalistVisitorHeaderContainer,
         isCyberTech && styles.cyberVisitorHeaderContainer,
         isRetroArcade && styles.retroArcadeVisitorHeaderContainer,
         isNeonCarnival && styles.neonCarnivalVisitorHeaderContainer,
@@ -1121,6 +1159,8 @@ export default function EventDetailScreen() {
             isVintageNoir && styles.vintageVisitorHeaderContent,
             isRoseGarden && styles.roseVisitorHeaderContent,
             isMinimalLove && styles.minimalVisitorHeaderContent,
+            isMuseum && styles.museumVisitorHeaderContent,
+            isBrutalist && styles.brutalistVisitorHeaderContent,
             isCyberTech && styles.cyberVisitorHeaderContent, 
             isRetroArcade && styles.retroArcadeVisitorHeaderContent,
             isNeonCarnival && styles.neonCarnivalVisitorHeaderContent,
@@ -1158,7 +1198,7 @@ export default function EventDetailScreen() {
                 <IconSymbol
                   name="house.fill"
                   size={14}
-                  color={!activeSubEvent ? (isCyberTech ? '#00f0ff' : (isScrapbook ? '#263331' : (isNeon ? '#66e8ff' : (isPastel ? '#c9768b' : (isPop ? '#ffffff' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#211A12' : (isRoseGarden ? '#562733' : (isRetroArcade ? '#ffffff' : (isNeonCarnival ? '#faf5ff' : MidnightColors.background)))))))))) : (isCyberTech ? 'rgba(0, 240, 255, 0.5)' : (isScrapbook ? selectedTemplate.accent : (isNeon ? '#b9b1d9' : (isPastel ? '#9a8583' : (isPop ? '#231f20' : (isGoldenYears ? '#b8892d' : (isVintageNoir ? '#B89145' : (isRoseGarden ? '#b76578' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d8b4fe' : MidnightColors.gold))))))))))}
+                  color={!activeSubEvent ? homeIconActiveColor : homeIconInactiveColor}
                 />
               )}
               <Text style={[
@@ -1172,6 +1212,8 @@ export default function EventDetailScreen() {
                 isVintageNoir && styles.vintageVisitorTabText,
                 isRoseGarden && styles.roseVisitorTabText,
                 isMinimalLove && styles.minimalVisitorTabText,
+                isMuseum && styles.museumVisitorTabText,
+                isBrutalist && styles.brutalistVisitorTabText,
                 isCyberTech && styles.cyberVisitorTabText,
               isNeonCarnival && styles.neonCarnivalVisitorTabText,
                 isRetroArcade && styles.retroArcadeVisitorTabText,
@@ -1244,6 +1286,8 @@ export default function EventDetailScreen() {
                   isVintageNoir && styles.vintageVisitorTabText,
                   isRoseGarden && styles.roseVisitorTabText,
                   isMinimalLove && styles.minimalVisitorTabText,
+                  isMuseum && styles.museumVisitorTabText,
+                  isBrutalist && styles.brutalistVisitorTabText,
                   isCyberTech && styles.cyberVisitorTabText,
               isNeonCarnival && styles.neonCarnivalVisitorTabText,
                   isRetroArcade && styles.retroArcadeVisitorTabText,
@@ -1313,6 +1357,8 @@ export default function EventDetailScreen() {
               isVintageNoir && styles.vintageVisitorTabText,
               isRoseGarden && styles.roseVisitorTabText,
               isMinimalLove && styles.minimalVisitorTabText,
+              isMuseum && styles.museumVisitorTabText,
+              isBrutalist && styles.brutalistVisitorTabText,
               isCyberTech && styles.cyberVisitorTabText,
               isNeonCarnival && styles.neonCarnivalVisitorTabText,
               isRetroArcade && styles.retroArcadeVisitorTabText,
@@ -1437,6 +1483,7 @@ export default function EventDetailScreen() {
     const isVintageNoir = event?.templateId === 'vintage';
     const isRoseGarden = event?.templateId === 'rose';
     const isMinimalLove = event?.templateId === 'minimal_love';
+    const isMuseum = event?.templateId === 'museum';
     const isCyberTech = event?.templateId === 'cyber_tech';
     const isRetroArcade = event?.templateId === 'retro_arcade';
     const isAcademicEditorial = event?.templateId === 'academic_editorial';
@@ -1459,6 +1506,7 @@ export default function EventDetailScreen() {
         isVintageNoir && styles.vintageInfoBox,
         isRoseGarden && styles.roseInfoBox,
         isMinimalLove && styles.minimalInfoBox,
+        isMuseum && styles.museumInfoBox,
         isCyberTech && styles.cyberInfoBox,
         isRetroArcade && styles.retroArcadeInfoBox,
         isNeonCarnival && styles.neonCarnivalInfoBox,
@@ -1711,6 +1759,8 @@ export default function EventDetailScreen() {
             const isPop = !showAdminView && event?.templateId === 'pop';
             const isVintage = event?.templateId === 'vintage';
             const isMinimal = event?.templateId === 'minimal_love';
+            const isMuseum = event?.templateId === 'museum';
+            const isBrutalist = event?.templateId === 'brutalist';
             return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden')) ? null : (
               <TouchableOpacity
                 onPress={handleEventBack}
@@ -1728,10 +1778,12 @@ export default function EventDetailScreen() {
                   isPop && styles.popFloatingBack,
                   isVintage && styles.vintageFloatingButton,
                   isMinimal && styles.minimalFloatingButton,
+                  isMuseum && styles.museumFloatingButton,
+                  isBrutalist && styles.brutalistFloatingButton,
                 ]}
                 hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
               >
-                <IconSymbol name="chevron.left" size={isPop ? 22 : 28} color={(isPop || isMinimal) ? '#fffaf2' : selectedTemplate.accent} />
+                <IconSymbol name="chevron.left" size={isPop ? 22 : 28} color={(isPop || isMinimal || isMuseum || isBrutalist) ? '#fffaf2' : selectedTemplate.accent} />
               </TouchableOpacity>
             );
           },
@@ -1740,6 +1792,8 @@ export default function EventDetailScreen() {
             const isPop = event?.templateId === 'pop';
             const isVintage = event?.templateId === 'vintage';
             const isMinimal = event?.templateId === 'minimal_love';
+            const isMuseum = event?.templateId === 'museum';
+            const isBrutalist = event?.templateId === 'brutalist';
             return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden')) ? null : (
               <TouchableOpacity
                 style={[
@@ -1757,11 +1811,13 @@ export default function EventDetailScreen() {
                   isPop && styles.popFloatingShare,
                   isVintage && styles.vintageFloatingButton,
                   isMinimal && styles.minimalFloatingButton,
+                  isMuseum && styles.museumFloatingButton,
+                  isBrutalist && styles.brutalistFloatingButton,
                 ]}
                 onPress={() => setShowShareModal(true)}
                 hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
               >
-                <IconSymbol name="square.and.arrow.up" size={isPop ? 18 : 20} color={(isPop || isMinimal) ? '#fffaf2' : selectedTemplate.accent} />
+                <IconSymbol name="square.and.arrow.up" size={isPop ? 18 : 20} color={(isPop || isMinimal || isMuseum || isBrutalist) ? '#fffaf2' : selectedTemplate.accent} />
               </TouchableOpacity>
             );
           }
@@ -1939,6 +1995,65 @@ export default function EventDetailScreen() {
 
               </View>
             </View>
+          ) : !showAdminView && event?.templateId === 'brutalist' ? (
+            <View style={styles.brutalistHeroStage}>
+              <Image
+                source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                style={styles.brutalistHeroBackdrop}
+                resizeMode="cover"
+              />
+              <LinearGradient
+                colors={['rgba(17,17,19,0.88)', 'rgba(17,17,19,0.32)', 'rgba(239,237,231,0.98)']}
+                locations={[0, 0.5, 1]}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <View style={styles.brutalistGridTexture}>
+                <View style={[styles.brutalistGridLine, styles.brutalistGridLineVerticalOne]} />
+                <View style={[styles.brutalistGridLine, styles.brutalistGridLineVerticalTwo]} />
+                <View style={[styles.brutalistGridLineHorizontal, styles.brutalistGridLineHorizontalOne]} />
+                <View style={[styles.brutalistGridLineHorizontal, styles.brutalistGridLineHorizontalTwo]} />
+              </View>
+              <View style={styles.brutalistHeaderRail}>
+                <Text style={styles.brutalistHeaderRailText}>CORPORATE / GRID SYSTEM</Text>
+                <Text style={styles.brutalistHeaderRailCode}>NO.{String(photos.length || 1).padStart(2, '0')}</Text>
+              </View>
+              <Animated.View
+                entering={FadeInUp.delay(90).duration(720).springify().damping(18)}
+                style={styles.brutalistArtworkBlock}
+              >
+                <Image
+                  source={{ uri: currentActiveEvent?.coverImage || event.coverImage }}
+                  style={styles.brutalistArtworkImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.brutalistArtworkCaption}>
+                  <Text style={styles.brutalistArtworkCaptionNumber}>01</Text>
+                  <Text style={styles.brutalistArtworkCaptionText}>ARCHITECTURAL FRAME</Text>
+                </View>
+              </Animated.View>
+              <Animated.View
+                entering={FadeInUp.delay(150).duration(780).springify().damping(20)}
+                style={styles.brutalistHeroCard}
+              >
+                <View style={styles.brutalistHeroLabelRow}>
+                  <Text style={styles.brutalistHeroLabel}>BRUTALIST GRID</Text>
+                  <View style={styles.brutalistHeroLabelLine} />
+                </View>
+                <Text style={styles.brutalistHeroTitle} numberOfLines={3} adjustsFontSizeToFit>
+                  {(currentActiveEvent?.title || event.title).toUpperCase()}
+                </Text>
+                <View style={styles.brutalistHeroMetaRow}>
+                  <Text style={styles.brutalistHeroDate}>{currentActiveEvent?.date || event.date || 'DATE TBD'}</Text>
+                  <TouchableOpacity style={styles.brutalistHeroShare} onPress={handleShare}>
+                    <Text style={styles.brutalistHeroShareText}>Share</Text>
+                    <IconSymbol name="square.and.arrow.up" size={13} color="#fffffa" />
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+              <View style={styles.brutalistHeroMarker}>
+                <Text style={styles.brutalistHeroMarkerText}>GRID</Text>
+              </View>
+            </View>
           ) : (
             <Image 
               source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }} 
@@ -1964,7 +2079,7 @@ export default function EventDetailScreen() {
               blurRadius={isGoldenYearsTemplate ? 0.8 : (isVintageTemplate ? 1.1 : 0)}
             />
           )}
-          {selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && selectedTemplate.id !== 'academic_editorial' && selectedTemplate.id !== 'garden' && (
+          {selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && selectedTemplate.id !== 'academic_editorial' && selectedTemplate.id !== 'garden' && selectedTemplate.id !== 'brutalist' && (
             <LinearGradient
               colors={selectedTemplate.overlay as any}
               style={styles.heroGradient}
@@ -2070,7 +2185,7 @@ export default function EventDetailScreen() {
           )}
 
 
-          {(!showAdminView && event?.templateId === 'academic_editorial') ? null : (!showAdminView && event?.templateId === 'royal') ? (
+          {(!showAdminView && (event?.templateId === 'academic_editorial' || event?.templateId === 'brutalist')) ? null : (!showAdminView && event?.templateId === 'royal') ? (
             <View style={styles.royalHeroOverlay}>
               {/* 1. Elegant Thin Inset Frame */}
               <View style={[styles.royalFrame, { borderColor: selectedTemplate.accent }]} />
@@ -2500,6 +2615,71 @@ export default function EventDetailScreen() {
             </View>
           ) : (!showAdminView && event?.templateId === 'academic_editorial') ? (
             null
+          ) : (!showAdminView && isMuseumTemplate) ? (
+            <View style={styles.museumHeroStage}>
+              <LinearGradient
+                colors={['rgba(11, 17, 24, 0.74)', 'rgba(11, 17, 24, 0.26)', 'rgba(243, 240, 234, 0.96)']}
+                locations={[0, 0.48, 1]}
+                style={styles.museumHeroVignette}
+              />
+              <View style={styles.museumWallTexture}>
+                <View style={[styles.museumWallLine, styles.museumWallLineTop]} />
+                <View style={[styles.museumWallLine, styles.museumWallLineMid]} />
+                <View style={[styles.museumWallLine, styles.museumWallLineBottom]} />
+              </View>
+              <View style={styles.museumArchOutline} />
+              <View style={styles.museumAmbientBlock} />
+              <View style={styles.museumPedestalBase} />
+              <View style={styles.museumExhibitionRail}>
+                <Text style={styles.museumExhibitionRailText}>EXHIBITION / {String(new Date().getFullYear()).slice(2)}</Text>
+              </View>
+              <Animated.View
+                entering={FadeInUp.delay(90).duration(760).springify().damping(18)}
+                style={styles.museumArtworkFrame}
+              >
+                <Image
+                  source={{ uri: currentActiveEvent?.coverImage || event.coverImage }}
+                  style={styles.museumArtworkImage}
+                  resizeMode="cover"
+                />
+                <LinearGradient
+                  colors={['rgba(255,255,255,0.06)', 'rgba(11,17,24,0.18)']}
+                  style={styles.museumArtworkSheen}
+                />
+                <View style={styles.museumArtworkLabel}>
+                  <Text style={styles.museumArtworkLabelIndex}>No. 01</Text>
+                  <Text style={styles.museumArtworkLabelText}>Corporate Collection</Text>
+                </View>
+              </Animated.View>
+              <View style={styles.museumHeroIndexCard}>
+                <Text style={styles.museumHeroIndexNumber}>{String(photos.length || 1).padStart(2, '0')}</Text>
+                <Text style={styles.museumHeroIndexLabel}>Works</Text>
+              </View>
+              <Animated.View
+                entering={FadeInUp.delay(160).duration(820).springify().damping(20)}
+                style={styles.museumHeroCard}
+              >
+                <View style={styles.museumHeroKickerRow}>
+                  <Text style={styles.museumHeroKicker}>Corporate Exhibition</Text>
+                  <View style={styles.museumHeroKickerLine} />
+                </View>
+                <Text style={styles.museumHeroTitle}>{currentActiveEvent?.title || event.title}</Text>
+                <View style={styles.museumHeroDivider}>
+                  <View style={styles.museumHeroDividerLine} />
+                  <View style={styles.museumHeroDividerBlock} />
+                </View>
+                <View style={styles.museumHeroMetaRow}>
+                  <Text style={styles.museumHeroDate}>{currentActiveEvent?.date || event.date}</Text>
+                  <View style={styles.museumHeroMetaChip}>
+                    <Text style={styles.museumHeroMetaChipText}>Curated</Text>
+                  </View>
+                  <TouchableOpacity style={styles.museumHeroShare} onPress={handleShare}>
+                    <Text style={styles.museumHeroShareText}>Share</Text>
+                    <IconSymbol name="square.and.arrow.up" size={13} color="#f8f6ef" />
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            </View>
           ) : (!showAdminView && isGardenTemplate) ? (
             <View style={[StyleSheet.absoluteFillObject, { paddingTop: insets.top + 2 }]}>
               {/* Single top bar row: [← back  share↑]  ···  [title / date] */}
@@ -3799,7 +3979,9 @@ export default function EventDetailScreen() {
                     isGoldenYearsTemplate && styles.goldenInfoBox,
                     isVintageTemplate && styles.vintageInfoBox,
                     isRoseTemplate && styles.roseInfoBox,
-                    isMinimalLoveTemplate && styles.minimalInfoBox,
+                      isMinimalLoveTemplate && styles.minimalInfoBox,
+                    isMuseumTemplate && styles.museumInfoBox,
+                    isBrutalistTemplate && styles.brutalistInfoBox,
                     isCyberTechTemplate && styles.cyberInfoBox,
                     isRetroArcadeTemplate && styles.retroArcadeInfoBox,
                     isNeonCarnivalTemplate && styles.neonCarnivalInfoBox,
@@ -3850,6 +4032,8 @@ export default function EventDetailScreen() {
                       isVintageTemplate && styles.vintageInfoInner,
                       isRoseTemplate && styles.roseInfoInner,
                       isMinimalLoveTemplate && styles.minimalInfoInner,
+                      isMuseumTemplate && styles.museumInfoInner,
+                      isBrutalistTemplate && styles.brutalistInfoInner,
                       isCyberTechTemplate && styles.cyberInfoInner,
                       isRetroArcadeTemplate && styles.retroArcadeInfoInner,
                       isNeonCarnivalTemplate && styles.neonCarnivalInfoInner,
@@ -3980,6 +4164,22 @@ export default function EventDetailScreen() {
                         </View>
                       )}
 
+                      {isMuseumTemplate && (
+                        <View style={styles.museumInfoHeader}>
+                          <Text style={styles.museumInfoKicker}>Curator Note</Text>
+                          <View style={styles.museumInfoLine} />
+                          <Text style={styles.museumInfoCode}>WA/{String(new Date().getFullYear()).slice(2)}</Text>
+                        </View>
+                      )}
+
+                      {isBrutalistTemplate && (
+                        <View style={styles.brutalistInfoHeader}>
+                          <Text style={styles.brutalistInfoKicker}>Curator Entry</Text>
+                          <View style={styles.brutalistInfoLine} />
+                          <Text style={styles.brutalistInfoCode}>GRID/{String(photos.length || 1).padStart(2, '0')}</Text>
+                        </View>
+                      )}
+
                       {isAnniversaryTemplate && (
                         <View style={[
                           styles.anniversaryInfoHeader,
@@ -4022,6 +4222,8 @@ export default function EventDetailScreen() {
                         isVintageTemplate && styles.vintageVisitorDescription,
                         isRoseTemplate && styles.roseVisitorDescription,
                         isMinimalLoveTemplate && styles.minimalVisitorDescription,
+                        isMuseumTemplate && styles.museumVisitorDescription,
+                        isBrutalistTemplate && styles.brutalistVisitorDescription,
                         isCyberTechTemplate && styles.cyberVisitorDescription,
                         isRetroArcadeTemplate && styles.retroArcadeVisitorDescription,
                         isNeonCarnivalTemplate && styles.neonCarnivalVisitorDescription,
@@ -4033,7 +4235,7 @@ export default function EventDetailScreen() {
                           lineHeight: isGardenTemplate ? 24 : 26,
                           textAlign: 'center',
                         }
-                      ]}>{activeSubEvent ? activeSubEvent.description : event.description}{(isCyberTechTemplate || isRetroArcadeTemplate || isNeonCarnivalTemplate) ? '' : ' 🤍'}</Text>
+                      ]}>{activeSubEvent ? activeSubEvent.description : event.description}{(isCyberTechTemplate || isRetroArcadeTemplate || isNeonCarnivalTemplate || isMuseumTemplate || isBrutalistTemplate) ? '' : ' 🤍'}</Text>
 
                       {isScrapbookTemplate && (
                         <View style={[styles.scrapbookInfoRule, styles.scrapbookInfoRuleBottom]}>
@@ -4195,6 +4397,8 @@ export default function EventDetailScreen() {
                   isVintageTemplate && styles.vintageGalleryHeader,
                   isRoseTemplate && styles.roseGalleryHeader,
                   isMinimalLoveTemplate && styles.minimalGalleryHeader,
+                  isMuseumTemplate && styles.museumGalleryHeader,
+                  isBrutalistTemplate && styles.brutalistGalleryHeader,
                   isRetroArcadeTemplate && styles.retroArcadeGalleryHeader,
                   isNeonCarnivalTemplate && styles.neonCarnivalGalleryHeader,
                   isGardenTemplate && styles.gardenGalleryHeader
@@ -4207,6 +4411,20 @@ export default function EventDetailScreen() {
                           organic feed
                         </Text>
                         <View style={[styles.gardenGalleryKickerLine, { backgroundColor: 'rgba(22, 163, 74, 0.2)' }]} />
+                      </View>
+                    )}
+                    {isMuseumTemplate && (
+                      <View style={styles.museumGalleryKicker}>
+                        <Text style={styles.museumGalleryKickerText}>Featured Works</Text>
+                        <View style={styles.museumGalleryKickerLine} />
+                        <Text style={styles.museumGalleryKickerCode}>Gallery {String(photos.length).padStart(2, '0')}</Text>
+                      </View>
+                    )}
+                    {isBrutalistTemplate && (
+                      <View style={styles.brutalistGalleryKicker}>
+                        <Text style={styles.brutalistGalleryKickerText}>Editorial Grid</Text>
+                        <View style={styles.brutalistGalleryKickerLine} />
+                        <Text style={styles.brutalistGalleryKickerCode}>Set {String(photos.length).padStart(2, '0')}</Text>
                       </View>
                     )}
                     {isCyberTechTemplate && (
@@ -4297,13 +4515,27 @@ export default function EventDetailScreen() {
                       isVintageTemplate && styles.vintageGalleryTitle,
                       isRoseTemplate && styles.roseGalleryTitle,
                       isMinimalLoveTemplate && styles.minimalGalleryTitle,
+                      isMuseumTemplate && styles.museumGalleryTitle,
+                      isBrutalistTemplate && styles.brutalistGalleryTitle,
                       isCyberTechTemplate && styles.cyberGalleryTitle,
                       isRetroArcadeTemplate && styles.retroArcadeGalleryTitle,
                       isNeonCarnivalTemplate && styles.neonCarnivalGalleryTitle,
                       isGardenTemplate && styles.gardenGalleryTitle,
                       selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold' }
                     ]}>
-                      {isGardenTemplate ? (
+                      {isMuseumTemplate ? (
+                        <>
+                          <Text style={{ color: '#17202b', fontFamily: Fonts.spaceGrotesk.bold }}>
+                            {activeSubEvent ? activeSubEvent.title : 'Exhibition Highlights'}
+                          </Text>
+                        </>
+                      ) : isBrutalistTemplate ? (
+                        <>
+                          <Text style={{ color: '#111113', fontFamily: Fonts.spaceGrotesk.bold }}>
+                            {(activeSubEvent ? activeSubEvent.title : 'Featured Collection').toUpperCase()}
+                          </Text>
+                        </>
+                      ) : isGardenTemplate ? (
                         <>
                           <Text style={{ color: '#14532d', fontFamily: selectedTemplate.serifBold }}>
                             {activeSubEvent ? activeSubEvent.title : 'Highlights'}
@@ -4338,11 +4570,13 @@ export default function EventDetailScreen() {
                       <Text style={[
                         styles.photoCount,
                         { color: selectedTemplate.accent },
+                        isMuseumTemplate && styles.museumPhotoCount,
+                        isBrutalistTemplate && styles.brutalistPhotoCount,
                         isCyberTechTemplate && styles.cyberPhotoCount,
                         isNeonCarnivalTemplate && styles.neonCarnivalPhotoCount,
                         selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
                       ]}>
-                        {isCyberTechTemplate ? `// ARCHIVED_FILES: ${photos.length}` : (isNeonCarnivalTemplate ? `STAGE CAPTURES: ${photos.length}` : `${photos.length} ${photos.length === 1 ? 'Photo' : 'Photos'}`)}
+                        {isCyberTechTemplate ? `// ARCHIVED_FILES: ${photos.length}` : (isBrutalistTemplate ? `${photos.length} GRID ${photos.length === 1 ? 'FRAME' : 'FRAMES'}` : (isNeonCarnivalTemplate ? `STAGE CAPTURES: ${photos.length}` : `${photos.length} ${photos.length === 1 ? 'Photo' : 'Photos'}`))}
                       </Text>
                     )}
                   </View>
@@ -4457,6 +4691,15 @@ export default function EventDetailScreen() {
                                     styles.minimalPhotoTile,
                                     idx % 2 === 1 && styles.minimalPhotoTileAlt,
                                   ],
+                                  isMuseumTemplate && [
+                                    styles.museumPhotoTile,
+                                    idx % 3 === 0 && styles.museumPhotoTileFeatured,
+                                  ],
+                                  isBrutalistTemplate && [
+                                    styles.brutalistPhotoTile,
+                                    idx % 3 === 0 && styles.brutalistPhotoTileFeatured,
+                                    idx % 3 === 1 && styles.brutalistPhotoTileNarrow,
+                                  ],
                                   isPopTemplate && [
                                     styles.popPhotoTile,
                                     {
@@ -4566,6 +4809,18 @@ export default function EventDetailScreen() {
                                       <Text style={styles.minimalPhotoIndexText}>{String(idx + 1).padStart(2, '0')}</Text>
                                     </View>
                                   )}
+                                  {isMuseumTemplate && (
+                                    <View style={styles.museumPhotoLabel}>
+                                      <Text style={styles.museumPhotoLabelNumber}>{String(idx + 1).padStart(2, '0')}</Text>
+                                      <Text style={styles.museumPhotoLabelText}>Exhibit</Text>
+                                    </View>
+                                  )}
+                                  {isBrutalistTemplate && (
+                                    <View style={styles.brutalistPhotoLabel}>
+                                      <Text style={styles.brutalistPhotoLabelNumber}>{String(idx + 1).padStart(2, '0')}</Text>
+                                      <Text style={styles.brutalistPhotoLabelText}>Grid Frame</Text>
+                                    </View>
+                                  )}
                                   <Image
                                     source={{ uri: photo.url }}
                                     style={[
@@ -4578,6 +4833,8 @@ export default function EventDetailScreen() {
                                       isVintageTemplate && styles.vintageGalleryImg,
                                       isRoseTemplate && styles.roseGalleryImg,
                                       isMinimalLoveTemplate && styles.minimalGalleryImg,
+                                      isMuseumTemplate && styles.museumGalleryImg,
+                                      isBrutalistTemplate && styles.brutalistGalleryImg,
                                       isRetroArcadeTemplate && styles.retroArcadeGalleryImg,
                                       isGardenTemplate ? {
                                         width: '100%',
@@ -5595,6 +5852,32 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 18,
     elevation: 4,
+  },
+  museumFloatingButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(11, 17, 24, 0.88)',
+    borderColor: 'rgba(248, 246, 239, 0.18)',
+    borderWidth: 1,
+    shadowColor: '#0b1118',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.26,
+    shadowRadius: 18,
+    elevation: 5,
+  },
+  brutalistFloatingButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(17, 17, 19, 0.92)',
+    borderColor: 'rgba(255, 255, 250, 0.18)',
+    borderWidth: 1,
+    shadowColor: '#111113',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
+    elevation: 5,
   },
   floatingShare: { position: 'absolute', top: 20, right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   heroContent: { position: 'absolute', bottom: 14, left: 24, right: 24 },
@@ -7092,6 +7375,660 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
+  museumHeroStage: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    overflow: 'hidden',
+    backgroundColor: '#f3f0ea',
+  },
+  museumHeroVignette: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  museumWallTexture: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.55,
+  },
+  museumWallLine: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    height: 1,
+    backgroundColor: 'rgba(23, 32, 43, 0.065)',
+  },
+  museumWallLineTop: {
+    top: 118,
+  },
+  museumWallLineMid: {
+    top: 292,
+    left: 58,
+  },
+  museumWallLineBottom: {
+    bottom: 152,
+    right: 80,
+  },
+  museumArchOutline: {
+    position: 'absolute',
+    top: 86,
+    left: -42,
+    width: 170,
+    height: 260,
+    borderTopLeftRadius: 86,
+    borderTopRightRadius: 86,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 252, 0.18)',
+    opacity: 0.88,
+  },
+  museumAmbientBlock: {
+    position: 'absolute',
+    top: 132,
+    right: -50,
+    width: 154,
+    height: 154,
+    borderRadius: 34,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 252, 0.12)',
+    backgroundColor: 'rgba(255, 255, 252, 0.05)',
+    transform: [{ rotate: '10deg' }],
+  },
+  museumPedestalBase: {
+    position: 'absolute',
+    top: 350,
+    right: 48,
+    width: 154,
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(11, 17, 24, 0.16)',
+  },
+  museumExhibitionRail: {
+    position: 'absolute',
+    top: 92,
+    left: 24,
+    paddingLeft: 12,
+    borderLeftWidth: 2,
+    borderLeftColor: '#9b7a44',
+  },
+  museumExhibitionRailText: {
+    color: 'rgba(246, 243, 236, 0.86)',
+    fontSize: 10,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+  },
+  museumArtworkFrame: {
+    position: 'absolute',
+    top: 124,
+    right: 20,
+    width: 194,
+    height: 240,
+    borderRadius: 30,
+    backgroundColor: '#fffffc',
+    padding: 11,
+    shadowColor: '#0b1118',
+    shadowOffset: { width: 0, height: 22 },
+    shadowOpacity: 0.24,
+    shadowRadius: 32,
+    elevation: 7,
+  },
+  museumArtworkImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+  },
+  museumArtworkSheen: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 30,
+  },
+  museumArtworkLabel: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 17,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 252, 0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(23, 32, 43, 0.08)',
+  },
+  museumArtworkLabelIndex: {
+    color: '#9b7a44',
+    fontSize: 9,
+    fontFamily: Fonts.spaceGrotesk.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  museumArtworkLabelText: {
+    color: '#17202b',
+    fontSize: 10,
+    fontFamily: Fonts.inter.semiBold,
+    marginTop: 2,
+  },
+  museumHeroIndexCard: {
+    position: 'absolute',
+    top: 242,
+    left: 22,
+    width: 84,
+    height: 98,
+    borderRadius: 26,
+    backgroundColor: 'rgba(23, 32, 43, 0.96)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 252, 0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0b1118',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 4,
+  },
+  museumHeroIndexNumber: {
+    color: '#f8f6ef',
+    fontSize: 28,
+    lineHeight: 31,
+    fontFamily: Fonts.spaceGrotesk.bold,
+  },
+  museumHeroIndexLabel: {
+    color: '#c6ad7d',
+    fontSize: 9,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.4,
+  },
+  museumHeroCard: {
+    width: '94%',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 22,
+    paddingVertical: 23,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 252, 0.94)',
+    borderWidth: 1,
+    borderColor: 'rgba(23, 32, 43, 0.08)',
+    shadowColor: '#0b1118',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.13,
+    shadowRadius: 30,
+    elevation: 5,
+  },
+  museumHeroKickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 13,
+  },
+  museumHeroKicker: {
+    color: '#9b7a44',
+    fontSize: 10.5,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+  },
+  museumHeroKickerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(155, 122, 68, 0.2)',
+  },
+  museumHeroTitle: {
+    color: '#17202b',
+    fontSize: 40,
+    lineHeight: 41,
+    fontFamily: Fonts.spaceGrotesk.bold,
+    letterSpacing: 0,
+  },
+  museumHeroDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 18,
+  },
+  museumHeroDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(23, 32, 43, 0.16)',
+  },
+  museumHeroDividerBlock: {
+    width: 28,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: '#9b7a44',
+  },
+  museumHeroMetaRow: {
+    marginTop: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  museumHeroDate: {
+    flex: 1,
+    color: '#596575',
+    fontSize: 12,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  museumHeroMetaChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(155, 122, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(155, 122, 68, 0.14)',
+  },
+  museumHeroMetaChipText: {
+    color: '#7c633a',
+    fontSize: 9.5,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+  },
+  museumHeroShare: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: '#17202b',
+  },
+  museumHeroShareText: {
+    color: '#f8f6ef',
+    fontSize: 11,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  brutalistHeroStage: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 20,
+    paddingBottom: 26,
+    overflow: 'hidden',
+    backgroundColor: '#efede7',
+  },
+  brutalistHeroBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+    opacity: 0.9,
+  },
+  brutalistGridTexture: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.85,
+  },
+  brutalistGridLine: {
+    position: 'absolute',
+    top: 72,
+    bottom: 36,
+    width: 1,
+    backgroundColor: 'rgba(255, 255, 250, 0.14)',
+  },
+  brutalistGridLineVerticalOne: {
+    left: 38,
+  },
+  brutalistGridLineVerticalTwo: {
+    right: 112,
+  },
+  brutalistGridLineHorizontal: {
+    position: 'absolute',
+    left: 18,
+    right: 18,
+    height: 1,
+    backgroundColor: 'rgba(17, 17, 19, 0.12)',
+  },
+  brutalistGridLineHorizontalOne: {
+    top: 168,
+  },
+  brutalistGridLineHorizontalTwo: {
+    bottom: 178,
+  },
+  brutalistHeaderRail: {
+    position: 'absolute',
+    top: 96,
+    left: 22,
+    right: 22,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 250, 0.2)',
+  },
+  brutalistHeaderRailText: {
+    color: '#fffffa',
+    fontSize: 10,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 2.1,
+  },
+  brutalistHeaderRailCode: {
+    color: '#c2a76d',
+    fontSize: 10,
+    fontFamily: Fonts.spaceGrotesk.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.4,
+  },
+  brutalistArtworkBlock: {
+    position: 'absolute',
+    top: 145,
+    right: 18,
+    width: 182,
+    height: 218,
+    backgroundColor: '#fffffa',
+    padding: 8,
+    borderRadius: 8,
+    shadowColor: '#111113',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.26,
+    shadowRadius: 28,
+    elevation: 7,
+  },
+  brutalistArtworkImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 4,
+  },
+  brutalistArtworkCaption: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255, 255, 250, 0.9)',
+  },
+  brutalistArtworkCaptionNumber: {
+    color: '#111113',
+    fontSize: 18,
+    lineHeight: 20,
+    fontFamily: Fonts.spaceGrotesk.bold,
+  },
+  brutalistArtworkCaptionText: {
+    color: '#62625d',
+    fontSize: 8,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+  },
+  brutalistHeroCard: {
+    width: '86%',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 22,
+    paddingVertical: 22,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 250, 0.94)',
+    borderWidth: 1,
+    borderColor: 'rgba(17, 17, 19, 0.08)',
+    shadowColor: '#111113',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.14,
+    shadowRadius: 28,
+    elevation: 6,
+  },
+  brutalistHeroLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  brutalistHeroLabel: {
+    color: '#8f6d32',
+    fontSize: 10,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+  },
+  brutalistHeroLabelLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(17, 17, 19, 0.18)',
+  },
+  brutalistHeroTitle: {
+    color: '#111113',
+    fontSize: 43,
+    lineHeight: 42,
+    fontFamily: Fonts.spaceGrotesk.bold,
+  },
+  brutalistHeroMetaRow: {
+    marginTop: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  brutalistHeroDate: {
+    flex: 1,
+    color: '#62625d',
+    fontSize: 11,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  brutalistHeroShare: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: '#111113',
+  },
+  brutalistHeroShareText: {
+    color: '#fffffa',
+    fontSize: 11,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  brutalistHeroMarker: {
+    position: 'absolute',
+    right: 24,
+    bottom: 30,
+    width: 54,
+    height: 54,
+    borderRadius: 12,
+    backgroundColor: '#111113',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brutalistHeroMarkerText: {
+    color: '#fffffa',
+    fontSize: 9,
+    fontFamily: Fonts.spaceGrotesk.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+  },
+  brutalistVisitorHeaderContainer: {
+    height: 68,
+    marginTop: -8,
+    marginBottom: 8,
+    backgroundColor: '#efede7',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(17, 17, 19, 0.08)',
+  },
+  brutalistVisitorHeaderContent: {
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    gap: 10,
+  },
+  brutalistVisitorTab: {
+    minHeight: 38,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 250, 0.86)',
+    borderWidth: 1,
+    borderColor: 'rgba(17, 17, 19, 0.12)',
+    shadowColor: '#111113',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    elevation: 1,
+  },
+  brutalistVisitorTabActive: {
+    backgroundColor: '#111113',
+    borderColor: '#111113',
+    shadowOpacity: 0.16,
+    elevation: 4,
+  },
+  brutalistVisitorTabText: {
+    color: '#111113',
+    fontSize: 11,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.35,
+  },
+  brutalistVisitorTabTextActive: {
+    color: '#fffffa',
+  },
+  brutalistInfoBox: {
+    marginHorizontal: 18,
+    marginTop: 18,
+    marginBottom: 18,
+    padding: 0,
+    borderWidth: 0,
+    backgroundColor: '#fffffa',
+    shadowColor: '#111113',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.08,
+    shadowRadius: 30,
+    elevation: 4,
+  },
+  brutalistInfoInner: {
+    paddingHorizontal: 22,
+    paddingVertical: 22,
+    borderLeftWidth: 5,
+    borderLeftColor: '#111113',
+  },
+  brutalistInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
+  },
+  brutalistInfoKicker: {
+    color: '#111113',
+    fontSize: 10,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+  },
+  brutalistInfoLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(17, 17, 19, 0.14)',
+  },
+  brutalistInfoCode: {
+    color: '#8f6d32',
+    fontSize: 9,
+    fontFamily: Fonts.spaceGrotesk.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.3,
+  },
+  brutalistVisitorDescription: {
+    color: '#2f2f2d',
+    fontSize: 15,
+    lineHeight: 24,
+    fontFamily: Fonts.inter.regular,
+    textAlign: 'left',
+  },
+  brutalistGalleryHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    alignItems: 'flex-end',
+  },
+  brutalistGalleryKicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 9,
+  },
+  brutalistGalleryKickerText: {
+    color: '#8f6d32',
+    fontSize: 10,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+  },
+  brutalistGalleryKickerLine: {
+    width: 54,
+    height: 1,
+    backgroundColor: 'rgba(17, 17, 19, 0.22)',
+  },
+  brutalistGalleryKickerCode: {
+    color: '#62625d',
+    fontSize: 9,
+    fontFamily: Fonts.spaceGrotesk.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  brutalistGalleryTitle: {
+    color: '#111113',
+    fontSize: 32,
+    lineHeight: 34,
+    fontFamily: Fonts.spaceGrotesk.bold,
+    letterSpacing: 0,
+  },
+  brutalistPhotoCount: {
+    color: '#62625d',
+    fontSize: 10,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.4,
+  },
+  brutalistPhotoTile: {
+    borderWidth: 1,
+    borderColor: 'rgba(17, 17, 19, 0.1)',
+    borderRadius: 14,
+    padding: 6,
+    backgroundColor: '#fffffa',
+    shadowColor: '#111113',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 22,
+    elevation: 3,
+  },
+  brutalistPhotoTileFeatured: {
+    borderTopWidth: 5,
+    borderTopColor: '#111113',
+  },
+  brutalistPhotoTileNarrow: {
+    borderBottomWidth: 4,
+    borderBottomColor: '#8f6d32',
+  },
+  brutalistPhotoLabel: {
+    position: 'absolute',
+    left: 12,
+    top: 12,
+    zIndex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(17, 17, 19, 0.9)',
+  },
+  brutalistPhotoLabelNumber: {
+    color: '#fffffa',
+    fontSize: 11,
+    fontFamily: Fonts.spaceGrotesk.bold,
+  },
+  brutalistPhotoLabelText: {
+    color: '#d1c4a5',
+    fontSize: 8,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+  },
+  brutalistGalleryImg: {
+    borderRadius: 9,
+  },
   popHeroContent: {
     left: 18,
     right: 18,
@@ -8583,6 +9520,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     gap: 13,
   },
+  museumVisitorHeaderContainer: {
+    height: 64,
+    marginTop: 12,
+    marginBottom: 12,
+    marginHorizontal: 18,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 252, 0.78)',
+    borderWidth: 1,
+    borderColor: 'rgba(23, 32, 43, 0.08)',
+    shadowColor: '#0b1118',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+    elevation: 2,
+  },
+  museumVisitorHeaderContent: {
+    paddingHorizontal: 8,
+    gap: 8,
+  },
   visitorTab: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -8768,6 +9724,27 @@ const styles = StyleSheet.create({
     borderColor: '#4a2f1d',
     transform: [{ translateY: -1 }],
   },
+  museumVisitorTab: {
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255, 255, 252, 0.44)',
+    borderWidth: 1,
+    borderColor: 'transparent',
+    shadowColor: '#0b1118',
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0,
+    shadowRadius: 12,
+    elevation: 0,
+  },
+  museumVisitorTabActive: {
+    backgroundColor: '#17202b',
+    borderColor: '#17202b',
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 3,
+    transform: [{ translateY: -1 }],
+  },
   visitorTabText: {
     color: MidnightColors.gold,
     fontSize: 14,
@@ -8840,6 +9817,17 @@ const styles = StyleSheet.create({
   minimalVisitorTabTextActive: {
     color: '#fffaf2',
     fontFamily: Fonts.nunitoSans.bold,
+  },
+  museumVisitorTabText: {
+    fontSize: 11.5,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.15,
+    color: '#17202b',
+  },
+  museumVisitorTabTextActive: {
+    color: '#f8f6ef',
+    fontFamily: Fonts.inter.bold,
   },
   scrapbookVisitorTabTextActive: {
     color: '#263331',
@@ -9194,6 +10182,55 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     backgroundColor: 'rgba(255, 250, 242, 0.92)',
   },
+  museumInfoBox: {
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 32,
+    padding: 0,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(23, 32, 43, 0.08)',
+    backgroundColor: '#fffffc',
+    shadowColor: '#0b1118',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.08,
+    shadowRadius: 30,
+    elevation: 3,
+  },
+  museumInfoInner: {
+    paddingHorizontal: 24,
+    paddingVertical: 25,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 252, 0.94)',
+  },
+  museumInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(23, 32, 43, 0.08)',
+  },
+  museumInfoKicker: {
+    color: '#9b7a44',
+    fontSize: 10.5,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+  },
+  museumInfoLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(155, 122, 68, 0.22)',
+  },
+  museumInfoCode: {
+    color: '#66717d',
+    fontSize: 10,
+    fontFamily: Fonts.spaceGrotesk.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+  },
   anniversaryInfoHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -9399,6 +10436,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 25,
   },
+  museumVisitorDescription: {
+    color: '#3f4a56',
+    fontFamily: Fonts.inter.regular,
+    fontSize: 15,
+    lineHeight: 25.5,
+    letterSpacing: 0.05,
+  },
   categoryBadge: {
     alignSelf: 'flex-start',
     backgroundColor: 'rgba(212, 175, 55, 0.1)',
@@ -9476,6 +10520,14 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(109, 75, 52, 0.12)',
+  },
+  museumGalleryHeader: {
+    marginTop: 30,
+    marginBottom: 28,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(23, 32, 43, 0.1)',
   },
   popGalleryHeader: {
     marginTop: 24,
@@ -9602,6 +10654,12 @@ const styles = StyleSheet.create({
   minimalGalleryKicker: {
     gap: 10,
   },
+  museumGalleryKicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    marginBottom: 9,
+  },
   anniversaryGalleryDot: {
     width: 8,
     height: 8,
@@ -9651,6 +10709,25 @@ const styles = StyleSheet.create({
     color: '#8a7461',
     fontFamily: Fonts.nunitoSans.semiBold,
     letterSpacing: 1.8,
+  },
+  museumGalleryKickerText: {
+    color: '#9b7a44',
+    fontSize: 10,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.9,
+  },
+  museumGalleryKickerLine: {
+    width: 50,
+    height: 1,
+    backgroundColor: 'rgba(155, 122, 68, 0.28)',
+  },
+  museumGalleryKickerCode: {
+    color: '#66717d',
+    fontSize: 10,
+    fontFamily: Fonts.spaceGrotesk.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
   },
   anniversaryGalleryLine: {
     width: 42,
@@ -9723,6 +10800,21 @@ const styles = StyleSheet.create({
     lineHeight: 38,
     fontFamily: Fonts.cormorant.bold,
     letterSpacing: 0,
+  },
+  museumGalleryTitle: {
+    color: '#17202b',
+    fontSize: 34,
+    lineHeight: 37,
+    fontFamily: Fonts.spaceGrotesk.bold,
+    letterSpacing: 0,
+  },
+  museumPhotoCount: {
+    color: '#9b7a44',
+    fontSize: 11,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginTop: 4,
   },
   photoCount: {
     fontSize: 12,
@@ -9966,6 +11058,46 @@ const styles = StyleSheet.create({
     shadowRadius: 22,
     elevation: 3,
   },
+  museumPhotoTile: {
+    padding: 8,
+    paddingBottom: 30,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: 'rgba(23, 32, 43, 0.08)',
+    backgroundColor: '#fffffc',
+    shadowColor: '#0b1118',
+    shadowOffset: { width: 0, height: 15 },
+    shadowOpacity: 0.085,
+    shadowRadius: 26,
+    elevation: 3,
+    overflow: 'hidden',
+  },
+  museumPhotoTileFeatured: {
+    transform: [{ translateY: -2 }],
+  },
+  museumPhotoLabel: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    bottom: 9,
+    zIndex: 3,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  museumPhotoLabelNumber: {
+    color: '#9b7a44',
+    fontSize: 10,
+    fontFamily: Fonts.spaceGrotesk.bold,
+    letterSpacing: 0.8,
+  },
+  museumPhotoLabelText: {
+    color: '#66717d',
+    fontSize: 9,
+    fontFamily: Fonts.inter.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
   minimalPhotoTileAlt: {
     opacity: 0.98,
     transform: [{ rotate: '-0.35deg' }],
@@ -10090,6 +11222,9 @@ const styles = StyleSheet.create({
   },
   minimalGalleryImg: {
     borderRadius: 16,
+  },
+  museumGalleryImg: {
+    borderRadius: 19,
   },
   emptyGallery: {
     width: '100%',
