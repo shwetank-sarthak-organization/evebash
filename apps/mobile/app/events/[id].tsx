@@ -1180,7 +1180,7 @@ export default function EventDetailScreen() {
         },
         isBohemian && {
           height: 72,
-          marginTop: 36,
+          marginTop: 0,
           marginBottom: 8,
           backgroundColor: selectedTemplate.background,
         },
