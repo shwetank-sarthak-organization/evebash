@@ -49,6 +49,8 @@ export interface Event {
     coverScale?: number;
     coverMode?: 'fit' | 'fill';
     order?: number;
+    titleAlign?: 'left' | 'center' | 'right';
+    hostName?: string;
 }
 
 export interface Photo {

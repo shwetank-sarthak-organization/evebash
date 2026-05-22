@@ -213,7 +213,7 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
     id: 'bohemian', 
     category: 'Other', 
     label: 'Bohemian Rhapsody', 
-    desc: 'Earthy and organic', 
+    desc: 'Sunset acoustic & festival theme', 
     background: { light: '#fff7ed', dark: '#2f241d' }, 
     panel: { light: '#ffffff', dark: 'rgba(255,247,237,0.08)' }, 
     text: { light: '#431407', dark: '#ffedd5' }, 
@@ -222,7 +222,7 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
     accentBg: { light: '#ffedd5', dark: 'rgba(251,146,60,0.18)' }, 
     tileBg: { light: '#ffffff', dark: '#3f2f26' }, 
     radius: 22, 
-    overlay: { light: ['rgba(255,247,237,0.1)', 'rgba(255,247,237,1)'], dark: ['rgba(47,36,29,0.15)', 'rgba(47,36,29,1)'] } 
+    overlay: { light: ['rgba(255,247,237,0.45)', 'rgba(255,247,237,1)'], dark: ['rgba(47,36,29,0.45)', 'rgba(47,36,29,1)'] } 
   },
   { 
     id: 'diamond', 

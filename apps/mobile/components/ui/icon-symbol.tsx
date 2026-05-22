@@ -85,6 +85,10 @@ const MAPPING = {
   'qrcode.viewfinder': 'qr-code-scanner',
   'moon.fill': 'nights-stay',
   'sun.max.fill': 'wb-sunny',
+  'play.fill': 'play-arrow',
+  'pause.fill': 'pause',
+  'backward.fill': 'fast-rewind',
+  'forward.fill': 'fast-forward',
 } as const;
 
 export type IconSymbolName = keyof typeof MAPPING;

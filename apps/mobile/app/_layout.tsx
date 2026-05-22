@@ -53,6 +53,17 @@ import {
   NunitoSans_600SemiBold,
   NunitoSans_700Bold,
 } from '@expo-google-fonts/nunito-sans';
+import {
+  Syne_700Bold
+} from '@expo-google-fonts/syne';
+import {
+  CinzelDecorative_400Regular,
+  CinzelDecorative_700Bold
+} from '@expo-google-fonts/cinzel-decorative';
+import {
+  Cinzel_400Regular,
+  Cinzel_700Bold
+} from '@expo-google-fonts/cinzel';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -183,6 +194,11 @@ export default function RootLayout() {
     NunitoSans_400Regular,
     NunitoSans_600SemiBold,
     NunitoSans_700Bold,
+    Syne_700Bold,
+    CinzelDecorative_400Regular,
+    CinzelDecorative_700Bold,
+    Cinzel_400Regular,
+    Cinzel_700Bold,
     'Monofett_400Regular': require('../assets/fonts/Monofett-Regular.ttf'),
     'BubblegumSans_400Regular': require('../assets/fonts/BubblegumSans-Regular.ttf'),
     'PermanentMarker_400Regular': require('../assets/fonts/PermanentMarker-Regular.ttf'),

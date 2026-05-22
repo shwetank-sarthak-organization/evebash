@@ -122,5 +122,28 @@ export const Fonts = {
   },
   vt323: {
     regular: 'VT323_400Regular',
+  },
+  syne: {
+    bold: 'Syne_700Bold',
+  },
+  yellowtail: {
+    regular: 'Yellowtail_400Regular',
+  },
+  alexBrush: {
+    regular: 'AlexBrush_400Regular',
+  },
+  cookie: {
+    regular: 'Cookie_400Regular',
+  },
+  grandHotel: {
+    regular: 'GrandHotel_400Regular',
+  },
+  cinzelDecorative: {
+    regular: 'CinzelDecorative_400Regular',
+    bold: 'CinzelDecorative_700Bold',
+  },
+  cinzel: {
+    regular: 'Cinzel_400Regular',
+    bold: 'Cinzel_700Bold',
   }
 };
