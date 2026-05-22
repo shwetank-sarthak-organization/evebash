@@ -1,6 +1,10 @@
 import { db } from "./firebase";
 import { collection, getDocs, doc, getDoc, query, where, orderBy, Timestamp, addDoc, setDoc, deleteDoc, updateDoc, deleteField, onSnapshot, serverTimestamp, limit, DocumentData, QueryDocumentSnapshot, DocumentSnapshot } from "firebase/firestore";
 
+// Memory caches to optimize lookups and avoid sequential network database queries
+const eventCache: Record<string, Event> = {};
+const userCache: Record<string, any> = {};
+
 // --- Types ---
 
 export interface Event {
@@ -636,11 +640,18 @@ export async function getUsers(): Promise<DocumentData[]> {
  */
 export async function getUserById(uid: string): Promise<any | null> {
     if (!uid) return null;
+    const decodedUid = decodeURIComponent(uid);
+    if (userCache[decodedUid]) {
+        console.log(`[Firestore] getUserById (CACHE HIT) for: "${decodedUid}"`);
+        return userCache[decodedUid];
+    }
     try {
-        const docRef = doc(db, "users", uid);
+        const docRef = doc(db, "users", decodedUid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-            return { id: docSnap.id, ...docSnap.data() };
+            const user = { id: docSnap.id, ...docSnap.data() };
+            userCache[decodedUid] = user;
+            return user;
         }
         return null;
     } catch (error) {
@@ -775,6 +786,12 @@ export async function updateUserRole(uid: string, newRole: string | null, delega
         }
 
         await updateDoc(docRef, updateData);
+
+        // Bust user cache so that it is re-fetched on subsequent lookups
+        const decodedUid = decodeURIComponent(uid);
+        delete userCache[decodedUid];
+        delete userCache[uid];
+
         return true;
     } catch (error) {
         console.error("Error updating user role:", error);
@@ -808,6 +825,12 @@ export async function deleteUser(uid: string) {
     try {
         const docRef = doc(db, "users", uid);
         await deleteDoc(docRef);
+
+        // Bust user cache
+        const decodedUid = decodeURIComponent(uid);
+        delete userCache[decodedUid];
+        delete userCache[uid];
+
         return true;
     } catch (error) {
         console.error("Error deleting user:", error);
@@ -833,6 +856,14 @@ export async function createEvent(event: Event) {
             ...sanitizedEvent,
             createdAt: Timestamp.now()
         });
+
+        // Cache the newly created event
+        eventCache[event.id] = event;
+        const decodedId = decodeURIComponent(event.id);
+        eventCache[decodedId] = event;
+        if (event.legacyId) eventCache[event.legacyId] = event;
+        if (event.title) eventCache[event.title] = event;
+
         return true;
     } catch (error: unknown) {
         console.error("Error creating event:", error);
@@ -846,6 +877,13 @@ export async function createEvent(event: Event) {
 export async function getEventById(eventId: string): Promise<Event | null> {
     const decodedId = decodeURIComponent(eventId);
     console.log(`[Firestore] getEventById initiated for: "${eventId}" (decoded: "${decodedId}")`);
+    
+    // Check eventCache first
+    if (eventCache[decodedId]) {
+        console.log(`[Firestore] getEventById (CACHE HIT) for: "${decodedId}"`);
+        return eventCache[decodedId];
+    }
+    
     try {
         if (!db) {
             console.error("[Firestore] getEventById: Firestore DB instance is not available.");
@@ -873,6 +911,13 @@ export async function getEventById(eventId: string): Promise<Event | null> {
                 event.legacyId = data.id;
                 console.log(`[Firestore] getEventById: Legacy ID detected: "${data.id}"`);
             }
+            
+            // Cache the successfully fetched event
+            eventCache[decodedId] = event;
+            if (event.id) eventCache[event.id] = event;
+            if (event.legacyId) eventCache[event.legacyId] = event;
+            if (event.title) eventCache[event.title] = event;
+            
             return event;
         }
 
@@ -888,14 +933,26 @@ export async function getEventById(eventId: string): Promise<Event | null> {
         // Strategy A: Check 'id' == decodedId (Legacy behavior)
         const qId = query(eventsCol, where("id", "==", decodedId));
         const snapId = await getDocs(qId);
-        if (!snapId.empty) return mapDocToEvent(snapId.docs[0]);
+        if (!snapId.empty) {
+            const event = mapDocToEvent(snapId.docs[0]);
+            eventCache[decodedId] = event;
+            if (event.id) eventCache[event.id] = event;
+            if (event.legacyId) eventCache[event.legacyId] = event;
+            if (event.title) eventCache[event.title] = event;
+            return event;
+        }
 
         // Strategy B: Check 'legacyId' == decodedId
         const qLegacy = query(eventsCol, where("legacyId", "==", decodedId));
         const snapLegacy = await getDocs(qLegacy);
         if (!snapLegacy.empty) {
             console.log(`[Firestore] getEventById: Found via legacyId: "${decodedId}"`);
-            return mapDocToEvent(snapLegacy.docs[0]);
+            const event = mapDocToEvent(snapLegacy.docs[0]);
+            eventCache[decodedId] = event;
+            if (event.id) eventCache[event.id] = event;
+            if (event.legacyId) eventCache[event.legacyId] = event;
+            if (event.title) eventCache[event.title] = event;
+            return event;
         }
 
         // Strategy C: Check 'title' == decodedId (Fallback for when title is used as slug)
@@ -903,7 +960,12 @@ export async function getEventById(eventId: string): Promise<Event | null> {
         const snapTitle = await getDocs(qTitle);
         if (!snapTitle.empty) {
             console.log(`[Firestore] getEventById: Found via title: "${decodedId}"`);
-            return mapDocToEvent(snapTitle.docs[0]);
+            const event = mapDocToEvent(snapTitle.docs[0]);
+            eventCache[decodedId] = event;
+            if (event.id) eventCache[event.id] = event;
+            if (event.legacyId) eventCache[event.legacyId] = event;
+            if (event.title) eventCache[event.title] = event;
+            return event;
         }
 
         console.warn(`[Firestore] getEventById: No document found for ID/Legacy/Title: "${decodedId}"`);
@@ -961,6 +1023,16 @@ export async function deleteEvent(eventId: string): Promise<boolean> {
     try {
         console.log(`[Firestore] deleteEvent initiated for: "${eventId}"`);
 
+        // Bust cache entries for this event and any referencing this event
+        const decodedId = decodeURIComponent(eventId);
+        delete eventCache[eventId];
+        delete eventCache[decodedId];
+        for (const key in eventCache) {
+            if (eventCache[key].id === eventId || eventCache[key].legacyId === eventId) {
+                delete eventCache[key];
+            }
+        }
+
         // 1. Find and delete all sub-events recursively
         const eventsRef = collection(db, "events");
         const subSnap = await getDocs(query(eventsRef, where("parentId", "==", eventId)));
@@ -1002,6 +1074,19 @@ export async function updateEvent(eventId: string, data: Partial<Event>): Promis
     try {
         const eventRef = doc(db, "events", eventId);
         await updateDoc(eventRef, data);
+
+        // Bust cache entries for this event
+        const decodedId = decodeURIComponent(eventId);
+        delete eventCache[eventId];
+        delete eventCache[decodedId];
+
+        // Clean out any cache entry referencing this event by ID or legacyId
+        for (const key in eventCache) {
+            if (eventCache[key].id === eventId || eventCache[key].legacyId === eventId) {
+                delete eventCache[key];
+            }
+        }
+
         return true;
     } catch (error) {
         console.error("Error updating event:", error);

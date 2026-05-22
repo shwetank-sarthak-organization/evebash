@@ -294,17 +294,35 @@ function DashboardContent() {
     }, [searchParams, userEvents]);
 
 
+    // 1. Fetch main/sub events and storage stats when in "manage" view and relevant navigation items change
     useEffect(() => {
         if (user && user.uid && view === "manage") {
             fetchUserEvents();
             fetchStorageStats();
-        } else if (user && user.uid && view === "permissions") {
+        }
+    }, [user?.uid, view, manageLevel, selectedMainEvent?.id]);
+
+    // 2. Fetch main events and delegated count once when in "permissions" view
+    useEffect(() => {
+        if (user && user.uid && view === "permissions") {
             fetchUserEvents();
-            fetchUsersList();
             fetchDelegatedCount();
+        }
+    }, [user?.uid, view]);
+
+    // 3. Fetch full users list ONLY when in "permissions" view under "admin_details" tab
+    useEffect(() => {
+        if (user && user.uid && view === "permissions" && activePermissionTab === "admin_details") {
+            fetchUsersList();
+        }
+    }, [user?.uid, view, activePermissionTab]);
+
+    // 4. Fetch guest traffic logs ONLY when in "permissions" view under "guest_user" tab, filtered by selected log event
+    useEffect(() => {
+        if (user && user.uid && view === "permissions" && activePermissionTab === "guest_user") {
             fetchTrafficLogs();
         }
-    }, [user, view, activePermissionTab, selectedLogEventId, manageLevel, selectedMainEvent]);
+    }, [user?.uid, view, activePermissionTab, selectedLogEventId]);
 
     useEffect(() => {
         if (selectedEventId && (manageMode === "add-image" || manageLevel === "photos")) {
