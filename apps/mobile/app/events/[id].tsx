@@ -20,6 +20,16 @@ import { db } from '@/lib/firebase';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// ── Extracted modular components ──
+import { ThemeHeader } from '../../components/event/ThemeHeader';
+import { ThemeDivider } from '../../components/event/ThemeDivider';
+import { GatedAccessPanel } from '../../components/event/GatedAccessPanel';
+import { RenameEventModal } from '../../components/event/modals/RenameEventModal';
+import { SubEventModal } from '../../components/event/modals/SubEventModal';
+import { TemplateSelectionModal } from '../../components/event/modals/TemplateSelectionModal';
+import { GalleryDescriptionModal } from '../../components/event/modals/GalleryDescriptionModal';
+import { useGuestAccess } from '../../hooks/useGuestAccess';
+
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_GRID_GAP = 3;
@@ -1070,513 +1080,6 @@ export default function EventDetailScreen() {
   }
 
 
-  // ── VISITOR NAVIGATION ──
-  const renderVisitorHeader = () => {
-    const isRoyal = event?.templateId === 'royal';
-    const isClassic = event?.templateId === 'classic';
-    const isHero = event?.templateId === 'hero';
-    const isEthereal = event?.templateId === 'ethereal';
-    const isScrapbook = event?.templateId === 'scrapbook';
-    const isNeon = event?.templateId === 'neon';
-    const isPastel = event?.templateId === 'pastel';
-    const isPop = event?.templateId === 'pop';
-    const isGoldenYears = event?.templateId === 'golden_years';
-    const isVintageNoir = event?.templateId === 'vintage';
-    const isRoseGarden = event?.templateId === 'rose';
-    const isMinimalLove = event?.templateId === 'minimal_love';
-    const isCyberTech = event?.templateId === 'cyber_tech';
-    const isRetroArcade = event?.templateId === 'retro_arcade';
-    const isAcademicEditorial = event?.templateId === 'academic_editorial';
-    const isNeonCarnival = event?.templateId === 'neon_carnival';
-    const isGarden = event?.templateId === 'garden';
-    const isBohemian = event?.templateId === 'bohemian';
-    const isThemeHeader = isRoyal || isClassic || isHero || isEthereal || isGarden;
-    const birthdayTextColor = isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#F2E7D2' : (isRoseGarden ? '#562733' : (isMinimalLove ? '#4a2f1d' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d946ef' : MidnightColors.gold))))))))));
-    const birthdayActiveText = isScrapbook ? styles.scrapbookVisitorTabTextActive : (isNeon ? styles.neonVisitorTabTextActive : (isPastel ? styles.pastelVisitorTabTextActive : (isPop ? styles.popVisitorTabTextActive : (isGoldenYears ? styles.goldenVisitorTabTextActive : (isVintageNoir ? styles.vintageVisitorTabTextActive : (isRoseGarden ? styles.roseVisitorTabTextActive : (isMinimalLove ? styles.minimalVisitorTabTextActive : (isCyberTech ? styles.cyberVisitorTabTextActive : (isRetroArcade ? styles.retroArcadeVisitorTabTextActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabTextActive : styles.visitorTabTextActive))))))))));
-    const birthdayActiveTab = isScrapbook ? styles.scrapbookVisitorTabActive : (isNeon ? styles.neonVisitorTabActive : (isPastel ? styles.pastelVisitorTabActive : (isPop ? styles.popVisitorTabActive : (isGoldenYears ? styles.goldenVisitorTabActive : (isVintageNoir ? styles.vintageVisitorTabActive : (isRoseGarden ? styles.roseVisitorTabActive : (isMinimalLove ? styles.minimalVisitorTabActive : (isCyberTech ? styles.cyberVisitorTabActive : (isRetroArcade ? styles.retroArcadeVisitorTabActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabActive : styles.visitorTabActive))))))))));
-    const birthdayTabStyles = [
-      isScrapbook && styles.scrapbookVisitorTab,
-      isNeon && styles.neonVisitorTab,
-      isPastel && styles.pastelVisitorTab,
-      isPop && styles.popVisitorTab,
-      isGoldenYears && styles.goldenVisitorTab,
-      isVintageNoir && styles.vintageVisitorTab,
-      isRoseGarden && styles.roseVisitorTab,
-      isMinimalLove && styles.minimalVisitorTab,
-      isCyberTech && styles.cyberVisitorTab,
-      isRetroArcade && styles.retroArcadeVisitorTab,
-      isNeonCarnival && styles.neonCarnivalVisitorTab,
-    ];
-    const themeHeaderTab = (active: boolean) => ({
-      backgroundColor: isHero ? (active ? 'rgba(204, 164, 59, 0.08)' : 'transparent') 
-        : isGarden ? (active ? '#2E6F40' : 'transparent') : 'transparent',
-      borderWidth: isHero ? 0.8 : isGarden ? (active ? 0 : 0) : 0,
-      borderColor: 'transparent',
-      borderRadius: isHero ? 4 : isGarden ? 999 : 0,
-      paddingHorizontal: isGarden ? 12 : 16,
-      paddingVertical: isHero ? 8 : isGarden ? 8 : 6,
-      flexDirection: isHero ? 'row' as const : 'column' as const,
-      gap: 2,
-      marginHorizontal: isHero ? 4 : isGarden ? 0 : 0,
-      alignSelf: 'center' as const,
-    });
-    const themeTextColor = (active: boolean) => active
-      ? (isGarden ? '#FFFFFF' : (isHero ? '#cca43b' : (isRoyal ? '#fff' : (isEthereal ? selectedTemplate.accent : '#cca43b'))))
-      : (isGarden ? '#64748b' : (isHero ? '#94a3b8' : selectedTemplate.muted));
-
-    const renderBohemianEqualizer = (isActive: boolean) => {
-      if (!isActive) return null;
-      return (
-        <View style={styles.bohemianEqContainer}>
-          <RNAnimated.View
-            style={[
-              styles.bohemianEqBar,
-              {
-                backgroundColor: selectedTemplate.accent,
-                transform: [{ scaleY: bohemianEq1 }],
-              },
-            ]}
-          />
-          <RNAnimated.View
-            style={[
-              styles.bohemianEqBar,
-              {
-                backgroundColor: selectedTemplate.accent,
-                transform: [{ scaleY: bohemianEq2 }],
-              },
-            ]}
-          />
-          <RNAnimated.View
-            style={[
-              styles.bohemianEqBar,
-              {
-                backgroundColor: selectedTemplate.accent,
-                transform: [{ scaleY: bohemianEq3 }],
-              },
-            ]}
-          />
-        </View>
-      );
-    };
-
-    return (
-      <View style={[
-        styles.visitorHeaderContainer,
-        isRoyal && { height: 70, marginTop: 12, marginBottom: 0 },
-        isClassic && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', backgroundColor: '#FAF9F6' },
-        isHero && { height: 64, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', backgroundColor: '#000000' },
-        isEthereal && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: selectedTemplate.accent + '26', backgroundColor: selectedTemplate.background },
-        isAcademicEditorial && { height: 52, marginTop: 12, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: selectedTemplate.text + '1a', backgroundColor: selectedTemplate.background },
-        isGarden && {
-          height: 54,
-          marginTop: -27,  // negative half-height → straddles cover photo bottom edge
-          marginBottom: 8,
-          marginHorizontal: 0,
-          paddingHorizontal: 16,
-          alignSelf: 'stretch',
-          borderRadius: 999,
-          backgroundColor: '#FFFFFF',
-          borderWidth: 1,
-          borderColor: '#2E6F40',
-          shadowColor: '#16a34a',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.12,
-          shadowRadius: 12,
-          elevation: 6,
-          zIndex: 10,
-        },
-        isBohemian && {
-          height: 72,
-          marginTop: 0,
-          marginBottom: 8,
-          backgroundColor: selectedTemplate.background,
-        },
-        isScrapbook && styles.scrapbookVisitorHeaderContainer,
-        isNeon && styles.neonVisitorHeaderContainer,
-        isPastel && styles.pastelVisitorHeaderContainer,
-        isPop && styles.popVisitorHeaderContainer,
-        isGoldenYears && styles.goldenVisitorHeaderContainer,
-        isVintageNoir && styles.vintageVisitorHeaderContainer,
-        isRoseGarden && styles.roseVisitorHeaderContainer,
-        isMinimalLove && styles.minimalVisitorHeaderContainer,
-        isCyberTech && styles.cyberVisitorHeaderContainer,
-        isRetroArcade && styles.retroArcadeVisitorHeaderContainer,
-        isNeonCarnival && styles.neonCarnivalVisitorHeaderContainer,
-      ]}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[
-            styles.visitorHeaderContent, 
-            isScrapbook && styles.scrapbookVisitorHeaderContent, 
-            isNeon && styles.neonVisitorHeaderContent, 
-            isPastel && styles.pastelVisitorHeaderContent, 
-            isPop && styles.popVisitorHeaderContent, 
-            isGoldenYears && styles.goldenVisitorHeaderContent,
-            isVintageNoir && styles.vintageVisitorHeaderContent,
-            isRoseGarden && styles.roseVisitorHeaderContent,
-            isMinimalLove && styles.minimalVisitorHeaderContent,
-            isCyberTech && styles.cyberVisitorHeaderContent, 
-            isRetroArcade && styles.retroArcadeVisitorHeaderContent,
-            isNeonCarnival && styles.neonCarnivalVisitorHeaderContent,
-            isAcademicEditorial && { paddingHorizontal: 12 },
-            isGarden && {
-              flexGrow: 1,
-              flexDirection: 'row',
-              justifyContent: 'center',
-              alignItems: 'center',
-              paddingHorizontal: 4,
-              gap: 4,
-            },
-            isBohemian && {
-              paddingHorizontal: 16,
-              gap: 8,
-              alignItems: 'center',
-            },
-          ]}
-        >
-          <TouchableOpacity
-            style={[
-              styles.visitorTab,
-              isThemeHeader ? themeHeaderTab(!activeSubEvent) : [...birthdayTabStyles, !activeSubEvent && birthdayActiveTab],
-              isAcademicEditorial && {
-                backgroundColor: 'transparent',
-                borderWidth: 0,
-                borderRadius: 0,
-                paddingHorizontal: 14,
-                paddingVertical: 6,
-                alignSelf: 'center',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 0,
-              },
-              isBohemian && [styles.bohemianVisitorTab, !activeSubEvent && styles.bohemianVisitorTabActive]
-            ]}
-            onPress={() => handleSubEventChange(null)}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              {!isThemeHeader && !isAcademicEditorial && !isBohemian && (
-                <IconSymbol
-                  name="house.fill"
-                  size={14}
-                  color={!activeSubEvent ? (isCyberTech ? '#00f0ff' : (isScrapbook ? '#263331' : (isNeon ? '#66e8ff' : (isPastel ? '#c9768b' : (isPop ? '#ffffff' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#211A12' : (isRoseGarden ? '#562733' : (isRetroArcade ? '#ffffff' : (isNeonCarnival ? '#faf5ff' : MidnightColors.background)))))))))) : (isCyberTech ? 'rgba(0, 240, 255, 0.5)' : (isScrapbook ? selectedTemplate.accent : (isNeon ? '#b9b1d9' : (isPastel ? '#9a8583' : (isPop ? '#231f20' : (isGoldenYears ? '#b8892d' : (isVintageNoir ? '#B89145' : (isRoseGarden ? '#b76578' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d8b4fe' : MidnightColors.gold))))))))))}
-                />
-              )}
-              {isBohemian && !activeSubEvent && renderBohemianEqualizer(true)}
-              <Text style={[
-                styles.visitorTabText,
-                { color: isThemeHeader ? themeTextColor(!activeSubEvent) : birthdayTextColor },
-                isScrapbook && styles.scrapbookVisitorTabText,
-                isNeon && styles.neonVisitorTabText,
-                isPastel && styles.pastelVisitorTabText,
-                isPop && styles.popVisitorTabText,
-                isGoldenYears && styles.goldenVisitorTabText,
-                isVintageNoir && styles.vintageVisitorTabText,
-                isRoseGarden && styles.roseVisitorTabText,
-                isMinimalLove && styles.minimalVisitorTabText,
-                isCyberTech && styles.cyberVisitorTabText,
-                isNeonCarnival && styles.neonCarnivalVisitorTabText,
-                isRetroArcade && styles.retroArcadeVisitorTabText,
-                selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
-                isAcademicEditorial && {
-                  fontFamily: selectedTemplate.serifBold,
-                  fontSize: 13,
-                  textTransform: 'uppercase',
-                  letterSpacing: 1.5,
-                  color: !activeSubEvent ? selectedTemplate.accent : selectedTemplate.muted,
-                },
-                isBohemian && {
-                   fontFamily: selectedTemplate.serifFont,
-                   fontSize: 13,
-                   color: !activeSubEvent ? '#431407' : 'rgba(67, 20, 7, 0.65)',
-                   fontWeight: 'bold' as any,
-                   textTransform: 'uppercase',
-                   letterSpacing: 1.2,
-                 },
-                !activeSubEvent && !isThemeHeader && !isAcademicEditorial && birthdayActiveText
-              ]}>
-                {isBohemian ? 'HOME' : ((isCyberTech || isNeonCarnival) ? (!activeSubEvent ? '[ HOME ]' : '  HOME  ') : (isRetroArcade ? 'HOME' : (isAcademicEditorial ? '01 / HOME' : 'Home')))}
-              </Text>
-            </View>
-
-            {isRoyal && !activeSubEvent && (
-              <View style={{ alignItems: 'center', marginTop: 3 }}>
-                <View style={{ width: 28, height: 1.5, backgroundColor: selectedTemplate.accent }} />
-                <Text style={{ fontSize: 6, color: selectedTemplate.accent, marginTop: 1 }}>♦</Text>
-              </View>
-            )}
-            {isClassic && !activeSubEvent && (
-              <View style={{ alignItems: 'center', marginTop: 4 }}>
-                <View style={{ width: 32, height: 1.2, backgroundColor: '#cca43b' }} />
-              </View>
-            )}
-            {isEthereal && !activeSubEvent && (
-              <View style={{ alignItems: 'center', marginTop: 4 }}>
-                <Text style={{ fontSize: 10, color: selectedTemplate.accent, fontFamily: selectedTemplate.serifItalic }}>❦</Text>
-              </View>
-            )}
-            {isAcademicEditorial && !activeSubEvent && (
-              <View style={{ width: '100%', height: 2, backgroundColor: selectedTemplate.accent, marginTop: 4 }} />
-            )}
-          </TouchableOpacity>
-
-          {subEvents.map((sub, idx) => {
-            const isActive = activeSubEvent?.id === sub.id;
-            const indexStr = String(idx + 2).padStart(2, '0');
-            return (
-              <TouchableOpacity
-                key={sub.id}
-                style={[
-                  styles.visitorTab,
-                  isThemeHeader ? themeHeaderTab(isActive) : [...birthdayTabStyles, isActive && birthdayActiveTab],
-                  isAcademicEditorial && {
-                    backgroundColor: 'transparent',
-                    borderWidth: 0,
-                    borderRadius: 0,
-                    paddingHorizontal: 14,
-                    paddingVertical: 6,
-                    alignSelf: 'center',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 0,
-                  },
-                  isBohemian && [styles.bohemianVisitorTab, isActive && styles.bohemianVisitorTabActive]
-                ]}
-                onPress={() => handleSubEventChange(sub)}
-              >
-                {isBohemian ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    {isActive && renderBohemianEqualizer(true)}
-                    <Text style={[
-                      styles.visitorTabText,
-                      isBohemian && {
-                         fontFamily: selectedTemplate.serifFont,
-                         fontSize: 13,
-                         color: isActive ? '#431407' : 'rgba(67, 20, 7, 0.65)',
-                         fontWeight: 'bold' as any,
-                         textTransform: 'uppercase',
-                         letterSpacing: 1.2,
-                       }
-                    ]}>
-                      {sub.title.toUpperCase()}
-                    </Text>
-                  </View>
-                ) : (
-                  <Text style={[
-                    styles.visitorTabText,
-                    { color: isThemeHeader ? themeTextColor(isActive) : birthdayTextColor },
-                    isScrapbook && styles.scrapbookVisitorTabText,
-                    isNeon && styles.neonVisitorTabText,
-                    isPastel && styles.pastelVisitorTabText,
-                    isPop && styles.popVisitorTabText,
-                    isGoldenYears && styles.goldenVisitorTabText,
-                    isVintageNoir && styles.vintageVisitorTabText,
-                    isRoseGarden && styles.roseVisitorTabText,
-                    isMinimalLove && styles.minimalVisitorTabText,
-                    isCyberTech && styles.cyberVisitorTabText,
-                    isNeonCarnival && styles.neonCarnivalVisitorTabText,
-                    isRetroArcade && styles.retroArcadeVisitorTabText,
-                    selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
-                    isAcademicEditorial && {
-                      fontFamily: selectedTemplate.serifBold,
-                      fontSize: 13,
-                      textTransform: 'uppercase',
-                      letterSpacing: 1.5,
-                      color: isActive ? selectedTemplate.accent : selectedTemplate.muted,
-                    },
-                    isActive && !isThemeHeader && !isAcademicEditorial && birthdayActiveText
-                  ]}>
-                    {(isCyberTech || isNeonCarnival) ? (isActive ? `[ ${sub.title.toUpperCase()} ]` : `  ${sub.title.toUpperCase()}  `) : (isRetroArcade ? sub.title.toUpperCase() : (isAcademicEditorial ? `${indexStr} / ${sub.title.toUpperCase()}` : sub.title))}
-                  </Text>
-                )}
-
-                {isRoyal && isActive && (
-                  <View style={{ alignItems: 'center', marginTop: 3 }}>
-                    <View style={{ width: 28, height: 1.5, backgroundColor: selectedTemplate.accent }} />
-                    <Text style={{ fontSize: 6, color: selectedTemplate.accent, marginTop: 1 }}>♦</Text>
-                  </View>
-                )}
-                {isClassic && isActive && (
-                  <View style={{ alignItems: 'center', marginTop: 4 }}>
-                    <View style={{ width: 32, height: 1.2, backgroundColor: '#cca43b' }} />
-                  </View>
-                )}
-                {isEthereal && isActive && (
-                  <View style={{ alignItems: 'center', marginTop: 4 }}>
-                    <Text style={{ fontSize: 10, color: selectedTemplate.accent, fontFamily: selectedTemplate.serifItalic }}>❦</Text>
-                  </View>
-                )}
-                {isAcademicEditorial && isActive && (
-                  <View style={{ width: '100%', height: 2, backgroundColor: selectedTemplate.accent, marginTop: 4 }} />
-                )}
-              </TouchableOpacity>
-            );
-          })}
-
-          {/* Event Partners Tab */}
-          <TouchableOpacity
-            style={[
-              styles.visitorTab,
-              isThemeHeader ? themeHeaderTab(activeSubEvent?.id === 'event-partners') : [...birthdayTabStyles, activeSubEvent?.id === 'event-partners' && birthdayActiveTab],
-              isAcademicEditorial && {
-                backgroundColor: 'transparent',
-                borderWidth: 0,
-                borderRadius: 0,
-                paddingHorizontal: 14,
-                paddingVertical: 6,
-                alignSelf: 'center',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 0,
-              },
-              isBohemian && [styles.bohemianVisitorTab, activeSubEvent?.id === 'event-partners' && styles.bohemianVisitorTabActive]
-            ]}
-            onPress={() => setActiveSubEvent({ id: 'event-partners', title: 'Event Partners' } as any)}
-          >
-            {isBohemian ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                {activeSubEvent?.id === 'event-partners' && renderBohemianEqualizer(true)}
-                <Text style={[
-                  styles.visitorTabText,
-                  isBohemian && {
-                    fontFamily: selectedTemplate.serifFont,
-                    fontSize: 13,
-                    color: activeSubEvent?.id === 'event-partners' ? '#431407' : 'rgba(67, 20, 7, 0.65)',
-                    fontWeight: 'bold' as any,
-                    textTransform: 'uppercase',
-                    letterSpacing: 1.2,
-                  }
-                ]}>
-                  PARTNERS
-                </Text>
-              </View>
-            ) : (
-              <Text style={[
-                styles.visitorTabText,
-                { color: isThemeHeader ? themeTextColor(activeSubEvent?.id === 'event-partners') : birthdayTextColor },
-                isScrapbook && styles.scrapbookVisitorTabText,
-                isNeon && styles.neonVisitorTabText,
-                isPastel && styles.pastelVisitorTabText,
-                isPop && styles.popVisitorTabText,
-                isGoldenYears && styles.goldenVisitorTabText,
-                isVintageNoir && styles.vintageVisitorTabText,
-                isRoseGarden && styles.roseVisitorTabText,
-                isMinimalLove && styles.minimalVisitorTabText,
-                isCyberTech && styles.cyberVisitorTabText,
-                isNeonCarnival && styles.neonCarnivalVisitorTabText,
-                isRetroArcade && styles.retroArcadeVisitorTabText,
-                selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
-                isAcademicEditorial && {
-                  fontFamily: selectedTemplate.serifBold,
-                  fontSize: 13,
-                  textTransform: 'uppercase',
-                  letterSpacing: 1.5,
-                  color: activeSubEvent?.id === 'event-partners' ? selectedTemplate.accent : selectedTemplate.muted,
-                },
-                activeSubEvent?.id === 'event-partners' && !isThemeHeader && !isAcademicEditorial && birthdayActiveText
-              ]}>
-                {(isCyberTech || isNeonCarnival) ? (activeSubEvent?.id === 'event-partners' ? '[ PARTNERS ]' : '  PARTNERS  ') : (isRetroArcade ? 'PARTNERS 🤝' : (isAcademicEditorial ? `${String(subEvents.length + 2).padStart(2, '0')} / PARTNERS` : (
-                  <>Event Partners <Text style={{ fontSize: 10 }}>🤝</Text></>
-                )))}
-              </Text>
-            )}
-
-            {isRoyal && activeSubEvent?.id === 'event-partners' && (
-              <View style={{ alignItems: 'center', marginTop: 3 }}>
-                <View style={{ width: 28, height: 1.5, backgroundColor: selectedTemplate.accent }} />
-                <Text style={{ fontSize: 6, color: selectedTemplate.accent, marginTop: 1 }}>♦</Text>
-              </View>
-            )}
-            {isClassic && activeSubEvent?.id === 'event-partners' && (
-              <View style={{ alignItems: 'center', marginTop: 4 }}>
-                <View style={{ width: 32, height: 1.2, backgroundColor: '#cca43b' }} />
-              </View>
-            )}
-            {isEthereal && activeSubEvent?.id === 'event-partners' && (
-              <View style={{ alignItems: 'center', marginTop: 4 }}>
-                <Text style={{ fontSize: 10, color: selectedTemplate.accent, fontFamily: selectedTemplate.serifItalic }}>❦</Text>
-              </View>
-            )}
-            {isAcademicEditorial && activeSubEvent?.id === 'event-partners' && (
-              <View style={{ width: '100%', height: 2, backgroundColor: selectedTemplate.accent, marginTop: 4 }} />
-            )}
-          </TouchableOpacity>
-        </ScrollView>
-        {isBohemian && (
-          <View style={styles.bohemianTabsDividerContainer}>
-            <View style={[styles.bohemianGuitarString, { backgroundColor: selectedTemplate.text + '12', height: 1, marginBottom: 2 }]} />
-            <View style={[styles.bohemianGuitarString, { backgroundColor: selectedTemplate.text + '25', height: 1 }]} />
-          </View>
-        )}
-      </View>
-    );
-  };
-
-  // ── THEME ORNAMENTAL DIVIDER ──
-  const renderThemeDivider = () => {
-    if (selectedTemplate.id === 'royal') {
-      return (
-        <View style={styles.royalDividerContainer}>
-          <View style={[styles.royalDividerLine, { backgroundColor: selectedTemplate.accent }]} />
-          <Text style={[styles.royalDividerDiamond, { color: selectedTemplate.accent }]}>♦</Text>
-          <View style={[styles.royalDividerLine, { backgroundColor: selectedTemplate.accent }]} />
-        </View>
-      );
-    }
-    if (selectedTemplate.id === 'classic') {
-      return (
-        <View style={styles.classicDividerContainer}>
-          <View style={[styles.classicDividerLine, { backgroundColor: 'rgba(212, 175, 55, 0.25)' }]} />
-          <Text style={[styles.classicDividerDot, { color: '#cca43b' }]}>✦</Text>
-          <View style={[styles.classicDividerLine, { backgroundColor: 'rgba(212, 175, 55, 0.25)' }]} />
-        </View>
-      );
-    }
-    if (selectedTemplate.id === 'hero') {
-      return (
-        <View style={styles.heroDividerContainer}>
-          <View style={[styles.heroDividerLine, { backgroundColor: 'rgba(204, 164, 59, 0.25)' }]} />
-          <Text style={[styles.heroDividerStar, { color: '#cca43b' }]}>✦</Text>
-          <View style={[styles.heroDividerLine, { backgroundColor: 'rgba(204, 164, 59, 0.25)' }]} />
-        </View>
-      );
-    }
-    if (selectedTemplate.id === 'ethereal') {
-      return (
-        <View style={styles.etherealDividerContainer}>
-          <View style={[styles.etherealDividerLine, { backgroundColor: selectedTemplate.accent + '4d' }]} />
-          <Text style={[styles.etherealDividerAsterisk, { color: selectedTemplate.accent, fontFamily: selectedTemplate.serifFont }]}>❦</Text>
-          <View style={[styles.etherealDividerLine, { backgroundColor: selectedTemplate.accent + '4d' }]} />
-        </View>
-      );
-    }
-    if (selectedTemplate.id === 'academic_editorial') {
-      return (
-        <View style={{ paddingHorizontal: 20, paddingVertical: 16 }}>
-          <View style={{ height: 1, backgroundColor: selectedTemplate.text, opacity: 0.12 }} />
-        </View>
-      );
-    }
-    if (selectedTemplate.id === 'garden') {
-      return (
-        <View style={styles.gardenDividerContainer}>
-          <View style={[styles.gardenDividerLine, { backgroundColor: 'rgba(22, 163, 74, 0.15)' }]} />
-          <IconSymbol name="leaf.fill" size={14} color="#16a34a" />
-          <View style={[styles.gardenDividerLine, { backgroundColor: 'rgba(22, 163, 74, 0.15)' }]} />
-        </View>
-      );
-    }
-    if (selectedTemplate.id === 'bohemian') {
-      return (
-        <View style={styles.bohemianDividerContainer}>
-          <View style={[styles.bohemianGuitarString, { backgroundColor: selectedTemplate.text + '12', height: 1, marginBottom: 2 }]} />
-          <View style={[styles.bohemianGuitarString, { backgroundColor: selectedTemplate.text + '25', height: 1 }]} />
-        </View>
-      );
-    }
-    return null;
-  };
-
   const getVendorInitials = (name: string): string[] => {
     if (!name) return ['W', 'E', 'D'];
     const words = name.split(/\s+/).filter(w => {
@@ -1586,280 +1089,6 @@ export default function EventDetailScreen() {
     if (words.length === 0) return ['W', 'E', 'D'];
     const letters = words.slice(0, 4).map(w => w.charAt(0).toUpperCase());
     return letters;
-  };
-
-  const renderGatedAccessPanel = () => {
-    const isRoyal = event?.templateId === 'royal';
-    const isClassic = event?.templateId === 'classic';
-    const isHero = event?.templateId === 'hero';
-    const isEthereal = event?.templateId === 'ethereal';
-    const isScrapbook = event?.templateId === 'scrapbook';
-    const isNeon = event?.templateId === 'neon';
-    const isPastel = event?.templateId === 'pastel';
-    const isPop = event?.templateId === 'pop';
-    const isGoldenYears = event?.templateId === 'golden_years';
-    const isVintageNoir = event?.templateId === 'vintage';
-    const isRoseGarden = event?.templateId === 'rose';
-    const isMinimalLove = event?.templateId === 'minimal_love';
-    const isCyberTech = event?.templateId === 'cyber_tech';
-    const isRetroArcade = event?.templateId === 'retro_arcade';
-    const isAcademicEditorial = event?.templateId === 'academic_editorial';
-    const isNeonCarnival = event?.templateId === 'neon_carnival';
-    const isGarden = event?.templateId === 'garden';
-
-    return (
-      <View style={[
-        styles.gatedCard,
-        {
-          backgroundColor: selectedTemplate.panel,
-          borderColor: isClassic ? 'rgba(0,0,0,0.05)' : selectedTemplate.accentBg,
-          borderRadius: selectedTemplate.radius,
-        },
-        isScrapbook && styles.scrapbookInfoBox,
-        isNeon && styles.neonInfoBox,
-        isPastel && styles.pastelInfoBox,
-        isPop && styles.popInfoBox,
-        isGoldenYears && styles.goldenInfoBox,
-        isVintageNoir && styles.vintageInfoBox,
-        isRoseGarden && styles.roseInfoBox,
-        isMinimalLove && styles.minimalInfoBox,
-        isCyberTech && styles.cyberInfoBox,
-        isRetroArcade && styles.retroArcadeInfoBox,
-        isNeonCarnival && styles.neonCarnivalInfoBox,
-        isGarden && styles.gardenInfoBox,
-        isClassic && {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.04,
-          shadowRadius: 2,
-          elevation: 1,
-          borderWidth: 1,
-        },
-        isRoyal && {
-          borderWidth: 1,
-          borderColor: 'rgba(204, 164, 59, 0.35)',
-          borderRadius: 12,
-          padding: 10,
-        },
-        isHero && {
-          borderWidth: 0.8,
-          borderColor: '#cca43b',
-          borderRadius: 4,
-          padding: 12,
-        },
-        isEthereal && {
-          borderWidth: 1,
-          borderColor: selectedTemplate.accent + '4d',
-          borderRadius: 2,
-          padding: 8,
-        },
-        isAcademicEditorial && {
-          borderWidth: 1,
-          borderColor: selectedTemplate.text,
-          borderRadius: 0,
-          padding: 6,
-        }
-      ]}>
-        <View style={[
-          styles.gatedInner,
-          isScrapbook && styles.scrapbookInfoInner,
-          isNeon && styles.neonInfoInner,
-          isPastel && styles.pastelInfoInner,
-          isPop && styles.popInfoInner,
-          isGoldenYears && styles.goldenInfoInner,
-          isVintageNoir && styles.vintageInfoInner,
-          isRoseGarden && styles.roseInfoInner,
-          isMinimalLove && styles.minimalInfoInner,
-          isCyberTech && styles.cyberInfoInner,
-          isRetroArcade && styles.retroArcadeInfoInner,
-          isNeonCarnival && styles.neonCarnivalInfoInner,
-          isGarden && styles.gardenInfoInner,
-          isRoyal && {
-            borderWidth: 1,
-            borderColor: 'rgba(204, 164, 59, 0.15)',
-            borderRadius: 8,
-            paddingVertical: 24,
-            paddingHorizontal: 20,
-            alignItems: 'center',
-          },
-          isHero && {
-            borderWidth: 0.8,
-            borderColor: 'rgba(204, 164, 59, 0.25)',
-            borderRadius: 2,
-            paddingVertical: 24,
-            paddingHorizontal: 20,
-            alignItems: 'center',
-          },
-          isEthereal && {
-            borderWidth: 0.5,
-            borderColor: selectedTemplate.accent + '33',
-            borderRadius: 1,
-            paddingVertical: 24,
-            paddingHorizontal: 20,
-            alignItems: 'center',
-          },
-          isAcademicEditorial && {
-            borderWidth: 0.5,
-            borderColor: selectedTemplate.text + '26',
-            borderRadius: 0,
-            paddingVertical: 24,
-            paddingHorizontal: 20,
-            alignItems: 'center',
-            backgroundColor: selectedTemplate.background,
-          }
-        ]}>
-          {guestStatus === 'pending' ? (
-            <View style={styles.gatedContentCenter}>
-              <View style={[
-                styles.gatedIconWrapper,
-                { backgroundColor: selectedTemplate.accentBg }
-              ]}>
-                <IconSymbol name="clock.fill" size={32} color={selectedTemplate.accent} />
-              </View>
-              <Text style={[
-                styles.gatedTitle,
-                { color: selectedTemplate.text },
-                selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' }
-              ]}>
-                Request Pending
-              </Text>
-              <Text style={[
-                styles.gatedDesc,
-                { color: selectedTemplate.muted },
-                selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
-              ]}>
-                Your access request has been sent to the host. You will be able to view photos and write in the guestbook once approved.
-              </Text>
-              
-              <View style={[
-                styles.statusBadge,
-                { backgroundColor: selectedTemplate.accentBg, borderColor: selectedTemplate.accent }
-              ]}>
-                <Text style={[styles.statusBadgeText, { color: selectedTemplate.accent }]}>
-                  Pending Approval
-                </Text>
-              </View>
-            </View>
-          ) : guestStatus === 'rejected' ? (
-            <View style={styles.gatedContentCenter}>
-              <View style={[
-                styles.gatedIconWrapper,
-                { backgroundColor: 'rgba(239, 68, 68, 0.1)' }
-              ]}>
-                <IconSymbol name="shield.fill" size={32} color="#ef4444" />
-              </View>
-              <Text style={[
-                styles.gatedTitle,
-                { color: selectedTemplate.text },
-                selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' }
-              ]}>
-                Access Restricted
-              </Text>
-              <Text style={[
-                styles.gatedDesc,
-                { color: selectedTemplate.muted },
-                selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
-              ]}>
-                Your request to join this private gallery was declined by the host. Please check your details and try again.
-              </Text>
-              
-              <TouchableOpacity
-                style={[
-                  styles.gatedBtn,
-                  { backgroundColor: selectedTemplate.accent, borderRadius: selectedTemplate.radius || 12 }
-                ]}
-                onPress={handleRequestAccessAgain}
-              >
-                <Text style={[
-                  styles.gatedBtnText,
-                  { color: isThemeDark || isRoyal || isHero ? '#000000' : '#ffffff' }
-                ]}>
-                  Request Access Again
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={{ width: '100%', alignItems: 'center' }}>
-              <View style={[
-                styles.gatedIconWrapper,
-                { backgroundColor: selectedTemplate.accentBg }
-              ]}>
-                <IconSymbol name="lock.fill" size={32} color={selectedTemplate.accent} />
-              </View>
-              <Text style={[
-                styles.gatedTitle,
-                { color: selectedTemplate.text },
-                selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' }
-              ]}>
-                Private Event
-              </Text>
-              <Text style={[
-                styles.gatedDesc,
-                { color: selectedTemplate.muted },
-                selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
-              ]}>
-                This event is private. Please request access to view the event memories.
-              </Text>
-
-              {!user && (
-                <View style={{ width: '100%', marginTop: 8 }}>
-                  <TextInput
-                    style={[
-                      styles.gatedInput,
-                      {
-                        backgroundColor: isThemeDark ? 'rgba(255,255,255,0.03)' : '#ffffff',
-                        borderColor: isThemeDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0',
-                        color: selectedTemplate.text,
-                      }
-                    ]}
-                    value={guestName}
-                    onChangeText={setGuestName}
-                    placeholder="Your Name"
-                    placeholderTextColor={selectedTemplate.muted}
-                  />
-                  <TextInput
-                    style={[
-                      styles.gatedInput,
-                      {
-                        backgroundColor: isThemeDark ? 'rgba(255,255,255,0.03)' : '#ffffff',
-                        borderColor: isThemeDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0',
-                        color: selectedTemplate.text,
-                      }
-                    ]}
-                    value={guestPhone}
-                    onChangeText={setGuestPhone}
-                    placeholder="Phone Number"
-                    placeholderTextColor={selectedTemplate.muted}
-                    keyboardType="phone-pad"
-                  />
-                </View>
-              )}
-
-              <TouchableOpacity
-                style={[
-                  styles.gatedBtn,
-                  { backgroundColor: selectedTemplate.accent, borderRadius: selectedTemplate.radius || 12 },
-                  updating && { opacity: 0.7 }
-                ]}
-                onPress={handleGuestAccess}
-                disabled={updating}
-              >
-                {updating ? (
-                  <ActivityIndicator color={isThemeDark || isRoyal || isHero ? '#000000' : '#ffffff'} />
-                ) : (
-                  <Text style={[
-                    styles.gatedBtnText,
-                    { color: isThemeDark || isRoyal || isHero ? '#000000' : '#ffffff' }
-                  ]}>
-                    Request Access
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      </View>
-    );
   };
 
   return (
@@ -1969,33 +1198,45 @@ export default function EventDetailScreen() {
 
               {/* Header Top Bar: Back | Date | Share */}
               <View style={styles.bohemianTopBar}>
-                <TouchableOpacity onPress={handleEventBack} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
-                  <IconSymbol name="chevron.left" size={20} color={selectedTemplate.text} />
+                <TouchableOpacity
+                  onPress={handleEventBack}
+                  style={styles.bohemianHeaderButton}
+                  activeOpacity={0.85}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <IconSymbol name="chevron.left" size={20} color="#431407" />
                 </TouchableOpacity>
                 
-                <Text style={[
-                  styles.bohemianHeaderDate,
-                  {
-                    fontFamily: selectedTemplate.serifFont,
-                    color: selectedTemplate.text,
-                  }
-                ]}>
-                  {(() => {
-                    const dateStr = event?.date;
-                    if (!dateStr) return 'LIVE';
-                    try {
-                      const d = new Date(dateStr);
-                      if (isNaN(d.getTime())) return dateStr.slice(0, 10);
-                      const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-                      return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
-                    } catch (e) {
-                      return dateStr.slice(0, 10);
+                <View style={styles.bohemianDateBadge}>
+                  <Text style={[
+                    styles.bohemianHeaderDate,
+                    {
+                      fontFamily: selectedTemplate.serifFont,
+                      color: '#c2410c',
                     }
-                  })()}
-                </Text>
+                  ]}>
+                    {(() => {
+                      const dateStr = event?.date;
+                      if (!dateStr) return 'LIVE';
+                      try {
+                        const d = new Date(dateStr);
+                        if (isNaN(d.getTime())) return dateStr.slice(0, 10);
+                        const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+                        return `• ${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} •`;
+                      } catch (e) {
+                        return dateStr.slice(0, 10);
+                      }
+                    })()}
+                  </Text>
+                </View>
 
-                <TouchableOpacity onPress={() => setShowShareModal(true)} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
-                  <IconSymbol name="square.and.arrow.up" size={18} color={selectedTemplate.text} />
+                <TouchableOpacity
+                  onPress={() => setShowShareModal(true)}
+                  style={styles.bohemianHeaderButton}
+                  activeOpacity={0.85}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <IconSymbol name="square.and.arrow.up" size={18} color="#431407" />
                 </TouchableOpacity>
               </View>
 
@@ -3351,7 +2592,16 @@ export default function EventDetailScreen() {
         </View>
 
         {/* Visitor Navigation Tabs placed BELOW the Cover Photo screen */}
-        {!showAdminView && canViewContent && renderVisitorHeader()}
+        {!showAdminView && canViewContent && (
+          <ThemeHeader
+            event={event}
+            selectedTemplate={selectedTemplate}
+            activeSubEvent={activeSubEvent}
+            subEvents={subEvents}
+            handleSubEventChange={handleSubEventChange}
+            styles={styles}
+          />
+        )}
 
         {/* ── CONTENT ── */}
         <View style={[styles.content, showAdminView && { paddingBottom: 60 + insets.bottom }]}>
@@ -4165,7 +3415,21 @@ export default function EventDetailScreen() {
           ) : (
             <>
               {!canViewContent ? (
-                renderGatedAccessPanel()
+                <GatedAccessPanel
+                  event={event}
+                  selectedTemplate={selectedTemplate}
+                  isThemeDark={isThemeDark}
+                  guestStatus={guestStatus}
+                  guestName={guestName}
+                  setGuestName={setGuestName}
+                  guestPhone={guestPhone}
+                  setGuestPhone={setGuestPhone}
+                  user={user}
+                  updating={updating}
+                  handleGuestAccess={handleGuestAccess}
+                  handleRequestAccessAgain={handleRequestAccessAgain}
+                  styles={styles}
+                />
               ) : (
                 <>
                   {/* ── VISITOR IMMERSIVE CONTENT ── */}
@@ -4431,7 +3695,7 @@ export default function EventDetailScreen() {
                   </View>
                 )}
 
-                {renderThemeDivider()}
+                <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />
 
                 {activeSubEvent?.id === 'event-partners' ? (
                   <View style={{ paddingTop: (isPopTemplate || isRetroArcadeTemplate) ? 10 : isGardenTemplate ? 12 : 40, paddingBottom: 24, paddingHorizontal: 20 }}>
@@ -5058,7 +4322,7 @@ export default function EventDetailScreen() {
                 </>
                 )}
 
-                {renderThemeDivider()}
+                <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />
 
                 {/* Join Prompt for non-logged in users */}
                 {!user && (
@@ -5094,25 +4358,15 @@ export default function EventDetailScreen() {
       </ScrollView>
 
       {/* ── CREATE SUB-EVENT MODAL ── */}
-      <Modal visible={showSubEventModal} transparent animationType="fade">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
-          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowSubEventModal(false)} />
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>New Gallery</Text>
-            <TextInput
-              style={styles.input}
-              value={newSubTitle}
-              onChangeText={setNewSubTitle}
-              placeholder="e.g. Wedding Reception"
-              placeholderTextColor={MidnightColors.slate400}
-              autoFocus
-            />
-            <TouchableOpacity style={styles.submitBtn} onPress={handleCreateSubEvent} disabled={updating}>
-              <Text style={styles.submitBtnText}>{updating ? 'Creating...' : 'Create Gallery'}</Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <SubEventModal
+        visible={showSubEventModal}
+        onClose={() => setShowSubEventModal(false)}
+        newSubTitle={newSubTitle}
+        setNewSubTitle={setNewSubTitle}
+        onSave={handleCreateSubEvent}
+        updating={updating}
+        styles={styles}
+      />
 
       {/* ── CATEGORY MODAL ── */}
       <Modal visible={showCategoryModal} transparent animationType="slide">
@@ -5189,163 +4443,41 @@ export default function EventDetailScreen() {
         selectedTemplate={selectedTemplate}
       />
 
-      <Modal visible={showTemplateModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={() => setShowTemplateModal(false)}
-          />
-          <View style={[styles.modalContent, { maxHeight: '85%' }]}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, width: '100%' }}>
-              <View style={{ flex: 1, marginRight: 16 }}>
-                <Text style={{ fontSize: 22, color: '#fff', fontFamily: Fonts.outfit.bold }}>Choose Style</Text>
-                <Text style={{ color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.inter.regular, marginTop: 4 }}>
-                  Select a design template for this {event?.category || 'Wedding'} event.
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={[styles.closeModalCircle, { marginTop: 2 }]}
-                onPress={() => setShowTemplateModal(false)}
-              >
-                <IconSymbol name="xmark" size={20} color={MidnightColors.gold} />
-              </TouchableOpacity>
-            </View>
+      <TemplateSelectionModal
+        visible={showTemplateModal}
+        onClose={() => setShowTemplateModal(false)}
+        event={event}
+        handleUpdateTemplate={handleUpdateTemplate}
+        styles={styles}
+      />
 
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 40 }}
-            >
-              {MOBILE_TEMPLATE_THEMES.filter(t => t.category === (event?.category === 'Sports' ? 'Other' : (event?.category || 'Wedding'))).map((template) => {
-                const isActive = (event?.templateId || 'hero') === template.id;
-                return (
-                  <TouchableOpacity
-                    key={template.id}
-                    style={[
-                      styles.templateRowCard,
-                      isActive && styles.activeTemplateRowCard,
-                      { borderColor: isActive ? template.accent : 'rgba(255,255,255,0.06)' }
-                    ]}
-                    onPress={() => handleUpdateTemplate(template.id)}
-                  >
-                    <View style={styles.templateRowLeft}>
-                      <View style={[styles.palettePreview, { backgroundColor: isDark ? template.background.dark : template.background.light }]}>
-                        <View style={[styles.paletteAccentDot, { backgroundColor: template.accent }]} />
-                      </View>
-                      
-                      <View style={styles.templateRowText}>
-                        <Text style={[styles.templateRowName, isActive && { color: template.accent }]}>
-                          {template.label}
-                        </Text>
-                        <Text style={styles.templateRowDesc} numberOfLines={1}>
-                          {template.desc}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {isActive && (
-                      <View style={[styles.templateCheckCircle, { backgroundColor: template.accent }]}>
-                        <IconSymbol name="checkmark" size={10} color="#000" />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-              {MOBILE_TEMPLATE_THEMES.length === 0 && (
-                <Text style={{ color: '#fff', textAlign: 'center', marginTop: 20 }}>No templates available.</Text>
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
 
       {/* ── RENAME EVENT MODAL ── */}
-      <Modal visible={showRenameModal} transparent animationType="fade">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
-          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowRenameModal(false)} />
-          <View style={styles.modalContent}>
-            {/* Header */}
-            <Text style={styles.modalTitle}>Edit Event Title</Text>
+      <RenameEventModal
+        visible={showRenameModal}
+        onClose={() => setShowRenameModal(false)}
+        editTitle={editTitle}
+        setEditTitle={setEditTitle}
+        editTitleAlign={editTitleAlign}
+        onSave={handleRenameEvent}
+        updating={updating}
+        styles={styles}
+      />
 
-            {/* Multiline text input */}
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  minHeight: 90,
-                  textAlignVertical: 'top',
-                  paddingTop: 12,
-                }
-              ]}
-              value={editTitle}
-              onChangeText={setEditTitle}
-              placeholder="Event Name"
-              placeholderTextColor={MidnightColors.slate400}
-              autoFocus
-              multiline
-              blurOnSubmit={false}
-            />
 
-            {/* Helper hint */}
-            <Text style={{ fontSize: 11, color: MidnightColors.slate400, marginTop: 6, marginBottom: 12 }}>
-              Tip: Press Enter / Return to add a new line.
-            </Text>
-
-            <TouchableOpacity style={styles.submitBtn} onPress={handleRenameEvent} disabled={updating}>
-              <Text style={styles.submitBtnText}>{updating ? 'Updating...' : 'Save Title'}</Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
 
       {/* ── EDIT GALLERY DESCRIPTION MODAL ── */}
-      <Modal visible={galleryDescModalVisible} transparent animationType="slide">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <TouchableOpacity
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={() => setGalleryDescModalVisible(false)}
-          />
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Edit Gallery Message</Text>
-                <Text style={styles.headerGreeting}>
-                  For: {activeSubEvent ? activeSubEvent.title : 'Home Gallery'}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => setGalleryDescModalVisible(false)}>
-                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
-              </TouchableOpacity>
-            </View>
+      <GalleryDescriptionModal
+        visible={galleryDescModalVisible}
+        onClose={() => setGalleryDescModalVisible(false)}
+        activeSubEvent={activeSubEvent}
+        galleryDescText={galleryDescText}
+        setGalleryDescText={setGalleryDescText}
+        onSave={handleSaveGalleryDesc}
+        selectedTemplate={selectedTemplate}
+        styles={styles}
+      />
 
-            <View style={styles.form}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Gallery Welcome Message</Text>
-                <TextInput
-                  style={[styles.input, { minHeight: 120, textAlignVertical: 'top', padding: 12, backgroundColor: MidnightColors.deepSlate, borderRadius: 8, color: '#fff' }]}
-                  value={galleryDescText}
-                  onChangeText={setGalleryDescText}
-                  placeholder="Write a beautiful welcome message for this gallery..."
-                  placeholderTextColor={MidnightColors.slate700}
-                  multiline
-                  numberOfLines={5}
-                />
-              </View>
-
-              <TouchableOpacity
-                style={[styles.submitBtn, { backgroundColor: selectedTemplate.accent, marginTop: 12 }]}
-                onPress={handleSaveGalleryDesc}
-              >
-                <Text style={[styles.submitBtnText, { color: '#000', fontWeight: 'bold' }]}>Save Message</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
 
       {/* ── DATE PICKER ── */}
       {showDatePicker && (() => {
