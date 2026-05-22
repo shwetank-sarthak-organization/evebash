@@ -5,7 +5,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event as FirestoreEvent, updateEvent, createEvent, getGuestLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder } from '@/lib/firestore';
+import { getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event as FirestoreEvent, updateEvent, createEvent, getGuestLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { styles, FunkyFonts } from '../../components/eventStyles';
@@ -391,6 +391,8 @@ export default function EventDetailScreen() {
 
   const loadEvent = async () => {
     setLoading(true);
+    const perfStart = Date.now();
+    console.log('[PERF] Starting loadEvent fetching pipeline...');
     try {
       const eventData = await getEventById(id);
       if (eventData) {
@@ -408,24 +410,28 @@ export default function EventDetailScreen() {
 
         setEvent(eventData);
         setIsOwner(user?.uid === eventData.createdBy);
-        const subs = await getSubEvents(id, eventData.legacyId);
+
+        // Fetch sub-events, vendors, guest logs, and photos concurrently
+        const [subs, vendorsData, logs, eventPhotos] = await Promise.all([
+          getSubEvents(id, eventData.legacyId),
+          eventData.vendors && eventData.vendors.length > 0
+            ? Promise.all(eventData.vendors.map((vid: string) => getBusinessById(vid)))
+            : Promise.resolve([]),
+          user && user.uid === eventData.createdBy
+            ? getGuestLogs([user.uid])
+            : Promise.resolve([]),
+          getEventPhotos(eventData.id, eventData.legacyId)
+        ]);
+
         setSubEvents(subs);
-
-        // Fetch linked vendors
-        if (eventData.vendors && eventData.vendors.length > 0) {
-          const vendorsData = await Promise.all(
-            eventData.vendors.map((vid: string) => getBusinessById(vid))
-          );
-          setLinkedVendors(vendorsData.filter(v => v !== null) as Business[]);
-        }
-
-        // Auto-load photos for main event initially
-        loadPhotos(eventData.id, eventData.legacyId);
+        setLinkedVendors(vendorsData.filter(v => v !== null) as Business[]);
+        setPhotos(eventPhotos);
 
         if (user && user.uid === eventData.createdBy) {
-          const logs = await getGuestLogs([user.uid]);
           setGuestLogs(logs.filter(l => l.eventId === id || l.parentEventId === id));
         }
+
+        console.log(`[PERF] loadEvent pipeline completed in ${Date.now() - perfStart}ms`);
       }
     } catch (err) {
       console.error('[EventDetail] Load error:', err);
@@ -436,10 +442,11 @@ export default function EventDetailScreen() {
 
   const loadPhotos = async (eventId: string, legacyId?: string) => {
     setLoadingPhotos(true);
+    const perfPhotosStart = Date.now();
     try {
-      const { getEventPhotos } = await import('@/lib/firestore');
       const eventPhotos = await getEventPhotos(eventId, legacyId);
       setPhotos(eventPhotos);
+      console.log(`[PERF] loadPhotos completed in ${Date.now() - perfPhotosStart}ms`);
     } catch (err) {
       console.error('[EventDetail] Photos load error:', err);
     } finally {
