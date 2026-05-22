@@ -111,6 +111,12 @@ export const Fonts = {
     semiBold: 'Inter_600SemiBold',
     bold: 'Inter_700Bold',
   },
+  spaceGrotesk: {
+    regular: 'SpaceGrotesk_400Regular',
+    medium: 'SpaceGrotesk_500Medium',
+    semiBold: 'SpaceGrotesk_600SemiBold',
+    bold: 'SpaceGrotesk_700Bold',
+  },
   monofett: {
     regular: 'Monofett_400Regular',
   },

@@ -64,6 +64,12 @@ import {
   Cinzel_400Regular,
   Cinzel_700Bold
 } from '@expo-google-fonts/cinzel';
+import {
+  SpaceGrotesk_400Regular,
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+} from '@expo-google-fonts/space-grotesk';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -199,6 +205,10 @@ export default function RootLayout() {
     CinzelDecorative_700Bold,
     Cinzel_400Regular,
     Cinzel_700Bold,
+    SpaceGrotesk_400Regular,
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
     'Monofett_400Regular': require('../assets/fonts/Monofett-Regular.ttf'),
     'BubblegumSans_400Regular': require('../assets/fonts/BubblegumSans-Regular.ttf'),
     'PermanentMarker_400Regular': require('../assets/fonts/PermanentMarker-Regular.ttf'),
