@@ -40,13 +40,17 @@ export function ThemeHeader({
   const isNeonCarnival = templateId === 'neon_carnival';
   const isGarden = templateId === 'garden';
   const isBohemian = templateId === 'bohemian';
+  const isMuseum = templateId === 'museum';
+  const isBrutalist = templateId === 'brutalist';
+  const isTechSleek = templateId === 'tech_sleek';
+  const isExecutive = templateId === 'executive';
   const isThemeHeader = isRoyal || isClassic || isHero || isEthereal || isGarden;
 
-  const birthdayTextColor = isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#F2E7D2' : (isRoseGarden ? '#562733' : (isMinimalLove ? '#4a2f1d' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d946ef' : '#cca43b'))))))))));
+  const birthdayTextColor = isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#F2E7D2' : (isRoseGarden ? '#562733' : (isMinimalLove ? '#4a2f1d' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d946ef' : (isMuseum ? '#9b7a44' : (isBrutalist ? '#111113' : (isTechSleek ? '#7dd3fc' : (isExecutive ? '#e8d8b8' : '#cca43b'))))))))))))));
 
-  const birthdayActiveText = isScrapbook ? styles.scrapbookVisitorTabTextActive : (isNeon ? styles.neonVisitorTabTextActive : (isPastel ? styles.pastelVisitorTabTextActive : (isPop ? styles.popVisitorTabTextActive : (isGoldenYears ? styles.goldenVisitorTabTextActive : (isVintageNoir ? styles.vintageVisitorTabTextActive : (isRoseGarden ? styles.roseVisitorTabTextActive : (isMinimalLove ? styles.minimalVisitorTabTextActive : (isCyberTech ? styles.cyberVisitorTabTextActive : (isRetroArcade ? styles.retroArcadeVisitorTabTextActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabTextActive : styles.visitorTabTextActive))))))))));
+  const birthdayActiveText = isScrapbook ? styles.scrapbookVisitorTabTextActive : (isNeon ? styles.neonVisitorTabTextActive : (isPastel ? styles.pastelVisitorTabTextActive : (isPop ? styles.popVisitorTabTextActive : (isGoldenYears ? styles.goldenVisitorTabTextActive : (isVintageNoir ? styles.vintageVisitorTabTextActive : (isRoseGarden ? styles.roseVisitorTabTextActive : (isMinimalLove ? styles.minimalVisitorTabTextActive : (isCyberTech ? styles.cyberVisitorTabTextActive : (isRetroArcade ? styles.retroArcadeVisitorTabTextActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabTextActive : (isMuseum ? styles.museumVisitorTabTextActive : (isBrutalist ? styles.brutalistVisitorTabTextActive : (isTechSleek ? styles.techSleekVisitorTabTextActive : (isExecutive ? styles.executiveVisitorTabTextActive : styles.visitorTabTextActive))))))))))))));
 
-  const birthdayActiveTab = isScrapbook ? styles.scrapbookVisitorTabActive : (isNeon ? styles.neonVisitorTabActive : (isPastel ? styles.pastelVisitorTabActive : (isPop ? styles.popVisitorTabActive : (isGoldenYears ? styles.goldenVisitorTabActive : (isVintageNoir ? styles.vintageVisitorTabActive : (isRoseGarden ? styles.roseVisitorTabActive : (isMinimalLove ? styles.minimalVisitorTabActive : (isCyberTech ? styles.cyberVisitorTabActive : (isRetroArcade ? styles.retroArcadeVisitorTabActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabActive : styles.visitorTabActive))))))))));
+  const birthdayActiveTab = isScrapbook ? styles.scrapbookVisitorTabActive : (isNeon ? styles.neonVisitorTabActive : (isPastel ? styles.pastelVisitorTabActive : (isPop ? styles.popVisitorTabActive : (isGoldenYears ? styles.goldenVisitorTabActive : (isVintageNoir ? styles.vintageVisitorTabActive : (isRoseGarden ? styles.roseVisitorTabActive : (isMinimalLove ? styles.minimalVisitorTabActive : (isCyberTech ? styles.cyberVisitorTabActive : (isRetroArcade ? styles.retroArcadeVisitorTabActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabActive : (isMuseum ? styles.museumVisitorTabActive : (isBrutalist ? styles.brutalistVisitorTabActive : (isTechSleek ? styles.techSleekVisitorTabActive : (isExecutive ? styles.executiveVisitorTabActive : styles.visitorTabActive))))))))))))));
 
   const birthdayTabStyles = [
     isScrapbook && styles.scrapbookVisitorTab,
@@ -60,6 +64,10 @@ export function ThemeHeader({
     isCyberTech && styles.cyberVisitorTab,
     isRetroArcade && styles.retroArcadeVisitorTab,
     isNeonCarnival && styles.neonCarnivalVisitorTab,
+    isMuseum && styles.museumVisitorTab,
+    isBrutalist && styles.brutalistVisitorTab,
+    isTechSleek && styles.techSleekVisitorTab,
+    isExecutive && styles.executiveVisitorTab,
   ];
 
   const themeHeaderTab = (active: boolean) => ({
@@ -124,6 +132,10 @@ export function ThemeHeader({
         isCyberTech && styles.cyberVisitorTabText,
         isNeonCarnival && styles.neonCarnivalVisitorTabText,
         isRetroArcade && styles.retroArcadeVisitorTabText,
+        isMuseum && styles.museumVisitorTabText,
+        isBrutalist && styles.brutalistVisitorTabText,
+        isTechSleek && styles.techSleekVisitorTabText,
+        isExecutive && styles.executiveVisitorTabText,
         selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
         isAcademicEditorial && {
           fontFamily: selectedTemplate.serifBold,
@@ -197,8 +209,8 @@ export function ThemeHeader({
                 name="house.fill"
                 size={14}
                 color={isActive
-                  ? (isCyberTech ? '#00f0ff' : (isScrapbook ? '#263331' : '#cca43b'))
-                  : (isCyberTech ? 'rgba(0, 240, 255, 0.5)' : (isScrapbook ? selectedTemplate.accent : '#cca43b'))
+                  ? (isCyberTech ? '#00f0ff' : (isScrapbook ? '#263331' : ((isMuseum || isBrutalist) ? '#f8f6ef' : (isTechSleek ? '#03101f' : (isExecutive ? '#111827' : '#cca43b')))))
+                  : (isCyberTech ? 'rgba(0, 240, 255, 0.5)' : (isScrapbook ? selectedTemplate.accent : (isMuseum ? '#9b7a44' : (isBrutalist ? '#111113' : (isTechSleek ? '#7dd3fc' : (isExecutive ? '#d4b474' : '#cca43b'))))))
                 }
               />
             )}
@@ -238,6 +250,10 @@ export function ThemeHeader({
       isCyberTech && styles.cyberVisitorHeaderContainer,
       isRetroArcade && styles.retroArcadeVisitorHeaderContainer,
       isNeonCarnival && styles.neonCarnivalVisitorHeaderContainer,
+      isMuseum && styles.museumVisitorHeaderContainer,
+      isBrutalist && styles.brutalistVisitorHeaderContainer,
+      isTechSleek && styles.techSleekVisitorHeaderContainer,
+      isExecutive && styles.executiveVisitorHeaderContainer,
     ]}>
       <ScrollView
         horizontal
@@ -255,6 +271,10 @@ export function ThemeHeader({
           isCyberTech && styles.cyberVisitorHeaderContent,
           isRetroArcade && styles.retroArcadeVisitorHeaderContent,
           isNeonCarnival && styles.neonCarnivalVisitorHeaderContent,
+          isMuseum && styles.museumVisitorHeaderContent,
+          isBrutalist && styles.brutalistVisitorHeaderContent,
+          isTechSleek && styles.techSleekVisitorHeaderContent,
+          isExecutive && styles.executiveVisitorHeaderContent,
           isAcademicEditorial && { paddingHorizontal: 12 },
           isGarden && { flexGrow: 1, flexDirection: 'row' as const, justifyContent: 'center' as const, alignItems: 'center' as const, paddingHorizontal: 4, gap: 4 },
           isBohemian && { paddingHorizontal: 16, gap: 8, alignItems: 'center' as const },
@@ -308,6 +328,10 @@ export function ThemeHeader({
               isCyberTech && styles.cyberVisitorTabText,
               isNeonCarnival && styles.neonCarnivalVisitorTabText,
               isRetroArcade && styles.retroArcadeVisitorTabText,
+              isMuseum && styles.museumVisitorTabText,
+              isBrutalist && styles.brutalistVisitorTabText,
+              isTechSleek && styles.techSleekVisitorTabText,
+              isExecutive && styles.executiveVisitorTabText,
               selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
               isAcademicEditorial && {
                 fontFamily: selectedTemplate.serifBold,
@@ -321,7 +345,7 @@ export function ThemeHeader({
               {(isCyberTech || isNeonCarnival) ? (isPartnersActive ? '[ PARTNERS ]' : '  PARTNERS  ') : (
                 isRetroArcade ? 'PARTNERS 🤝' : (
                   isAcademicEditorial ? `${String(subEvents.length + 2).padStart(2, '0')} / PARTNERS` : (
-                    <>Event Partners <Text style={{ fontSize: 10 }}>🤝</Text></>
+                    (isMuseum || isBrutalist || isTechSleek || isExecutive) ? 'Partners' : <>Event Partners <Text style={{ fontSize: 10 }}>🤝</Text></>
                   )
                 )
               )}

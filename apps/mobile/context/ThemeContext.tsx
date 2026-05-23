@@ -19,10 +19,12 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemeType>('dark');
 
   useEffect(() => {
+    let isMounted = true;
+
     async function loadTheme() {
       try {
         const storedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-        if (storedTheme === 'light' || storedTheme === 'dark') {
+        if (isMounted && (storedTheme === 'light' || storedTheme === 'dark')) {
           setThemeState(storedTheme);
         }
       } catch (error) {
@@ -30,6 +32,10 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
       }
     }
     loadTheme();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const setTheme = async (newTheme: ThemeType) => {

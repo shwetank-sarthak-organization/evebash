@@ -78,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
     let profileUnsubscribe: (() => void) | undefined;
 
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -106,6 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch (docErr) {
             console.log('[Auth] Profile fetch skipped while offline:', docErr);
             // Non-blocking: just show them as a basic user for now
+            if (!isMounted) return;
             setUser({
               uid: firebaseUser.uid,
               name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
@@ -122,6 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Now, set up real-time listener for the profile
           console.log("[Auth] Setting up profile listener for:", firebaseUser.uid);
           profileUnsubscribe = onSnapshot(profileRef, (profileSnap) => {
+            if (!isMounted) return;
             if (profileSnap.exists()) {
               const data = profileSnap.data();
               console.log("[Auth] Profile updated:", data.role);
@@ -142,20 +145,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setLoading(false);
           }, (error) => {
             console.error("[Auth] Profile listener error:", error);
+            if (!isMounted) return;
             setLoading(false);
           });
         } else {
           if (profileUnsubscribe) profileUnsubscribe();
+          if (!isMounted) return;
           setUser(null);
           setLoading(false);
         }
       } catch (err) {
         console.error('[Auth] Global auth handler error:', err);
+        if (!isMounted) return;
         setLoading(false);
       }
     });
 
     return () => {
+      isMounted = false;
       authUnsubscribe();
       if (profileUnsubscribe) profileUnsubscribe();
     };

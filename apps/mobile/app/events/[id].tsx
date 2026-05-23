@@ -10,7 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { styles, FunkyFonts } from '../../components/eventStyles';
 import PhotoViewer from '../../components/PhotoViewer';
-import { MOBILE_TEMPLATE_THEMES } from '../../constants/templates';
+import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory } from '../../constants/templates';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadEventImage } from '@/lib/storage';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -131,6 +131,10 @@ export default function EventDetailScreen() {
     const isAcademicEditorial = base.id === 'academic_editorial';
     const isGarden = base.id === 'garden';
     const isBohemian = base.id === 'bohemian';
+    const isMuseum = base.id === 'museum';
+    const isBrutalist = base.id === 'brutalist';
+    const isTechSleek = base.id === 'tech_sleek';
+    const isExecutive = base.id === 'executive';
     return {
       ...base,
       background: isThemeDark ? base.background.dark : base.background.light,
@@ -140,12 +144,12 @@ export default function EventDetailScreen() {
       accentBg: isThemeDark ? base.accentBg.dark : base.accentBg.light,
       tileBg: isThemeDark ? base.tileBg.dark : base.tileBg.light,
       overlay: isThemeDark ? base.overlay.dark : base.overlay.light,
-      serifFont: isBohemian ? Fonts.cinzel.bold : (isGarden ? Fonts.cormorant.regular : ((isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.regular : Fonts.serif)),
-      serifItalic: isBohemian ? Fonts.cinzel.bold : (isGarden ? Fonts.cormorant.italic : ((isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.italic : Fonts.serif)),
-      serifBold: isBohemian ? Fonts.cinzel.bold : (isGarden ? Fonts.cormorant.bold : ((isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.bold : Fonts.serif)),
-      bodyFont: isBohemian ? Fonts.cinzel.regular : (isGarden ? Fonts.lora.regular : (base.useSerif ? Fonts.serif : Fonts.sans)),
-      bodyMedium: isBohemian ? Fonts.cinzel.bold : (isGarden ? Fonts.lora.semiBold : (base.useSerif ? Fonts.serif : Fonts.sans)),
-      bodyBold: isBohemian ? Fonts.cinzel.bold : (isGarden ? Fonts.lora.bold : (base.useSerif ? Fonts.serif : Fonts.sans)),
+      serifFont: isExecutive ? Fonts.cormorant.regular : (isBohemian ? Fonts.cinzel.bold : (isGarden ? Fonts.cormorant.regular : ((isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.regular : Fonts.serif))),
+      serifItalic: isExecutive ? Fonts.cormorant.italic : (isBohemian ? Fonts.cinzel.bold : (isGarden ? Fonts.cormorant.italic : ((isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.italic : Fonts.serif))),
+      serifBold: isExecutive ? Fonts.cormorant.bold : (isBohemian ? Fonts.cinzel.bold : (isGarden ? Fonts.cormorant.bold : ((isClassic || isHero || isEthereal || isAcademicEditorial) ? Fonts.playfair.bold : Fonts.serif))),
+      bodyFont: (isMuseum || isBrutalist || isTechSleek || isExecutive) ? Fonts.inter.regular : (isBohemian ? Fonts.cinzel.regular : (isGarden ? Fonts.lora.regular : (base.useSerif ? Fonts.serif : Fonts.sans))),
+      bodyMedium: (isMuseum || isBrutalist || isTechSleek || isExecutive) ? Fonts.inter.semiBold : (isBohemian ? Fonts.cinzel.bold : (isGarden ? Fonts.lora.semiBold : (base.useSerif ? Fonts.serif : Fonts.sans))),
+      bodyBold: (isMuseum || isBrutalist || isTechSleek) ? Fonts.spaceGrotesk.bold : (isExecutive ? Fonts.inter.semiBold : (isBohemian ? Fonts.cinzel.bold : (isGarden ? Fonts.lora.bold : (base.useSerif ? Fonts.serif : Fonts.sans)))),
     };
   }, [event?.templateId, isThemeDark, showAdminView]);
 
@@ -161,6 +165,14 @@ export default function EventDetailScreen() {
             ? windowHeight * 0.42
             : event?.templateId === 'bohemian'
               ? 555 + insets.top
+              : event?.templateId === 'museum'
+                ? 560 + insets.top
+                : event?.templateId === 'brutalist'
+                  ? 545 + insets.top
+                  : event?.templateId === 'tech_sleek'
+                    ? 550 + insets.top
+                    : event?.templateId === 'executive'
+                      ? 540 + insets.top
               : event?.templateId === 'golden_years'
                 ? 540 + insets.top
                 : event?.templateId === 'rose'
@@ -190,6 +202,10 @@ export default function EventDetailScreen() {
   const isNeonCarnivalTemplate = !showAdminView && event?.templateId === 'neon_carnival';
   const isGardenTemplate = !showAdminView && event?.templateId === 'garden';
   const isBohemianTemplate = !showAdminView && event?.templateId === 'bohemian';
+  const isMuseumTemplate = !showAdminView && event?.templateId === 'museum';
+  const isBrutalistTemplate = !showAdminView && event?.templateId === 'brutalist';
+  const isTechSleekTemplate = !showAdminView && event?.templateId === 'tech_sleek';
+  const isExecutiveTemplate = !showAdminView && event?.templateId === 'executive';
 
   const [tempCoverOffsetX, setTempCoverOffsetX] = useState(0);
   const offsetXRef = React.useRef(0);
@@ -414,8 +430,9 @@ export default function EventDetailScreen() {
         }
 
         if (!eventData.templateId) {
-          await updateEvent(eventData.id, { templateId: 'hero' });
-          eventData.templateId = 'hero';
+          const defaultTemplate = getDefaultTemplateForEventCategory(eventData.category);
+          await updateEvent(eventData.id, { templateId: defaultTemplate.id });
+          eventData.templateId = defaultTemplate.id;
         }
 
         setEvent(eventData);
@@ -912,7 +929,7 @@ export default function EventDetailScreen() {
     if (!event) return;
     setUpdating(true);
     try {
-      const defaultTemplate = MOBILE_TEMPLATE_THEMES.find((theme) => theme.category === category);
+      const defaultTemplate = getDefaultTemplateForEventCategory(category);
       const updates = {
         category,
         ...(defaultTemplate ? { templateId: defaultTemplate.id } : {}),
@@ -1095,7 +1112,7 @@ export default function EventDetailScreen() {
     <View style={[styles.safeArea, { backgroundColor: selectedTemplate.background }]}>
       <Stack.Screen
         options={{
-          headerShown: showAdminView ? false : !(event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'pop' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden' || event?.templateId === 'bohemian'),
+          headerShown: showAdminView ? false : !(event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'pop' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden' || event?.templateId === 'bohemian' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive'),
           headerTransparent: true,
           headerTitle: '',
           headerLeft: () => {
@@ -1104,7 +1121,9 @@ export default function EventDetailScreen() {
             const isPop = !showAdminView && event?.templateId === 'pop';
             const isVintage = event?.templateId === 'vintage';
             const isMinimal = event?.templateId === 'minimal_love';
-            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden' || event?.templateId === 'bohemian')) ? null : (
+            const isMuseum = event?.templateId === 'museum';
+            const isBrutalist = event?.templateId === 'brutalist';
+            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden' || event?.templateId === 'bohemian' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : (
               <TouchableOpacity
                 onPress={handleEventBack}
                 style={[
@@ -1121,10 +1140,12 @@ export default function EventDetailScreen() {
                   isPop && styles.popFloatingBack,
                   isVintage && styles.vintageFloatingButton,
                   isMinimal && styles.minimalFloatingButton,
+                  isMuseum && styles.museumFloatingButton,
+                  isBrutalist && styles.brutalistFloatingButton,
                 ]}
                 hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
               >
-                <IconSymbol name="chevron.left" size={isPop ? 22 : 28} color={(isPop || isMinimal) ? '#fffaf2' : selectedTemplate.accent} />
+                <IconSymbol name="chevron.left" size={isPop ? 22 : 28} color={(isPop || isMinimal || isMuseum || isBrutalist) ? '#fffaf2' : selectedTemplate.accent} />
               </TouchableOpacity>
             );
           },
@@ -1133,7 +1154,9 @@ export default function EventDetailScreen() {
             const isPop = event?.templateId === 'pop';
             const isVintage = event?.templateId === 'vintage';
             const isMinimal = event?.templateId === 'minimal_love';
-            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden' || event?.templateId === 'bohemian')) ? null : (
+            const isMuseum = event?.templateId === 'museum';
+            const isBrutalist = event?.templateId === 'brutalist';
+            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden' || event?.templateId === 'bohemian' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : (
               <TouchableOpacity
                 style={[
                   styles.floatingBack,
@@ -1150,11 +1173,13 @@ export default function EventDetailScreen() {
                   isPop && styles.popFloatingShare,
                   isVintage && styles.vintageFloatingButton,
                   isMinimal && styles.minimalFloatingButton,
+                  isMuseum && styles.museumFloatingButton,
+                  isBrutalist && styles.brutalistFloatingButton,
                 ]}
                 onPress={() => setShowShareModal(true)}
                 hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
               >
-                <IconSymbol name="square.and.arrow.up" size={isPop ? 18 : 20} color={(isPop || isMinimal) ? '#fffaf2' : selectedTemplate.accent} />
+                <IconSymbol name="square.and.arrow.up" size={isPop ? 18 : 20} color={(isPop || isMinimal || isMuseum || isBrutalist) ? '#fffaf2' : selectedTemplate.accent} />
               </TouchableOpacity>
             );
           }
@@ -1566,6 +1591,273 @@ export default function EventDetailScreen() {
 
               </View>
             </View>
+          ) : !showAdminView && isExecutiveTemplate ? (
+            <View style={[styles.executiveHeroStage, { paddingTop: insets.top }]}>
+              <Image
+                source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                style={styles.executiveBackdrop}
+                resizeMode="cover"
+                blurRadius={1}
+              />
+              <LinearGradient
+                colors={['rgba(8, 17, 31, 0.94)', 'rgba(8, 17, 31, 0.62)', 'rgba(8, 17, 31, 1)']}
+                locations={[0, 0.48, 1]}
+                style={styles.executiveHeroGradient}
+              />
+              <View style={styles.executiveVignette} />
+
+              <View style={[styles.executiveTopBar, { top: insets.top + 12 }]}>
+                <TouchableOpacity style={styles.executiveHeaderButton} onPress={handleEventBack} activeOpacity={0.86}>
+                  <IconSymbol name="chevron.left" size={18} color="#f5eddc" />
+                </TouchableOpacity>
+                <Text style={styles.executiveHeaderLabel}>Executive Suite</Text>
+                <TouchableOpacity style={styles.executiveHeaderButton} onPress={() => setShowShareModal(true)} activeOpacity={0.86}>
+                  <IconSymbol name="square.and.arrow.up" size={16} color="#f5eddc" />
+                </TouchableOpacity>
+              </View>
+
+              <Animated.View entering={FadeInUp.delay(80).duration(650)} style={[styles.executivePortraitFrame, { top: insets.top + 84 }]}>
+                <Image
+                  source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                  style={styles.executivePortraitImage}
+                  resizeMode="cover"
+                />
+                <LinearGradient
+                  colors={['rgba(255,255,255,0.02)', 'rgba(17,24,39,0.32)']}
+                  style={styles.executivePortraitOverlay}
+                />
+                <View style={styles.executivePortraitCaption}>
+                  <Text style={styles.executivePortraitCaptionText}>Private Leadership Album</Text>
+                </View>
+              </Animated.View>
+
+              <View style={[styles.executiveSealCard, { top: insets.top + 206 }]}>
+                <Text style={styles.executiveSealNumber}>{String(photos.length || 1).padStart(2, '0')}</Text>
+                <Text style={styles.executiveSealLabel}>Moments</Text>
+              </View>
+
+              <Animated.View entering={FadeInUp.delay(180).duration(650)} style={styles.executiveHeroCard}>
+                <View style={styles.executiveKickerRow}>
+                  <Text style={styles.executiveKicker}>Boardroom Brief</Text>
+                  <View style={styles.executiveKickerLine} />
+                </View>
+                <Text style={styles.executiveHeroTitle} numberOfLines={2} adjustsFontSizeToFit {...({ minimumScaleFactor: 0.72 } as any)}>
+                  {currentActiveEvent?.title || event.title}
+                </Text>
+                <View style={styles.executiveDivider}>
+                  <View style={styles.executiveDividerLine} />
+                  <View style={styles.executiveDividerMark} />
+                  <View style={styles.executiveDividerLine} />
+                </View>
+                <View style={styles.executiveMetaRow}>
+                  <Text style={styles.executiveDate} numberOfLines={1}>{currentActiveEvent?.date || event.date || 'Executive Event'}</Text>
+                  <TouchableOpacity style={styles.executiveShare} onPress={() => setShowShareModal(true)} activeOpacity={0.86}>
+                    <IconSymbol name="square.and.arrow.up" size={14} color="#f5eddc" />
+                    <Text style={styles.executiveShareText}>Share</Text>
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            </View>
+          ) : !showAdminView && isTechSleekTemplate ? (
+            <View style={[styles.techSleekHeroStage, { paddingTop: insets.top }]}>
+              <Image
+                source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                style={styles.techSleekBackdrop}
+                resizeMode="cover"
+                blurRadius={2}
+              />
+              <LinearGradient
+                colors={['rgba(3, 7, 18, 0.96)', 'rgba(7, 16, 34, 0.82)', 'rgba(5, 11, 23, 1)']}
+                locations={[0, 0.44, 1]}
+                style={styles.techSleekHeroGradient}
+              />
+              <View style={[styles.techSleekGlowOrb, styles.techSleekGlowTop]} />
+              <View style={[styles.techSleekGlowOrb, styles.techSleekGlowBottom]} />
+              <View style={styles.techSleekGrid}>
+                <View style={[styles.techSleekGridLine, styles.techSleekGridVerticalOne]} />
+                <View style={[styles.techSleekGridLine, styles.techSleekGridVerticalTwo]} />
+                <View style={[styles.techSleekGridLine, styles.techSleekGridHorizontalOne]} />
+                <View style={[styles.techSleekGridLine, styles.techSleekGridHorizontalTwo]} />
+              </View>
+
+              <View style={[styles.techSleekTopBar, { top: insets.top + 12 }]}>
+                <TouchableOpacity style={styles.techSleekHeaderButton} onPress={handleEventBack} activeOpacity={0.86}>
+                  <IconSymbol name="chevron.left" size={18} color="#e0f2fe" />
+                </TouchableOpacity>
+                <Text style={styles.techSleekHeaderLabel}>Tech Showcase</Text>
+                <TouchableOpacity style={styles.techSleekHeaderButton} onPress={() => setShowShareModal(true)} activeOpacity={0.86}>
+                  <IconSymbol name="square.and.arrow.up" size={16} color="#e0f2fe" />
+                </TouchableOpacity>
+              </View>
+
+              <Animated.View entering={FadeInUp.delay(80).duration(650)} style={[styles.techSleekDeviceFrame, { top: insets.top + 84 }]}>
+                <Image
+                  source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                  style={styles.techSleekDeviceImage}
+                  resizeMode="cover"
+                />
+                <LinearGradient
+                  colors={['rgba(255,255,255,0.16)', 'rgba(34,211,238,0.05)', 'rgba(3,7,18,0.2)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.techSleekDeviceGlass}
+                />
+                <View style={styles.techSleekDeviceBadge}>
+                  <Text style={styles.techSleekDeviceBadgeText}>Live Capture System</Text>
+                </View>
+              </Animated.View>
+
+              <View style={[styles.techSleekMetricCard, { top: insets.top + 204 }]}>
+                <Text style={styles.techSleekMetricNumber}>{String(photos.length || 1).padStart(2, '0')}</Text>
+                <Text style={styles.techSleekMetricLabel}>Moments</Text>
+              </View>
+
+              <Animated.View entering={FadeInUp.delay(180).duration(650)} style={styles.techSleekHeroCard}>
+                <View style={styles.techSleekKickerRow}>
+                  <View style={styles.techSleekKickerDot} />
+                  <Text style={styles.techSleekKicker}>Corporate Technology Event</Text>
+                  <View style={styles.techSleekKickerLine} />
+                </View>
+                <Text style={styles.techSleekHeroTitle} numberOfLines={2} adjustsFontSizeToFit {...({ minimumScaleFactor: 0.72 } as any)}>
+                  {currentActiveEvent?.title || event.title}
+                </Text>
+                <View style={styles.techSleekDivider} />
+                <View style={styles.techSleekMetaRow}>
+                  <Text style={styles.techSleekDate} numberOfLines={1}>{currentActiveEvent?.date || event.date || 'Premium Tech Gallery'}</Text>
+                  <TouchableOpacity style={styles.techSleekShare} onPress={() => setShowShareModal(true)} activeOpacity={0.86}>
+                    <IconSymbol name="square.and.arrow.up" size={14} color="#03101f" />
+                    <Text style={styles.techSleekShareText}>Share</Text>
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            </View>
+          ) : !showAdminView && isMuseumTemplate ? (
+            <View style={[styles.museumHeroStage, { paddingTop: insets.top }]}>
+              <Image
+                source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                style={[StyleSheet.absoluteFillObject, { opacity: 0.5 }]}
+                resizeMode="cover"
+                blurRadius={1.2}
+              />
+              <LinearGradient
+                colors={['rgba(11, 17, 24, 0.78)', 'rgba(11, 17, 24, 0.24)', 'rgba(243, 240, 234, 0.98)']}
+                locations={[0, 0.48, 1]}
+                style={styles.museumHeroVignette}
+              />
+              <View style={styles.museumWallTexture}>
+                <View style={[styles.museumWallLine, styles.museumWallLineTop]} />
+                <View style={[styles.museumWallLine, styles.museumWallLineMid]} />
+                <View style={[styles.museumWallLine, styles.museumWallLineBottom]} />
+              </View>
+              <View style={styles.museumArchOutline} />
+              <View style={styles.museumAmbientBlock} />
+              <View style={styles.museumPedestalBase} />
+              <View style={[styles.museumExhibitionRail, { top: insets.top + 52 }]}>
+                <Text style={styles.museumExhibitionRailText}>EXHIBITION / {new Date().getFullYear()}</Text>
+              </View>
+
+              <Animated.View entering={FadeInUp.delay(80).duration(650)} style={[styles.museumArtworkFrame, { top: insets.top + 82 }]}>
+                <Image
+                  source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                  style={styles.museumArtworkImage}
+                  resizeMode="cover"
+                />
+                <LinearGradient
+                  colors={['rgba(255,255,255,0.06)', 'rgba(11,17,24,0.18)']}
+                  style={styles.museumArtworkSheen}
+                />
+                <View style={styles.museumArtworkLabel}>
+                  <Text style={styles.museumArtworkLabelIndex}>WORK 01</Text>
+                  <Text style={styles.museumArtworkLabelText} numberOfLines={1}>Corporate Collection</Text>
+                </View>
+              </Animated.View>
+
+              <View style={[styles.museumHeroIndexCard, { top: insets.top + 204 }]}>
+                <Text style={styles.museumHeroIndexNumber}>{String(photos.length || 1).padStart(2, '0')}</Text>
+                <Text style={styles.museumHeroIndexLabel}>Works</Text>
+              </View>
+
+              <Animated.View entering={FadeInUp.delay(180).duration(650)} style={styles.museumHeroCard}>
+                <View style={styles.museumHeroKickerRow}>
+                  <Text style={styles.museumHeroKicker}>Corporate Exhibition</Text>
+                  <View style={styles.museumHeroKickerLine} />
+                </View>
+                <Text style={styles.museumHeroTitle} numberOfLines={2} adjustsFontSizeToFit {...({ minimumScaleFactor: 0.72 } as any)}>
+                  {currentActiveEvent?.title || event.title}
+                </Text>
+                <View style={styles.museumHeroDivider}>
+                  <View style={styles.museumHeroDividerLine} />
+                  <View style={styles.museumHeroDividerBlock} />
+                  <View style={styles.museumHeroDividerLine} />
+                </View>
+                <View style={styles.museumHeroMetaRow}>
+                  <Text style={styles.museumHeroDate} numberOfLines={1}>{currentActiveEvent?.date || event.date || 'Curated Collection'}</Text>
+                  <View style={styles.museumHeroMetaChip}>
+                    <Text style={styles.museumHeroMetaChipText}>Gallery {String(subEvents.length + 1).padStart(2, '0')}</Text>
+                  </View>
+                  <TouchableOpacity style={styles.museumHeroShare} onPress={() => setShowShareModal(true)} activeOpacity={0.86}>
+                    <IconSymbol name="square.and.arrow.up" size={14} color="#f8f6ef" />
+                    <Text style={styles.museumHeroShareText}>Share</Text>
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            </View>
+          ) : !showAdminView && isBrutalistTemplate ? (
+            <View style={[styles.brutalistHeroStage, { paddingTop: insets.top }]}>
+              <Image
+                source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                style={styles.brutalistHeroBackdrop}
+                resizeMode="cover"
+                blurRadius={0.8}
+              />
+              <LinearGradient
+                colors={['rgba(17,17,19,0.9)', 'rgba(17,17,19,0.32)', 'rgba(239,237,231,0.98)']}
+                locations={[0, 0.5, 1]}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <View style={styles.brutalistGridTexture}>
+                <View style={[styles.brutalistGridLine, styles.brutalistGridLineVerticalOne]} />
+                <View style={[styles.brutalistGridLine, styles.brutalistGridLineVerticalTwo]} />
+                <View style={[styles.brutalistGridLineHorizontal, styles.brutalistGridLineHorizontalOne]} />
+                <View style={[styles.brutalistGridLineHorizontal, styles.brutalistGridLineHorizontalTwo]} />
+              </View>
+              <View style={[styles.brutalistHeaderRail, { top: insets.top + 52 }]}>
+                <Text style={styles.brutalistHeaderRailText}>Corporate Grid System</Text>
+                <Text style={styles.brutalistHeaderRailCode}>WA/{String(new Date().getFullYear()).slice(2)}</Text>
+              </View>
+
+              <Animated.View entering={FadeInUp.delay(80).duration(650)} style={[styles.brutalistArtworkBlock, { top: insets.top + 104 }]}>
+                <Image
+                  source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                  style={styles.brutalistArtworkImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.brutalistArtworkCaption}>
+                  <Text style={styles.brutalistArtworkCaptionNumber}>01</Text>
+                  <Text style={styles.brutalistArtworkCaptionText}>Key Visual</Text>
+                </View>
+              </Animated.View>
+
+              <Animated.View entering={FadeInUp.delay(180).duration(650)} style={styles.brutalistHeroCard}>
+                <View style={styles.brutalistHeroLabelRow}>
+                  <Text style={styles.brutalistHeroLabel}>Brutalist Grid</Text>
+                  <View style={styles.brutalistHeroLabelLine} />
+                </View>
+                <Text style={styles.brutalistHeroTitle} numberOfLines={2} adjustsFontSizeToFit {...({ minimumScaleFactor: 0.7 } as any)}>
+                  {(currentActiveEvent?.title || event.title || '').toUpperCase()}
+                </Text>
+                <View style={styles.brutalistHeroMetaRow}>
+                  <Text style={styles.brutalistHeroDate} numberOfLines={1}>{currentActiveEvent?.date || event.date || 'Corporate Archive'}</Text>
+                  <TouchableOpacity style={styles.brutalistHeroShare} onPress={() => setShowShareModal(true)} activeOpacity={0.86}>
+                    <IconSymbol name="square.and.arrow.up" size={14} color="#fffffa" />
+                    <Text style={styles.brutalistHeroShareText}>Share</Text>
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+              <View style={styles.brutalistHeroMarker}>
+                <Text style={styles.brutalistHeroMarkerText}>GRID</Text>
+              </View>
+            </View>
           ) : (
             <Image 
               source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }} 
@@ -1591,7 +1883,7 @@ export default function EventDetailScreen() {
               blurRadius={isGoldenYearsTemplate ? 0.8 : (isVintageTemplate ? 1.1 : 0)}
             />
           )}
-          {selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && selectedTemplate.id !== 'academic_editorial' && selectedTemplate.id !== 'garden' && selectedTemplate.id !== 'bohemian' && (
+          {selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && selectedTemplate.id !== 'academic_editorial' && selectedTemplate.id !== 'garden' && selectedTemplate.id !== 'bohemian' && selectedTemplate.id !== 'museum' && selectedTemplate.id !== 'brutalist' && selectedTemplate.id !== 'tech_sleek' && selectedTemplate.id !== 'executive' && (
             <LinearGradient
               colors={selectedTemplate.overlay as any}
               style={styles.heroGradient}
@@ -1697,7 +1989,7 @@ export default function EventDetailScreen() {
           )}
 
 
-          {(!showAdminView && (event?.templateId === 'academic_editorial' || event?.templateId === 'bohemian')) ? null : (!showAdminView && event?.templateId === 'royal') ? (
+          {(!showAdminView && (event?.templateId === 'academic_editorial' || event?.templateId === 'bohemian' || event?.templateId === 'museum' || event?.templateId === 'brutalist' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : (!showAdminView && event?.templateId === 'royal') ? (
             <View style={styles.royalHeroOverlay}>
               {/* 1. Elegant Thin Inset Frame */}
               <View style={[styles.royalFrame, { borderColor: selectedTemplate.accent }]} />
@@ -3454,6 +3746,10 @@ export default function EventDetailScreen() {
                     isRetroArcadeTemplate && styles.retroArcadeInfoBox,
                     isNeonCarnivalTemplate && styles.neonCarnivalInfoBox,
                     isGardenTemplate && styles.gardenInfoBox,
+                    isMuseumTemplate && styles.museumInfoBox,
+                    isBrutalistTemplate && styles.brutalistInfoBox,
+                    isTechSleekTemplate && styles.techSleekInfoBox,
+                    isExecutiveTemplate && styles.executiveInfoBox,
                     event.templateId === 'classic' && {
                       shadowColor: '#000',
                       shadowOffset: { width: 0, height: 1 },
@@ -3504,6 +3800,10 @@ export default function EventDetailScreen() {
                       isRetroArcadeTemplate && styles.retroArcadeInfoInner,
                       isNeonCarnivalTemplate && styles.neonCarnivalInfoInner,
                       isGardenTemplate && styles.gardenInfoInner,
+                      isMuseumTemplate && styles.museumInfoInner,
+                      isBrutalistTemplate && styles.brutalistInfoInner,
+                      isTechSleekTemplate && styles.techSleekInfoInner,
+                      isExecutiveTemplate && styles.executiveInfoInner,
                       event.templateId === 'royal' && {
                         borderWidth: 1,
                         borderColor: 'rgba(204, 164, 59, 0.15)',
@@ -3630,6 +3930,38 @@ export default function EventDetailScreen() {
                         </View>
                       )}
 
+                      {isMuseumTemplate && (
+                        <View style={styles.museumInfoHeader}>
+                          <Text style={styles.museumInfoKicker}>Curator Note</Text>
+                          <View style={styles.museumInfoLine} />
+                          <Text style={styles.museumInfoCode}>WA/{String(new Date().getFullYear()).slice(2)}</Text>
+                        </View>
+                      )}
+
+                      {isBrutalistTemplate && (
+                        <View style={styles.brutalistInfoHeader}>
+                          <Text style={styles.brutalistInfoKicker}>Curator Entry</Text>
+                          <View style={styles.brutalistInfoLine} />
+                          <Text style={styles.brutalistInfoCode}>GRID/{String(photos.length || 1).padStart(2, '0')}</Text>
+                        </View>
+                      )}
+
+                      {isTechSleekTemplate && (
+                        <View style={styles.techSleekInfoHeader}>
+                          <View style={styles.techSleekInfoPulse} />
+                          <Text style={styles.techSleekInfoKicker}>Event Brief</Text>
+                          <View style={styles.techSleekInfoLine} />
+                        </View>
+                      )}
+
+                      {isExecutiveTemplate && (
+                        <View style={styles.executiveInfoHeader}>
+                          <View style={styles.executiveInfoMark} />
+                          <Text style={styles.executiveInfoKicker}>Executive Note</Text>
+                          <View style={styles.executiveInfoLine} />
+                        </View>
+                      )}
+
                       {isAnniversaryTemplate && (
                         <View style={[
                           styles.anniversaryInfoHeader,
@@ -3676,6 +4008,10 @@ export default function EventDetailScreen() {
                         isRetroArcadeTemplate && styles.retroArcadeVisitorDescription,
                         isNeonCarnivalTemplate && styles.neonCarnivalVisitorDescription,
                         isGardenTemplate && styles.gardenVisitorDescription,
+                        isMuseumTemplate && styles.museumVisitorDescription,
+                        isBrutalistTemplate && styles.brutalistVisitorDescription,
+                        isTechSleekTemplate && styles.techSleekVisitorDescription,
+                        isExecutiveTemplate && styles.executiveVisitorDescription,
                         selectedTemplate.useSerif && {
                           fontFamily: isGardenTemplate ? selectedTemplate.bodyFont : selectedTemplate.serifItalic,
                           fontStyle: isGardenTemplate ? 'normal' : 'italic',
@@ -3683,7 +4019,7 @@ export default function EventDetailScreen() {
                           lineHeight: isGardenTemplate ? 24 : 26,
                           textAlign: 'center',
                         }
-                      ]}>{activeSubEvent ? activeSubEvent.description : event.description}{(isCyberTechTemplate || isRetroArcadeTemplate || isNeonCarnivalTemplate) ? '' : ' 🤍'}</Text>
+                      ]}>{activeSubEvent ? activeSubEvent.description : event.description}{(isCyberTechTemplate || isRetroArcadeTemplate || isNeonCarnivalTemplate || isMuseumTemplate || isBrutalistTemplate || isTechSleekTemplate || isExecutiveTemplate) ? '' : ' 🤍'}</Text>
 
                       {isScrapbookTemplate && (
                         <View style={[styles.scrapbookInfoRule, styles.scrapbookInfoRuleBottom]}>
@@ -3847,9 +4183,39 @@ export default function EventDetailScreen() {
                   isMinimalLoveTemplate && styles.minimalGalleryHeader,
                   isRetroArcadeTemplate && styles.retroArcadeGalleryHeader,
                   isNeonCarnivalTemplate && styles.neonCarnivalGalleryHeader,
-                  isGardenTemplate && styles.gardenGalleryHeader
+                  isGardenTemplate && styles.gardenGalleryHeader,
+                  isMuseumTemplate && styles.museumGalleryHeader,
+                  isBrutalistTemplate && styles.brutalistGalleryHeader,
+                  isTechSleekTemplate && styles.techSleekGalleryHeader,
+                  isExecutiveTemplate && styles.executiveGalleryHeader
                 ]}>
                   <View>
+                    {isExecutiveTemplate && (
+                      <View style={styles.executiveGalleryKicker}>
+                        <Text style={styles.executiveGalleryKickerText}>Leadership Moments</Text>
+                        <View style={styles.executiveGalleryKickerLine} />
+                      </View>
+                    )}
+                    {isTechSleekTemplate && (
+                      <View style={styles.techSleekGalleryKicker}>
+                        <Text style={styles.techSleekGalleryKickerText}>Tech Highlights</Text>
+                        <View style={styles.techSleekGalleryKickerLine} />
+                      </View>
+                    )}
+                    {isMuseumTemplate && (
+                      <View style={styles.museumGalleryKicker}>
+                        <Text style={styles.museumGalleryKickerText}>Featured Works</Text>
+                        <View style={styles.museumGalleryKickerLine} />
+                        <Text style={styles.museumGalleryKickerCode}>Gallery {String(subEvents.length + 1).padStart(2, '0')}</Text>
+                      </View>
+                    )}
+                    {isBrutalistTemplate && (
+                      <View style={styles.brutalistGalleryKicker}>
+                        <Text style={styles.brutalistGalleryKickerText}>Editorial Grid</Text>
+                        <View style={styles.brutalistGalleryKickerLine} />
+                        <Text style={styles.brutalistGalleryKickerCode}>Set {String(photos.length || 1).padStart(2, '0')}</Text>
+                      </View>
+                    )}
                     {isGardenTemplate && (
                       <View style={styles.gardenGalleryKicker}>
                         <IconSymbol name="leaf.fill" size={12} color="#16a34a" />
@@ -3951,9 +4317,29 @@ export default function EventDetailScreen() {
                       isRetroArcadeTemplate && styles.retroArcadeGalleryTitle,
                       isNeonCarnivalTemplate && styles.neonCarnivalGalleryTitle,
                       isGardenTemplate && styles.gardenGalleryTitle,
+                      isMuseumTemplate && styles.museumGalleryTitle,
+                      isBrutalistTemplate && styles.brutalistGalleryTitle,
+                      isTechSleekTemplate && styles.techSleekGalleryTitle,
+                      isExecutiveTemplate && styles.executiveGalleryTitle,
                       selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold' }
                     ]}>
-                      {isGardenTemplate ? (
+                      {isExecutiveTemplate ? (
+                        <Text style={{ color: '#f5eddc', fontFamily: Fonts.cormorant.bold }}>
+                          {activeSubEvent ? activeSubEvent.title : 'Executive Highlights'}
+                        </Text>
+                      ) : isTechSleekTemplate ? (
+                        <Text style={{ color: '#f8fafc', fontFamily: Fonts.spaceGrotesk.bold }}>
+                          {activeSubEvent ? activeSubEvent.title : 'Featured Moments'}
+                        </Text>
+                      ) : isMuseumTemplate ? (
+                        <Text style={{ color: '#17202b', fontFamily: Fonts.spaceGrotesk.bold }}>
+                          {activeSubEvent ? activeSubEvent.title : 'Exhibition Highlights'}
+                        </Text>
+                      ) : isBrutalistTemplate ? (
+                        <Text style={{ color: '#111113', fontFamily: Fonts.spaceGrotesk.bold }}>
+                          {(activeSubEvent ? activeSubEvent.title : 'Featured Collection').toUpperCase()}
+                        </Text>
+                      ) : isGardenTemplate ? (
                         <>
                           <Text style={{ color: '#14532d', fontFamily: selectedTemplate.serifBold }}>
                             {activeSubEvent ? activeSubEvent.title : 'Highlights'}
@@ -3990,9 +4376,13 @@ export default function EventDetailScreen() {
                         { color: selectedTemplate.accent },
                         isCyberTechTemplate && styles.cyberPhotoCount,
                         isNeonCarnivalTemplate && styles.neonCarnivalPhotoCount,
+                        isMuseumTemplate && styles.museumPhotoCount,
+                        isBrutalistTemplate && styles.brutalistPhotoCount,
+                        isTechSleekTemplate && styles.techSleekPhotoCount,
+                        isExecutiveTemplate && styles.executivePhotoCount,
                         selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
                       ]}>
-                        {isCyberTechTemplate ? `// ARCHIVED_FILES: ${photos.length}` : (isNeonCarnivalTemplate ? `STAGE CAPTURES: ${photos.length}` : `${photos.length} ${photos.length === 1 ? 'Photo' : 'Photos'}`)}
+                        {isCyberTechTemplate ? `// ARCHIVED_FILES: ${photos.length}` : (isNeonCarnivalTemplate ? `STAGE CAPTURES: ${photos.length}` : (isMuseumTemplate ? `${photos.length} curated ${photos.length === 1 ? 'work' : 'works'}` : (isBrutalistTemplate ? `${photos.length} grid ${photos.length === 1 ? 'frame' : 'frames'}` : (isTechSleekTemplate ? `${photos.length} captured ${photos.length === 1 ? 'signal' : 'signals'}` : (isExecutiveTemplate ? `${photos.length} leadership ${photos.length === 1 ? 'moment' : 'moments'}` : `${photos.length} ${photos.length === 1 ? 'Photo' : 'Photos'}`)))))}
                       </Text>
                     )}
                   </View>
@@ -4135,6 +4525,23 @@ export default function EventDetailScreen() {
                                       backgroundColor: isDark ? '#1B3224' : '#FDFBF7',
                                     }
                                   ],
+                                  isMuseumTemplate && [
+                                    styles.museumPhotoTile,
+                                    idx % 3 === 0 && styles.museumPhotoTileFeatured,
+                                  ],
+                                  isBrutalistTemplate && [
+                                    styles.brutalistPhotoTile,
+                                    idx % 3 === 0 && styles.brutalistPhotoTileFeatured,
+                                    idx % 3 === 1 && styles.brutalistPhotoTileNarrow,
+                                  ],
+                                  isTechSleekTemplate && [
+                                    styles.techSleekPhotoTile,
+                                    idx % 3 === 0 && styles.techSleekPhotoTileFeatured,
+                                  ],
+                                  isExecutiveTemplate && [
+                                    styles.executivePhotoTile,
+                                    idx % 3 === 0 && styles.executivePhotoTileFeatured,
+                                  ],
                                   event.templateId === 'royal' && {
                                     shadowColor: selectedTemplate.accent,
                                     shadowOffset: { width: 0, height: 2 },
@@ -4222,6 +4629,30 @@ export default function EventDetailScreen() {
                                       <Text style={styles.minimalPhotoIndexText}>{String(idx + 1).padStart(2, '0')}</Text>
                                     </View>
                                   )}
+                                  {isMuseumTemplate && (
+                                    <View style={styles.museumPhotoLabel}>
+                                      <Text style={styles.museumPhotoLabelNumber}>{String(idx + 1).padStart(2, '0')}</Text>
+                                      <Text style={styles.museumPhotoLabelText}>WORK</Text>
+                                    </View>
+                                  )}
+                                  {isBrutalistTemplate && (
+                                    <View style={styles.brutalistPhotoLabel}>
+                                      <Text style={styles.brutalistPhotoLabelNumber}>{String(idx + 1).padStart(2, '0')}</Text>
+                                      <Text style={styles.brutalistPhotoLabelText}>FRAME</Text>
+                                    </View>
+                                  )}
+                                  {isTechSleekTemplate && (
+                                    <View style={styles.techSleekPhotoLabel}>
+                                      <Text style={styles.techSleekPhotoLabelNumber}>{String(idx + 1).padStart(2, '0')}</Text>
+                                      <Text style={styles.techSleekPhotoLabelText}>Signal</Text>
+                                    </View>
+                                  )}
+                                  {isExecutiveTemplate && (
+                                    <View style={styles.executivePhotoLabel}>
+                                      <Text style={styles.executivePhotoLabelNumber}>{String(idx + 1).padStart(2, '0')}</Text>
+                                      <Text style={styles.executivePhotoLabelText}>Brief</Text>
+                                    </View>
+                                  )}
                                   <Image
                                     source={{ uri: photo.url }}
                                     style={[
@@ -4236,6 +4667,10 @@ export default function EventDetailScreen() {
                                       isRoseTemplate && styles.roseGalleryImg,
                                       isMinimalLoveTemplate && styles.minimalGalleryImg,
                                       isRetroArcadeTemplate && styles.retroArcadeGalleryImg,
+                                      isMuseumTemplate && styles.museumGalleryImg,
+                                      isBrutalistTemplate && styles.brutalistGalleryImg,
+                                      isTechSleekTemplate && styles.techSleekGalleryImg,
+                                      isExecutiveTemplate && styles.executiveGalleryImg,
                                       isGardenTemplate ? {
                                         width: '100%',
                                         aspectRatio: 1 / ratio,

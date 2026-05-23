@@ -369,30 +369,30 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
     category: 'Corporate', 
     label: 'Tech Sleek', 
     desc: 'Futuristic and clean', 
-    background: { light: '#f0f9ff', dark: '#0f172a' }, 
-    panel: { light: '#ffffff', dark: 'rgba(56,189,248,0.03)' }, 
-    text: { light: '#0c4a6e', dark: '#f8fafc' }, 
-    muted: { light: '#0284c7', dark: '#38bdf8' }, 
-    accent: '#38bdf8', 
-    accentBg: { light: '#e0f2fe', dark: 'rgba(56,189,248,0.1)' }, 
-    tileBg: { light: '#ffffff', dark: '#0f172a' }, 
-    radius: 0, 
-    overlay: { light: ['rgba(240,249,255,0.1)', 'rgba(240,249,255,1)'], dark: ['rgba(15,23,42,0.1)', 'rgba(15,23,42,1)'] } 
+    background: { light: '#050b17', dark: '#050b17' },
+    panel: { light: 'rgba(8, 15, 30, 0.82)', dark: 'rgba(8, 15, 30, 0.82)' },
+    text: { light: '#f8fafc', dark: '#f8fafc' },
+    muted: { light: '#cbd5e1', dark: '#cbd5e1' },
+    accent: '#22d3ee',
+    accentBg: { light: 'rgba(34, 211, 238, 0.16)', dark: 'rgba(34, 211, 238, 0.16)' },
+    tileBg: { light: 'rgba(8, 15, 30, 0.86)', dark: 'rgba(8, 15, 30, 0.86)' },
+    radius: 22,
+    overlay: { light: ['rgba(5,11,23,0.08)', 'rgba(5,11,23,1)'], dark: ['rgba(5,11,23,0.08)', 'rgba(5,11,23,1)'] }
   },
   { 
     id: 'executive', 
     category: 'Corporate', 
     label: 'Executive Suite', 
     desc: 'Professional theme', 
-    background: { light: '#f1f5f9', dark: '#1e293b' }, 
-    panel: { light: '#ffffff', dark: '#0f172a' }, 
-    text: { light: '#1e293b', dark: '#f1f5f9' }, 
-    muted: { light: '#475569', dark: '#94a3b8' }, 
-    accent: '#0f172a', 
-    accentBg: { light: '#e2e8f0', dark: 'rgba(15,23,42,0.2)' }, 
-    tileBg: { light: '#ffffff', dark: '#0f172a' }, 
-    radius: 4, 
-    overlay: { light: ['rgba(241,245,249,0.1)', 'rgba(241,245,249,1)'], dark: ['rgba(30,41,59,0.1)', 'rgba(30,41,59,1)'] } 
+    background: { light: '#08111f', dark: '#08111f' },
+    panel: { light: '#f5eddc', dark: '#f5eddc' },
+    text: { light: '#f5eddc', dark: '#f5eddc' },
+    muted: { light: '#d4b474', dark: '#d4b474' },
+    accent: '#d4b474',
+    accentBg: { light: 'rgba(212, 180, 116, 0.18)', dark: 'rgba(212, 180, 116, 0.18)' },
+    tileBg: { light: '#f5eddc', dark: '#f5eddc' },
+    radius: 18,
+    overlay: { light: ['rgba(8,17,31,0.16)', 'rgba(8,17,31,1)'], dark: ['rgba(8,17,31,0.16)', 'rgba(8,17,31,1)'] }
   },
 
   // OTHER
@@ -519,3 +519,18 @@ export const MOBILE_TEMPLATE_THEMES: TemplateTheme[] = [
     overlay: { light: ['rgba(12,7,20,0.15)', 'rgba(12,7,20,1)'], dark: ['rgba(6,3,10,0.15)', 'rgba(6,3,10,1)'] } 
   },
 ];
+
+export const getTemplateCategoryForEventCategory = (category?: string) => {
+  if (category === 'Sports') return 'Other';
+  return category || 'Wedding';
+};
+
+export const getTemplatesForEventCategory = (category?: string) => {
+  const templateCategory = getTemplateCategoryForEventCategory(category);
+  return MOBILE_TEMPLATE_THEMES.filter((theme) => theme.category === templateCategory);
+};
+
+export const getDefaultTemplateForEventCategory = (category?: string) => {
+  const templates = getTemplatesForEventCategory(category);
+  return templates[0] || MOBILE_TEMPLATE_THEMES[0];
+};

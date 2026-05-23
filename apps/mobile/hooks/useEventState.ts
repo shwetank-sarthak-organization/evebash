@@ -17,6 +17,7 @@ import {
   getEventPhotos
 } from '@/lib/firestore';
 import { uploadEventImage } from '@/lib/storage';
+import { getDefaultTemplateForEventCategory } from '@/constants/templates';
 
 export function useEventState(id: string, user: any) {
   const router = useRouter();
@@ -106,8 +107,9 @@ export function useEventState(id: string, user: any) {
         }
 
         if (!eventData.templateId) {
-          await updateEvent(eventData.id, { templateId: 'hero' });
-          eventData.templateId = 'hero';
+          const defaultTemplate = getDefaultTemplateForEventCategory(eventData.category);
+          await updateEvent(eventData.id, { templateId: defaultTemplate.id });
+          eventData.templateId = defaultTemplate.id;
         }
 
         setEvent(eventData);
@@ -396,13 +398,14 @@ export function useEventState(id: string, user: any) {
     }
   };
 
-  const handleUpdateCategory = async (category: string, defaultTemplate: any) => {
+  const handleUpdateCategory = async (category: string, defaultTemplate?: any) => {
     if (!event) return;
     setUpdating(true);
     try {
+      const categoryDefaultTemplate = defaultTemplate || getDefaultTemplateForEventCategory(category);
       const updates = {
         category,
-        ...(defaultTemplate ? { templateId: defaultTemplate.id } : {}),
+        ...(categoryDefaultTemplate ? { templateId: categoryDefaultTemplate.id } : {}),
       };
 
       setEvent({ ...event, ...updates });

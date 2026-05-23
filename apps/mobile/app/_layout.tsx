@@ -3,7 +3,7 @@ import { Stack, useRouter, useSegments, useRootNavigationState, Redirect } from 
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import * as React from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { View, ActivityIndicator, LogBox, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -120,11 +120,13 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       root === 'events';
 
     if (!user && !inAuthGroup && !isPublicRoute) {
-      setTimeout(() => router.replace('/login'), 1);
+      const timeoutId = setTimeout(() => router.replace('/login'), 1);
+      return () => clearTimeout(timeoutId);
     } else if (user && inAuthGroup) {
-      setTimeout(() => router.replace('/(tabs)/dashboard'), 1);
+      const timeoutId = setTimeout(() => router.replace('/(tabs)/dashboard'), 1);
+      return () => clearTimeout(timeoutId);
     }
-  }, [user, loading, segments, rootNavigationState?.key]);
+  }, [user, loading, segments, rootNavigationState?.key, router]);
 
   if (loading || !rootNavigationState?.key) {
     return (
