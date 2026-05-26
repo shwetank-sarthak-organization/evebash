@@ -189,7 +189,7 @@ export default function DashboardScreen() {
         style={styles.header}
       >
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>WedAlbum</Text>
+          <Text style={styles.headerTitle}>EveBash</Text>
           <Text style={styles.tagline}>Let's capture moments ✨</Text>
         </View>
         <View style={styles.headerRight}>
@@ -257,7 +257,7 @@ export default function DashboardScreen() {
                         <Text style={styles.recentEventTitle} numberOfLines={1}>{event.title}</Text>
                         <View style={styles.recentEventMeta}>
                           <IconSymbol name="calendar" size={10} color="rgba(255,255,255,0.6)" />
-                          <Text style={styles.recentEventDate}>{event.date.split(',')[0]}</Text>
+                          <Text style={styles.recentEventDate}>{event.date}</Text>
                         </View>
                       </View>
                     </TouchableOpacity>

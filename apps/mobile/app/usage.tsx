@@ -237,7 +237,7 @@ export default function UsageScreen() {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.versionText}>Wedding Album v1.0.4</Text>
+          <Text style={styles.versionText}>EveBash v1.0.4</Text>
         </View>
 
       </ScrollView>

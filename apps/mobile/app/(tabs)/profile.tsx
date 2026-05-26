@@ -482,7 +482,7 @@ export default function ProfileScreen() {
               <View style={[styles.infoIconBox, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}>
                 <IconSymbol name="house.fill" size={18} color="#d4af37" />
               </View>
-              <Text style={styles.actionText}>About Us</Text>
+              <Text style={styles.actionText}>About EveBash</Text>
               <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
             </TouchableOpacity>
 
@@ -496,7 +496,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Wedding Album v1.0.4</Text>
+          <Text style={styles.footerText}>EveBash v1.0.4</Text>
         </View>
       </ScrollView>
 

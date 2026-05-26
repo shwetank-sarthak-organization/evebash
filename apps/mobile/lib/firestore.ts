@@ -58,6 +58,8 @@ export interface Photo {
     eventId: string;
     cloudinaryPublicId: string;
     url: string;
+    mediaType?: 'photo' | 'video';
+    resourceType?: 'image' | 'video' | string;
     uploadedAt: any;
     userId?: string;
     width?: number;
@@ -128,7 +130,6 @@ export interface GuestLog {
     canAdmin?: boolean;
     canUpload?: boolean;
     canComment?: boolean;
-    canChat?: boolean;
 }
 
 function mapDocToEvent(docSnapshot: QueryDocumentSnapshot<DocumentData>): Event {
@@ -702,7 +703,6 @@ export async function updateGuestStatus(logId: string, status: 'pending' | 'appr
         if (status === 'approved') {
             updateData.canUpload = true;
             updateData.canComment = true;
-            updateData.canChat = true;
         }
         await updateDoc(doc(db, "guests", logId), updateData);
         return true;
@@ -712,12 +712,22 @@ export async function updateGuestStatus(logId: string, status: 'pending' | 'appr
     }
 }
 
-export async function updateGuestPermissions(logId: string, permissions: Partial<{ canAdmin: boolean, canUpload: boolean, canComment: boolean, canChat: boolean }>) {
+export async function updateGuestPermissions(logId: string, permissions: Partial<{ canAdmin: boolean, canUpload: boolean, canComment: boolean }>) {
     try {
         await updateDoc(doc(db, "guests", logId), permissions);
         return true;
     } catch (error) {
         console.error("Error updating guest permissions:", error);
+        return false;
+    }
+}
+
+export async function removeGuestChatPermission(logId: string) {
+    try {
+        await updateDoc(doc(db, "guests", logId), { canChat: deleteField() });
+        return true;
+    } catch (error) {
+        console.error("Error removing guest chat permission:", error);
         return false;
     }
 }
@@ -826,8 +836,12 @@ export async function getUserBusinesses(uid: string): Promise<Business[]> {
 export async function addPhoto(data: Omit<Photo, 'id'>) {
     try {
         const photosCol = collection(db, "photos");
+        const sanitizedData = { ...data } as Record<string, unknown>;
+        Object.keys(sanitizedData).forEach((key) => {
+            if (sanitizedData[key] === undefined) delete sanitizedData[key];
+        });
         const docRef = await addDoc(photosCol, {
-            ...data,
+            ...sanitizedData,
             uploadedAt: serverTimestamp()
         });
         return docRef.id;

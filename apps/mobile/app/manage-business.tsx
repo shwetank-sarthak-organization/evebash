@@ -846,7 +846,7 @@ export default function ManageBusinessScreen() {
                             <TouchableOpacity 
                               style={[styles.leadActionBtn, styles.whatsappBtn]}
                               onPress={() => {
-                                const waUrl = `https://wa.me/${cleanedPhone}?text=${encodeURIComponent(`Hi ${enquiry.name}, thank you for your enquiry on WedAlbum. We'd love to help you plan your event!`)}`;
+                                const waUrl = `https://wa.me/${cleanedPhone}?text=${encodeURIComponent(`Hi ${enquiry.name}, thank you for your enquiry on EveBash. We'd love to help you plan your event!`)}`;
                                 Linking.openURL(waUrl);
                               }}
                             >

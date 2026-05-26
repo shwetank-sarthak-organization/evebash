@@ -5,14 +5,15 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event as FirestoreEvent, updateEvent, createEvent, getGuestLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos } from '@/lib/firestore';
+import { getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event as FirestoreEvent, updateEvent, createEvent, getGuestLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getUsers, UserProfile, removeGuestChatPermission } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { styles, FunkyFonts } from '../../components/eventStyles';
 import PhotoViewer from '../../components/PhotoViewer';
 import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory } from '../../constants/templates';
 import * as ImagePicker from 'expo-image-picker';
-import { uploadEventImage } from '@/lib/storage';
+import { uploadEventImage, uploadEventMedia } from '@/lib/storage';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import Sortable from 'react-native-sortables';
@@ -33,6 +34,289 @@ import { useGuestAccess } from '../../hooks/useGuestAccess';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_GRID_GAP = 3;
+const SPORTS_TEMPLATE_IDS = [
+  'bohemian',
+  'diamond',
+  'blush',
+  'garden',
+  'midnight_glam',
+  'cinematic',
+  'modern_lounge',
+  'elegant_night',
+  'polaroid',
+  'editorial',
+  'vibrant',
+  'zen',
+];
+
+const SPORTS_TEMPLATE_THEMES: Record<string, any> = {
+  bohemian: {
+    label: 'Bohemian Rhapsody',
+    categoryLabel: 'Outdoor Sports Festival',
+    noteLabel: 'Tournament Journal',
+    galleryLabel: 'Field Highlights',
+    galleryTitle: 'Tournament Memories',
+    background: '#f5ead8',
+    overlay: ['rgba(61, 37, 22, 0.64)', 'rgba(199, 102, 51, 0.2)', 'rgba(245, 234, 216, 1)'],
+    card: 'rgba(255, 247, 235, 0.94)',
+    text: '#2f241b',
+    muted: '#755f4a',
+    accent: '#c76633',
+    accentAlt: '#4f7f75',
+    imageFrame: '#fff7eb',
+    darkControl: '#2f241b',
+    headingFont: Fonts.playfair.bold,
+  },
+  diamond: {
+    label: 'Diamond Shine',
+    categoryLabel: 'Championship Night',
+    noteLabel: 'Elite Match Brief',
+    galleryLabel: 'Trophy Highlights',
+    galleryTitle: 'Championship Frames',
+    background: '#060a12',
+    overlay: ['rgba(2, 6, 23, 0.9)', 'rgba(96, 165, 250, 0.22)', 'rgba(6, 10, 18, 1)'],
+    card: 'rgba(238, 242, 247, 0.94)',
+    text: '#06111f',
+    muted: '#5b6b7f',
+    accent: '#b9d8f2',
+    accentAlt: '#7dd3fc',
+    imageFrame: '#eef2f7',
+    darkControl: '#06111f',
+    headingFont: Fonts.spaceGrotesk.bold,
+  },
+  blush: {
+    label: 'Blush & Bashful',
+    categoryLabel: 'Soft Athletic Story',
+    noteLabel: 'Match Note',
+    galleryLabel: 'Warm Highlights',
+    galleryTitle: 'Grace In Motion',
+    background: '#fff3ee',
+    overlay: ['rgba(74, 39, 37, 0.58)', 'rgba(220, 112, 95, 0.16)', 'rgba(255, 243, 238, 1)'],
+    card: 'rgba(255, 250, 246, 0.95)',
+    text: '#4a2725',
+    muted: '#9a6b64',
+    accent: '#d9796f',
+    accentAlt: '#b4534d',
+    imageFrame: '#fffaf6',
+    darkControl: '#4a2725',
+    headingFont: Fonts.cormorant.bold,
+  },
+  garden: {
+    label: 'Garden Path',
+    categoryLabel: 'Outdoor Tournament',
+    noteLabel: 'Field Note',
+    galleryLabel: 'Field Highlights',
+    galleryTitle: 'Outdoor Moments',
+    background: '#e8eee5',
+    overlay: ['rgba(22, 53, 34, 0.68)', 'rgba(76, 111, 68, 0.16)', 'rgba(232, 238, 229, 1)'],
+    card: 'rgba(253, 251, 247, 0.95)',
+    text: '#1a3322',
+    muted: '#526b50',
+    accent: '#587c43',
+    accentAlt: '#a06f37',
+    imageFrame: '#fdfbf7',
+    darkControl: '#1a3322',
+    headingFont: Fonts.cormorant.bold,
+  },
+  midnight_glam: {
+    label: 'Midnight Glam',
+    categoryLabel: 'Night Stadium Event',
+    noteLabel: 'Spotlight Brief',
+    galleryLabel: 'Stadium Highlights',
+    galleryTitle: 'Gold Medal Night',
+    background: '#050508',
+    overlay: ['rgba(5, 5, 8, 0.92)', 'rgba(204, 164, 59, 0.18)', 'rgba(5, 5, 8, 1)'],
+    card: 'rgba(19, 18, 16, 0.9)',
+    text: '#fff7e6',
+    muted: '#d6bf94',
+    accent: '#cca43b',
+    accentAlt: '#f4d58d',
+    imageFrame: '#15130f',
+    darkControl: '#0a0a0c',
+    headingFont: Fonts.playfair.bold,
+  },
+  cinematic: {
+    label: 'Cinematic Noir',
+    categoryLabel: 'Sports Documentary',
+    noteLabel: 'Documentary Note',
+    galleryLabel: 'Noir Highlights',
+    galleryTitle: 'Frames Of The Game',
+    background: '#0d0d0d',
+    overlay: ['rgba(0, 0, 0, 0.92)', 'rgba(80, 80, 80, 0.18)', 'rgba(13, 13, 13, 1)'],
+    card: 'rgba(245, 245, 245, 0.93)',
+    text: '#121212',
+    muted: '#5e5e5e',
+    accent: '#d9d9d9',
+    accentAlt: '#ef4444',
+    imageFrame: '#f2f2f2',
+    darkControl: '#121212',
+    headingFont: Fonts.spaceGrotesk.bold,
+  },
+  modern_lounge: {
+    label: 'Modern Lounge',
+    categoryLabel: 'VIP Sports Lounge',
+    noteLabel: 'Club Brief',
+    galleryLabel: 'Private Highlights',
+    galleryTitle: 'Lounge Moments',
+    background: '#efe7dc',
+    overlay: ['rgba(45, 31, 24, 0.7)', 'rgba(111, 78, 55, 0.18)', 'rgba(239, 231, 220, 1)'],
+    card: 'rgba(255, 250, 242, 0.95)',
+    text: '#2b211b',
+    muted: '#756353',
+    accent: '#7a563b',
+    accentAlt: '#b89145',
+    imageFrame: '#fffaf2',
+    darkControl: '#2b211b',
+    headingFont: Fonts.cormorant.bold,
+  },
+  elegant_night: {
+    label: 'Elegant Night',
+    categoryLabel: 'Evening Sports Gala',
+    noteLabel: 'Evening Brief',
+    galleryLabel: 'Night Highlights',
+    galleryTitle: 'Elegant Match Night',
+    background: '#07101f',
+    overlay: ['rgba(7, 16, 31, 0.9)', 'rgba(212, 180, 116, 0.18)', 'rgba(7, 16, 31, 1)'],
+    card: 'rgba(245, 237, 220, 0.95)',
+    text: '#111827',
+    muted: '#6b5b45',
+    accent: '#d4b474',
+    accentAlt: '#8aa4c8',
+    imageFrame: '#f5eddc',
+    darkControl: '#07101f',
+    headingFont: Fonts.playfair.bold,
+  },
+  polaroid: {
+    label: 'Vintage Polaroid',
+    categoryLabel: 'Retro Sports Album',
+    noteLabel: 'Film Roll Note',
+    galleryLabel: 'Archive Highlights',
+    galleryTitle: 'Vintage Match Prints',
+    background: '#f7efe1',
+    overlay: ['rgba(78, 52, 36, 0.64)', 'rgba(180, 83, 9, 0.16)', 'rgba(247, 239, 225, 1)'],
+    card: 'rgba(255, 250, 240, 0.96)',
+    text: '#3f2a1e',
+    muted: '#806653',
+    accent: '#b45309',
+    accentAlt: '#9f3f32',
+    imageFrame: '#fffaf0',
+    darkControl: '#3f2a1e',
+    headingFont: Fonts.playfair.bold,
+  },
+  editorial: {
+    label: 'Editorial Mag',
+    categoryLabel: 'Sports Magazine Feature',
+    noteLabel: 'Editor Note',
+    galleryLabel: 'Feature Story',
+    galleryTitle: 'The Match Issue',
+    background: '#fafaf7',
+    overlay: ['rgba(17, 24, 39, 0.72)', 'rgba(17, 24, 39, 0.14)', 'rgba(250, 250, 247, 1)'],
+    card: 'rgba(255, 255, 255, 0.96)',
+    text: '#111827',
+    muted: '#57534e',
+    accent: '#111827',
+    accentAlt: '#b91c1c',
+    imageFrame: '#ffffff',
+    darkControl: '#111827',
+    headingFont: Fonts.spaceGrotesk.bold,
+  },
+  vibrant: {
+    label: 'Vibrant Energy',
+    categoryLabel: 'High Energy Matchday',
+    noteLabel: 'Energy Brief',
+    galleryLabel: 'Momentum Highlights',
+    galleryTitle: 'Game Day Rush',
+    background: '#08111f',
+    overlay: ['rgba(8, 17, 31, 0.84)', 'rgba(249, 115, 22, 0.22)', 'rgba(8, 17, 31, 1)'],
+    card: 'rgba(248, 250, 252, 0.94)',
+    text: '#0f172a',
+    muted: '#475569',
+    accent: '#f97316',
+    accentAlt: '#84cc16',
+    imageFrame: '#f8fafc',
+    darkControl: '#0f172a',
+    headingFont: Fonts.spaceGrotesk.bold,
+  },
+  zen: {
+    label: 'Zen Garden',
+    categoryLabel: 'Wellness Sports Event',
+    noteLabel: 'Calm Match Note',
+    galleryLabel: 'Quiet Highlights',
+    galleryTitle: 'Balanced Motion',
+    background: '#f1eee6',
+    overlay: ['rgba(64, 70, 55, 0.54)', 'rgba(120, 113, 108, 0.12)', 'rgba(241, 238, 230, 1)'],
+    card: 'rgba(255, 252, 246, 0.95)',
+    text: '#44403c',
+    muted: '#78716c',
+    accent: '#66785f',
+    accentAlt: '#b89b6a',
+    imageFrame: '#fffaf2',
+    darkControl: '#44403c',
+    headingFont: Fonts.cormorant.bold,
+  },
+};
+
+const getSportsTemplateTheme = (templateId?: string) => SPORTS_TEMPLATE_THEMES[templateId || ''] || SPORTS_TEMPLATE_THEMES.bohemian;
+
+const isVideoMedia = (item: any) => item?.mediaType === 'video' || item?.resourceType === 'video';
+const isPhotoMedia = (item: any) => !isVideoMedia(item);
+
+function formatEventDisplayDate(date: Date) {
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function normalizeEventDate(value?: string) {
+  const trimmed = (value || '').trim();
+  if (!trimmed) return trimmed;
+
+  const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) {
+    const [, day, month, year] = slashMatch;
+    const parsedSlashDate = new Date(Number(year), Number(month) - 1, Number(day));
+    if (!Number.isNaN(parsedSlashDate.getTime())) return formatEventDisplayDate(parsedSlashDate);
+  }
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return trimmed;
+
+  return formatEventDisplayDate(parsed);
+}
+
+function GalleryVideoCard({ video, accent = '#d4af37' }: { video: any; accent?: string }) {
+  const player = useVideoPlayer(video.url, (player) => {
+    player.loop = false;
+    player.muted = false;
+  });
+
+  return (
+    <View style={{
+      borderRadius: 18,
+      overflow: 'hidden',
+      backgroundColor: 'rgba(15, 23, 42, 0.92)',
+      borderWidth: 1,
+      borderColor: `${accent}55`,
+      marginBottom: 16,
+    }}>
+      <VideoView
+        player={player}
+        nativeControls
+        contentFit="contain"
+        surfaceType="textureView"
+        style={{ width: '100%', aspectRatio: 16 / 9, backgroundColor: '#020617' }}
+      />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10 }}>
+        <IconSymbol name="play.fill" size={15} color={accent} />
+        <Text style={{ flex: 1, color: '#e2e8f0', fontSize: 12, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>
+          {video.title || 'Uploaded video'}
+        </Text>
+      </View>
+    </View>
+  );
+}
 
 export default function EventDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -70,9 +354,23 @@ export default function EventDetailScreen() {
     }, 2500);
   }, []);
 
+  const normalizePhoneValue = useCallback((value?: string | null) => {
+    return (value || '').replace(/\D/g, '');
+  }, []);
+
+  const normalizeEmailValue = useCallback((value?: string | null) => {
+    return (value || '').trim().toLowerCase();
+  }, []);
+
   const [event, setEvent] = useState<FirestoreEvent | null>(null);
   const [selectedGuest, setSelectedGuest] = useState<GuestLog | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<GuestLog | null>(null);
+  const [selectedGuestProfile, setSelectedGuestProfile] = useState<UserProfile | null>(null);
+  const [loadingGuestProfile, setLoadingGuestProfile] = useState(false);
+  const [showGuestInfo, setShowGuestInfo] = useState(false);
+  const [selectedRequestProfile, setSelectedRequestProfile] = useState<UserProfile | null>(null);
+  const [loadingRequestProfile, setLoadingRequestProfile] = useState(false);
+  const [showRequestInfo, setShowRequestInfo] = useState(false);
   const [subEvents, setSubEvents] = useState<FirestoreEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [guestStatus, setGuestStatus] = useState<string | null>(null);
@@ -95,6 +393,98 @@ export default function EventDetailScreen() {
       )
     );
   }, [user, event]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadSelectedGuestProfile = async () => {
+      if (!selectedGuest) {
+        setSelectedGuestProfile(null);
+        setShowGuestInfo(false);
+        return;
+      }
+
+      setLoadingGuestProfile(true);
+      try {
+        const users = await getUsers();
+        const guestEmail = normalizeEmailValue(selectedGuest.email || selectedGuest.phone);
+        const guestPhone = normalizePhoneValue(selectedGuest.phone);
+        const profile = users.find((candidate) => {
+          const candidateEmail = normalizeEmailValue(candidate.email);
+          const candidatePhone = normalizePhoneValue(candidate.phone);
+          return (
+            (!!guestEmail && guestEmail === candidateEmail) ||
+            (!!guestPhone && guestPhone === candidatePhone)
+          );
+        }) || null;
+
+        if (isActive) {
+          setSelectedGuestProfile(profile);
+        }
+      } catch (error) {
+        console.error('Error loading selected guest profile:', error);
+        if (isActive) {
+          setSelectedGuestProfile(null);
+        }
+      } finally {
+        if (isActive) {
+          setLoadingGuestProfile(false);
+        }
+      }
+    };
+
+    loadSelectedGuestProfile();
+
+    return () => {
+      isActive = false;
+    };
+  }, [normalizeEmailValue, normalizePhoneValue, selectedGuest]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadSelectedRequestProfile = async () => {
+      if (!selectedRequest) {
+        setSelectedRequestProfile(null);
+        setShowRequestInfo(false);
+        return;
+      }
+
+      setLoadingRequestProfile(true);
+      try {
+        const users = await getUsers();
+        const requestEmail = normalizeEmailValue(selectedRequest.email || selectedRequest.phone);
+        const requestPhone = normalizePhoneValue(selectedRequest.phone);
+        const profile = users.find((candidate) => {
+          const candidateEmail = normalizeEmailValue(candidate.email);
+          const candidatePhone = normalizePhoneValue(candidate.phone);
+          return (
+            (!!requestEmail && requestEmail === candidateEmail) ||
+            (!!requestPhone && requestPhone === candidatePhone)
+          );
+        }) || null;
+
+        if (isActive) {
+          setSelectedRequestProfile(profile);
+        }
+      } catch (error) {
+        console.error('Error loading selected request profile:', error);
+        if (isActive) {
+          setSelectedRequestProfile(null);
+        }
+      } finally {
+        if (isActive) {
+          setLoadingRequestProfile(false);
+        }
+      }
+    };
+
+    loadSelectedRequestProfile();
+
+    return () => {
+      isActive = false;
+    };
+  }, [normalizeEmailValue, normalizePhoneValue, selectedRequest]);
 
   const canViewContent = isOwner || isPrivilegedViewer || guestStatus === 'approved';
 
@@ -153,8 +543,14 @@ export default function EventDetailScreen() {
     };
   }, [event?.templateId, isThemeDark, showAdminView]);
 
+  const isSportsTemplate = !showAdminView && event?.category === 'Sports' && SPORTS_TEMPLATE_IDS.includes(event?.templateId || '');
+  const sportsTheme = React.useMemo(() => getSportsTemplateTheme(event?.templateId), [event?.templateId]);
+  const pageBackground = isSportsTemplate ? sportsTheme.background : selectedTemplate.background;
+
   const heroHeight = showAdminView
     ? 400
+    : isSportsTemplate
+      ? 555 + insets.top
     : event?.templateId === 'royal' || event?.templateId === 'classic' || event?.templateId === 'hero'
       ? windowHeight
       : event?.templateId === 'ethereal'
@@ -200,8 +596,8 @@ export default function EventDetailScreen() {
   const isRetroArcadeTemplate = !showAdminView && event?.templateId === 'retro_arcade';
   const isAcademicEditorialTemplate = !showAdminView && event?.templateId === 'academic_editorial';
   const isNeonCarnivalTemplate = !showAdminView && event?.templateId === 'neon_carnival';
-  const isGardenTemplate = !showAdminView && event?.templateId === 'garden';
-  const isBohemianTemplate = !showAdminView && event?.templateId === 'bohemian';
+  const isGardenTemplate = !showAdminView && event?.templateId === 'garden' && !isSportsTemplate;
+  const isBohemianTemplate = !showAdminView && event?.templateId === 'bohemian' && !isSportsTemplate;
   const isMuseumTemplate = !showAdminView && event?.templateId === 'museum';
   const isBrutalistTemplate = !showAdminView && event?.templateId === 'brutalist';
   const isTechSleekTemplate = !showAdminView && event?.templateId === 'tech_sleek';
@@ -384,6 +780,10 @@ export default function EventDetailScreen() {
   const [activeSubEvent, setActiveSubEvent] = useState<FirestoreEvent | null>(null);
   const [photos, setPhotos] = useState<any[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [galleryMediaTab, setGalleryMediaTab] = useState<'photos' | 'videos'>('photos');
+  const photoItems = React.useMemo(() => photos.filter(isPhotoMedia), [photos]);
+  const videoItems = React.useMemo(() => photos.filter(isVideoMedia), [photos]);
+  const activeGalleryItems = galleryMediaTab === 'photos' ? photoItems : videoItems;
 
   // Gallery Welcome Text Settings State
   const [galleryDescModalVisible, setGalleryDescModalVisible] = useState(false);
@@ -435,6 +835,14 @@ export default function EventDetailScreen() {
           eventData.templateId = defaultTemplate.id;
         }
 
+        const normalizedMainDate = normalizeEventDate(eventData.date);
+        if (normalizedMainDate && normalizedMainDate !== eventData.date) {
+          eventData.date = normalizedMainDate;
+          updateEvent(eventData.id, { date: normalizedMainDate }).catch((err) => {
+            console.error('[DateNormalize] Failed to update main event date:', err);
+          });
+        }
+
         setEvent(eventData);
         setIsOwner(user?.uid === eventData.createdBy);
 
@@ -450,12 +858,35 @@ export default function EventDetailScreen() {
           getEventPhotos(eventData.id, eventData.legacyId)
         ]);
 
-        setSubEvents(subs);
+        const normalizedSubs = subs.map((sub) => ({
+          ...sub,
+          date: normalizeEventDate(sub.date) || sub.date,
+        }));
+        normalizedSubs.forEach((sub, index) => {
+          if (sub.date !== subs[index].date) {
+            updateEvent(sub.id, { date: sub.date }).catch((err) => {
+              console.error('[DateNormalize] Failed to update sub-event date:', err);
+            });
+          }
+        });
+
+        setSubEvents(normalizedSubs);
         setLinkedVendors(vendorsData.filter(v => v !== null) as Business[]);
         setPhotos(eventPhotos);
 
         if (user && user.uid === eventData.createdBy) {
-          setGuestLogs(logs.filter(l => l.eventId === id || l.parentEventId === id));
+          const eventLogs = logs.filter(l => l.eventId === id || l.parentEventId === id);
+          eventLogs
+            .filter((log: any) => Object.prototype.hasOwnProperty.call(log, 'canChat'))
+            .forEach((log: any) => {
+              removeGuestChatPermission(log.id).catch((err) => {
+                console.error('[Permissions] Failed to remove legacy chat permission:', err);
+              });
+            });
+          setGuestLogs(eventLogs.map((log: any) => {
+            const { canChat, ...rest } = log;
+            return rest;
+          }));
         }
 
         console.log(`[PERF] loadEvent pipeline completed in ${Date.now() - perfStart}ms`);
@@ -483,6 +914,7 @@ export default function EventDetailScreen() {
 
   const handleSubEventChange = (sub: FirestoreEvent | null) => {
     setActiveSubEvent(sub);
+    setGalleryMediaTab('photos');
     if (sub) {
       loadPhotos(sub.id, sub.legacyId);
     } else if (event) {
@@ -493,6 +925,7 @@ export default function EventDetailScreen() {
   const handleEventBack = useCallback(() => {
     if (selectedAdminGallery !== undefined) {
       setSelectedAdminGallery(undefined);
+      setGalleryMediaTab('photos');
       if (event) {
         loadPhotos(event.id, event.legacyId);
       }
@@ -501,6 +934,7 @@ export default function EventDetailScreen() {
 
     if (activeSubEvent) {
       setActiveSubEvent(null);
+      setGalleryMediaTab('photos');
       if (event) {
         loadPhotos(event.id, event.legacyId);
       }
@@ -552,7 +986,7 @@ export default function EventDetailScreen() {
     }
   };
 
-  const handleUploadGalleryPhoto = async () => {
+  const handleUploadGalleryMedia = async (mediaType: 'photo' | 'video' = 'photo') => {
     if (!event) return;
     const activeId = selectedAdminGallery !== undefined
       ? (selectedAdminGallery ? selectedAdminGallery.id : event.id)
@@ -562,7 +996,7 @@ export default function EventDetailScreen() {
       : (activeSubEvent ? activeSubEvent.legacyId : event.legacyId);
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: mediaType === 'video' ? ['videos'] : ['images'],
       allowsEditing: false,
       quality: 0.8,
     });
@@ -570,28 +1004,47 @@ export default function EventDetailScreen() {
     if (!result.canceled) {
       setUpdating(true);
       try {
-        const file = { uri: result.assets[0].uri, name: 'photo.jpg', type: 'image/jpeg' } as any;
-        const upload = await uploadEventImage(file, activeId, user?.uid || 'anon');
+        const asset = result.assets[0];
+        const fallbackType = mediaType === 'video' ? 'video/mp4' : 'image/jpeg';
+        const fallbackName = mediaType === 'video' ? 'video.mp4' : 'photo.jpg';
+        const file = {
+          uri: asset.uri,
+          name: asset.fileName || fallbackName,
+          type: asset.mimeType || fallbackType,
+        } as any;
+        const upload = mediaType === 'video'
+          ? await uploadEventMedia(file, activeId, user?.uid || 'anon', 'video')
+          : await uploadEventImage(file, activeId, user?.uid || 'anon');
 
         const { addPhoto } = await import('@/lib/firestore');
         await addPhoto({
           eventId: activeId,
           url: upload.url,
-          cloudinaryPublicId: '',
+          cloudinaryPublicId: upload.publicId || '',
+          mediaType,
+          resourceType: upload.resourceType,
           uploadedAt: new Date(),
-          userId: user?.uid || 'anon'
+          userId: user?.uid || 'anon',
+          width: upload.width,
+          height: upload.height,
+          size: upload.bytes,
+          format: upload.format,
         });
 
         loadPhotos(activeId, activeLegacyId);
-        Alert.alert("Success", "Photo uploaded successfully!");
+        setGalleryMediaTab(mediaType === 'video' ? 'videos' : 'photos');
+        Alert.alert("Success", `${mediaType === 'video' ? 'Video' : 'Photo'} uploaded successfully!`);
       } catch (err) {
-        console.error('[UploadPhoto] Error:', err);
-        Alert.alert("Error", "Failed to upload photo.");
+        console.error('[UploadMedia] Error:', err);
+        Alert.alert("Error", `Failed to upload ${mediaType === 'video' ? 'video' : 'photo'}.`);
       } finally {
         setUpdating(false);
       }
     }
   };
+
+  const handleUploadGalleryPhoto = () => handleUploadGalleryMedia('photo');
+  const handleUploadGalleryVideo = () => handleUploadGalleryMedia('video');
 
   const handleReorderPhotos = async (newOrder: any[]) => {
     const reorderedIds = newOrder.map((p: any) => p.id);
@@ -614,9 +1067,10 @@ export default function EventDetailScreen() {
   };
 
   const handleDeleteGalleryPhoto = async (photoId: string) => {
+    const selectedMediaLabel = galleryMediaTab === 'videos' ? 'video' : 'photo';
     Alert.alert(
-      "Delete Photo",
-      "Are you sure you want to permanently delete this photo from the gallery?",
+      `Delete ${selectedMediaLabel === 'video' ? 'Video' : 'Photo'}`,
+      `Are you sure you want to permanently delete this ${selectedMediaLabel} from the gallery?`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -636,7 +1090,7 @@ export default function EventDetailScreen() {
                 : (activeSubEvent ? activeSubEvent.legacyId : event!.legacyId);
 
               loadPhotos(activeId, activeLegacyId);
-              Alert.alert("Success", "Photo removed from gallery.");
+              Alert.alert("Success", `${selectedMediaLabel === 'video' ? 'Video' : 'Photo'} removed from gallery.`);
             } catch (err) {
               console.error('[DeletePhoto] Error:', err);
               Alert.alert("Error", "Failed to delete photo.");
@@ -665,7 +1119,7 @@ export default function EventDetailScreen() {
     const shareUrl = `https://wedalbum.app/events/${event.id}`;
     try {
       await Share.share({
-        message: `Join our event "${event.title}" on WedAlbum!\nJoin ID: ${event.joinId}\nLink: ${shareUrl}`,
+        message: `Join our event "${event.title}" on EveBash!\nJoin ID: ${event.joinId}\nLink: ${shareUrl}`,
         url: shareUrl,
       });
     } catch (error) {
@@ -892,7 +1346,7 @@ export default function EventDetailScreen() {
       await createEvent({
         id: subId,
         title: newSubTitle,
-        date: event.date,
+        date: normalizeEventDate(event.date) || event.date,
         coverImage: event.coverImage,
         description: `Welcome to the ${newSubTitle} gallery! Share your beautiful moments and thoughts here.`,
         createdBy: user?.uid,
@@ -1077,6 +1531,55 @@ export default function EventDetailScreen() {
     );
   };
 
+  const selectedGuestName = selectedGuestProfile?.name || selectedGuest?.name || 'Not set';
+  const selectedGuestUsername = selectedGuestProfile?.username ? `@${selectedGuestProfile.username}` : 'Not set';
+  const selectedGuestEmail = selectedGuestProfile?.email || selectedGuest?.email || (selectedGuest?.phone?.includes('@') ? selectedGuest.phone : '') || 'Not set';
+  const selectedGuestPhone = selectedGuestProfile?.phone || (!selectedGuest?.phone?.includes('@') ? selectedGuest?.phone : '') || 'Not set';
+  const selectedGuestPhoto = selectedGuestProfile?.profileImage;
+  const selectedRequestName = selectedRequestProfile?.name || selectedRequest?.name || 'Not set';
+  const selectedRequestUsername = selectedRequestProfile?.username ? `@${selectedRequestProfile.username}` : 'Not set';
+  const selectedRequestEmail = selectedRequestProfile?.email || selectedRequest?.email || (selectedRequest?.phone?.includes('@') ? selectedRequest.phone : '') || 'Not set';
+  const selectedRequestPhone = selectedRequestProfile?.phone || (!selectedRequest?.phone?.includes('@') ? selectedRequest?.phone : '') || 'Not set';
+  const selectedRequestPhoto = selectedRequestProfile?.profileImage;
+  const approvedGuests = guestLogs.filter((log) => log.status === 'approved');
+  const adminGuests = approvedGuests.filter((log) => !!log.canAdmin);
+  const memberGuests = approvedGuests.filter((log) => !log.canAdmin);
+
+  const renderApprovedGuestCard = (log: any, index: number) => (
+    <TouchableOpacity
+      key={log.id}
+      style={styles.memberCard}
+      onPress={() => setSelectedGuest(log)}
+    >
+      <View style={styles.memberAvatar}>
+        <Text style={styles.avatarText}>{log.name.charAt(0)}</Text>
+      </View>
+
+      <View style={styles.memberMain}>
+        <Text style={styles.memberName}>{log.name}</Text>
+
+        <View style={styles.memberSecondary}>
+          <Text style={styles.memberPhone}>{log.phone}</Text>
+          <View style={styles.grantedRowSmall}>
+            {log.canAdmin && <View style={styles.miniIcon}><IconSymbol name="shield.fill" size={14} color={MidnightColors.gold} /></View>}
+            {log.canUpload && <View style={styles.miniIcon}><IconSymbol name="camera.fill" size={14} color={MidnightColors.gold} /></View>}
+            {log.canComment && <View style={styles.miniIcon}><IconSymbol name={"bubble.left.fill" as any} size={14} color={MidnightColors.gold} /></View>}
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.memberActions}>
+        <Text style={styles.memberNumber}>#{String(index + 1).padStart(2, '0')}</Text>
+        <TouchableOpacity
+          style={styles.memberDelete}
+          onPress={() => deleteGuest(log.id).then(loadEvent)}
+        >
+          <IconSymbol name="trash.fill" size={16} color="rgba(239, 68, 68, 0.4)" />
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+
   if (loading) {
     return (
       <View style={[styles.safeArea, styles.centered]}>
@@ -1109,10 +1612,10 @@ export default function EventDetailScreen() {
   };
 
   return (
-    <View style={[styles.safeArea, { backgroundColor: selectedTemplate.background }]}>
+    <View style={[styles.safeArea, { backgroundColor: pageBackground }]}>
       <Stack.Screen
         options={{
-          headerShown: showAdminView ? false : !(event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'pop' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden' || event?.templateId === 'bohemian' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive'),
+          headerShown: showAdminView ? false : !(isSportsTemplate || event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'pop' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden' || event?.templateId === 'bohemian' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive'),
           headerTransparent: true,
           headerTitle: '',
           headerLeft: () => {
@@ -1123,7 +1626,7 @@ export default function EventDetailScreen() {
             const isMinimal = event?.templateId === 'minimal_love';
             const isMuseum = event?.templateId === 'museum';
             const isBrutalist = event?.templateId === 'brutalist';
-            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden' || event?.templateId === 'bohemian' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : (
+            return (!showAdminView && (isSportsTemplate || event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden' || event?.templateId === 'bohemian' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : (
               <TouchableOpacity
                 onPress={handleEventBack}
                 style={[
@@ -1156,7 +1659,7 @@ export default function EventDetailScreen() {
             const isMinimal = event?.templateId === 'minimal_love';
             const isMuseum = event?.templateId === 'museum';
             const isBrutalist = event?.templateId === 'brutalist';
-            return (!showAdminView && (event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden' || event?.templateId === 'bohemian' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : (
+            return (!showAdminView && (isSportsTemplate || event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden' || event?.templateId === 'bohemian' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : (
               <TouchableOpacity
                 style={[
                   styles.floatingBack,
@@ -1188,7 +1691,7 @@ export default function EventDetailScreen() {
 
       <ScrollView
         ref={scrollViewRef}
-        style={[styles.container, { backgroundColor: selectedTemplate.background }]}
+        style={[styles.container, { backgroundColor: pageBackground }]}
         bounces={false}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
@@ -1197,10 +1700,106 @@ export default function EventDetailScreen() {
       >
         {/* ── HERO ── */}
         <View 
-          style={[styles.hero, { height: heroHeight, backgroundColor: selectedTemplate.background, overflow: 'hidden' }]}
+          style={[styles.hero, { height: heroHeight, backgroundColor: pageBackground, overflow: 'hidden' }]}
           {...(isRepositioning ? panResponder.panHandlers : {})}
         >
-          {!showAdminView && isBohemianTemplate ? (
+          {isSportsTemplate ? (
+            <View style={[styles.sportsHeroStage, { backgroundColor: sportsTheme.background, paddingTop: insets.top }]}>
+              <Image
+                source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                style={styles.sportsHeroImage}
+                resizeMode="cover"
+                blurRadius={0.8}
+              />
+              <LinearGradient
+                colors={sportsTheme.overlay as any}
+                locations={[0, 0.5, 1]}
+                style={styles.sportsHeroOverlay}
+              />
+              <View style={styles.sportsTextureLayer}>
+                <View style={[styles.sportsTextureLine, styles.sportsTextureLineTop, { backgroundColor: `${sportsTheme.accent}33` }]} />
+                <View style={[styles.sportsTextureLine, styles.sportsTextureLineMid, { backgroundColor: `${sportsTheme.accentAlt}30` }]} />
+                <View style={[styles.sportsTextureLine, styles.sportsTextureLineBottom, { backgroundColor: `${sportsTheme.text}18` }]} />
+              </View>
+              <View style={[styles.sportsAccentOrb, { backgroundColor: sportsTheme.accentAlt }]} />
+
+              <View style={[styles.sportsTopBar, { top: insets.top + 12 }]}>
+                <TouchableOpacity
+                  style={[styles.sportsHeaderButton, { backgroundColor: `${sportsTheme.darkControl}dd`, borderColor: `${sportsTheme.accent}66` }]}
+                  onPress={handleEventBack}
+                  activeOpacity={0.86}
+                >
+                  <IconSymbol name="chevron.left" size={18} color={sportsTheme.imageFrame} />
+                </TouchableOpacity>
+                <Text style={[styles.sportsTopLabel, { color: sportsTheme.accent }]}>{sportsTheme.label}</Text>
+                <TouchableOpacity
+                  style={[styles.sportsHeaderButton, { backgroundColor: `${sportsTheme.darkControl}dd`, borderColor: `${sportsTheme.accent}66` }]}
+                  onPress={() => setShowShareModal(true)}
+                  activeOpacity={0.86}
+                >
+                  <IconSymbol name="square.and.arrow.up" size={16} color={sportsTheme.imageFrame} />
+                </TouchableOpacity>
+              </View>
+
+              <Animated.View
+                entering={FadeInUp.delay(80).duration(650)}
+                style={[styles.sportsPosterFrame, { top: insets.top + 82, backgroundColor: sportsTheme.imageFrame, borderColor: `${sportsTheme.accent}66`, shadowColor: sportsTheme.darkControl }]}
+              >
+                <Image
+                  source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                  style={styles.sportsPosterImage}
+                  resizeMode="cover"
+                />
+                <LinearGradient
+                  colors={['rgba(0,0,0,0)', `${sportsTheme.darkControl}66`]}
+                  style={styles.sportsPosterShade}
+                />
+                <View style={[styles.sportsPosterBadge, { backgroundColor: `${sportsTheme.darkControl}dd`, borderColor: `${sportsTheme.accent}66` }]}>
+                  <Text style={[styles.sportsPosterBadgeText, { color: sportsTheme.accent }]}>Matchday Gallery</Text>
+                </View>
+              </Animated.View>
+
+              <View style={[styles.sportsMetricCard, { top: insets.top + 214, backgroundColor: sportsTheme.card, borderColor: `${sportsTheme.accent}55`, shadowColor: sportsTheme.darkControl }]}>
+                <Text style={[styles.sportsMetricNumber, { color: sportsTheme.text }]}>{String(photos.length || 1).padStart(2, '0')}</Text>
+                <Text style={[styles.sportsMetricLabel, { color: sportsTheme.accent }]}>Moments</Text>
+              </View>
+
+              <Animated.View
+                entering={FadeInUp.delay(180).duration(650)}
+                style={[styles.sportsHeroCard, { backgroundColor: sportsTheme.card, borderColor: `${sportsTheme.accent}55`, shadowColor: sportsTheme.darkControl }]}
+              >
+                <View style={styles.sportsHeroKickerRow}>
+                  <View style={[styles.sportsHeroKickerDot, { backgroundColor: sportsTheme.accentAlt }]} />
+                  <Text style={[styles.sportsHeroKicker, { color: sportsTheme.accent }]}>{sportsTheme.categoryLabel}</Text>
+                  <View style={[styles.sportsHeroKickerLine, { backgroundColor: `${sportsTheme.accent}33` }]} />
+                </View>
+                <Text
+                  style={[styles.sportsHeroTitle, { color: sportsTheme.text, fontFamily: sportsTheme.headingFont }]}
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  {...({ minimumScaleFactor: 0.72 } as any)}
+                >
+                  {currentActiveEvent?.title || event.title}
+                </Text>
+                <View style={styles.sportsHeroDivider}>
+                  <View style={[styles.sportsHeroDividerLine, { backgroundColor: `${sportsTheme.accent}33` }]} />
+                  <View style={[styles.sportsHeroDividerMark, { backgroundColor: sportsTheme.accent }]} />
+                  <View style={[styles.sportsHeroDividerLine, { backgroundColor: `${sportsTheme.accent}33` }]} />
+                </View>
+                <View style={styles.sportsHeroMetaRow}>
+                  <Text style={[styles.sportsHeroDate, { color: sportsTheme.muted }]} numberOfLines={1}>{currentActiveEvent?.date || event.date || 'Matchday'}</Text>
+                  <TouchableOpacity
+                    style={[styles.sportsShareButton, { backgroundColor: sportsTheme.darkControl }]}
+                    onPress={() => setShowShareModal(true)}
+                    activeOpacity={0.86}
+                  >
+                    <IconSymbol name="square.and.arrow.up" size={14} color={sportsTheme.imageFrame} />
+                    <Text style={[styles.sportsShareButtonText, { color: sportsTheme.imageFrame }]}>Share</Text>
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            </View>
+          ) : !showAdminView && isBohemianTemplate ? (
             <View style={[StyleSheet.absoluteFillObject, { backgroundColor: selectedTemplate.background, paddingTop: insets.top }]}>
               {/* Sunset / Dusk Gradient Background */}
               <LinearGradient
@@ -1823,7 +2422,7 @@ export default function EventDetailScreen() {
               </View>
               <View style={[styles.brutalistHeaderRail, { top: insets.top + 52 }]}>
                 <Text style={styles.brutalistHeaderRailText}>Corporate Grid System</Text>
-                <Text style={styles.brutalistHeaderRailCode}>WA/{String(new Date().getFullYear()).slice(2)}</Text>
+                <Text style={styles.brutalistHeaderRailCode}>EB/{String(new Date().getFullYear()).slice(2)}</Text>
               </View>
 
               <Animated.View entering={FadeInUp.delay(80).duration(650)} style={[styles.brutalistArtworkBlock, { top: insets.top + 104 }]}>
@@ -1883,7 +2482,7 @@ export default function EventDetailScreen() {
               blurRadius={isGoldenYearsTemplate ? 0.8 : (isVintageTemplate ? 1.1 : 0)}
             />
           )}
-          {selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && selectedTemplate.id !== 'academic_editorial' && selectedTemplate.id !== 'garden' && selectedTemplate.id !== 'bohemian' && selectedTemplate.id !== 'museum' && selectedTemplate.id !== 'brutalist' && selectedTemplate.id !== 'tech_sleek' && selectedTemplate.id !== 'executive' && (
+          {!isSportsTemplate && selectedTemplate.id !== 'classic' && selectedTemplate.id !== 'pop' && selectedTemplate.id !== 'ethereal' && selectedTemplate.id !== 'academic_editorial' && selectedTemplate.id !== 'garden' && selectedTemplate.id !== 'bohemian' && selectedTemplate.id !== 'museum' && selectedTemplate.id !== 'brutalist' && selectedTemplate.id !== 'tech_sleek' && selectedTemplate.id !== 'executive' && (
             <LinearGradient
               colors={selectedTemplate.overlay as any}
               style={styles.heroGradient}
@@ -1989,7 +2588,7 @@ export default function EventDetailScreen() {
           )}
 
 
-          {(!showAdminView && (event?.templateId === 'academic_editorial' || event?.templateId === 'bohemian' || event?.templateId === 'museum' || event?.templateId === 'brutalist' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : (!showAdminView && event?.templateId === 'royal') ? (
+          {(!showAdminView && (isSportsTemplate || event?.templateId === 'academic_editorial' || event?.templateId === 'bohemian' || event?.templateId === 'museum' || event?.templateId === 'brutalist' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : (!showAdminView && event?.templateId === 'royal') ? (
             <View style={styles.royalHeroOverlay}>
               {/* 1. Elegant Thin Inset Frame */}
               <View style={[styles.royalFrame, { borderColor: selectedTemplate.accent }]} />
@@ -2016,7 +2615,7 @@ export default function EventDetailScreen() {
               <View style={styles.royalBottomContent}>
                 <View style={styles.brandLogoContainer}>
                   <Text style={[styles.royalBrandLogoScript, { color: '#fff', fontSize: 13, opacity: 0.8 }]}>Delivered by</Text>
-                  <Text style={[styles.royalBrandSubText, { color: selectedTemplate.accent, fontSize: 16, marginTop: 2, letterSpacing: 2 }]}>Wed Album</Text>
+                  <Text style={[styles.royalBrandSubText, { color: selectedTemplate.accent, fontSize: 16, marginTop: 2, letterSpacing: 2 }]}>EveBash</Text>
                   <Text style={[styles.royalBrandLogoScript, { color: '#fff', fontSize: 12, marginTop: 4, opacity: 0.8, fontStyle: 'normal' }]}>with love ❤️</Text>
                 </View>
 
@@ -2081,7 +2680,7 @@ export default function EventDetailScreen() {
               <View style={styles.classicBottomContent}>
                 <View style={styles.brandLogoContainer}>
                   <Text style={[styles.classicBrandSubText, { color: '#94a3b8' }]}>EXHIBITION DELIVERED BY</Text>
-                  <Text style={[styles.classicBrandLogoScript, { color: selectedTemplate.text, fontFamily: selectedTemplate.serifItalic }]}>Wed Album</Text>
+                  <Text style={[styles.classicBrandLogoScript, { color: selectedTemplate.text, fontFamily: selectedTemplate.serifItalic }]}>EveBash</Text>
                 </View>
 
                 <TouchableOpacity
@@ -2516,7 +3115,7 @@ export default function EventDetailScreen() {
                   <View style={styles.goldenCeremonyRuleLine} />
                 </View>
                 <Text style={styles.goldenCeremonyDate}>{currentActiveEvent?.date || event.date}</Text>
-                <TouchableOpacity style={styles.goldenCeremonyShare} onPress={handleShare}>
+                <TouchableOpacity style={styles.goldenCeremonyShare} onPress={() => setShowShareModal(true)}>
                   <IconSymbol name="square.and.arrow.up" size={14} color="#3f2f22" />
                   <Text style={styles.goldenCeremonyShareText}>Share Event</Text>
                 </TouchableOpacity>
@@ -2573,7 +3172,7 @@ export default function EventDetailScreen() {
               </Animated.View>
               <View style={styles.vintageEditorialFooter}>
                 <Text style={styles.vintageEditorialDate}>{currentActiveEvent?.date || event.date}</Text>
-                <TouchableOpacity style={styles.vintageEditorialShare} onPress={handleShare}>
+                <TouchableOpacity style={styles.vintageEditorialShare} onPress={() => setShowShareModal(true)}>
                   <Text style={styles.vintageEditorialShareText}>Share</Text>
                   <IconSymbol name="square.and.arrow.up" size={13} color="#B89145" />
                 </TouchableOpacity>
@@ -2639,7 +3238,7 @@ export default function EventDetailScreen() {
                   <View style={[styles.roseBloomLeaf, styles.roseBloomLeafAlt]} />
                 </View>
                 <Text style={styles.roseBloomDate}>{currentActiveEvent?.date || event.date}</Text>
-                <TouchableOpacity style={styles.roseBloomShare} onPress={handleShare}>
+                <TouchableOpacity style={styles.roseBloomShare} onPress={() => setShowShareModal(true)}>
                   <IconSymbol name="square.and.arrow.up" size={14} color="#5c2632" />
                   <Text style={styles.roseBloomShareText}>Share Event</Text>
                 </TouchableOpacity>
@@ -2683,7 +3282,7 @@ export default function EventDetailScreen() {
                 </View>
                 <View style={styles.minimalEditorialMetaRow}>
                   <Text style={styles.minimalEditorialDate}>{currentActiveEvent?.date || event.date}</Text>
-                  <TouchableOpacity style={styles.minimalEditorialShare} onPress={handleShare}>
+                  <TouchableOpacity style={styles.minimalEditorialShare} onPress={() => setShowShareModal(true)}>
                     <IconSymbol name="square.and.arrow.up" size={14} color="#fffaf2" />
                   </TouchableOpacity>
                 </View>
@@ -2866,7 +3465,7 @@ export default function EventDetailScreen() {
                     isPopTemplate && styles.popShareButton,
                     isAnniversaryTemplate && styles.anniversaryShareButton,
                   ]}
-                  onPress={handleShare}
+                  onPress={() => setShowShareModal(true)}
                 >
                   <IconSymbol name="square.and.arrow.up" size={12} color={selectedTemplate.accent} />
                   <Text style={[
@@ -2903,7 +3502,7 @@ export default function EventDetailScreen() {
               <View style={styles.tabBar}>
                 <TouchableOpacity
                   style={[styles.tab, activeTab === 'galleries' && styles.activeTab]}
-                  onPress={() => { setActiveTab('galleries'); setSelectedAdminGallery(undefined); }}
+                  onPress={() => { setActiveTab('galleries'); setGalleryMediaTab('photos'); setSelectedAdminGallery(undefined); }}
                 >
                   <Text style={[styles.tabText, activeTab === 'galleries' && styles.activeTabText]}>Galleries</Text>
                 </TouchableOpacity>
@@ -2920,13 +3519,13 @@ export default function EventDetailScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.tab, activeTab === 'design' && styles.activeTab]}
-                  onPress={() => { setActiveTab('design'); setSelectedAdminGallery(undefined); }}
+                  onPress={() => { setActiveTab('design'); setGalleryMediaTab('photos'); setSelectedAdminGallery(undefined); }}
                 >
                   <Text style={[styles.tabText, activeTab === 'design' && styles.activeTabText]}>Design</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.tab, activeTab === 'partners' && styles.activeTab]}
-                  onPress={() => { setActiveTab('partners'); setSelectedAdminGallery(undefined); }}
+                  onPress={() => { setActiveTab('partners'); setGalleryMediaTab('photos'); setSelectedAdminGallery(undefined); }}
                 >
                   <Text style={[styles.tabText, activeTab === 'partners' && styles.activeTabText]}>Partners</Text>
                 </TouchableOpacity>
@@ -2964,11 +3563,12 @@ export default function EventDetailScreen() {
                               styles.subCard,
                               { borderColor: selectedTemplate.accent, borderWidth: 1.5 }
                             ]}
-                            onPress={() => {
-                              loadPhotos(event.id, event.legacyId);
-                              setGalleryDescText(event.description || '');
-                              setSelectedAdminGallery(null);
-                            }}
+	                            onPress={() => {
+	                              loadPhotos(event.id, event.legacyId);
+	                              setGalleryDescText(event.description || '');
+                                  setGalleryMediaTab('photos');
+	                              setSelectedAdminGallery(null);
+	                            }}
                             activeOpacity={0.85}
                           >
                             <Image source={{ uri: event.coverImage }} style={styles.subImageFull} />
@@ -3050,11 +3650,12 @@ export default function EventDetailScreen() {
                               <TouchableOpacity
                                 key={sub.id}
                                 style={[styles.subCard, { width: '100%' }]}
-                                onPress={() => {
-                                  loadPhotos(sub.id, sub.legacyId);
-                                  setGalleryDescText(sub.description || '');
-                                  setSelectedAdminGallery(sub);
-                                }}
+	                                onPress={() => {
+	                                  loadPhotos(sub.id, sub.legacyId);
+	                                  setGalleryDescText(sub.description || '');
+                                      setGalleryMediaTab('photos');
+	                                  setSelectedAdminGallery(sub);
+	                                }}
                                 activeOpacity={0.85}
                               >
                                 <Image source={{ uri: sub.coverImage }} style={styles.subImageFull} />
@@ -3191,27 +3792,76 @@ export default function EventDetailScreen() {
                         </View>
                       </View>
 
-                      {/* Photo Grid Header */}
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <Text style={styles.sectionTitle}>
-                          Photos ({photos.length})
-                        </Text>
-                        <TouchableOpacity
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(204,164,59,0.12)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: MidnightColors.gold }}
-                          onPress={handleUploadGalleryPhoto}
-                        >
-                          <IconSymbol name="plus" size={13} color={MidnightColors.gold} />
-                          <Text style={{ color: MidnightColors.gold, fontSize: 12, fontWeight: '600' }}>Add Photo</Text>
-                        </TouchableOpacity>
+                      {/* Media Grid Header */}
+                      <View style={{ marginBottom: 12, gap: 12 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text style={styles.sectionTitle}>
+                            Gallery Media
+                          </Text>
+                          <TouchableOpacity
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(204,164,59,0.12)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: MidnightColors.gold }}
+                            onPress={galleryMediaTab === 'videos' ? handleUploadGalleryVideo : handleUploadGalleryPhoto}
+                          >
+                            <IconSymbol name="plus" size={13} color={MidnightColors.gold} />
+                            <Text style={{ color: MidnightColors.gold, fontSize: 12, fontWeight: '600' }}>
+                              {galleryMediaTab === 'videos' ? 'Add Video' : 'Add Photo'}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                        <View style={{ flexDirection: 'row', backgroundColor: 'rgba(15,23,42,0.9)', borderRadius: 16, padding: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
+                          {([
+                            { id: 'photos', label: `Photos (${photoItems.length})` },
+                            { id: 'videos', label: `Videos (${videoItems.length})` },
+                          ] as const).map((item) => {
+                            const active = galleryMediaTab === item.id;
+                            return (
+                              <TouchableOpacity
+                                key={item.id}
+                                style={{ flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 12, backgroundColor: active ? MidnightColors.gold : 'transparent' }}
+                                onPress={() => setGalleryMediaTab(item.id)}
+                              >
+                                <Text style={{ color: active ? '#020617' : '#cbd5e1', fontSize: 12, fontFamily: Fonts.inter.bold }}>
+                                  {item.label}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
                       </View>
 
-                      {/* Photo Grid — drag to reorder */}
+                      {/* Media Grid */}
                       {loadingPhotos ? (
                         <ActivityIndicator color={MidnightColors.gold} style={{ marginTop: 24 }} />
-                      ) : photos.length === 0 ? (
+                      ) : activeGalleryItems.length === 0 ? (
                         <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-                          <IconSymbol name="photo.on.rectangle" size={36} color={MidnightColors.slate700} />
-                          <Text style={{ color: MidnightColors.slate400, marginTop: 10, fontSize: 14 }}>No photos yet. Tap Add Photo!</Text>
+                          <IconSymbol name={galleryMediaTab === 'videos' ? 'play.fill' : 'photo.on.rectangle'} size={36} color={MidnightColors.slate700} />
+                          <Text style={{ color: MidnightColors.slate400, marginTop: 10, fontSize: 14 }}>
+                            {galleryMediaTab === 'videos' ? 'No videos yet. Tap Add Video!' : 'No photos yet. Tap Add Photo!'}
+                          </Text>
+                        </View>
+                      ) : galleryMediaTab === 'videos' ? (
+                        <View>
+                          {videoItems.map((video) => (
+                            <View key={video.id} style={{ position: 'relative' }}>
+                              <GalleryVideoCard video={video} accent={MidnightColors.gold} />
+                              <TouchableOpacity
+                                style={{
+                                  position: 'absolute',
+                                  top: 8,
+                                  right: 8,
+                                  width: 26,
+                                  height: 26,
+                                  borderRadius: 13,
+                                  backgroundColor: 'rgba(239,68,68,0.92)',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                                onPress={() => handleDeleteGalleryPhoto(video.id)}
+                              >
+                                <IconSymbol name="trash.fill" size={12} color="#fff" />
+                              </TouchableOpacity>
+                            </View>
+                          ))}
                         </View>
                       ) : (
                         <View>
@@ -3219,7 +3869,7 @@ export default function EventDetailScreen() {
                             ✦ Hold & drag a photo to reorder
                           </Text>
                           <Sortable.Grid
-                            data={photos}
+                            data={photoItems}
                             keyExtractor={(item: any) => item.id}
                             columns={3}
                             columnGap={8}
@@ -3274,10 +3924,6 @@ export default function EventDetailScreen() {
                 <View style={styles.section}>
                   <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Guest List</Text>
-                    <TouchableOpacity style={styles.addBtn} onPress={() => setShowShareModal(true)}>
-                      <IconSymbol name="square.and.arrow.up" size={14} color={MidnightColors.gold} />
-                      <Text style={styles.addBtnText}>Share Event</Text>
-                    </TouchableOpacity>
                   </View>
 
                   {/* ── PENDING REQUESTS ── */}
@@ -3316,51 +3962,21 @@ export default function EventDetailScreen() {
                   </View>
 
                   {/* ── APPROVED MEMBERS ── */}
-                  {guestLogs.filter(l => l.status === 'approved').length > 0 && (
+                  {approvedGuests.length > 0 && (
                     <View style={{ marginTop: 10 }}>
-                      <Text style={[styles.sectionTitle, { fontSize: 16, marginBottom: 16, marginTop: 10 }]}>Member Registry</Text>
-                      {guestLogs
-                        .filter(l => l.status === 'approved')
-                        .sort((a, b) => (b.canAdmin ? 1 : 0) - (a.canAdmin ? 1 : 0))
-                        .map((log, index) => (
-                        <TouchableOpacity
-                          key={log.id}
-                          style={styles.memberCard}
-                          onPress={() => setSelectedGuest(log)}
-                        >
-                          {/* Left: Avatar */}
-                          <View style={styles.memberAvatar}>
-                            <Text style={styles.avatarText}>{log.name.charAt(0)}</Text>
-                          </View>
+                      {adminGuests.length > 0 && (
+                        <View>
+                          <Text style={[styles.sectionTitle, { fontSize: 16, marginBottom: 16, marginTop: 10 }]}>Admins</Text>
+                          {adminGuests.map((log, index) => renderApprovedGuestCard(log, index))}
+                        </View>
+                      )}
 
-                          {/* Center: Info & Permissions */}
-                          <View style={styles.memberMain}>
-                            <Text style={styles.memberName}>{log.name}</Text>
-
-                            {/* Secondary Row (Phone & Permissions) */}
-                            <View style={styles.memberSecondary}>
-                              <Text style={styles.memberPhone}>{log.phone}</Text>
-                              <View style={styles.grantedRowSmall}>
-                                {log.canAdmin && <View style={styles.miniIcon}><IconSymbol name="shield.fill" size={8} color={MidnightColors.gold} /></View>}
-                                {log.canUpload && <View style={styles.miniIcon}><IconSymbol name="camera.fill" size={8} color={MidnightColors.gold} /></View>}
-                                {log.canComment && <View style={styles.miniIcon}><IconSymbol name={"bubble.left.fill" as any} size={8} color={MidnightColors.gold} /></View>}
-                                {log.canChat && <View style={styles.miniIcon}><IconSymbol name={"message.fill" as any} size={8} color={MidnightColors.gold} /></View>}
-                              </View>
-                            </View>
-                          </View>
-
-                          {/* Right: Number & Actions */}
-                          <View style={styles.memberActions}>
-                            <Text style={styles.memberNumber}>#{String(index + 1).padStart(2, '0')}</Text>
-                            <TouchableOpacity
-                              style={styles.memberDelete}
-                              onPress={() => deleteGuest(log.id).then(loadEvent)}
-                            >
-                              <IconSymbol name="trash.fill" size={16} color="rgba(239, 68, 68, 0.4)" />
-                            </TouchableOpacity>
-                          </View>
-                        </TouchableOpacity>
-                      ))}
+                      {memberGuests.length > 0 && (
+                        <View style={{ marginTop: adminGuests.length > 0 ? 18 : 0 }}>
+                          <Text style={[styles.sectionTitle, { fontSize: 16, marginBottom: 16, marginTop: 10 }]}>Members</Text>
+                          {memberGuests.map((log, index) => renderApprovedGuestCard(log, index))}
+                        </View>
+                      )}
                     </View>
                   )}
 
@@ -3384,9 +4000,13 @@ export default function EventDetailScreen() {
                       {/* Header: Member Identity */}
                       <View style={styles.premiumModalHeader}>
                         <View style={styles.premiumAvatar}>
-                          <LinearGradient colors={[MidnightColors.gold, '#b8860b']} style={styles.avatarGradient}>
-                            <Text style={styles.premiumAvatarText}>{selectedGuest?.name.charAt(0)}</Text>
-                          </LinearGradient>
+                          {selectedGuestPhoto ? (
+                            <Image source={{ uri: selectedGuestPhoto }} style={styles.memberInfoAvatarImage} />
+                          ) : (
+                            <LinearGradient colors={[MidnightColors.gold, '#b8860b']} style={styles.avatarGradient}>
+                              <Text style={styles.premiumAvatarText}>{selectedGuest?.name.charAt(0)}</Text>
+                            </LinearGradient>
+                          )}
                         </View>
                         <View style={{ flex: 1, marginLeft: 16 }}>
                           <Text style={styles.premiumModalTitle}>{selectedGuest?.name}</Text>
@@ -3398,13 +4018,61 @@ export default function EventDetailScreen() {
                       </View>
 
                       <View style={styles.permissionsScroll}>
+                        <TouchableOpacity
+                          style={[styles.userInfoToggle, showGuestInfo && styles.userInfoToggleActive]}
+                          onPress={() => setShowGuestInfo((value) => !value)}
+                        >
+                          <View style={styles.userInfoToggleIcon}>
+                            <IconSymbol name="person.fill" size={18} color={MidnightColors.gold} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.userInfoToggleTitle}>User Info</Text>
+                            <Text style={styles.userInfoToggleSub}>Name, username, contact, and profile photo</Text>
+                          </View>
+                          {loadingGuestProfile ? (
+                            <ActivityIndicator size="small" color={MidnightColors.gold} />
+                          ) : (
+                            <IconSymbol name="chevron.down" size={18} color={MidnightColors.slate400} />
+                          )}
+                        </TouchableOpacity>
+
+                        {showGuestInfo && (
+                          <View style={styles.userInfoPanel}>
+                            <View style={styles.userInfoProfileRow}>
+                              <View style={styles.userInfoLargeAvatar}>
+                                {selectedGuestPhoto ? (
+                                  <Image source={{ uri: selectedGuestPhoto }} style={styles.memberInfoAvatarImage} />
+                                ) : (
+                                  <LinearGradient colors={[MidnightColors.gold, '#b8860b']} style={styles.avatarGradient}>
+                                    <Text style={styles.largeAvatarText}>{selectedGuestName.charAt(0)}</Text>
+                                  </LinearGradient>
+                                )}
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.userInfoName}>{selectedGuestName}</Text>
+                                <Text style={styles.userInfoHandle}>{selectedGuestUsername}</Text>
+                              </View>
+                            </View>
+
+                            <View style={styles.userInfoDetails}>
+                              <View style={styles.userInfoDetailRow}>
+                                <Text style={styles.userInfoDetailLabel}>Email ID</Text>
+                                <Text style={styles.userInfoDetailValue}>{selectedGuestEmail}</Text>
+                              </View>
+                              <View style={styles.userInfoDetailRow}>
+                                <Text style={styles.userInfoDetailLabel}>Phone Number</Text>
+                                <Text style={styles.userInfoDetailValue}>{selectedGuestPhone}</Text>
+                              </View>
+                            </View>
+                          </View>
+                        )}
+
                         <Text style={styles.permissionsGroupLabel}>Member Privileges</Text>
 
                         {[
                           { id: 'canAdmin', label: 'Admin Access', desc: 'Manage event, sub-galleries, and other guests', icon: 'shield.fill' },
                           { id: 'canUpload', label: 'Allow Uploads', desc: 'Can add photos and videos to the event', icon: 'camera.fill' },
                           { id: 'canComment', label: 'Allow Comments', desc: 'Can react and post comments on any media', icon: 'bubble.left.fill' },
-                          { id: 'canChat', label: 'Allow Chat', desc: 'Can participate in the real-time event feed', icon: 'message.fill' },
                         ].map((perm) => {
                           const isActive = (selectedGuest as any)?.[perm.id];
                           return (
@@ -3422,7 +4090,7 @@ export default function EventDetailScreen() {
                               }}
                             >
                               <View style={[styles.richPermIconBox, isActive && { backgroundColor: 'rgba(212, 175, 55, 0.15)' }]}>
-                                <IconSymbol name={perm.icon as any} size={20} color={isActive ? MidnightColors.gold : MidnightColors.slate700} />
+                                <IconSymbol name={perm.icon as any} size={26} color={isActive ? MidnightColors.gold : MidnightColors.slate400} />
                               </View>
 
                               <View style={{ flex: 1, paddingRight: 10 }}>
@@ -3466,15 +4134,68 @@ export default function EventDetailScreen() {
                     >
                       <View style={styles.modalHeaderCentered}>
                         <View style={styles.largeAvatar}>
-                          <LinearGradient colors={[MidnightColors.gold, '#b8860b']} style={styles.avatarGradient}>
-                            <Text style={styles.largeAvatarText}>{selectedRequest?.name.charAt(0)}</Text>
-                          </LinearGradient>
+                          {selectedRequestPhoto ? (
+                            <Image source={{ uri: selectedRequestPhoto }} style={styles.memberInfoAvatarImage} />
+                          ) : (
+                            <LinearGradient colors={[MidnightColors.gold, '#b8860b']} style={styles.avatarGradient}>
+                              <Text style={styles.largeAvatarText}>{selectedRequestName.charAt(0)}</Text>
+                            </LinearGradient>
+                          )}
                         </View>
                         <Text style={styles.modalRequestTitle}>{selectedRequest?.name}</Text>
                         <Text style={styles.modalRequestSub}>Requesting Access</Text>
                       </View>
 
                       <View style={styles.modalBody}>
+                        <TouchableOpacity
+                          style={[styles.userInfoToggle, showRequestInfo && styles.userInfoToggleActive]}
+                          onPress={() => setShowRequestInfo((value) => !value)}
+                        >
+                          <View style={styles.userInfoToggleIcon}>
+                            <IconSymbol name="person.fill" size={18} color={MidnightColors.gold} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.userInfoToggleTitle}>User Info</Text>
+                            <Text style={styles.userInfoToggleSub}>Review details before approval</Text>
+                          </View>
+                          {loadingRequestProfile ? (
+                            <ActivityIndicator size="small" color={MidnightColors.gold} />
+                          ) : (
+                            <IconSymbol name="chevron.down" size={18} color={MidnightColors.slate400} />
+                          )}
+                        </TouchableOpacity>
+
+                        {showRequestInfo && (
+                          <View style={styles.userInfoPanel}>
+                            <View style={styles.userInfoProfileRow}>
+                              <View style={styles.userInfoLargeAvatar}>
+                                {selectedRequestPhoto ? (
+                                  <Image source={{ uri: selectedRequestPhoto }} style={styles.memberInfoAvatarImage} />
+                                ) : (
+                                  <LinearGradient colors={[MidnightColors.gold, '#b8860b']} style={styles.avatarGradient}>
+                                    <Text style={styles.largeAvatarText}>{selectedRequestName.charAt(0)}</Text>
+                                  </LinearGradient>
+                                )}
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.userInfoName}>{selectedRequestName}</Text>
+                                <Text style={styles.userInfoHandle}>{selectedRequestUsername}</Text>
+                              </View>
+                            </View>
+
+                            <View style={styles.userInfoDetails}>
+                              <View style={styles.userInfoDetailRow}>
+                                <Text style={styles.userInfoDetailLabel}>Email ID</Text>
+                                <Text style={styles.userInfoDetailValue}>{selectedRequestEmail}</Text>
+                              </View>
+                              <View style={styles.userInfoDetailRow}>
+                                <Text style={styles.userInfoDetailLabel}>Phone Number</Text>
+                                <Text style={styles.userInfoDetailValue}>{selectedRequestPhone}</Text>
+                              </View>
+                            </View>
+                          </View>
+                        )}
+
                         <View style={styles.detailRow}>
                           <Text style={styles.detailLabel}>Contact Info</Text>
                           <Text style={styles.detailValue}>{selectedRequest?.phone}</Text>
@@ -3725,7 +4446,7 @@ export default function EventDetailScreen() {
               ) : (
                 <>
                   {/* ── VISITOR IMMERSIVE CONTENT ── */}
-                  <View style={[styles.visitorContent, { backgroundColor: selectedTemplate.background }]}>
+                  <View style={[styles.visitorContent, { backgroundColor: pageBackground }]}>
                 {(event as any).showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && (
                   <View style={[
                     styles.mainInfoBox,
@@ -3750,6 +4471,10 @@ export default function EventDetailScreen() {
                     isBrutalistTemplate && styles.brutalistInfoBox,
                     isTechSleekTemplate && styles.techSleekInfoBox,
                     isExecutiveTemplate && styles.executiveInfoBox,
+                    isSportsTemplate && [
+                      styles.sportsInfoBox,
+                      { backgroundColor: sportsTheme.card, borderColor: `${sportsTheme.accent}55`, shadowColor: sportsTheme.darkControl },
+                    ],
                     event.templateId === 'classic' && {
                       shadowColor: '#000',
                       shadowOffset: { width: 0, height: 1 },
@@ -3804,6 +4529,7 @@ export default function EventDetailScreen() {
                       isBrutalistTemplate && styles.brutalistInfoInner,
                       isTechSleekTemplate && styles.techSleekInfoInner,
                       isExecutiveTemplate && styles.executiveInfoInner,
+                      isSportsTemplate && styles.sportsInfoInner,
                       event.templateId === 'royal' && {
                         borderWidth: 1,
                         borderColor: 'rgba(204, 164, 59, 0.15)',
@@ -3934,7 +4660,7 @@ export default function EventDetailScreen() {
                         <View style={styles.museumInfoHeader}>
                           <Text style={styles.museumInfoKicker}>Curator Note</Text>
                           <View style={styles.museumInfoLine} />
-                          <Text style={styles.museumInfoCode}>WA/{String(new Date().getFullYear()).slice(2)}</Text>
+                          <Text style={styles.museumInfoCode}>EB/{String(new Date().getFullYear()).slice(2)}</Text>
                         </View>
                       )}
 
@@ -3959,6 +4685,14 @@ export default function EventDetailScreen() {
                           <View style={styles.executiveInfoMark} />
                           <Text style={styles.executiveInfoKicker}>Executive Note</Text>
                           <View style={styles.executiveInfoLine} />
+                        </View>
+                      )}
+
+                      {isSportsTemplate && (
+                        <View style={styles.sportsInfoHeader}>
+                          <View style={[styles.sportsInfoMark, { backgroundColor: sportsTheme.accentAlt }]} />
+                          <Text style={[styles.sportsInfoKicker, { color: sportsTheme.accent }]}>{sportsTheme.noteLabel}</Text>
+                          <View style={[styles.sportsInfoLine, { backgroundColor: `${sportsTheme.accent}33` }]} />
                         </View>
                       )}
 
@@ -4012,14 +4746,15 @@ export default function EventDetailScreen() {
                         isBrutalistTemplate && styles.brutalistVisitorDescription,
                         isTechSleekTemplate && styles.techSleekVisitorDescription,
                         isExecutiveTemplate && styles.executiveVisitorDescription,
-                        selectedTemplate.useSerif && {
+                        isSportsTemplate && [styles.sportsVisitorDescription, { color: sportsTheme.text }],
+                        !isSportsTemplate && selectedTemplate.useSerif && {
                           fontFamily: isGardenTemplate ? selectedTemplate.bodyFont : selectedTemplate.serifItalic,
                           fontStyle: isGardenTemplate ? 'normal' : 'italic',
                           fontSize: isGardenTemplate ? 15 : 16,
                           lineHeight: isGardenTemplate ? 24 : 26,
                           textAlign: 'center',
                         }
-                      ]}>{activeSubEvent ? activeSubEvent.description : event.description}{(isCyberTechTemplate || isRetroArcadeTemplate || isNeonCarnivalTemplate || isMuseumTemplate || isBrutalistTemplate || isTechSleekTemplate || isExecutiveTemplate) ? '' : ' 🤍'}</Text>
+                      ]}>{activeSubEvent ? activeSubEvent.description : event.description}{(isSportsTemplate || isCyberTechTemplate || isRetroArcadeTemplate || isNeonCarnivalTemplate || isMuseumTemplate || isBrutalistTemplate || isTechSleekTemplate || isExecutiveTemplate) ? '' : ' 🤍'}</Text>
 
                       {isScrapbookTemplate && (
                         <View style={[styles.scrapbookInfoRule, styles.scrapbookInfoRuleBottom]}>
@@ -4042,7 +4777,7 @@ export default function EventDetailScreen() {
                         isRetroArcadeTemplate && { fontFamily: FunkyFonts.marker, fontSize: 32, color: '#ff3562', textTransform: 'uppercase', letterSpacing: 0.5 },
                         isCyberTechTemplate && styles.cyberPartnersTitle,
                         isNeonCarnivalTemplate && styles.neonCarnivalPartnersTitle,
-                        selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
+                        !isSportsTemplate && selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
                       ]}>The Dream Team</Text>
                       <Text style={[
                         { fontSize: 14, color: selectedTemplate.muted, textAlign: 'center', lineHeight: 22, maxWidth: '90%' },
@@ -4187,9 +4922,16 @@ export default function EventDetailScreen() {
                   isMuseumTemplate && styles.museumGalleryHeader,
                   isBrutalistTemplate && styles.brutalistGalleryHeader,
                   isTechSleekTemplate && styles.techSleekGalleryHeader,
-                  isExecutiveTemplate && styles.executiveGalleryHeader
+                  isExecutiveTemplate && styles.executiveGalleryHeader,
+                  isSportsTemplate && styles.sportsGalleryHeader
                 ]}>
                   <View>
+                    {isSportsTemplate && (
+                      <View style={styles.sportsGalleryKicker}>
+                        <Text style={[styles.sportsGalleryKickerText, { color: sportsTheme.accent }]}>{sportsTheme.galleryLabel}</Text>
+                        <View style={[styles.sportsGalleryKickerLine, { backgroundColor: `${sportsTheme.accent}45` }]} />
+                      </View>
+                    )}
                     {isExecutiveTemplate && (
                       <View style={styles.executiveGalleryKicker}>
                         <Text style={styles.executiveGalleryKickerText}>Leadership Moments</Text>
@@ -4321,9 +5063,14 @@ export default function EventDetailScreen() {
                       isBrutalistTemplate && styles.brutalistGalleryTitle,
                       isTechSleekTemplate && styles.techSleekGalleryTitle,
                       isExecutiveTemplate && styles.executiveGalleryTitle,
-                      selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold' }
+                      isSportsTemplate && [styles.sportsGalleryTitle, { color: sportsTheme.text, fontFamily: sportsTheme.headingFont }],
+                      !isSportsTemplate && selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifBold, fontWeight: 'bold' }
                     ]}>
-                      {isExecutiveTemplate ? (
+                      {isSportsTemplate ? (
+                        <Text style={{ color: sportsTheme.text, fontFamily: sportsTheme.headingFont }}>
+                          {activeSubEvent ? activeSubEvent.title : sportsTheme.galleryTitle}
+                        </Text>
+                      ) : isExecutiveTemplate ? (
                         <Text style={{ color: '#f5eddc', fontFamily: Fonts.cormorant.bold }}>
                           {activeSubEvent ? activeSubEvent.title : 'Executive Highlights'}
                         </Text>
@@ -4345,7 +5092,7 @@ export default function EventDetailScreen() {
                             {activeSubEvent ? activeSubEvent.title : 'Highlights'}
                           </Text>
                           <Text style={{ color: '#16a34a', fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }}>
-                            {` (${photos.length})`}
+                            {` (${photoItems.length})`}
                           </Text>
                         </>
                       ) : isRetroArcadeTemplate ? (
@@ -4354,7 +5101,7 @@ export default function EventDetailScreen() {
                             {(activeSubEvent ? activeSubEvent.title : 'Highlights').toUpperCase()}
                           </Text>
                           <Text style={{ color: '#231f20' }}>
-                            {` (${photos.length})`}
+                            {` (${photoItems.length})`}
                           </Text>
                         </>
                       ) : isPopTemplate ? (
@@ -4363,7 +5110,7 @@ export default function EventDetailScreen() {
                             {activeSubEvent ? activeSubEvent.title : 'Highlights'}
                           </Text>
                           <Text style={{ color: '#ff4fb8' }}>
-                            {` (${photos.length})`}
+                            {` (${photoItems.length})`}
                           </Text>
                         </>
                       ) : (
@@ -4380,14 +5127,57 @@ export default function EventDetailScreen() {
                         isBrutalistTemplate && styles.brutalistPhotoCount,
                         isTechSleekTemplate && styles.techSleekPhotoCount,
                         isExecutiveTemplate && styles.executivePhotoCount,
-                        selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
+                        isSportsTemplate && [styles.sportsPhotoCount, { color: sportsTheme.accent }],
+                        !isSportsTemplate && selectedTemplate.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }
                       ]}>
-                        {isCyberTechTemplate ? `// ARCHIVED_FILES: ${photos.length}` : (isNeonCarnivalTemplate ? `STAGE CAPTURES: ${photos.length}` : (isMuseumTemplate ? `${photos.length} curated ${photos.length === 1 ? 'work' : 'works'}` : (isBrutalistTemplate ? `${photos.length} grid ${photos.length === 1 ? 'frame' : 'frames'}` : (isTechSleekTemplate ? `${photos.length} captured ${photos.length === 1 ? 'signal' : 'signals'}` : (isExecutiveTemplate ? `${photos.length} leadership ${photos.length === 1 ? 'moment' : 'moments'}` : `${photos.length} ${photos.length === 1 ? 'Photo' : 'Photos'}`)))))}
+                        {galleryMediaTab === 'videos'
+                          ? `${videoItems.length} ${videoItems.length === 1 ? 'Video' : 'Videos'}`
+                          : (isSportsTemplate ? `${photoItems.length} matchday ${photoItems.length === 1 ? 'moment' : 'moments'}` : (isCyberTechTemplate ? `// ARCHIVED_FILES: ${photoItems.length}` : (isNeonCarnivalTemplate ? `STAGE CAPTURES: ${photoItems.length}` : (isMuseumTemplate ? `${photoItems.length} curated ${photoItems.length === 1 ? 'work' : 'works'}` : (isBrutalistTemplate ? `${photoItems.length} grid ${photoItems.length === 1 ? 'frame' : 'frames'}` : (isTechSleekTemplate ? `${photoItems.length} captured ${photoItems.length === 1 ? 'signal' : 'signals'}` : (isExecutiveTemplate ? `${photoItems.length} leadership ${photoItems.length === 1 ? 'moment' : 'moments'}` : `${photoItems.length} ${photoItems.length === 1 ? 'Photo' : 'Photos'}`)))))))}
                       </Text>
                     )}
                   </View>
 
 
+                </View>
+
+                <View style={{
+                  flexDirection: 'row',
+                  marginTop: 18,
+                  marginBottom: 8,
+                  backgroundColor: isSportsTemplate ? `${sportsTheme.darkControl}12` : 'rgba(15,23,42,0.08)',
+                  borderRadius: 16,
+                  padding: 4,
+                  borderWidth: 1,
+                  borderColor: isSportsTemplate ? `${sportsTheme.accent}35` : 'rgba(148,163,184,0.18)',
+                }}>
+                  {([
+                    { id: 'photos', label: `Photos (${photoItems.length})` },
+                    { id: 'videos', label: `Videos (${videoItems.length})` },
+                  ] as const).map((item) => {
+                    const active = galleryMediaTab === item.id;
+                    const activeBg = isSportsTemplate ? sportsTheme.accent : selectedTemplate.accent;
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={{
+                          flex: 1,
+                          alignItems: 'center',
+                          paddingVertical: 10,
+                          borderRadius: 12,
+                          backgroundColor: active ? activeBg : 'transparent',
+                        }}
+                        onPress={() => setGalleryMediaTab(item.id)}
+                      >
+                        <Text style={{
+                          color: active ? '#ffffff' : (isSportsTemplate ? sportsTheme.muted : selectedTemplate.muted),
+                          fontSize: 12,
+                          fontFamily: Fonts.inter.bold,
+                        }}>
+                          {item.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
 
                 {loadingPhotos ? (
@@ -4396,12 +5186,22 @@ export default function EventDetailScreen() {
                   </View>
                 ) : (
                   <View style={styles.photoGrid}>
-                    {photos.length === 0 ? (
+                    {activeGalleryItems.length === 0 ? (
                       <View style={styles.emptyGallery}>
-                        <IconSymbol name="photo.on.rectangle" size={40} color={isCyberTechTemplate ? 'rgba(0, 240, 255, 0.15)' : 'rgba(255,255,255,0.05)'} />
+                        <IconSymbol name={galleryMediaTab === 'videos' ? 'play.fill' : 'photo.on.rectangle'} size={40} color={isCyberTechTemplate ? 'rgba(0, 240, 255, 0.15)' : 'rgba(255,255,255,0.05)'} />
                         <Text style={[styles.emptyText, isCyberTechTemplate && styles.cyberEmptyText]}>
-                          {isCyberTechTemplate ? '// NO_DATA_AVAILABLE' : 'No photos yet.'}
+                          {isCyberTechTemplate ? '// NO_DATA_AVAILABLE' : (galleryMediaTab === 'videos' ? 'No videos yet.' : 'No photos yet.')}
                         </Text>
+                      </View>
+                    ) : galleryMediaTab === 'videos' ? (
+                      <View>
+                        {videoItems.map((video) => (
+                          <GalleryVideoCard
+                            key={video.id}
+                            video={video}
+                            accent={isSportsTemplate ? sportsTheme.accent : selectedTemplate.accent}
+                          />
+                        ))}
                       </View>
                     ) : (
                       (() => {
@@ -4410,7 +5210,7 @@ export default function EventDetailScreen() {
                         let leftHeight = 0;
                         let rightHeight = 0;
 
-                        photos.forEach((photo, idx) => {
+                        photoItems.forEach((photo, idx) => {
                           const ratio = photo.width && photo.height
                             ? photo.height / photo.width
                             : (idx % 3 === 0 ? 1.25 : (idx % 3 === 1 ? 0.95 : 1.45));
@@ -4455,6 +5255,15 @@ export default function EventDetailScreen() {
                                     borderColor: event.templateId === 'royal' ? selectedTemplate.accent : (event.templateId === 'classic' ? 'rgba(0,0,0,0.05)' : (event.templateId === 'ethereal' ? 'rgba(45, 42, 41, 0.12)' : (event.templateId === 'academic_editorial' ? selectedTemplate.text + '26' : (event.templateId === 'bohemian' ? selectedTemplate.text + '15' : selectedTemplate.accentBg)))),
                                     padding: event.templateId === 'polaroid' ? 4 : (event.templateId === 'royal' ? 3 : (event.templateId === 'classic' ? 8 : (event.templateId === 'ethereal' ? 10 : (event.templateId === 'academic_editorial' ? 6 : (event.templateId === 'bohemian' ? 8 : 0))))),
                                   },
+                                  isSportsTemplate && [
+                                    styles.sportsPhotoTile,
+                                    {
+                                      backgroundColor: sportsTheme.imageFrame,
+                                      borderColor: `${sportsTheme.accent}40`,
+                                      shadowColor: sportsTheme.darkControl,
+                                    },
+                                    idx % 3 === 0 && styles.sportsPhotoTileFeatured,
+                                  ],
                                   isBohemianTemplate && [
                                     styles.bohemianPhotoTile,
                                     {
@@ -4653,6 +5462,15 @@ export default function EventDetailScreen() {
                                       <Text style={styles.executivePhotoLabelText}>Brief</Text>
                                     </View>
                                   )}
+                                  {isSportsTemplate && (
+                                    <View style={[
+                                      styles.sportsPhotoLabel,
+                                      { backgroundColor: `${sportsTheme.darkControl}dd`, borderColor: `${sportsTheme.accent}55` },
+                                    ]}>
+                                      <Text style={[styles.sportsPhotoLabelNumber, { color: sportsTheme.imageFrame }]}>{String(idx + 1).padStart(2, '0')}</Text>
+                                      <Text style={[styles.sportsPhotoLabelText, { color: sportsTheme.accent }]}>{idx % 2 === 0 ? 'Play' : 'Frame'}</Text>
+                                    </View>
+                                  )}
                                   <Image
                                     source={{ uri: photo.url }}
                                     style={[
@@ -4671,6 +5489,7 @@ export default function EventDetailScreen() {
                                       isBrutalistTemplate && styles.brutalistGalleryImg,
                                       isTechSleekTemplate && styles.techSleekGalleryImg,
                                       isExecutiveTemplate && styles.executiveGalleryImg,
+                                      isSportsTemplate && styles.sportsGalleryImg,
                                       isGardenTemplate ? {
                                         width: '100%',
                                         aspectRatio: 1 / ratio,
@@ -4871,7 +5690,7 @@ export default function EventDetailScreen() {
       <PhotoViewer
         visible={viewerVisible}
         onClose={() => setViewerVisible(false)}
-        photos={photos}
+        photos={photoItems}
         initialIndex={currentPhotoIndex}
         viewerIdentity={viewerIdentity}
         event={event}

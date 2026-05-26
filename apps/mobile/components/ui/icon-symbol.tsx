@@ -17,6 +17,7 @@ const MAPPING = {
   'line.3.horizontal': 'menu',
   'heart.fill': 'favorite',
   'heart': 'favorite-border',
+  'bubble.left.fill': 'chat-bubble',
   'bubble.right': 'chat-bubble-outline',
   'xmark': 'close',
   'star.fill': 'star',

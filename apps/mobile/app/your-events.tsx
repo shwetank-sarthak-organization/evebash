@@ -93,7 +93,7 @@ export default function YourEventsScreen() {
       <View style={styles.cardContent}>
         <View style={styles.cardHeader}>
           <View style={styles.dateBadge}>
-            <Text style={styles.dateBadgeText}>{event.date.split(',')[0]}</Text>
+            <Text style={styles.dateBadgeText}>{event.date}</Text>
           </View>
         </View>
         <Text style={styles.cardTitle} numberOfLines={2}>{event.title}</Text>

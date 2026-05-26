@@ -105,11 +105,11 @@ export default function LoginScreen() {
             {/* Logo / Brand */}
             <View style={styles.brandContainer}>
               <View style={styles.logoRing}>
-                <Text style={styles.logoEmoji}>WA</Text>
+                <Text style={styles.logoEmoji}>EB</Text>
               </View>
-              <Text style={styles.brandName}>Wed Album</Text>
+              <Text style={styles.brandName}>EveBash</Text>
               <Text style={styles.versionLabel}>v1.1</Text>
-              <Text style={styles.brandTagline}>Your memories, beautifully preserved</Text>
+              <Text style={styles.brandTagline}>Your event memories, beautifully preserved</Text>
             </View>
 
             {/* Card */}
@@ -264,7 +264,7 @@ export default function LoginScreen() {
             </View>
 
             {/* Footer */}
-            <Text style={styles.footer}>Protected access</Text>
+            <Text style={styles.footer}>Protected access to EveBash</Text>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>

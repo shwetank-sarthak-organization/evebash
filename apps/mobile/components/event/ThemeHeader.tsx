@@ -13,6 +13,38 @@ interface ThemeHeaderProps {
   styles: any;
 }
 
+const SPORTS_HEADER_TEMPLATE_IDS = [
+  'bohemian',
+  'diamond',
+  'blush',
+  'garden',
+  'midnight_glam',
+  'cinematic',
+  'modern_lounge',
+  'elegant_night',
+  'polaroid',
+  'editorial',
+  'vibrant',
+  'zen',
+];
+
+const SPORTS_HEADER_THEMES: Record<string, any> = {
+  bohemian: { background: '#f5ead8', text: '#2f241b', muted: '#755f4a', accent: '#c76633', activeText: '#fff7eb', tabBg: 'rgba(255,247,235,0.84)', border: 'rgba(199,102,51,0.24)' },
+  diamond: { background: '#060a12', text: '#e5edf7', muted: '#9fb3c8', accent: '#b9d8f2', activeText: '#06111f', tabBg: 'rgba(238,242,247,0.08)', border: 'rgba(185,216,242,0.28)' },
+  blush: { background: '#fff3ee', text: '#4a2725', muted: '#9a6b64', accent: '#d9796f', activeText: '#ffffff', tabBg: 'rgba(255,250,246,0.8)', border: 'rgba(217,121,111,0.25)' },
+  garden: { background: '#e8eee5', text: '#1a3322', muted: '#526b50', accent: '#587c43', activeText: '#fdfbf7', tabBg: 'rgba(253,251,247,0.82)', border: 'rgba(88,124,67,0.25)' },
+  midnight_glam: { background: '#050508', text: '#fff7e6', muted: '#d6bf94', accent: '#cca43b', activeText: '#0a0a0c', tabBg: 'rgba(255,247,230,0.08)', border: 'rgba(204,164,59,0.32)' },
+  cinematic: { background: '#0d0d0d', text: '#f4f4f4', muted: '#b8b8b8', accent: '#d9d9d9', activeText: '#121212', tabBg: 'rgba(245,245,245,0.08)', border: 'rgba(217,217,217,0.26)' },
+  modern_lounge: { background: '#efe7dc', text: '#2b211b', muted: '#756353', accent: '#7a563b', activeText: '#fffaf2', tabBg: 'rgba(255,250,242,0.82)', border: 'rgba(122,86,59,0.24)' },
+  elegant_night: { background: '#07101f', text: '#f5eddc', muted: '#d4b474', accent: '#d4b474', activeText: '#07101f', tabBg: 'rgba(245,237,220,0.08)', border: 'rgba(212,180,116,0.3)' },
+  polaroid: { background: '#f7efe1', text: '#3f2a1e', muted: '#806653', accent: '#b45309', activeText: '#fffaf0', tabBg: 'rgba(255,250,240,0.82)', border: 'rgba(180,83,9,0.24)' },
+  editorial: { background: '#fafaf7', text: '#111827', muted: '#57534e', accent: '#111827', activeText: '#ffffff', tabBg: 'rgba(255,255,255,0.86)', border: 'rgba(17,24,39,0.14)' },
+  vibrant: { background: '#08111f', text: '#f8fafc', muted: '#cbd5e1', accent: '#f97316', activeText: '#0f172a', tabBg: 'rgba(248,250,252,0.08)', border: 'rgba(249,115,22,0.3)' },
+  zen: { background: '#f1eee6', text: '#44403c', muted: '#78716c', accent: '#66785f', activeText: '#fffaf2', tabBg: 'rgba(255,252,246,0.82)', border: 'rgba(102,120,95,0.22)' },
+};
+
+const getSportsHeaderTheme = (templateId?: string) => SPORTS_HEADER_THEMES[templateId || ''] || SPORTS_HEADER_THEMES.bohemian;
+
 export function ThemeHeader({
   event,
   selectedTemplate,
@@ -38,15 +70,17 @@ export function ThemeHeader({
   const isRetroArcade = templateId === 'retro_arcade';
   const isAcademicEditorial = templateId === 'academic_editorial';
   const isNeonCarnival = templateId === 'neon_carnival';
-  const isGarden = templateId === 'garden';
-  const isBohemian = templateId === 'bohemian';
+  const isSportsTemplate = event?.category === 'Sports' && SPORTS_HEADER_TEMPLATE_IDS.includes(templateId || '');
+  const sportsHeaderTheme = getSportsHeaderTheme(templateId);
+  const isGarden = templateId === 'garden' && !isSportsTemplate;
+  const isBohemian = templateId === 'bohemian' && !isSportsTemplate;
   const isMuseum = templateId === 'museum';
   const isBrutalist = templateId === 'brutalist';
   const isTechSleek = templateId === 'tech_sleek';
   const isExecutive = templateId === 'executive';
   const isThemeHeader = isRoyal || isClassic || isHero || isEthereal || isGarden;
 
-  const birthdayTextColor = isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#F2E7D2' : (isRoseGarden ? '#562733' : (isMinimalLove ? '#4a2f1d' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d946ef' : (isMuseum ? '#9b7a44' : (isBrutalist ? '#111113' : (isTechSleek ? '#7dd3fc' : (isExecutive ? '#e8d8b8' : '#cca43b'))))))))))))));
+  const birthdayTextColor = isSportsTemplate ? sportsHeaderTheme.text : (isScrapbook ? selectedTemplate.text : (isNeon ? '#f8f7ff' : (isPastel ? '#6c5d59' : (isPop ? '#231f20' : (isGoldenYears ? '#5b432c' : (isVintageNoir ? '#F2E7D2' : (isRoseGarden ? '#562733' : (isMinimalLove ? '#4a2f1d' : (isCyberTech ? '#00f0ff' : (isRetroArcade ? '#231f20' : (isNeonCarnival ? '#d946ef' : (isMuseum ? '#9b7a44' : (isBrutalist ? '#111113' : (isTechSleek ? '#7dd3fc' : (isExecutive ? '#e8d8b8' : '#cca43b')))))))))))))));
 
   const birthdayActiveText = isScrapbook ? styles.scrapbookVisitorTabTextActive : (isNeon ? styles.neonVisitorTabTextActive : (isPastel ? styles.pastelVisitorTabTextActive : (isPop ? styles.popVisitorTabTextActive : (isGoldenYears ? styles.goldenVisitorTabTextActive : (isVintageNoir ? styles.vintageVisitorTabTextActive : (isRoseGarden ? styles.roseVisitorTabTextActive : (isMinimalLove ? styles.minimalVisitorTabTextActive : (isCyberTech ? styles.cyberVisitorTabTextActive : (isRetroArcade ? styles.retroArcadeVisitorTabTextActive : (isNeonCarnival ? styles.neonCarnivalVisitorTabTextActive : (isMuseum ? styles.museumVisitorTabTextActive : (isBrutalist ? styles.brutalistVisitorTabTextActive : (isTechSleek ? styles.techSleekVisitorTabTextActive : (isExecutive ? styles.executiveVisitorTabTextActive : styles.visitorTabTextActive))))))))))))));
 
@@ -68,7 +102,13 @@ export function ThemeHeader({
     isBrutalist && styles.brutalistVisitorTab,
     isTechSleek && styles.techSleekVisitorTab,
     isExecutive && styles.executiveVisitorTab,
+    isSportsTemplate && [styles.sportsVisitorTab, { backgroundColor: sportsHeaderTheme.tabBg, borderColor: sportsHeaderTheme.border }],
   ];
+
+  const resolvedActiveText = isSportsTemplate ? { color: sportsHeaderTheme.activeText } : birthdayActiveText;
+  const resolvedActiveTab = isSportsTemplate
+    ? [styles.sportsVisitorTab, { backgroundColor: sportsHeaderTheme.accent, borderColor: sportsHeaderTheme.accent, shadowColor: sportsHeaderTheme.accent }]
+    : birthdayActiveTab;
 
   const themeHeaderTab = (active: boolean) => ({
     backgroundColor: isHero ? (active ? 'rgba(204, 164, 59, 0.08)' : 'transparent')
@@ -104,13 +144,13 @@ export function ThemeHeader({
     const title = tab?.title ?? 'Home';
     const isHome = !tab;
     const displayTitle = isHome ? (
-      isBohemian ? 'HOME' : (
+      isSportsTemplate ? 'HOME' : isBohemian ? 'HOME' : (
         (isCyberTech || isNeonCarnival) ? (isActive ? '[ HOME ]' : '  HOME  ') : (
           isRetroArcade ? 'HOME' : (isAcademicEditorial ? '01 / HOME' : 'Home')
         )
       )
     ) : (
-      (isCyberTech || isNeonCarnival) ? (isActive ? `[ ${title.toUpperCase()} ]` : `  ${title.toUpperCase()}  `) : (
+      isSportsTemplate ? title.toUpperCase() : (isCyberTech || isNeonCarnival) ? (isActive ? `[ ${title.toUpperCase()} ]` : `  ${title.toUpperCase()}  `) : (
         isRetroArcade ? title.toUpperCase() : (
           isAcademicEditorial ? `${indexStr} / ${title.toUpperCase()}` : title
         )
@@ -136,7 +176,8 @@ export function ThemeHeader({
         isBrutalist && styles.brutalistVisitorTabText,
         isTechSleek && styles.techSleekVisitorTabText,
         isExecutive && styles.executiveVisitorTabText,
-        selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
+        isSportsTemplate && [styles.sportsVisitorTabText, { color: sportsHeaderTheme.text }],
+        !isSportsTemplate && selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
         isAcademicEditorial && {
           fontFamily: selectedTemplate.serifBold,
           fontSize: 13,
@@ -152,7 +193,7 @@ export function ThemeHeader({
           textTransform: 'uppercase' as const,
           letterSpacing: 1.2,
         },
-        isActive && !isThemeHeader && !isAcademicEditorial && birthdayActiveText
+        isActive && !isThemeHeader && !isAcademicEditorial && resolvedActiveText
       ]}>
         {displayTitle}
       </Text>
@@ -191,7 +232,7 @@ export function ThemeHeader({
         key={sub ? sub.id : 'home'}
         style={[
           styles.visitorTab,
-          isThemeHeader ? themeHeaderTab(isActive) : [...birthdayTabStyles, isActive && birthdayActiveTab],
+          isThemeHeader ? themeHeaderTab(isActive) : [...birthdayTabStyles, isActive && resolvedActiveTab],
           isAcademicEditorial && academicTabStyle,
           isBohemian && [styles.bohemianVisitorTab, isActive && styles.bohemianVisitorTabActive],
         ]}
@@ -209,8 +250,8 @@ export function ThemeHeader({
                 name="house.fill"
                 size={14}
                 color={isActive
-                  ? (isCyberTech ? '#00f0ff' : (isScrapbook ? '#263331' : ((isMuseum || isBrutalist) ? '#f8f6ef' : (isTechSleek ? '#03101f' : (isExecutive ? '#111827' : '#cca43b')))))
-                  : (isCyberTech ? 'rgba(0, 240, 255, 0.5)' : (isScrapbook ? selectedTemplate.accent : (isMuseum ? '#9b7a44' : (isBrutalist ? '#111113' : (isTechSleek ? '#7dd3fc' : (isExecutive ? '#d4b474' : '#cca43b'))))))
+                  ? (isSportsTemplate ? sportsHeaderTheme.activeText : (isCyberTech ? '#00f0ff' : (isScrapbook ? '#263331' : ((isMuseum || isBrutalist) ? '#f8f6ef' : (isTechSleek ? '#03101f' : (isExecutive ? '#111827' : '#cca43b'))))))
+                  : (isSportsTemplate ? sportsHeaderTheme.accent : (isCyberTech ? 'rgba(0, 240, 255, 0.5)' : (isScrapbook ? selectedTemplate.accent : (isMuseum ? '#9b7a44' : (isBrutalist ? '#111113' : (isTechSleek ? '#7dd3fc' : (isExecutive ? '#d4b474' : '#cca43b')))))))
                 }
               />
             )}
@@ -254,6 +295,7 @@ export function ThemeHeader({
       isBrutalist && styles.brutalistVisitorHeaderContainer,
       isTechSleek && styles.techSleekVisitorHeaderContainer,
       isExecutive && styles.executiveVisitorHeaderContainer,
+      isSportsTemplate && [styles.sportsVisitorHeaderContainer, { backgroundColor: sportsHeaderTheme.background, borderBottomColor: sportsHeaderTheme.border }],
     ]}>
       <ScrollView
         horizontal
@@ -275,6 +317,7 @@ export function ThemeHeader({
           isBrutalist && styles.brutalistVisitorHeaderContent,
           isTechSleek && styles.techSleekVisitorHeaderContent,
           isExecutive && styles.executiveVisitorHeaderContent,
+          isSportsTemplate && styles.sportsVisitorHeaderContent,
           isAcademicEditorial && { paddingHorizontal: 12 },
           isGarden && { flexGrow: 1, flexDirection: 'row' as const, justifyContent: 'center' as const, alignItems: 'center' as const, paddingHorizontal: 4, gap: 4 },
           isBohemian && { paddingHorizontal: 16, gap: 8, alignItems: 'center' as const },
@@ -292,7 +335,7 @@ export function ThemeHeader({
         <TouchableOpacity
           style={[
             styles.visitorTab,
-            isThemeHeader ? themeHeaderTab(isPartnersActive) : [...birthdayTabStyles, isPartnersActive && birthdayActiveTab],
+            isThemeHeader ? themeHeaderTab(isPartnersActive) : [...birthdayTabStyles, isPartnersActive && resolvedActiveTab],
             isAcademicEditorial && academicTabStyle,
             isBohemian && [styles.bohemianVisitorTab, isPartnersActive && styles.bohemianVisitorTabActive],
           ]}
@@ -332,7 +375,8 @@ export function ThemeHeader({
               isBrutalist && styles.brutalistVisitorTabText,
               isTechSleek && styles.techSleekVisitorTabText,
               isExecutive && styles.executiveVisitorTabText,
-              selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
+              isSportsTemplate && [styles.sportsVisitorTabText, { color: sportsHeaderTheme.text }],
+              !isSportsTemplate && selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
               isAcademicEditorial && {
                 fontFamily: selectedTemplate.serifBold,
                 fontSize: 13,
@@ -340,12 +384,12 @@ export function ThemeHeader({
                 letterSpacing: 1.5,
                 color: isPartnersActive ? selectedTemplate.accent : selectedTemplate.muted,
               },
-              isPartnersActive && !isThemeHeader && !isAcademicEditorial && birthdayActiveText,
+              isPartnersActive && !isThemeHeader && !isAcademicEditorial && resolvedActiveText,
             ]}>
               {(isCyberTech || isNeonCarnival) ? (isPartnersActive ? '[ PARTNERS ]' : '  PARTNERS  ') : (
                 isRetroArcade ? 'PARTNERS 🤝' : (
                   isAcademicEditorial ? `${String(subEvents.length + 2).padStart(2, '0')} / PARTNERS` : (
-                    (isMuseum || isBrutalist || isTechSleek || isExecutive) ? 'Partners' : <>Event Partners <Text style={{ fontSize: 10 }}>🤝</Text></>
+                    (isSportsTemplate || isMuseum || isBrutalist || isTechSleek || isExecutive) ? 'Partners' : <>Event Partners <Text style={{ fontSize: 10 }}>🤝</Text></>
                   )
                 )
               )}

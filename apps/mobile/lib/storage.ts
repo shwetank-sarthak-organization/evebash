@@ -8,7 +8,14 @@ const CLOUD_NAME = (process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || "db0feghsr"
 const UPLOAD_PRESET = (process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ml_default").trim();
 
 
-export async function uploadEventImage(file: { uri: string; name: string; type: string }, eventId: string, userId?: string) {
+type EventUploadResourceType = 'image' | 'video' | 'auto';
+
+export async function uploadEventMedia(
+    file: { uri: string; name: string; type: string },
+    eventId: string,
+    userId?: string,
+    resourceType: EventUploadResourceType = 'image'
+) {
     try {
         console.log(`[Storage] Starting upload for ${file.name} to event ${eventId}`);
         console.log(`[Storage] Config - Cloud Name: "${CLOUD_NAME}", Upload Preset: "${UPLOAD_PRESET}"`);
@@ -22,7 +29,7 @@ export async function uploadEventImage(file: { uri: string; name: string; type: 
         formData.append('upload_preset', UPLOAD_PRESET);
         formData.append('folder', `wed_album/${userId ? `${userId}/${eventId}` : eventId}`);
 
-        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/upload`, {
             method: 'POST',
             body: formData,
             headers: {
@@ -43,12 +50,17 @@ export async function uploadEventImage(file: { uri: string; name: string; type: 
             width: result.width,
             height: result.height,
             bytes: result.bytes,
-            format: result.format
+            format: result.format,
+            resourceType: result.resource_type || resourceType
         };
     } catch (error) {
         console.error('[Storage] Error:', error);
         throw error;
     }
+}
+
+export async function uploadEventImage(file: { uri: string; name: string; type: string }, eventId: string, userId?: string) {
+    return uploadEventMedia(file, eventId, userId, 'image');
 }
 
 export async function uploadProfileImage(base64: string, userId: string) {
@@ -83,4 +95,3 @@ export async function uploadProfileImage(base64: string, userId: string) {
         throw error;
     }
 }
-

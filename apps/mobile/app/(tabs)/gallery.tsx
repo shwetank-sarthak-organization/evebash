@@ -51,6 +51,31 @@ const PLACEHOLDER_IMAGES = [
   "https://images.unsplash.com/photo-1465495910483-34a170a7bb00?q=80&w=1200&auto=format&fit=crop"
 ];
 
+function formatDisplayDate(date: Date) {
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function normalizeEventDate(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return formatDisplayDate(new Date());
+
+  const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) {
+    const [, day, month, year] = slashMatch;
+    const parsedSlashDate = new Date(Number(year), Number(month) - 1, Number(day));
+    if (!Number.isNaN(parsedSlashDate.getTime())) return formatDisplayDate(parsedSlashDate);
+  }
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return trimmed;
+
+  return formatDisplayDate(parsed);
+}
+
 
 function createSlug(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
@@ -154,7 +179,7 @@ export default function PortfolioTabScreen() {
   };
 
   const handleBarCodeScanned = ({ data }: { data: string }) => {
-    // Check if it's a WedAlbum URL
+    // Check if it's an EveBash URL
     if (data.includes('wedalbum.app/events/')) {
       const parts = data.split('/');
       const eventId = parts[parts.length - 1];
@@ -230,7 +255,7 @@ export default function PortfolioTabScreen() {
       const success = await createEvent({
         id,
         title,
-        date: newEventDate.trim() || new Date().toLocaleDateString(),
+        date: normalizeEventDate(newEventDate),
         description: `Memories from ${title}`,
         coverImage,
         createdBy: user.uid,

@@ -51,7 +51,7 @@ export default function EditPhotosScreen() {
         getEventPhotos(id!)
       ]);
       setSubEvent(eventData);
-      setPhotos(photosData);
+      setPhotos(photosData.filter(photo => photo.mediaType !== 'video' && photo.resourceType !== 'video'));
     } catch (err) {
       console.error("Error fetching data:", err);
     } finally {
@@ -105,6 +105,8 @@ export default function EditPhotosScreen() {
             eventId: id!,
             url: data.secure_url,
             cloudinaryPublicId: data.public_id,
+            mediaType: 'photo',
+            resourceType: 'image',
             uploadedAt: new Date(),
             userId: user?.uid || subEvent?.createdBy,
             width: data.width || asset.width,

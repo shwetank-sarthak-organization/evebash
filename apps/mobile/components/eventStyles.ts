@@ -13,6 +13,7 @@ import { museumStyles } from './eventStyles/museumStyles';
 import { brutalistStyles } from './eventStyles/brutalistStyles';
 import { techSleekStyles } from './eventStyles/techSleekStyles';
 import { executiveSuiteStyles } from './eventStyles/executiveSuiteStyles';
+import { sportsStyles } from './eventStyles/sportsStyles';
 import { FunkyFonts } from './eventStyles/funkyFonts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -32,4 +33,5 @@ export const styles = StyleSheet.create({
   ...brutalistStyles,
   ...techSleekStyles,
   ...executiveSuiteStyles,
+  ...sportsStyles,
 } as any);

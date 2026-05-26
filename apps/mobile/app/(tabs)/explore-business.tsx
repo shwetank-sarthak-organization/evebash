@@ -146,7 +146,7 @@ export default function ExploreBusinessScreen() {
     lat: b.location.latitude,
     lng: b.location.longitude,
     image: b.coverImage,
-    verified: true, // All listed businesses on WedAlbum are verified
+    verified: true, // All listed businesses on EveBash are verified
     experience: b.experience || 0,
   }));
 

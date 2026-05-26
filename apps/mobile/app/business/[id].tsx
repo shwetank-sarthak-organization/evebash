@@ -255,7 +255,7 @@ export default function BusinessDetailScreen() {
   const handleWhatsApp = () => {
     if (business?.ownerPhone) {
       const phone = business.ownerPhone.replace(/\D/g, '');
-      const message = encodeURIComponent(`Hi ${business.name}, I found your business on WedAlbum and I'm interested in your services.`);
+      const message = encodeURIComponent(`Hi ${business.name}, I found your business on EveBash and I'm interested in your services.`);
       Linking.openURL(`whatsapp://send?phone=${phone}&text=${message}`).catch(() => {
         Linking.openURL(`https://wa.me/${phone}?text=${message}`);
       });
@@ -310,7 +310,7 @@ export default function BusinessDetailScreen() {
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `Check out ${business?.name} on WedAlbum Marketplace!`,
+        message: `Check out ${business?.name} on EveBash Marketplace!`,
         url: 'https://wedalbum.com',
       });
     } catch (error) {

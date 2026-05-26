@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "wed_album-mobile",
-    "slug": "wed_album-mobile",
+    "name": "EveBash",
+    "slug": "evebash",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "wedalbummobile",
+    "scheme": "evebash",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
@@ -41,7 +41,8 @@
       "expo-font",
       "expo-image",
       "expo-web-browser",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,
