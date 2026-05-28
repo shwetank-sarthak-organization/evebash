@@ -4071,54 +4071,22 @@ export default function EventDetailScreen() {
                       </View>
 
                       <View style={styles.permissionsScroll}>
-                        <TouchableOpacity
-                          style={[styles.userInfoToggle, showGuestInfo && styles.userInfoToggleActive]}
-                          onPress={() => setShowGuestInfo((value) => !value)}
-                        >
-                          <View style={styles.userInfoToggleIcon}>
-                            <IconSymbol name="person.fill" size={18} color={MidnightColors.gold} />
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.userInfoToggleTitle}>User Info</Text>
-                            <Text style={styles.userInfoToggleSub}>Name, username, contact, and profile photo</Text>
-                          </View>
-                          {loadingGuestProfile ? (
-                            <ActivityIndicator size="small" color={MidnightColors.gold} />
-                          ) : (
-                            <IconSymbol name="chevron.down" size={18} color={MidnightColors.slate400} />
-                          )}
-                        </TouchableOpacity>
-
-                        {showGuestInfo && (
-                          <View style={styles.userInfoPanel}>
-                            <View style={styles.userInfoProfileRow}>
-                              <View style={styles.userInfoLargeAvatar}>
-                                {selectedGuestPhoto ? (
-                                  <Image source={{ uri: selectedGuestPhoto }} style={styles.memberInfoAvatarImage} />
-                                ) : (
-                                  <LinearGradient colors={[MidnightColors.gold, '#b8860b']} style={styles.avatarGradient}>
-                                    <Text style={styles.largeAvatarText}>{selectedGuestName.charAt(0)}</Text>
-                                  </LinearGradient>
-                                )}
-                              </View>
-                              <View style={{ flex: 1 }}>
-                                <Text style={styles.userInfoName}>{selectedGuestName}</Text>
-                                <Text style={styles.userInfoHandle}>{selectedGuestUsername}</Text>
-                              </View>
+                        <View style={styles.userInfoPanel}>
+                          <View style={styles.userInfoDetails}>
+                            <View style={styles.userInfoDetailRow}>
+                              <Text style={styles.userInfoDetailLabel}>Username</Text>
+                              <Text style={styles.userInfoDetailValue}>{selectedGuestUsername}</Text>
                             </View>
-
-                            <View style={styles.userInfoDetails}>
-                              <View style={styles.userInfoDetailRow}>
-                                <Text style={styles.userInfoDetailLabel}>Email ID</Text>
-                                <Text style={styles.userInfoDetailValue}>{selectedGuestEmail}</Text>
-                              </View>
-                              <View style={styles.userInfoDetailRow}>
-                                <Text style={styles.userInfoDetailLabel}>Phone Number</Text>
-                                <Text style={styles.userInfoDetailValue}>{selectedGuestPhone}</Text>
-                              </View>
+                            <View style={styles.userInfoDetailRow}>
+                              <Text style={styles.userInfoDetailLabel}>Email ID</Text>
+                              <Text style={styles.userInfoDetailValue}>{selectedGuestEmail}</Text>
+                            </View>
+                            <View style={styles.userInfoDetailRow}>
+                              <Text style={styles.userInfoDetailLabel}>Phone Number</Text>
+                              <Text style={styles.userInfoDetailValue}>{selectedGuestPhone}</Text>
                             </View>
                           </View>
-                        )}
+                        </View>
 
                         <Text style={styles.permissionsGroupLabel}>Member Privileges</Text>
 
@@ -4180,86 +4148,51 @@ export default function EventDetailScreen() {
               {/* ── PREMIUM REQUEST DETAIL MODAL ── */}
               <Modal visible={!!selectedRequest} transparent animationType="fade">
                 <View style={styles.premiumModalBackdrop}>
-                  <View style={styles.ironCladWrapper}>
+                  <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                     <LinearGradient
                       colors={['#0f172a', '#020617']}
-                      style={styles.premiumRequestModal}
+                      style={styles.premiumModalContent}
                     >
-                      <View style={styles.modalHeaderCentered}>
-                        <View style={styles.largeAvatar}>
+                      {/* Header: Member Identity */}
+                      <View style={styles.premiumModalHeader}>
+                        <View style={styles.premiumAvatar}>
                           {selectedRequestPhoto ? (
                             <Image source={{ uri: selectedRequestPhoto }} style={styles.memberInfoAvatarImage} />
                           ) : (
                             <LinearGradient colors={[MidnightColors.gold, '#b8860b']} style={styles.avatarGradient}>
-                              <Text style={styles.largeAvatarText}>{selectedRequestName.charAt(0)}</Text>
+                              <Text style={styles.premiumAvatarText}>{selectedRequest?.name.charAt(0)}</Text>
                             </LinearGradient>
                           )}
                         </View>
-                        <Text style={styles.modalRequestTitle}>{selectedRequest?.name}</Text>
-                        <Text style={styles.modalRequestSub}>Requesting Access</Text>
-                      </View>
-
-                      <View style={styles.modalBody}>
-                        <TouchableOpacity
-                          style={[styles.userInfoToggle, showRequestInfo && styles.userInfoToggleActive]}
-                          onPress={() => setShowRequestInfo((value) => !value)}
-                        >
-                          <View style={styles.userInfoToggleIcon}>
-                            <IconSymbol name="person.fill" size={18} color={MidnightColors.gold} />
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.userInfoToggleTitle}>User Info</Text>
-                            <Text style={styles.userInfoToggleSub}>Review details before approval</Text>
-                          </View>
-                          {loadingRequestProfile ? (
-                            <ActivityIndicator size="small" color={MidnightColors.gold} />
-                          ) : (
-                            <IconSymbol name="chevron.down" size={18} color={MidnightColors.slate400} />
-                          )}
+                        <View style={{ flex: 1, marginLeft: 16 }}>
+                          <Text style={styles.premiumModalTitle}>{selectedRequest?.name}</Text>
+                          <Text style={styles.premiumModalSub}>Requesting Access</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => setSelectedRequest(null)} style={styles.closeModalCircle}>
+                          <IconSymbol name="xmark" size={16} color={MidnightColors.slate400} />
                         </TouchableOpacity>
+                      </View>
 
-                        {showRequestInfo && (
-                          <View style={styles.userInfoPanel}>
-                            <View style={styles.userInfoProfileRow}>
-                              <View style={styles.userInfoLargeAvatar}>
-                                {selectedRequestPhoto ? (
-                                  <Image source={{ uri: selectedRequestPhoto }} style={styles.memberInfoAvatarImage} />
-                                ) : (
-                                  <LinearGradient colors={[MidnightColors.gold, '#b8860b']} style={styles.avatarGradient}>
-                                    <Text style={styles.largeAvatarText}>{selectedRequestName.charAt(0)}</Text>
-                                  </LinearGradient>
-                                )}
-                              </View>
-                              <View style={{ flex: 1 }}>
-                                <Text style={styles.userInfoName}>{selectedRequestName}</Text>
-                                <Text style={styles.userInfoHandle}>{selectedRequestUsername}</Text>
-                              </View>
+                      <View style={styles.permissionsScroll}>
+                        <View style={styles.userInfoPanel}>
+                          <View style={styles.userInfoDetails}>
+                            <View style={styles.userInfoDetailRow}>
+                              <Text style={styles.userInfoDetailLabel}>Username</Text>
+                              <Text style={styles.userInfoDetailValue}>{selectedRequestUsername}</Text>
                             </View>
-
-                            <View style={styles.userInfoDetails}>
-                              <View style={styles.userInfoDetailRow}>
-                                <Text style={styles.userInfoDetailLabel}>Email ID</Text>
-                                <Text style={styles.userInfoDetailValue}>{selectedRequestEmail}</Text>
-                              </View>
-                              <View style={styles.userInfoDetailRow}>
-                                <Text style={styles.userInfoDetailLabel}>Phone Number</Text>
-                                <Text style={styles.userInfoDetailValue}>{selectedRequestPhone}</Text>
-                              </View>
+                            <View style={styles.userInfoDetailRow}>
+                              <Text style={styles.userInfoDetailLabel}>Email ID</Text>
+                              <Text style={styles.userInfoDetailValue}>{selectedRequestEmail}</Text>
+                            </View>
+                            <View style={styles.userInfoDetailRow}>
+                              <Text style={styles.userInfoDetailLabel}>Phone Number</Text>
+                              <Text style={styles.userInfoDetailValue}>{selectedRequestPhone}</Text>
                             </View>
                           </View>
-                        )}
-
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>Contact Info</Text>
-                          <Text style={styles.detailValue}>{selectedRequest?.phone}</Text>
-                        </View>
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>Target Event</Text>
-                          <Text style={styles.detailValue}>{event.title}</Text>
                         </View>
                       </View>
 
-                      <View style={styles.modalFooter}>
+                      <View style={[styles.modalFooter, { paddingHorizontal: 16, paddingBottom: 18, gap: 10 }]}>
                         <TouchableOpacity
                           style={[styles.modalActionBtn, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}
                           onPress={() => {
@@ -4293,13 +4226,6 @@ export default function EventDetailScreen() {
                           </LinearGradient>
                         </TouchableOpacity>
                       </View>
-
-                      <TouchableOpacity
-                        style={styles.modalCloseLink}
-                        onPress={() => setSelectedRequest(null)}
-                      >
-                        <Text style={styles.modalCloseLinkText}>Cancel</Text>
-                      </TouchableOpacity>
                     </LinearGradient>
                   </View>
                 </View>

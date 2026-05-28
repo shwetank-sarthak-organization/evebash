@@ -17,6 +17,7 @@ import {
   Linking,
   useColorScheme,
   Switch,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -39,7 +40,8 @@ import {
   getEventByJoinId,
   logGuestLogin,
   updateEvent,
-  deleteEvent
+  deleteEvent,
+  getUsers
 } from '@/lib/firestore';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -103,6 +105,9 @@ export default function PortfolioTabScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
+  const [selectedRequestProfile, setSelectedRequestProfile] = useState<any | null>(null);
+  const [loadingRequestProfile, setLoadingRequestProfile] = useState(false);
+  const [showRequestInfo, setShowRequestInfo] = useState(false);
 
   // Creation State
   const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -251,6 +256,55 @@ export default function PortfolioTabScreen() {
     setRefreshing(true);
     fetchData();
   };
+
+  const normalizePhoneValue = (val?: string | null) => (val || '').replace(/\D/g, '');
+  const normalizeEmailValue = (val?: string | null) => (val || '').trim().toLowerCase();
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadSelectedRequestProfile = async () => {
+      if (!selectedRequest) {
+        setSelectedRequestProfile(null);
+        setShowRequestInfo(false);
+        return;
+      }
+
+      setLoadingRequestProfile(true);
+      try {
+        const users = await getUsers();
+        const requestEmail = normalizeEmailValue(selectedRequest.email || selectedRequest.phone);
+        const requestPhone = normalizePhoneValue(selectedRequest.phone);
+        const profile = users.find((candidate) => {
+          const candidateEmail = normalizeEmailValue(candidate.email);
+          const candidatePhone = normalizePhoneValue(candidate.phone);
+          return (
+            (!!requestEmail && requestEmail === candidateEmail) ||
+            (!!requestPhone && requestPhone === candidatePhone)
+          );
+        }) || null;
+
+        if (isActive) {
+          setSelectedRequestProfile(profile);
+        }
+      } catch (error) {
+        console.error('Error loading selected request profile:', error);
+        if (isActive) {
+          setSelectedRequestProfile(null);
+        }
+      } finally {
+        if (isActive) {
+          setLoadingRequestProfile(false);
+        }
+      }
+    };
+
+    loadSelectedRequestProfile();
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedRequest]);
 
   const handleCreateSubmit = async () => {
     if (!user) return;
@@ -438,6 +492,12 @@ export default function PortfolioTabScreen() {
       </TouchableOpacity>
     </View>
   );
+
+  const selectedRequestName = selectedRequestProfile?.name || selectedRequest?.name || 'Not set';
+  const selectedRequestUsername = selectedRequestProfile?.username ? `@${selectedRequestProfile.username}` : 'Not set';
+  const selectedRequestEmail = selectedRequestProfile?.email || selectedRequest?.email || (selectedRequest?.phone?.includes('@') ? selectedRequest.phone : '') || 'Not set';
+  const selectedRequestPhone = selectedRequestProfile?.phone || (!selectedRequest?.phone?.includes('@') ? selectedRequest?.phone : '') || 'Not set';
+  const selectedRequestPhoto = selectedRequestProfile?.profileImage;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -628,37 +688,59 @@ export default function PortfolioTabScreen() {
               )
             )}
 
-          {/* ── REQUEST DETAIL MODAL ── */}
+          {/* ── PREMIUM REQUEST DETAIL MODAL ── */}
           <Modal visible={!!selectedRequest} transparent animationType="fade">
-            <View style={styles.modalBackdrop}>
-              <View style={styles.ironCladWrapper}>
-                <LinearGradient 
-                  colors={['#0f172a', '#020617']} 
-                  style={styles.premiumRequestModal}
+            <View style={styles.premiumModalBackdrop}>
+              <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
+                <LinearGradient
+                  colors={['#0f172a', '#020617']}
+                  style={styles.premiumModalContent}
                 >
-                  <View style={styles.modalHeader}>
-                    <View style={styles.largeAvatar}>
-                      <LinearGradient colors={[colors.gold, '#b8860b']} style={styles.avatarGradient}>
-                        <Text style={styles.largeAvatarText}>{selectedRequest?.name.charAt(0)}</Text>
-                      </LinearGradient>
+                  {/* Header: Member Identity */}
+                  <View style={styles.premiumModalHeader}>
+                    <View style={styles.premiumAvatar}>
+                      {selectedRequestPhoto ? (
+                        <Image source={{ uri: selectedRequestPhoto }} style={styles.memberInfoAvatarImage} />
+                      ) : (
+                        <LinearGradient colors={[MidnightColors.gold, '#b8860b']} style={styles.avatarGradient}>
+                          <Text style={styles.premiumAvatarText}>{selectedRequest?.name.charAt(0)}</Text>
+                        </LinearGradient>
+                      )}
                     </View>
-                    <Text style={styles.modalRequestTitle}>{selectedRequest?.name}</Text>
-                    <Text style={styles.modalRequestSub}>Wants to join your event</Text>
+                    <View style={{ flex: 1, marginLeft: 16 }}>
+                      <Text style={styles.premiumModalTitle}>{selectedRequest?.name}</Text>
+                      <Text style={styles.premiumModalSub}>Requesting Access</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => setSelectedRequest(null)} style={styles.closeModalCircle}>
+                      <IconSymbol name="xmark" size={16} color={MidnightColors.slate400} />
+                    </TouchableOpacity>
                   </View>
 
-                  <View style={styles.modalBody}>
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Event</Text>
-                      <Text style={styles.detailValue}>{selectedRequest?.eventTitle}</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Phone / ID</Text>
-                      <Text style={styles.detailValue}>{selectedRequest?.phone}</Text>
+                  <View style={styles.permissionsScroll}>
+                    <View style={styles.userInfoPanel}>
+                      <View style={styles.userInfoDetails}>
+                        <View style={styles.userInfoDetailRow}>
+                          <Text style={styles.userInfoDetailLabel}>Username</Text>
+                          <Text style={styles.userInfoDetailValue}>{selectedRequestUsername}</Text>
+                        </View>
+                        <View style={styles.userInfoDetailRow}>
+                          <Text style={styles.userInfoDetailLabel}>Email ID</Text>
+                          <Text style={styles.userInfoDetailValue}>{selectedRequestEmail}</Text>
+                        </View>
+                        <View style={styles.userInfoDetailRow}>
+                          <Text style={styles.userInfoDetailLabel}>Phone Number</Text>
+                          <Text style={styles.userInfoDetailValue}>{selectedRequestPhone}</Text>
+                        </View>
+                        <View style={styles.userInfoDetailRow}>
+                          <Text style={styles.userInfoDetailLabel}>Target Event</Text>
+                          <Text style={styles.userInfoDetailValue}>{selectedRequest?.eventTitle || 'Untitled Event'}</Text>
+                        </View>
+                      </View>
                     </View>
                   </View>
 
-                  <View style={styles.modalFooter}>
-                    <TouchableOpacity 
+                  <View style={[styles.modalFooter, { paddingHorizontal: 16, paddingBottom: 18, gap: 10 }]}>
+                    <TouchableOpacity
                       style={[styles.modalActionBtn, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}
                       onPress={() => {
                         if (selectedRequest) {
@@ -671,8 +753,8 @@ export default function PortfolioTabScreen() {
                     >
                       <Text style={[styles.modalActionText, { color: '#ef4444' }]}>Reject</Text>
                     </TouchableOpacity>
-                    
-                    <TouchableOpacity 
+
+                    <TouchableOpacity
                       style={styles.modalActionBtnApprove}
                       onPress={() => {
                         if (selectedRequest) {
@@ -683,21 +765,14 @@ export default function PortfolioTabScreen() {
                         }
                       }}
                     >
-                      <LinearGradient 
-                        colors={['#10b981', '#059669']} 
+                      <LinearGradient
+                        colors={['#10b981', '#059669']}
                         style={styles.approveGradient}
                       >
                         <Text style={styles.modalActionTextWhite}>Approve Access</Text>
                       </LinearGradient>
                     </TouchableOpacity>
                   </View>
-
-                  <TouchableOpacity 
-                    style={styles.modalCloseLink}
-                    onPress={() => setSelectedRequest(null)}
-                  >
-                    <Text style={styles.modalCloseLinkText}>Close</Text>
-                  </TouchableOpacity>
                 </LinearGradient>
               </View>
             </View>
@@ -1292,7 +1367,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   detailValue: { color: colors.white, fontSize: 15, fontFamily: Fonts.inter.medium },
   modalFooter: { flexDirection: 'row', gap: 12 },
   modalActionBtn: { flex: 1, paddingVertical: 16, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  modalActionBtnApprove: { flex: 2, borderRadius: 16, overflow: 'hidden' },
+  modalActionBtnApprove: { flex: 1, borderRadius: 16, overflow: 'hidden' },
   approveGradient: { flex: 1, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
   modalActionText: { fontSize: 14, fontFamily: Fonts.outfit.bold },
   modalActionTextWhite: { color: colors.white, fontSize: 14, fontFamily: Fonts.outfit.bold },
@@ -1520,4 +1595,51 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  premiumModalBackdrop: {
+    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(2, 6, 23, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000
+  },
+  premiumModalContent: {
+    width: width * 0.85,
+    alignSelf: 'center',
+    borderRadius: 32,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10
+  },
+  premiumModalHeader: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: 'rgba(255,255,255,0.02)' },
+  premiumAvatar: { width: 48, height: 48, borderRadius: 24, overflow: 'hidden' },
+  premiumAvatarText: { color: MidnightColors.background, fontSize: 20, fontFamily: Fonts.outfit.extraBold },
+  premiumModalTitle: { color: '#fff', fontSize: 18, fontFamily: Fonts.outfit.bold },
+  premiumModalSub: { color: MidnightColors.gold, fontSize: 10, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', marginTop: 1, opacity: 0.8 },
+  closeModalCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
+  permissionsScroll: { padding: 16 },
+  userInfoToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.025)', padding: 10, borderRadius: 14, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)', gap: 10 },
+  userInfoToggleActive: { backgroundColor: 'rgba(212, 175, 55, 0.06)', borderColor: 'rgba(212, 175, 55, 0.18)' },
+  userInfoToggleIcon: { width: 30, height: 30, borderRadius: 10, backgroundColor: 'rgba(212, 175, 55, 0.1)', alignItems: 'center', justifyContent: 'center' },
+  userInfoToggleTitle: { color: '#fff', fontSize: 13, fontFamily: Fonts.outfit.bold },
+  userInfoToggleSub: { color: '#94a3b8', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 1 },
+  userInfoPanel: { backgroundColor: 'rgba(255,255,255,0.025)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', padding: 10, marginBottom: 10 },
+  userInfoProfileRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  userInfoLargeAvatar: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden' },
+  memberInfoAvatarImage: { width: '100%', height: '100%' },
+  userInfoName: { color: '#fff', fontSize: 14, fontFamily: Fonts.outfit.bold },
+  userInfoHandle: { color: MidnightColors.gold, fontSize: 11, fontFamily: Fonts.inter.bold, marginTop: 2 },
+  userInfoDetails: { gap: 6 },
+  userInfoDetailRow: { backgroundColor: 'rgba(15, 23, 42, 0.7)', padding: 9, borderRadius: 12 },
+  userInfoDetailLabel: { color: '#94a3b8', fontSize: 9, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', marginBottom: 2, letterSpacing: 0.8 },
+  userInfoDetailValue: { color: '#fff', fontSize: 12, fontFamily: Fonts.inter.medium },
 });
