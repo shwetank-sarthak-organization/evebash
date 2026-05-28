@@ -3,6 +3,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
+import LoadingScreen from "@/components/LoadingScreen";
 
 export default function RouteGuard({ children }: { children: React.ReactNode }) {
     const { user, loading } = useAuth();
@@ -21,12 +22,7 @@ export default function RouteGuard({ children }: { children: React.ReactNode }) 
     }, [user, loading, pathname, router]);
 
     if (loading) {
-        return (
-            <div className="h-screen flex items-center justify-center bg-royal-cream text-royal-maroon">
-                {/* Simple loading spinner or text */}
-                <div className="animate-pulse text-xl font-serif">Loading...</div>
-            </div>
-        );
+        return <LoadingScreen message="Capturing the moment" />;
     }
 
     // Optional: Hide Navbar on login page if we want? 

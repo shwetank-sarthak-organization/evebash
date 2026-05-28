@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, Suspense, useTransition } from "react";
+import LoadingScreen from "@/components/LoadingScreen";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -110,6 +111,20 @@ function DashboardContent() {
     const [selectedMainEvent, setSelectedMainEvent] = useState<Event | null>(null);
     const [viewingPhoto, setViewingPhoto] = useState<any | null>(null);
     const [galleryViewMode, setGalleryViewMode] = useState<"grid" | "list">("grid");
+    const [isNavigating, setIsNavigating] = useState(false);
+    const [, startTransition] = useTransition();
+
+    // Helper: show loading screen briefly, then navigate
+    const navigateTo = (url: string, message?: string) => {
+        setIsNavigating(true);
+        setTimeout(() => {
+            startTransition(() => {
+                router.push(url);
+            });
+            // Hide loading after navigation settles
+            setTimeout(() => setIsNavigating(false), 600);
+        }, 400);
+    };
 
     // Data State
     const [userEvents, setUserEvents] = useState<Event[]>([]);
@@ -724,14 +739,11 @@ function DashboardContent() {
     }, [user, loading, router]);
 
     if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-royal-cream text-slate-800">
-                <div className="animate-pulse flex flex-col items-center">
-                    <div className="h-12 w-12 bg-royal-gold/20 rounded-full mb-4"></div>
-                    <div className="h-4 w-32 bg-royal-gold/10 rounded"></div>
-                </div>
-            </div>
-        );
+        return <LoadingScreen message="Loading your dashboard" />;
+    }
+
+    if (isNavigating) {
+        return <LoadingScreen message="Opening event" />;
     }
 
     if (!user) {
@@ -803,7 +815,7 @@ function DashboardContent() {
             setTimeout(() => {
                 const params = new URLSearchParams(searchParams);
                 params.set("mode", "list");
-                router.push(`/dashboard?${params.toString()}`);
+                navigateTo(`/dashboard?${params.toString()}`);
             }, 1500);
         } catch (err) {
             console.error(err);

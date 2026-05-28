@@ -83,6 +83,29 @@ service cloud.firestore {
       );
     }
 
+    // Check if user is a guest admin for a specific event
+    function isGuestEventAdmin(eventId) {
+      return isAuthenticated() && (
+        // Case 1: checked by uid
+        (exists(/databases/$(database)/documents/guests/$(request.auth.uid + "_" + eventId)) &&
+         get(/databases/$(database)/documents/guests/$(request.auth.uid + "_" + eventId)).data.get('canAdmin', false) == true &&
+         get(/databases/$(database)/documents/guests/$(request.auth.uid + "_" + eventId)).data.get('status', '') == 'approved') ||
+        
+        // Case 2: checked by email
+        (request.auth.token.email != null &&
+         exists(/databases/$(database)/documents/guests/$(request.auth.token.email + "_" + eventId)) &&
+         get(/databases/$(database)/documents/guests/$(request.auth.token.email + "_" + eventId)).data.get('canAdmin', false) == true &&
+         get(/databases/$(database)/documents/guests/$(request.auth.token.email + "_" + eventId)).data.get('status', '') == 'approved') ||
+         
+        // Case 3: checked by phone from user profile
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('phone', '') != '' &&
+         exists(/databases/$(database)/documents/guests/$(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('phone', '') + "_" + eventId)) &&
+         get(/databases/$(database)/documents/guests/$(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('phone', '') + "_" + eventId)).data.get('canAdmin', false) == true &&
+         get(/databases/$(database)/documents/guests/$(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('phone', '') + "_" + eventId)).data.get('status', '') == 'approved')
+      );
+    }
+
     // Helper to extract owner ID from document data
     function getDocOwnerId(data) {
       return data.get('createdBy', data.get('userId', ''));
@@ -149,11 +172,11 @@ service cloud.firestore {
          isManagementAuthorized(getDocOwnerId(get(/databases/$(database)/documents/events/$(request.resource.data.parentId)).data)))
       );
       
-      allow update, delete: if isKnownAdmin() || isManagementAuthorized(getDocOwnerId(resource.data)) || isEventAdmin(eventId);
+      allow update, delete: if isKnownAdmin() || isManagementAuthorized(getDocOwnerId(resource.data)) || isEventAdmin(eventId) || isGuestEventAdmin(eventId);
       
       match /{allSubcollections=**} {
         allow read: if true;
-        allow write: if isKnownAdmin() || isManagementAuthorized(getDocOwnerId(get(/databases/$(database)/documents/events/$(eventId)).data));
+        allow write: if isKnownAdmin() || isManagementAuthorized(getDocOwnerId(get(/databases/$(database)/documents/events/$(eventId)).data)) || isEventAdmin(eventId) || isGuestEventAdmin(eventId);
       }
     }
 
@@ -164,7 +187,7 @@ service cloud.firestore {
         request.auth.uid == request.resource.data.userId ||
         isManagementAuthorized(getDocOwnerId(request.resource.data))
       );
-      allow update, delete: if isKnownAdmin() || isManagementAuthorized(getDocOwnerId(resource.data)) || isEventAdmin(resource.data.get('eventId', ''));
+      allow update, delete: if isKnownAdmin() || isManagementAuthorized(getDocOwnerId(resource.data)) || isEventAdmin(resource.data.get('eventId', '')) || isGuestEventAdmin(resource.data.get('eventId', ''));
     }
 
     match /faces/{faceId} {

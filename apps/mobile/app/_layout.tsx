@@ -3,9 +3,10 @@ import { Stack, useRouter, useSegments, useRootNavigationState, Redirect } from 
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import * as React from 'react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, LogBox, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import LoadingScreen from '@/components/LoadingScreen';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
@@ -129,11 +130,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   }, [user, loading, segments, rootNavigationState?.key, router]);
 
   if (loading || !rootNavigationState?.key) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-        <ActivityIndicator size="large" color={colors.gold} />
-      </View>
-    );
+    return <LoadingScreen message="Loading your account" />;
   }
 
   return <>{children}</>;
@@ -225,17 +222,24 @@ export default function RootLayout() {
   console.log('fontError:', fontError);
   console.log('------------------------');
 
+  const [minLoadingDone, setMinLoadingDone] = useState(false);
+
+  // Guarantee at least 3 seconds of loading screen on app open
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      // We still wait for Auth in AuthGate before showing content, 
-      // but we hide splash once fonts are ready to avoid deadlocks.
+    const timer = setTimeout(() => setMinLoadingDone(true), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const isReady = (fontsLoaded || !!fontError) && minLoadingDone;
+
+  useEffect(() => {
+    if (isReady) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [isReady]);
 
-  if (!fontsLoaded && !fontError) {
-    console.log('Still waiting for fonts...');
-    return null;
+  if (!isReady) {
+    return <LoadingScreen message="Starting up" />;
   }
 
   return (

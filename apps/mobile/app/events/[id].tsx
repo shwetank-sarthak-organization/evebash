@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import LoadingScreen from '@/components/LoadingScreen';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Share, Keyboard, useWindowDimensions, useColorScheme, BackHandler, PanResponder, Animated as RNAnimated } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -1635,9 +1636,10 @@ export default function EventDetailScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.safeArea, styles.centered]}>
-        <ActivityIndicator color={MidnightColors.gold} size="large" />
-      </View>
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <LoadingScreen message="Loading event" />
+      </>
     );
   }
 

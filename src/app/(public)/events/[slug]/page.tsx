@@ -4,6 +4,7 @@ import React, { useEffect, useState, Suspense } from "react";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { notFound, useParams, useRouter, useSearchParams } from "next/navigation";
+import LoadingScreen from "@/components/LoadingScreen";
 import { getEvent } from "@/lib/events"; // Static Data
 import { getEventPhotos, getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event, Photo as FirestorePhoto } from "@/lib/firestore"; // Live Data
 import { syncCloudinaryToFirestore } from "@/app/actions/sync";
@@ -351,11 +352,7 @@ function EventPageContent() {
     };
 
     if (authLoading || loading) {
-        return (
-            <main className="min-h-screen flex items-center justify-center bg-stone-50 relative" ref={containerRef}>
-                <Loader2 className="w-8 h-8 animate-spin text-royal-gold" />
-            </main>
-        );
+        return <LoadingScreen message="Loading your gallery" />;
     }
 
     if (!event) {
@@ -749,11 +746,7 @@ function EventPageContent() {
 
 export default function EventPage() {
     return (
-        <Suspense fallback={
-            <main className="min-h-screen flex items-center justify-center bg-stone-50">
-                <Loader2 className="w-8 h-8 animate-spin text-royal-gold" />
-            </main>
-        }>
+        <Suspense fallback={<LoadingScreen message="Loading your gallery" />}>
             <EventPageContent />
         </Suspense>
     );
