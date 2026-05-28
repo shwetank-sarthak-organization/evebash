@@ -5,7 +5,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event as FirestoreEvent, updateEvent, createEvent, getGuestLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getUsers, UserProfile, removeGuestChatPermission } from '@/lib/firestore';
+import { getEventById, getSubEvents, logGuestLogin, Event as FirestoreEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getUsers, UserProfile, removeGuestChatPermission } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { styles, FunkyFonts } from '../../components/eventStyles';
@@ -286,7 +286,7 @@ function normalizeEventDate(value?: string) {
   return formatEventDisplayDate(parsed);
 }
 
-function GalleryVideoCard({ video, accent = '#d4af37' }: { video: any; accent?: string }) {
+function GalleryVideoCard({ video, accent = '#d4af37', onOpen }: { video: any; accent?: string; onOpen?: () => void }) {
   const player = useVideoPlayer(video.url, (player) => {
     player.loop = false;
     player.muted = false;
@@ -313,6 +313,23 @@ function GalleryVideoCard({ video, accent = '#d4af37' }: { video: any; accent?: 
         <Text style={{ flex: 1, color: '#e2e8f0', fontSize: 12, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>
           {video.title || 'Uploaded video'}
         </Text>
+        {onOpen && (
+          <TouchableOpacity
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 15,
+              backgroundColor: `${accent}22`,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: `${accent}66`,
+            }}
+            onPress={onOpen}
+          >
+            <IconSymbol name="arrow.up.right" size={13} color={accent} />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -379,20 +396,30 @@ export default function EventDetailScreen() {
   const [submittedIdentifier, setSubmittedIdentifier] = useState<string | null>(null);
 
   const [isOwner, setIsOwner] = useState(false);
+  const [isSharedEventAdmin, setIsSharedEventAdmin] = useState(false);
 
-  const isPrivilegedViewer = React.useMemo(() => {
+  const isAccountEventManager = React.useMemo(() => {
     if (!user || !event) return false;
     return (
       user.role === 'admin' ||
       user.uid === event.createdBy ||
-      (user.roleType === 'primary' && user.delegatedBy === event.createdBy) ||
+      (user.roleType === 'primary' && user.delegatedBy === event.createdBy)
+    );
+  }, [user, event]);
+
+  const canManageEvent = isAccountEventManager || isSharedEventAdmin;
+
+  const isPrivilegedViewer = React.useMemo(() => {
+    if (!user || !event) return false;
+    return (
+      canManageEvent ||
       !!user.assignedEvents?.some((eventId) =>
         eventId === event.id ||
         eventId === event.legacyId ||
         eventId === event.parentId
       )
     );
-  }, [user, event]);
+  }, [user, event, canManageEvent]);
 
   useEffect(() => {
     let isActive = true;
@@ -500,10 +527,10 @@ export default function EventDetailScreen() {
 
 
   // Decide which view to show
-  // We show Admin view ONLY if mode=admin AND user is owner.
+  // We show Admin view only when the route asks for it and the current user can manage this event.
   // Otherwise, we default to the premium Visitor view.
   const [isAdminViewActive, setIsAdminViewActive] = useState(mode === 'admin');
-  const showAdminView = isAdminViewActive && isOwner;
+  const showAdminView = isAdminViewActive && canManageEvent;
 
   // Theme colors are intentionally FIXED to the light palette for the visitor event view —
   // the selected template must look the same regardless of the device OS dark/light setting.
@@ -815,8 +842,26 @@ export default function EventDetailScreen() {
     setViewerVisible(true);
   };
 
+  const doesGuestLogBelongToCurrentUser = useCallback((log: GuestLog) => {
+    if (!user) return false;
+
+    const userEmail = normalizeEmailValue(user.email);
+    const userPhone = normalizePhoneValue(user.phone);
+    const userUid = user.uid;
+    const logEmail = normalizeEmailValue(log.email);
+    const logPhone = normalizePhoneValue(log.phone);
+    const logIdPrefix = log.id?.split('_')[0] || '';
+
+    return (
+      (!!userUid && (logIdPrefix === userUid || log.phone === userUid || log.email === userUid)) ||
+      (!!userEmail && (logEmail === userEmail || normalizeEmailValue(logIdPrefix) === userEmail)) ||
+      (!!userPhone && (logPhone === userPhone || normalizePhoneValue(logIdPrefix) === userPhone))
+    );
+  }, [normalizeEmailValue, normalizePhoneValue, user]);
+
   const loadEvent = async () => {
     setLoading(true);
+    setIsSharedEventAdmin(false);
     const perfStart = Date.now();
     console.log('[PERF] Starting loadEvent fetching pipeline...');
     try {
@@ -843,8 +888,9 @@ export default function EventDetailScreen() {
           });
         }
 
+        const ownerAccess = user?.uid === eventData.createdBy;
         setEvent(eventData);
-        setIsOwner(user?.uid === eventData.createdBy);
+        setIsOwner(ownerAccess);
 
         // Fetch sub-events, vendors, guest logs, and photos concurrently
         const [subs, vendorsData, logs, eventPhotos] = await Promise.all([
@@ -852,11 +898,19 @@ export default function EventDetailScreen() {
           eventData.vendors && eventData.vendors.length > 0
             ? Promise.all(eventData.vendors.map((vid: string) => getBusinessById(vid)))
             : Promise.resolve([]),
-          user && user.uid === eventData.createdBy
-            ? getGuestLogs([user.uid])
+          user
+            ? getEventLogs(id)
             : Promise.resolve([]),
           getEventPhotos(eventData.id, eventData.legacyId)
         ]);
+
+        const eventLogs = logs.filter(l => l.eventId === id || l.parentEventId === id);
+        const hasSharedAdminAccess = !ownerAccess && eventLogs.some((log: GuestLog) =>
+          log.status === 'approved' &&
+          !!log.canAdmin &&
+          doesGuestLogBelongToCurrentUser(log)
+        );
+        setIsSharedEventAdmin(hasSharedAdminAccess);
 
         const normalizedSubs = subs.map((sub) => ({
           ...sub,
@@ -874,8 +928,7 @@ export default function EventDetailScreen() {
         setLinkedVendors(vendorsData.filter(v => v !== null) as Business[]);
         setPhotos(eventPhotos);
 
-        if (user && user.uid === eventData.createdBy) {
-          const eventLogs = logs.filter(l => l.eventId === id || l.parentEventId === id);
+        if (ownerAccess || hasSharedAdminAccess) {
           eventLogs
             .filter((log: any) => Object.prototype.hasOwnProperty.call(log, 'canChat'))
             .forEach((log: any) => {
@@ -3841,9 +3894,9 @@ export default function EventDetailScreen() {
                         </View>
                       ) : galleryMediaTab === 'videos' ? (
                         <View>
-                          {videoItems.map((video) => (
+                          {videoItems.map((video, idx) => (
                             <View key={video.id} style={{ position: 'relative' }}>
-                              <GalleryVideoCard video={video} accent={MidnightColors.gold} />
+                              <GalleryVideoCard video={video} accent={MidnightColors.gold} onOpen={() => openViewer(idx)} />
                               <TouchableOpacity
                                 style={{
                                   position: 'absolute',
@@ -5195,11 +5248,12 @@ export default function EventDetailScreen() {
                       </View>
                     ) : galleryMediaTab === 'videos' ? (
                       <View>
-                        {videoItems.map((video) => (
+                        {videoItems.map((video, idx) => (
                           <GalleryVideoCard
                             key={video.id}
                             video={video}
                             accent={isSportsTemplate ? sportsTheme.accent : selectedTemplate.accent}
+                            onOpen={() => openViewer(idx)}
                           />
                         ))}
                       </View>
@@ -5690,7 +5744,7 @@ export default function EventDetailScreen() {
       <PhotoViewer
         visible={viewerVisible}
         onClose={() => setViewerVisible(false)}
-        photos={photoItems}
+        photos={activeGalleryItems}
         initialIndex={currentPhotoIndex}
         viewerIdentity={viewerIdentity}
         event={event}

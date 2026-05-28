@@ -1085,7 +1085,7 @@ export default function PortfolioTabScreen() {
                   <DateTimePicker
                     value={newEventDateValue}
                     mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    display="spinner"
                     onChange={handleCreateDateChange}
                     themeVariant={isDark ? 'dark' : 'light'}
                   />
