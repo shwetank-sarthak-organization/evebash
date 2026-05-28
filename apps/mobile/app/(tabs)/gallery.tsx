@@ -26,7 +26,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
-import { MOBILE_TEMPLATE_THEMES } from '../../constants/templates';
+import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory } from '../../constants/templates';
 import { 
   Event as FirestoreEvent, 
   getUserEvents,
@@ -42,8 +42,16 @@ import {
   deleteEvent
 } from '@/lib/firestore';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 const { width } = Dimensions.get('window');
+const EVENT_TYPE_OPTIONS = [
+  { name: 'Wedding', icon: 'heart.fill' },
+  { name: 'Birthday', icon: 'gift.fill' },
+  { name: 'Corporate', icon: 'briefcase.fill' },
+  { name: 'Sports', icon: 'figure.run' },
+  { name: 'Other', icon: 'ellipsis.circle.fill' },
+] as const;
 
 const PLACEHOLDER_IMAGES = [
   "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1200&auto=format&fit=crop",
@@ -100,7 +108,10 @@ export default function PortfolioTabScreen() {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newEventTitle, setNewEventTitle] = useState('');
-  const [newEventDate, setNewEventDate] = useState('');
+  const [newEventDate, setNewEventDate] = useState(formatDisplayDate(new Date()));
+  const [newEventDateValue, setNewEventDateValue] = useState(new Date());
+  const [showCreateDatePicker, setShowCreateDatePicker] = useState(false);
+  const [newEventType, setNewEventType] = useState('Wedding');
   const [targetEvent, setTargetEvent] = useState<FirestoreEvent | null>(null);
   const [optionsVisible, setOptionsVisible] = useState(false);
   const [templateVisible, setTemplateVisible] = useState(false);
@@ -245,10 +256,13 @@ export default function PortfolioTabScreen() {
     if (!user) return;
     const title = newEventTitle.trim();
     if (!title) return Alert.alert("Missing Title", "Please enter an event name.");
+    if (!newEventType) return Alert.alert("Missing Event Type", "Please choose an event type.");
+    if (!newEventDate) return Alert.alert("Missing Date", "Please choose an event date.");
 
     const baseSlug = createSlug(title);
     const id = `${baseSlug}-${Math.random().toString(36).slice(-5)}`;
     const coverImage = PLACEHOLDER_IMAGES[Math.floor(Math.random() * PLACEHOLDER_IMAGES.length)];
+    const defaultTemplate = getDefaultTemplateForEventCategory(newEventType);
 
     setCreating(true);
     try {
@@ -260,14 +274,17 @@ export default function PortfolioTabScreen() {
         coverImage,
         createdBy: user.uid,
         type: 'main',
-        templateId: 'hero',
-        category: 'Wedding'
+        templateId: defaultTemplate.id,
+        category: newEventType
       });
 
       if (success) {
         setCreateModalVisible(false);
         setNewEventTitle('');
-        setNewEventDate('');
+        const today = new Date();
+        setNewEventDateValue(today);
+        setNewEventDate(formatDisplayDate(today));
+        setNewEventType('Wedding');
         fetchData();
         Alert.alert("Success", "Your event has been created! ✨");
       }
@@ -277,6 +294,18 @@ export default function PortfolioTabScreen() {
     } finally {
       setCreating(false);
     }
+  };
+
+  const handleCreateDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS !== 'ios') {
+      setShowCreateDatePicker(false);
+    }
+
+    if (event.type === 'dismissed') return;
+    if (!selectedDate) return;
+
+    setNewEventDateValue(selectedDate);
+    setNewEventDate(formatDisplayDate(selectedDate));
   };
 
   const handleVisitWebsite = (event: FirestoreEvent) => {
@@ -812,7 +841,7 @@ export default function PortfolioTabScreen() {
             onPress={() => {
               if (templateVisible) return;
               setOptionsVisible(false);
-            }} 
+            }}
           />
           <View style={[styles.modalContent, { paddingBottom: Platform.OS === 'ios' ? 40 : 24 }]}>
             <View style={styles.modalHeader}>
@@ -992,12 +1021,18 @@ export default function PortfolioTabScreen() {
           <TouchableOpacity 
             style={styles.modalBackdrop} 
             activeOpacity={1} 
-            onPress={() => setCreateModalVisible(false)} 
+            onPress={() => {
+              setShowCreateDatePicker(false);
+              setCreateModalVisible(false);
+            }}
           />
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New Event</Text>
-              <TouchableOpacity onPress={() => setCreateModalVisible(false)}>
+              <TouchableOpacity onPress={() => {
+                setShowCreateDatePicker(false);
+                setCreateModalVisible(false);
+              }}>
                 <IconSymbol name={"xmark.circle.fill" as any} size={24} color={colors.slate400} />
               </TouchableOpacity>
             </View>
@@ -1015,14 +1050,46 @@ export default function PortfolioTabScreen() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Date</Text>
-                <TextInput 
-                  style={styles.input} 
-                  value={newEventDate} 
-                  onChangeText={setNewEventDate} 
-                  placeholder="e.g. June 12, 2025" 
-                  placeholderTextColor={colors.slate400}
-                />
+                <Text style={styles.inputLabel}>Event Type</Text>
+                <View style={styles.eventTypeGrid}>
+                  {EVENT_TYPE_OPTIONS.map((option) => {
+                    const isSelected = newEventType === option.name;
+                    return (
+                      <TouchableOpacity
+                        key={option.name}
+                        style={[styles.eventTypeOption, isSelected && styles.eventTypeOptionActive]}
+                        onPress={() => setNewEventType(option.name)}
+                      >
+                        <IconSymbol name={option.icon as any} size={16} color={isSelected ? MidnightColors.background : colors.gold} />
+                        <Text style={[styles.eventTypeText, isSelected && styles.eventTypeTextActive]}>{option.name}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Event Date</Text>
+                <TouchableOpacity
+                  style={styles.dateSelectBtn}
+                  onPress={() => setShowCreateDatePicker(true)}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.dateSelectLeft}>
+                    <IconSymbol name="calendar" size={18} color={colors.gold} />
+                    <Text style={styles.dateSelectText}>{newEventDate}</Text>
+                  </View>
+                  <IconSymbol name="chevron.down" size={18} color={colors.slate400} />
+                </TouchableOpacity>
+                {showCreateDatePicker && (
+                  <DateTimePicker
+                    value={newEventDateValue}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={handleCreateDateChange}
+                    themeVariant={isDark ? 'dark' : 'light'}
+                  />
+                )}
               </View>
 
               <TouchableOpacity 
@@ -1295,6 +1362,55 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     fontFamily: Fonts.inter.regular,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  eventTypeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  eventTypeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+  },
+  eventTypeOptionActive: {
+    backgroundColor: MidnightColors.gold,
+    borderColor: MidnightColors.gold,
+  },
+  eventTypeText: {
+    color: colors.white,
+    fontSize: 12,
+    fontFamily: Fonts.inter.bold,
+  },
+  eventTypeTextActive: {
+    color: MidnightColors.background,
+  },
+  dateSelectBtn: {
+    minHeight: 58,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dateSelectLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  dateSelectText: {
+    color: colors.white,
+    fontSize: 15,
+    fontFamily: Fonts.inter.medium,
   },
   submitBtn: { 
     backgroundColor: MidnightColors.gold, 
