@@ -61,6 +61,7 @@ export default function ProfilePage() {
     // Edit Profile State
     const [nameInput, setNameInput] = useState("");
     const [usernameInput, setUsernameInput] = useState("");
+    const [phoneInput, setPhoneInput] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [saveError, setSaveError] = useState("");
@@ -150,6 +151,7 @@ export default function ProfilePage() {
         if (user) {
             setNameInput(user.name || "");
             setUsernameInput(user.username || "");
+            setPhoneInput(user.phone && user.phone !== "No Phone" ? user.phone : "");
             setUsernameStatus("idle");
         }
     }, [user]);
@@ -225,6 +227,7 @@ export default function ProfilePage() {
             const success = await updateUserProfile(user.uid, {
                 name: nameInput.trim(),
                 username: normalizedUsername,
+                phone: phoneInput.trim() || undefined,
             });
 
             if (success) {
@@ -373,9 +376,23 @@ export default function ProfilePage() {
                                     <span>@set_username</span>
                                 </button>
                             )}
-                            <p className="text-slate-600 text-sm font-sans flex items-center justify-center mt-2">
-                                {user.email ? <><Mail size={12} className="mr-1.5" />{user.email}</> : <><Phone size={12} className="mr-1.5" />{user.phone}</>}
-                            </p>
+                            <div className="flex flex-col items-center gap-1 mt-2">
+                                {user.email && (
+                                    <p className="text-slate-600 text-sm font-sans flex items-center justify-center">
+                                        <Mail size={12} className="mr-1.5" />{user.email}
+                                    </p>
+                                )}
+                                {user.phone && user.phone !== "No Phone" && (
+                                    <p className="text-slate-600 text-sm font-sans flex items-center justify-center">
+                                        <Phone size={12} className="mr-1.5" />{user.phone}
+                                    </p>
+                                )}
+                                {!user.email && !user.phone && (
+                                    <p className="text-slate-500 text-xs font-sans flex items-center justify-center">
+                                        <Phone size={12} className="mr-1.5" />No contact info
+                                    </p>
+                                )}
+                            </div>
 
                             <div className="mt-4">
                                 <span className={cn(
@@ -814,16 +831,32 @@ export default function ProfilePage() {
                                                 </AnimatePresence>
                                             </div>
 
-                                            {/* Email Address or Phone */}
+                                            {/* Email Address (read-only) */}
+                                            {user.email && (
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1">Email Address</label>
+                                                    <input
+                                                        readOnly
+                                                        value={user.email}
+                                                        className="w-full px-5 py-3.5 bg-stone-50 border border-stone-100 rounded-xl text-slate-400 font-sans focus:outline-none cursor-not-allowed"
+                                                    />
+                                                </div>
+                                            )}
+
+                                            {/* Phone Number (editable) */}
                                             <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1">
-                                                    {user.email ? "Email Address" : "Phone Number"}
-                                                </label>
-                                                <input
-                                                    readOnly
-                                                    value={user.email || user.phone || ""}
-                                                    className="w-full px-5 py-3.5 bg-stone-50 border border-stone-100 rounded-xl text-slate-400 font-sans focus:outline-none cursor-not-allowed"
-                                                />
+                                                <label className="text-[10px] font-bold text-stone-600 uppercase tracking-widest ml-1">Phone Number</label>
+                                                <div className="relative">
+                                                    <Phone size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
+                                                    <input
+                                                        type="tel"
+                                                        value={phoneInput}
+                                                        onChange={(e) => setPhoneInput(e.target.value)}
+                                                        className="w-full pl-10 pr-5 py-3.5 bg-white border border-stone-200 rounded-xl text-slate-700 font-sans focus:outline-none focus:ring-2 focus:ring-royal-gold/50 focus:border-transparent transition-all shadow-sm"
+                                                        placeholder="e.g. +91 98765 43210"
+                                                    />
+                                                </div>
+                                                <p className="text-[10px] text-stone-500 font-sans ml-1 mt-0.5">Optional — include country code for best results</p>
                                             </div>
                                         </div>
 

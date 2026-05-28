@@ -53,6 +53,7 @@ export default function ProfileScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editUsername, setEditUsername] = useState('');
+  const [editPhone, setEditPhone] = useState('');
   const [editImage, setEditImage] = useState<string | null>(null);
   const [editImageBase64, setEditImageBase64] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -112,6 +113,7 @@ export default function ProfileScreen() {
   const openEditModal = () => {
     setEditName(user?.name || '');
     setEditUsername(user?.username || '');
+    setEditPhone(user?.phone && user.phone !== 'No Phone' ? user.phone : '');
     setEditImage(user?.profileImage || null);
     setEditImageBase64(null);
     setUsernameStatus('idle');
@@ -172,6 +174,7 @@ export default function ProfileScreen() {
         name: editName.trim(),
         username: editUsername.trim().toLowerCase(),
         profileImage: finalImageUrl,
+        phone: editPhone.trim() || undefined,
       });
 
       if (success) {
@@ -326,10 +329,7 @@ export default function ProfileScreen() {
               )}
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.userName}>{user.name}</Text>
-              {user.username && (
-                <Text style={styles.userHandle}>@{user.username}</Text>
-              )}
+              <Text style={styles.userName}>{user.username || user.name}</Text>
               <View style={styles.headerBadgeRow}>
                 <View style={styles.socialStatsRow}>
                   <TouchableOpacity 
@@ -405,25 +405,17 @@ export default function ProfileScreen() {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.usageCard} activeOpacity={0.8} onPress={() => router.push('/usage')}>
-              <LinearGradient
-                colors={['rgba(212, 175, 55, 0.15)', 'rgba(212, 175, 55, 0.02)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.usageGradient}
-              >
-                <View style={styles.usageIconBox}>
-                  <IconSymbol name="chart.bar.fill" size={20} color="#d4af37" />
-                </View>
-                <View style={styles.usageTextContent}>
-                  <Text style={styles.usageTitle}>Usage & Plan</Text>
-                  <Text style={styles.usageSubtitle}>View limits and upgrade</Text>
-                </View>
-                <View style={styles.usageArrowBox}>
-                  <IconSymbol name="chevron.right" size={14} color="#d4af37" />
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconBox}>
+                <IconSymbol name="phone.fill" size={16} color="#d4af37" />
+              </View>
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoLabel}>Phone Number</Text>
+                <Text style={styles.infoValue}>
+                  {user.phone && user.phone !== 'No Phone' ? user.phone : 'Not provided'}
+                </Text>
+              </View>
+            </View>
 
             <View style={styles.divider} />
 
@@ -478,6 +470,28 @@ export default function ProfileScreen() {
 
             <View style={styles.divider} />
 
+            <TouchableOpacity style={styles.usageCard} activeOpacity={0.8} onPress={() => router.push('/usage')}>
+              <LinearGradient
+                colors={['rgba(212, 175, 55, 0.15)', 'rgba(212, 175, 55, 0.02)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.usageGradient}
+              >
+                <View style={styles.usageIconBox}>
+                  <IconSymbol name="chart.bar.fill" size={20} color="#d4af37" />
+                </View>
+                <View style={styles.usageTextContent}>
+                  <Text style={styles.usageTitle}>Usage & Plan</Text>
+                  <Text style={styles.usageSubtitle}>View limits and upgrade</Text>
+                </View>
+                <View style={styles.usageArrowBox}>
+                  <IconSymbol name="chevron.right" size={14} color="#d4af37" />
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+
             <TouchableOpacity style={styles.actionItem} activeOpacity={0.7} onPress={() => router.push('/' as any)}>
               <View style={[styles.infoIconBox, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}>
                 <IconSymbol name="house.fill" size={18} color="#d4af37" />
@@ -490,7 +504,7 @@ export default function ProfileScreen() {
           </View>
 
           <TouchableOpacity style={styles.signOutBtn} activeOpacity={0.8} onPress={logout}>
-            <IconSymbol name="rectangle.portrait.and.arrow.right" size={20} color="#f87171" />
+            <IconSymbol name="rectangle.portrait.and.arrow.right" size={16} color="#f87171" />
             <Text style={styles.signOutText}>Sign Out</Text>
           </TouchableOpacity>
         </View>
@@ -615,6 +629,24 @@ export default function ProfileScreen() {
                       )}
                     </View>
                   )}
+                </View>
+
+                {/* Phone Number Input */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Phone Number</Text>
+                  <View style={styles.inputWrapper}>
+                    <IconSymbol name="phone.fill" size={16} color="#d4af37" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.textInput}
+                      value={editPhone}
+                      onChangeText={setEditPhone}
+                      placeholder="e.g. +91 98765 43210"
+                      placeholderTextColor="#475569"
+                      keyboardType="phone-pad"
+                      editable={!saving}
+                    />
+                  </View>
+                  <Text style={styles.inputHint}>Optional — include country code</Text>
                 </View>
 
               </View>
@@ -774,8 +806,8 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     flex: 1 
   },
   header: { 
-    paddingTop: 20, 
-    paddingBottom: 40,
+    paddingTop: 2, 
+    paddingBottom: 6,
     borderBottomWidth: 1.5,
     borderBottomColor: colors.border,
   },
@@ -812,7 +844,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   userName: { 
     fontSize: 26, 
     fontFamily: 'Outfit_800ExtraBold', 
-    color: colors.white, 
+    color: colors.gold, 
     letterSpacing: -0.5 
   },
   userHandle: {
@@ -850,13 +882,13 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   content: { 
     paddingHorizontal: 24, 
-    marginTop: 32 
+    marginTop: 16 
   },
   sectionHead: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
     marginLeft: 4,
   },
   editBtn: {
@@ -882,8 +914,8 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   settingsCard: { 
     backgroundColor: colors.deepSlate, 
-    borderRadius: 24, 
-    padding: 24, 
+    borderRadius: 20, 
+    padding: 16, 
     borderWidth: 1,
     borderColor: colors.cardBorder,
     shadowColor: '#000', 
@@ -937,12 +969,12 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 12,
   },
   infoIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     backgroundColor: 'rgba(212, 175, 55, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -951,22 +983,22 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     flex: 1,
   },
   infoLabel: { 
-    fontSize: 11, 
+    fontSize: 10, 
     fontFamily: 'Inter_700Bold', 
     color: colors.slate400, 
     textTransform: 'uppercase', 
     letterSpacing: 0.5 
   },
   infoValue: { 
-    fontSize: 16, 
+    fontSize: 14, 
     fontFamily: 'Outfit_600SemiBold', 
     color: colors.white,
-    marginTop: 2,
+    marginTop: 1,
   },
   divider: {
     height: 1,
     backgroundColor: colors.cardBorder,
-    marginVertical: 20,
+    marginVertical: 12,
   },
   actionItem: { 
     flexDirection: 'row', 
@@ -1003,10 +1035,10 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row', 
     alignItems: 'center', 
     justifyContent: 'center', 
-    gap: 12, 
-    marginTop: 32, 
-    paddingVertical: 18, 
-    borderRadius: 20, 
+    gap: 8, 
+    marginTop: 20, 
+    paddingVertical: 12, 
+    borderRadius: 14, 
     backgroundColor: 'rgba(248, 113, 113, 0.05)',
     borderWidth: 1,
     borderColor: 'rgba(248, 113, 113, 0.15)',
@@ -1014,7 +1046,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   signOutText: { 
     color: '#f87171', 
     fontFamily: 'Outfit_800ExtraBold', 
-    fontSize: 16,
+    fontSize: 13,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
@@ -1173,6 +1205,13 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   feedbackInvalid: {
     color: '#f43f5e',
+  },
+  inputHint: {
+    fontSize: 11,
+    color: colors.slate400,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 4,
+    marginLeft: 2,
   },
   modalActions: {
     flexDirection: 'row',

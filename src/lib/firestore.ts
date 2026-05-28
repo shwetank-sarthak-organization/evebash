@@ -542,7 +542,7 @@ export async function generateUniqueUsername(base: string): Promise<string> {
 /**
  * Updates user profile details in Firestore.
  */
-export async function updateUserProfile(uid: string, updateData: { name: string; username: string; email?: string }) {
+export async function updateUserProfile(uid: string, updateData: { name: string; username: string; email?: string; phone?: string }) {
     try {
         const docRef = doc(db, "users", uid);
         await updateDoc(docRef, updateData);

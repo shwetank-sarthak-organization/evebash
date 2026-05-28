@@ -190,7 +190,7 @@ export default function DashboardScreen() {
       >
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>EveBash</Text>
-          <Text style={styles.tagline}>Let's capture moments ✨</Text>
+          <Text style={styles.tagline}>{"Let's capture moments ✨"}</Text>
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity 

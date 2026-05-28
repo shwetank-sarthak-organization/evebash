@@ -329,7 +329,7 @@ export async function isUsernameUnique(username: string, excludeUid?: string): P
     }
 }
 
-export async function updateUserProfile(uid: string, updateData: { name: string; username: string; profileImage?: string }) {
+export async function updateUserProfile(uid: string, updateData: { name: string; username: string; profileImage?: string; phone?: string }) {
     try {
         const docRef = doc(db, "users", uid);
         await updateDoc(docRef, updateData);
