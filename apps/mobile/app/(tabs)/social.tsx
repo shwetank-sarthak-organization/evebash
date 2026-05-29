@@ -99,6 +99,11 @@ export default function SocialScreen() {
   const [comments, setComments] = useState<Record<string, any[]>>({});
   const [commentText, setCommentText] = useState('');
   const [postingComment, setPostingComment] = useState(false);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [autoFocusCommentInput, setAutoFocusCommentInput] = useState(false);
+  const [selectedFeedItem, setSelectedFeedItem] = useState<any>(null);
+  const [commentModalVisible, setCommentModalVisible] = useState(false);
+  const [selectedCommentItem, setSelectedCommentItem] = useState<any>(null);
   const mountedRef = React.useRef(false);
 
   useEffect(() => {
@@ -444,6 +449,82 @@ export default function SocialScreen() {
     }
   };
 
+  const handleOpenDetailModal = async (item: any, focusComment: boolean = false) => {
+    if (item.feedType === 'event') {
+      if (!user?.uid) {
+        Alert.alert("Login Required", "Please log in to view event details.");
+        return;
+      }
+      const eventId = item.eventId || item.id;
+      if (!eventId) return;
+
+      setCheckingAccess(eventId);
+      try {
+        const isOwner = item.createdBy === user.uid || item.userId === user.uid;
+        const isPrivileged = 
+          user.role === 'admin' ||
+          (user.roleType === 'primary' && user.delegatedBy === item.createdBy) ||
+          !!user.assignedEvents?.some((id: string) => id === eventId || id === item.legacyId || id === item.parentId);
+
+        if (!isOwner && !isPrivileged) {
+          const identifiers: string[] = [];
+          if (user.phone) identifiers.push(user.phone);
+          if (user.email) identifiers.push(user.email);
+          if (user.uid) identifiers.push(user.uid);
+
+          let foundStatus: 'none' | 'pending' | 'approved' | 'rejected' = 'none';
+
+          for (const identifier of identifiers) {
+            const logId = `${identifier}_${eventId}`;
+            const docRef = doc(db, 'guests', logId);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+              foundStatus = (docSnap.data().status || 'pending') as any;
+              break;
+            }
+          }
+
+          if (foundStatus !== 'approved') {
+            setSelectedEvent(item);
+            setAccessStatus(foundStatus);
+            setAccessModalVisible(true);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Error checking access:", error);
+      } finally {
+        setCheckingAccess(null);
+      }
+    }
+
+    if (!comments[item.id]) {
+      try {
+        const eventComments = await getEventPostComments(item.id);
+        setComments(prev => ({ ...prev, [item.id]: eventComments }));
+      } catch (error) {
+        console.error("Error loading comments on open:", error);
+      }
+    }
+
+    setSelectedFeedItem(item);
+    setAutoFocusCommentInput(focusComment);
+    setDetailModalVisible(true);
+  };
+
+  const handleOpenCommentModal = async (item: any) => {
+    if (!comments[item.id]) {
+      try {
+        const eventComments = await getEventPostComments(item.id);
+        setComments(prev => ({ ...prev, [item.id]: eventComments }));
+      } catch (error) {
+        console.error("Error loading comments on open:", error);
+      }
+    }
+    setSelectedCommentItem(item);
+    setCommentModalVisible(true);
+  };
+
   const handleSendJoinRequest = async () => {
     if (!selectedEvent || !user || requestingAccess) return;
     setRequestingAccess(true);
@@ -504,8 +585,8 @@ export default function SocialScreen() {
       }
 
       return (
-        <View key={item.id} style={[styles.postContainer, styles.bizPostContainer]}>
-          {/* Header */}
+        <View key={item.id} style={styles.postWrapper}>
+          {/* User Header — separate from card */}
           <View style={styles.postHeader}>
             <TouchableOpacity style={styles.postUserInfo} onPress={() => router.push(`/business/${item.businessId}`)}>
               <View style={[styles.postAvatarRing, styles.bizAvatarRing]}>
@@ -532,127 +613,66 @@ export default function SocialScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Activity Body */}
-          <View style={styles.activityBodyContainer}>
-            {/* Pill Type Badge */}
-            <View style={styles.activityBadgeRow}>
-              <View style={[styles.postGlassBadge, styles.bizGlassBadge, { marginHorizontal: 0, alignSelf: 'flex-start' }]}>
-                <IconSymbol name={pillIcon} size={10} color="#818cf8" />
-                <Text style={[styles.postGlassBadgeText, styles.bizGlassBadgeText]}>{pillText}</Text>
-              </View>
-            </View>
-
-            {/* Content branch */}
-            {item.activityType === 'announcement' ? (
-              <View style={styles.announcementBubble}>
-                <IconSymbol name="quote.opening" size={18} color="rgba(129, 140, 248, 0.4)" style={styles.quoteIconLeft} />
-                <Text style={styles.announcementText}>{item.content}</Text>
-              </View>
-            ) : item.activityType === 'faq' ? (
-              <View style={styles.faqBubble}>
-                <Text style={styles.faqQuestion}>
-                  ❓ {item.content.split('\nA: ')[0]?.replace('Q: ', '') || 'Question'}
-                </Text>
-                <View style={styles.faqDivider} />
-                <Text style={styles.faqAnswer}>
-                  💡 {item.content.split('\nA: ')[1] || 'Answer'}
-                </Text>
-              </View>
-            ) : (
-              // Portfolio Photo
-              <View style={styles.portfolioPhotoContainer}>
-                {item.photoUrl ? (
-                  <TouchableOpacity activeOpacity={0.92} onPress={() => router.push(`/business/${item.businessId}`)}>
-                    <Image source={{ uri: item.photoUrl }} style={styles.portfolioPhoto} resizeMode="cover" />
-                  </TouchableOpacity>
-                ) : (
-                  <View style={[styles.portfolioPhoto, styles.postImagePlaceholder]}>
-                    <IconSymbol name="photo" size={32} color="#334155" />
-                  </View>
-                )}
-                <Text style={styles.portfolioPhotoCaption}>{item.content}</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Action Bar */}
-          <View style={styles.actionBar}>
-            <View style={styles.actionLeft}>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => handleLike(item.id)}>
-                <IconSymbol
-                  name={isLiked ? 'heart.fill' : 'heart'}
-                  size={22}
-                  color={isLiked ? '#ef4444' : '#94a3b8'}
-                />
-                {likeCount > 0 && <Text style={[styles.actionCount, isLiked && { color: '#ef4444' }]}>{likeCount}</Text>}
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => handleToggleComments(item.id)}>
-                <IconSymbol name="bubble.right" size={21} color={isCommentsOpen ? '#818cf8' : '#94a3b8'} />
-                {commentCount > 0 && <Text style={styles.actionCount}>{commentCount}</Text>}
-              </TouchableOpacity>
-            </View>
-            <View style={styles.actionRight}>
-              <TouchableOpacity style={styles.actionBtn}>
-                <IconSymbol name="square.and.arrow.up" size={20} color="#64748b" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn}>
-                <IconSymbol name="bookmark" size={20} color="#64748b" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Expanded Comments Section */}
-          {isCommentsOpen && (
-            <View style={styles.commentsSection}>
-              {actComments.length > 3 && !showAllComments[item.id] && (
-                <TouchableOpacity 
-                  style={styles.viewAllCommentsBtn} 
-                  onPress={() => setShowAllComments(prev => ({ ...prev, [item.id]: true }))}
-                >
-                  <Text style={[styles.viewAllCommentsText, styles.bizViewAllCommentsText]}>View all {commentCount} comments</Text>
-                </TouchableOpacity>
-              )}
-
-              {(showAllComments[item.id] ? actComments : actComments.slice(0, 3)).map((c: any) => (
-                <View key={c.id} style={styles.commentRow}>
-                  <Text style={[styles.commentUser, styles.bizCommentUser]}>{c.userName}</Text>
-                  <Text style={styles.commentBody}>{c.text}</Text>
+          {/* Card — activity body */}
+          <View style={[styles.postContainer, styles.bizPostContainer, { marginBottom: 0 }]}>
+            <View style={styles.activityBodyContainer}>
+              {/* Pill Type Badge */}
+              <View style={styles.activityBadgeRow}>
+                <View style={[styles.postGlassBadge, styles.bizGlassBadge, { marginHorizontal: 0, alignSelf: 'flex-start' }]}>
+                  <IconSymbol name={pillIcon} size={10} color="#818cf8" />
+                  <Text style={[styles.postGlassBadgeText, styles.bizGlassBadgeText]}>{pillText}</Text>
                 </View>
-              ))}
-
-              {actComments.length > 3 && showAllComments[item.id] && (
-                <TouchableOpacity 
-                  style={styles.viewAllCommentsBtn} 
-                  onPress={() => setShowAllComments(prev => ({ ...prev, [item.id]: false }))}
-                >
-                  <Text style={[styles.viewAllCommentsText, styles.bizViewAllCommentsText]}>Show less</Text>
-                </TouchableOpacity>
-              )}
-
-              <View style={styles.commentInputRow}>
-                <TextInput
-                  style={styles.commentInput}
-                  placeholder="Add a comment…"
-                  placeholderTextColor="#334155"
-                  value={commentText}
-                  onChangeText={setCommentText}
-                  returnKeyType="send"
-                  onSubmitEditing={() => handlePostComment(item.id)}
-                />
-                <TouchableOpacity
-                  style={[styles.postBtn, !commentText.trim() && { opacity: 0.35 }]}
-                  onPress={() => handlePostComment(item.id)}
-                  disabled={!commentText.trim() || postingComment}
-                >
-                  {postingComment ? (
-                    <ActivityIndicator size="small" color="#818cf8" />
-                  ) : (
-                    <Text style={[styles.postBtnText, styles.bizPostBtnText]}>Post</Text>
-                  )}
-                </TouchableOpacity>
               </View>
+
+              {/* Content branch */}
+              {item.activityType === 'announcement' ? (
+                <View style={styles.announcementBubble}>
+                  <IconSymbol name="quote.opening" size={18} color="rgba(129, 140, 248, 0.4)" style={styles.quoteIconLeft} />
+                  <Text style={styles.announcementText}>{item.content}</Text>
+                </View>
+              ) : item.activityType === 'faq' ? (
+                <View style={styles.faqBubble}>
+                  <Text style={styles.faqQuestion}>
+                    ❓ {item.content.split('\nA: ')[0]?.replace('Q: ', '') || 'Question'}
+                  </Text>
+                  <View style={styles.faqDivider} />
+                  <Text style={styles.faqAnswer}>
+                    💡 {item.content.split('\nA: ')[1] || 'Answer'}
+                  </Text>
+                </View>
+              ) : (
+                // Portfolio Photo
+                <View style={styles.portfolioPhotoContainer}>
+                  {item.photoUrl ? (
+                    <TouchableOpacity activeOpacity={0.92} onPress={() => router.push(`/business/${item.businessId}`)}>
+                      <Image source={{ uri: item.photoUrl }} style={styles.portfolioPhoto} resizeMode="cover" />
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={[styles.portfolioPhoto, styles.postImagePlaceholder]}>
+                      <IconSymbol name="photo" size={32} color="#334155" />
+                    </View>
+                  )}
+                  <Text style={styles.portfolioPhotoCaption}>{item.content}</Text>
+                </View>
+              )}
             </View>
-          )}
+          </View>
+
+          {/* Passive Interaction Row — separate from card */}
+          <View style={[styles.actionBar, { borderTopWidth: 0, paddingHorizontal: 16, justifyContent: 'flex-start', gap: 10, paddingVertical: 12 }]}>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => handleLike(item.id)}>
+              <IconSymbol name={isLiked ? "heart.fill" : "heart"} size={14} color={isLiked ? "#ef4444" : "#94a3b8"} />
+              <Text style={[styles.actionCount, isLiked && { color: '#ef4444' }]}>{likeCount} Likes</Text>
+            </TouchableOpacity>
+            <Text style={{ color: '#475569' }}>•</Text>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => handleOpenCommentModal(item)}>
+              <IconSymbol name="bubble.right" size={13} color="#94a3b8" />
+              <Text style={styles.actionCount}>{commentCount} Comments</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={{ marginLeft: 'auto' }} onPress={() => handleOpenDetailModal(item)}>
+              <Text style={{ fontSize: 11, fontFamily: 'Outfit_700Bold', color: colors.gold }}>View Details →</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       );
     }
@@ -670,8 +690,8 @@ export default function SocialScreen() {
       const bizComments = comments[item.id] || [];
 
       return (
-        <View key={item.id} style={[styles.postContainer, styles.bizPostContainer]}>
-          {/* Header */}
+        <View key={item.id} style={styles.postWrapper}>
+          {/* User Header — separate from card */}
           <View style={styles.postHeader}>
             <TouchableOpacity style={styles.postUserInfo} onPress={() => router.push(`/business/${item.id}`)}>
               <View style={[styles.postAvatarRing, styles.bizAvatarRing]}>
@@ -726,173 +746,112 @@ export default function SocialScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Business Image & Badge Overlay */}
-          <TouchableOpacity activeOpacity={0.92} onPress={() => router.push(`/business/${item.id}`)}>
-            <View style={styles.postImageContainer}>
-              {item.coverImage ? (
-                <Image source={{ uri: item.coverImage }} style={styles.postMainImage} resizeMode="cover" />
-              ) : (
-                <View style={[styles.postMainImage, styles.postImagePlaceholder]}>
-                  <IconSymbol name="photo" size={32} color="#334155" />
-                </View>
-              )}
-              {/* Gradient Overlay bottom strip */}
-              <View style={[styles.postGlassOverlay, styles.bizGlassOverlay]}>
-                <View style={styles.bizGlassHeader}>
-                  <View style={[styles.postGlassBadge, styles.bizGlassBadge]}>
-                    <IconSymbol name="tag.fill" size={10} color="#818cf8" />
-                    <Text style={[styles.postGlassBadgeText, styles.bizGlassBadgeText]}>{item.type?.toUpperCase() || 'VENDOR'}</Text>
+          {/* Card — Business Image & Badge Overlay + Quick Info */}
+          <View style={[styles.postContainer, styles.bizPostContainer, { marginBottom: 0 }]}>
+            <TouchableOpacity activeOpacity={0.92} onPress={() => router.push(`/business/${item.id}`)}>
+              <View style={styles.postImageContainer}>
+                {item.coverImage ? (
+                  <Image source={{ uri: item.coverImage }} style={styles.postMainImage} resizeMode="cover" />
+                ) : (
+                  <View style={[styles.postMainImage, styles.postImagePlaceholder]}>
+                    <IconSymbol name="photo" size={32} color="#334155" />
                   </View>
-                  <View style={styles.bizRatingBadge}>
-                    <IconSymbol name="star.fill" size={10} color="#d4af37" />
-                    <Text style={styles.bizRatingText}>{item.rating || '5.0'}</Text>
+                )}
+                {/* Gradient Overlay bottom strip */}
+                <View style={[styles.postGlassOverlay, styles.bizGlassOverlay]}>
+                  <View style={styles.bizGlassHeader}>
+                    <View style={[styles.postGlassBadge, styles.bizGlassBadge]}>
+                      <IconSymbol name="tag.fill" size={10} color="#818cf8" />
+                      <Text style={[styles.postGlassBadgeText, styles.bizGlassBadgeText]}>{item.type?.toUpperCase() || 'VENDOR'}</Text>
+                    </View>
+                    <View style={styles.bizRatingBadge}>
+                      <IconSymbol name="star.fill" size={10} color="#d4af37" />
+                      <Text style={styles.bizRatingText}>{item.rating || '5.0'}</Text>
+                    </View>
                   </View>
+                  <Text style={styles.postEventTitle} numberOfLines={1}>{item.name}</Text>
+                  <Text style={styles.postEventSubtitle} numberOfLines={1}>
+                    📍 {item.location?.address || 'Mumbai, India'}
+                  </Text>
                 </View>
-                <Text style={styles.postEventTitle} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.postEventSubtitle} numberOfLines={1}>
-                  📍 {item.location?.address || 'Mumbai, India'}
+              </View>
+            </TouchableOpacity>
+
+            {/* Quick Info & Experience */}
+            <View style={styles.bizBottomContainer}>
+              {!!item.description && (
+                <Text style={styles.bizDescription} numberOfLines={2}>
+                  {item.description}
                 </Text>
+              )}
+              <View style={styles.bizFeaturesRow}>
+                {!!item.experience && (
+                  <View style={styles.bizTagChip}>
+                    <IconSymbol name="clock.fill" size={11} color="#818cf8" />
+                    <Text style={styles.bizTagChipText}>{item.experience}+ Years Exp</Text>
+                  </View>
+                )}
+                {!!item.ownerName && (
+                  <View style={styles.bizTagChip}>
+                    <IconSymbol name="person.fill" size={11} color="#818cf8" />
+                    <Text style={styles.bizTagChipText}>Owner: {item.ownerName}</Text>
+                  </View>
+                )}
               </View>
-            </View>
-          </TouchableOpacity>
 
-          {/* Quick Info & Experience */}
-          <View style={styles.bizBottomContainer}>
-            {!!item.description && (
-              <Text style={styles.bizDescription} numberOfLines={2}>
-                {item.description}
-              </Text>
-            )}
-            <View style={styles.bizFeaturesRow}>
-              {!!item.experience && (
-                <View style={styles.bizTagChip}>
-                  <IconSymbol name="clock.fill" size={11} color="#818cf8" />
-                  <Text style={styles.bizTagChipText}>{item.experience}+ Years Exp</Text>
-                </View>
-              )}
-              {!!item.ownerName && (
-                <View style={styles.bizTagChip}>
-                  <IconSymbol name="person.fill" size={11} color="#818cf8" />
-                  <Text style={styles.bizTagChipText}>Owner: {item.ownerName}</Text>
-                </View>
-              )}
-            </View>
-
-            {/* Quick Actions */}
-            <View style={styles.bizActionRow}>
-              <TouchableOpacity 
-                style={styles.bizViewProfileBtn}
-                onPress={() => router.push(`/business/${item.id}`)}
-              >
-                <Text style={styles.bizViewProfileText}>View Portfolio</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.bizInquireBtn}
-                onPress={() => {
-                  Alert.alert(
-                    `Inquire - ${item.name}`,
-                    `Would you like to send an inquiry to ${item.name}?`,
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      { 
-                        text: 'Send Inquiry', 
-                        onPress: () => Alert.alert("Success", "Inquiry sent successfully! The vendor will reach out to you shortly.") 
-                      }
-                    ]
-                  );
-                }}
-              >
-                <LinearGradient
-                  colors={['#818cf8', '#4f46e5']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.bizInquireGradient}
-                >
-                  <IconSymbol name="paperplane.fill" size={12} color="#ffffff" />
-                  <Text style={styles.bizInquireText}>Quick Inquire</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Action Bar */}
-          <View style={styles.actionBar}>
-            <View style={styles.actionLeft}>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => handleLike(item.id)}>
-                <IconSymbol
-                  name={isLiked ? 'heart.fill' : 'heart'}
-                  size={22}
-                  color={isLiked ? '#ef4444' : '#94a3b8'}
-                />
-                {likeCount > 0 && <Text style={[styles.actionCount, isLiked && { color: '#ef4444' }]}>{likeCount}</Text>}
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => handleToggleComments(item.id)}>
-                <IconSymbol name="bubble.right" size={21} color={isCommentsOpen ? '#818cf8' : '#94a3b8'} />
-                {commentCount > 0 && <Text style={styles.actionCount}>{commentCount}</Text>}
-              </TouchableOpacity>
-            </View>
-            <View style={styles.actionRight}>
-              <TouchableOpacity style={styles.actionBtn}>
-                <IconSymbol name="square.and.arrow.up" size={20} color="#64748b" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn}>
-                <IconSymbol name="bookmark" size={20} color="#64748b" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Expanded Comments Section */}
-          {isCommentsOpen && (
-            <View style={styles.commentsSection}>
-              {bizComments.length > 3 && !showAllComments[item.id] && (
+              {/* Quick Actions */}
+              <View style={styles.bizActionRow}>
                 <TouchableOpacity 
-                  style={styles.viewAllCommentsBtn} 
-                  onPress={() => setShowAllComments(prev => ({ ...prev, [item.id]: true }))}
+                  style={styles.bizViewProfileBtn}
+                  onPress={() => router.push(`/business/${item.id}`)}
                 >
-                  <Text style={[styles.viewAllCommentsText, styles.bizViewAllCommentsText]}>View all {commentCount} comments</Text>
+                  <Text style={styles.bizViewProfileText}>View Portfolio</Text>
                 </TouchableOpacity>
-              )}
-
-              {(showAllComments[item.id] ? bizComments : bizComments.slice(0, 3)).map((c: any) => (
-                <View key={c.id} style={styles.commentRow}>
-                  <Text style={[styles.commentUser, styles.bizCommentUser]}>{c.userName}</Text>
-                  <Text style={styles.commentBody}>{c.text}</Text>
-                </View>
-              ))}
-
-              {bizComments.length > 3 && showAllComments[item.id] && (
                 <TouchableOpacity 
-                  style={styles.viewAllCommentsBtn} 
-                  onPress={() => setShowAllComments(prev => ({ ...prev, [item.id]: false }))}
+                  style={styles.bizInquireBtn}
+                  onPress={() => {
+                    Alert.alert(
+                      `Inquire - ${item.name}`,
+                      `Would you like to send an inquiry to ${item.name}?`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { 
+                          text: 'Send Inquiry', 
+                          onPress: () => Alert.alert("Success", "Inquiry sent successfully! The vendor will reach out to you shortly.") 
+                        }
+                      ]
+                    );
+                  }}
                 >
-                  <Text style={[styles.viewAllCommentsText, styles.bizViewAllCommentsText]}>Show less</Text>
-                </TouchableOpacity>
-              )}
-
-              <View style={styles.commentInputRow}>
-                <TextInput
-                  style={styles.commentInput}
-                  placeholder="Add a comment…"
-                  placeholderTextColor="#334155"
-                  value={commentText}
-                  onChangeText={setCommentText}
-                  returnKeyType="send"
-                  onSubmitEditing={() => handlePostComment(item.id)}
-                />
-                <TouchableOpacity
-                  style={[styles.postBtn, !commentText.trim() && { opacity: 0.35 }]}
-                  onPress={() => handlePostComment(item.id)}
-                  disabled={!commentText.trim() || postingComment}
-                >
-                  {postingComment ? (
-                    <ActivityIndicator size="small" color="#818cf8" />
-                  ) : (
-                    <Text style={[styles.postBtnText, styles.bizPostBtnText]}>Post</Text>
-                  )}
+                  <LinearGradient
+                    colors={['#818cf8', '#4f46e5']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.bizInquireGradient}
+                  >
+                    <IconSymbol name="paperplane.fill" size={12} color="#ffffff" />
+                    <Text style={styles.bizInquireText}>Quick Inquire</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             </View>
-          )}
+          </View>
+
+          {/* Passive Interaction Row — separate from card */}
+          <View style={[styles.actionBar, { borderTopWidth: 0, paddingHorizontal: 16, justifyContent: 'flex-start', gap: 10, paddingVertical: 12 }]}>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => handleLike(item.id)}>
+              <IconSymbol name={isLiked ? "heart.fill" : "heart"} size={14} color={isLiked ? "#ef4444" : "#94a3b8"} />
+              <Text style={[styles.actionCount, isLiked && { color: '#ef4444' }]}>{likeCount} Likes</Text>
+            </TouchableOpacity>
+            <Text style={{ color: '#475569' }}>•</Text>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => handleOpenCommentModal(item)}>
+              <IconSymbol name="bubble.right" size={13} color="#94a3b8" />
+              <Text style={styles.actionCount}>{commentCount} Comments</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={{ marginLeft: 'auto' }} onPress={() => handleOpenDetailModal(item)}>
+              <Text style={{ fontSize: 11, fontFamily: 'Outfit_700Bold', color: colors.gold }}>View Details →</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       );
     }
@@ -911,8 +870,8 @@ export default function SocialScreen() {
     const profileImage = itemUser?.profileImage || null;
 
     return (
-      <View key={item.id} style={styles.postContainer}>
-        {/* Header */}
+      <View key={item.id} style={styles.postWrapper}>
+        {/* User Header — separate from card */}
         <View style={styles.postHeader}>
           <TouchableOpacity style={styles.postUserInfo} onPress={() => navigateToDetail(item)}>
             <View style={styles.postAvatarRing}>
@@ -934,113 +893,53 @@ export default function SocialScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Image */}
-        <TouchableOpacity activeOpacity={0.92} onPress={() => navigateToDetail(item)}>
-          <View style={styles.postImageContainer}>
-            {coverImage ? (
-              <Image source={{ uri: coverImage }} style={styles.postMainImage} resizeMode="cover" />
-            ) : (
-              <View style={[styles.postMainImage, styles.postImagePlaceholder]}>
-                <IconSymbol name="photo" size={32} color="#334155" />
+        {/* Card — image only */}
+        <View style={[styles.postContainer, { marginBottom: 0 }]}>
+          {/* Image */}
+          <TouchableOpacity activeOpacity={0.92} onPress={() => navigateToDetail(item)}>
+            <View style={styles.postImageContainer}>
+              {coverImage ? (
+                <Image source={{ uri: coverImage }} style={styles.postMainImage} resizeMode="cover" />
+              ) : (
+                <View style={[styles.postMainImage, styles.postImagePlaceholder]}>
+                  <IconSymbol name="photo" size={32} color="#334155" />
+                </View>
+              )}
+              {checkingAccess === item.id && (
+                <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(2, 6, 23, 0.7)', justifyContent: 'center', alignItems: 'center', zIndex: 20 }]}>
+                  <ActivityIndicator size="large" color="#d4af37" />
+                </View>
+              )}
+              {/* Gradient overlay bottom strip */}
+              <View style={styles.postGlassOverlay}>
+                <View style={styles.postGlassBadge}>
+                  <IconSymbol name="sparkles" size={10} color="#d4af37" />
+                  <Text style={styles.postGlassBadgeText}>EVENT</Text>
+                </View>
+                <Text style={styles.postEventTitle} numberOfLines={1}>{item.title}</Text>
+                <Text style={styles.postEventSubtitle} numberOfLines={1}>
+                  {typeof item.location === 'string' ? item.location : (item.locationName || '')}
+                </Text>
               </View>
-            )}
-            {checkingAccess === item.id && (
-              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(2, 6, 23, 0.7)', justifyContent: 'center', alignItems: 'center', zIndex: 20 }]}>
-                <ActivityIndicator size="large" color="#d4af37" />
-              </View>
-            )}
-            {/* Gradient overlay bottom strip */}
-            <View style={styles.postGlassOverlay}>
-              <View style={styles.postGlassBadge}>
-                <IconSymbol name="sparkles" size={10} color="#d4af37" />
-                <Text style={styles.postGlassBadgeText}>EVENT</Text>
-              </View>
-              <Text style={styles.postEventTitle} numberOfLines={1}>{item.title}</Text>
-              <Text style={styles.postEventSubtitle} numberOfLines={1}>
-                {typeof item.location === 'string' ? item.location : (item.locationName || '')}
-              </Text>
             </View>
-          </View>
-        </TouchableOpacity>
-
-        {/* Action Bar */}
-        <View style={styles.actionBar}>
-          <View style={styles.actionLeft}>
-            <TouchableOpacity style={styles.actionBtn} onPress={() => handleLike(item.id)}>
-              <IconSymbol
-                name={isLiked ? 'heart.fill' : 'heart'}
-                size={22}
-                color={isLiked ? '#ef4444' : '#94a3b8'}
-              />
-              {likeCount > 0 && <Text style={[styles.actionCount, isLiked && { color: '#ef4444' }]}>{likeCount}</Text>}
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn} onPress={() => handleToggleComments(item.id)}>
-              <IconSymbol name="bubble.right" size={21} color={isCommentsOpen ? '#d4af37' : '#94a3b8'} />
-              {commentCount > 0 && <Text style={styles.actionCount}>{commentCount}</Text>}
-            </TouchableOpacity>
-          </View>
-          <View style={styles.actionRight}>
-            <TouchableOpacity style={styles.actionBtn}>
-              <IconSymbol name="square.and.arrow.up" size={20} color="#64748b" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn}>
-              <IconSymbol name="bookmark" size={20} color="#64748b" />
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         </View>
 
-        {/* Expanded Comments Section */}
-        {isCommentsOpen && (
-          <View style={styles.commentsSection}>
-            {eventComments.length > 3 && !showAllComments[item.id] && (
-              <TouchableOpacity 
-                style={styles.viewAllCommentsBtn} 
-                onPress={() => setShowAllComments(prev => ({ ...prev, [item.id]: true }))}
-              >
-                <Text style={styles.viewAllCommentsText}>View all {commentCount} comments</Text>
-              </TouchableOpacity>
-            )}
-
-            {(showAllComments[item.id] ? eventComments : eventComments.slice(0, 3)).map((c: any) => (
-              <View key={c.id} style={styles.commentRow}>
-                <Text style={styles.commentUser}>{c.userName}</Text>
-                <Text style={styles.commentBody}>{c.text}</Text>
-              </View>
-            ))}
-
-            {eventComments.length > 3 && showAllComments[item.id] && (
-              <TouchableOpacity 
-                style={styles.viewAllCommentsBtn} 
-                onPress={() => setShowAllComments(prev => ({ ...prev, [item.id]: false }))}
-              >
-                <Text style={styles.viewAllCommentsText}>Show less</Text>
-              </TouchableOpacity>
-            )}
-
-            <View style={styles.commentInputRow}>
-              <TextInput
-                style={styles.commentInput}
-                placeholder="Add a comment…"
-                placeholderTextColor="#334155"
-                value={commentText}
-                onChangeText={setCommentText}
-                returnKeyType="send"
-                onSubmitEditing={() => handlePostComment(item.id)}
-              />
-              <TouchableOpacity
-                style={[styles.postBtn, !commentText.trim() && { opacity: 0.35 }]}
-                onPress={() => handlePostComment(item.id)}
-                disabled={!commentText.trim() || postingComment}
-              >
-                {postingComment ? (
-                  <ActivityIndicator size="small" color={colors.gold} />
-                ) : (
-                  <Text style={styles.postBtnText}>Post</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+        {/* Passive Interaction Row — separate from card */}
+        <View style={[styles.actionBar, { borderTopWidth: 0, paddingHorizontal: 16, justifyContent: 'flex-start', gap: 10, paddingVertical: 12 }]}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => handleLike(item.id)}>
+            <IconSymbol name={isLiked ? "heart.fill" : "heart"} size={14} color={isLiked ? "#ef4444" : "#94a3b8"} />
+            <Text style={[styles.actionCount, isLiked && { color: '#ef4444' }]}>{likeCount} Likes</Text>
+          </TouchableOpacity>
+          <Text style={{ color: '#475569' }}>•</Text>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => handleOpenCommentModal(item)}>
+            <IconSymbol name="bubble.right" size={13} color="#94a3b8" />
+            <Text style={styles.actionCount}>{commentCount} Comments</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={{ marginLeft: 'auto' }} onPress={() => handleOpenDetailModal(item)}>
+            <Text style={{ fontSize: 11, fontFamily: 'Outfit_700Bold', color: colors.gold }}>View Details →</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -1066,17 +965,16 @@ export default function SocialScreen() {
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         
         {/* Header */}
-        <LinearGradient colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]} style={[styles.header, { paddingTop: insets.top + 4 }]}>
+        <LinearGradient colors={isDark ? ['#14161b', '#0a0b0d'] : [colors.deepSlate, colors.background]} style={[styles.header, { paddingTop: insets.top + 4 }]}>
           <View style={styles.topRow}>
             <Text style={styles.headerTitle}>Social Hub</Text>
             <TouchableOpacity 
               style={styles.searchHeaderBtn}
               onPress={() => setSearchModalVisible(true)}
             >
-              <IconSymbol name="magnifyingglass" size={22} color={colors.white} />
+              <IconSymbol name="magnifyingglass" size={20} color={colors.white} />
             </TouchableOpacity>
           </View>
-          <Text style={styles.headerSubtitle}>Connect with loved ones ✨</Text>
         </LinearGradient>
 
         <ScrollView 
@@ -1284,94 +1182,377 @@ export default function SocialScreen() {
           </View>
         </Modal>
 
+        {/* Instagram-Style Post/Activity Detail Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={detailModalVisible}
+          onRequestClose={() => {
+            setDetailModalVisible(false);
+            setAutoFocusCommentInput(false);
+            setSelectedFeedItem(null);
+          }}
+        >
+          <SafeAreaView style={styles.searchModalOverlay} edges={['top', 'bottom']}>
+            <KeyboardAvoidingView
+              style={styles.searchModalContainer}
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            >
+              {/* Modal Header */}
+              <View style={styles.searchModalHeader}>
+                <Text style={styles.modalHeaderTitle}>Post Details</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setDetailModalVisible(false);
+                    setAutoFocusCommentInput(false);
+                    setSelectedFeedItem(null);
+                  }}
+                  style={styles.cancelSearchBtn}
+                >
+                  <Text style={styles.cancelSearchText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+
+              {selectedFeedItem && (() => {
+                const item = selectedFeedItem;
+                const isLiked = likedEvents[item.id] || false;
+                const likeCount = likeCounts[item.id] || 0;
+                const commentCount = commentCounts[item.id] || 0;
+                const postComments = comments[item.id] || [];
+
+                const itemUser = usersList.find(u => u.id === (item.userId || item.createdBy));
+                const userName = item.feedType === 'activity' 
+                  ? (item.businessName || 'Premium Vendor')
+                  : (item.feedType === 'business' ? item.name : (itemUser?.name || item.userName || 'Someone'));
+                const profileImage = item.feedType === 'activity'
+                  ? (item.businessCover || null)
+                  : (item.feedType === 'business' ? (itemUser?.profileImage || null) : (itemUser?.profileImage || null));
+
+                const coverImage = item.feedType === 'activity'
+                  ? item.photoUrl
+                  : (item.coverImage || item.imageUrl);
+
+                const date = formatInstagramDate(item.createdAt);
+
+                return (
+                  <View style={{ flex: 1 }}>
+                    <ScrollView
+                      style={styles.searchScroll}
+                      contentContainerStyle={{ paddingBottom: 20 }}
+                      keyboardShouldPersistTaps="handled"
+                    >
+                      {/* Post Header */}
+                      <View style={[styles.postHeader, { borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 12 }]}>
+                        <View style={styles.postUserInfo}>
+                          <View style={styles.postAvatarRing}>
+                            <View style={styles.postAvatarPlaceholder}>
+                              {profileImage ? (
+                                <Image source={{ uri: profileImage }} style={styles.postAvatar} />
+                              ) : (
+                                <Text style={styles.postAvatarText}>{userName.charAt(0).toUpperCase()}</Text>
+                              )}
+                            </View>
+                          </View>
+                          <View>
+                            <Text style={styles.postUserName}>{userName}</Text>
+                            <Text style={styles.postTimeText}>{date} • {item.feedType?.toUpperCase()}</Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Image/Content */}
+                      {coverImage && (
+                        <View style={[styles.postImageContainer, { height: 260 }]}>
+                          <Image source={{ uri: coverImage }} style={styles.postMainImage} resizeMode="cover" />
+                        </View>
+                      )}
+
+                      {/* Post Description / Content */}
+                      <View style={{ padding: 16 }}>
+                        {item.feedType === 'activity' ? (
+                          <View style={styles.announcementBubble}>
+                            <Text style={styles.announcementText}>{item.content}</Text>
+                          </View>
+                        ) : item.feedType === 'business' ? (
+                          <View>
+                            <Text style={[styles.postEventTitle, { color: colors.white, fontSize: 18 }]} numberOfLines={1}>{item.name}</Text>
+                            <Text style={[styles.postEventSubtitle, { color: colors.slate400, marginTop: 4 }]}>📍 {item.location?.address || 'Mumbai, India'}</Text>
+                            {!!item.description && (
+                              <Text style={[styles.bizDescription, { color: colors.slate400, marginTop: 8, fontSize: 13, lineHeight: 18 }]} numberOfLines={10}>
+                                {item.description}
+                              </Text>
+                            )}
+                          </View>
+                        ) : (
+                          <View>
+                            <Text style={[styles.postEventTitle, { color: colors.white, fontSize: 18 }]} numberOfLines={1}>{item.title}</Text>
+                            <Text style={[styles.postEventSubtitle, { color: colors.slate400, marginTop: 4 }]}>{typeof item.location === 'string' ? item.location : (item.locationName || '')}</Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Modal Interactive Action Bar */}
+                      <View style={[styles.actionBar, { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8 }]}>
+                        <View style={styles.actionLeft}>
+                          <TouchableOpacity style={styles.actionBtn} onPress={() => handleLike(item.id)}>
+                            <IconSymbol
+                              name={isLiked ? 'heart.fill' : 'heart'}
+                              size={24}
+                              color={isLiked ? '#ef4444' : '#94a3b8'}
+                            />
+                            <Text style={[styles.actionCount, { fontSize: 13 }, isLiked && { color: '#ef4444' }]}>{likeCount} Likes</Text>
+                          </TouchableOpacity>
+                          <View style={styles.actionBtn}>
+                            <IconSymbol name="bubble.right" size={23} color="#94a3b8" />
+                            <Text style={[styles.actionCount, { fontSize: 13 }]}>{commentCount} Comments</Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Modal Dedicated Comments List */}
+                      <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+                        <Text style={[styles.searchSectionTitle, { marginTop: 0, marginBottom: 12 }]}>Wishes & Thoughts</Text>
+                        
+                        {postComments.length === 0 ? (
+                          <View style={{ paddingVertical: 30, alignItems: 'center', opacity: 0.5 }}>
+                            <IconSymbol name="bubble.right" size={32} color="#64748b" />
+                            <Text style={{ color: colors.slate400, marginTop: 8, fontSize: 13, fontFamily: 'Inter_400Regular' }}>No comments yet. Leave a sweet wish!</Text>
+                          </View>
+                        ) : (
+                          postComments.map((c: any) => (
+                            <View key={c.id} style={[styles.commentRow, { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                              <Text style={[styles.commentUser, { fontSize: 13 }]}>{c.userName}</Text>
+                              <Text style={[styles.commentBody, { fontSize: 13, color: '#cbd5e1' }]}>{c.text}</Text>
+                            </View>
+                          ))
+                        )}
+                      </View>
+                    </ScrollView>
+
+                    {/* Modal Sticky Sticky Comment Input */}
+                    <View style={[styles.commentsSection, { borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: 14, backgroundColor: isDark ? '#020617' : '#ffffff' }]}>
+                      <View style={[styles.commentInputRow, { marginTop: 0 }]}>
+                        <TextInput
+                          style={styles.commentInput}
+                          placeholder="Add a comment…"
+                          placeholderTextColor="#64748b"
+                          value={commentText}
+                          onChangeText={setCommentText}
+                          returnKeyType="send"
+                          onSubmitEditing={() => handlePostComment(item.id)}
+                          autoFocus={autoFocusCommentInput}
+                        />
+                        <TouchableOpacity
+                          style={[styles.postBtn, !commentText.trim() && { opacity: 0.35 }]}
+                          onPress={() => handlePostComment(item.id)}
+                          disabled={!commentText.trim() || postingComment}
+                        >
+                          {postingComment ? (
+                            <ActivityIndicator size="small" color="#818cf8" />
+                          ) : (
+                            <Text style={styles.postBtnText}>Post</Text>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })()}
+            </KeyboardAvoidingView>
+          </SafeAreaView>
+        </Modal>
+
+        {/* Instagram-Style Dedicated Comments Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={commentModalVisible}
+          onRequestClose={() => {
+            setCommentModalVisible(false);
+            setSelectedCommentItem(null);
+            setCommentText('');
+          }}
+        >
+          <SafeAreaView style={styles.searchModalOverlay} edges={['top', 'bottom']}>
+            <KeyboardAvoidingView
+              style={styles.searchModalContainer}
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            >
+              {/* Bottom Sheet Handle */}
+              <View style={styles.sheetHandleContainer}>
+                <View style={styles.sheetHandle} />
+              </View>
+
+              {/* Modal Header */}
+              <View style={styles.searchModalHeader}>
+                <Text style={styles.modalHeaderTitle}>Comments</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setCommentModalVisible(false);
+                    setSelectedCommentItem(null);
+                    setCommentText('');
+                  }}
+                  style={styles.cancelSearchBtn}
+                >
+                  <Text style={styles.cancelSearchText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+
+              {(() => {
+                if (!selectedCommentItem) return null;
+                const postComments = comments[selectedCommentItem.id] || [];
+                return (
+                  <View style={{ flex: 1 }}>
+                    <ScrollView 
+                      style={{ flex: 1 }}
+                      contentContainerStyle={{ paddingBottom: 20 }}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+                        {postComments.length === 0 ? (
+                          <View style={{ paddingVertical: 60, alignItems: 'center', opacity: 0.5 }}>
+                            <IconSymbol name="bubble.right" size={36} color="#64748b" />
+                            <Text style={{ color: colors.slate400, marginTop: 12, fontSize: 14, fontFamily: 'Inter_400Regular', textAlign: 'center' }}>
+                              No comments yet.{"\n"}Be the first to share your thoughts!
+                            </Text>
+                          </View>
+                        ) : (
+                          postComments.map((c: any) => (
+                            <View key={c.id} style={[styles.commentRow, { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                              <Text style={[styles.commentUser, { fontSize: 13 }]}>{c.userName}</Text>
+                              <Text style={[styles.commentBody, { fontSize: 13, color: '#cbd5e1' }]}>{c.text}</Text>
+                            </View>
+                          ))
+                        )}
+                      </View>
+                    </ScrollView>
+
+                    {/* Modal Sticky Comment Input */}
+                    <View style={[styles.commentsSection, { borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: 14, backgroundColor: isDark ? '#020617' : '#ffffff' }]}>
+                      <View style={[styles.commentInputRow, { marginTop: 0 }]}>
+                        <TextInput
+                          style={styles.commentInput}
+                          placeholder="Add a comment…"
+                          placeholderTextColor="#64748b"
+                          value={commentText}
+                          onChangeText={setCommentText}
+                          returnKeyType="send"
+                          onSubmitEditing={() => handlePostComment(selectedCommentItem.id)}
+                          autoFocus={true}
+                        />
+                        <TouchableOpacity
+                          style={[styles.postBtn, !commentText.trim() && { opacity: 0.35 }]}
+                          onPress={() => handlePostComment(selectedCommentItem.id)}
+                          disabled={!commentText.trim() || postingComment}
+                        >
+                          {postingComment ? (
+                            <ActivityIndicator size="small" color="#818cf8" />
+                          ) : (
+                            <Text style={styles.postBtnText}>Post</Text>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })()}
+            </KeyboardAvoidingView>
+          </SafeAreaView>
+        </Modal>
+
       </KeyboardAvoidingView>
     </View>
   );
 }
 
 const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.background },
+  safeArea: { flex: 1, backgroundColor: isDark ? '#0a0b0d' : colors.background },
   container: { flex: 1 },
   header: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 16,
     paddingBottom: 16,
-    borderBottomWidth: 1.5,
-    borderBottomColor: colors.border,
+    borderBottomWidth: 0.5,
+    borderBottomColor: isDark ? '#1a1d24' : colors.border,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: isDark ? 0.3 : 0.05,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitle: { fontSize: 28, fontFamily: 'Outfit_800ExtraBold', color: colors.white, letterSpacing: -1 },
+  headerTitle: { fontSize: 26, fontFamily: 'Outfit_800ExtraBold', color: colors.white, letterSpacing: 0.5, textTransform: 'uppercase' },
   headerSubtitle: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.slate400,
     fontFamily: 'Inter_400Regular',
+    marginTop: 2,
   },
   content: { flex: 1 },
   centerContainer: { paddingTop: 100, alignItems: 'center', justifyContent: 'center' },
-  feedList: { paddingTop: 8 },
+  feedList: { paddingTop: 16 },
+
+
 
   // === Post Card ===
+  postWrapper: {
+    marginBottom: 28,
+  },
   postContainer: {
-    backgroundColor: colors.deepSlate,
-    marginHorizontal: 14,
-    marginBottom: 14,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: isDark ? '#14161b' : colors.deepSlate,
+    marginHorizontal: 16,
+    marginBottom: 20,
+    borderRadius: 16,
+    borderWidth: 0.5,
+    borderColor: isDark ? '#1f242e' : colors.border,
     overflow: 'hidden',
-    // Subtle elevation
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: isDark ? 0.3 : 0.05,
+    shadowRadius: 16,
+    elevation: 4,
   },
   postHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 12,
   },
   postUserInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     flex: 1,
   },
   postAvatarRing: {
     padding: 1.5,
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1.5,
     borderColor: '#d4af37',
   },
   postAvatarPlaceholder: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.slate800,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.slate850 || '#1f2937',
     alignItems: 'center',
     justifyContent: 'center',
   },
   postAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
   },
   postAvatarText: {
     color: colors.gold,
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Outfit_700Bold',
   },
   postUserName: {
     color: colors.white,
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Outfit_700Bold',
     letterSpacing: 0.1,
   },
@@ -1386,7 +1567,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   postImageContainer: {
     width: '100%',
-    height: 210,
+    height: 240,
     overflow: 'hidden',
   },
   postMainImage: {
@@ -1876,6 +2057,18 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderColor: colors.cardBorder,
   },
 
+  sheetHandleContainer: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    backgroundColor: isDark ? '#020617' : colors.background,
+  },
+  sheetHandle: {
+    width: 40,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)',
+  },
+
   // === Instagram-style Search Modal Styles ===
   searchModalOverlay: {
     flex: 1,
@@ -1892,6 +2085,13 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     gap: 12,
+  },
+  modalHeaderTitle: {
+    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
+    color: colors.white,
+    flex: 1,
+    textAlign: 'center',
   },
   searchBarContainer: {
     flex: 1,
