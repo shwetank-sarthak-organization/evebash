@@ -17,6 +17,7 @@ import {
   deleteField,
   onSnapshot,
   limit,
+  increment,
   QueryDocumentSnapshot
 } from "firebase/firestore";
 
@@ -99,6 +100,9 @@ export interface Business {
     vendorCode?: string;
     announcements?: string[];
     createdAt?: any;
+    profileViews?: number;
+    viewsByDate?: Record<string, number>;
+    shortlistCount?: number;
 }
 
 export interface UserProfile {
@@ -944,6 +948,20 @@ export async function getBusinessByVendorCode(code: string): Promise<Business | 
   }
 }
 
+export async function incrementBusinessViewCount(bizId: string): Promise<void> {
+    try {
+        const bizRef = doc(db, 'businesses', bizId);
+        // Format today as "YYYY-MM-DD" for the daily bucket key
+        const today = new Date().toISOString().slice(0, 10);
+        await updateDoc(bizRef, {
+            profileViews: increment(1),
+            [`viewsByDate.${today}`]: increment(1),
+        });
+    } catch (e) {
+        console.warn('Silent ignore: Failed to increment view count', e);
+    }
+}
+
 export async function updateBusiness(bizId: string, data: Partial<Business>): Promise<boolean> {
   try {
     const bizRef = doc(db, 'businesses', bizId);
@@ -1046,6 +1064,30 @@ export function onTopRatedBusinesses(limitCount: number = 10, callback: (busines
         const businesses = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Business));
         callback(businesses);
     });
+}
+
+export async function getPublishedBusinesses(category?: string): Promise<Business[]> {
+    try {
+        const bizCol = collection(db, 'businesses');
+        let q;
+        if (category) {
+            q = query(
+                bizCol, 
+                where('status', '==', 'published'),
+                where('type', '==', category)
+            );
+        } else {
+            q = query(
+                bizCol, 
+                where('status', '==', 'published')
+            );
+        }
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Business));
+    } catch (e) {
+        console.error("Error fetching published businesses:", e);
+        return [];
+    }
 }
 
 // --- SOCIAL NETWORK FUNCTIONS ---
@@ -1386,6 +1428,59 @@ export async function toggleShortlistBusiness(userId: string, businessId: string
 }
 
 /**
+ * Returns whether the given user has shortlisted the given business.
+ */
+export async function getBusinessShortlistStatus(userId: string, businessId: string): Promise<boolean> {
+    try {
+        const userRef = doc(db, 'users', userId);
+        const userSnap = await getDoc(userRef);
+        if (!userSnap.exists()) return false;
+        const shortlisted: string[] = userSnap.data().shortlisted || [];
+        return shortlisted.includes(businessId);
+    } catch (e) {
+        console.warn('Failed to get shortlist status', e);
+        return false;
+    }
+}
+
+/**
+ * Toggles a business shortlist for a user AND atomically updates
+ * the shortlistCount counter on the business document.
+ * Returns the new shortlisted state (true = now shortlisted).
+ */
+export async function toggleBusinessShortlist(
+    userId: string,
+    businessId: string,
+    currentlyShortlisted: boolean
+): Promise<boolean> {
+    try {
+        const userRef = doc(db, 'users', userId);
+        const bizRef  = doc(db, 'businesses', businessId);
+
+        if (currentlyShortlisted) {
+            // Remove from user list, decrement counter (never go below 0)
+            const userSnap = await getDoc(userRef);
+            const current: string[] = userSnap.data()?.shortlisted || [];
+            await updateDoc(userRef, { shortlisted: current.filter(id => id !== businessId) });
+            await updateDoc(bizRef,  { shortlistCount: increment(-1) });
+            return false;
+        } else {
+            // Add to user list, increment counter
+            const userSnap = await getDoc(userRef);
+            const current: string[] = userSnap.data()?.shortlisted || [];
+            if (!current.includes(businessId)) {
+                await updateDoc(userRef, { shortlisted: [...current, businessId] });
+                await updateDoc(bizRef,  { shortlistCount: increment(1) });
+            }
+            return true;
+        }
+    } catch (error) {
+        console.error('Error toggling business shortlist:', error);
+        throw error;
+    }
+}
+
+/**
  * Logs a new business activity post (e.g. announcement, FAQ, or new portfolio photo).
  */
 export async function addBusinessActivity(activity: {
@@ -1483,9 +1578,10 @@ export interface Enquiry {
     message: string;
     phone?: string;
     email?: string;
-    userId?: string;
+    userId?: string | null;
     vendorOwnerId: string;
     vendorOwnerEmail: string;
+    preferredContact?: 'chat' | 'whatsapp' | 'call' | 'email';
     createdAt?: any;
 }
 
@@ -1595,17 +1691,45 @@ export async function getOrCreateChatRoom(
       where("businessId", "==", businessId)
     );
     const snapshot = await getDocs(q);
+    
     if (!snapshot.empty) {
-      return snapshot.docs[0].id;
+      // Find an active, non-expired chat room
+      const activeRoom = snapshot.docs.find(docSnap => {
+        const data = docSnap.data();
+        if (data.status === 'closed') return false;
+        
+        const createdAt = data.createdAt;
+        if (!createdAt) return true; // if no createdAt timestamp yet, treat as active
+        
+        let createdTime = 0;
+        if (typeof createdAt.toDate === 'function') {
+          createdTime = createdAt.toDate().getTime();
+        } else if (createdAt.seconds) {
+          createdTime = createdAt.seconds * 1000;
+        } else if (createdAt instanceof Date) {
+          createdTime = createdAt.getTime();
+        } else {
+          createdTime = new Date().getTime();
+        }
+        
+        const elapsed = new Date().getTime() - createdTime;
+        const isExpired = elapsed > 48 * 60 * 60 * 1000;
+        return !isExpired;
+      });
+      
+      if (activeRoom) {
+        return activeRoom.id;
+      }
     }
     
-    // Create new room
+    // Create a new room if none are active and non-expired
     const docRef = await addDoc(chatRoomsCol, {
       clientUid,
       clientName,
       vendorUid,
       vendorName,
       businessId,
+      status: 'active',
       lastMessage: "Conversation started",
       lastMessageAt: serverTimestamp(),
       createdAt: serverTimestamp()
@@ -1635,7 +1759,9 @@ export async function sendMessage(
     const roomRef = doc(db, "chatRooms", roomId);
     await updateDoc(roomRef, {
       lastMessage: text,
-      lastMessageAt: serverTimestamp()
+      lastMessageAt: serverTimestamp(),
+      lastSenderId: senderId,
+      [`lastRead.${senderId}`]: serverTimestamp()
     });
     return true;
   } catch (error) {
@@ -1679,21 +1805,11 @@ export async function getUserChatRooms(userId: string, role: 'client' | 'vendor'
   }
 }
 
-export async function closeChatRoom(roomId: string, senderId: string, senderName: string): Promise<boolean> {
+export async function closeChatRoom(roomId: string): Promise<boolean> {
   try {
-    const messagesCol = collection(db, "chatRooms", roomId, "messages");
-    await addDoc(messagesCol, {
-      senderId,
-      senderName,
-      text: "Chat ended by customer",
-      createdAt: serverTimestamp()
-    });
-    
     const roomRef = doc(db, "chatRooms", roomId);
     await updateDoc(roomRef, {
-      status: 'closed',
-      lastMessage: 'Chat ended by customer',
-      lastMessageAt: serverTimestamp()
+      status: 'closed'
     });
     return true;
   } catch (error) {

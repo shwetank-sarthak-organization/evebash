@@ -19,7 +19,7 @@ import {
   Switch,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image as ExpoImage } from 'expo-image';
@@ -96,6 +96,7 @@ export default function PortfolioTabScreen() {
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
   const styles = getStyles(colors, isDark);
+  const insets = useSafeAreaInsets();
 
   const [activeTab, setActiveTab] = useState<'my' | 'shared' | 'requests'>('my');
   const [events, setEvents] = useState<FirestoreEvent[]>([]);
@@ -500,15 +501,15 @@ export default function PortfolioTabScreen() {
   const selectedRequestPhoto = selectedRequestProfile?.profileImage;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       {/* ── HEADER ── */}
       <LinearGradient
         colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]}
-        style={styles.header}
+        style={[styles.header, { paddingTop: insets.top + 4 }]}
       >
         <View>
           <Text style={styles.headerName}>Host Event</Text>
-          <Text style={styles.headerGreeting}>Management</Text>
+          <Text style={styles.headerGreeting}>Manage events and guests</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity style={[styles.createBtnHeader, { backgroundColor: colors.gold }]} onPress={() => setCreateModalVisible(true)}>
@@ -1185,7 +1186,7 @@ export default function PortfolioTabScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -1255,8 +1256,8 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  headerGreeting: { fontSize: 12, color: colors.slate400, fontFamily: Fonts.inter.medium, textTransform: 'uppercase', letterSpacing: 1.2 },
-  headerName: { fontSize: 32, color: colors.white, fontFamily: Fonts.outfit.extraBold, letterSpacing: -0.5, marginTop: 2 },
+  headerGreeting: { fontSize: 12, color: colors.slate400, fontFamily: Fonts.inter.medium },
+  headerName: { fontSize: 28, color: colors.white, fontFamily: Fonts.outfit.extraBold, letterSpacing: -0.5 },
   createBtnHeader: { 
     paddingHorizontal: 16, 
     paddingVertical: 10, 

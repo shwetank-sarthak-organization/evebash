@@ -29,10 +29,32 @@ export default function CustomerChatsScreen() {
     if (!user?.uid) return;
     setLoading(true);
     try {
-      const data = await getUserChatRooms(user.uid, 'client');
-      setChatRooms(data);
+      const [clientData, vendorData] = await Promise.all([
+        getUserChatRooms(user.uid, 'client'),
+        getUserChatRooms(user.uid, 'vendor'),
+      ]);
+
+      const combined = [...clientData, ...vendorData];
+
+      // Deduplicate by room ID (e.g. self-chat test cases)
+      const seen = new Set<string>();
+      const unique = combined.filter(room => {
+        if (!room.id) return true;
+        if (seen.has(room.id)) return false;
+        seen.add(room.id);
+        return true;
+      });
+
+      // Sort by lastMessageAt descending
+      unique.sort((a, b) => {
+        const timeA = a.lastMessageAt?.seconds || 0;
+        const timeB = b.lastMessageAt?.seconds || 0;
+        return timeB - timeA;
+      });
+
+      setChatRooms(unique);
     } catch (error) {
-      console.error('Error fetching customer chat rooms:', error);
+      console.error('Error fetching chat rooms:', error);
     } finally {
       setLoading(false);
     }
@@ -55,7 +77,7 @@ export default function CustomerChatsScreen() {
         </TouchableOpacity>
         
         <View style={{ alignItems: 'center' }}>
-          <Text style={styles.headerTitle}>My Messages</Text>
+          <Text style={styles.headerTitle}>Messages</Text>
         </View>
 
         <View style={{ width: 40 }} />
@@ -69,7 +91,7 @@ export default function CustomerChatsScreen() {
             </View>
             <Text style={styles.emptyStateTitle}>No Messages Yet</Text>
             <Text style={styles.emptyStateDesc}>
-              Enquiries marked as "In-App Chat (Private)" will appear here once started. Explore vendors to connect!
+              Your enquiries and business chat threads will appear here once started. Explore vendors to connect!
             </Text>
             <TouchableOpacity 
               style={styles.exploreBtn} 
@@ -102,40 +124,83 @@ export default function CustomerChatsScreen() {
               };
               const isExpired = getIsExpired();
 
+              const getTimeRemainingStr = () => {
+                if (!room.createdAt || isClosed || isExpired) return '';
+                let createdTime = 0;
+                if (typeof room.createdAt.toDate === 'function') {
+                  createdTime = room.createdAt.toDate().getTime();
+                } else if (room.createdAt.seconds) {
+                  createdTime = room.createdAt.seconds * 1000;
+                } else if (room.createdAt instanceof Date) {
+                  createdTime = room.createdAt.getTime();
+                } else {
+                  createdTime = new Date().getTime();
+                }
+                const elapsed = new Date().getTime() - createdTime;
+                const remainingMs = 48 * 60 * 60 * 1000 - elapsed;
+                if (remainingMs <= 0) return '';
+                
+                const remainingHrs = Math.floor(remainingMs / (1000 * 60 * 60));
+                const remainingMins = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+                
+                if (remainingHrs > 0) {
+                  return `${remainingHrs}h ${remainingMins}m left`;
+                }
+                return `${remainingMins}m left`;
+              };
+              const timeRemainingStr = getTimeRemainingStr();
+
+              const isBusinessChat = room.vendorUid === user?.uid;
+              const partnerName = isBusinessChat ? room.clientName : room.vendorName;
+              const partnerAvatarChar = partnerName ? partnerName.charAt(0).toUpperCase() : (isBusinessChat ? 'C' : 'V');
+
               return (
                 <TouchableOpacity 
                   key={room.id}
-                  style={[styles.chatCard, (isClosed || isExpired) && styles.inactiveCard]}
+                  style={[
+                    styles.chatCard, 
+                    isBusinessChat ? styles.businessCardBorder : styles.clientCardBorder,
+                    (isClosed || isExpired) && styles.inactiveCard
+                  ]}
                   onPress={() => router.push({
                     pathname: '/chat',
-                    params: { roomId: room.id, otherUserName: room.vendorName }
+                    params: { roomId: room.id, otherUserName: partnerName }
                   })}
                   activeOpacity={0.7}
                 >
                   <View style={styles.cardHeader}>
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>
-                        {room.vendorName ? room.vendorName.charAt(0).toUpperCase() : 'V'}
+                    <View style={[styles.avatar, isBusinessChat ? styles.businessAvatar : styles.clientAvatar]}>
+                      <Text style={[styles.avatarText, isBusinessChat ? styles.businessAvatarText : styles.clientAvatarText]}>
+                        {partnerAvatarChar}
                       </Text>
                     </View>
                     <View style={styles.cardInfo}>
                       <View style={styles.nameRow}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                          <Text style={styles.vendorName} numberOfLines={1}>{room.vendorName}</Text>
-                          {isClosed && (
-                            <View style={styles.closedBadge}>
-                              <Text style={styles.badgeText}>Ended</Text>
-                            </View>
-                          )}
-                          {!isClosed && isExpired && (
-                            <View style={styles.expiredBadge}>
-                              <Text style={styles.badgeText}>Expired</Text>
-                            </View>
-                          )}
+                        <Text style={styles.vendorName} numberOfLines={1}>{partnerName}</Text>
+                        <View style={styles.dateContainer}>
+                          <Text style={styles.dateText}>{dateStr}</Text>
+                          {timeRemainingStr ? (
+                            <Text style={styles.timeLeftText}>{timeRemainingStr}</Text>
+                          ) : null}
                         </View>
-                        <Text style={styles.dateText}>{dateStr}</Text>
                       </View>
-                      <Text style={styles.lastMessage} numberOfLines={1}>{room.lastMessage}</Text>
+                      <View style={styles.badgeRow}>
+                        <View style={isBusinessChat ? styles.businessBadge : styles.normalBadge}>
+                          <Text style={isBusinessChat ? styles.businessBadgeText : styles.normalBadgeText}>
+                            {isBusinessChat ? 'Business' : 'Enquiry'}
+                          </Text>
+                        </View>
+                        {isClosed && (
+                          <View style={styles.closedBadge}>
+                            <Text style={styles.endedBadgeText}>Ended</Text>
+                          </View>
+                        )}
+                        {!isClosed && isExpired && (
+                          <View style={styles.expiredBadge}>
+                            <Text style={styles.expiredBadgeText}>Expired</Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -261,8 +326,25 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 4,
+  },
+  dateContainer: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  timeLeftText: {
+    color: '#10b981',
+    fontSize: 9,
+    fontFamily: 'Inter_500Medium',
+    marginTop: 2,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+    marginBottom: 6,
   },
   vendorName: {
     color: '#ffffff',
@@ -304,5 +386,63 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontFamily: 'Inter_500Medium',
     color: '#cbd5e1',
+  },
+  endedBadgeText: {
+    fontSize: 9,
+    fontFamily: 'Inter_500Medium',
+    color: '#fca5a5',
+  },
+  expiredBadgeText: {
+    fontSize: 9,
+    fontFamily: 'Inter_500Medium',
+    color: '#fca5a5',
+  },
+  businessCardBorder: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#6366f1',
+  },
+  clientCardBorder: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#d4af37',
+  },
+  businessAvatar: {
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    borderColor: 'rgba(99, 102, 241, 0.2)',
+  },
+  businessAvatarText: {
+    color: '#818cf8',
+  },
+  clientAvatar: {
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    borderColor: 'rgba(212, 175, 55, 0.2)',
+  },
+  clientAvatarText: {
+    color: '#d4af37',
+  },
+  businessBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+  },
+  businessBadgeText: {
+    fontSize: 9,
+    fontFamily: 'Inter_500Medium',
+    color: '#a5b4fc',
+  },
+  normalBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(212, 175, 55, 0.15)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
+  },
+  normalBadgeText: {
+    fontSize: 9,
+    fontFamily: 'Inter_500Medium',
+    color: '#fef08a',
   },
 });

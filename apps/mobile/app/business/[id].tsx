@@ -22,7 +22,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image as ExpoImage } from 'expo-image';
 import * as Location from 'expo-location';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { getBusinessById, updateBusiness, getEventsCountForVendor, Business, addEnquiry, getAnnouncementsForBusiness, getUserRatingForBusiness, saveUserRating, getReviewsForBusiness, getBusinessTypeColor } from '@/lib/firestore';
+import { getBusinessById, updateBusiness, getEventsCountForVendor, Business, addEnquiry, getAnnouncementsForBusiness, getUserRatingForBusiness, saveUserRating, getReviewsForBusiness, getBusinessTypeColor, incrementBusinessViewCount, getBusinessShortlistStatus, toggleBusinessShortlist } from '@/lib/firestore';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/context/AuthContext';
 import Svg, { Path } from 'react-native-svg';
@@ -50,6 +50,7 @@ export default function BusinessDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [announcementsList, setAnnouncementsList] = useState<any[]>([]);
   const [isFavorited, setIsFavorited] = useState(false);
+  const [isShortlisting, setIsShortlisting] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showContactOptions, setShowContactOptions] = useState(false);
   const [showEnquiryForm, setShowEnquiryForm] = useState(false);
@@ -162,6 +163,23 @@ export default function BusinessDetailScreen() {
             }
             
             setBusiness(data);
+            
+            // Track profile view — fire-and-forget, non-blocking, skip for the business owner
+            if (user?.uid !== data.createdBy) {
+              incrementBusinessViewCount(id).catch(() => {});
+            }
+
+            // Load shortlist state — prefer local user.shortlisted, fall back to Firestore
+            if (user?.uid) {
+              const alreadyShortlisted = user.shortlisted?.includes(id) ?? false;
+              setIsFavorited(alreadyShortlisted);
+              // If shortlisted array is not in context yet, confirm with a background fetch
+              if (!user.shortlisted) {
+                getBusinessShortlistStatus(user.uid, id)
+                  .then(status => setIsFavorited(status))
+                  .catch(() => {});
+              }
+            }
           }
           
           // 2. DISMISS LOADING STATE IMMEDIATELY!
@@ -433,7 +451,21 @@ export default function BusinessDetailScreen() {
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.glassBtn, isFavorited && styles.glassBtnActive]} 
-              onPress={() => setIsFavorited(!isFavorited)}
+              disabled={isShortlisting || !user?.uid}
+              onPress={async () => {
+                if (!user?.uid || typeof id !== 'string') return;
+                // Optimistic update
+                setIsFavorited(prev => !prev);
+                setIsShortlisting(true);
+                try {
+                  await toggleBusinessShortlist(user.uid, id, isFavorited);
+                } catch {
+                  // Rollback on error
+                  setIsFavorited(prev => !prev);
+                } finally {
+                  setIsShortlisting(false);
+                }
+              }}
             >
               <IconSymbol 
                 name={isFavorited ? "heart.fill" : "heart"} 

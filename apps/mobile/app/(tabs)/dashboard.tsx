@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { query, collection, where, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import {
   View,
   Text,
@@ -15,7 +17,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
@@ -43,6 +45,9 @@ export default function DashboardScreen() {
   const { colors, isDark } = useAppTheme();
   const styles = getStyles(colors, isDark);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+
+  const [hasUnreadChats, setHasUnreadChats] = useState(false);
 
 
   const [refreshing, setRefreshing] = useState(false);
@@ -170,6 +175,59 @@ export default function DashboardScreen() {
 
   useEffect(() => { fetchData(); }, [user]);
 
+  useEffect(() => {
+    if (!user?.uid) {
+      setHasUnreadChats(false);
+      return;
+    }
+
+    const chatRoomsCol = collection(db, "chatRooms");
+    const clientQuery = query(chatRoomsCol, where("clientUid", "==", user.uid));
+    const vendorQuery = query(chatRoomsCol, where("vendorUid", "==", user.uid));
+
+    let clientRooms: any[] = [];
+    let vendorRooms: any[] = [];
+
+    const checkUnread = (rooms: any[]) => {
+      return rooms.some(room => {
+        if (room.status === 'closed') return false;
+        if (!room.lastMessageAt || room.lastSenderId === user.uid) return false;
+        
+        const lastRead = room.lastRead?.[user.uid];
+        if (!lastRead) return true; // Never read
+        
+        const lastReadTime = lastRead.toDate ? lastRead.toDate().getTime() : (lastRead.seconds ? lastRead.seconds * 1000 : 0);
+        const lastMsgTime = room.lastMessageAt.toDate ? room.lastMessageAt.toDate().getTime() : (room.lastMessageAt.seconds ? room.lastMessageAt.seconds * 1000 : 0);
+        
+        return lastMsgTime > lastReadTime;
+      });
+    };
+
+    const updateUnreadStatus = () => {
+      const allRooms = [...clientRooms, ...vendorRooms];
+      setHasUnreadChats(checkUnread(allRooms));
+    };
+
+    const unsubClient = onSnapshot(clientQuery, (snapshot) => {
+      clientRooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      updateUnreadStatus();
+    }, (err) => {
+      console.error("Error listening to client chat rooms:", err);
+    });
+
+    const unsubVendor = onSnapshot(vendorQuery, (snapshot) => {
+      vendorRooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      updateUnreadStatus();
+    }, (err) => {
+      console.error("Error listening to vendor chat rooms:", err);
+    });
+
+    return () => {
+      unsubClient();
+      unsubVendor();
+    };
+  }, [user?.uid]);
+
   const onRefresh = () => { setRefreshing(true); fetchData(); };
 
   const getGreeting = () => {
@@ -182,11 +240,11 @@ export default function DashboardScreen() {
   if (!user) return null;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       {/* ── FIXED HEADER ── */}
       <LinearGradient
         colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]}
-        style={styles.header}
+        style={[styles.header, { paddingTop: insets.top + 4 }]}
       >
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>EveBash</Text>
@@ -199,15 +257,7 @@ export default function DashboardScreen() {
             onPress={() => router.push('/customer-chats')}
           >
             <IconSymbol name="bubble.left.fill" size={18} color={colors.white} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.headerIconButton} 
-            activeOpacity={0.7}
-            onPress={() => Alert.alert("Notifications", "Coming Soon: Updates on your albums, events, and shortlist activity.")}
-          >
-            <IconSymbol name="bell.fill" size={18} color={colors.white} />
-            <View style={styles.notificationBadge} />
+            {hasUnreadChats && <View style={styles.unreadBadge} />}
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -565,7 +615,7 @@ export default function DashboardScreen() {
             </>
         }
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -604,8 +654,8 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20,
   },
   datePillText: { fontSize: 10, color: colors.gold, fontFamily: 'Outfit_700Bold', letterSpacing: 0.3 },
-  headerTitle: { fontSize: 32, fontFamily: 'Yellowtail_400Regular', color: colors.white, letterSpacing: 0.5 },
-  tagline: { fontSize: 13, color: colors.slate400, fontFamily: 'Inter_400Regular', marginTop: 4 },
+  headerTitle: { fontSize: 28, fontFamily: 'Yellowtail_400Regular', color: colors.white, letterSpacing: 0.5 },
+  tagline: { fontSize: 12, color: colors.slate400, fontFamily: 'Inter_400Regular' },
   avatarRingHeader: {
     padding: 3, borderRadius: 30,
     borderWidth: 1.5, borderColor: colors.gold,
@@ -1113,5 +1163,14 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     fontFamily: 'Outfit_800ExtraBold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  unreadBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ef4444',
   },
 });

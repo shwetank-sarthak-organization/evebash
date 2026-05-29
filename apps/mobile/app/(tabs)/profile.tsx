@@ -12,7 +12,7 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
@@ -37,6 +37,7 @@ export default function ProfileScreen() {
   const { theme, setTheme, colors, isDark } = useAppTheme();
   const styles = getStyles(colors, isDark);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [stats, setStats] = useState({ followers: 0, following: 0 });
   const [isPrivate, setIsPrivate] = useState(user?.isPrivate || false);
   const [updatingPrivacy, setUpdatingPrivacy] = useState(false);
@@ -309,14 +310,23 @@ export default function ProfileScreen() {
   if (!user) return null;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         
         {/* Profile Header */}
         <LinearGradient
           colors={[colors.deepSlate, colors.background]}
-          style={styles.header}
+          style={[styles.header, { paddingTop: insets.top + 2 }]}
         >
+          {/* Notification Button */}
+          <TouchableOpacity 
+            style={[styles.notifIconButton, { top: insets.top + 12 }]} 
+            activeOpacity={0.7}
+            onPress={() => Alert.alert("Notifications", "Coming Soon: Updates on your albums, events, and shortlist activity.")}
+          >
+            <IconSymbol name="bell.fill" size={20} color={colors.white} />
+            <View style={styles.notificationBadge} />
+          </TouchableOpacity>
 
           <View style={styles.profileRow}>
             <View style={styles.avatarRing}>
@@ -324,7 +334,7 @@ export default function ProfileScreen() {
                 <Image source={{ uri: user.profileImage }} style={styles.avatar} />
               ) : (
                 <View style={styles.avatarPlaceholder}>
-                  <IconSymbol name="person.fill" size={32} color="#64748b" />
+                  <IconSymbol name="person.fill" size={24} color="#64748b" />
                 </View>
               )}
             </View>
@@ -793,7 +803,7 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -806,6 +816,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     flex: 1 
   },
   header: { 
+    position: 'relative',
     paddingTop: 2, 
     paddingBottom: 6,
     borderBottomWidth: 1.5,
@@ -818,23 +829,49 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   profileInfo: { 
     marginLeft: 20, 
+    paddingRight: 36,
     flex: 1 
+  },
+  notifIconButton: {
+    position: 'absolute',
+    top: 12,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.gold,
+    borderWidth: 1.5,
+    borderColor: colors.deepSlate,
   },
   avatarRing: {
     padding: 3,
-    borderRadius: 44,
+    borderRadius: 33,
     borderWidth: 2,
     borderColor: colors.border,
   },
   avatar: { 
-    width: 80, 
-    height: 80, 
-    borderRadius: 40, 
+    width: 60, 
+    height: 60, 
+    borderRadius: 30, 
   },
   avatarPlaceholder: { 
-    width: 80, 
-    height: 80, 
-    borderRadius: 40, 
+    width: 60, 
+    height: 60, 
+    borderRadius: 30, 
     backgroundColor: colors.slate900, 
     justifyContent: 'center', 
     alignItems: 'center', 

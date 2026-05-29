@@ -138,6 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 assignedEvents: data.assignedEvents || [],
                 profileImage: data.profileImage,
                 phone: data.phone,
+                shortlisted: data.shortlisted || [],
                 username: data.username,
                 isPrivate: data.isPrivate ?? false,
               });

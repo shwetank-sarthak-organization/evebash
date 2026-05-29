@@ -125,7 +125,11 @@ service cloud.firestore {
         isKnownAdmin() || 
         isAdmin() || 
         (resource.data.createdBy == request.auth.uid) ||
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vendorCode', 'rating']))
+        // Any authenticated user can increment analytics-only counter fields
+        // (profileViews, viewsByDate daily buckets, shortlistCount).
+        // These are numeric increments — no structural business data can be changed.
+        (request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['vendorCode', 'rating', 'profileViews', 'viewsByDate', 'shortlistCount']))
       );
     }
 
@@ -161,6 +165,8 @@ service cloud.firestore {
           (
             // Client is closing the chat room
             (resource.data.clientUid == request.auth.uid && request.resource.data.get('status', 'active') == 'closed') ||
+            // Participant updating their own lastRead timestamps
+            (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastRead'])) ||
             // Normal message-related updates on active, non-expired chat room
             (
               resource.data.get('status', 'active') == 'active' &&

@@ -1,3 +1,5 @@
+import { useAppTheme } from '@/context/ThemeContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -21,8 +23,9 @@ import { Image as ExpoImage } from 'expo-image';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { getBusinessById, updateBusiness, Business, addBusinessActivity, getEnquiriesForBusiness, Enquiry } from '@/lib/firestore';
+import { getBusinessById, updateBusiness, Business, addBusinessActivity, getEnquiriesForBusiness, Enquiry, getPublishedBusinesses } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
+import * as Location from 'expo-location';
 
 const { width } = Dimensions.get('window');
 
@@ -34,9 +37,20 @@ const BUSINESS_TYPES = [
 ];
 
 export default function ManageBusinessScreen() {
+  const { colors, isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
+  const styles = getStyles(colors, isDark, insets);
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { user } = useAuth();
+  
+  const isMountedRef = React.useRef(false);
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   
   const [loading, setLoading] = useState(true);
   const [business, setBusiness] = useState<Business | null>(null);
@@ -69,6 +83,13 @@ export default function ManageBusinessScreen() {
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
   const [loadingEnquiries, setLoadingEnquiries] = useState(false);
 
+  // Market Standing State
+  const [marketRank, setMarketRank] = useState<number | null>(null);
+  const [totalInMarket, setTotalInMarket] = useState<number>(0);
+  const [marketPercentile, setMarketPercentile] = useState<number | null>(null);
+  const [loadingMarketRank, setLoadingMarketRank] = useState(false);
+  const [locality, setLocality] = useState<string | null>(null);
+
   const TIME_RANGES = ['1 Week', '1 Month', '3 Month', '6 Month', '1 Year', '3 Year', 'Overall'];
 
   useEffect(() => {
@@ -79,33 +100,186 @@ export default function ManageBusinessScreen() {
     }
   }, [id, user]);
 
+  useEffect(() => {
+    if (business && business.id) {
+      fetchMarketStanding(business.id, business.type || '', business, timeRange);
+    }
+  }, [timeRange, business?.id, business?.type]);
+
   const fetchEnquiries = async (bizId: string) => {
     if (!user) return;
-    setLoadingEnquiries(true);
+    if (isMountedRef.current) setLoadingEnquiries(true);
     try {
       const data = await getEnquiriesForBusiness(bizId, user.uid);
-      setEnquiries(data);
+      if (isMountedRef.current) setEnquiries(data);
     } catch (error) {
       console.error('Error fetching enquiries:', error);
     } finally {
-      setLoadingEnquiries(false);
+      if (isMountedRef.current) setLoadingEnquiries(false);
+    }
+  };
+
+  const normalizeRegion = (region: string): string => {
+    const r = region.toLowerCase().trim();
+    if (r.includes('delhi')) return 'Delhi';
+    if (r.includes('maharashtra')) return 'Maharashtra';
+    if (r.includes('karnataka')) return 'Karnataka';
+    if (r.includes('tamil nadu')) return 'Tamil Nadu';
+    if (r.includes('telangana')) return 'Telangana';
+    if (r.includes('uttar pradesh') || r === 'up') return 'Uttar Pradesh';
+    if (r.includes('haryana')) return 'Haryana';
+    if (r.includes('punjab')) return 'Punjab';
+    if (r.includes('rajasthan')) return 'Rajasthan';
+    if (r.includes('gujarat')) return 'Gujarat';
+    if (r.includes('west bengal')) return 'West Bengal';
+    if (r.includes('goa')) return 'Goa';
+    
+    // Capitalize first letter of each word as default fallback
+    return region.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  };
+
+  const getStateFromAddress = (address?: string) => {
+    if (locality) return locality;
+    if (!address) return 'Delhi';
+    const parts = address.split(',').map(p => p.trim());
+    
+    // List of Indian States and Union Territories (UTs)
+    const statesAndUTs = [
+      'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 
+      'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 
+      'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 
+      'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 
+      'West Bengal', 'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu', 
+      'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
+    ];
+
+    // Find any part matching a known Indian State/UT
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const part = parts[i].replace(/\d+/g, '').replace(/[-–]/g, '').trim();
+      const matchedState = statesAndUTs.find(s => s.toLowerCase() === part.toLowerCase());
+      if (matchedState) return matchedState;
+    }
+
+    // Fallback: Skip "India" and zip codes to extract state
+    let fallbackPart = parts[parts.length - 1];
+    if (fallbackPart.toLowerCase() === 'india' && parts.length > 1) {
+      fallbackPart = parts[parts.length - 2];
+    }
+    if (/^\d+$/.test(fallbackPart.replace(/\s+/g, '')) && parts.length > 2) {
+      fallbackPart = parts[parts.length - 3];
+    }
+    
+    fallbackPart = fallbackPart.replace(/\d+/g, '').replace(/[-–]/g, '').trim();
+    return normalizeRegion(fallbackPart || 'Delhi');
+  };
+
+  const getViewsForBusinessRange = (viewsByDate: Record<string, number> = {}, totalViews: number = 0, range: string): number => {
+    if (range === 'Overall') {
+      return totalViews;
+    }
+    const rangeToDays: Record<string, number> = {
+      '1 Week':  7,
+      '1 Month': 30,
+      '3 Month': 90,
+      '6 Month': 180,
+      '1 Year':  365,
+      '3 Year':  1095,
+    };
+    const days = rangeToDays[range] ?? 30;
+    const now = new Date();
+    let total = 0;
+    for (let i = 0; i < days; i++) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      total += viewsByDate[key] ?? 0;
+    }
+    return total;
+  };
+
+  const fetchMarketStanding = async (bizId: string, bizType: string, currentBiz: Business, range: string) => {
+    if (!bizType) return;
+    if (isMountedRef.current) setLoadingMarketRank(true);
+    try {
+      const competitors = await getPublishedBusinesses(bizType);
+      
+      const scoredCompetitors = competitors.map(b => {
+        const rangeViews = getViewsForBusinessRange(b.viewsByDate || {}, b.profileViews || 0, range);
+        const score = rangeViews * 1 + (b.shortlistCount || 0) * 5 + (b.rating || 0) * 50;
+        return { ...b, score };
+      });
+
+      const currentExists = scoredCompetitors.some(b => b.id === bizId);
+      if (!currentExists) {
+        const currentRangeViews = getViewsForBusinessRange(currentBiz.viewsByDate || {}, currentBiz.profileViews || 0, range);
+        const currentScore = currentRangeViews * 1 + (currentBiz.shortlistCount || 0) * 5 + (currentBiz.rating || 0) * 50;
+        scoredCompetitors.push({ ...currentBiz, score: currentScore });
+      }
+
+      scoredCompetitors.sort((a, b) => b.score - a.score);
+
+      const curIndex = scoredCompetitors.findIndex(b => b.id === bizId);
+      if (curIndex !== -1) {
+        const rank = curIndex + 1;
+        const total = scoredCompetitors.length;
+        const percentile = total > 0 ? Math.max(1, Math.round((rank / total) * 100)) : 100;
+
+        if (isMountedRef.current) {
+          setMarketRank(rank);
+          setTotalInMarket(total);
+          setMarketPercentile(percentile);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching market standing:', error);
+    } finally {
+      if (isMountedRef.current) setLoadingMarketRank(false);
     }
   };
 
   const fetchBusiness = async (bizId: string) => {
-    setLoading(true);
+    if (isMountedRef.current) setLoading(true);
     try {
       const biz = await getBusinessById(bizId);
       if (biz) {
-        setBusiness(biz);
-        populateFields(biz);
+        if (isMountedRef.current) {
+          setBusiness(biz);
+          populateFields(biz);
+        }
+
+        // Reverse geocode locality in background if coordinates exist
+        if (biz.location && (biz.location.latitude || biz.location.longitude)) {
+          console.log('[Location Debug] Found coordinates:', biz.location.latitude, biz.location.longitude);
+          Location.reverseGeocodeAsync({
+            latitude: biz.location.latitude,
+            longitude: biz.location.longitude
+          }).then(reverse => {
+            console.log('[Location Debug] Reverse geocode response:', JSON.stringify(reverse));
+            if (reverse && reverse[0] && isMountedRef.current) {
+              const place = reverse[0];
+              // Prioritize State/Union Territory (place.region) directly
+              const rawRegion = place.region || place.city || place.subregion || place.district;
+              console.log('[Location Debug] Extracted rawRegion:', rawRegion);
+              if (rawRegion) {
+                const normalized = normalizeRegion(rawRegion);
+                console.log('[Location Debug] Normalized state/UT mapped:', normalized);
+                setLocality(normalized);
+              }
+            }
+          }).catch(error => {
+            console.log('[Location Debug] Background reverse geocoding failed:', error);
+          });
+        } else {
+          console.log('[Location Debug] No coordinates found on business document:', JSON.stringify(biz?.location));
+        }
       }
     } catch (error) {
       console.error('Error fetching business:', error);
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) setLoading(false);
     }
   };
+
 
   const populateFields = (biz: Business) => {
     setBusinessName(biz.name || '');
@@ -320,11 +494,68 @@ export default function ManageBusinessScreen() {
     setFaqs(faqs.filter((_, i) => i !== index));
   };
 
+  const formatCount = (n: number): string => {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}k`;
+    return n.toString();
+  };
+
+  // Sum daily view buckets for the selected time range.
+  // "Overall" uses the persisted total counter; all other ranges compute
+  // client-side from viewsByDate — no extra Firestore reads required.
+  const getViewsForRange = (): number => {
+    if (timeRange === 'Overall') {
+      return business?.profileViews ?? 0;
+    }
+    const viewsByDate = business?.viewsByDate ?? {};
+    const rangeToDays: Record<string, number> = {
+      '1 Week':  7,
+      '1 Month': 30,
+      '3 Month': 90,
+      '6 Month': 180,
+      '1 Year':  365,
+      '3 Year':  1095,
+    };
+    const days = rangeToDays[timeRange] ?? 30;
+    const now = new Date();
+    let total = 0;
+    for (let i = 0; i < days; i++) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - i);
+      const key = d.toISOString().slice(0, 10); // e.g. "2026-05-29"
+      total += viewsByDate[key] ?? 0;
+    }
+    return total;
+  };
+
+  // Filter the already-fetched enquiries array to the selected time window.
+  // No extra Firestore reads — enquiries are loaded on mount.
+  const getEnquiriesForRange = (): Enquiry[] => {
+    if (!enquiries.length) return [];
+    if (timeRange === 'Overall') return enquiries;
+    const rangeToDays: Record<string, number> = {
+      '1 Week':  7,
+      '1 Month': 30,
+      '3 Month': 90,
+      '6 Month': 180,
+      '1 Year':  365,
+      '3 Year':  1095,
+    };
+    const days = rangeToDays[timeRange] ?? 30;
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    return enquiries.filter(e => {
+      const ts = e.createdAt?.seconds
+        ? e.createdAt.seconds * 1000
+        : e.createdAt?.getTime?.() ?? 0;
+      return ts >= cutoff;
+    });
+  };
+
   const STATS = [
-    { id: '1', label: 'Views', value: '1.2k', icon: 'eye.fill', color: '#3b82f6' },
-    { id: '2', label: 'Inquiries', value: '34', icon: 'message.fill', color: '#d4af37' },
-    { id: '3', label: 'Shortlists', value: '142', icon: 'heart.fill', color: '#ef4444' },
-    { id: '4', label: 'Rating', value: business?.rating?.toString() || '0', icon: 'star.fill', color: '#22c55e' },
+    { id: '1', label: 'Views',      value: formatCount(getViewsForRange()),              icon: 'eye.fill',     color: '#3b82f6' },
+    { id: '2', label: 'Inquiries',  value: formatCount(getEnquiriesForRange().length),   icon: 'message.fill', color: '#22c55e' },
+    { id: '3', label: 'Shortlists', value: formatCount(business?.shortlistCount ?? 0),   icon: 'heart.fill',   color: '#ef4444' },
+    { id: '4', label: 'Rating',     value: business?.rating?.toString() || '0',          icon: 'star.fill',    color: '#d4af37' },
   ];
 
   const PORTFOLIO = business?.coverImage ? [business.coverImage] : [];
@@ -340,7 +571,7 @@ export default function ManageBusinessScreen() {
   if (!business) {
     return (
       <View style={[styles.container, styles.center]}>
-        <Text style={{ color: '#ffffff' }}>Business not found</Text>
+        <Text style={{ color: colors.white }}>Business not found</Text>
         <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
           <Text style={{ color: '#d4af37' }}>Go Back</Text>
         </TouchableOpacity>
@@ -349,7 +580,7 @@ export default function ManageBusinessScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.header}>
         {isEditing ? (
@@ -1080,75 +1311,117 @@ export default function ManageBusinessScreen() {
               ))}
             </ScrollView>
 
-            {/* ── UNIFIED OVERVIEW CARD ── */}
-            <View style={styles.statsGrid}>
-              <View style={styles.unifiedStatCard}>
-                <View style={styles.statRow}>
-                  {STATS.slice(0, 2).map((stat) => (
-                    <View key={stat.id} style={styles.quadrant}>
-                      <View style={styles.statHeader}>
-                        <View style={[styles.statIcon, { backgroundColor: `${stat.color}15` }]}>
-                          <IconSymbol name={stat.icon as any} size={16} color={stat.color} />
-                        </View>
-                        <Text style={styles.statValue}>{stat.value}</Text>
+            {/* ── KPI CARDS 2×2 GRID ── */}
+            <View style={styles.kpiGrid}>
+              {STATS.map((stat) => (
+                <View key={stat.id} style={styles.kpiCard}>
+                  {/* Left accent bar */}
+                  <View style={[styles.kpiLeftBar, { backgroundColor: stat.color }]} />
+                  <View style={styles.kpiCardInner}>
+                    {/* Icon + value row */}
+                    <View style={styles.kpiTopRow}>
+                      <View style={[styles.kpiIconWrap, { backgroundColor: `${stat.color}18` }]}>
+                        <IconSymbol name={stat.icon as any} size={18} color={stat.color} />
                       </View>
-                      <Text style={styles.statLabel}>{stat.label}</Text>
+                      <Text style={[styles.kpiValue, { color: stat.color }]}>{stat.value}</Text>
                     </View>
-                  ))}
+                    <Text style={styles.kpiLabel}>{stat.label}</Text>
+                  </View>
                 </View>
-                <View style={styles.statDividerH} />
-                <View style={styles.statRow}>
-                  {STATS.slice(2, 4).map((stat) => (
-                    <View key={stat.id} style={styles.quadrant}>
-                      <View style={styles.statHeader}>
-                        <View style={[styles.statIcon, { backgroundColor: `${stat.color}15` }]}>
-                          <IconSymbol name={stat.icon as any} size={16} color={stat.color} />
-                        </View>
-                        <Text style={styles.statValue}>{stat.value}</Text>
-                      </View>
-                      <Text style={styles.statLabel}>{stat.label}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
+              ))}
             </View>
 
             {/* ── MARKET STANDING (RANKING) ── */}
             <View style={styles.analyticsSection}>
-              <View style={styles.rankingCard}>
-                <LinearGradient
-                  colors={['#d4af37', '#996515']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.rankingGradient}
-                >
-                  <View style={styles.rankingHeader}>
-                    <View style={styles.rankingIconBg}>
-                      <IconSymbol name="crown.fill" size={20} color="#ffffff" />
-                    </View>
-                    <Text style={styles.rankingTitle}>Market Standing</Text>
-                  </View>
-                  
-                  <View style={styles.rankingContent}>
-                    <Text style={styles.rankingValue}>Top 15%</Text>
-                    <Text style={styles.rankingSubText}>
-                      of {category || 'Professionals'} in Mumbai
+              {loadingMarketRank ? (
+                <View style={[styles.rankingCard, { minHeight: 180 }]}>
+                  <LinearGradient
+                    colors={['#1e293b', '#0f172a']}
+                    style={[StyleSheet.absoluteFillObject, { padding: 20, justifyContent: 'center', alignItems: 'center', borderRadius: 24 }]}
+                  >
+                    <ActivityIndicator size="small" color="#d4af37" />
+                    <Text style={{ color: '#cbd5e1', marginTop: 12, fontFamily: 'Outfit_700Bold', fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Calculating Standing...
                     </Text>
-                  </View>
+                  </LinearGradient>
+                </View>
+              ) : marketPercentile === null ? (
+                <View style={styles.rankingCard}>
+                  <LinearGradient
+                    colors={['#334155', '#1e293b']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.rankingGradient}
+                  >
+                    <View style={styles.rankingHeader}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <View style={styles.rankingIconBg}>
+                          <IconSymbol name="crown.fill" size={20} color="#94a3b8" />
+                        </View>
+                        <Text style={styles.rankingTitle}>Market Standing</Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.rankingContent}>
+                      <Text style={[styles.rankingValue, { fontSize: 24, color: '#cbd5e1' }]}>Not Enough Data</Text>
+                      <Text style={styles.rankingSubText}>
+                        Publish your business and collect views or reviews to see your relative market standing.
+                      </Text>
+                    </View>
+                  </LinearGradient>
+                </View>
+              ) : (() => {
+                const fillPercentage = Math.max(0, Math.min(100, 100 - marketPercentile));
+                const rankingGradientColors = (() => {
+                  if (marketPercentile <= 15) return ['#d4af37', '#996515'] as const; // Gold Elite
+                  if (marketPercentile <= 45) return ['#94a3b8', '#475569'] as const; // Silver High
+                  return ['#cd7f32', '#8c502b'] as const; // Bronze Standard
+                })();
+                const standingText = marketRank === 1 ? 'Top Rank' : `Top ${marketPercentile}%`;
+                const stateOrUT = getStateFromAddress(business?.location?.address);
 
-                  <View style={styles.gaugeContainer}>
-                    <View style={styles.gaugeTrack}>
-                      <View style={[styles.gaugeFill, { width: '85%' }]} />
-                      <View style={[styles.gaugeMarker, { left: '85%' }]} />
-                    </View>
-                    <View style={styles.gaugeLabels}>
-                      <Text style={styles.gaugeLabel}>Elite</Text>
-                      <Text style={styles.gaugeLabel}>You</Text>
-                      <Text style={styles.gaugeLabel}>Average</Text>
-                    </View>
+                return (
+                  <View style={styles.rankingCard}>
+                    <LinearGradient
+                      colors={rankingGradientColors}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.rankingGradient}
+                    >
+                      <View style={styles.rankingHeader}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                          <View style={styles.rankingIconBg}>
+                            <IconSymbol name="crown.fill" size={20} color="#ffffff" />
+                          </View>
+                          <Text style={styles.rankingTitle}>Market Standing</Text>
+                        </View>
+                        <View style={styles.rankBadge}>
+                          <Text style={styles.rankBadgeText}>Rank #{marketRank} of {totalInMarket}</Text>
+                        </View>
+                      </View>
+                      
+                      <View style={styles.rankingContent}>
+                        <Text style={styles.rankingValue}>{standingText}</Text>
+                        <Text style={styles.rankingSubText}>
+                          of {category || 'Professionals'} in {stateOrUT}
+                        </Text>
+                      </View>
+
+                      <View style={styles.gaugeContainer}>
+                        <View style={styles.gaugeTrack}>
+                          <View style={[styles.gaugeFill, { width: `${fillPercentage}%` }]} />
+                          <View style={[styles.gaugeMarker, { left: `${fillPercentage}%` }]} />
+                        </View>
+                        <View style={styles.gaugeLabels}>
+                          <Text style={styles.gaugeLabel}>Emerging</Text>
+                          <Text style={styles.gaugeLabel}>Average</Text>
+                          <Text style={styles.gaugeLabel}>Elite</Text>
+                        </View>
+                      </View>
+                    </LinearGradient>
                   </View>
-                </LinearGradient>
-              </View>
+                );
+              })()}
             </View>
 
             {/* ── PERFORMANCE OVERVIEW ── */}
@@ -1207,29 +1480,45 @@ export default function ManageBusinessScreen() {
             <View style={styles.analyticsSection}>
               <Text style={styles.sectionTitle}>Inquiry Channels</Text>
               <View style={styles.channelsCard}>
-                {[
-                  { label: 'WhatsApp', value: 18, color: '#22c55e', icon: 'message.fill' },
-                  { label: 'Phone Calls', value: 12, color: '#3b82f6', icon: 'phone.fill' },
-                  { label: 'In-App Chat', value: 4, color: '#d4af37', icon: 'bubble.left.fill' },
-                ].map((item, idx) => (
-                  <View key={idx} style={styles.channelRow}>
-                    <View style={styles.channelHeader}>
-                      <View style={styles.channelIconName}>
-                        <IconSymbol name={item.icon as any} size={14} color={item.color} />
-                        <Text style={styles.channelLabel}>{item.label}</Text>
+                {(() => {
+                  const rangeEnquiries = getEnquiriesForRange();
+                  const total = rangeEnquiries.length;
+                  const whatsapp = rangeEnquiries.filter(e => e.preferredContact === 'whatsapp').length;
+                  const phone    = rangeEnquiries.filter(e => e.preferredContact === 'call').length;
+                  const chat     = rangeEnquiries.filter(e => e.preferredContact === 'chat' || !e.preferredContact).length;
+                  const channels = [
+                    { label: 'WhatsApp',    value: whatsapp, color: '#22c55e', icon: 'message.fill' },
+                    { label: 'Phone Calls', value: phone,    color: '#3b82f6', icon: 'phone.fill' },
+                    { label: 'In-App Chat', value: chat,     color: '#d4af37', icon: 'bubble.left.fill' },
+                  ];
+                  if (total === 0) {
+                    return (
+                      <View style={styles.emptyState}>
+                        <IconSymbol name="folder" size={32} color="#334155" />
+                        <Text style={styles.emptyStateText}>No inquiries in this period.</Text>
                       </View>
-                      <Text style={styles.channelValue}>{item.value}</Text>
+                    );
+                  }
+                  return channels.map((item, idx) => (
+                    <View key={idx} style={styles.channelRow}>
+                      <View style={styles.channelHeader}>
+                        <View style={styles.channelIconName}>
+                          <IconSymbol name={item.icon as any} size={14} color={item.color} />
+                          <Text style={styles.channelLabel}>{item.label}</Text>
+                        </View>
+                        <Text style={styles.channelValue}>{item.value}</Text>
+                      </View>
+                      <View style={styles.progressBarBg}>
+                        <View
+                          style={[
+                            styles.progressBarFill,
+                            { width: `${total > 0 ? (item.value / total) * 100 : 0}%`, backgroundColor: item.color }
+                          ]}
+                        />
+                      </View>
                     </View>
-                    <View style={styles.progressBarBg}>
-                      <View 
-                        style={[
-                          styles.progressBarFill, 
-                          { width: `${(item.value / 34) * 100}%`, backgroundColor: item.color }
-                        ]} 
-                      />
-                    </View>
-                  </View>
-                ))}
+                  ));
+                })()}
               </View>
             </View>
 
@@ -1241,7 +1530,7 @@ export default function ManageBusinessScreen() {
                   <IconSymbol name="heart.circle.fill" size={40} color="#ef4444" />
                 </View>
                 <View style={styles.shortlistInfo}>
-                  <Text style={styles.shortlistCountText}>142 Users</Text>
+                  <Text style={styles.shortlistCountText}>{formatCount(business?.shortlistCount ?? 0)} Users</Text>
                   <Text style={styles.shortlistLabel}>have shortlisted your business</Text>
                   <View style={styles.intentBadge}>
                     <Text style={styles.intentBadgeText}>High Intent</Text>
@@ -1335,24 +1624,77 @@ export default function ManageBusinessScreen() {
 
             {/* ── RECENT INQUIRIES ── */}
             <View style={[styles.analyticsSection, { marginBottom: 40 }]}>
-              <Text style={styles.sectionTitle}>Recent Inquiries</Text>
-              <View style={styles.emptyState}>
-                <IconSymbol name="message.fill" size={40} color="#334155" />
-                <Text style={styles.emptyStateText}>No new inquiries today.</Text>
-                <Text style={styles.emptyStateSubtext}>New inquiries will appear here as they arrive.</Text>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>Recent Inquiries</Text>
+                <View style={styles.timeBadge}>
+                  <Text style={styles.timeBadgeText}>{timeRange}</Text>
+                </View>
               </View>
+              {loadingEnquiries ? (
+                <ActivityIndicator color="#d4af37" style={{ marginVertical: 24 }} />
+              ) : getEnquiriesForRange().length === 0 ? (
+                <View style={styles.emptyState}>
+                  <IconSymbol name="message.fill" size={40} color="#334155" />
+                  <Text style={styles.emptyStateText}>No inquiries in this period.</Text>
+                  <Text style={styles.emptyStateSubtext}>New inquiries will appear here as they arrive.</Text>
+                </View>
+              ) : (
+                getEnquiriesForRange().slice(0, 5).map((enq, idx) => {
+                  const ts = enq.createdAt?.seconds
+                    ? enq.createdAt.seconds * 1000
+                    : enq.createdAt?.getTime?.() ?? 0;
+                  const dateStr = ts
+                    ? new Date(ts).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                    : 'Recently';
+                  const channel = enq.preferredContact || 'chat';
+                  const channelMeta = {
+                    whatsapp: { label: 'WhatsApp', color: '#22c55e', icon: 'message.fill' },
+                    call:     { label: 'Phone',    color: '#3b82f6', icon: 'phone.fill' },
+                    chat:     { label: 'Chat',     color: '#d4af37', icon: 'bubble.left.fill' },
+                    email:    { label: 'Email',    color: '#8b5cf6', icon: 'envelope.fill' },
+                  }[channel as 'whatsapp' | 'call' | 'chat' | 'email'] ?? { label: 'Chat', color: '#d4af37', icon: 'bubble.left.fill' };
+                  return (
+                    <View key={idx} style={styles.enquiryCard}>
+                      <View style={styles.enquiryCardHeader}>
+                        <View style={styles.enquiryAvatar}>
+                          <Text style={styles.enquiryAvatarText}>
+                            {enq.name?.charAt(0)?.toUpperCase() ?? '?'}
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.enquiryName}>{enq.name}</Text>
+                          <Text style={styles.enquiryDate}>{dateStr}</Text>
+                        </View>
+                        <View style={[styles.enquiryChannelBadge, { backgroundColor: `${channelMeta.color}18`, borderColor: `${channelMeta.color}40` }]}>
+                          <IconSymbol name={channelMeta.icon as any} size={10} color={channelMeta.color} />
+                          <Text style={[styles.enquiryChannelText, { color: channelMeta.color }]}>{channelMeta.label}</Text>
+                        </View>
+                      </View>
+                      {enq.message ? (
+                        <Text style={styles.enquiryMessage} numberOfLines={2}>{enq.message}</Text>
+                      ) : null}
+                      {enq.date ? (
+                        <View style={styles.enquiryEventRow}>
+                          <IconSymbol name="calendar" size={11} color="#64748b" />
+                          <Text style={styles.enquiryEventDate}>Event: {enq.date}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })
+              )}
             </View>
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: colors.background,
   },
   center: {
     justifyContent: 'center',
@@ -1363,15 +1705,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: insets.top + 16,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: colors.cardBorder,
   },
   backBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1380,13 +1723,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   cancelBtnText: {
-    color: '#94a3b8',
+    color: colors.slate400,
     fontFamily: 'Outfit_600SemiBold',
     fontSize: 14,
   },
   headerTitle: {
     fontSize: 18,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_800ExtraBold',
   },
   headerShortId: {
@@ -1415,12 +1758,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   editBtnText: {
-    color: '#0f172a',
+    color: isDark ? '#0f172a' : '#ffffff',
     fontFamily: 'Outfit_700Bold',
     fontSize: 14,
   },
   editBtnSmallText: {
-    color: '#0f172a',
+    color: isDark ? '#0f172a' : '#ffffff',
     fontFamily: 'Outfit_700Bold',
     fontSize: 12,
   },
@@ -1440,7 +1783,7 @@ const styles = StyleSheet.create({
     minWidth: 80,
   },
   saveBtnText: {
-    color: '#0f172a',
+    color: isDark ? '#0f172a' : '#ffffff',
     fontFamily: 'Outfit_800ExtraBold',
     fontSize: 14,
   },
@@ -1448,17 +1791,91 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 40,
   },
+  // ── KPI 2×2 GRID CARDS ──
+  kpiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    paddingHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  kpiCard: {
+    width: '47%',
+    backgroundColor: colors.deepSlate,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    flexDirection: 'row',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  kpiLeftBar: {
+    width: 3,
+    borderRadius: 3,
+  },
+  kpiCardInner: {
+    flex: 1,
+    padding: 12,
+  },
+  kpiTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  kpiIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  kpiValue: {
+    fontSize: 22,
+    fontFamily: 'Outfit_800ExtraBold',
+    letterSpacing: -0.5,
+  },
+  kpiLabel: {
+    fontSize: 10,
+    color: colors.slate400,
+    fontFamily: 'Outfit_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+
+  // kept for any other references
+  kpiScrollWrapper: {
+    marginTop: 12,
+    marginBottom: 28,
+  },
+  kpiScrollContent: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  kpiAccentBar: {
+    height: 4,
+    borderRadius: 2,
+    marginBottom: 16,
+    marginHorizontal: -16,
+  },
+
+  // kept for any other references
   statsGrid: {
     paddingHorizontal: 20,
     marginBottom: 24,
     marginTop: 10,
   },
   unifiedStatCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderRadius: 28,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
   },
   statRow: {
     flexDirection: 'row',
@@ -1470,7 +1887,7 @@ const styles = StyleSheet.create({
   },
   statDividerH: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
     marginVertical: 16,
   },
   statHeader: {
@@ -1488,12 +1905,12 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 20,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_800ExtraBold',
   },
   statLabel: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Outfit_600SemiBold',
     marginLeft: 2,
   },
@@ -1502,7 +1919,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: colors.cardBorder,
   },
   tab: {
     flex: 1,
@@ -1510,9 +1927,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
   },
+  activeTab: {},
+  emptyText: {
+    color: colors.slate400,
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+    textAlign: 'center',
+    marginTop: 12,
+  },
   tabText: {
     fontSize: 13,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Outfit_600SemiBold',
   },
   activeTabText: {
@@ -1535,25 +1960,25 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 11,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Inter_700Bold',
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderRadius: 16,
     padding: 16,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Inter_400Regular',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
   },
   disabledInput: {
     backgroundColor: 'transparent',
     borderColor: 'rgba(255,255,255,0.02)',
-    color: '#94a3b8',
+    color: colors.slate400,
   },
   textArea: {
     height: 120,
@@ -1579,15 +2004,15 @@ const styles = StyleSheet.create({
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.slate800,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
   },
   tagText: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 13,
     fontFamily: 'Inter_500Medium',
   },
@@ -1615,11 +2040,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   faqEditor: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     padding: 16,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
     marginBottom: 16,
   },
   faqHeader: {
@@ -1629,7 +2054,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   faqNumber: {
-    color: '#64748b',
+    color: colors.slate400,
     fontSize: 12,
     fontFamily: 'Outfit_800ExtraBold',
   },
@@ -1648,7 +2073,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   promotionBtnText: {
-    color: '#0f172a',
+    color: isDark ? '#0f172a' : '#ffffff',
     fontSize: 16,
     fontFamily: 'Outfit_800ExtraBold',
   },
@@ -1692,12 +2117,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   newsCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     padding: 16,
     borderRadius: 20,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
   },
   newsHeader: {
     flexDirection: 'row',
@@ -1706,17 +2131,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   newsDate: {
-    color: '#64748b',
+    color: colors.slate400,
     fontSize: 12,
     fontFamily: 'Inter_500Medium',
   },
   newsTitle: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 16,
     fontFamily: 'Outfit_700Bold',
   },
   newsBody: {
-    color: '#94a3b8',
+    color: colors.slate400,
     fontSize: 14,
     fontFamily: 'Inter_400Regular',
     lineHeight: 20,
@@ -1726,7 +2151,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_800ExtraBold',
     marginBottom: 16,
   },
@@ -1736,14 +2161,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   emptyStateText: {
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Inter_500Medium',
   },
   newsInput: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderRadius: 16,
     padding: 16,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Inter_400Regular',
     borderWidth: 1,
     borderColor: 'rgba(212, 175, 55, 0.3)',
@@ -1752,7 +2177,7 @@ const styles = StyleSheet.create({
   },
   inputHint: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Inter_400Regular',
     marginTop: 6,
     marginLeft: 4,
@@ -1768,7 +2193,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   newsPreviewCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
@@ -1785,13 +2210,13 @@ const styles = StyleSheet.create({
   },
   newsStatus: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Inter_600SemiBold',
     marginTop: 2,
   },
   newsPreviewText: {
     fontSize: 14,
-    color: '#cbd5e1',
+    color: colors.slate700,
     lineHeight: 20,
     fontFamily: 'Inter_400Regular',
     marginVertical: 16,
@@ -1812,21 +2237,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   updateNewsBtnText: {
-    color: '#0f172a',
+    color: isDark ? '#0f172a' : '#ffffff',
     fontSize: 14,
     fontFamily: 'Outfit_800ExtraBold',
   },
   newsInputSmall: {
     flex: 1,
     minHeight: 50,
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Inter_400Regular',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
   },
   addNewsContainer: {
     flexDirection: 'row',
@@ -1848,7 +2273,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.02)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
@@ -1869,14 +2294,14 @@ const styles = StyleSheet.create({
   },
   newsItemText: {
     flex: 1,
-    color: '#e2e8f0',
+    color: colors.slate800,
     fontSize: 14,
     lineHeight: 20,
     fontFamily: 'Inter_400Regular',
   },
   emptyStateSubtext: {
     fontSize: 14,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Inter_400Regular',
     marginTop: 8,
     textAlign: 'center',
@@ -1899,7 +2324,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginTop: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
   },
   performanceGradient: {
     padding: 20,
@@ -1912,12 +2337,12 @@ const styles = StyleSheet.create({
   },
   perfLabel: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: colors.slate400,
     fontFamily: 'Outfit_600SemiBold',
   },
   perfValue: {
     fontSize: 32,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_800ExtraBold',
     marginTop: 4,
   },
@@ -1953,20 +2378,20 @@ const styles = StyleSheet.create({
   },
   funnelLabel: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Inter_500Medium',
   },
   funnelCount: {
     fontSize: 12,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_700Bold',
   },
   channelsCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
     gap: 20,
   },
   channelRow: {
@@ -1984,17 +2409,17 @@ const styles = StyleSheet.create({
   },
   channelLabel: {
     fontSize: 14,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_600SemiBold',
   },
   channelValue: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: colors.slate400,
     fontFamily: 'Outfit_700Bold',
   },
   progressBarBg: {
     height: 6,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -2003,26 +2428,26 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   peakCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderRadius: 24,
     padding: 20,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
   },
   peakInfo: {
     flex: 1,
   },
   peakTitle: {
     fontSize: 16,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_700Bold',
   },
   peakDesc: {
     fontSize: 13,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Inter_400Regular',
     marginTop: 2,
   },
@@ -2036,11 +2461,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   chartCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
     marginTop: 12,
   },
   barChartContainer: {
@@ -2057,7 +2482,7 @@ const styles = StyleSheet.create({
   barTrack: {
     flex: 1,
     width: 8,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)',
     borderRadius: 4,
     justifyContent: 'flex-end',
     overflow: 'hidden',
@@ -2069,7 +2494,7 @@ const styles = StyleSheet.create({
   dayLabel: {
     marginTop: 12,
     fontSize: 11,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Outfit_700Bold',
   },
   peakDayText: {
@@ -2080,7 +2505,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     gap: 20,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
+    borderTopColor: colors.cardBorder,
     paddingTop: 16,
   },
   legendItem: {
@@ -2095,7 +2520,7 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 11,
-    color: '#94a3b8',
+    color: colors.slate400,
     fontFamily: 'Inter_500Medium',
   },
   timeRangeWrapper: {
@@ -2110,9 +2535,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 12,
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
   },
   activeRangeChip: {
     borderColor: '#d4af37',
@@ -2120,18 +2545,18 @@ const styles = StyleSheet.create({
   },
   rangeText: {
     fontSize: 13,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Outfit_600SemiBold',
   },
   activeRangeText: {
     color: '#d4af37',
   },
   locationCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
     marginTop: 12,
     gap: 16,
   },
@@ -2143,12 +2568,12 @@ const styles = StyleSheet.create({
   },
   locationSubTitle: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: colors.slate400,
     fontFamily: 'Outfit_600SemiBold',
   },
   locationTotal: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Inter_500Medium',
   },
   locationRow: {
@@ -2161,17 +2586,17 @@ const styles = StyleSheet.create({
   },
   cityName: {
     fontSize: 14,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_600SemiBold',
   },
   cityPercent: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: colors.slate400,
     fontFamily: 'Outfit_700Bold',
   },
   locationBarTrack: {
     height: 6,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)',
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -2181,7 +2606,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   shortlistCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderRadius: 24,
     padding: 24,
     flexDirection: 'row',
@@ -2204,12 +2629,12 @@ const styles = StyleSheet.create({
   },
   shortlistCountText: {
     fontSize: 24,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_800ExtraBold',
   },
   shortlistLabel: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: colors.slate400,
     fontFamily: 'Inter_500Medium',
     marginTop: 2,
   },
@@ -2229,7 +2654,7 @@ const styles = StyleSheet.create({
   },
   shortlistTip: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Inter_400Regular',
     fontStyle: 'italic',
     marginTop: 12,
@@ -2237,93 +2662,109 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   rankingCard: {
-    borderRadius: 24,
+    marginHorizontal: 20,
+    borderRadius: 16,
     overflow: 'hidden',
     marginTop: 10,
-    elevation: 8,
+    elevation: 4,
     shadowColor: '#d4af37',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
   },
   rankingGradient: {
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   rankingHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  rankBadge: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  rankBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontFamily: 'Outfit_700Bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   rankingIconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   rankingTitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.9)',
     fontFamily: 'Outfit_700Bold',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
   },
   rankingContent: {
-    marginBottom: 20,
+    marginBottom: 12,
   },
   rankingValue: {
-    fontSize: 36,
-    color: '#ffffff',
+    fontSize: 26,
+    color: colors.white,
     fontFamily: 'Outfit_800ExtraBold',
+    lineHeight: 30,
   },
   rankingSubText: {
-    fontSize: 14,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.8)',
     fontFamily: 'Inter_500Medium',
-    marginTop: 4,
+    marginTop: 2,
   },
   gaugeContainer: {
-    gap: 8,
+    gap: 6,
   },
   gaugeTrack: {
-    height: 6,
+    height: 4,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 3,
+    borderRadius: 2,
     position: 'relative',
     overflow: 'visible',
   },
   gaugeFill: {
     height: '100%',
     backgroundColor: '#ffffff',
-    borderRadius: 3,
+    borderRadius: 2,
     opacity: 0.4,
   },
   gaugeMarker: {
     position: 'absolute',
-    top: -4,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    top: -3,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: '#ffffff',
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: '#d4af37',
-    marginLeft: -7,
+    marginLeft: -5,
   },
   gaugeLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   gaugeLabel: {
-    fontSize: 10,
+    fontSize: 9,
     color: 'rgba(255,255,255,0.7)',
     fontFamily: 'Outfit_700Bold',
     textTransform: 'uppercase',
   },
   displayTextMain: {
     fontSize: 20,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_700Bold',
     paddingVertical: 2,
     letterSpacing: -0.3,
@@ -2336,13 +2777,13 @@ const styles = StyleSheet.create({
   },
   displayTextAbout: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: colors.slate400,
     lineHeight: 22,
     fontFamily: 'Inter_400Regular',
     marginTop: 2,
   },
   storageCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
@@ -2368,12 +2809,12 @@ const styles = StyleSheet.create({
   },
   storageTitle: {
     fontSize: 15,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_700Bold',
   },
   storageStats: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: colors.slate400,
     fontFamily: 'Inter_500Medium',
     marginTop: 2,
   },
@@ -2392,7 +2833,7 @@ const styles = StyleSheet.create({
   },
   storageBarTrack: {
     height: 8,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)',
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 10,
@@ -2403,7 +2844,7 @@ const styles = StyleSheet.create({
   },
   storageHint: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Inter_400Regular',
   },
   coverPreviewContainer: {
@@ -2413,7 +2854,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     position: 'relative',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
   },
   coverPreview: {
     width: '100%',
@@ -2440,12 +2881,12 @@ const styles = StyleSheet.create({
   },
   emptyCoverPlaceholder: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.02)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
     justifyContent: 'center',
     alignItems: 'center',
     borderStyle: 'dashed',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: colors.cardBorder,
   },
   emptyCoverText: {
     color: '#475569',
@@ -2478,21 +2919,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: colors.cardBorder,
   },
   datePickerBtn: {
-    backgroundColor: '#020617',
+    backgroundColor: colors.background,
     borderRadius: 16,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.slate800,
     marginTop: 4,
   },
   datePickerBtnText: {
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Inter_400Regular',
     fontSize: 15,
   },
@@ -2501,23 +2942,23 @@ const styles = StyleSheet.create({
   },
   startedHint: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Inter_400Regular',
     marginTop: 2,
   },
   dropdownBtn: {
-    backgroundColor: '#020617',
+    backgroundColor: colors.background,
     borderRadius: 16,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.slate800,
     marginTop: 4,
   },
   dropdownBtnText: {
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Inter_400Regular',
     fontSize: 15,
   },
@@ -2528,14 +2969,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pickerModalContainer: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     width: '85%',
     maxHeight: '70%',
     minHeight: 400,
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: colors.cardBorder,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.5,
@@ -2549,11 +2990,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: colors.cardBorder,
   },
   pickerTitle: {
     fontSize: 18,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_700Bold',
   },
   pickerList: {
@@ -2573,7 +3014,7 @@ const styles = StyleSheet.create({
   },
   pickerItemText: {
     fontSize: 15,
-    color: '#94a3b8',
+    color: colors.slate400,
     fontFamily: 'Inter_500Medium',
   },
   pickerItemTextActive: {
@@ -2597,7 +3038,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
+    borderTopColor: colors.cardBorder,
   },
   pickerFooterText: {
     fontSize: 11,
@@ -2632,7 +3073,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   leadsOverviewTitle: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 16,
     fontFamily: 'Outfit_700Bold',
   },
@@ -2643,15 +3084,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   leadsCountText: {
-    color: '#0f172a',
+    color: isDark ? '#0f172a' : '#ffffff',
     fontSize: 10,
     fontFamily: 'Outfit_800ExtraBold',
     letterSpacing: 0.5,
   },
   leadCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.deepSlate,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.cardBorder,
     borderRadius: 24,
     padding: 20,
     gap: 16,
@@ -2682,12 +3123,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
   },
   leadClientName: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 16,
     fontFamily: 'Outfit_700Bold',
   },
   leadTimestamp: {
-    color: '#64748b',
+    color: colors.slate400,
     fontSize: 11,
     fontFamily: 'Inter_400Regular',
     marginTop: 2,
@@ -2714,14 +3155,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_600SemiBold',
   },
   leadMessageContainer: {
-    backgroundColor: '#020617',
+    backgroundColor: colors.background,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.slate800,
   },
   leadMessageLabel: {
-    color: '#64748b',
+    color: colors.slate400,
     fontSize: 11,
     fontFamily: 'Outfit_700Bold',
     textTransform: 'uppercase',
@@ -2729,7 +3170,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   leadMessageContent: {
-    color: '#e2e8f0',
+    color: colors.slate800,
     fontSize: 14,
     fontFamily: 'Inter_400Regular',
     lineHeight: 20,
@@ -2758,7 +3199,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#475569',
   },
   leadActionBtnText: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 13,
     fontFamily: 'Outfit_700Bold',
   },
@@ -2787,7 +3228,7 @@ const styles = StyleSheet.create({
   },
   emptyStateTitle: {
     fontSize: 20,
-    color: '#ffffff',
+    color: colors.white,
     fontFamily: 'Outfit_700Bold',
     marginTop: 16,
     marginBottom: 8,
@@ -2795,7 +3236,7 @@ const styles = StyleSheet.create({
   },
   emptyStateDesc: {
     fontSize: 14,
-    color: '#64748b',
+    color: colors.slate400,
     fontFamily: 'Inter_400Regular',
     textAlign: 'center',
     lineHeight: 20,
@@ -2815,21 +3256,94 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   inlineCancelBtn: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: colors.cardBorder,
   },
   inlineSaveBtn: {
     backgroundColor: '#d4af37',
   },
   inlineCancelBtnText: {
-    color: '#94a3b8',
+    color: colors.slate400,
     fontSize: 13,
     fontFamily: 'Outfit_600SemiBold',
   },
   inlineSaveBtnText: {
-    color: '#0f172a',
+    color: isDark ? '#0f172a' : '#ffffff',
     fontSize: 13,
     fontFamily: 'Outfit_700Bold',
+  },
+
+  // ── ENQUIRY CARDS (Recent Inquiries section) ──
+  enquiryCard: {
+    backgroundColor: colors.deepSlate,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  enquiryCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  enquiryAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(212, 175, 55, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  enquiryAvatarText: {
+    color: '#d4af37',
+    fontSize: 15,
+    fontFamily: 'Outfit_700Bold',
+  },
+  enquiryName: {
+    color: colors.white,
+    fontSize: 14,
+    fontFamily: 'Outfit_700Bold',
+    marginBottom: 2,
+  },
+  enquiryDate: {
+    color: colors.slate400,
+    fontSize: 11,
+    fontFamily: 'Inter_400Regular',
+  },
+  enquiryChannelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  enquiryChannelText: {
+    fontSize: 10,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  enquiryMessage: {
+    color: colors.slate400,
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    lineHeight: 18,
+    marginBottom: 6,
+  },
+  enquiryEventRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  enquiryEventDate: {
+    color: '#64748b',
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
   },
 });

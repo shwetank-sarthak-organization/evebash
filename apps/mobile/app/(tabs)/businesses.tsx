@@ -13,7 +13,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Image as ExpoImage } from 'expo-image';
@@ -204,10 +204,12 @@ export default function BusinessLandingScreen() {
     }
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       {/* ── HEADER ── */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
         <View style={styles.headerLeft}>
           <View>
             <Text style={styles.headerTitle}>Biz Hub</Text>
@@ -589,7 +591,7 @@ export default function BusinessLandingScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -610,7 +612,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 12,
+
     paddingBottom: 24,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -648,10 +650,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     fontSize: 28,
     color: colors.white,
     fontFamily: 'Outfit_800ExtraBold',
-    marginTop: -2,
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.slate400,
     fontFamily: 'Inter_500Medium',
   },

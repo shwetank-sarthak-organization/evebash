@@ -15,7 +15,7 @@ import {
   Platform,
   Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol, IconSymbolName } from '@/components/ui/icon-symbol';
 import { useAuth } from '@/context/AuthContext';
@@ -73,6 +73,7 @@ export default function SocialScreen() {
   const { colors, isDark } = useAppTheme();
   const styles = getStyles(colors, isDark);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [searchModalVisible, setSearchModalVisible] = useState(false);
   const [usersList, setUsersList] = useState<any[]>([]);
@@ -1061,11 +1062,11 @@ export default function SocialScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         
         {/* Header */}
-        <LinearGradient colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]} style={styles.header}>
+        <LinearGradient colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]} style={[styles.header, { paddingTop: insets.top + 4 }]}>
           <View style={styles.topRow}>
             <Text style={styles.headerTitle}>Social Hub</Text>
             <TouchableOpacity 
@@ -1284,7 +1285,7 @@ export default function SocialScreen() {
         </Modal>
 
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -1304,12 +1305,11 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     elevation: 8,
   },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitle: { fontSize: 32, fontFamily: 'Outfit_800ExtraBold', color: colors.white, letterSpacing: -1 },
+  headerTitle: { fontSize: 28, fontFamily: 'Outfit_800ExtraBold', color: colors.white, letterSpacing: -1 },
   headerSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.slate400,
     fontFamily: 'Inter_400Regular',
-    marginTop: 4,
   },
   content: { flex: 1 },
   centerContainer: { paddingTop: 100, alignItems: 'center', justifyContent: 'center' },

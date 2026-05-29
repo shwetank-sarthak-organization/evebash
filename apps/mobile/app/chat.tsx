@@ -15,7 +15,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { onChatMessages, sendMessage, ChatMessage, closeChatRoom, ChatRoom } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export default function ChatScreen() {
@@ -35,7 +35,8 @@ export default function ChatScreen() {
     
     setLoading(true);
     const unsubscribe = onChatMessages(roomId as string, (data) => {
-      setMessages(data);
+      const filtered = data.filter(msg => msg.text !== 'Chat ended by customer');
+      setMessages(filtered);
       setLoading(false);
     });
 
@@ -54,6 +55,22 @@ export default function ChatScreen() {
 
     return () => unsubscribe();
   }, [roomId]);
+
+  useEffect(() => {
+    if (!roomId || !user?.uid) return;
+    
+    const roomRef = doc(db, "chatRooms", roomId as string);
+    const markAsRead = async () => {
+      try {
+        await updateDoc(roomRef, {
+          [`lastRead.${user.uid}`]: serverTimestamp()
+        });
+      } catch (err) {
+        console.error("Error marking chat as read:", err);
+      }
+    };
+    markAsRead();
+  }, [roomId, user?.uid]);
 
   const getIsExpired = () => {
     if (!chatRoom?.createdAt) return false;
@@ -78,7 +95,7 @@ export default function ChatScreen() {
   const handleEndChat = async () => {
     if (!roomId || !user) return;
     try {
-      await closeChatRoom(roomId as string, user.uid, user.name || 'Customer');
+      await closeChatRoom(roomId as string);
     } catch (err) {
       console.error('Error closing chat room:', err);
     }
