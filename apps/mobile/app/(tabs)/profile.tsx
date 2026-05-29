@@ -318,15 +318,6 @@ export default function ProfileScreen() {
           colors={[colors.deepSlate, colors.background]}
           style={[styles.header, { paddingTop: insets.top + 2 }]}
         >
-          {/* Notification Button */}
-          <TouchableOpacity 
-            style={[styles.notifIconButton, { top: insets.top + 12 }]} 
-            activeOpacity={0.7}
-            onPress={() => Alert.alert("Notifications", "Coming Soon: Updates on your albums, events, and shortlist activity.")}
-          >
-            <IconSymbol name="bell.fill" size={20} color={colors.white} />
-            <View style={styles.notificationBadge} />
-          </TouchableOpacity>
 
           <View style={styles.profileRow}>
             <View style={styles.avatarRing}>
@@ -819,8 +810,6 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     position: 'relative',
     paddingTop: 2, 
     paddingBottom: 6,
-    borderBottomWidth: 1.5,
-    borderBottomColor: colors.border,
   },
   profileRow: { 
     flexDirection: 'row', 
@@ -832,31 +821,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingRight: 36,
     flex: 1 
   },
-  notifIconButton: {
-    position: 'absolute',
-    top: 12,
-    right: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.gold,
-    borderWidth: 1.5,
-    borderColor: colors.deepSlate,
-  },
+
   avatarRing: {
     padding: 3,
     borderRadius: 33,

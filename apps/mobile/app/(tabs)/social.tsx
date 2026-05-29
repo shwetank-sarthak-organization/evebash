@@ -963,20 +963,6 @@ export default function SocialScreen() {
   return (
     <View style={styles.safeArea}>
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        
-        {/* Header */}
-        <LinearGradient colors={isDark ? ['#14161b', '#0a0b0d'] : [colors.deepSlate, colors.background]} style={[styles.header, { paddingTop: insets.top + 4 }]}>
-          <View style={styles.topRow}>
-            <Text style={styles.headerTitle}>Social Hub</Text>
-            <TouchableOpacity 
-              style={styles.searchHeaderBtn}
-              onPress={() => setSearchModalVisible(true)}
-            >
-              <IconSymbol name="magnifyingglass" size={20} color={colors.white} />
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
-
         <ScrollView 
           style={styles.content} 
           showsVerticalScrollIndicator={false}
@@ -984,6 +970,33 @@ export default function SocialScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Header */}
+          <LinearGradient colors={isDark ? ['#14161b', '#0a0b0d'] : [colors.deepSlate, colors.background]} style={[styles.header, { paddingTop: insets.top + 4 }]}>
+            <View style={styles.topRow}>
+              <View style={styles.headerLeft}>
+                <TouchableOpacity 
+                  style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center', position: 'relative' }} 
+                  activeOpacity={0.7}
+                  onPress={() => Alert.alert("Notifications", "Coming Soon: Updates on your albums, events, and shortlist activity.")}
+                >
+                  <IconSymbol name="bell.fill" size={20} color={colors.gold} />
+                  <View style={styles.unreadBadge} />
+                </TouchableOpacity>
+              </View>
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={styles.headerTitle}>Social Hub</Text>
+                <Text style={styles.headerSubtitle}>Connect and share updates</Text>
+              </View>
+              <View style={styles.headerRight}>
+                <TouchableOpacity 
+                  style={styles.searchHeaderBtn}
+                  onPress={() => setSearchModalVisible(true)}
+                >
+                  <IconSymbol name="magnifyingglass" size={20} color={colors.white} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </LinearGradient>
           {loading && feedItems.length === 0 ? (
             <View style={styles.centerContainer}><ActivityIndicator color={colors.gold} size="large" /></View>
           ) : (
@@ -1472,21 +1485,41 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 16,
     paddingBottom: 16,
-    borderBottomWidth: 0.5,
-    borderBottomColor: isDark ? '#1a1d24' : colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
   },
+  headerLeft: {
+    width: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  headerRight: {
+    width: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  unreadBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.gold,
+  },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitle: { fontSize: 26, fontFamily: 'Outfit_800ExtraBold', color: colors.white, letterSpacing: 0.5, textTransform: 'uppercase' },
+  headerTitle: { fontSize: 28, fontFamily: 'AkayaKanadaka_400Regular', color: colors.white, letterSpacing: 0.5, textAlign: 'center' },
   headerSubtitle: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.slate400,
     fontFamily: 'Inter_400Regular',
-    marginTop: 2,
+    textAlign: 'center',
+    marginTop: -18,
   },
   content: { flex: 1 },
   centerContainer: { paddingTop: 100, alignItems: 'center', justifyContent: 'center' },

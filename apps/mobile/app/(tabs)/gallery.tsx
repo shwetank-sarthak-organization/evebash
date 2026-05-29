@@ -24,6 +24,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image as ExpoImage } from 'expo-image';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import Svg, { Path, Rect, Line } from 'react-native-svg';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
@@ -128,6 +129,9 @@ export default function PortfolioTabScreen() {
   const [welcomeEditVisible, setWelcomeEditVisible] = useState(false);
   const [welcomeText, setWelcomeText] = useState('');
   const [showWelcomeCard, setShowWelcomeCard] = useState(true);
+
+  // Quota Modal State
+  const [showQuotaModal, setShowQuotaModal] = useState(false);
 
   // Join Event State
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -463,36 +467,51 @@ export default function PortfolioTabScreen() {
     }
   };
 
-  const renderEventCard = (event: FirestoreEvent) => (
-    <View
-      key={event.id}
-      style={styles.eventCard}
-    >
+  const showQuotaAlert = () => setShowQuotaModal(true);
+
+  const renderEventCard = (event: FirestoreEvent, index: number) => {
+    const imageHeight = 160;
+    return (
       <TouchableOpacity
-        style={styles.cardOpenArea}
-        activeOpacity={0.85}
+        key={event.id}
+        style={styles.eventCard}
+        activeOpacity={0.88}
         onPress={() => router.push(`/events/${event.id}?mode=admin`)}
       >
-        <ExpoImage
-          source={{ uri: event.coverImage }}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-          transition={300}
-        />
-        <LinearGradient
-          colors={isDark ? ['transparent', 'rgba(2, 6, 23, 0.95)'] : ['transparent', 'rgba(255, 255, 255, 0.95)']}
-          style={styles.cardGradient}
-        />
-        <View style={styles.cardContent}>
+        {/* Image section */}
+        <View style={[styles.cardImageWrap, { height: imageHeight }]}>
+          <ExpoImage
+            source={{ uri: event.coverImage }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            transition={300}
+          />
+          {/* Soft top scrim for category badge */}
+          <LinearGradient
+            colors={['rgba(2,6,23,0.5)', 'transparent']}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 50 }}
+          />
+          {event.category ? (
+            <View style={styles.cardCategoryBadge}>
+              <Text style={styles.cardCategoryText}>{event.category.toUpperCase()}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {/* Info strip */}
+        <View style={styles.cardInfoStrip}>
           <Text style={styles.cardTitle} numberOfLines={1}>{event.title}</Text>
           <View style={styles.cardMeta}>
-            <IconSymbol name="calendar" size={10} color={colors.slate400} />
+            <IconSymbol name="calendar" size={10} color={colors.gold} />
             <Text style={styles.cardDate}>{event.date}</Text>
           </View>
         </View>
+
+        {/* Gold accent bar */}
+        <View style={styles.cardAccentBar} />
       </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
   const selectedRequestName = selectedRequestProfile?.name || selectedRequest?.name || 'Not set';
   const selectedRequestUsername = selectedRequestProfile?.username ? `@${selectedRequestProfile.username}` : 'Not set';
@@ -502,71 +521,47 @@ export default function PortfolioTabScreen() {
 
   return (
     <View style={styles.safeArea}>
-      {/* ── HEADER ── */}
-      <LinearGradient
-        colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]}
-        style={[styles.header, { paddingTop: insets.top + 4 }]}
-      >
-        <View>
-          <Text style={styles.headerName}>Host Event</Text>
-          <Text style={styles.headerGreeting}>Manage events and guests</Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity style={[styles.createBtnHeader, { backgroundColor: colors.gold }]} onPress={() => setCreateModalVisible(true)}>
-            <Text style={[styles.createBtnText, { color: '#020617' }]}>Create</Text>
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
-
       <ScrollView
         style={styles.container}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* ── USAGE STATS ── */}
-        <View style={styles.storageSection}>
-          {/* Storage Card */}
-          <View style={styles.storageCard}>
-            <View style={styles.storageHeader}>
-              <Text style={styles.storageLabel}>Storage</Text>
-              <TouchableOpacity style={styles.upgradeBtnMini} onPress={() => router.push('/pricing' as any)}>
-                <Text style={styles.upgradeTextMini}>UPGRADE</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={{ flex: 1, justifyContent: 'center', marginVertical: 12 }}>
-              <Text style={styles.storageSub} numberOfLines={1}>{(storageUsed / (1024 * 1024)).toFixed(1)} MB / 5 GB</Text>
-            </View>
-            <View style={styles.storageBarContainer}>
-              <View style={[styles.storageBar, { width: `${Math.min((storageUsed / (5 * 1024 * 1024 * 1024)) * 100, 100)}%` }]} />
-            </View>
+        {/* ── HEADER ── */}
+        <LinearGradient
+          colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]}
+          style={[styles.header, { paddingTop: insets.top + 4 }]}
+        >
+          <View style={styles.headerLeft}>
+            <TouchableOpacity 
+              style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }} 
+              activeOpacity={0.7}
+              onPress={showQuotaAlert}
+            >
+              <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <Rect width={20} height={8} x={2} y={2} rx={2} ry={2} />
+                <Rect width={20} height={8} x={2} y={14} rx={2} ry={2} />
+                <Line x1={6} x2={6.01} y1={6} y2={6} />
+                <Line x1={6} x2={6.01} y1={18} y2={18} />
+              </Svg>
+            </TouchableOpacity>
           </View>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={styles.headerName}>Host Event</Text>
+            <Text style={styles.headerGreeting}>Manage events and guests</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity 
+              style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }} 
+              onPress={() => setCreateModalVisible(true)}
+            >
+              <Svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <Path d="M5 12h14" />
+                <Path d="M12 5v14" />
+              </Svg>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
 
-          {/* Events Card */}
-          <View style={styles.storageCard}>
-            <View style={styles.storageHeader}>
-              <Text style={styles.storageLabel}>Events</Text>
-              <TouchableOpacity style={styles.upgradeBtnMini} onPress={() => router.push('/pricing' as any)}>
-                <Text style={styles.upgradeTextMini}>UPGRADE</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={{ flex: 1, justifyContent: 'center', marginVertical: 12 }}>
-              <Text style={styles.storageSub} numberOfLines={1}>
-                {events.length} / {user?.role === 'premium' || user?.role === 'elite' ? '∞' : (user?.role === 'standard' ? '20' : (user?.role === 'basic' ? '5' : '2'))}
-              </Text>
-            </View>
-            <View style={styles.storageBarContainer}>
-              <View 
-                style={[
-                  styles.storageBar, 
-                  { 
-                    width: `${Math.min((events.length / (user?.role === 'standard' ? 20 : (user?.role === 'basic' ? 5 : (user?.role === 'premium' || user?.role === 'elite' ? events.length || 1 : 2)))) * 100, 100)}%`,
-                    backgroundColor: '#818cf8' 
-                  }
-                ]} 
-              />
-            </View>
-          </View>
-        </View>
 
         {/* ── TABS (Segmented Control Style) ── */}
         <View style={styles.tabContainer}>
@@ -627,7 +622,7 @@ export default function PortfolioTabScreen() {
                   <Text style={styles.emptyBody}>Create your first album to see it here.</Text>
                 </View>
               ) : (
-                events.map(renderEventCard)
+                events.map((event, index) => renderEventCard(event, index))
               )
             )}
 
@@ -639,7 +634,7 @@ export default function PortfolioTabScreen() {
                   <Text style={styles.emptyBody}>Events shared with you will appear here.</Text>
                 </View>
               ) : (
-                sharedEvents.map(renderEventCard)
+                sharedEvents.map((event, index) => renderEventCard(event, index))
               )
             )}
 
@@ -818,6 +813,155 @@ export default function PortfolioTabScreen() {
         </View>
 
       </ScrollView>
+
+      {/* ── QUOTA MODAL ── */}
+      <Modal visible={showQuotaModal} transparent animationType="fade" statusBarTranslucent>
+        <TouchableOpacity
+          style={styles.quotaOverlay}
+          activeOpacity={1}
+          onPress={() => setShowQuotaModal(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.quotaModalContent} onPress={() => {}}>
+
+            {/* ── Hero header ── */}
+            <LinearGradient
+              colors={['rgba(212,175,55,0.18)', 'rgba(212,175,55,0.04)', 'transparent']}
+              style={styles.quotaHero}
+            >
+              {/* Icon + title row */}
+              <View style={styles.quotaHeroRow}>
+                <View style={styles.quotaHeroIcon}>
+                  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                    <Rect width={20} height={8} x={2} y={2} rx={2} ry={2} />
+                    <Rect width={20} height={8} x={2} y={14} rx={2} ry={2} />
+                    <Line x1={6} x2={6.01} y1={6} y2={6} />
+                    <Line x1={6} x2={6.01} y1={18} y2={18} />
+                  </Svg>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.quotaHeroTitle}>Storage & Quota</Text>
+                  <Text style={styles.quotaHeroSub}>Your current plan usage</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowQuotaModal(false)} style={styles.quotaCloseBtn}>
+                  <IconSymbol name="xmark" size={13} color={colors.slate400} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Active plan */}
+              <Text style={styles.quotaActivePlanText}>
+                Active plan:{' '}
+                <Text style={styles.quotaActivePlanName}>
+                  {(() => {
+                    const role = user?.role ?? 'free';
+                    if (role === 'free' || role === 'freemium') return 'Freemium';
+                    return role.charAt(0).toUpperCase() + role.slice(1);
+                  })()}
+                </Text>
+              </Text>
+            </LinearGradient>
+
+            {/* ── Divider ── */}
+            <View style={styles.quotaDivider} />
+
+            {/* ── Metrics ── */}
+            <View style={styles.quotaMetrics}>
+
+              {/* Storage metric */}
+              <View style={styles.quotaMetricRow}>
+                <View style={styles.quotaMetricTop}>
+                  <View style={styles.quotaMetricLeft}>
+                    <View style={[styles.quotaDot, { backgroundColor: colors.gold }]} />
+                    <Text style={styles.quotaMetricLabel}>Storage</Text>
+                  </View>
+                  <View style={styles.quotaMetricRight}>
+                    <Text style={styles.quotaMetricValue}>{(storageUsed / (1024 * 1024)).toFixed(1)} MB</Text>
+                    <Text style={styles.quotaMetricMax}> / 5 GB</Text>
+                    <View style={[styles.quotaPercentChip, { backgroundColor: 'rgba(212,175,55,0.12)' }]}>
+                      <Text style={[styles.quotaPercentText, { color: colors.gold }]}>
+                        {Math.round((storageUsed / (5 * 1024 * 1024 * 1024)) * 100)}%
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                <View style={styles.quotaBarTrack}>
+                  <LinearGradient
+                    colors={[colors.gold, '#f5d080']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[
+                      styles.quotaBarFill,
+                      { width: `${Math.min((storageUsed / (5 * 1024 * 1024 * 1024)) * 100, 100)}%` },
+                    ]}
+                  />
+                </View>
+              </View>
+
+              {/* Divider between rows */}
+              <View style={styles.quotaMetricSep} />
+
+              {/* Events metric */}
+              {
+                (() => {
+                  const maxEvts = user?.role === 'premium' || user?.role === 'elite' ? null
+                    : user?.role === 'standard' ? 20 : user?.role === 'basic' ? 5 : 2;
+                  const pct = maxEvts ? Math.round((events.length / maxEvts) * 100) : 0;
+                  return (
+                    <View style={styles.quotaMetricRow}>
+                      <View style={styles.quotaMetricTop}>
+                        <View style={styles.quotaMetricLeft}>
+                          <View style={[styles.quotaDot, { backgroundColor: '#818cf8' }]} />
+                          <Text style={styles.quotaMetricLabel}>Events</Text>
+                        </View>
+                        <View style={styles.quotaMetricRight}>
+                          <Text style={styles.quotaMetricValue}>{events.length}</Text>
+                          <Text style={styles.quotaMetricMax}> / {maxEvts ?? '∞'}</Text>
+                          {maxEvts ? (
+                            <View style={[styles.quotaPercentChip, { backgroundColor: 'rgba(129,140,248,0.12)' }]}>
+                              <Text style={[styles.quotaPercentText, { color: '#818cf8' }]}>{pct}%</Text>
+                            </View>
+                          ) : (
+                            <View style={[styles.quotaPercentChip, { backgroundColor: 'rgba(129,140,248,0.12)' }]}>
+                              <Text style={[styles.quotaPercentText, { color: '#818cf8' }]}>∞</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                      <View style={styles.quotaBarTrack}>
+                        <LinearGradient
+                          colors={['#818cf8', '#a5b4fc']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={[
+                            styles.quotaBarFill,
+                            { width: `${maxEvts ? Math.min(pct, 100) : 0}%` },
+                          ]}
+                        />
+                      </View>
+                    </View>
+                  );
+                })()
+              }
+            </View>
+
+            {/* ── CTA ── */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => { setShowQuotaModal(false); router.push('/usage'); }}
+            >
+              <LinearGradient
+                colors={[colors.gold, '#c9960a']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.quotaUpgradeBtn}
+              >
+                <Text style={styles.quotaUpgradeBtnText}>Manage Plan</Text>
+                <IconSymbol name="arrow.right" size={14} color="#000" />
+              </LinearGradient>
+            </TouchableOpacity>
+
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {/* ── JOIN EVENT MODAL ── */}
       <Modal visible={showJoinModal} transparent animationType="slide">
@@ -1103,17 +1247,17 @@ export default function PortfolioTabScreen() {
             }}
           />
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>New Event</Text>
-              <TouchableOpacity onPress={() => {
-                setShowCreateDatePicker(false);
-                setCreateModalVisible(false);
-              }}>
-                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={colors.slate400} />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.form}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.form}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>New Event</Text>
+                <TouchableOpacity onPress={() => {
+                  setShowCreateDatePicker(false);
+                  setCreateModalVisible(false);
+                }}>
+                  <IconSymbol name={"xmark.circle.fill" as any} size={24} color={colors.slate400} />
+                </TouchableOpacity>
+              </View>
+
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Event Name</Text>
                 <TextInput 
@@ -1182,7 +1326,7 @@ export default function PortfolioTabScreen() {
                   </>
                 )}
               </TouchableOpacity>
-            </View>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -1253,11 +1397,30 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
-  headerGreeting: { fontSize: 12, color: colors.slate400, fontFamily: Fonts.inter.medium },
-  headerName: { fontSize: 28, color: colors.white, fontFamily: Fonts.outfit.extraBold, letterSpacing: -0.5 },
+  headerLeft: {
+    width: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  headerRight: {
+    width: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  unreadBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.gold,
+  },
+  headerGreeting: { fontSize: 12, color: colors.slate400, fontFamily: Fonts.inter.medium, textAlign: 'center', marginTop: -18 },
+  headerName: { fontSize: 28, color: colors.white, fontFamily: 'AkayaKanadaka_400Regular', letterSpacing: 0.5, textAlign: 'center' },
   createBtnHeader: { 
     paddingHorizontal: 16, 
     paddingVertical: 10, 
@@ -1280,12 +1443,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   tabContainer: { 
     flexDirection: 'row', 
     marginHorizontal: 20, 
-    marginTop: 24, 
-    padding: 6, 
-    backgroundColor: colors.deepSlate, 
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
+    marginTop: 2, 
+    borderBottomWidth: 1,
+    borderBottomColor: colors.cardBorder,
   },
   tabButton: { 
     flex: 1, 
@@ -1293,37 +1453,81 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     alignItems: 'center', 
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 12, 
-    borderRadius: 20,
+    paddingVertical: 12,
+    paddingBottom: 14,
     position: 'relative',
     overflow: 'visible'
   },
   tabBadge: { position: 'absolute', top: 4, right: 8, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: colors.background },
   tabBadgeText: { color: colors.white, fontSize: 9, fontFamily: Fonts.inter.bold },
   tabButtonActive: { 
-    backgroundColor: 'rgba(212, 175, 55, 0.12)',
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.gold,
   },
   tabText: { fontSize: 13, color: colors.slate400, fontFamily: Fonts.inter.medium },
   tabTextActive: { color: colors.gold, fontFamily: Fonts.inter.bold },
 
   // Grid
-  grid: { paddingHorizontal: 20, paddingTop: 20, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  grid: { paddingHorizontal: 16, paddingTop: 16, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start' },
   eventCard: {
-    width: (width - 54) / 2, height: 220,
-    borderRadius: 24, overflow: 'hidden',
+    width: (width - 44) / 2,
+    borderRadius: 18,
+    overflow: 'hidden',
     backgroundColor: colors.deepSlate,
-    borderWidth: 1, borderColor: colors.cardBorder,
-    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.1)',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  cardOpenArea: { ...StyleSheet.absoluteFillObject },
-  cardGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%' },
-  cardContent: { position: 'absolute', bottom: 14, left: 16, right: 16 },
-  cardTitle: { fontSize: 16, color: colors.white, fontFamily: Fonts.outfit.bold, marginBottom: 4 },
+  cardImageWrap: {
+    width: '100%',
+    overflow: 'hidden',
+    backgroundColor: colors.deepSlate,
+  },
+  cardCategoryBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(2,6,23,0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.3)',
+    borderRadius: 7,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  cardCategoryText: {
+    fontSize: 8,
+    color: colors.gold,
+    fontFamily: Fonts.inter.bold,
+    letterSpacing: 0.7,
+  },
+  cardInfoStrip: {
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+    gap: 4,
+    backgroundColor: isDark ? 'rgba(15,23,42,0.95)' : colors.deepSlate,
+  },
+  cardTitle: {
+    fontSize: 13,
+    color: '#ffffff',
+    fontFamily: Fonts.outfit.bold,
+    lineHeight: 17,
+  },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   cardDate: { fontSize: 10, color: colors.slate400, fontFamily: Fonts.inter.medium },
-  cardAction: { position: 'absolute', top: 12, right: 12, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', zIndex: 5, elevation: 5 },
+  cardAccentBar: {
+    height: 2,
+    backgroundColor: colors.gold,
+    opacity: 0.5,
+  },
+  cardContent: {},
+  cardGradient: {},
+  cardOpenArea: {},
+  cardAction: {},
 
   // Empty State
   emptyState: { width: '100%', alignItems: 'center', paddingVertical: 80 },
@@ -1375,43 +1579,172 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   modalCloseLink: { marginTop: 20, alignSelf: 'center' },
   modalCloseLinkText: { color: colors.slate400, fontSize: 13, fontFamily: Fonts.inter.medium },
 
-  // Storage
-  storageSection: { 
-    flexDirection: 'row',
-    gap: 12,
-    marginHorizontal: 20, 
-    marginTop: 20, 
-  },
-  storageCard: {
+  // Quota Modal
+  quotaOverlay: {
     flex: 1,
-    padding: 16, 
-    backgroundColor: colors.deepSlate, 
-    borderRadius: 20, 
-    borderWidth: 1, 
-    borderColor: colors.cardBorder 
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(2, 6, 23, 0.85)',
+    paddingHorizontal: 20,
   },
-  storageHeader: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-  },
-  storageLabel: { fontSize: 14, color: colors.white, fontFamily: Fonts.outfit.bold },
-  upgradeBtnMini: {
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+  quotaModalContent: {
+    width: '100%',
+    backgroundColor: isDark ? '#0d1526' : colors.background,
+    borderRadius: 28,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(212,175,55,0.2)',
   },
-  upgradeTextMini: {
-    fontSize: 9,
-    color: colors.gold,
+
+  // Hero section
+  quotaHero: {
+    paddingTop: 20,
+    paddingBottom: 18,
+    paddingHorizontal: 20,
+    gap: 14,
+  },
+  quotaHeroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  quotaCloseBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quotaHeroIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(212,175,55,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.gold,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  quotaHeroTitle: {
+    fontSize: 17,
+    color: colors.white,
+    fontFamily: Fonts.outfit.extraBold,
+  },
+  quotaHeroSub: {
+    fontSize: 12,
+    color: colors.slate400,
+    fontFamily: Fonts.inter.regular,
+    marginTop: 1,
+  },
+  quotaActivePlanText: {
+    fontSize: 13,
+    color: colors.slate400,
+    fontFamily: Fonts.inter.medium,
+  },
+  quotaActivePlanName: {
+    color: '#4ade80',
     fontFamily: Fonts.outfit.bold,
   },
-  storageBarContainer: { height: 6, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderRadius: 3, overflow: 'hidden' },
-  storageBar: { height: '100%', backgroundColor: MidnightColors.gold, borderRadius: 3 },
-  storageSub: { fontSize: 11, color: colors.slate400, fontFamily: Fonts.inter.regular, marginTop: 2 },
+
+  // Divider
+  quotaDivider: {
+    height: 1,
+    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+    marginHorizontal: 0,
+  },
+
+  // Metrics section
+  quotaMetrics: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    gap: 0,
+  },
+  quotaMetricRow: {
+    gap: 10,
+  },
+  quotaMetricTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  quotaMetricLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  quotaDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  quotaMetricLabel: {
+    fontSize: 13,
+    color: colors.slate400,
+    fontFamily: Fonts.inter.medium,
+  },
+  quotaMetricRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  quotaMetricValue: {
+    fontSize: 14,
+    color: colors.white,
+    fontFamily: Fonts.outfit.bold,
+  },
+  quotaMetricMax: {
+    fontSize: 12,
+    color: colors.slate400,
+    fontFamily: Fonts.inter.regular,
+  },
+  quotaPercentChip: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: 4,
+  },
+  quotaPercentText: {
+    fontSize: 11,
+    fontFamily: Fonts.outfit.bold,
+  },
+  quotaBarTrack: {
+    height: 8,
+    backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  quotaBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  quotaMetricSep: {
+    height: 1,
+    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+    marginVertical: 16,
+  },
+
+  // CTA
+  quotaUpgradeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    paddingVertical: 14,
+    borderRadius: 18,
+  },
+  quotaUpgradeBtnText: {
+    fontSize: 14,
+    color: '#000',
+    fontFamily: Fonts.outfit.bold,
+    letterSpacing: 0.2,
+  },
 
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'flex-end' },

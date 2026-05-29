@@ -33,6 +33,7 @@ import {
 } from '@/lib/firestore';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { Image as ExpoImage } from 'expo-image';
 import CakeIcon from '@/components/icons/CakeIcon';
@@ -241,32 +242,46 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.safeArea}>
-      {/* ── FIXED HEADER ── */}
-      <LinearGradient
-        colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]}
-        style={[styles.header, { paddingTop: insets.top + 4 }]}
-      >
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>EveBash</Text>
-          <Text style={styles.tagline}>{"Let's capture moments ✨"}</Text>
-        </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity 
-            style={styles.headerIconButton} 
-            activeOpacity={0.7}
-            onPress={() => router.push('/customer-chats')}
-          >
-            <IconSymbol name="bubble.left.fill" size={18} color={colors.white} />
-            {hasUnreadChats && <View style={styles.unreadBadge} />}
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
-
       <ScrollView
         style={styles.container}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#d4af37" />}
       >
+        {/* ── HEADER ── */}
+        <LinearGradient
+          colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]}
+          style={[styles.header, { paddingTop: insets.top + 4 }]}
+        >
+          <View style={styles.headerLeft}>
+            <TouchableOpacity 
+              style={{ width: 24, height: 24, justifyContent: 'center', alignItems: 'center', position: 'relative' }} 
+              activeOpacity={0.7}
+              onPress={() => Alert.alert("Notifications", "Coming Soon: Updates on your albums, events, and shortlist activity.")}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <IconSymbol name="bell.fill" size={20} color={colors.gold} />
+              <View style={[styles.unreadBadge, { backgroundColor: colors.gold }]} />
+            </TouchableOpacity>
+          </View>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={styles.headerTitle}>EveBash</Text>
+            <Text style={styles.tagline}>{"Let's capture moments ✨"}</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity 
+              style={{ width: 24, height: 24, justifyContent: 'center', alignItems: 'center', position: 'relative' }} 
+              activeOpacity={0.7}
+              onPress={() => router.push('/customer-chats')}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <Path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" />
+              </Svg>
+              {hasUnreadChats && <View style={styles.unreadBadge} />}
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+
         {loading && !refreshing
           ? <ActivityIndicator color="#d4af37" style={{ marginTop: 60 }} />
           : <>
@@ -354,7 +369,7 @@ export default function DashboardScreen() {
               </View>
 
               <LinearGradient 
-                colors={isDark ? ['#020617', '#0f172a'] : [colors.background, colors.deepSlate]} 
+                colors={isDark ? ['#020617', '#0f172a', '#020617'] : [colors.background, colors.deepSlate, colors.background]} 
                 style={[styles.section, { paddingTop: 40 }]}
               >
                 <View style={styles.sectionHead}>
@@ -636,8 +651,6 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 20,
     backgroundColor: colors.background,
-    borderBottomWidth: 1.5,
-    borderBottomColor: colors.border,
     gap: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -654,8 +667,8 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20,
   },
   datePillText: { fontSize: 10, color: colors.gold, fontFamily: 'Outfit_700Bold', letterSpacing: 0.3 },
-  headerTitle: { fontSize: 28, fontFamily: 'Yellowtail_400Regular', color: colors.white, letterSpacing: 0.5 },
-  tagline: { fontSize: 12, color: colors.slate400, fontFamily: 'Inter_400Regular' },
+  headerTitle: { fontSize: 28, fontFamily: 'AkayaKanadaka_400Regular', color: colors.white, letterSpacing: 0.5, textAlign: 'center' },
+  tagline: { fontSize: 12, color: colors.slate400, fontFamily: 'Inter_400Regular', marginTop: -18, textAlign: 'center' },
   avatarRingHeader: {
     padding: 3, borderRadius: 30,
     borderWidth: 1.5, borderColor: colors.gold,
@@ -668,6 +681,11 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   avatarFallbackText: {
     fontSize: 22, color: colors.gold, fontFamily: 'Outfit_800ExtraBold',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   headerRight: {
     flexDirection: 'row',

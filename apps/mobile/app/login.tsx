@@ -313,8 +313,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   brandName: {
+    fontFamily: 'AkayaKanadaka_400Regular',
     fontSize: 32,
-    fontWeight: '800',
     color: '#f8fafc',
     letterSpacing: 0.5,
     marginBottom: 6,

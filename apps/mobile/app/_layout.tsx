@@ -208,6 +208,7 @@ export default function RootLayout() {
     SpaceGrotesk_500Medium,
     SpaceGrotesk_600SemiBold,
     SpaceGrotesk_700Bold,
+    'AkayaKanadaka_400Regular': require('../assets/fonts/AkayaKanadaka-Regular.ttf'),
     'Monofett_400Regular': require('../assets/fonts/Monofett-Regular.ttf'),
     'BubblegumSans_400Regular': require('../assets/fonts/BubblegumSans-Regular.ttf'),
     'PermanentMarker_400Regular': require('../assets/fonts/PermanentMarker-Regular.ttf'),

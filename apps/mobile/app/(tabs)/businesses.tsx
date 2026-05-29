@@ -16,6 +16,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import Svg, { Path, Rect, Line } from 'react-native-svg';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
@@ -51,6 +52,7 @@ export default function BusinessLandingScreen() {
   const [fetchingBusinesses, setFetchingBusinesses] = useState(true);
   const [userBusinesses, setUserBusinesses] = useState<Business[]>([]);
   const [storageUsed, setStorageUsed] = useState(0);
+  const [showQuotaModal, setShowQuotaModal] = useState(false);
 
   // Form State
   const [name, setName] = useState('');
@@ -208,71 +210,41 @@ export default function BusinessLandingScreen() {
 
   return (
     <View style={styles.container}>
-      {/* ── HEADER ── */}
-      <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
-        <View style={styles.headerLeft}>
-          <View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* ── HEADER ── */}
+        <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity 
+              style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }} 
+              activeOpacity={0.7}
+              onPress={() => setShowQuotaModal(true)}
+            >
+              <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <Rect width={20} height={8} x={2} y={2} rx={2} ry={2} />
+                <Rect width={20} height={8} x={2} y={14} rx={2} ry={2} />
+                <Line x1={6} x2={6.01} y1={6} y2={6} />
+                <Line x1={6} x2={6.01} y1={18} y2={18} />
+              </Svg>
+            </TouchableOpacity>
+          </View>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={styles.headerTitle}>Biz Hub</Text>
             <Text style={styles.headerSubtitle}>Manage & Grow your empire.</Text>
           </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity 
+              style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }} 
+              onPress={() => setShowListingForm(true)}
+            >
+              <Svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <Path d="M5 12h14" />
+                <Path d="M12 5v14" />
+              </Svg>
+            </TouchableOpacity>
+          </View>
         </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity 
-            style={styles.newBizBtn} 
-            onPress={() => setShowListingForm(true)}
-          >
-            <IconSymbol name="plus" size={14} color="#0f172a" />
-            <Text style={styles.newBizBtnText}>New Business</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
-        {/* ── USAGE STATS ── */}
-        <View style={styles.storageSection}>
-          {/* Storage Card */}
-          <View style={styles.storageCard}>
-            <View style={styles.storageHeader}>
-              <Text style={styles.storageLabel}>Storage</Text>
-              <TouchableOpacity style={styles.upgradeBtnMini} onPress={() => router.push('/pricing' as any)}>
-                <Text style={styles.upgradeTextMini}>UPGRADE</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={{ flex: 1, justifyContent: 'center', marginVertical: 12 }}>
-              <Text style={styles.storageSub} numberOfLines={1}>{(storageUsed / (1024 * 1024)).toFixed(1)} MB / 5 GB</Text>
-            </View>
-            <View style={styles.storageBarContainer}>
-              <View style={[styles.storageBar, { width: `${Math.min((storageUsed / (5 * 1024 * 1024 * 1024)) * 100, 100)}%` }]} />
-            </View>
-          </View>
 
-          {/* Businesses Card */}
-          <View style={styles.storageCard}>
-            <View style={styles.storageHeader}>
-              <Text style={styles.storageLabel}>Businesses</Text>
-              <TouchableOpacity style={styles.upgradeBtnMini} onPress={() => router.push('/pricing' as any)}>
-                <Text style={styles.upgradeTextMini}>UPGRADE</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={{ flex: 1, justifyContent: 'center', marginVertical: 12 }}>
-              <Text style={styles.storageSub} numberOfLines={1}>
-                {userBusinesses.length} / {user?.role === 'premium' || user?.role === 'elite' ? '∞' : (user?.role === 'standard' ? '5' : '1')}
-              </Text>
-            </View>
-            <View style={styles.storageBarContainer}>
-              <View 
-                style={[
-                  styles.storageBar, 
-                  { 
-                    width: `${Math.min((userBusinesses.length / (user?.role === 'standard' ? 5 : (user?.role === 'premium' || user?.role === 'elite' ? userBusinesses.length || 1 : 1))) * 100, 100)}%`,
-                    backgroundColor: '#818cf8' 
-                  }
-                ]} 
-              />
-            </View>
-          </View>
-        </View>
 
         {/* ── YOUR BUSINESSES SECTION ── */}
         {fetchingBusinesses ? (
@@ -366,6 +338,138 @@ export default function BusinessLandingScreen() {
 
       </ScrollView>
 
+      {/* ── QUOTA MODAL ── */}
+      <Modal visible={showQuotaModal} transparent animationType="fade" statusBarTranslucent>
+        <TouchableOpacity
+          style={styles.quotaOverlay}
+          activeOpacity={1}
+          onPress={() => setShowQuotaModal(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.quotaModalContent} onPress={() => {}}>
+
+            {/* Hero header */}
+            <LinearGradient
+              colors={['rgba(212,175,55,0.18)', 'rgba(212,175,55,0.04)', 'transparent']}
+              style={styles.quotaHero}
+            >
+              <View style={styles.quotaHeroRow}>
+                <View style={styles.quotaHeroIcon}>
+                  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                    <Rect width={20} height={8} x={2} y={2} rx={2} ry={2} />
+                    <Rect width={20} height={8} x={2} y={14} rx={2} ry={2} />
+                    <Line x1={6} x2={6.01} y1={6} y2={6} />
+                    <Line x1={6} x2={6.01} y1={18} y2={18} />
+                  </Svg>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.quotaHeroTitle}>Storage & Quota</Text>
+                  <Text style={styles.quotaHeroSub}>Your current plan usage</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowQuotaModal(false)} style={styles.quotaCloseBtn}>
+                  <IconSymbol name="xmark" size={13} color={colors.slate400} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Active plan */}
+              <Text style={styles.quotaActivePlanText}>
+                Active plan:{' '}
+                <Text style={styles.quotaActivePlanName}>
+                  {(() => {
+                    const role = user?.role ?? 'free';
+                    if (role === 'free' || role === 'freemium') return 'Freemium';
+                    return role.charAt(0).toUpperCase() + role.slice(1);
+                  })()}
+                </Text>
+              </Text>
+            </LinearGradient>
+
+            {/* Divider */}
+            <View style={styles.quotaDivider} />
+
+            {/* Metrics */}
+            <View style={styles.quotaMetrics}>
+
+              {/* Storage */}
+              <View style={styles.quotaMetricRow}>
+                <View style={styles.quotaMetricTop}>
+                  <View style={styles.quotaMetricLeft}>
+                    <View style={[styles.quotaDot, { backgroundColor: colors.gold }]} />
+                    <Text style={styles.quotaMetricLabel}>Storage</Text>
+                  </View>
+                  <View style={styles.quotaMetricRight}>
+                    <Text style={styles.quotaMetricValue}>{(storageUsed / (1024 * 1024)).toFixed(1)} MB</Text>
+                    <Text style={styles.quotaMetricMax}> / 5 GB</Text>
+                    <View style={[styles.quotaPercentChip, { backgroundColor: 'rgba(212,175,55,0.12)' }]}>
+                      <Text style={[styles.quotaPercentText, { color: colors.gold }]}>
+                        {Math.round((storageUsed / (5 * 1024 * 1024 * 1024)) * 100)}%
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                <View style={styles.quotaBarTrack}>
+                  <LinearGradient
+                    colors={[colors.gold, '#f5d080']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[styles.quotaBarFill, { width: `${Math.min((storageUsed / (5 * 1024 * 1024 * 1024)) * 100, 100)}%` }]}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.quotaMetricSep} />
+
+              {/* Businesses */}
+              {(() => {
+                const maxBiz = user?.role === 'premium' || user?.role === 'elite' ? null
+                  : user?.role === 'standard' ? 5 : 1;
+                const pct = maxBiz ? Math.round((userBusinesses.length / maxBiz) * 100) : 0;
+                return (
+                  <View style={styles.quotaMetricRow}>
+                    <View style={styles.quotaMetricTop}>
+                      <View style={styles.quotaMetricLeft}>
+                        <View style={[styles.quotaDot, { backgroundColor: '#818cf8' }]} />
+                        <Text style={styles.quotaMetricLabel}>Businesses</Text>
+                      </View>
+                      <View style={styles.quotaMetricRight}>
+                        <Text style={styles.quotaMetricValue}>{userBusinesses.length}</Text>
+                        <Text style={styles.quotaMetricMax}> / {maxBiz ?? '∞'}</Text>
+                        <View style={[styles.quotaPercentChip, { backgroundColor: 'rgba(129,140,248,0.12)' }]}>
+                          <Text style={[styles.quotaPercentText, { color: '#818cf8' }]}>
+                            {maxBiz ? `${pct}%` : '∞'}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.quotaBarTrack}>
+                      <LinearGradient
+                        colors={['#818cf8', '#a5b4fc']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={[styles.quotaBarFill, { width: `${maxBiz ? Math.min(pct, 100) : 0}%` }]}
+                      />
+                    </View>
+                  </View>
+                );
+              })()}
+            </View>
+
+            {/* CTA */}
+            <TouchableOpacity activeOpacity={0.85} onPress={() => { setShowQuotaModal(false); router.push('/usage'); }}>
+              <LinearGradient
+                colors={[colors.gold, '#c9960a']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.quotaUpgradeBtn}
+              >
+                <Text style={styles.quotaUpgradeBtnText}>Manage Plan</Text>
+                <IconSymbol name="arrow.right" size={14} color="#000" />
+              </LinearGradient>
+            </TouchableOpacity>
+
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
       {/* ── CREATE BUSINESS MODAL ── */}
       <Modal
         animationType="slide"
@@ -378,14 +482,14 @@ export default function BusinessLandingScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.formContainer}
           >
-            <View style={styles.formHeader}>
-              <Text style={styles.formTitle}>Business Details</Text>
-              <TouchableOpacity onPress={() => setShowListingForm(false)}>
-                <IconSymbol name="xmark" size={24} color="#94a3b8" />
-              </TouchableOpacity>
-            </View>
-
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.formBody}>
+              <View style={styles.formHeader}>
+                <Text style={styles.formTitle}>Business Details</Text>
+                <TouchableOpacity onPress={() => setShowListingForm(false)}>
+                  <IconSymbol name="xmark" size={24} color="#94a3b8" />
+                </TouchableOpacity>
+              </View>
+
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Business Name *</Text>
                 <TextInput 
@@ -614,18 +718,27 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingHorizontal: 24,
 
     paddingBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   headerLeft: {
+    width: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    justifyContent: 'flex-start',
   },
   headerRight: {
+    width: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'flex-end',
+  },
+  unreadBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.gold,
   },
   newBizBtn: {
     flexDirection: 'row',
@@ -649,12 +762,15 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     color: colors.white,
-    fontFamily: 'Outfit_800ExtraBold',
+    fontFamily: 'AkayaKanadaka_400Regular',
+    textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 12,
     color: colors.slate400,
     fontFamily: 'Inter_500Medium',
+    textAlign: 'center',
+    marginTop: -18,
   },
   iconBtn: {
     width: 44,
@@ -1068,42 +1184,147 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     letterSpacing: 0.5,
   },
   
-  // Storage
-  storageSection: { 
-    flexDirection: 'row',
-    gap: 12,
-    marginHorizontal: 24, 
-    marginTop: 20, 
-    marginBottom: 8,
-  },
-  storageCard: {
+  // Quota Modal
+  quotaOverlay: {
     flex: 1,
-    padding: 16, 
-    backgroundColor: colors.deepSlate, 
-    borderRadius: 20, 
-    borderWidth: 1, 
-    borderColor: colors.cardBorder,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(2,6,23,0.85)',
+    paddingHorizontal: 20,
   },
-  storageHeader: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-  },
-  storageLabel: { fontSize: 14, color: colors.white, fontFamily: 'Outfit_700Bold' },
-  upgradeBtnMini: {
-    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.1)' : 'rgba(212, 175, 55, 0.05)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+  quotaModalContent: {
+    width: '100%',
+    backgroundColor: isDark ? '#0d1526' : colors.background,
+    borderRadius: 28,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(212,175,55,0.2)',
   },
-  upgradeTextMini: {
-    fontSize: 9,
-    color: '#d4af37',
+  quotaHero: {
+    paddingTop: 20,
+    paddingBottom: 18,
+    paddingHorizontal: 20,
+    gap: 14,
+  },
+  quotaHeroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  quotaHeroIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(212,175,55,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quotaCloseBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quotaHeroTitle: {
+    fontSize: 17,
+    color: colors.white,
+    fontFamily: 'Outfit_800ExtraBold',
+  },
+  quotaHeroSub: {
+    fontSize: 12,
+    color: colors.slate400,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 1,
+  },
+  quotaActivePlanText: {
+    fontSize: 13,
+    color: colors.slate400,
+    fontFamily: 'Inter_500Medium',
+  },
+  quotaActivePlanName: {
+    color: '#4ade80',
     fontFamily: 'Outfit_700Bold',
   },
-  storageBarContainer: { height: 6, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderRadius: 3, overflow: 'hidden' },
-  storageBar: { height: '100%', backgroundColor: colors.gold, borderRadius: 3 },
-  storageSub: { fontSize: 11, color: colors.slate400, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  quotaDivider: {
+    height: 1,
+    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+  },
+  quotaMetrics: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  quotaMetricRow: { gap: 10 },
+  quotaMetricTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  quotaMetricLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  quotaDot: { width: 8, height: 8, borderRadius: 4 },
+  quotaMetricLabel: {
+    fontSize: 13,
+    color: colors.slate400,
+    fontFamily: 'Inter_500Medium',
+  },
+  quotaMetricRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  quotaMetricValue: {
+    fontSize: 14,
+    color: colors.white,
+    fontFamily: 'Outfit_700Bold',
+  },
+  quotaMetricMax: {
+    fontSize: 12,
+    color: colors.slate400,
+    fontFamily: 'Inter_400Regular',
+  },
+  quotaPercentChip: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: 4,
+  },
+  quotaPercentText: {
+    fontSize: 11,
+    fontFamily: 'Outfit_700Bold',
+  },
+  quotaBarTrack: {
+    height: 8,
+    backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  quotaBarFill: { height: '100%', borderRadius: 4 },
+  quotaMetricSep: {
+    height: 1,
+    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+    marginVertical: 16,
+  },
+  quotaUpgradeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    paddingVertical: 14,
+    borderRadius: 18,
+  },
+  quotaUpgradeBtnText: {
+    fontSize: 14,
+    color: '#000',
+    fontFamily: 'Outfit_700Bold',
+    letterSpacing: 0.2,
+  },
 });

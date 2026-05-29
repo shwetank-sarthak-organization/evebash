@@ -14,7 +14,7 @@ import {
   Platform,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -61,6 +61,7 @@ export default function ExploreBusinessScreen() {
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
   const styles = getStyles(colors, isDark);
+  const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedVendor, setSelectedVendor] = useState<any>(null);
@@ -171,23 +172,8 @@ export default function ExploreBusinessScreen() {
   const featuredFiltered = filteredVendors.slice(0, 3);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
-      {/* ── HEADER ── */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <IconSymbol name="chevron.left" size={24} color={colors.white} />
-          </TouchableOpacity>
-          <View>
-            <Text style={styles.headerTitle}>Marketplace</Text>
-            <Text style={styles.headerSubtitle}>Elite Deals. Every Event.</Text>
-          </View>
-        </View>
-        <TouchableOpacity style={styles.iconBtn}>
-          <IconSymbol name="bell.fill" size={20} color={isDark ? "#818cf8" : "#6366f1"} />
-        </TouchableOpacity>
-      </View>
 
       <ScrollView 
         showsVerticalScrollIndicator={false} 
@@ -201,6 +187,21 @@ export default function ExploreBusinessScreen() {
           />
         }
       >
+        {/* ── HEADER ── */}
+        <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <IconSymbol name="chevron.left" size={24} color={colors.white} />
+            </TouchableOpacity>
+            <View>
+              <Text style={styles.headerTitle}>Marketplace</Text>
+              <Text style={styles.headerSubtitle}>Elite Deals. Every Event.</Text>
+            </View>
+          </View>
+          <TouchableOpacity style={styles.iconBtn}>
+            <IconSymbol name="bell.fill" size={20} color={isDark ? "#818cf8" : "#6366f1"} />
+          </TouchableOpacity>
+        </View>
         {/* ── SEARCH BAR ── */}
         <View style={styles.searchContainer}>
           <View style={styles.searchBox}>
@@ -452,14 +453,14 @@ export default function ExploreBusinessScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.formContainer}
           >
-            <View style={styles.formHeader}>
-              <Text style={styles.formTitle}>List Your Business</Text>
-              <TouchableOpacity onPress={() => setShowListingForm(false)}>
-                <IconSymbol name="xmark" size={24} color="#94a3b8" />
-              </TouchableOpacity>
-            </View>
-
             <ScrollView contentContainerStyle={styles.formBody}>
+              <View style={styles.formHeader}>
+                <Text style={styles.formTitle}>List Your Business</Text>
+                <TouchableOpacity onPress={() => setShowListingForm(false)}>
+                  <IconSymbol name="xmark" size={24} color="#94a3b8" />
+                </TouchableOpacity>
+              </View>
+
               <Text style={styles.inputLabel}>Business Name</Text>
               <TextInput style={styles.formInput} placeholder="e.g. Royal Photography" placeholderTextColor="#475569" />
 
@@ -588,7 +589,7 @@ export default function ExploreBusinessScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -607,8 +608,6 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   headerLeft: {
     flexDirection: 'row',

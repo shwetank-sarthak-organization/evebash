@@ -354,10 +354,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   brandText: {
-    fontFamily: 'PlayfairDisplay_700Bold',
+    fontFamily: 'AkayaKanadaka_400Regular',
     fontSize: 28,
     color: GOLD,
     letterSpacing: 2,
+    lineHeight: 30,
     textShadowColor: 'rgba(212,175,55,0.5)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 14,
@@ -369,7 +370,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   messageText: {
-    marginTop: 10,
+    marginTop: 4,
     fontFamily: 'Outfit_400Regular',
     fontSize: 10,
     letterSpacing: 3,
