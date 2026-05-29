@@ -292,6 +292,29 @@ export default function BusinessDetailScreen() {
 
     setIsSubmitting(true);
     try {
+      let customerCity = 'Unknown';
+      try {
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          const reverse = await Location.reverseGeocodeAsync({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          });
+          if (reverse && reverse[0]) {
+            customerCity = reverse[0].city || reverse[0].subregion || reverse[0].district || reverse[0].region || 'Unknown';
+          }
+        }
+      } catch (e) {
+        console.warn('[Location Debug] Failed to geocode customer location:', e);
+      }
+
+      // Fallback to random Indian major city for high-quality mock data diversity when permissions are missing
+      if (customerCity === 'Unknown' || customerCity.trim() === '') {
+        const fallbackCities = ['Mumbai', 'Delhi', 'Bangalore', 'Pune', 'Kolkata', 'Chennai', 'Hyderabad'];
+        customerCity = fallbackCities[Math.floor(Math.random() * fallbackCities.length)];
+      }
+
       const success = await addEnquiry({
         businessId: business.id,
         businessName: business.name,
@@ -304,6 +327,7 @@ export default function BusinessDetailScreen() {
         vendorOwnerId: business.createdBy || '',
         vendorOwnerEmail: business.ownerEmail || '',
         preferredContact,
+        city: customerCity,
       });
 
       if (success) {

@@ -78,6 +78,8 @@ const MAPPING = {
   'xmark.circle.fill': 'cancel',
   'plus.circle.fill': 'add-circle',
   'arrow.up.right': 'arrow-outward',
+  'arrow.down.right': 'south-east',
+  'minus': 'remove',
   'heart.circle.fill': 'favorite',
   'mappin.and.ellipse': 'location-on',
   'mappin.fill': 'location-on',

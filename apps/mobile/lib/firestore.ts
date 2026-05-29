@@ -1582,6 +1582,7 @@ export interface Enquiry {
     vendorOwnerId: string;
     vendorOwnerEmail: string;
     preferredContact?: 'chat' | 'whatsapp' | 'call' | 'email';
+    city?: string;
     createdAt?: any;
 }
 
