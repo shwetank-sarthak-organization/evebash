@@ -63,6 +63,7 @@ export default function BusinessDetailScreen() {
   const [enquiryName, setEnquiryName] = useState('');
   const [enquiryDate, setEnquiryDate] = useState('');
   const [enquiryMessage, setEnquiryMessage] = useState('');
+  const [preferredContact, setPreferredContact] = useState<'chat' | 'whatsapp' | 'call' | 'email'>('chat');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Rating Modal State
@@ -279,11 +280,12 @@ export default function BusinessDetailScreen() {
         name: enquiryName,
         date: enquiryDate,
         message: enquiryMessage || `Hi ${business.name}, I'm interested in your services. Please share your availability.`,
-        phone: user?.phone || user?.phoneNumber || '',
-        email: user?.email || '',
+        phone: preferredContact === 'chat' ? '' : (user?.phone || user?.phoneNumber || ''),
+        email: preferredContact === 'chat' ? '' : (user?.email || ''),
         userId: user?.uid || null,
         vendorOwnerId: business.createdBy || '',
         vendorOwnerEmail: business.ownerEmail || '',
+        preferredContact,
       });
 
       if (success) {
@@ -908,6 +910,45 @@ export default function BusinessDetailScreen() {
                   value={enquiryMessage}
                   onChangeText={setEnquiryMessage}
                 />
+              </View>
+
+              <View style={[styles.inputGroup, { marginBottom: 20 }]}>
+                <Text style={styles.inputLabel}>How should the vendor contact you?</Text>
+                <View style={styles.contactMethodRow}>
+                  <TouchableOpacity 
+                    style={[styles.contactMethodBtn, preferredContact === 'chat' && styles.contactMethodBtnActive]}
+                    onPress={() => setPreferredContact('chat')}
+                  >
+                    <IconSymbol name="bubble.left.fill" size={14} color={preferredContact === 'chat' ? '#d4af37' : '#94a3b8'} />
+                    <Text style={[styles.contactMethodText, preferredContact === 'chat' && styles.contactMethodTextActive]}>In-App Chat (Private)</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={[styles.contactMethodBtn, preferredContact === 'whatsapp' && styles.contactMethodBtnActive]}
+                    onPress={() => setPreferredContact('whatsapp')}
+                  >
+                    <IconSymbol name="message.fill" size={14} color={preferredContact === 'whatsapp' ? '#d4af37' : '#94a3b8'} />
+                    <Text style={[styles.contactMethodText, preferredContact === 'whatsapp' && styles.contactMethodTextActive]}>WhatsApp</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={[styles.contactMethodRow, { marginTop: 8 }]}>
+                  <TouchableOpacity 
+                    style={[styles.contactMethodBtn, preferredContact === 'call' && styles.contactMethodBtnActive]}
+                    onPress={() => setPreferredContact('call')}
+                  >
+                    <IconSymbol name="phone.fill" size={14} color={preferredContact === 'call' ? '#d4af37' : '#94a3b8'} />
+                    <Text style={[styles.contactMethodText, preferredContact === 'call' && styles.contactMethodTextActive]}>Phone Call</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={[styles.contactMethodBtn, preferredContact === 'email' && styles.contactMethodBtnActive]}
+                    onPress={() => setPreferredContact('email')}
+                  >
+                    <IconSymbol name="envelope.fill" size={14} color={preferredContact === 'email' ? '#d4af37' : '#94a3b8'} />
+                    <Text style={[styles.contactMethodText, preferredContact === 'email' && styles.contactMethodTextActive]}>Email</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <TouchableOpacity 
@@ -2000,5 +2041,34 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     fontSize: 15,
     fontFamily: 'Outfit_700Bold',
+  },
+  contactMethodRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  contactMethodBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  contactMethodBtnActive: {
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    borderColor: '#d4af37',
+  },
+  contactMethodText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  contactMethodTextActive: {
+    color: '#d4af37',
   },
 });

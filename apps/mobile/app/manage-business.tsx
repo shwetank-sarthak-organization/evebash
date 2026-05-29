@@ -361,11 +361,7 @@ export default function ManageBusinessScreen() {
             <IconSymbol name="chevron.left" size={24} color="#ffffff" />
           </TouchableOpacity>
         )}
-        
-        <View style={{ alignItems: 'center' }}>
-          <Text style={styles.headerTitle}>Business Manager</Text>
-        </View>
-        
+
         {isEditing ? (
           <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isUpdating}>
             {isUpdating ? (
@@ -376,16 +372,24 @@ export default function ManageBusinessScreen() {
           </TouchableOpacity>
         ) : (
           <View style={styles.headerRight}>
-            {activeTab === 'Profile' && (
-              <TouchableOpacity style={styles.editBtn} onPress={() => setIsEditing(true)}>
-                <IconSymbol name="pencil" size={16} color="#d4af37" />
-                <Text style={styles.editBtnText}>Edit</Text>
-              </TouchableOpacity>
-            )}
             {activeTab === 'Portfolio' && (
               <TouchableOpacity style={styles.editBtn} onPress={pickImage}>
-                <IconSymbol name="plus" size={16} color="#d4af37" />
+                <IconSymbol name="plus" size={16} color="#0f172a" />
                 <Text style={styles.editBtnText}>Add</Text>
+              </TouchableOpacity>
+            )}
+            {activeTab !== 'Enquiries' && (
+              <TouchableOpacity 
+                style={[styles.editBtn, activeTab === 'Portfolio' && { marginLeft: 8 }]} 
+                onPress={() => {
+                  if (id) {
+                    const bizId = Array.isArray(id) ? id[0] : id;
+                    router.push({ pathname: '/business-enquiries', params: { id: bizId } });
+                  }
+                }}
+              >
+                <IconSymbol name="message.fill" size={16} color="#0f172a" />
+                <Text style={styles.editBtnText}>Enquiries</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -394,7 +398,7 @@ export default function ManageBusinessScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.tabs}>
-          {['Profile', 'Portfolio', 'Enquiries', 'Interactions', 'Analytics'].map((tab) => (
+          {['Profile', 'Portfolio', 'Interactions', 'Analytics'].map((tab) => (
             <TouchableOpacity
               key={tab}
               onPress={() => {
@@ -417,12 +421,19 @@ export default function ManageBusinessScreen() {
             {/* ── COVER CAROUSEL SECTION ── */}
             <View style={styles.inputGroup}>
               <View style={styles.sectionHeaderRow}>
-                <Text style={styles.inputLabel}>Cover Carousel ({coverImages.length}/3)</Text>
-                {isEditing && coverImages.length < 3 && (
-                  <TouchableOpacity onPress={pickImage} style={styles.addSmallBtn}>
-                    <IconSymbol name="plus.circle.fill" size={20} color="#d4af37" />
-                    <Text style={styles.addSmallBtnText}>Add Photo</Text>
+                <Text style={styles.inputLabel}>Manage Business Profile</Text>
+                {!isEditing ? (
+                  <TouchableOpacity style={styles.editBtnSmall} onPress={() => setIsEditing(true)}>
+                    <IconSymbol name="pencil" size={14} color="#0f172a" />
+                    <Text style={styles.editBtnSmallText}>Edit</Text>
                   </TouchableOpacity>
+                ) : (
+                  coverImages.length < 3 && (
+                    <TouchableOpacity onPress={pickImage} style={styles.addSmallBtn}>
+                      <IconSymbol name="plus.circle.fill" size={20} color="#d4af37" />
+                      <Text style={styles.addSmallBtnText}>Add Photo</Text>
+                    </TouchableOpacity>
+                  )
                 )}
               </View>
               
@@ -769,116 +780,7 @@ export default function ManageBusinessScreen() {
           </KeyboardAvoidingView>
         )}
 
-        {/* ── RECEIVED ENQUIRIES / LEADS ── */}
-        {activeTab === 'Enquiries' && (
-          <View style={styles.tabContent}>
-            {loadingEnquiries ? (
-              <View style={[styles.center, { paddingVertical: 40 }]}>
-                <ActivityIndicator size="large" color="#d4af37" />
-              </View>
-            ) : enquiries.length === 0 ? (
-              <View style={styles.emptyState}>
-                <View style={styles.emptyIconBg}>
-                  <IconSymbol name="bubble.right" size={48} color="#d4af37" />
-                </View>
-                <Text style={styles.emptyStateTitle}>No Enquiries Yet</Text>
-                <Text style={styles.emptyStateDesc}>
-                  Once event planners or couples contact you from the Marketplace, their leads will show up here instantly!
-                </Text>
-              </View>
-            ) : (
-              <View style={{ gap: 16, paddingBottom: 20 }}>
-                <View style={styles.leadsOverviewCard}>
-                  <Text style={styles.leadsOverviewTitle}>Active Customer Leads</Text>
-                  <View style={styles.leadsCountBadge}>
-                    <Text style={styles.leadsCountText}>{enquiries.length} RECEIVED</Text>
-                  </View>
-                </View>
 
-                {enquiries.map((enquiry) => {
-                  const cleanedPhone = enquiry.phone ? enquiry.phone.replace(/[^0-9]/g, '') : '';
-                  const formattedDate = enquiry.createdAt?.toDate 
-                    ? enquiry.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                    : 'Just now';
-
-                  return (
-                    <View key={enquiry.id} style={styles.leadCard}>
-                      {/* Lead Header */}
-                      <View style={styles.leadHeader}>
-                        <View style={styles.leadUserMeta}>
-                          <View style={styles.leadUserAvatar}>
-                            <Text style={styles.leadAvatarText}>
-                              {enquiry.name ? enquiry.name.charAt(0).toUpperCase() : 'C'}
-                            </Text>
-                          </View>
-                          <View>
-                            <Text style={styles.leadClientName}>{enquiry.name}</Text>
-                            <Text style={styles.leadTimestamp}>{formattedDate}</Text>
-                          </View>
-                        </View>
-                      </View>
-
-                      {/* Event Details */}
-                      <View style={styles.leadDetailsRow}>
-                        <View style={styles.leadDetailPill}>
-                          <IconSymbol name="calendar" size={14} color="#d4af37" />
-                          <Text style={styles.leadDetailPillText}>Event Date: {enquiry.date}</Text>
-                        </View>
-                      </View>
-
-                      {/* Customer Message */}
-                      <View style={styles.leadMessageContainer}>
-                        <Text style={styles.leadMessageLabel}>Customer Message:</Text>
-                        <Text style={styles.leadMessageContent}>{"\""}{enquiry.message}{"\""}</Text>
-                      </View>
-
-                      {/* Contact Action Buttons */}
-                      <View style={styles.leadActionsRow}>
-                        {enquiry.phone ? (
-                          <>
-                            <TouchableOpacity 
-                              style={[styles.leadActionBtn, styles.callBtn]}
-                              onPress={() => Linking.openURL(`tel:${enquiry.phone}`)}
-                            >
-                              <IconSymbol name="phone.fill" size={14} color="#ffffff" />
-                              <Text style={styles.leadActionBtnText}>Call Client</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                              style={[styles.leadActionBtn, styles.whatsappBtn]}
-                              onPress={() => {
-                                const waUrl = `https://wa.me/${cleanedPhone}?text=${encodeURIComponent(`Hi ${enquiry.name}, thank you for your enquiry on EveBash. We'd love to help you plan your event!`)}`;
-                                Linking.openURL(waUrl);
-                              }}
-                            >
-                              <IconSymbol name="message.fill" size={14} color="#ffffff" />
-                              <Text style={styles.leadActionBtnText}>WhatsApp</Text>
-                            </TouchableOpacity>
-                          </>
-                        ) : null}
-                        
-                        {enquiry.email ? (
-                          <TouchableOpacity 
-                            style={[styles.leadActionBtn, styles.emailBtn, !enquiry.phone && { flex: 1 }]}
-                            onPress={() => Linking.openURL(`mailto:${enquiry.email}?subject=${encodeURIComponent(`Enquiry Response - ${business.name}`)}`)}
-                          >
-                            <IconSymbol name="envelope.fill" size={14} color="#ffffff" />
-                            <Text style={styles.leadActionBtnText}>Email</Text>
-                          </TouchableOpacity>
-                        ) : null}
-
-                        {!enquiry.phone && !enquiry.email && (
-                          <View style={styles.noContactBadge}>
-                            <Text style={styles.noContactText}>No direct contact info provided</Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-          </View>
-        )}
 
         {/* ── PORTFOLIO & ANALYTICS ── */}
         {activeTab === 'Portfolio' && (
@@ -1498,17 +1400,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    backgroundColor: '#d4af37',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+  },
+  editBtnSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#d4af37',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   editBtnText: {
-    color: '#d4af37',
+    color: '#0f172a',
     fontFamily: 'Outfit_700Bold',
     fontSize: 14,
+  },
+  editBtnSmallText: {
+    color: '#0f172a',
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 12,
   },
   saveBtn: {
     backgroundColor: '#d4af37',

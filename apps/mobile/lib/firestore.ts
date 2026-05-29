@@ -1554,3 +1554,151 @@ export const getBusinessTypeColor = (type: string) => {
   }
   return { bg: 'rgba(212, 175, 55, 0.12)', border: 'rgba(212, 175, 55, 0.25)', text: '#d4af37' };
 };
+
+// --- IN-APP CHAT FUNCTIONS ---
+
+export interface ChatRoom {
+  id?: string;
+  clientUid: string;
+  clientName: string;
+  clientAvatar?: string;
+  vendorUid: string;
+  vendorName: string; // Business name
+  businessId: string;
+  lastMessage?: string;
+  lastMessageAt?: any;
+  createdAt: any;
+  status?: 'active' | 'closed';
+}
+
+export interface ChatMessage {
+  id?: string;
+  senderId: string;
+  senderName: string;
+  text: string;
+  createdAt: any;
+}
+
+export async function getOrCreateChatRoom(
+  clientUid: string, 
+  clientName: string, 
+  vendorUid: string, 
+  vendorName: string, 
+  businessId: string
+): Promise<string> {
+  try {
+    const chatRoomsCol = collection(db, "chatRooms");
+    const q = query(
+      chatRoomsCol, 
+      where("clientUid", "==", clientUid), 
+      where("vendorUid", "==", vendorUid),
+      where("businessId", "==", businessId)
+    );
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+      return snapshot.docs[0].id;
+    }
+    
+    // Create new room
+    const docRef = await addDoc(chatRoomsCol, {
+      clientUid,
+      clientName,
+      vendorUid,
+      vendorName,
+      businessId,
+      lastMessage: "Conversation started",
+      lastMessageAt: serverTimestamp(),
+      createdAt: serverTimestamp()
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error("Error getOrCreateChatRoom:", error);
+    throw error;
+  }
+}
+
+export async function sendMessage(
+  roomId: string, 
+  senderId: string, 
+  senderName: string, 
+  text: string
+): Promise<boolean> {
+  try {
+    const messagesCol = collection(db, "chatRooms", roomId, "messages");
+    await addDoc(messagesCol, {
+      senderId,
+      senderName,
+      text,
+      createdAt: serverTimestamp()
+    });
+    
+    const roomRef = doc(db, "chatRooms", roomId);
+    await updateDoc(roomRef, {
+      lastMessage: text,
+      lastMessageAt: serverTimestamp()
+    });
+    return true;
+  } catch (error) {
+    console.error("Error sending message:", error);
+    return false;
+  }
+}
+
+export function onChatMessages(roomId: string, callback: (messages: ChatMessage[]) => void) {
+  const messagesCol = collection(db, "chatRooms", roomId, "messages");
+  const q = query(messagesCol, orderBy("createdAt", "asc"));
+  return onSnapshot(q, (snapshot) => {
+    const messages = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as ChatMessage));
+    callback(messages);
+  });
+}
+
+export async function getUserChatRooms(userId: string, role: 'client' | 'vendor'): Promise<ChatRoom[]> {
+  try {
+    const chatRoomsCol = collection(db, "chatRooms");
+    const field = role === 'client' ? 'clientUid' : 'vendorUid';
+    const q = query(chatRoomsCol, where(field, "==", userId));
+    const snapshot = await getDocs(q);
+    const list = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as ChatRoom));
+    
+    // Sort locally to prevent index errors
+    return list.sort((a, b) => {
+      const timeA = a.lastMessageAt?.seconds || 0;
+      const timeB = b.lastMessageAt?.seconds || 0;
+      return timeB - timeA;
+    });
+  } catch (error) {
+    console.error("Error fetching chat rooms:", error);
+    return [];
+  }
+}
+
+export async function closeChatRoom(roomId: string, senderId: string, senderName: string): Promise<boolean> {
+  try {
+    const messagesCol = collection(db, "chatRooms", roomId, "messages");
+    await addDoc(messagesCol, {
+      senderId,
+      senderName,
+      text: "Chat ended by customer",
+      createdAt: serverTimestamp()
+    });
+    
+    const roomRef = doc(db, "chatRooms", roomId);
+    await updateDoc(roomRef, {
+      status: 'closed',
+      lastMessage: 'Chat ended by customer',
+      lastMessageAt: serverTimestamp()
+    });
+    return true;
+  } catch (error) {
+    console.error("Error closing chat room:", error);
+    return false;
+  }
+}
+

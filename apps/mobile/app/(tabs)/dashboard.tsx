@@ -196,6 +196,14 @@ export default function DashboardScreen() {
           <TouchableOpacity 
             style={styles.headerIconButton} 
             activeOpacity={0.7}
+            onPress={() => router.push('/customer-chats')}
+          >
+            <IconSymbol name="bubble.left.fill" size={18} color={colors.white} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.headerIconButton} 
+            activeOpacity={0.7}
             onPress={() => Alert.alert("Notifications", "Coming Soon: Updates on your albums, events, and shortlist activity.")}
           >
             <IconSymbol name="bell.fill" size={18} color={colors.white} />
