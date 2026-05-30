@@ -303,7 +303,7 @@ export default function SettingsScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           activeOpacity={0.7}
-          onPress={() => router.back()}
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile')}
           style={styles.backBtn}
         >
           <IconSymbol name="chevron.left" size={20} color={colors.white} />

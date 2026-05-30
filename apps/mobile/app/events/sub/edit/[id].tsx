@@ -165,7 +165,7 @@ export default function EditPhotosScreen() {
         headerShown: true,
         headerLeft: () => (
           <TouchableOpacity 
-            onPress={() => router.back()} 
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')} 
             style={styles.nativeBackButton}
             hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
           >

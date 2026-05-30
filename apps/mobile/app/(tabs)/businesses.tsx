@@ -27,6 +27,13 @@ import { createBusiness, getUserBusinesses, Business, generateShortId, getBusine
 
 const { width } = Dimensions.get('window');
 
+const INDIGO = '#6366f1';
+const INDIGO_LIGHT = '#818cf8';
+const INDIGO_DARK = '#4f46e5';
+const INDIGO_BORDER = 'rgba(99, 102, 241, 0.25)';
+const INDIGO_BG_LIGHT = 'rgba(99, 102, 241, 0.1)';
+const INDIGO_BG_SUPER_LIGHT = 'rgba(99, 102, 241, 0.05)';
+
 const BUSINESS_TYPES = [
   'Venue', 'Photography', 'Videography', 'Catering', 'Food Stalls',
   'Music & DJ', 'Lighting', 'Decor', 'Event Planner', 'Security',
@@ -219,7 +226,7 @@ export default function BusinessLandingScreen() {
               activeOpacity={0.7}
               onPress={() => setShowQuotaModal(true)}
             >
-              <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={INDIGO} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <Rect width={20} height={8} x={2} y={2} rx={2} ry={2} />
                 <Rect width={20} height={8} x={2} y={14} rx={2} ry={2} />
                 <Line x1={6} x2={6.01} y1={6} y2={6} />
@@ -236,7 +243,7 @@ export default function BusinessLandingScreen() {
               style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }} 
               onPress={() => setShowListingForm(true)}
             >
-              <Svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <Svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke={INDIGO} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <Path d="M5 12h14" />
                 <Path d="M12 5v14" />
               </Svg>
@@ -249,7 +256,7 @@ export default function BusinessLandingScreen() {
         {/* ── YOUR BUSINESSES SECTION ── */}
         {fetchingBusinesses ? (
           <View style={[styles.section, { alignItems: 'center' }]}>
-            <ActivityIndicator color="#d4af37" />
+            <ActivityIndicator color={INDIGO} />
           </View>
         ) : userBusinesses.length > 0 && (
           <View style={styles.section}>
@@ -292,7 +299,7 @@ export default function BusinessLandingScreen() {
               style={styles.heroGradient}
             >
               <View style={styles.heroBadge}>
-                <IconSymbol name="briefcase.fill" size={14} color="#d4af37" />
+                <IconSymbol name="briefcase.fill" size={14} color={INDIGO_LIGHT} />
                 <Text style={styles.heroBadgeText}>PARTNER HUB</Text>
               </View>
               <Text style={styles.heroTitle}>Grow Your Business</Text>
@@ -306,11 +313,11 @@ export default function BusinessLandingScreen() {
                   onPress={() => setShowListingForm(true)}
                 >
                   <LinearGradient
-                    colors={['#d4af37', '#b8860b']}
+                    colors={[INDIGO_LIGHT, INDIGO_DARK]}
                     style={styles.btnGradient}
                   >
                     <Text style={styles.primaryBtnText}>List New Business</Text>
-                    <IconSymbol name="plus" size={18} color="#0f172a" />
+                    <IconSymbol name="plus" size={18} color="#ffffff" />
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -325,7 +332,7 @@ export default function BusinessLandingScreen() {
             {BENEFITS.map((benefit) => (
               <View key={benefit.id} style={styles.benefitCard}>
                 <View style={styles.benefitIcon}>
-                  <IconSymbol name={benefit.icon as any} size={20} color="#d4af37" />
+                  <IconSymbol name={benefit.icon as any} size={20} color={INDIGO_LIGHT} />
                 </View>
                 <View style={styles.benefitContent}>
                   <Text style={styles.benefitTitle}>{benefit.title}</Text>
@@ -349,12 +356,12 @@ export default function BusinessLandingScreen() {
 
             {/* Hero header */}
             <LinearGradient
-              colors={['rgba(212,175,55,0.18)', 'rgba(212,175,55,0.04)', 'transparent']}
+              colors={['rgba(99, 102, 241, 0.18)', 'rgba(99, 102, 241, 0.04)', 'transparent']}
               style={styles.quotaHero}
             >
               <View style={styles.quotaHeroRow}>
                 <View style={styles.quotaHeroIcon}>
-                  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={INDIGO} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
                     <Rect width={20} height={8} x={2} y={2} rx={2} ry={2} />
                     <Rect width={20} height={8} x={2} y={14} rx={2} ry={2} />
                     <Line x1={6} x2={6.01} y1={6} y2={6} />
@@ -393,14 +400,14 @@ export default function BusinessLandingScreen() {
               <View style={styles.quotaMetricRow}>
                 <View style={styles.quotaMetricTop}>
                   <View style={styles.quotaMetricLeft}>
-                    <View style={[styles.quotaDot, { backgroundColor: colors.gold }]} />
+                    <View style={[styles.quotaDot, { backgroundColor: INDIGO }]} />
                     <Text style={styles.quotaMetricLabel}>Storage</Text>
                   </View>
                   <View style={styles.quotaMetricRight}>
                     <Text style={styles.quotaMetricValue}>{(storageUsed / (1024 * 1024)).toFixed(1)} MB</Text>
                     <Text style={styles.quotaMetricMax}> / 5 GB</Text>
-                    <View style={[styles.quotaPercentChip, { backgroundColor: 'rgba(212,175,55,0.12)' }]}>
-                      <Text style={[styles.quotaPercentText, { color: colors.gold }]}>
+                    <View style={[styles.quotaPercentChip, { backgroundColor: INDIGO_BG_LIGHT }]}>
+                      <Text style={[styles.quotaPercentText, { color: INDIGO }]}>
                         {Math.round((storageUsed / (5 * 1024 * 1024 * 1024)) * 100)}%
                       </Text>
                     </View>
@@ -408,7 +415,7 @@ export default function BusinessLandingScreen() {
                 </View>
                 <View style={styles.quotaBarTrack}>
                   <LinearGradient
-                    colors={[colors.gold, '#f5d080']}
+                    colors={[INDIGO, '#a5b4fc']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={[styles.quotaBarFill, { width: `${Math.min((storageUsed / (5 * 1024 * 1024 * 1024)) * 100, 100)}%` }]}
@@ -456,13 +463,13 @@ export default function BusinessLandingScreen() {
             {/* CTA */}
             <TouchableOpacity activeOpacity={0.85} onPress={() => { setShowQuotaModal(false); router.push('/usage'); }}>
               <LinearGradient
-                colors={[colors.gold, '#c9960a']}
+                colors={[INDIGO_LIGHT, INDIGO_DARK]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.quotaUpgradeBtn}
               >
                 <Text style={styles.quotaUpgradeBtnText}>Manage Plan</Text>
-                <IconSymbol name="arrow.right" size={14} color="#000" />
+                <IconSymbol name="arrow.right" size={14} color="#ffffff" />
               </LinearGradient>
             </TouchableOpacity>
 
@@ -545,7 +552,7 @@ export default function BusinessLandingScreen() {
                   <Text style={[styles.dropdownBtnText, !businessType && { color: '#475569' }]}>
                     {businessType || 'Select Category'}
                   </Text>
-                  <IconSymbol name="chevron.down" size={16} color="#d4af37" />
+                  <IconSymbol name="chevron.down" size={16} color={INDIGO_LIGHT} />
                 </TouchableOpacity>
 
                 <Modal
@@ -585,7 +592,7 @@ export default function BusinessLandingScreen() {
                                 {item}
                               </Text>
                               {businessType === item && (
-                                <IconSymbol name="checkmark" size={16} color="#d4af37" />
+                                <IconSymbol name="checkmark" size={16} color={INDIGO_LIGHT} />
                               )}
                             </TouchableOpacity>
                           ))}
@@ -612,7 +619,7 @@ export default function BusinessLandingScreen() {
                     style={[styles.formInput, { flex: 1, marginRight: 6, flexDirection: 'row', alignItems: 'center', gap: 10 }]} 
                     onPress={() => setShowDatePicker(true)}
                   >
-                    <IconSymbol name="calendar" size={16} color="#d4af37" />
+                    <IconSymbol name="calendar" size={16} color={INDIGO_LIGHT} />
                     <Text style={{ color: colors.white, fontFamily: 'Inter_400Regular' }}>
                       Started: {startedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                     </Text>
@@ -666,10 +673,10 @@ export default function BusinessLandingScreen() {
                   disabled={isLocating}
                 >
                   {isLocating ? (
-                    <ActivityIndicator size="small" color="#d4af37" />
+                    <ActivityIndicator size="small" color={INDIGO_LIGHT} />
                   ) : (
                     <>
-                      <IconSymbol name="location.fill" size={18} color={location ? "#0f172a" : "#d4af37"} />
+                      <IconSymbol name="location.fill" size={18} color={location ? "#0f172a" : INDIGO_LIGHT} />
                       <Text style={[styles.locationBtnText, location && styles.locationBtnTextActive]} numberOfLines={1}>
                         {location ? `Captured: ${capturedAddress || 'Location Captured'}` : 'Use Current GPS'}
                       </Text>
@@ -716,7 +723,6 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
-
     paddingBottom: 24,
   },
   headerLeft: {
@@ -738,24 +744,24 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.gold,
+    backgroundColor: INDIGO,
   },
   newBizBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: INDIGO,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
     gap: 6,
-    shadowColor: '#d4af37',
+    shadowColor: INDIGO,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
   },
   newBizBtnText: {
-    color: '#0f172a',
+    color: '#ffffff',
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },
@@ -776,11 +782,11 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.1)' : 'rgba(212, 175, 55, 0.05)',
+    backgroundColor: isDark ? INDIGO_BG_LIGHT : INDIGO_BG_SUPER_LIGHT,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: INDIGO_BORDER,
   },
   heroGradient: {
     padding: 32,
@@ -791,7 +797,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   heroBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.1)' : 'rgba(212, 175, 55, 0.05)',
+    backgroundColor: isDark ? INDIGO_BG_LIGHT : INDIGO_BG_SUPER_LIGHT,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -799,10 +805,10 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     gap: 8,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: INDIGO_BORDER,
   },
   heroBadgeText: {
-    color: '#d4af37',
+    color: INDIGO_LIGHT,
     fontSize: 10,
     fontFamily: 'Outfit_800ExtraBold',
     letterSpacing: 1,
@@ -828,7 +834,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     elevation: 8,
-    shadowColor: '#d4af37',
+    shadowColor: INDIGO,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -841,7 +847,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     gap: 10,
   },
   primaryBtnText: {
-    color: isDark ? '#0f172a' : '#ffffff',
+    color: '#ffffff',
     fontSize: 18,
     fontFamily: 'Outfit_800ExtraBold',
   },
@@ -872,7 +878,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.1)' : 'rgba(212, 175, 55, 0.05)',
+    backgroundColor: isDark ? INDIGO_BG_LIGHT : INDIGO_BG_SUPER_LIGHT,
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
@@ -974,7 +980,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   inputLabel: {
     fontSize: 14,
-    color: '#d4af37',
+    color: INDIGO_LIGHT,
     fontFamily: 'Outfit_700Bold',
   },
   formInput: {
@@ -984,7 +990,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     color: colors.white,
     fontFamily: 'Inter_400Regular',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: INDIGO_BORDER,
     fontSize: 16,
     minHeight: 56,
   },
@@ -999,11 +1005,11 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderRadius: 10,
     backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: INDIGO_BORDER,
   },
   typeChipActive: {
-    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.1)' : 'rgba(212, 175, 55, 0.05)',
-    borderColor: '#d4af37',
+    backgroundColor: isDark ? INDIGO_BG_LIGHT : INDIGO_BG_SUPER_LIGHT,
+    borderColor: INDIGO,
   },
   typeChipText: {
     color: colors.slate400,
@@ -1011,39 +1017,39 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     fontFamily: 'Outfit_600SemiBold',
   },
   typeChipTextActive: {
-    color: '#d4af37',
+    color: INDIGO,
   },
   locationBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.05)' : 'rgba(212, 175, 55, 0.02)',
+    backgroundColor: isDark ? INDIGO_BG_SUPER_LIGHT : 'rgba(99, 102, 241, 0.02)',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: INDIGO_BORDER,
     borderStyle: 'dashed',
     paddingVertical: 16,
     borderRadius: 16,
   },
   locationBtnActive: {
-    backgroundColor: colors.gold,
+    backgroundColor: INDIGO,
     borderStyle: 'solid',
-    borderColor: '#d4af37',
+    borderColor: INDIGO,
   },
   locationBtnText: {
-    color: '#d4af37',
+    color: INDIGO_LIGHT,
     fontFamily: 'Outfit_700Bold',
   },
   locationBtnTextActive: {
     color: '#0f172a',
   },
   submitFormBtn: {
-    backgroundColor: colors.gold,
+    backgroundColor: INDIGO,
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: 'center',
     marginTop: 10,
-    shadowColor: '#d4af37',
+    shadowColor: INDIGO,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
@@ -1066,7 +1072,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: INDIGO_BORDER,
     minHeight: 56,
   },
   dropdownBtnText: {
@@ -1088,7 +1094,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: INDIGO_BORDER,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.5,
@@ -1102,7 +1108,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     marginBottom: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: INDIGO_BORDER,
   },
   pickerTitle: {
     fontSize: 18,
@@ -1122,7 +1128,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderBottomColor: colors.cardBorder,
   },
   pickerItemActive: {
-    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.05)' : 'rgba(212, 175, 55, 0.02)',
+    backgroundColor: isDark ? INDIGO_BG_SUPER_LIGHT : 'rgba(99, 102, 241, 0.02)',
   },
   pickerItemText: {
     fontSize: 15,
@@ -1130,7 +1136,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     fontFamily: 'Inter_500Medium',
   },
   pickerItemTextActive: {
-    color: '#d4af37',
+    color: INDIGO,
     fontFamily: 'Inter_600SemiBold',
   },
   pickerFade: {
@@ -1150,7 +1156,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     marginTop: 12,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: INDIGO_BORDER,
   },
   pickerFooterText: {
     fontSize: 11,
@@ -1198,7 +1204,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderRadius: 28,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.2)',
+    borderColor: 'rgba(99, 102, 241, 0.2)',
   },
   quotaHero: {
     paddingTop: 20,
@@ -1215,9 +1221,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: 'rgba(212,175,55,0.12)',
+    backgroundColor: 'rgba(99, 102, 241, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.3)',
+    borderColor: 'rgba(99, 102, 241, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1323,7 +1329,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   quotaUpgradeBtnText: {
     fontSize: 14,
-    color: '#000',
+    color: '#ffffff',
     fontFamily: 'Outfit_700Bold',
     letterSpacing: 0.2,
   },

@@ -178,7 +178,7 @@ export default function SubEventPhotosScreen() {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <Text style={styles.errorText}>Gallery not found.</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={goBackToParentEvent}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
       </SafeAreaView>

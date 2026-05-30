@@ -6,11 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter, Stack } from 'expo-router';
-import { getUserChatRooms, ChatRoom } from '@/lib/firestore';
+import { getUserChatRooms, ChatRoom, deleteChatRoom } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
 
 export default function CustomerChatsScreen() {
@@ -18,6 +20,9 @@ export default function CustomerChatsScreen() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [chatRoomToDelete, setChatRoomToDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (user?.uid) {
@@ -60,6 +65,36 @@ export default function CustomerChatsScreen() {
     }
   };
 
+  const handleDeleteChat = (roomId: string | undefined) => {
+    if (!roomId) return;
+    setChatRoomToDelete(roomId);
+    setDeleteModalVisible(true);
+  };
+
+  const confirmDeleteChat = async () => {
+    if (!chatRoomToDelete) return;
+    setDeleting(true);
+    try {
+      const room = chatRooms.find(r => r.id === chatRoomToDelete);
+      const role = room?.vendorUid === user?.uid ? 'vendor' : 'client';
+
+      const success = await deleteChatRoom(chatRoomToDelete, role);
+      if (success) {
+        setChatRooms(prev => prev.filter(r => r.id !== chatRoomToDelete));
+        setDeleteModalVisible(false);
+        setChatRoomToDelete(null);
+      } else {
+        Alert.alert("Error", "Failed to delete the chat room. Please try again.");
+      }
+    } catch (err) {
+      console.error("Error deleting chat:", err);
+      Alert.alert("Error", "An unexpected error occurred while deleting the chat.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+
   if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -72,7 +107,7 @@ export default function CustomerChatsScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')} style={styles.backBtn}>
           <IconSymbol name="chevron.left" size={24} color="#ffffff" />
         </TouchableOpacity>
         
@@ -166,6 +201,12 @@ export default function CustomerChatsScreen() {
                     pathname: '/chat',
                     params: { roomId: room.id, otherUserName: partnerName }
                   })}
+                  onLongPress={() => {
+                    if (isClosed || isExpired) {
+                      handleDeleteChat(room.id);
+                    }
+                  }}
+                  delayLongPress={500}
                   activeOpacity={0.7}
                 >
                   <View style={styles.cardHeader}>
@@ -209,6 +250,56 @@ export default function CustomerChatsScreen() {
           </View>
         )}
       </ScrollView>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={deleteModalVisible}
+        onRequestClose={() => {
+          if (!deleting) {
+            setDeleteModalVisible(false);
+            setChatRoomToDelete(null);
+          }
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconContainer}>
+              <IconSymbol name="trash.fill" size={28} color="#ef4444" />
+            </View>
+            
+            <Text style={styles.modalTitle}>Delete Conversation?</Text>
+            <Text style={styles.modalMessage}>
+              Are you sure you want to delete this closed chat? This will permanently remove the conversation for both you and the other participant.
+            </Text>
+
+            <View style={styles.modalActionRow}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => {
+                  setDeleteModalVisible(false);
+                  setChatRoomToDelete(null);
+                }}
+                disabled={deleting}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmButton]}
+                onPress={confirmDeleteChat}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.confirmButtonText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -444,5 +535,81 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontFamily: 'Inter_500Medium',
     color: '#fef08a',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(2, 6, 23, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: '#0f172a',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 15,
+    elevation: 10,
+  },
+  modalIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: 'Outfit_700Bold',
+    color: '#ffffff',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+    color: '#94a3b8',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  modalActionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  modalButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  cancelButtonText: {
+    color: '#94a3b8',
+    fontSize: 15,
+    fontFamily: 'Outfit_700Bold',
+  },
+  confirmButton: {
+    backgroundColor: '#ef4444',
+  },
+  confirmButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontFamily: 'Outfit_700Bold',
   },
 });

@@ -25,9 +25,16 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { getBusinessById, updateBusiness, getEventsCountForVendor, Business, addEnquiry, getAnnouncementsForBusiness, getUserRatingForBusiness, saveUserRating, getReviewsForBusiness, getBusinessTypeColor, incrementBusinessViewCount, getBusinessShortlistStatus, toggleBusinessShortlist } from '@/lib/firestore';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/context/AuthContext';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Circle, Rect } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
+
+const INDIGO = '#6366f1';
+const INDIGO_LIGHT = '#818cf8';
+const INDIGO_DARK = '#4f46e5';
+const INDIGO_BORDER = 'rgba(99, 102, 241, 0.25)';
+const INDIGO_BG_LIGHT = 'rgba(99, 102, 241, 0.1)';
+const INDIGO_BG_SUPER_LIGHT = 'rgba(99, 102, 241, 0.05)';
 
 // Helper to calculate distance in KM using Haversine formula
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -365,7 +372,7 @@ export default function BusinessDetailScreen() {
   if (loading) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#d4af37" />
+        <ActivityIndicator size="large" color={INDIGO} />
       </View>
     );
   }
@@ -374,7 +381,7 @@ export default function BusinessDetailScreen() {
     return (
       <View style={[styles.container, styles.centerContent]}>
         <Text style={styles.errorText}>Business not found</Text>
-        <TouchableOpacity style={styles.backBtnLink} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtnLink} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/explore-business')}>
           <Text style={styles.backBtnLinkText}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -466,7 +473,7 @@ export default function BusinessDetailScreen() {
 
         {/* ── HEADER ACTIONS (SCROLLS WITH CONTENT) ── */}
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.glassBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.glassBtn} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/explore-business')}>
             <IconSymbol name="chevron.left" size={20} color="#ffffff" />
           </TouchableOpacity>
           <View style={styles.rightActions}>
@@ -591,6 +598,9 @@ export default function BusinessDetailScreen() {
                       <View style={styles.tabDot} />
                     )}
                   </View>
+                  {activeTab === tab && (
+                    <View style={styles.tabDash} />
+                  )}
                 </TouchableOpacity>
               );
             })}
@@ -629,7 +639,7 @@ export default function BusinessDetailScreen() {
                   <View style={styles.servicesGrid}>
                     {business.services.map((s, i) => (
                       <View key={i} style={styles.serviceTag}>
-                        <IconSymbol name="checkmark.circle.fill" size={14} color="#d4af37" />
+                        <IconSymbol name="checkmark" size={14} color={INDIGO} />
                         <Text style={styles.serviceTagText}>{s}</Text>
                       </View>
                     ))}
@@ -754,7 +764,7 @@ export default function BusinessDetailScreen() {
               </View>
 
               {loadingReviews ? (
-                <ActivityIndicator color="#eab308" style={{ marginVertical: 32 }} />
+                <ActivityIndicator color={INDIGO} style={{ marginVertical: 32 }} />
               ) : reviews.length === 0 ? (
                 <View style={styles.emptyReviewsState}>
                   <View style={styles.emptyIconBg}>
@@ -830,14 +840,20 @@ export default function BusinessDetailScreen() {
               setEnquiryMessage(`Hi ${business.name}, I'm interested in your services. Please share your availability.`);
             }}
           >
-            <IconSymbol name="bubble.left.and.bubble.right.fill" size={18} color="#d4af37" />
+            <IconSymbol name="bubble.left.fill" size={18} color="#ffffff" />
             <Text style={styles.secondaryCTAText}>Enquire</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.ctaContainer}>
           <TouchableOpacity style={styles.primaryCTA} onPress={() => setShowContactOptions(true)}>
             <Text style={styles.primaryCTAText}>Contact Now</Text>
-            <IconSymbol name="arrow.right" size={16} color="#020617" />
+            <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <Path d="M16 2v2" />
+              <Path d="M7 22v-2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2" />
+              <Path d="M8 2v2" />
+              <Circle cx="12" cy="11" r="3" />
+              <Rect x="3" y="4" width="18" height="18" rx="2" />
+            </Svg>
           </TouchableOpacity>
         </View>
       </View>
@@ -880,7 +896,7 @@ export default function BusinessDetailScreen() {
 
               <TouchableOpacity style={styles.optionItem} onPress={handleWhatsApp}>
                 <View style={[styles.optionIcon, { backgroundColor: 'rgba(34, 197, 94, 0.1)' }]}>
-                  <IconSymbol name="bolt.fill" size={20} color="#22c55e" />
+                  <IconSymbol name="message.fill" size={20} color="#22c55e" />
                 </View>
                 <View style={styles.optionInfo}>
                   <Text style={styles.optionLabel}>WhatsApp Message</Text>
@@ -896,8 +912,8 @@ export default function BusinessDetailScreen() {
                   setShowEnquiryForm(true);
                 }}
               >
-                <View style={[styles.optionIcon, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}>
-                  <IconSymbol name="paperplane.fill" size={20} color="#d4af37" />
+                <View style={[styles.optionIcon, { backgroundColor: INDIGO_BG_LIGHT }]}>
+                  <IconSymbol name="paperplane.fill" size={20} color={INDIGO} />
                 </View>
                 <View style={styles.optionInfo}>
                   <Text style={styles.optionLabel}>Enquire through App</Text>
@@ -975,7 +991,7 @@ export default function BusinessDetailScreen() {
                     style={[styles.contactMethodBtn, preferredContact === 'chat' && styles.contactMethodBtnActive]}
                     onPress={() => setPreferredContact('chat')}
                   >
-                    <IconSymbol name="bubble.left.fill" size={14} color={preferredContact === 'chat' ? '#d4af37' : '#94a3b8'} />
+                    <IconSymbol name="bubble.left.fill" size={14} color={preferredContact === 'chat' ? INDIGO : '#94a3b8'} />
                     <Text style={[styles.contactMethodText, preferredContact === 'chat' && styles.contactMethodTextActive]}>In-App Chat (Private)</Text>
                   </TouchableOpacity>
 
@@ -983,7 +999,7 @@ export default function BusinessDetailScreen() {
                     style={[styles.contactMethodBtn, preferredContact === 'whatsapp' && styles.contactMethodBtnActive]}
                     onPress={() => setPreferredContact('whatsapp')}
                   >
-                    <IconSymbol name="message.fill" size={14} color={preferredContact === 'whatsapp' ? '#d4af37' : '#94a3b8'} />
+                    <IconSymbol name="message.fill" size={14} color={preferredContact === 'whatsapp' ? INDIGO : '#94a3b8'} />
                     <Text style={[styles.contactMethodText, preferredContact === 'whatsapp' && styles.contactMethodTextActive]}>WhatsApp</Text>
                   </TouchableOpacity>
                 </View>
@@ -993,7 +1009,7 @@ export default function BusinessDetailScreen() {
                     style={[styles.contactMethodBtn, preferredContact === 'call' && styles.contactMethodBtnActive]}
                     onPress={() => setPreferredContact('call')}
                   >
-                    <IconSymbol name="phone.fill" size={14} color={preferredContact === 'call' ? '#d4af37' : '#94a3b8'} />
+                    <IconSymbol name="phone.fill" size={14} color={preferredContact === 'call' ? INDIGO : '#94a3b8'} />
                     <Text style={[styles.contactMethodText, preferredContact === 'call' && styles.contactMethodTextActive]}>Phone Call</Text>
                   </TouchableOpacity>
 
@@ -1001,7 +1017,7 @@ export default function BusinessDetailScreen() {
                     style={[styles.contactMethodBtn, preferredContact === 'email' && styles.contactMethodBtnActive]}
                     onPress={() => setPreferredContact('email')}
                   >
-                    <IconSymbol name="envelope.fill" size={14} color={preferredContact === 'email' ? '#d4af37' : '#94a3b8'} />
+                    <IconSymbol name="envelope.fill" size={14} color={preferredContact === 'email' ? INDIGO : '#94a3b8'} />
                     <Text style={[styles.contactMethodText, preferredContact === 'email' && styles.contactMethodTextActive]}>Email</Text>
                   </TouchableOpacity>
                 </View>
@@ -1132,12 +1148,12 @@ const styles = StyleSheet.create({
   },
   heroContainer: {
     width: width,
-    height: width * 1.1,
+    height: width * 0.85,
     backgroundColor: '#0f172a',
   },
   heroImage: {
     width: width,
-    height: width * 1.1,
+    height: width * 0.85,
   },
   heroGradient: {
     ...StyleSheet.absoluteFillObject,
@@ -1157,7 +1173,7 @@ const styles = StyleSheet.create({
   },
   paginationDotActive: {
     width: 20,
-    backgroundColor: '#d4af37',
+    backgroundColor: INDIGO,
   },
   headerActions: {
     position: 'absolute',
@@ -1251,17 +1267,17 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   categoryBadge: {
-    backgroundColor: 'rgba(212, 175, 55, 0.12)',
+    backgroundColor: INDIGO_BG_LIGHT,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.25)',
+    borderColor: INDIGO_BORDER,
     flexShrink: 0,
   },
   categoryText: {
     fontSize: 11,
-    color: '#d4af37',
+    color: INDIGO_LIGHT,
     fontFamily: 'Outfit_800ExtraBold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -1297,13 +1313,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
     marginBottom: 20,
-    backgroundColor: '#d4af37',
+    backgroundColor: INDIGO,
     gap: 10,
   },
   announcementText: {
     flex: 1,
     fontSize: 14,
-    color: '#0f172a',
+    color: '#ffffff',
     fontFamily: 'Outfit_700Bold',
   },
   announcementCountBadge: {
@@ -1464,32 +1480,32 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#0f172a',
-    borderRadius: 16,
-    padding: 6,
-    marginBottom: 20,
+    marginBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   tabItem: {
     flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 2,
+    paddingVertical: 12,
     alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'transparent',
+    position: 'relative',
   },
-  tabItemActive: {
-    backgroundColor: 'rgba(212, 175, 55, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
-  },
+  tabItemActive: {},
   tabText: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#94a3b8',
     fontFamily: 'Outfit_600SemiBold',
   },
   tabTextActive: {
-    color: '#d4af37',
+    color: '#ffffff',
+  },
+  tabDash: {
+    position: 'absolute',
+    bottom: -1,
+    height: 3,
+    width: 36,
+    borderRadius: 1.5,
+    backgroundColor: INDIGO,
   },
   tabDot: {
     width: 6,
@@ -1520,13 +1536,13 @@ const styles = StyleSheet.create({
   serviceTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(212, 175, 55, 0.05)',
+    backgroundColor: INDIGO_BG_SUPER_LIGHT,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
     gap: 6,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.1)',
+    borderColor: INDIGO_BORDER,
   },
   serviceTagText: {
     fontSize: 13,
@@ -1553,80 +1569,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     lineHeight: 20,
   },
-  packageCardLarge: {
-    backgroundColor: '#0f172a',
-    borderRadius: 24,
-    padding: 24,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  packageCardPopular: {
-    borderColor: '#d4af37',
-    borderWidth: 2,
-  },
-  popularBadge: {
-    position: 'absolute',
-    top: -12,
-    right: 24,
-    backgroundColor: '#d4af37',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  popularBadgeText: {
-    fontSize: 10,
-    fontFamily: 'Outfit_800ExtraBold',
-    color: '#020617',
-  },
-  packageHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  packageName: {
-    fontSize: 20,
-    color: '#ffffff',
-    fontFamily: 'Outfit_700Bold',
-  },
-  packagePrice: {
-    fontSize: 22,
-    color: '#d4af37',
-    fontFamily: 'Outfit_800ExtraBold',
-  },
-  packageFeatures: {
-    marginBottom: 24,
-    gap: 12,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  featureText: {
-    fontSize: 14,
-    color: '#94a3b8',
-    fontFamily: 'Inter_400Regular',
-  },
-  packageSelectBtn: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    height: 50,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  packageSelectBtnPopular: {
-    backgroundColor: '#d4af37',
-  },
-  packageSelectBtnText: {
-    fontSize: 15,
-    color: '#ffffff',
-    fontFamily: 'Outfit_700Bold',
-  },
-  packageSelectBtnTextPopular: {
-    color: '#020617',
-  },
   portfolioGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1643,7 +1585,7 @@ const styles = StyleSheet.create({
   },
   viewAllText: {
     fontSize: 14,
-    color: '#d4af37',
+    color: INDIGO_LIGHT,
     fontFamily: 'Outfit_600SemiBold',
   },
   sectionHeader: {
@@ -1663,12 +1605,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
-  },
-  reviewerAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    marginRight: 12,
   },
   reviewerInfo: {
     flex: 1,
@@ -1699,7 +1635,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   avatarPlaceholderText: {
-    color: '#eab308',
+    color: INDIGO_LIGHT,
     fontSize: 14,
     fontFamily: 'Outfit_700Bold',
   },
@@ -1719,19 +1655,19 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   firstReviewBtn: {
-    backgroundColor: '#eab308',
+    backgroundColor: INDIGO,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 14,
     marginTop: 18,
-    shadowColor: '#eab308',
+    shadowColor: INDIGO,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 3,
   },
   firstReviewBtnText: {
-    color: '#0f172a',
+    color: '#ffffff',
     fontFamily: 'Outfit_700Bold',
     fontSize: 14,
   },
@@ -1765,51 +1701,53 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(2, 6, 23, 0.95)',
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    backgroundColor: 'rgba(2, 6, 23, 0.85)',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
     flexDirection: 'row',
-    gap: 16,
+    gap: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
+    borderTopColor: 'rgba(255,255,255,0.08)',
   },
   ctaContainer: {
     flex: 1,
   },
   secondaryCTA: {
     width: '100%',
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: INDIGO,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: 'transparent',
   },
   secondaryCTAText: {
-    color: '#d4af37',
-    fontSize: 15,
+    color: '#ffffff',
+    fontSize: 14,
     fontFamily: 'Outfit_700Bold',
+    letterSpacing: 0.3,
   },
   primaryCTA: {
     width: '100%',
-    height: 56,
-    backgroundColor: '#d4af37',
-    borderRadius: 16,
+    height: 46,
+    backgroundColor: INDIGO,
+    borderRadius: 12,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     borderWidth: 1,
     borderColor: 'transparent',
   },
   primaryCTAText: {
-    color: '#020617',
-    fontSize: 16,
-    fontFamily: 'Outfit_800ExtraBold',
+    color: '#ffffff',
+    fontSize: 14,
+    fontFamily: 'Outfit_700Bold',
+    letterSpacing: 0.3,
   },
   modalOverlay: {
     flex: 1,
@@ -1956,7 +1894,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   submitEnquiryBtn: {
-    backgroundColor: '#d4af37',
+    backgroundColor: INDIGO,
     height: 60,
     borderRadius: 18,
     flexDirection: 'row',
@@ -1964,14 +1902,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginTop: 12,
-    shadowColor: '#d4af37',
+    shadowColor: INDIGO,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   submitEnquiryBtnText: {
-    color: '#020617',
+    color: '#ffffff',
     fontSize: 16,
     fontFamily: 'Outfit_800ExtraBold',
   },
@@ -1987,11 +1925,11 @@ const styles = StyleSheet.create({
   backBtnLink: {
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: '#d4af37',
+    backgroundColor: INDIGO,
     borderRadius: 14,
   },
   backBtnLinkText: {
-    color: '#020617',
+    color: '#ffffff',
     fontFamily: 'Outfit_700Bold',
   },
   ratingModalOverlay: {
@@ -2081,20 +2019,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   submitRatingBtn: {
-    backgroundColor: '#eab308',
+    backgroundColor: INDIGO,
     borderRadius: 18,
     height: 52,
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#eab308',
+    shadowColor: INDIGO,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   submitRatingBtnText: {
-    color: '#0f172a',
+    color: '#ffffff',
     fontSize: 15,
     fontFamily: 'Outfit_700Bold',
   },
@@ -2116,8 +2054,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   contactMethodBtnActive: {
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
-    borderColor: '#d4af37',
+    backgroundColor: INDIGO_BG_LIGHT,
+    borderColor: INDIGO,
   },
   contactMethodText: {
     color: '#94a3b8',
@@ -2125,6 +2063,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_600SemiBold',
   },
   contactMethodTextActive: {
-    color: '#d4af37',
+    color: INDIGO,
   },
 });

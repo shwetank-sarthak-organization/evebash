@@ -188,20 +188,25 @@ export default function ExploreBusinessScreen() {
         }
       >
         {/* ── HEADER ── */}
-        <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
+        <LinearGradient
+          colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]}
+          style={[styles.header, { paddingTop: insets.top + 4 }]}
+        >
           <View style={styles.headerLeft}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')} style={styles.backBtn}>
               <IconSymbol name="chevron.left" size={24} color={colors.white} />
             </TouchableOpacity>
-            <View>
-              <Text style={styles.headerTitle}>Marketplace</Text>
-              <Text style={styles.headerSubtitle}>Elite Deals. Every Event.</Text>
-            </View>
           </View>
-          <TouchableOpacity style={styles.iconBtn}>
-            <IconSymbol name="bell.fill" size={20} color={isDark ? "#818cf8" : "#6366f1"} />
-          </TouchableOpacity>
-        </View>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={styles.headerTitle}>Marketplace</Text>
+            <Text style={styles.headerSubtitle}>Elite Deals. Every Event.</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.iconBtn}>
+              <IconSymbol name="bell.fill" size={20} color={isDark ? '#818cf8' : '#6366f1'} />
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
         {/* ── SEARCH BAR ── */}
         <View style={styles.searchContainer}>
           <View style={styles.searchBox}>
@@ -340,7 +345,7 @@ export default function ExploreBusinessScreen() {
                         );
                       })()}
                       <View style={styles.locationRow}>
-                        <IconSymbol name="mappin.circle.fill" size={10} color="#94a3b8" />
+                        <IconSymbol name="mappin.and.ellipse" size={10} color="#94a3b8" />
                         <Text style={styles.locationText}>{vendor.location}</Text>
                       </View>
                     </View>
@@ -526,7 +531,7 @@ export default function ExploreBusinessScreen() {
                   onPress={detectLocation}
                   disabled={isDetecting}
                 >
-                  <IconSymbol name="location.fill" size={12} color="#d4af37" />
+                  <IconSymbol name="mappin.and.ellipse" size={12} color={isDark ? '#818cf8' : '#6366f1'} />
                   <Text style={styles.detectBtnText}>{isDetecting ? 'Detecting...' : 'Near Me'}</Text>
                 </TouchableOpacity>
               </View>
@@ -607,12 +612,25 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 12,
-    paddingBottom: 24,
+    paddingBottom: 20,
+    gap: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: isDark ? 0.3 : 0.05,
+    shadowRadius: 10,
+    elevation: 8,
   },
   headerLeft: {
+    width: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    justifyContent: 'flex-start',
+  },
+  headerRight: {
+    width: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   backBtn: {
     width: 40,
@@ -623,15 +641,18 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     alignItems: 'center',
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.slate400,
     fontFamily: 'Inter_500Medium',
+    textAlign: 'center',
+    marginTop: -18,
   },
   headerTitle: {
     fontSize: 28,
     color: colors.white,
-    fontFamily: 'Outfit_800ExtraBold',
-    marginTop: -2,
+    fontFamily: 'AkayaKanadaka_400Regular',
+    letterSpacing: 0.5,
+    textAlign: 'center',
   },
   iconBtn: {
     width: 44,
@@ -981,7 +1002,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   modalVendorCat: {
     fontSize: 16,
-    color: colors.gold,
+    color: isDark ? '#818cf8' : '#6366f1',
     fontFamily: 'Outfit_600SemiBold',
     marginTop: 4,
   },
@@ -1030,13 +1051,13 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: isDark ? '#818cf8' : '#6366f1',
     paddingVertical: 16,
     borderRadius: 16,
     gap: 10,
   },
   primaryActionText: {
-    color: '#0f172a',
+    color: '#ffffff',
     fontSize: 16,
     fontFamily: 'Outfit_800ExtraBold',
   },
@@ -1053,7 +1074,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     gap: 10,
   },
   secondaryActionText: {
-    color: colors.gold,
+    color: isDark ? '#818cf8' : '#6366f1',
     fontSize: 16,
     fontFamily: 'Outfit_700Bold',
   },
@@ -1107,13 +1128,13 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     gap: 6,
   },
   detectBtnText: {
-    color: colors.gold,
+    color: isDark ? '#818cf8' : '#6366f1',
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },
   inputLabel: {
     fontSize: 14,
-    color: colors.gold,
+    color: isDark ? '#818cf8' : '#6366f1',
     fontFamily: 'Outfit_700Bold',
     marginBottom: 4,
   },
@@ -1148,14 +1169,14 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     fontFamily: 'Inter_500Medium',
   },
   submitFormBtn: {
-    backgroundColor: colors.gold,
+    backgroundColor: isDark ? '#818cf8' : '#6366f1',
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: 'center',
     marginTop: 10,
   },
   submitFormText: {
-    color: '#0f172a',
+    color: '#ffffff',
     fontSize: 16,
     fontFamily: 'Outfit_800ExtraBold',
     textTransform: 'uppercase',
@@ -1196,7 +1217,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     marginTop: 4,
   },
   gridExperienceText: {
-    color: colors.gold,
+    color: isDark ? '#818cf8' : '#6366f1',
     fontSize: 10,
     fontFamily: 'Outfit_700Bold',
   },

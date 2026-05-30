@@ -29,6 +29,13 @@ import * as Location from 'expo-location';
 
 const { width } = Dimensions.get('window');
 
+const INDIGO = '#6366f1';
+const INDIGO_LIGHT = '#818cf8';
+const INDIGO_DARK = '#4f46e5';
+const INDIGO_BORDER = 'rgba(99, 102, 241, 0.25)';
+const INDIGO_BG_LIGHT = 'rgba(99, 102, 241, 0.1)';
+const INDIGO_BG_SUPER_LIGHT = 'rgba(99, 102, 241, 0.05)';
+
 const BUSINESS_TYPES = [
   'Venue', 'Photography', 'Videography', 'Catering', 'Food Stalls',
   'Music & DJ', 'Lighting', 'Decor', 'Event Planner', 'Security',
@@ -578,7 +585,7 @@ export default function ManageBusinessScreen() {
     list.sort((a, b) => b.percent - a.percent);
 
     // 3. Assign premium dynamic colors based on rank
-    const colorPalette = ['#3b82f6', '#8b5cf6', '#22c55e', '#d4af37', '#64748b'];
+    const colorPalette = ['#3b82f6', '#8b5cf6', '#22c55e', '#6366f1', '#64748b'];
 
     // 4. If we have more than 4 cities, group the rest as "Others"
     if (list.length > 5) {
@@ -696,7 +703,7 @@ export default function ManageBusinessScreen() {
   if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color="#d4af37" />
+        <ActivityIndicator size="large" color={INDIGO} />
       </View>
     );
   }
@@ -705,8 +712,8 @@ export default function ManageBusinessScreen() {
     return (
       <View style={[styles.container, styles.center]}>
         <Text style={{ color: colors.white }}>Business not found</Text>
-        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
-          <Text style={{ color: '#d4af37' }}>Go Back</Text>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/businesses')} style={{ marginTop: 20 }}>
+          <Text style={{ color: INDIGO }}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -722,8 +729,8 @@ export default function ManageBusinessScreen() {
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-              <IconSymbol name="chevron.left" size={24} color="#d4af37" />
+            <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/businesses')} style={styles.backBtn}>
+              <IconSymbol name="chevron.left" size={24} color={INDIGO} />
             </TouchableOpacity>
           )}
         </View>
@@ -804,7 +811,7 @@ export default function ManageBusinessScreen() {
                 ) : (
                   coverImages.length < 3 && (
                     <TouchableOpacity onPress={pickImage} style={styles.addSmallBtn}>
-                      <IconSymbol name="plus.circle.fill" size={20} color="#d4af37" />
+                      <IconSymbol name="plus.circle.fill" size={20} color={INDIGO_LIGHT} />
                       <Text style={styles.addSmallBtnText}>Add Photo</Text>
                     </TouchableOpacity>
                   )
@@ -838,10 +845,10 @@ export default function ManageBusinessScreen() {
                                 <IconSymbol name="trash.fill" size={16} color="#ef4444" />
                               </TouchableOpacity>
                               <TouchableOpacity 
-                                style={[styles.imageActionBtn, { backgroundColor: '#d4af37' }]} 
+                                style={[styles.imageActionBtn, { backgroundColor: INDIGO }]} 
                                 onPress={pickImage}
                               >
-                                <IconSymbol name="pencil" size={16} color="#0f172a" />
+                                <IconSymbol name="pencil" size={16} color="#ffffff" />
                               </TouchableOpacity>
                             </View>
                           )}
@@ -899,7 +906,7 @@ export default function ManageBusinessScreen() {
                       <Text style={[styles.dropdownBtnText, !category && { color: '#475569' }]}>
                         {category || 'Select Category'}
                       </Text>
-                      <IconSymbol name="chevron.down" size={16} color="#d4af37" />
+                      <IconSymbol name="chevron.down" size={16} color={INDIGO_LIGHT} />
                     </TouchableOpacity>
 
                     <Modal
@@ -939,7 +946,7 @@ export default function ManageBusinessScreen() {
                                     {item}
                                   </Text>
                                   {category === item && (
-                                    <IconSymbol name="checkmark" size={16} color="#d4af37" />
+                                    <IconSymbol name="checkmark" size={16} color={INDIGO_LIGHT} />
                                   )}
                                 </TouchableOpacity>
                               ))}
@@ -970,7 +977,7 @@ export default function ManageBusinessScreen() {
                       style={styles.datePickerBtn} 
                       onPress={() => setShowDatePicker(true)}
                     >
-                      <IconSymbol name="calendar" size={16} color="#d4af37" />
+                      <IconSymbol name="calendar" size={16} color={INDIGO_LIGHT} />
                       <Text style={styles.datePickerBtnText}>
                         {startedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                       </Text>
@@ -1162,7 +1169,7 @@ export default function ManageBusinessScreen() {
             <View style={styles.portfolioGrid}>
               {isEditing && (
                 <TouchableOpacity style={styles.addPhotoCard}>
-                  <IconSymbol name="plus" size={32} color="#d4af37" />
+                  <IconSymbol name="plus" size={32} color={INDIGO_LIGHT} />
                   <Text style={styles.addPhotoText}>Add Photo</Text>
                 </TouchableOpacity>
               )}
@@ -1191,7 +1198,7 @@ export default function ManageBusinessScreen() {
                     style={styles.manageBtn}
                     onPress={() => setIsEditingNews(true)}
                   >
-                    <IconSymbol name="megaphone.fill" size={14} color="#d4af37" />
+                    <IconSymbol name="megaphone.fill" size={14} color={INDIGO_LIGHT} />
                     <Text style={styles.manageBtnText}>Manage</Text>
                   </TouchableOpacity>
                 )}
@@ -1220,7 +1227,7 @@ export default function ManageBusinessScreen() {
                     onPress={addNewsItem}
                     disabled={news.length >= 10 || !newNewsItem.trim()}
                   >
-                    <IconSymbol name="plus.circle.fill" size={24} color="#d4af37" />
+                    <IconSymbol name="plus.circle.fill" size={24} color={INDIGO_LIGHT} />
                   </TouchableOpacity>
                 </View>
               )}
@@ -1318,7 +1325,7 @@ export default function ManageBusinessScreen() {
                   style={styles.manageBtn}
                   onPress={() => setIsEditingFaqs(true)}
                 >
-                  <IconSymbol name="questionmark.circle.fill" size={14} color="#d4af37" />
+                  <IconSymbol name="questionmark.circle.fill" size={14} color={INDIGO_LIGHT} />
                   <Text style={styles.manageBtnText}>Manage</Text>
                 </TouchableOpacity>
               )}
@@ -1328,7 +1335,7 @@ export default function ManageBusinessScreen() {
                   onPress={addFaq}
                   disabled={faqs.length >= 5}
                 >
-                  <IconSymbol name="plus.circle.fill" size={20} color="#d4af37" />
+                  <IconSymbol name="plus.circle.fill" size={20} color={INDIGO_LIGHT} />
                   <Text style={styles.addBtnText}>Add FAQ</Text>
                 </TouchableOpacity>
               )}
@@ -1482,7 +1489,7 @@ export default function ManageBusinessScreen() {
                     colors={['#1e293b', '#0f172a']}
                     style={[StyleSheet.absoluteFillObject, { padding: 20, justifyContent: 'center', alignItems: 'center', borderRadius: 24 }]}
                   >
-                    <ActivityIndicator size="small" color="#d4af37" />
+                    <ActivityIndicator size="small" color={INDIGO_LIGHT} />
                     <Text style={{ color: '#cbd5e1', marginTop: 12, fontFamily: 'Outfit_700Bold', fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                       Calculating Standing...
                     </Text>
@@ -1582,8 +1589,8 @@ export default function ManageBusinessScreen() {
                     const impressions = Math.round(views * 1.54) + 5;
                     const conversionRate = views > 0 ? ((inquiries / views) * 100).toFixed(1) : '0.0';
                     
-                    const viewsBarWidth = impressions > 0 ? `${Math.max(10, Math.min(100, Math.round((views / impressions) * 100)))}%` : '10%';
-                    const inquiriesBarWidth = views > 0 ? `${Math.max(5, Math.min(100, Math.round((inquiries / views) * 100)))}%` : '5%';
+                    const viewsBarWidth: any = impressions > 0 ? `${Math.max(10, Math.min(100, Math.round((views / impressions) * 100)))}%` : '10%';
+                    const inquiriesBarWidth: any = views > 0 ? `${Math.max(5, Math.min(100, Math.round((inquiries / views) * 100)))}%` : '5%';
                     
                     // Calculate dynamic growth trend compared to previous range
                     let trendText = 'Stable';
@@ -1702,11 +1709,11 @@ export default function ManageBusinessScreen() {
 
                           <View style={styles.funnelRow}>
                             <View style={styles.funnelMeta}>
-                              <View style={[styles.funnelDot, { backgroundColor: '#d4af37' }]} />
+                              <View style={[styles.funnelDot, { backgroundColor: INDIGO }]} />
                               <Text style={styles.funnelLabel}>Inquiries</Text>
                             </View>
                             <View style={styles.funnelBarContainer}>
-                              <View style={[styles.funnelBar, { width: inquiriesBarWidth, backgroundColor: '#d4af37' }]} />
+                              <View style={[styles.funnelBar, { width: inquiriesBarWidth, backgroundColor: INDIGO }]} />
                             </View>
                             <Text style={styles.funnelCount}>{formatCount(inquiries)}</Text>
                           </View>
@@ -1734,7 +1741,7 @@ export default function ManageBusinessScreen() {
                     const channels = [
                       { label: 'WhatsApp',    value: whatsapp, color: '#22c55e', icon: 'message.fill' },
                       { label: 'Phone Calls', value: phone,    color: '#3b82f6', icon: 'phone.fill' },
-                      { label: 'In-App Chat', value: chat,     color: '#d4af37', icon: 'bubble.left.fill' },
+                      { label: 'In-App Chat', value: chat,     color: INDIGO,   icon: 'bubble.left.fill' },
                     ];
 
                     return (
@@ -1746,9 +1753,9 @@ export default function ManageBusinessScreen() {
                               {total} <Text style={{ fontSize: 13, fontFamily: 'Outfit_500Medium', color: colors.slate400 }}>Total</Text>
                             </Text>
                           </View>
-                          <View style={[styles.growthBadge, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}>
-                            <IconSymbol name="chart.bar.fill" size={12} color="#d4af37" />
-                            <Text style={[styles.growthText, { color: '#d4af37' }]}>
+                          <View style={[styles.growthBadge, { backgroundColor: INDIGO_BG_LIGHT }]}>
+                            <IconSymbol name="chart.bar.fill" size={12} color={INDIGO_LIGHT} />
+                            <Text style={[styles.growthText, { color: INDIGO_LIGHT }]}>
                               Breakdown
                             </Text>
                           </View>
@@ -1762,7 +1769,7 @@ export default function ManageBusinessScreen() {
                             </View>
                           ) : (
                             channels.map((item, idx) => {
-                              const shareWidth = total > 0 ? `${Math.max(5, Math.min(100, Math.round((item.value / total) * 100)))}%` : '0%';
+                              const shareWidth: any = total > 0 ? `${Math.max(5, Math.min(100, Math.round((item.value / total) * 100)))}%` : '0%';
                               return (
                                 <View key={idx} style={styles.funnelRow}>
                                   <View style={styles.funnelMeta}>
@@ -1806,9 +1813,9 @@ export default function ManageBusinessScreen() {
                               {totalCities} <Text style={{ fontSize: 13, fontFamily: 'Outfit_500Medium', color: colors.slate400 }}>{totalCities === 1 ? 'City Tracked' : 'Cities Tracked'}</Text>
                             </Text>
                           </View>
-                          <View style={[styles.growthBadge, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}>
-                            <IconSymbol name="mappin.and.ellipse" size={12} color="#d4af37" />
-                            <Text style={[styles.growthText, { color: '#d4af37' }]}>
+                          <View style={[styles.growthBadge, { backgroundColor: INDIGO_BG_LIGHT }]}>
+                            <IconSymbol name="mappin.and.ellipse" size={12} color={INDIGO_LIGHT} />
+                            <Text style={[styles.growthText, { color: INDIGO_LIGHT }]}>
                               Top Locations
                             </Text>
                           </View>
@@ -1863,9 +1870,9 @@ export default function ManageBusinessScreen() {
                               {hasActivity ? 'Active' : 'Idle'} <Text style={{ fontSize: 13, fontFamily: 'Outfit_500Medium', color: colors.slate400 }}>Engagement</Text>
                             </Text>
                           </View>
-                          <View style={[styles.growthBadge, { backgroundColor: hasActivity ? 'rgba(212, 175, 55, 0.1)' : 'rgba(148, 163, 184, 0.1)' }]}>
-                            <IconSymbol name="calendar" size={12} color={hasActivity ? '#d4af37' : '#94a3b8'} />
-                            <Text style={[styles.growthText, { color: hasActivity ? '#d4af37' : '#94a3b8' }]}>
+                          <View style={[styles.growthBadge, { backgroundColor: hasActivity ? INDIGO_BG_LIGHT : 'rgba(148, 163, 184, 0.1)' }]}>
+                            <IconSymbol name="calendar" size={12} color={hasActivity ? INDIGO_LIGHT : '#94a3b8'} />
+                            <Text style={[styles.growthText, { color: hasActivity ? INDIGO_LIGHT : '#94a3b8' }]}>
                               Peak: {peakDayName}
                             </Text>
                           </View>
@@ -1876,7 +1883,7 @@ export default function ManageBusinessScreen() {
                             <View key={idx} style={styles.barColumn}>
                               <View style={styles.barTrack}>
                                 <LinearGradient
-                                  colors={item.peak ? ['#d4af37', '#b8860b'] : ['#38bdf8', '#0ea5e9']}
+                                  colors={item.peak ? [INDIGO_LIGHT, INDIGO_DARK] : ['#38bdf8', '#0ea5e9']}
                                   style={[styles.barFill, { height: `${item.value}%` }]}
                                 />
                               </View>
@@ -1891,7 +1898,7 @@ export default function ManageBusinessScreen() {
                             <Text style={styles.legendText}>Normal Activity</Text>
                           </View>
                           <View style={styles.legendItem}>
-                            <View style={[styles.legendDot, { backgroundColor: '#d4af37' }]} />
+                            <View style={[styles.legendDot, { backgroundColor: INDIGO }]} />
                             <Text style={styles.legendText}>Peak Day</Text>
                           </View>
                         </View>
@@ -1967,7 +1974,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#d4af37',
+    backgroundColor: INDIGO,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 12,
@@ -1975,7 +1982,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
   compactEditBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#d4af37',
+    backgroundColor: INDIGO,
     paddingHorizontal: 11,
     paddingVertical: 6.5,
     borderRadius: 9,
@@ -1984,28 +1991,28 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#d4af37',
+    backgroundColor: INDIGO,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
   },
   editBtnText: {
-    color: isDark ? '#0f172a' : '#ffffff',
+    color: '#ffffff',
     fontFamily: 'Outfit_700Bold',
     fontSize: 14,
   },
   compactEditBtnText: {
-    color: isDark ? '#0f172a' : '#ffffff',
+    color: '#ffffff',
     fontFamily: 'Outfit_700Bold',
     fontSize: 12.5,
   },
   editBtnSmallText: {
-    color: isDark ? '#0f172a' : '#ffffff',
+    color: '#ffffff',
     fontFamily: 'Outfit_700Bold',
     fontSize: 12,
   },
   saveBtn: {
-    backgroundColor: '#d4af37',
+    backgroundColor: INDIGO,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 12,
@@ -2020,7 +2027,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     minWidth: 60,
   },
   saveBtnText: {
-    color: isDark ? '#0f172a' : '#ffffff',
+    color: '#ffffff',
     fontFamily: 'Outfit_800ExtraBold',
     fontSize: 14,
   },
@@ -2178,7 +2185,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     fontFamily: 'Outfit_600SemiBold',
   },
   activeTabText: {
-    color: '#d4af37',
+    color: INDIGO,
   },
   tabIndicator: {
     position: 'absolute',
@@ -2186,7 +2193,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     left: 10,
     right: 10,
     height: 2,
-    backgroundColor: '#d4af37',
+    backgroundColor: INDIGO,
     borderRadius: 1,
   },
   tabContent: {
@@ -2227,7 +2234,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     marginBottom: 12,
   },
   addTagBtn: {
-    backgroundColor: '#d4af37',
+    backgroundColor: INDIGO,
     width: 54,
     borderRadius: 16,
     justifyContent: 'center',
@@ -2272,7 +2279,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     gap: 6,
   },
   addBtnText: {
-    color: '#d4af37',
+    color: INDIGO,
     fontFamily: 'Outfit_700Bold',
     fontSize: 14,
   },
@@ -2310,7 +2317,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     gap: 10,
   },
   promotionBtnText: {
-    color: isDark ? '#0f172a' : '#ffffff',
+    color: '#ffffff',
     fontSize: 16,
     fontFamily: 'Outfit_800ExtraBold',
   },
@@ -2324,15 +2331,15 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     height: 150,
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: 'rgba(212, 175, 52, 0.3)',
+    borderColor: INDIGO_BORDER,
     borderStyle: 'dashed',
-    backgroundColor: 'rgba(212, 175, 52, 0.05)',
+    backgroundColor: INDIGO_BG_SUPER_LIGHT,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
   },
   addPhotoText: {
-    color: '#d4af37',
+    color: INDIGO_LIGHT,
     fontSize: 14,
     fontFamily: 'Outfit_700Bold',
   },
@@ -2408,7 +2415,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     color: colors.white,
     fontFamily: 'Inter_400Regular',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: INDIGO_BORDER,
     minHeight: 80,
     textAlignVertical: 'top',
   },
@@ -2434,14 +2441,14 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: INDIGO_BORDER,
     marginBottom: 24,
   },
   newsIconContainer: {
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    backgroundColor: INDIGO_BG_LIGHT,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -2465,7 +2472,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     marginVertical: 16,
   },
   updateNewsBtn: {
-    backgroundColor: '#d4af37',
+    backgroundColor: INDIGO,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2474,7 +2481,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     gap: 8,
   },
   updateNewsBtnText: {
-    color: isDark ? '#0f172a' : '#ffffff',
+    color: '#ffffff',
     fontSize: 14,
     fontFamily: 'Outfit_800ExtraBold',
   },
@@ -2526,7 +2533,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#d4af37',
+    backgroundColor: INDIGO,
     marginTop: 6,
   },
   newsItemText: {
@@ -2544,15 +2551,15 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     textAlign: 'center',
   },
   timeBadge: {
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    backgroundColor: INDIGO_BG_LIGHT,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: INDIGO_BORDER,
   },
   timeBadgeText: {
-    color: '#d4af37',
+    color: INDIGO_LIGHT,
     fontSize: 10,
     fontFamily: 'Outfit_700Bold',
   },
@@ -2708,9 +2715,9 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
   },
   peakDayLabel: {
     fontSize: 12,
-    color: '#d4af37',
+    color: INDIGO_LIGHT,
     fontFamily: 'Outfit_700Bold',
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    backgroundColor: INDIGO_BG_LIGHT,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -2753,7 +2760,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     fontFamily: 'Outfit_700Bold',
   },
   peakDayText: {
-    color: '#d4af37',
+    color: INDIGO_LIGHT,
   },
   chartLegend: {
     flexDirection: 'row',
@@ -2795,8 +2802,8 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     borderColor: colors.cardBorder,
   },
   activeRangeChip: {
-    borderColor: '#d4af37',
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    borderColor: INDIGO,
+    backgroundColor: INDIGO_BG_LIGHT,
   },
   rangeText: {
     fontSize: 13,
@@ -2804,7 +2811,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     fontFamily: 'Outfit_600SemiBold',
   },
   activeRangeText: {
-    color: '#d4af37',
+    color: INDIGO,
   },
   locationCard: {
     backgroundColor: colors.deepSlate,
@@ -2922,7 +2929,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     overflow: 'hidden',
     marginTop: 10,
     elevation: 4,
-    shadowColor: '#d4af37',
+    shadowColor: INDIGO,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
@@ -3004,7 +3011,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     borderRadius: 5,
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
-    borderColor: '#d4af37',
+    borderColor: INDIGO_LIGHT,
     marginLeft: -5,
   },
   gaugeLabels: {
@@ -3131,7 +3138,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     backgroundColor: 'rgba(255,255,255,0.3)',
   },
   activeDot: {
-    backgroundColor: '#d4af37',
+    backgroundColor: INDIGO,
     width: 14,
   },
   emptyCoverPlaceholder: {
@@ -3155,7 +3162,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     gap: 6,
   },
   addSmallBtnText: {
-    color: '#d4af37',
+    color: INDIGO_LIGHT,
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },
@@ -3265,7 +3272,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     borderBottomColor: 'rgba(255,255,255,0.02)',
   },
   pickerItemActive: {
-    backgroundColor: 'rgba(212, 175, 55, 0.05)',
+    backgroundColor: INDIGO_BG_SUPER_LIGHT,
   },
   pickerItemText: {
     fontSize: 15,
@@ -3273,7 +3280,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     fontFamily: 'Inter_500Medium',
   },
   pickerItemTextActive: {
-    color: '#d4af37',
+    color: INDIGO,
     fontFamily: 'Inter_600SemiBold',
   },
   pickerFade: {
@@ -3303,16 +3310,16 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
   manageBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    backgroundColor: INDIGO_BG_LIGHT,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
     gap: 4,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: INDIGO_BORDER,
   },
   manageBtnText: {
-    color: '#d4af37',
+    color: INDIGO_LIGHT,
     fontSize: 11,
     fontFamily: 'Outfit_700Bold',
   },
@@ -3320,9 +3327,9 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(212, 175, 55, 0.05)',
+    backgroundColor: INDIGO_BG_SUPER_LIGHT,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.15)',
+    borderColor: INDIGO_BORDER,
     borderRadius: 16,
     padding: 16,
     marginBottom: 8,
@@ -3333,13 +3340,13 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     fontFamily: 'Outfit_700Bold',
   },
   leadsCountBadge: {
-    backgroundColor: '#d4af37',
+    backgroundColor: INDIGO,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
   },
   leadsCountText: {
-    color: isDark ? '#0f172a' : '#ffffff',
+    color: '#ffffff',
     fontSize: 10,
     fontFamily: 'Outfit_800ExtraBold',
     letterSpacing: 0.5,
@@ -3366,14 +3373,14 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    backgroundColor: INDIGO_BG_LIGHT,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: INDIGO_BORDER,
     justifyContent: 'center',
     alignItems: 'center',
   },
   leadAvatarText: {
-    color: '#d4af37',
+    color: INDIGO_LIGHT,
     fontSize: 16,
     fontFamily: 'Outfit_700Bold',
   },
@@ -3397,15 +3404,15 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(212, 175, 55, 0.05)',
+    backgroundColor: INDIGO_BG_SUPER_LIGHT,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.1)',
+    borderColor: INDIGO_BORDER,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
   },
   leadDetailPillText: {
-    color: '#d4af37',
+    color: INDIGO_LIGHT,
     fontSize: 12,
     fontFamily: 'Outfit_600SemiBold',
   },
@@ -3476,7 +3483,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    backgroundColor: INDIGO_BG_LIGHT,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -3516,7 +3523,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     borderColor: colors.cardBorder,
   },
   inlineSaveBtn: {
-    backgroundColor: '#d4af37',
+    backgroundColor: INDIGO,
   },
   inlineCancelBtnText: {
     color: colors.slate400,
@@ -3524,7 +3531,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     fontFamily: 'Outfit_600SemiBold',
   },
   inlineSaveBtnText: {
-    color: isDark ? '#0f172a' : '#ffffff',
+    color: '#ffffff',
     fontSize: 13,
     fontFamily: 'Outfit_700Bold',
   },
@@ -3548,14 +3555,14 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(212, 175, 55, 0.15)',
+    backgroundColor: INDIGO_BG_LIGHT,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: INDIGO_BORDER,
     justifyContent: 'center',
     alignItems: 'center',
   },
   enquiryAvatarText: {
-    color: '#d4af37',
+    color: INDIGO_LIGHT,
     fontSize: 15,
     fontFamily: 'Outfit_700Bold',
   },

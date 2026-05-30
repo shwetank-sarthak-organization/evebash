@@ -51,6 +51,8 @@ export default function ChatScreen() {
       if (docSnap.exists()) {
         setChatRoom({ id: docSnap.id, ...docSnap.data() } as ChatRoom);
       }
+    }, (err) => {
+      console.warn("Error listening to chat room document:", err);
     });
 
     return () => unsubscribe();
@@ -147,7 +149,7 @@ export default function ChatScreen() {
       
       {/* ── HEADER ── */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/customer-chats')} style={styles.backBtn}>
           <IconSymbol name="chevron.left" size={24} color="#ffffff" />
         </TouchableOpacity>
         

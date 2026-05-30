@@ -1647,7 +1647,7 @@ export default function EventDetailScreen() {
     return (
       <View style={[styles.safeArea, styles.centered]}>
         <Text style={styles.errorText}>Event not found</Text>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')} style={styles.backBtn}>
           <Text style={styles.backBtnText}>Go Back</Text>
         </TouchableOpacity>
       </View>

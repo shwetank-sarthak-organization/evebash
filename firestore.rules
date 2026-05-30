@@ -157,6 +157,10 @@ service cloud.firestore {
         isKnownAdmin() ||
         isAdmin()
       );
+      allow delete: if isAuthenticated() && (
+        resource.data.clientUid == request.auth.uid ||
+        resource.data.vendorUid == request.auth.uid
+      );
       allow update: if isAuthenticated() && (
         isKnownAdmin() ||
         isAdmin() ||
@@ -167,6 +171,9 @@ service cloud.firestore {
             (resource.data.clientUid == request.auth.uid && request.resource.data.get('status', 'active') == 'closed') ||
             // Participant updating their own lastRead timestamps
             (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastRead'])) ||
+            // Participant soft-deleting the chat room
+            (resource.data.clientUid == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['clientDeleted'])) ||
+            (resource.data.vendorUid == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vendorDeleted'])) ||
             // Normal message-related updates on active, non-expired chat room
             (
               resource.data.get('status', 'active') == 'active' &&

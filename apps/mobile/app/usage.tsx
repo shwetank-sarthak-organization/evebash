@@ -111,7 +111,7 @@ export default function UsageScreen() {
         >
           <View style={styles.headerRow}>
             <TouchableOpacity 
-              onPress={() => router.back()}
+              onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
               style={styles.backButton}
             >
               <IconSymbol name="chevron.left" size={24} color="#94a3b8" />

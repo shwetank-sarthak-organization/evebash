@@ -18,6 +18,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      backBehavior="none"
       screenOptions={{
         tabBarActiveTintColor: colors.gold,
         tabBarInactiveTintColor: colors.slate400,
@@ -32,14 +33,7 @@ export default function TabLayout() {
           paddingBottom: insets.bottom > 0 ? insets.bottom - 5 : 10,
         },
       }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'About Us',
-          href: null,
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
+
       <Tabs.Screen
         name="explore-business"
         options={{

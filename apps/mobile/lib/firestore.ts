@@ -1641,13 +1641,15 @@ export interface Enquiry {
     preferredContact?: 'chat' | 'whatsapp' | 'call' | 'email';
     city?: string;
     createdAt?: any;
+    status?: 'active' | 'ended';
 }
 
-export async function addEnquiry(enquiry: Omit<Enquiry, 'id' | 'createdAt'>) {
+export async function addEnquiry(enquiry: Omit<Enquiry, 'id' | 'createdAt' | 'status'>) {
     try {
         const enquiriesCol = collection(db, "enquiries");
         const docRef = await addDoc(enquiriesCol, {
             ...enquiry,
+            status: 'active',
             createdAt: serverTimestamp()
         });
         return docRef.id;
@@ -1723,6 +1725,9 @@ export interface ChatRoom {
   lastMessageAt?: any;
   createdAt: any;
   status?: 'active' | 'closed';
+  enquiryId?: string;
+  clientDeleted?: boolean;
+  vendorDeleted?: boolean;
 }
 
 export interface ChatMessage {
@@ -1738,10 +1743,24 @@ export async function getOrCreateChatRoom(
   clientName: string, 
   vendorUid: string, 
   vendorName: string, 
-  businessId: string
+  businessId: string,
+  enquiryId?: string
 ): Promise<string> {
   try {
     const chatRoomsCol = collection(db, "chatRooms");
+
+    // 1. If enquiryId is provided, check if a chat room is already associated with it
+    if (enquiryId) {
+      const eq = query(chatRoomsCol, where("enquiryId", "==", enquiryId));
+      const esnap = await getDocs(eq);
+      if (!esnap.empty) {
+        // Return the existing room (could be active or closed).
+        // If it is closed, the Chat screen UI will prevent sending new messages.
+        return esnap.docs[0].id;
+      }
+    }
+
+    // 2. Fall back to finding an active, non-expired chat room between the users
     const q = query(
       chatRoomsCol, 
       where("clientUid", "==", clientUid), 
@@ -1776,6 +1795,14 @@ export async function getOrCreateChatRoom(
       });
       
       if (activeRoom) {
+        // If there's an active room and enquiryId is provided but not yet stored, update it
+        if (enquiryId && !activeRoom.data().enquiryId) {
+          try {
+            await updateDoc(doc(db, "chatRooms", activeRoom.id), { enquiryId });
+          } catch (err) {
+            console.error("Error updating chat room with enquiryId:", err);
+          }
+        }
         return activeRoom.id;
       }
     }
@@ -1790,7 +1817,8 @@ export async function getOrCreateChatRoom(
       status: 'active',
       lastMessage: "Conversation started",
       lastMessageAt: serverTimestamp(),
-      createdAt: serverTimestamp()
+      createdAt: serverTimestamp(),
+      ...(enquiryId ? { enquiryId } : {})
     });
     return docRef.id;
   } catch (error) {
@@ -1837,6 +1865,8 @@ export function onChatMessages(roomId: string, callback: (messages: ChatMessage[
       ...doc.data()
     } as ChatMessage));
     callback(messages);
+  }, (err) => {
+    console.warn("Error listening to chat messages:", err);
   });
 }
 
@@ -1851,8 +1881,15 @@ export async function getUserChatRooms(userId: string, role: 'client' | 'vendor'
       ...doc.data()
     } as ChatRoom));
     
+    // Filter out soft-deleted rooms
+    const filtered = list.filter(room => {
+      if (role === 'client' && room.clientDeleted) return false;
+      if (role === 'vendor' && room.vendorDeleted) return false;
+      return true;
+    });
+
     // Sort locally to prevent index errors
-    return list.sort((a, b) => {
+    return filtered.sort((a, b) => {
       const timeA = a.lastMessageAt?.seconds || 0;
       const timeB = b.lastMessageAt?.seconds || 0;
       return timeB - timeA;
@@ -1866,13 +1903,59 @@ export async function getUserChatRooms(userId: string, role: 'client' | 'vendor'
 export async function closeChatRoom(roomId: string): Promise<boolean> {
   try {
     const roomRef = doc(db, "chatRooms", roomId);
+    const roomSnap = await getDoc(roomRef);
+    let enquiryId: string | undefined;
+    if (roomSnap.exists()) {
+      enquiryId = roomSnap.data().enquiryId;
+    }
+
     await updateDoc(roomRef, {
       status: 'closed'
     });
+
+    if (enquiryId) {
+      try {
+        const enquiryRef = doc(db, "enquiries", enquiryId);
+        await updateDoc(enquiryRef, {
+          status: 'ended'
+        });
+      } catch (err) {
+        console.error("Error closing associated enquiry:", err);
+      }
+    }
+
     return true;
   } catch (error) {
     console.error("Error closing chat room:", error);
     return false;
   }
 }
+
+export async function deleteChatRoom(roomId: string, role: 'client' | 'vendor'): Promise<boolean> {
+  try {
+    const roomRef = doc(db, "chatRooms", roomId);
+    const roomSnap = await getDoc(roomRef);
+    if (!roomSnap.exists()) return false;
+    
+    const data = roomSnap.data();
+    const otherDeleted = role === 'client' ? data.vendorDeleted : data.clientDeleted;
+    
+    if (otherDeleted) {
+      // Both users deleted the chat, clean it up permanently
+      await deleteDoc(roomRef);
+    } else {
+      // Soft delete for current user
+      if (role === 'client') {
+        await updateDoc(roomRef, { clientDeleted: true });
+      } else {
+        await updateDoc(roomRef, { vendorDeleted: true });
+      }
+    }
+    return true;
+  } catch (error) {
+    console.error("Error deleting chat room:", error);
+    return false;
+  }
+}
+
 

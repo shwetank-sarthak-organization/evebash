@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
+import { useRouter, useLocalSearchParams, Stack, useFocusEffect } from 'expo-router';
 import { getBusinessById, getEnquiriesForBusiness, getOrCreateChatRoom, Enquiry, Business } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
 
@@ -30,15 +30,28 @@ export default function BusinessEnquiriesScreen() {
   const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
-  useEffect(() => {
-    if (id && user) {
-      const bizId = Array.isArray(id) ? id[0] : id;
-      fetchBusinessAndEnquiries(bizId);
-    }
-  }, [id, user]);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'closed'>('all');
+
+  const filteredEnquiries = enquiries.filter(enquiry => {
+    if (activeFilter === 'all') return true;
+    if (activeFilter === 'active') return enquiry.status !== 'ended';
+    if (activeFilter === 'closed') return enquiry.status === 'ended';
+    return true;
+  });
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (id && user) {
+        const bizId = Array.isArray(id) ? id[0] : id;
+        fetchBusinessAndEnquiries(bizId);
+      }
+    }, [id, user])
+  );
 
   const fetchBusinessAndEnquiries = async (bizId: string) => {
-    setLoading(true);
+    if (!business) {
+      setLoading(true);
+    }
     setLoadingEnquiries(true);
     try {
       const biz = await getBusinessById(bizId);
@@ -48,6 +61,11 @@ export default function BusinessEnquiriesScreen() {
       if (user) {
         const data = await getEnquiriesForBusiness(bizId, user.uid);
         setEnquiries(data);
+        // Refresh selectedEnquiry details in the modal if it's currently open
+        setSelectedEnquiry(current => {
+          if (!current) return null;
+          return data.find(e => e.id === current.id) || current;
+        });
       }
     } catch (error) {
       console.error('Error fetching enquiries:', error);
@@ -69,7 +87,7 @@ export default function BusinessEnquiriesScreen() {
     return (
       <View style={[styles.container, styles.center]}>
         <Text style={{ color: '#ffffff' }}>Business not found</Text>
-        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')} style={{ marginTop: 20 }}>
           <Text style={{ color: '#d4af37' }}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -80,7 +98,7 @@ export default function BusinessEnquiriesScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')} style={styles.backBtn}>
           <IconSymbol name="chevron.left" size={24} color="#ffffff" />
         </TouchableOpacity>
         
@@ -88,7 +106,49 @@ export default function BusinessEnquiriesScreen() {
           <Text style={styles.headerTitle}>Enquiries</Text>
         </View>
 
-        <View style={{ width: 40 }} />
+        <View style={styles.headerRightBadgeContainer}>
+          <View style={styles.headerLeadsCountBadge}>
+            <Text style={styles.headerLeadsCountText}>
+              {filteredEnquiries.length}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* ── FILTER SELECTION BAR ── */}
+      <View style={styles.filterContainer}>
+        {(['all', 'active', 'closed'] as const).map((filter) => {
+          const isActive = activeFilter === filter;
+          
+          let count = 0;
+          if (filter === 'all') {
+            count = enquiries.length;
+          } else if (filter === 'active') {
+            count = enquiries.filter(e => e.status !== 'ended').length;
+          } else if (filter === 'closed') {
+            count = enquiries.filter(e => e.status === 'ended').length;
+          }
+
+          return (
+            <TouchableOpacity
+              key={filter}
+              style={[
+                styles.filterTab,
+                isActive && styles.activeFilterTab
+              ]}
+              onPress={() => setActiveFilter(filter)}
+            >
+              <Text
+                style={[
+                  styles.filterTabText,
+                  isActive && styles.activeFilterTabText
+                ]}
+              >
+                {filter.charAt(0).toUpperCase() + filter.slice(1)} ({count})
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -109,43 +169,61 @@ export default function BusinessEnquiriesScreen() {
             </View>
           ) : (
             <View style={{ gap: 16, paddingBottom: 20 }}>
-              <View style={styles.leadsOverviewCard}>
-                <Text style={styles.leadsOverviewTitle}>Active Customer Leads</Text>
-                <View style={styles.leadsCountBadge}>
-                  <Text style={styles.leadsCountText}>{enquiries.length} RECEIVED</Text>
+
+              {filteredEnquiries.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <View style={styles.emptyIconBg}>
+                    <IconSymbol name="bubble.right" size={48} color="#d4af37" />
+                  </View>
+                  <Text style={styles.emptyStateTitle}>No {activeFilter} Leads</Text>
+                  <Text style={styles.emptyStateDesc}>
+                    There are no customer leads matching this status filter.
+                  </Text>
                 </View>
-              </View>
+              ) : (
+                filteredEnquiries.map((enquiry, index) => {
+                  const formattedDate = enquiry.createdAt?.toDate 
+                    ? enquiry.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                    : 'Just now';
 
-              {enquiries.map((enquiry) => {
-                const formattedDate = enquiry.createdAt?.toDate 
-                  ? enquiry.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                  : 'Just now';
-
-                return (
-                  <TouchableOpacity 
-                    key={enquiry.id} 
-                    style={styles.leadCardCompact}
-                    onPress={() => {
-                      setSelectedEnquiry(enquiry);
-                      setModalVisible(true);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.leadUserMeta}>
-                      <View style={styles.leadUserAvatar}>
-                        <Text style={styles.leadAvatarText}>
-                          {enquiry.name ? enquiry.name.charAt(0).toUpperCase() : 'C'}
-                        </Text>
+                  return (
+                    <TouchableOpacity 
+                      key={enquiry.id} 
+                      style={styles.leadCardCompact}
+                      onPress={() => {
+                        setSelectedEnquiry(enquiry);
+                        setModalVisible(true);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.leadUserMeta}>
+                        <Text style={styles.leadIndexText}>{index + 1}</Text>
+                        <View style={styles.leadUserAvatar}>
+                          <Text style={styles.leadAvatarText}>
+                            {enquiry.name ? enquiry.name.charAt(0).toUpperCase() : 'C'}
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Text style={styles.leadClientName} numberOfLines={1}>{enquiry.name}</Text>
+                            {enquiry.status === 'ended' ? (
+                              <View style={styles.closedTagCompact}>
+                                <Text style={styles.closedTagTextCompact}>CLOSED</Text>
+                              </View>
+                            ) : (
+                              <View style={styles.activeTagCompact}>
+                                <Text style={styles.activeTagTextCompact}>ACTIVE</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={styles.leadTimestamp}>Sent: {formattedDate}</Text>
+                        </View>
+                        <IconSymbol name="chevron.right" size={20} color="#94a3b8" />
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.leadClientName}>{enquiry.name}</Text>
-                        <Text style={styles.leadTimestamp}>Sent: {formattedDate}</Text>
-                      </View>
-                      <IconSymbol name="chevron.right" size={20} color="#94a3b8" />
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+                    </TouchableOpacity>
+                  );
+                })
+              )}
             </View>
           )}
         </View>
@@ -214,30 +292,39 @@ export default function BusinessEnquiriesScreen() {
               {/* Contact / Action buttons */}
               <View style={styles.leadActionsRow}>
                 {selectedEnquiry.preferredContact === 'chat' && selectedEnquiry.userId ? (
-                  <TouchableOpacity 
-                    style={[styles.leadActionBtn, styles.chatBtn]}
-                    onPress={async () => {
-                      try {
-                        setModalVisible(false);
-                        const roomId = await getOrCreateChatRoom(
-                          selectedEnquiry.userId!,
-                          selectedEnquiry.name,
-                          user.uid,
-                          business.name,
-                          business.id
-                        );
-                        router.push({
-                          pathname: '/chat',
-                          params: { roomId, otherUserName: selectedEnquiry.name }
-                        });
-                      } catch (err) {
-                        console.error('Error starting chat:', err);
-                      }
-                    }}
-                  >
-                    <IconSymbol name="bubble.left.fill" size={14} color="#0f172a" />
-                    <Text style={styles.leadActionBtnTextDark}>Reply via In-App Chat</Text>
-                  </TouchableOpacity>
+                  selectedEnquiry.status === 'ended' ? (
+                    <View style={[styles.leadActionBtn, styles.endedChatBadge]}>
+                      <IconSymbol name="lock.fill" size={14} color="#64748b" />
+                      <Text style={styles.endedChatBadgeText}>Chat Ended & Lead Closed</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity 
+                      style={[styles.leadActionBtn, styles.chatBtn]}
+                      onPress={async () => {
+                        if (!user) return;
+                        try {
+                          setModalVisible(false);
+                          const roomId = await getOrCreateChatRoom(
+                            selectedEnquiry.userId!,
+                            selectedEnquiry.name,
+                            user.uid,
+                            business.name,
+                            business.id,
+                            selectedEnquiry.id
+                          );
+                          router.push({
+                            pathname: '/chat',
+                            params: { roomId, otherUserName: selectedEnquiry.name }
+                          });
+                        } catch (err) {
+                          console.error('Error starting chat:', err);
+                        }
+                      }}
+                    >
+                      <IconSymbol name="bubble.left.fill" size={14} color="#0f172a" />
+                      <Text style={styles.leadActionBtnTextDark}>Reply via In-App Chat</Text>
+                    </TouchableOpacity>
+                  )
                 ) : (
                   <>
                     {selectedEnquiry.phone ? (
@@ -412,6 +499,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Outfit_700Bold',
   },
+  leadIndexText: {
+    color: '#64748b',
+    fontSize: 14,
+    fontFamily: 'Outfit_700Bold',
+    minWidth: 18,
+    textAlign: 'center',
+  },
   leadClientName: {
     color: '#ffffff',
     fontSize: 16,
@@ -556,5 +650,95 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.05)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  endedChatBadge: {
+    backgroundColor: 'rgba(100, 116, 139, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.25)',
+  },
+  endedChatBadgeText: {
+    color: '#64748b',
+    fontSize: 13,
+    fontFamily: 'Outfit_700Bold',
+  },
+  closedTagCompact: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  closedTagTextCompact: {
+    color: '#f87171',
+    fontSize: 9,
+    fontFamily: 'Outfit_800ExtraBold',
+    letterSpacing: 0.5,
+  },
+  activeTagCompact: {
+    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.25)',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  activeTagTextCompact: {
+    color: '#4ade80',
+    fontSize: 9,
+    fontFamily: 'Outfit_800ExtraBold',
+    letterSpacing: 0.5,
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#0f172a',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    gap: 8,
+  },
+  filterTab: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeFilterTab: {
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    borderColor: 'rgba(212, 175, 55, 0.25)',
+  },
+  filterTabText: {
+    color: '#64748b',
+    fontSize: 12,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  activeFilterTabText: {
+    color: '#d4af37',
+    fontFamily: 'Outfit_700Bold',
+  },
+  headerRightBadgeContainer: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerLeadsCountBadge: {
+    backgroundColor: '#d4af37',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    minWidth: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerLeadsCountText: {
+    color: '#0f172a',
+    fontSize: 11,
+    fontFamily: 'Outfit_800ExtraBold',
   },
 });

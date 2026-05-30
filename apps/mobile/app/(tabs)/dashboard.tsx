@@ -370,7 +370,7 @@ export default function DashboardScreen() {
 
               <LinearGradient 
                 colors={isDark ? ['#020617', '#0f172a', '#020617'] : [colors.background, colors.deepSlate, colors.background]} 
-                style={[styles.section, { paddingTop: 40 }]}
+                style={[styles.section, { paddingTop: 12 }]}
               >
                 <View style={styles.sectionHead}>
                   <View>
@@ -716,7 +716,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
 
   // ── Sections ──
-  section: { paddingTop: 8, paddingBottom: 28 },
+  section: { paddingTop: 8, paddingBottom: 16 },
   sectionHead: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', paddingHorizontal: 24, marginBottom: 18,
