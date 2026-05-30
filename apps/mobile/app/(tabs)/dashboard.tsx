@@ -16,7 +16,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  PanResponder,
+  Animated,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
@@ -25,11 +28,10 @@ import {
   getUserEvents,
   Event as FirestoreEvent,
   getApprovedSharedEventsForUser,
-  getUserBusinesses,
-  getTopRatedBusinesses,
-  Business as FirestoreBusiness,
   getEventByJoinId,
   logGuestLogin,
+  getNotifications,
+  checkGuestRequestStatus,
 } from '@/lib/firestore';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -41,6 +43,70 @@ import HandshakeIcon from '@/components/icons/HandshakeIcon';
 
 const { width, height } = Dimensions.get('window');
 
+interface SwipeableNotificationItemProps {
+  children: React.ReactNode;
+  onDismiss: () => void;
+  colors: any;
+  isDark: boolean;
+}
+
+export function SwipeableNotificationItem({ children, onDismiss, colors, isDark }: SwipeableNotificationItemProps) {
+  const translateX = React.useRef(new Animated.Value(0)).current;
+
+  const panResponder = React.useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dy) < 10;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dx < 0) {
+          translateX.setValue(gestureState.dx);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx < -120) {
+          Animated.timing(translateX, {
+            toValue: -width,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => {
+            onDismiss();
+          });
+        } else {
+          Animated.spring(translateX, {
+            toValue: 0,
+            friction: 5,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  return (
+    <View style={{ position: 'relative', overflow: 'hidden', borderRadius: 16, marginBottom: 12 }}>
+      {/* Background delete action indicator */}
+      <View style={[StyleSheet.absoluteFill, { 
+        backgroundColor: colors.gold || '#d4af37', 
+        justifyContent: 'center', 
+        alignItems: 'flex-end', 
+        paddingRight: 24,
+      }]}>
+        <IconSymbol name="trash.fill" size={20} color="#ffffff" />
+      </View>
+
+      {/* Swipeable foreground content */}
+      <Animated.View 
+        style={{ transform: [{ translateX }] }} 
+        {...panResponder.panHandlers}
+      >
+        {children}
+      </Animated.View>
+    </View>
+  );
+}
+
 export default function DashboardScreen() {
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
@@ -50,10 +116,144 @@ export default function DashboardScreen() {
 
   const [hasUnreadChats, setHasUnreadChats] = useState(false);
 
+  // Notification States
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
+  const [lastReadNotifs, setLastReadNotifs] = useState<number>(0);
+  const [dismissedNotifIds, setDismissedNotifIds] = useState<Set<string>>(new Set());
+  const [showRequestAccessModal, setShowRequestAccessModal] = useState(false);
+  const [selectedRequestEvent, setSelectedRequestEvent] = useState<any | null>(null);
+  const [sendingRequest, setSendingRequest] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusModalConfig, setStatusModalConfig] = useState({ title: '', message: '', type: 'success' as 'success' | 'pending' | 'rejected', eventName: '' as string | undefined });
+
+  const loadDismissedNotifs = async () => {
+    if (!user?.uid) return new Set<string>();
+    try {
+      const stored = await AsyncStorage.getItem(`EVEBASH_NOTIFS_DISMISSED_${user.uid}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const set = new Set<string>(parsed);
+        setDismissedNotifIds(set);
+        return set;
+      }
+    } catch (e) {
+      console.warn('Failed to load dismissed notifications:', e);
+    }
+    return new Set<string>();
+  };
+
+  const fetchNotifs = async () => {
+    if (!user?.uid) return;
+    setLoadingNotifications(true);
+    try {
+      const list = await getNotifications(user.uid);
+      const dismissed = await loadDismissedNotifs();
+      const filtered = list.filter(item => !dismissed.has(item.id));
+      setNotifications(filtered);
+      
+      const lastReadStr = await AsyncStorage.getItem(`EVEBASH_NOTIFS_LAST_READ_${user.uid}`);
+      const lastReadTime = lastReadStr ? parseInt(lastReadStr, 10) : 0;
+      setLastReadNotifs(lastReadTime);
+
+      if (filtered.length > 0) {
+        const latestNotif = filtered[0];
+        const latestTime = latestNotif.createdAt?.seconds 
+          ? latestNotif.createdAt.seconds * 1000 
+          : (latestNotif.createdAt instanceof Date ? latestNotif.createdAt.getTime() : 0);
+        
+        if (latestTime > lastReadTime) {
+          setHasUnreadNotifications(true);
+        } else {
+          setHasUnreadNotifications(false);
+        }
+      } else {
+        setHasUnreadNotifications(false);
+      }
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  const handleDismissNotification = async (notifId: string) => {
+    try {
+      const updated = new Set(dismissedNotifIds);
+      updated.add(notifId);
+      setDismissedNotifIds(updated);
+
+      if (user?.uid) {
+        await AsyncStorage.setItem(
+          `EVEBASH_NOTIFS_DISMISSED_${user.uid}`, 
+          JSON.stringify(Array.from(updated))
+        );
+      }
+
+      setNotifications(prev => prev.filter(item => item.id !== notifId));
+    } catch (e) {
+      console.warn('Failed to dismiss notification:', e);
+    }
+  };
+
+  const handleSendAccessRequest = async () => {
+    if (!selectedRequestEvent || !user) return;
+    setSendingRequest(true);
+    try {
+      const guestName = user.name || 'Anonymous Guest';
+      const guestId = user.phone || user.email || user.uid;
+      if (!guestId) {
+        Alert.alert("Error", "You must be logged in to request access.");
+        return;
+      }
+      
+      const success = await logGuestLogin(
+        guestName,
+        guestId,
+        selectedRequestEvent.targetId,
+        selectedRequestEvent.eventParentId || undefined,
+        selectedRequestEvent.eventTitle || 'Untitled Event',
+        selectedRequestEvent.eventCreatorId || undefined,
+        'pending'
+      );
+
+      if (success) {
+        // Close Request Access Modal immediately
+        setShowRequestAccessModal(false);
+        // Show Status Modal with details
+        setStatusModalConfig({
+          title: "Request Sent",
+          message: `Your request to join "${selectedRequestEvent.eventTitle || 'this private event'}" has been sent to the creator. Once approved, the event will automatically appear in your collections!`,
+          type: 'success',
+          eventName: selectedRequestEvent.eventTitle || undefined
+        });
+        setShowStatusModal(true);
+      } else {
+        setShowRequestAccessModal(false);
+        Alert.alert("Request Failed", "Failed to submit request. Please try again later.");
+      }
+    } catch (err) {
+      console.error("Error submitting guest request:", err);
+      Alert.alert("Error", "An error occurred while sending your request.");
+    } finally {
+      setSendingRequest(false);
+    }
+  };
+
+  const handleOpenNotifications = async () => {
+    setShowNotificationsModal(true);
+    setHasUnreadNotifications(false);
+    const now = Date.now();
+    setLastReadNotifs(now);
+    if (user?.uid) {
+      await AsyncStorage.setItem(`EVEBASH_NOTIFS_LAST_READ_${user.uid}`, now.toString());
+    }
+  };
 
   const [refreshing, setRefreshing] = useState(false);
   const [events, setEvents] = useState<FirestoreEvent[]>([]);
-  const [businesses, setBusinesses] = useState<FirestoreBusiness[]>([]);
   const [loading, setLoading] = useState(true);
   const [infoModal, setInfoModal] = useState<{ visible: boolean; title: string; content: string }>({
     visible: false,
@@ -144,7 +344,6 @@ export default function DashboardScreen() {
   const fetchData = async () => {
     if (!user) {
       setEvents([]);
-      setBusinesses([]);
       setLoading(false);
       setRefreshing(false);
       return;
@@ -155,17 +354,16 @@ export default function DashboardScreen() {
       if (user.email) ownIdentifiers.push(user.email);
       if (user.phone) ownIdentifiers.push(user.phone);
 
-      const [fetchedEvents, approvedSharedEvents, fetchedBusinesses] = await Promise.all([
+      const [fetchedEvents, approvedSharedEvents] = await Promise.all([
         getUserEvents(ownIdentifiers, 'main'),
         getApprovedSharedEventsForUser(ownIdentifiers),
-        getTopRatedBusinesses(10)
+        fetchNotifs()
       ]);
 
       const visibleEvents = Array.from(
         new Map([...fetchedEvents, ...approvedSharedEvents].map((e) => [e.id, e])).values()
       ).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setEvents(visibleEvents);
-      setBusinesses(fetchedBusinesses);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
     } finally {
@@ -256,11 +454,11 @@ export default function DashboardScreen() {
             <TouchableOpacity 
               style={{ width: 24, height: 24, justifyContent: 'center', alignItems: 'center', position: 'relative' }} 
               activeOpacity={0.7}
-              onPress={() => Alert.alert("Notifications", "Coming Soon: Updates on your albums, events, and shortlist activity.")}
+              onPress={handleOpenNotifications}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
               <IconSymbol name="bell.fill" size={20} color={colors.gold} />
-              <View style={[styles.unreadBadge, { backgroundColor: colors.gold }]} />
+              {hasUnreadNotifications && <View style={styles.unreadBadge} />}
             </TouchableOpacity>
           </View>
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -302,164 +500,85 @@ export default function DashboardScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <ScrollView 
-                  horizontal 
-                  showsHorizontalScrollIndicator={false} 
-                  contentContainerStyle={styles.eventsScrollContainer}
-                  decelerationRate="fast"
-                  snapToInterval={CARD_W + 16}
-                >
+                <View style={styles.eventsGridContainer}>
                   {events.slice(0, 3).map((event) => (
                     <TouchableOpacity 
                       key={event.id} 
-                      style={styles.recentEventCard}
+                      style={styles.aestheticEventCard}
                       activeOpacity={0.9}
                       onPress={() => router.push(`/events/${event.id}?mode=visitor`)}
                     >
-                      <ExpoImage 
-                        source={{ uri: event.coverImage }} 
-                        style={StyleSheet.absoluteFill} 
-                        contentFit="cover"
-                        transition={400}
-                      />
-                      <LinearGradient 
-                        colors={['transparent', 'rgba(2,6,23,0.9)']} 
-                        style={StyleSheet.absoluteFill} 
-                      />
-                      <View style={styles.recentEventInfo}>
-                        <Text style={styles.recentEventTitle} numberOfLines={1}>{event.title}</Text>
-                        <View style={styles.recentEventMeta}>
-                          <IconSymbol name="calendar" size={10} color="rgba(255,255,255,0.6)" />
-                          <Text style={styles.recentEventDate}>{event.date}</Text>
+                      {/* Top Part: Image Container */}
+                      <View style={styles.aestheticImageContainer}>
+                        {/* Ambient Blurred Backdrop */}
+                        <ExpoImage 
+                          source={{ uri: event.coverImage }} 
+                          style={[StyleSheet.absoluteFill, { opacity: 0.35 }]} 
+                          contentFit="cover"
+                          blurRadius={20}
+                        />
+                        {/* Sharp Contain Foreground */}
+                        <ExpoImage 
+                          source={{ uri: event.coverImage }} 
+                          style={StyleSheet.absoluteFill} 
+                          contentFit="contain"
+                          transition={400}
+                        />
+                        <LinearGradient 
+                          colors={['rgba(2,6,23,0.15)', 'transparent']} 
+                          style={StyleSheet.absoluteFill} 
+                        />
+                      </View>
+                      
+                      {/* Bottom Part: Text Details */}
+                      <View style={styles.aestheticTextContainer}>
+                        <Text style={styles.aestheticEventTitle} numberOfLines={1}>{event.title}</Text>
+                        <View style={styles.aestheticEventMeta}>
+                          <IconSymbol name="calendar" size={10} color={colors.gold} />
+                          <Text style={styles.aestheticEventDate}>{event.date}</Text>
                         </View>
                       </View>
                     </TouchableOpacity>
                   ))}
                   
                   <TouchableOpacity 
-                    style={styles.viewAllMemoriesCard}
+                    style={styles.aestheticExploreCard}
                     activeOpacity={0.8}
-                    onPress={() => router.push('/your-events')}
+                    onPress={() => router.push('/(tabs)/your-events')}
                   >
-                    <ExpoImage 
-                      source={require('@/assets/images/memories_bg.png')} 
-                      style={StyleSheet.absoluteFill} 
-                      contentFit="cover"
-                      transition={400}
-                    />
-                    <LinearGradient 
-                      colors={['rgba(2,6,23,0.3)', 'rgba(2,6,23,0.95)']} 
-                      style={StyleSheet.absoluteFill} 
-                    />
-                    <View style={styles.viewAllMemoriesContent}>
-                       <View style={{ alignItems: 'center', gap: 4, marginBottom: 14, zIndex: 1 }}>
-                         <Text style={[styles.viewAllMemoriesText, { fontSize: 18 }]}>Your memories</Text>
-                         <View style={styles.countPill}>
-                           <Text style={styles.viewAllMemoriesSub}>{events.length} Collections</Text>
+                    <View style={{ width: '100%', height: '100%', position: 'relative' }}>
+                      <ExpoImage 
+                        source={require('@/assets/images/memories_bg.png')} 
+                        style={StyleSheet.absoluteFill} 
+                        contentFit="fill"
+                        transition={400}
+                      />
+                      <LinearGradient 
+                        colors={['rgba(2,6,23,0.4)', 'rgba(2,6,23,0.95)']} 
+                        style={StyleSheet.absoluteFill} 
+                      />
+                      <View style={styles.aestheticExploreContent}>
+                         <View style={{ alignItems: 'center', gap: 4, marginBottom: 12 }}>
+                           <Text style={styles.aestheticExploreTitle} numberOfLines={1}>Your memories</Text>
+                           <View style={styles.aestheticCountPill}>
+                             <Text style={styles.aestheticCountText}>{events.length} Collections</Text>
+                           </View>
                          </View>
-                       </View>
-                       
-                       <View style={styles.miniGalleryBtn}>
-                          <Text style={styles.miniGalleryBtnText}>Explore All</Text>
-                          <IconSymbol name="arrow.right" size={14} color={'#020617'} />
-                       </View>
+                         
+                         <View style={styles.aestheticExploreBtn}>
+                            <Text style={styles.aestheticExploreBtnText}>Explore All</Text>
+                            <IconSymbol name="arrow.right" size={12} color={'#020617'} />
+                         </View>
+                      </View>
                     </View>
-                  </TouchableOpacity>
-                </ScrollView>
-              </View>
-
-              <LinearGradient 
-                colors={isDark ? ['#020617', '#0f172a', '#020617'] : [colors.background, colors.deepSlate, colors.background]} 
-                style={[styles.section, { paddingTop: 12 }]}
-              >
-                <View style={styles.sectionHead}>
-                  <View>
-                    <Text style={styles.sectionLabel}>Services near you</Text>
-                    <Text style={styles.sectionSub}>Photographers, venues & more</Text>
-                  </View>
-                  <TouchableOpacity 
-                    style={[styles.catchyActionPill, { backgroundColor: isDark ? '#818cf8' : '#6366f1' }]}
-                    activeOpacity={0.8}
-                    onPress={() => router.push('/shortlist')}
-                  >
-                    <IconSymbol name="heart.fill" size={12} color="#ffffff" />
-                    <Text style={[styles.catchyActionPillText, { color: '#ffffff' }]}>Shortlist</Text>
                   </TouchableOpacity>
                 </View>
-
-                <ScrollView 
-                  horizontal 
-                  showsHorizontalScrollIndicator={false} 
-                  contentContainerStyle={styles.eventsScrollContainer}
-                  decelerationRate="fast"
-                  snapToInterval={CARD_W + 16}
-                >
-                  {businesses.slice(0, 3).map((biz) => (
-                    <TouchableOpacity 
-                      key={biz.id} 
-                      style={styles.recentBusinessCard}
-                      activeOpacity={0.9}
-                      onPress={() => router.push(`/(tabs)/explore-business`)}
-                    >
-                      <ExpoImage 
-                        source={{ uri: biz.coverImage }} 
-                        style={StyleSheet.absoluteFill} 
-                        contentFit="cover"
-                        transition={400}
-                      />
-                      <LinearGradient 
-                        colors={isDark ? ['transparent', 'rgba(15,23,42,0.9)'] : ['transparent', 'rgba(248,250,252,0.9)']} 
-                        style={StyleSheet.absoluteFill} 
-                      />
-                      <View style={styles.recentEventInfo}>
-                        <Text style={[styles.recentEventTitle, { color: colors.white }]} numberOfLines={1}>{biz.name}</Text>
-                        <View style={styles.recentEventMeta}>
-                          <IconSymbol name="tag.fill" size={10} color={isDark ? 'rgba(129,140,248,0.6)' : 'rgba(99,102,241,0.6)'} />
-                          <Text style={[styles.recentEventDate, { color: isDark ? 'rgba(129,140,248,0.8)' : 'rgba(99,102,241,0.8)' }]}>{biz.type}</Text>
-                          <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)' }} />
-                          <IconSymbol name="star.fill" size={10} color="#d4af37" />
-                          <Text style={[styles.recentEventDate, { color: colors.slate400 }]}>{biz.rating}</Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                  
-                  <TouchableOpacity 
-                    style={[styles.viewAllMemoriesCard, { borderColor: isDark ? 'rgba(129,140,248,0.3)' : 'rgba(99,102,241,0.15)', shadowColor: isDark ? '#818cf8' : '#6366f1' }]}
-                    activeOpacity={0.8}
-                    onPress={() => router.push('/(tabs)/explore-business')}
-                  >
-                    <ExpoImage 
-                      source={require('@/assets/images/marketplace_bg.png')} 
-                      style={StyleSheet.absoluteFill} 
-                      contentFit="cover"
-                      transition={400}
-                    />
-                    <LinearGradient 
-                      colors={isDark ? ['rgba(15,23,42,0.3)', 'rgba(15,23,42,0.95)'] : ['rgba(248,250,252,0.3)', 'rgba(248,250,252,0.95)']} 
-                      style={StyleSheet.absoluteFill} 
-                    />
-                    <View style={styles.viewAllMemoriesContent}>
-                       <View style={{ alignItems: 'center', gap: 4, marginBottom: 14, zIndex: 1 }}>
-                         <Text style={[styles.viewAllMemoriesText, { fontSize: 18, color: colors.white }]}>Marketplace</Text>
-                         <View style={[styles.countPill, { backgroundColor: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.2)' }]}>
-                           <Text style={[styles.viewAllMemoriesSub, { color: '#ffffff' }]}>{businesses.length > 0 ? businesses.length : '50+'}+ Vendors</Text>
-                         </View>
-                       </View>
-                       
-                       <View style={[styles.miniGalleryBtn, { backgroundColor: isDark ? '#818cf8' : '#6366f1' }]}>
-                          <Text style={[styles.miniGalleryBtnText, { color: '#fff' }]}>Explore All</Text>
-                          <IconSymbol name="arrow.right" size={14} color="#fff" />
-                       </View>
-                    </View>
-                  </TouchableOpacity>
-                </ScrollView>
-              </LinearGradient>
+              </View>
 
               {/* ── SECTION 3: HOST AN EVENT ── */}
               <TouchableOpacity 
                 activeOpacity={0.9} 
-                style={styles.heroCard}
+                style={[styles.heroCard, { marginBottom: 80 }]}
                 onPress={() => router.push('/(tabs)/gallery')}
               >
                 <LinearGradient
@@ -483,37 +602,6 @@ export default function DashboardScreen() {
                   </View>
                   <View style={styles.heroIconContainer}>
                     <IconSymbol name="calendar.badge.plus" size={60} color="rgba(255,255,255,0.2)" />
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              {/* ── SECTION 4: EXPAND BUSINESS ── */}
-              <TouchableOpacity 
-                activeOpacity={0.9} 
-                style={[styles.heroCard, { marginBottom: 80 }]}
-                onPress={() => router.push('/manage-business')}
-              >
-                <LinearGradient
-                  colors={['#4f46e5', '#3730a3']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.heroGradient}
-                >
-                  <View style={styles.heroContent}>
-                    <View style={[styles.heroBadge, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
-                      <Text style={styles.heroBadgeText}>FOR PARTNERS</Text>
-                    </View>
-                    <Text style={styles.heroTitle}>Expand Your Business</Text>
-                    <Text style={styles.heroSubtitle}>
-                      Promote your brand and reach thousands of local event organizers.
-                    </Text>
-                    <View style={[styles.heroBtn, { backgroundColor: '#1e1b4b' }]}>
-                      <Text style={styles.heroBtnText}>Manage Hub</Text>
-                      <IconSymbol name="chevron.right" size={12} color="#ffffff" />
-                    </View>
-                  </View>
-                  <View style={styles.heroIconContainer}>
-                    <IconSymbol name="briefcase.fill" size={60} color="rgba(255,255,255,0.15)" />
                   </View>
                 </LinearGradient>
               </TouchableOpacity>
@@ -627,6 +715,398 @@ export default function DashboardScreen() {
                   </View>
                 </KeyboardAvoidingView>
               </Modal>
+
+              {/* ── NOTIFICATIONS MODAL ── */}
+              <Modal visible={showNotificationsModal} transparent animationType="slide">
+                <View style={styles.joinModalOverlay}>
+                  <TouchableOpacity 
+                    style={styles.joinModalBackdrop} 
+                    activeOpacity={1} 
+                    onPress={() => setShowNotificationsModal(false)} 
+                  />
+                  <View style={[styles.joinModalContent, { maxHeight: height * 0.85 }]}>
+                    <View style={styles.modalHeader}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <IconSymbol name="bell.fill" size={22} color={colors.gold} />
+                        <Text style={styles.modalTitle}>Notifications</Text>
+                      </View>
+                      <TouchableOpacity onPress={() => setShowNotificationsModal(false)}>
+                        <IconSymbol name="xmark.circle.fill" size={24} color="#64748b" />
+                      </TouchableOpacity>
+                    </View>
+
+                    {loadingNotifications ? (
+                      <View style={{ paddingVertical: 40, justifyContent: 'center', alignItems: 'center' }}>
+                        <ActivityIndicator color={colors.gold} size="large" />
+                      </View>
+                    ) : notifications.length === 0 ? (
+                      <View style={styles.emptyNotifContainer}>
+                        <View style={styles.emptyNotifRing}>
+                          <IconSymbol name="bell.slash.fill" size={32} color={colors.gold} />
+                        </View>
+                        <Text style={styles.emptyNotifTitle}>All caught up! ✨</Text>
+                        <Text style={styles.emptyNotifBody}>
+                          Follow users, join events, or shortlist businesses to receive real-time updates here.
+                        </Text>
+                      </View>
+                    ) : (
+                      <ScrollView 
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={{ paddingBottom: 30 }}
+                      >
+                        {notifications.map((item) => {
+                          const formatTimeAgo = (timestamp: any) => {
+                            if (!timestamp) return 'Recent';
+                            let date: Date;
+                            if (timestamp.toDate) {
+                              date = timestamp.toDate();
+                            } else if (timestamp instanceof Date) {
+                              date = timestamp;
+                            } else if (typeof timestamp === 'number') {
+                              date = new Date(timestamp);
+                            } else if (timestamp.seconds) {
+                              date = new Date(timestamp.seconds * 1000);
+                            } else {
+                              date = new Date(timestamp);
+                            }
+
+                            if (isNaN(date.getTime())) return 'Recent';
+
+                            const diffMs = Date.now() - date.getTime();
+                            const diffMins = Math.floor(diffMs / 60000);
+                            if (diffMins < 1) return 'Just now';
+                            if (diffMins < 60) return `${diffMins}m ago`;
+                            
+                            const diffHours = Math.floor(diffMins / 60);
+                            if (diffHours < 24) return `${diffHours}h ago`;
+
+                            const diffDays = Math.floor(diffHours / 24);
+                            if (diffDays === 1) return 'Yesterday';
+                            if (diffDays < 7) return `${diffDays}d ago`;
+
+                            return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                          };
+
+                          return (
+                            <SwipeableNotificationItem 
+                              key={item.id}
+                              onDismiss={() => handleDismissNotification(item.id)}
+                              colors={colors}
+                              isDark={isDark}
+                            >
+                              <TouchableOpacity 
+                                style={[styles.notificationItem, { marginBottom: 0 }]}
+                                activeOpacity={0.85}
+                                onPress={async () => {
+                                  setShowNotificationsModal(false);
+                                  if (item.type === 'followed_event') {
+                                    // 1. Check local dashboard list
+                                    const hasLocalAccess = events.some(e => e.id === item.targetId);
+                                    if (hasLocalAccess) {
+                                      router.push(`/events/${item.targetId}?mode=visitor`);
+                                      return;
+                                    }
+
+                                    // 2. Query Firestore check for latest guest log status
+                                    const guestId = user?.phone || user?.email || user?.uid;
+                                    if (guestId) {
+                                      const dbStatus = await checkGuestRequestStatus(guestId, item.targetId);
+                                      if (dbStatus === 'approved') {
+                                        router.push(`/events/${item.targetId}?mode=visitor`);
+                                        return;
+                                      } else if (dbStatus === 'pending') {
+                                        setStatusModalConfig({
+                                          title: "Request Pending",
+                                          message: `You have already sent an access request. Please wait for the creator to approve it.`,
+                                          type: 'pending',
+                                          eventName: item.eventTitle || undefined
+                                        });
+                                        setShowStatusModal(true);
+                                        return;
+                                      } else if (dbStatus === 'rejected') {
+                                        setStatusModalConfig({
+                                          title: "Access Declined",
+                                          message: `Your request to join this private event was declined by the creator. Please get in touch with them directly.`,
+                                          type: 'rejected',
+                                          eventName: item.eventTitle || undefined
+                                        });
+                                        setShowStatusModal(true);
+                                        return;
+                                      }
+                                    }
+
+                                    // 3. If no prior request exists, open custom Request Access Modal
+                                    setSelectedRequestEvent(item);
+                                    setShowRequestAccessModal(true);
+                                  } else {
+                                    router.push(`/business/${item.targetId}`);
+                                  }
+                                }}
+                              >
+                                <View style={styles.notificationIconWrapper}>
+                                  <Text style={styles.notificationIconText}>
+                                    {item.type === 'followed_event' ? '🎉' :
+                                     item.type === 'followed_business' ? '💼' :
+                                     item.type === 'shortlist_creation' ? '✨' :
+                                     item.type === 'shortlist_faq' ? '❓' :
+                                     item.type === 'shortlist_portfolio' ? '📸' : '📢'}
+                                  </Text>
+                                </View>
+                                <View style={styles.notificationTextWrapper}>
+                                  <View style={styles.notificationHeaderRow}>
+                                    <Text style={styles.notificationItemTitle} numberOfLines={1}>{item.title}</Text>
+                                    <Text style={styles.notificationTime}>{formatTimeAgo(item.createdAt)}</Text>
+                                  </View>
+                                  <Text style={styles.notificationItemBody} numberOfLines={2}>{item.body}</Text>
+                                </View>
+                              </TouchableOpacity>
+                            </SwipeableNotificationItem>
+                          );
+                        })}
+                      </ScrollView>
+                    )}
+                  </View>
+                </View>
+              </Modal>
+
+              {/* ── CUSTOM REQUEST ACCESS MODAL ── */}
+              <Modal 
+                visible={showRequestAccessModal} 
+                transparent 
+                animationType="fade"
+                onRequestClose={() => setShowRequestAccessModal(false)}
+              >
+                <View style={styles.modalBackdrop}>
+                  <View style={[styles.modalContent, { padding: 24, borderRadius: 24, borderWidth: 1.5, borderColor: isDark ? 'rgba(212, 175, 55, 0.3)' : 'rgba(212, 175, 55, 0.15)' }]}>
+                    <View style={{ alignItems: 'center', marginBottom: 20 }}>
+                      <View style={[styles.emptyNotifRing, { width: 60, height: 60, borderRadius: 30, marginBottom: 12, borderWidth: 1, borderColor: colors.border }]}>
+                        <IconSymbol name="lock.fill" size={24} color={colors.gold} />
+                      </View>
+                      <Text style={[styles.modalTitle, { textAlign: 'center', fontSize: 20, marginBottom: 4 }]}>
+                        Private Event
+                      </Text>
+                      <Text style={{ fontSize: 11, fontFamily: 'Inter_700Bold', color: colors.gold, textTransform: 'uppercase', letterSpacing: 1.2 }}>
+                        Access Protected
+                      </Text>
+                    </View>
+
+                    <Text style={{ 
+                      fontSize: 14, 
+                      fontFamily: 'Inter_400Regular', 
+                      color: colors.slate400 || '#cbd5e1', 
+                      textAlign: 'center', 
+                      lineHeight: 22,
+                      marginBottom: 24
+                    }}>
+                      <Text style={{ fontFamily: 'Outfit_700Bold', color: colors.gold }}>
+                        "{selectedRequestEvent?.eventTitle || 'This event'}"
+                      </Text> is private. Would you like to request access from the creator? Once approved, it will automatically appear in your collections dashboard.
+                    </Text>
+
+                    <View style={{ gap: 12 }}>
+                      <TouchableOpacity
+                        style={[styles.modalCloseBtn, { flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'center' }]}
+                        onPress={handleSendAccessRequest}
+                        disabled={sendingRequest}
+                      >
+                        {sendingRequest ? (
+                          <ActivityIndicator color="#0f172a" />
+                        ) : (
+                          <>
+                            <IconSymbol name="paperplane.fill" size={14} color="#0f172a" />
+                            <Text style={styles.modalCloseBtnText}>Send Join Request</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={{ paddingVertical: 12, alignItems: 'center' }}
+                        onPress={() => setShowRequestAccessModal(false)}
+                        disabled={sendingRequest}
+                      >
+                        <Text style={{ color: colors.slate400, fontFamily: 'Outfit_700Bold', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                          Cancel
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </Modal>
+
+              {/* ── DYNAMIC STATUS MODAL ── */}
+              <Modal
+                visible={showStatusModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowStatusModal(false)}
+              >
+                <View style={styles.modalBackdrop}>
+                  <View style={[
+                    styles.modalContent, 
+                    { 
+                      padding: 24, 
+                      borderRadius: 28, 
+                      borderWidth: 1.5, 
+                      backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                      borderColor: statusModalConfig.type === 'success' 
+                        ? (isDark ? 'rgba(34, 197, 94, 0.4)' : 'rgba(34, 197, 94, 0.2)')
+                        : statusModalConfig.type === 'pending'
+                        ? (isDark ? 'rgba(212, 175, 55, 0.4)' : 'rgba(212, 175, 55, 0.2)')
+                        : (isDark ? 'rgba(239, 68, 68, 0.4)' : 'rgba(239, 68, 68, 0.2)'),
+                      shadowColor: statusModalConfig.type === 'success' ? '#22c55e' : statusModalConfig.type === 'pending' ? colors.gold : '#ef4444',
+                      shadowOffset: { width: 0, height: 10 },
+                      shadowOpacity: isDark ? 0.15 : 0.08,
+                      shadowRadius: 20,
+                      elevation: 10,
+                    }
+                  ]}>
+                    <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                      {/* Icon Ring */}
+                      <View style={{ 
+                        width: 70, 
+                        height: 70, 
+                        borderRadius: 35, 
+                        marginBottom: 16, 
+                        borderWidth: 1, 
+                        borderColor: statusModalConfig.type === 'success' 
+                          ? (isDark ? 'rgba(34, 197, 94, 0.4)' : 'rgba(34, 197, 94, 0.25)')
+                          : statusModalConfig.type === 'pending'
+                          ? (isDark ? 'rgba(212, 175, 55, 0.4)' : 'rgba(212, 175, 55, 0.25)')
+                          : (isDark ? 'rgba(239, 68, 68, 0.4)' : 'rgba(239, 68, 68, 0.25)'),
+                        backgroundColor: statusModalConfig.type === 'success' 
+                          ? (isDark ? 'rgba(34, 197, 94, 0.12)' : 'rgba(34, 197, 94, 0.05)')
+                          : statusModalConfig.type === 'pending'
+                          ? (isDark ? 'rgba(212, 175, 55, 0.12)' : 'rgba(212, 175, 55, 0.05)')
+                          : (isDark ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.05)'),
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                      }}>
+                        <IconSymbol 
+                          name={statusModalConfig.type === 'success' 
+                            ? "checkmark.circle.fill" 
+                            : statusModalConfig.type === 'pending' 
+                            ? "clock.fill" 
+                            : "xmark.circle.fill"} 
+                          size={32} 
+                          color={statusModalConfig.type === 'success' 
+                            ? "#22c55e" 
+                            : statusModalConfig.type === 'pending' 
+                            ? colors.gold 
+                            : "#ef4444"} 
+                        />
+                      </View>
+
+                      <Text style={[
+                        styles.modalTitle, 
+                        { 
+                          textAlign: 'center', 
+                          fontSize: 22, 
+                          color: isDark ? '#ffffff' : '#0f172a',
+                          fontFamily: 'Outfit_800ExtraBold',
+                          marginBottom: 8 
+                        }
+                      ]}>
+                        {statusModalConfig.title}
+                      </Text>
+                    </View>
+
+                    {statusModalConfig.eventName ? (
+                      <Text style={{
+                        fontSize: 16,
+                        fontFamily: 'Outfit_700Bold',
+                        color: statusModalConfig.type === 'success' 
+                          ? "#22c55e" 
+                          : statusModalConfig.type === 'pending' 
+                          ? colors.gold 
+                          : "#ef4444",
+                        textAlign: 'center',
+                        marginBottom: 16,
+                        paddingHorizontal: 16
+                      }}>
+                        "{statusModalConfig.eventName}"
+                      </Text>
+                    ) : null}
+
+                    <Text style={{ 
+                      fontSize: 14, 
+                      fontFamily: 'Inter_400Regular', 
+                      color: isDark ? colors.slate400 : '#475569', 
+                      textAlign: 'center', 
+                      lineHeight: 22,
+                      marginBottom: statusModalConfig.type === 'pending' ? 28 : 20
+                    }}>
+                      {statusModalConfig.message}
+                    </Text>
+
+                    {/* Informative Pill (Only for Success/Rejected states) */}
+                    {statusModalConfig.type !== 'pending' && (
+                      <View style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 10,
+                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                        borderWidth: 1,
+                        borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+                        borderRadius: 16,
+                        padding: 14,
+                        width: '100%',
+                        marginBottom: 24,
+                      }}>
+                        <IconSymbol 
+                          name="info.circle" 
+                          size={18} 
+                          color={statusModalConfig.type === 'success' 
+                            ? "#22c55e" 
+                            : "#ef4444"} 
+                        />
+                        <Text style={{
+                          fontSize: 12,
+                          fontFamily: 'Inter_500Medium',
+                          color: isDark ? colors.slate400 : '#475569',
+                          flex: 1,
+                          lineHeight: 16
+                        }}>
+                          {statusModalConfig.type === 'success' 
+                            ? "The creator has been notified. You can find this event in your dashboard as soon as they accept." 
+                            : "If this is an error, please reach out to the event host or organizer directly to ask for an invite."}
+                        </Text>
+                      </View>
+                    )}
+
+                    <TouchableOpacity
+                      style={[
+                        styles.modalCloseBtn, 
+                        { 
+                          backgroundColor: statusModalConfig.type === 'success' 
+                            ? "#22c55e" 
+                            : statusModalConfig.type === 'pending' 
+                            ? colors.gold 
+                            : "#ef4444",
+                          shadowColor: statusModalConfig.type === 'success' 
+                            ? "#22c55e" 
+                            : statusModalConfig.type === 'pending' 
+                            ? colors.gold 
+                            : "#ef4444",
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: 0.25,
+                          shadowRadius: 8,
+                          elevation: 4
+                        }
+                      ]}
+                      onPress={() => setShowStatusModal(false)}
+                    >
+                      <Text style={[
+                        styles.modalCloseBtnText, 
+                        { 
+                          color: statusModalConfig.type === 'pending' ? '#0f172a' : '#ffffff' 
+                        }
+                      ]}>
+                        Got It!
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Modal>
             </>
         }
       </ScrollView>
@@ -636,6 +1116,7 @@ export default function DashboardScreen() {
 
 const CARD_W = width * 0.55;
 const CARD_H = 155;
+const GRID_ITEM_W = (width - 48 - 12) / 2;
 
 const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
@@ -668,7 +1149,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   datePillText: { fontSize: 10, color: colors.gold, fontFamily: 'Outfit_700Bold', letterSpacing: 0.3 },
   headerTitle: { fontSize: 28, fontFamily: 'AkayaKanadaka_400Regular', color: colors.white, letterSpacing: 0.5, textAlign: 'center' },
-  tagline: { fontSize: 12, color: colors.slate400, fontFamily: 'Inter_400Regular', marginTop: -18, textAlign: 'center' },
+  tagline: { fontSize: 15, color: colors.slate400, fontFamily: 'AkayaKanadaka_400Regular', marginTop: -18, textAlign: 'center' },
   avatarRingHeader: {
     padding: 3, borderRadius: 30,
     borderWidth: 1.5, borderColor: colors.gold,
@@ -1039,6 +1520,14 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     gap: 16,
     paddingBottom: 10,
   },
+  eventsGridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 24,
+    gap: 12,
+    justifyContent: 'space-between',
+    paddingBottom: 10,
+  },
   recentBusinessCard: {
     width: CARD_W,
     height: 165,
@@ -1189,6 +1678,193 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#ef4444',
+    backgroundColor: colors.gold || '#d4af37',
+  },
+  aestheticEventCard: {
+    width: GRID_ITEM_W,
+    height: 185,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: isDark ? 0.3 : 0.05,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  aestheticImageContainer: {
+    width: '100%',
+    height: 115,
+    backgroundColor: colors.slate900,
+    position: 'relative',
+  },
+  aestheticTextContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    justifyContent: 'center',
+    flex: 1,
+  },
+  aestheticEventTitle: {
+    fontSize: 14,
+    color: colors.white,
+    fontFamily: 'Outfit_700Bold',
+  },
+  aestheticEventMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  aestheticEventDate: {
+    fontSize: 11,
+    color: colors.slate400,
+    fontFamily: 'Inter_500Medium',
+  },
+
+  // Explore Card
+  aestheticExploreCard: {
+    width: GRID_ITEM_W,
+    height: 185,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.slate900,
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: isDark ? 0.15 : 0.03,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  aestheticExploreContent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+  },
+  aestheticExploreTitle: {
+    fontSize: 15,
+    color: colors.white,
+    fontFamily: 'Outfit_800ExtraBold',
+    letterSpacing: -0.2,
+  },
+  aestheticCountPill: {
+    backgroundColor: isDark ? 'rgba(212,175,55,0.1)' : 'rgba(212,175,55,0.04)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+  },
+  aestheticCountText: {
+    fontSize: 10,
+    color: colors.gold,
+    fontFamily: 'Inter_700Bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  aestheticExploreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.gold,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    width: '100%',
+  },
+  aestheticExploreBtnText: {
+    fontSize: 11,
+    color: '#020617',
+    fontFamily: 'Outfit_800ExtraBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  emptyNotifContainer: {
+    paddingVertical: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  emptyNotifRing: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.15)' : 'rgba(212, 175, 55, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(212, 175, 55, 0.25)' : 'rgba(212, 175, 55, 0.15)',
+  },
+  emptyNotifTitle: {
+    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
+    color: colors.white,
+    marginBottom: 6,
+  },
+  emptyNotifBody: {
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    color: colors.slate400,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    alignItems: 'center',
+  },
+  notificationIconWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: isDark ? 'rgba(212, 175, 55, 0.12)' : 'rgba(212, 175, 55, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+  },
+  notificationIconText: {
+    fontSize: 18,
+  },
+  notificationTextWrapper: {
+    flex: 1,
+  },
+  notificationHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  notificationItemTitle: {
+    fontSize: 13,
+    fontFamily: 'Outfit_700Bold',
+    color: colors.white,
+  },
+  notificationTime: {
+    fontSize: 10,
+    fontFamily: 'Inter_500Medium',
+    color: colors.gold,
+  },
+  notificationItemBody: {
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    color: colors.slate400,
+    lineHeight: 16,
   },
 });

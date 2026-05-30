@@ -267,16 +267,31 @@ export default function BusinessLandingScreen() {
                 style={styles.bizManageCard}
                 onPress={() => router.push({ pathname: '/manage-business', params: { id: biz.id } })}
               >
-                <ExpoImage source={{ uri: biz.coverImage }} style={styles.bizManageImage} contentFit="cover" />
+                <View style={styles.bizManageImageContainer}>
+                  {/* Ambient Blurred Backdrop */}
+                  <ExpoImage 
+                    source={{ uri: biz.coverImage }} 
+                    style={[StyleSheet.absoluteFill, { opacity: 0.35 }]} 
+                    contentFit="cover"
+                    blurRadius={15}
+                  />
+                  {/* Sharp Contain Foreground */}
+                  <ExpoImage 
+                    source={{ uri: biz.coverImage }} 
+                    style={StyleSheet.absoluteFill} 
+                    contentFit="contain"
+                    transition={300}
+                  />
+                </View>
                 <View style={styles.bizManageInfo}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Text style={styles.bizManageName}>{biz.name}</Text>
                   </View>
                   {(() => {
-                    const colors = getBusinessTypeColor(biz.type);
+                    const typeColors = getBusinessTypeColor(biz.type);
                     return (
-                      <View style={[styles.bizTypeBadge, { backgroundColor: colors.bg, borderColor: colors.border }]}>
-                        <Text style={[styles.bizTypeText, { color: colors.text }]}>{biz.type}</Text>
+                      <View style={[styles.bizTypeBadge, { backgroundColor: typeColors.bg, borderColor: typeColors.border }]}>
+                        <Text style={[styles.bizTypeText, { color: typeColors.text }]}>{biz.type}</Text>
                       </View>
                     );
                   })()}
@@ -461,7 +476,7 @@ export default function BusinessLandingScreen() {
             </View>
 
             {/* CTA */}
-            <TouchableOpacity activeOpacity={0.85} onPress={() => { setShowQuotaModal(false); router.push('/usage'); }}>
+            <TouchableOpacity activeOpacity={0.85} onPress={() => { setShowQuotaModal(false); router.push('/(tabs)/usage'); }}>
               <LinearGradient
                 colors={[INDIGO_LIGHT, INDIGO_DARK]}
                 start={{ x: 0, y: 0 }}
@@ -772,9 +787,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     textAlign: 'center',
   },
   headerSubtitle: {
-    fontSize: 12,
+    fontSize: 15,
     color: colors.slate400,
-    fontFamily: 'Inter_500Medium',
+    fontFamily: 'AkayaKanadaka_400Regular',
     textAlign: 'center',
     marginTop: -18,
   },
@@ -899,19 +914,29 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     lineHeight: 18,
   },
   bizManageCard: {
-    backgroundColor: colors.deepSlate,
+    backgroundColor: isDark ? '#0f172a' : '#ffffff',
     borderRadius: 24,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: 'rgba(212,175,55,0.15)',
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: isDark ? 0.3 : 0.05,
+    shadowRadius: 10,
+    elevation: 6,
   },
-  bizManageImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
+  bizManageImageContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: isDark ? '#020617' : '#f1f5f9',
+    position: 'relative',
+    borderWidth: 0.5,
+    borderColor: 'rgba(212,175,55,0.1)',
   },
   bizManageInfo: {
     flex: 1,

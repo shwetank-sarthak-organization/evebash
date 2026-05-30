@@ -697,7 +697,7 @@ export default function ProfileScreen() {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.usageCard} activeOpacity={0.8} onPress={() => router.push('/usage')}>
+            <TouchableOpacity style={styles.usageCard} activeOpacity={0.8} onPress={() => router.push('/(tabs)/usage')}>
               <LinearGradient
                 colors={['rgba(212, 175, 55, 0.15)', 'rgba(212, 175, 55, 0.02)']}
                 start={{ x: 0, y: 0 }}

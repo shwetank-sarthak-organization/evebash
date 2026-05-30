@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
@@ -13,9 +13,20 @@ const firebaseConfig = {
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage)
+
+// Prevent "auth/already-initialized" errors during Hot Module Replacement (HMR)
+let auth;
+if ((global as any).firebaseAuth) {
+  auth = (global as any).firebaseAuth;
+} else {
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage)
+  });
+  (global as any).firebaseAuth = auth;
+}
+
+const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
 });
-const db = getFirestore(app);
 
 export { app, auth, db };

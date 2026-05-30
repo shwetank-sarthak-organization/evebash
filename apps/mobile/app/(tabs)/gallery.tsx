@@ -470,26 +470,32 @@ export default function PortfolioTabScreen() {
   const showQuotaAlert = () => setShowQuotaModal(true);
 
   const renderEventCard = (event: FirestoreEvent, index: number) => {
-    const imageHeight = 160;
     return (
       <TouchableOpacity
         key={event.id}
         style={styles.eventCard}
-        activeOpacity={0.88}
+        activeOpacity={0.9}
         onPress={() => router.push(`/events/${event.id}?mode=admin`)}
       >
-        {/* Image section */}
-        <View style={[styles.cardImageWrap, { height: imageHeight }]}>
+        {/* Top Part: Image Container with Ambient Blurred Backdrop */}
+        <View style={styles.cardImageWrap}>
+          {/* Ambient Blurred Backdrop */}
+          <ExpoImage
+            source={{ uri: event.coverImage }}
+            style={[StyleSheet.absoluteFill, { opacity: 0.35 }]}
+            contentFit="cover"
+            blurRadius={20}
+          />
+          {/* Sharp Contain Foreground */}
           <ExpoImage
             source={{ uri: event.coverImage }}
             style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            transition={300}
+            contentFit="contain"
+            transition={400}
           />
-          {/* Soft top scrim for category badge */}
           <LinearGradient
-            colors={['rgba(2,6,23,0.5)', 'transparent']}
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 50 }}
+            colors={['rgba(2,6,23,0.15)', 'transparent']}
+            style={StyleSheet.absoluteFill}
           />
           {event.category ? (
             <View style={styles.cardCategoryBadge}>
@@ -498,7 +504,7 @@ export default function PortfolioTabScreen() {
           ) : null}
         </View>
 
-        {/* Info strip */}
+        {/* Bottom Part: Text Details */}
         <View style={styles.cardInfoStrip}>
           <Text style={styles.cardTitle} numberOfLines={1}>{event.title}</Text>
           <View style={styles.cardMeta}>
@@ -506,9 +512,6 @@ export default function PortfolioTabScreen() {
             <Text style={styles.cardDate}>{event.date}</Text>
           </View>
         </View>
-
-        {/* Gold accent bar */}
-        <View style={styles.cardAccentBar} />
       </TouchableOpacity>
     );
   };
@@ -946,7 +949,7 @@ export default function PortfolioTabScreen() {
             {/* ── CTA ── */}
             <TouchableOpacity
               activeOpacity={0.85}
-              onPress={() => { setShowQuotaModal(false); router.push('/usage'); }}
+              onPress={() => { setShowQuotaModal(false); router.push('/(tabs)/usage'); }}
             >
               <LinearGradient
                 colors={[colors.gold, '#c9960a']}
@@ -1419,7 +1422,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderRadius: 4,
     backgroundColor: colors.gold,
   },
-  headerGreeting: { fontSize: 12, color: colors.slate400, fontFamily: Fonts.inter.medium, textAlign: 'center', marginTop: -18 },
+  headerGreeting: { fontSize: 15, color: colors.slate400, fontFamily: 'AkayaKanadaka_400Regular', textAlign: 'center', marginTop: -18 },
   headerName: { fontSize: 28, color: colors.white, fontFamily: 'AkayaKanadaka_400Regular', letterSpacing: 0.5, textAlign: 'center' },
   createBtnHeader: { 
     paddingHorizontal: 16, 
@@ -1471,22 +1474,25 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   grid: { paddingHorizontal: 16, paddingTop: 16, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start' },
   eventCard: {
     width: (width - 44) / 2,
-    borderRadius: 18,
+    height: 185,
+    borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: colors.deepSlate,
     borderWidth: 1,
     borderColor: 'rgba(212,175,55,0.1)',
+    backgroundColor: isDark ? '#0f172a' : '#ffffff',
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOpacity: isDark ? 0.3 : 0.05,
+    shadowRadius: 10,
+    elevation: 6,
   },
   cardImageWrap: {
     width: '100%',
+    height: 115,
+    backgroundColor: isDark ? '#020617' : '#f1f5f9',
+    position: 'relative',
     overflow: 'hidden',
-    backgroundColor: colors.deepSlate,
   },
   cardCategoryBadge: {
     position: 'absolute',
@@ -1506,23 +1512,27 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     letterSpacing: 0.7,
   },
   cardInfoStrip: {
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    gap: 4,
-    backgroundColor: isDark ? 'rgba(15,23,42,0.95)' : colors.deepSlate,
+    justifyContent: 'center',
+    flex: 1,
+    backgroundColor: isDark ? 'transparent' : '#ffffff',
   },
   cardTitle: {
-    fontSize: 13,
-    color: '#ffffff',
+    fontSize: 14,
+    color: colors.white,
     fontFamily: Fonts.outfit.bold,
-    lineHeight: 17,
   },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cardDate: { fontSize: 10, color: colors.slate400, fontFamily: Fonts.inter.medium },
-  cardAccentBar: {
-    height: 2,
-    backgroundColor: colors.gold,
-    opacity: 0.5,
+  cardMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  cardDate: {
+    fontSize: 11,
+    color: colors.slate400,
+    fontFamily: Fonts.inter.medium,
   },
   cardContent: {},
   cardGradient: {},

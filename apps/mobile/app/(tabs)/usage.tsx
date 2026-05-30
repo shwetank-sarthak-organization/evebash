@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Activ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { getUserEventCount, getUserTotalStorage, getUserBusinesses } from '@/lib/firestore';
 
@@ -102,24 +102,26 @@ export default function UsageScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <Stack.Screen options={{ headerShown: false }} />
+      
+      {/* Header */}
+      <LinearGradient
+        colors={['#0f172a', '#020617']}
+        style={styles.header}
+      >
+        <View style={styles.headerRow}>
+          <TouchableOpacity 
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
+            style={styles.backButton}
+          >
+            <IconSymbol name="chevron.left" size={24} color="#d4af37" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Plan & Usage</Text>
+          <View style={{ width: 40 }} /> 
+        </View>
+      </LinearGradient>
+
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        
-        {/* Header */}
-        <LinearGradient
-          colors={['#0f172a', '#020617']}
-          style={styles.header}
-        >
-          <View style={styles.headerRow}>
-            <TouchableOpacity 
-              onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
-              style={styles.backButton}
-            >
-              <IconSymbol name="chevron.left" size={24} color="#94a3b8" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Plan & Usage</Text>
-            <View style={{ width: 40 }} /> 
-          </View>
-        </LinearGradient>
 
         {/* Current Plan Card */}
         <View style={styles.planCard}>
@@ -175,7 +177,7 @@ export default function UsageScreen() {
             <TouchableOpacity 
               style={styles.listItem}
               activeOpacity={0.7}
-              onPress={() => router.push('/pricing')}
+              onPress={() => router.push('/(tabs)/pricing')}
             >
               <View style={styles.listItemLeft}>
                 <View style={[styles.listIconBox, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}>

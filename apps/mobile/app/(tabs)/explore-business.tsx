@@ -193,8 +193,8 @@ export default function ExploreBusinessScreen() {
           style={[styles.header, { paddingTop: insets.top + 4 }]}
         >
           <View style={styles.headerLeft}>
-            <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')} style={styles.backBtn}>
-              <IconSymbol name="chevron.left" size={24} color={colors.white} />
+            <TouchableOpacity onPress={() => router.push('/shortlist')} style={styles.backBtn}>
+              <IconSymbol name="heart.fill" size={20} color={isDark ? '#818cf8' : '#6366f1'} />
             </TouchableOpacity>
           </View>
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -202,8 +202,13 @@ export default function ExploreBusinessScreen() {
             <Text style={styles.headerSubtitle}>Elite Deals. Every Event.</Text>
           </View>
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.iconBtn}>
-              <IconSymbol name="bell.fill" size={20} color={isDark ? '#818cf8' : '#6366f1'} />
+            <TouchableOpacity 
+              style={styles.iconBtn}
+              onPress={() => setShowFilterModal(true)}
+            >
+              <Svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={isDark ? '#818cf8' : '#6366f1'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <Path d="M10 5H3"/><Path d="M12 19H3"/><Path d="M14 3v4"/><Path d="M16 17v4"/><Path d="M21 12h-9"/><Path d="M21 19h-5"/><Path d="M21 5h-7"/><Path d="M8 10v4"/><Path d="M8 12H3"/>
+              </Svg>
             </TouchableOpacity>
           </View>
         </LinearGradient>
@@ -219,14 +224,6 @@ export default function ExploreBusinessScreen() {
               onChangeText={setSearch}
             />
           </View>
-          <TouchableOpacity 
-            style={styles.filterBtn}
-            onPress={() => setShowFilterModal(true)}
-          >
-            <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <Path d="M10 5H3"/><Path d="M12 19H3"/><Path d="M14 3v4"/><Path d="M16 17v4"/><Path d="M21 12h-9"/><Path d="M21 19h-5"/><Path d="M21 5h-7"/><Path d="M8 10v4"/><Path d="M8 12H3"/>
-            </Svg>
-          </TouchableOpacity>
         </View>
 
         {/* ── CATEGORIES ── */}
@@ -305,53 +302,76 @@ export default function ExploreBusinessScreen() {
                   activeOpacity={0.9}
                   onPress={() => router.push(`/business/${vendor.id}`)}
                 >
-                  <ExpoImage source={{ uri: vendor.image }} style={styles.featuredImage} contentFit="cover" />
-                  <LinearGradient
-                    colors={isDark ? ['transparent', 'rgba(2, 6, 23, 0.9)'] : ['transparent', 'rgba(255, 255, 255, 0.9)']}
-                    style={styles.cardGradient}
-                  />
-                  {/* Shortlist Heart Button */}
-                  <TouchableOpacity 
-                    style={styles.shortlistHeartBtn} 
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      handleShortlistToggle(vendor.id);
-                    }}
-                  >
-                    <IconSymbol 
-                      name={isShortlisted(vendor.id) ? "heart.fill" : "heart"} 
-                      size={16} 
-                      color={isShortlisted(vendor.id) ? "#ef4444" : colors.white} 
+                  {/* Top Part: Image Container with Ambient Blurred Backdrop */}
+                  <View style={styles.featuredImageContainer}>
+                    {/* Ambient Blurred Backdrop */}
+                    <ExpoImage 
+                      source={{ uri: vendor.image }} 
+                      style={[StyleSheet.absoluteFill, { opacity: 0.35 }]} 
+                      contentFit="cover"
+                      blurRadius={20}
                     />
-                  </TouchableOpacity>
-                  <View style={styles.featuredBadge}>
-                    <IconSymbol name="star.fill" size={10} color="#d4af37" />
-                    <Text style={styles.featuredBadgeText}>{vendor.rating}</Text>
+                    {/* Sharp Contain Foreground */}
+                    <ExpoImage 
+                      source={{ uri: vendor.image }} 
+                      style={StyleSheet.absoluteFill} 
+                      contentFit="contain"
+                      transition={400}
+                    />
+                    <LinearGradient
+                      colors={['rgba(2,6,23,0.15)', 'transparent']}
+                      style={StyleSheet.absoluteFill}
+                    />
+
+                    {/* Shortlist Heart Button - floated on image */}
+                    <TouchableOpacity 
+                      style={styles.shortlistHeartBtn} 
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleShortlistToggle(vendor.id);
+                      }}
+                    >
+                      <IconSymbol 
+                        name={isShortlisted(vendor.id) ? "heart.fill" : "heart"} 
+                        size={16} 
+                        color={isShortlisted(vendor.id) ? "#ef4444" : colors.white} 
+                      />
+                    </TouchableOpacity>
+
+                    {/* Rating Badge - floated on image */}
+                    <View style={styles.featuredBadge}>
+                      <IconSymbol name="star.fill" size={10} color="#d4af37" />
+                      <Text style={styles.featuredBadgeText}>{vendor.rating}</Text>
+                    </View>
                   </View>
+
+                  {/* Bottom Part: Text Details */}
                   <View style={styles.featuredInfo}>
                     <View style={styles.nameRow}>
-                      <Text style={styles.featuredName}>{vendor.name}</Text>
+                      <Text style={styles.featuredName} numberOfLines={1}>{vendor.name}</Text>
                       {vendor.verified && (
-                        <IconSymbol name="checkmark.seal.fill" size={14} color="#3b82f6" />
+                        <IconSymbol name="checkmark.seal.fill" size={12} color="#3b82f6" />
                       )}
                     </View>
+
                     <View style={styles.metaRow}>
                       {(() => {
-                        const colors = getBusinessTypeColor(vendor.category);
+                        const typeColors = getBusinessTypeColor(vendor.category);
                         return (
-                          <View style={[styles.featuredCategoryBadge, { backgroundColor: colors.bg, borderColor: colors.border }]}>
-                            <Text style={[styles.featuredCategoryText, { color: colors.text }]}>{vendor.category}</Text>
+                          <View style={[styles.featuredCategoryBadge, { backgroundColor: typeColors.bg, borderColor: typeColors.border }]}>
+                            <Text style={[styles.featuredCategoryText, { color: typeColors.text }]}>{vendor.category}</Text>
                           </View>
                         );
                       })()}
                       <View style={styles.locationRow}>
                         <IconSymbol name="mappin.and.ellipse" size={10} color="#94a3b8" />
-                        <Text style={styles.locationText}>{vendor.location}</Text>
+                        <Text style={styles.locationText} numberOfLines={1}>{vendor.location}</Text>
                       </View>
                     </View>
+
                     <View style={styles.experienceBadge}>
-                      <IconSymbol name="clock.fill" size={10} color="#ffffff" />
-                      <Text style={styles.experienceText}>{vendor.experience}+ Years</Text>
+                      <IconSymbol name="clock.fill" size={10} color={isDark ? colors.gold : '#4f46e5'} />
+                      <Text style={styles.experienceText}>{vendor.experience}+ Years Exp</Text>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -379,7 +399,22 @@ export default function ExploreBusinessScreen() {
                   activeOpacity={0.9}
                   onPress={() => router.push(`/business/${vendor.id}`)}
                 >
-                  <ExpoImage source={{ uri: vendor.image }} style={styles.listImage} contentFit="cover" />
+                  <View style={styles.listImageContainer}>
+                    {/* Ambient Blurred Backdrop */}
+                    <ExpoImage 
+                      source={{ uri: vendor.image }} 
+                      style={[StyleSheet.absoluteFill, { opacity: 0.35 }]} 
+                      contentFit="cover"
+                      blurRadius={15}
+                    />
+                    {/* Sharp Contain Foreground */}
+                    <ExpoImage 
+                      source={{ uri: vendor.image }} 
+                      style={StyleSheet.absoluteFill} 
+                      contentFit="contain"
+                      transition={300}
+                    />
+                  </View>
                   
                   <View style={styles.listInfo}>
                     <View style={styles.listHeaderRow}>
@@ -403,10 +438,10 @@ export default function ExploreBusinessScreen() {
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                       {(() => {
-                        const colors = getBusinessTypeColor(vendor.category);
+                        const typeColors = getBusinessTypeColor(vendor.category);
                         return (
-                          <View style={[styles.listCategoryBadge, { backgroundColor: colors.bg, borderColor: colors.border, marginBottom: 0 }]}>
-                            <Text style={[styles.listCategoryText, { color: colors.text }]}>{vendor.category}</Text>
+                          <View style={[styles.listCategoryBadge, { backgroundColor: typeColors.bg, borderColor: typeColors.border, marginBottom: 0 }]}>
+                            <Text style={[styles.listCategoryText, { color: typeColors.text }]}>{vendor.category}</Text>
                           </View>
                         );
                       })()}
@@ -641,9 +676,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     alignItems: 'center',
   },
   headerSubtitle: {
-    fontSize: 12,
+    fontSize: 15,
     color: colors.slate400,
-    fontFamily: 'Inter_500Medium',
+    fontFamily: 'AkayaKanadaka_400Regular',
     textAlign: 'center',
     marginTop: -18,
   },
@@ -815,11 +850,25 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     gap: 16,
   },
   featuredCard: {
-    width: width * 0.7,
-    height: 200,
-    borderRadius: 24,
+    width: width * 0.64,
+    height: 220,
+    borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: colors.deepSlate,
+    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: isDark ? 0.3 : 0.05,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  featuredImageContainer: {
+    width: '100%',
+    height: 125,
+    backgroundColor: isDark ? '#020617' : '#f1f5f9',
+    position: 'relative',
+    overflow: 'hidden',
   },
   featuredImage: {
     width: '100%',
@@ -848,20 +897,23 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
   },
   featuredInfo: {
-    position: 'absolute',
-    bottom: 16,
-    left: 16,
-    right: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flex: 1,
+    justifyContent: 'space-between',
+    backgroundColor: isDark ? 'transparent' : '#ffffff',
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
+    gap: 4,
   },
   featuredName: {
     color: colors.white,
-    fontSize: 18,
+    fontSize: 14,
     fontFamily: 'Outfit_700Bold',
+    flex: 1,
   },
   featuredCategory: {
     color: colors.slate400,
@@ -870,9 +922,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   metaRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 4,
+    gap: 8,
+    marginTop: 2,
   },
   locationRow: {
     flexDirection: 'row',
@@ -881,8 +933,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   locationText: {
     color: colors.slate400,
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'Inter_500Medium',
+    flex: 1,
   },
   gridContainer: {
     flexDirection: 'row',
@@ -1226,20 +1279,30 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     gap: 16,
   },
   listCard: {
-    backgroundColor: colors.deepSlate,
+    backgroundColor: isDark ? '#0f172a' : '#ffffff',
     borderRadius: 20,
     marginHorizontal: 24,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
-    gap: 16,
+    borderColor: 'rgba(212,175,55,0.1)',
+    gap: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: isDark ? 0.25 : 0.04,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  listImage: {
-    width: 100,
-    height: 100,
+  listImageContainer: {
+    width: 90,
+    height: 90,
     borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: isDark ? '#020617' : '#f1f5f9',
+    position: 'relative',
+    borderWidth: 0.5,
+    borderColor: 'rgba(212,175,55,0.1)',
   },
   listInfo: {
     flex: 1,
@@ -1260,14 +1323,14 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   listName: {
     color: colors.white,
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'Outfit_700Bold',
   },
   listHeartBtn: {
     backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -1282,8 +1345,8 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   listMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 6,
   },
   listMetaItem: {
     flexDirection: 'row',
@@ -1292,7 +1355,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   listMetaText: {
     color: colors.slate400,
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: 'Inter_500Medium',
     maxWidth: 100,
   },

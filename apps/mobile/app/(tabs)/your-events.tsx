@@ -10,15 +10,16 @@ import {
   Dimensions,
   Platform,
   TextInput,
+  Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image as ExpoImage } from 'expo-image';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path } from 'react-native-svg';
 import { useAuth } from '@/context/AuthContext';
-import { MidnightColors, Fonts } from '../constants/theme';
+import { MidnightColors, Fonts } from '../../constants/theme';
 import { getUserEvents, getApprovedSharedEventsForUser, Event as FirestoreEvent } from '@/lib/firestore';
 
 const { width } = Dimensions.get('window');
@@ -26,6 +27,7 @@ const { width } = Dimensions.get('window');
 export default function YourEventsScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [events, setEvents] = useState<FirestoreEvent[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -61,6 +63,7 @@ export default function YourEventsScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      return;
     }
   };
 
@@ -113,28 +116,7 @@ export default function YourEventsScreen() {
 
   return (
     <View style={styles.safeArea}>
-      <Stack.Screen options={{ 
-        headerShown: true,
-        headerTransparent: true,
-        headerTitle: '',
-        headerTintColor: '#ffffff',
-        headerStyle: { backgroundColor: '#020617' },
-        headerLeft: () => (
-          <TouchableOpacity 
-            onPress={() => {
-              if (router.canGoBack()) {
-                router.back();
-              } else {
-                router.replace('/(tabs)/dashboard');
-              }
-            }}
-            style={styles.backBtn}
-            hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
-          >
-            <IconSymbol name="chevron.left" size={28} color="#ffffff" />
-          </TouchableOpacity>
-        ),
-      }} />
+      <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView
         style={styles.container}
@@ -142,7 +124,44 @@ export default function YourEventsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── SEARCH & FILTER ── */}
+        <LinearGradient
+          colors={['#0f172a', '#020617']}
+          style={[styles.header, { paddingTop: insets.top + 4 }]}
+        >
+          <View style={styles.headerLeft}>
+            <TouchableOpacity 
+              onPress={() => {
+                if (router.canGoBack()) {
+                  router.back();
+                } else {
+                  router.replace('/(tabs)/dashboard');
+                }
+              }} 
+              style={styles.backBtn}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <IconSymbol name="chevron.left" size={24} color="#ffffff" />
+            </TouchableOpacity>
+          </View>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={styles.headerTitle}>Gallery</Text>
+            <Text style={styles.tagline}>{"Your curated memories ✨"}</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity 
+              onPress={() => {
+                Alert.alert("Filters", "Filter and sorting options coming soon!");
+              }}
+              style={styles.headerFilterBtn}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d4af37" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <Path d="M10 5H3"/><Path d="M12 19H3"/><Path d="M14 3v4"/><Path d="M16 17v4"/><Path d="M21 12h-9"/><Path d="M21 19h-5"/><Path d="M21 5h-7"/><Path d="M8 10v4"/><Path d="M8 12H3"/>
+              </Svg>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+        {/* ── SEARCH ── */}
         <View style={styles.searchSection}>
           <View style={styles.searchBox}>
             <IconSymbol name="magnifyingglass" size={18} color="#64748b" />
@@ -154,11 +173,6 @@ export default function YourEventsScreen() {
               onChangeText={setSearchQuery}
             />
           </View>
-          <TouchableOpacity style={styles.filterBtn}>
-            <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <Path d="M10 5H3"/><Path d="M12 19H3"/><Path d="M14 3v4"/><Path d="M16 17v4"/><Path d="M21 12h-9"/><Path d="M21 19h-5"/><Path d="M21 5h-7"/><Path d="M8 10v4"/><Path d="M8 12H3"/>
-            </Svg>
-          </TouchableOpacity>
         </View>
 
         {/* ── HOST CTA BANNER ── */}
@@ -234,7 +248,7 @@ export default function YourEventsScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#020617' },
   container: { flex: 1 },
-  scrollContent: { paddingBottom: 60, paddingTop: 80 },
+  scrollContent: { paddingBottom: 60, paddingTop: 0 },
   
   // Header
   header: {
@@ -242,13 +256,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingTop: 12,
+    paddingBottom: 20,
     backgroundColor: '#020617',
+    gap: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
   },
   headerLeft: {
+    width: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    justifyContent: 'flex-start',
+  },
+  headerRight: {
+    width: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   backBtn: {
     width: 40,
@@ -263,11 +291,27 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontFamily: 'Inter_500Medium',
   },
+  headerFilterBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   headerTitle: {
     fontSize: 28,
     color: '#ffffff',
-    fontFamily: 'Outfit_800ExtraBold',
-    marginTop: -2,
+    fontFamily: 'AkayaKanadaka_400Regular',
+    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  tagline: {
+    fontSize: 15,
+    color: '#94a3b8',
+    fontFamily: 'AkayaKanadaka_400Regular',
+    marginTop: -18,
+    textAlign: 'center',
   },
   iconBtn: {
     width: 44,

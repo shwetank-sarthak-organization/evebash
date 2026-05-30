@@ -35,14 +35,6 @@ export default function TabLayout() {
       }}>
 
       <Tabs.Screen
-        name="explore-business"
-        options={{
-          title: 'Marketplace',
-          href: null,
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="magnifyingglass" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="gallery"
         options={{
           title: 'Host',
@@ -81,10 +73,16 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="social"
+        name="explore-business"
         options={{
-          title: 'Social',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.2.fill" color={color} />,
+          title: 'Marketplace',
+          tabBarIcon: ({ color }) => (
+            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <Path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/>
+              <Path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/>
+              <Path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/>
+            </Svg>
+          ),
         }}
       />
       <Tabs.Screen
@@ -95,6 +93,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="your-events"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="business/[id]"
         options={{
           href: null,
@@ -102,6 +106,18 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="manage-business"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="usage"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="pricing"
         options={{
           href: null,
         }}

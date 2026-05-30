@@ -716,6 +716,23 @@ export async function logGuestLogin(name: string, phone: string, eventId?: strin
     }
 }
 
+/**
+ * Checks if a guest request already exists for a user and event.
+ */
+export async function checkGuestRequestStatus(userId: string, eventId: string): Promise<'pending' | 'approved' | 'rejected' | null> {
+    try {
+        const docRef = doc(db, "guests", `${userId}_${eventId}`);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+            return snap.data().status || 'pending';
+        }
+        return null;
+    } catch (e) {
+        console.error("Error checking guest request status:", e);
+        return null;
+    }
+}
+
 export function onGuestStatusChange(logId: string, callback: (status: string) => void) {
     const docRef = doc(db, "guests", logId);
     return onSnapshot(docRef, (snapshot) => {
@@ -1595,6 +1612,213 @@ export async function getBusinessActivities(creatorIds: string[]): Promise<any[]
         return allDocs;
     } catch (e) {
         console.error("Error fetching business activities:", e);
+        return [];
+    }
+}
+
+/**
+ * Fetches notifications for followed user activities and shortlisted business updates.
+ */
+export async function getNotifications(userId: string): Promise<any[]> {
+    try {
+        console.log('[getNotifications] Fetching notifications for userId:', userId);
+        const notifications: any[] = [];
+
+        // 1. Fetch user's following list with follow timestamps
+        const relCol = collection(db, "relationships");
+        const relQ = query(relCol, where("followerId", "==", userId));
+        const relSnap = await getDocs(relQ);
+        
+        const followingTimestamps: Record<string, any> = {};
+        const followingIds: string[] = [];
+        
+        relSnap.docs.forEach(docSnap => {
+            const data = docSnap.data();
+            if (!data.status || data.status === 'accepted') {
+                const followedId = data.followedId;
+                followingIds.push(followedId);
+                followingTimestamps[followedId] = data.createdAt || null;
+            }
+        });
+        console.log('[getNotifications] Following IDs:', followingIds);
+
+        // 2. Fetch user's latest shortlisted businesses list from user doc
+        const userRef = doc(db, 'users', userId);
+        const userSnap = await getDoc(userRef);
+        const shortlistedBusinessIds: string[] = userSnap.exists() ? (userSnap.data()?.shortlisted || []) : [];
+        console.log('[getNotifications] Shortlisted Business IDs:', shortlistedBusinessIds);
+
+        // 3. Followed Users Activities (Events & Businesses)
+        if (followingIds.length > 0) {
+            // Fetch followed users' names/profiles for descriptive notifications
+            const followedUserNames: Record<string, string> = {};
+            const usersCol = collection(db, "users");
+            const userChunks = [];
+            for (let i = 0; i < followingIds.length; i += 30) {
+                userChunks.push(followingIds.slice(i, i + 30));
+            }
+            for (const chunk of userChunks) {
+                const q = query(usersCol, where("uid", "in", chunk));
+                const snap = await getDocs(q);
+                snap.forEach(docSnap => {
+                    followedUserNames[docSnap.id] = docSnap.data().name || 'A followed user';
+                });
+            }
+
+            // Fetch events created by followed users
+            const eventsCol = collection(db, "events");
+            const eventChunks = [];
+            for (let i = 0; i < followingIds.length; i += 30) {
+                eventChunks.push(followingIds.slice(i, i + 30));
+            }
+            for (const chunk of eventChunks) {
+                const q = query(eventsCol, where("createdBy", "in", chunk));
+                const snap = await getDocs(q);
+                snap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    // Skip deleted and sub-events
+                    if (!data.deleted && !data.isDeleted && data.type !== 'sub' && !data.parentId) {
+                        // FILTER BY FOLLOW DATE: Only show events created after user followed them
+                        const followTime = followingTimestamps[data.createdBy];
+                        const eventTime = data.createdAt;
+                        if (followTime && eventTime) {
+                            const followMs = followTime.seconds ? followTime.seconds * 1000 : (followTime instanceof Date ? followTime.getTime() : 0);
+                            const eventMs = eventTime.seconds ? eventTime.seconds * 1000 : (eventTime instanceof Date ? eventTime.getTime() : 0);
+                            if (eventMs < followMs) {
+                                return; // Skip historical events
+                            }
+                        }
+
+                        const creatorName = followedUserNames[data.createdBy] || 'A user you follow';
+                        notifications.push({
+                            id: `event_${docSnap.id}`,
+                            title: '🎉 New Event Created',
+                            body: `${creatorName} created a new event: "${data.title}"`,
+                            createdAt: data.createdAt || null,
+                            type: 'followed_event',
+                            targetId: docSnap.id,
+                            eventTitle: data.title,
+                            eventCreatorId: data.createdBy,
+                            eventParentId: data.parentId || null
+                        });
+                    }
+                });
+            }
+
+            // Fetch businesses registered by followed users
+            const businessesCol = collection(db, "businesses");
+            const bizChunks = [];
+            for (let i = 0; i < followingIds.length; i += 30) {
+                bizChunks.push(followingIds.slice(i, i + 30));
+            }
+            for (const chunk of bizChunks) {
+                const q = query(businessesCol, where("createdBy", "in", chunk));
+                const snap = await getDocs(q);
+                snap.forEach(docSnap => {
+                    const data = docSnap.data();
+
+                    // FILTER BY FOLLOW DATE: Only show businesses registered after user followed them
+                    const followTime = followingTimestamps[data.createdBy];
+                    const bizTime = data.createdAt;
+                    if (followTime && bizTime) {
+                        const followMs = followTime.seconds ? followTime.seconds * 1000 : (followTime instanceof Date ? followTime.getTime() : 0);
+                        const bizMs = bizTime.seconds ? bizTime.seconds * 1000 : (bizTime instanceof Date ? bizTime.getTime() : 0);
+                        if (bizMs < followMs) {
+                            return; // Skip historical businesses
+                        }
+                    }
+
+                    const creatorName = followedUserNames[data.createdBy] || 'A user you follow';
+                    notifications.push({
+                        id: `biz_follow_${docSnap.id}`,
+                        title: '💼 New Business Registered',
+                        body: `${creatorName} registered a new business: "${data.name}"`,
+                        createdAt: data.createdAt || null,
+                        type: 'followed_business',
+                        targetId: docSnap.id
+                    });
+                });
+            }
+        }
+
+        // 4. Shortlisted Business Creations and Activity Updates
+        if (shortlistedBusinessIds.length > 0) {
+            // Fetch shortlisted businesses' details (names & creations)
+            const businessesCol = collection(db, "businesses");
+            const bizChunks = [];
+            for (let i = 0; i < shortlistedBusinessIds.length; i += 30) {
+                bizChunks.push(shortlistedBusinessIds.slice(i, i + 30));
+            }
+            for (const chunk of bizChunks) {
+                const q = query(businessesCol, where("__name__", "in", chunk));
+                const snap = await getDocs(q);
+                snap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    notifications.push({
+                        id: `biz_create_${docSnap.id}`,
+                        title: '✨ Shortlisted Business Listed',
+                        body: `"${data.name}" is now listed on EveBash. Check it out!`,
+                        createdAt: data.createdAt || null,
+                        type: 'shortlist_creation',
+                        targetId: docSnap.id
+                    });
+                });
+            }
+
+            // Fetch activity logs for shortlisted businesses
+            const activitiesCol = collection(db, "businessActivities");
+            const actChunks = [];
+            for (let i = 0; i < shortlistedBusinessIds.length; i += 30) {
+                actChunks.push(shortlistedBusinessIds.slice(i, i + 30));
+            }
+            for (const chunk of actChunks) {
+                const q = query(activitiesCol, where("businessId", "in", chunk));
+                const snap = await getDocs(q);
+                snap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    if (data.activityType === 'faq') {
+                        notifications.push({
+                            id: `act_${docSnap.id}`,
+                            title: '❓ New FAQ Added',
+                            body: `"${data.businessName}" updated their FAQs. Check what's new!`,
+                            createdAt: data.createdAt || null,
+                            type: 'shortlist_faq',
+                            targetId: data.businessId
+                        });
+                    } else if (data.activityType === 'portfolio_photo') {
+                        notifications.push({
+                            id: `act_${docSnap.id}`,
+                            title: '📸 Portfolio Updated',
+                            body: `"${data.businessName}" uploaded a new photo to their portfolio.`,
+                            createdAt: data.createdAt || null,
+                            type: 'shortlist_portfolio',
+                            targetId: data.businessId
+                        });
+                    } else if (data.activityType === 'announcement') {
+                        notifications.push({
+                            id: `act_${docSnap.id}`,
+                            title: '📢 New Announcement',
+                            body: `"${data.businessName}" posted: "${data.content}"`,
+                            createdAt: data.createdAt || null,
+                            type: 'shortlist_announcement',
+                            targetId: data.businessId
+                        });
+                    }
+                });
+            }
+        }
+
+        // 5. Sort all notifications chronologically descending
+        notifications.sort((a, b) => {
+            const timeA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : (a.createdAt instanceof Date ? a.createdAt.getTime() : 0);
+            const timeB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : (b.createdAt instanceof Date ? b.createdAt.getTime() : 0);
+            return timeB - timeA;
+        });
+
+        console.log('[getNotifications] Total notifications compiled:', notifications.length);
+        return notifications;
+    } catch (error) {
+        console.error("Error compilation in getNotifications:", error);
         return [];
     }
 }

@@ -1,0 +1,635 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Dimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Stack, useRouter } from 'expo-router';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { LinearGradient } from 'expo-linear-gradient';
+
+const { width } = Dimensions.get('window');
+
+const packages = [
+  {
+    id: "tier_5gb",
+    name: "Starter Tier",
+    capacity: "5 GB",
+    photos: "~1,000 photos",
+    prices: {
+      monthly: { price: "₹0", period: "forever", save: null },
+      quarterly: { price: "₹50", period: "/ 3 mo", save: null },
+      semiannual: { price: "₹150", period: "/ 6 mo", save: null },
+      yearly: { price: "₹250", period: "/ yr", save: null },
+    },
+    features: [
+      "2 Active Events",
+      "5 GB Cloud Storage",
+      "1 Standard Template Only",
+      "Guest Sharing via Link",
+      "Basic Gallery View",
+      "Standard Support",
+    ],
+    cta: "Select Starter",
+    accentColor: "rgba(148, 163, 184, 0.2)",
+    checkColor: "#94a3b8",
+  },
+  {
+    id: "tier_25gb",
+    name: "Growth Tier",
+    capacity: "25 GB",
+    photos: "~5,000 photos",
+    prices: {
+      monthly: { price: "₹349", period: "/ month", save: null },
+      quarterly: { price: "₹449", period: "/ 3 mo", save: "Save 57%" },
+      semiannual: { price: "₹549", period: "/ 6 mo", save: "Save 74%" },
+      yearly: { price: "₹799", period: "/ yr", save: "Save 81%" },
+    },
+    features: [
+      "5 Active Events",
+      "25 GB Cloud Storage",
+      "All Premium Templates",
+      "Authorized Guest Sign-In",
+      "Guest Approval System",
+      "Face Recognition Search",
+      "Standard Support",
+      "Optimized Image Delivery (JPG)",
+    ],
+    cta: "Select Growth",
+    accentColor: "rgba(20, 184, 166, 0.2)",
+    checkColor: "#14b8a6",
+  },
+  {
+    id: "tier_50gb",
+    name: "Rise Tier",
+    capacity: "50 GB",
+    photos: "~10,000 photos",
+    prices: {
+      monthly: { price: "₹699", period: "/ 30 days (then deleted)", save: null },
+      quarterly: { price: "₹799", period: "/ 90 days (then deleted)", save: "Save 62%" },
+      semiannual: { price: "₹999", period: "/ 180 days (then deleted)", save: "Save 76%" },
+      yearly: { price: "₹1,299", period: "/ 365 days (then deleted)", save: "Save 84%" },
+    },
+    features: [
+      "10 Active Events",
+      "50 GB Cloud Storage",
+      "All Premium Templates",
+      "Authorized Guest Sign-In",
+      "Guest Approval + Traffic Logs",
+      "Face Recognition Search",
+      "Standard Support",
+      "Optimized Image Delivery (JPG)",
+    ],
+    cta: "Select Rise",
+    accentColor: "rgba(14, 165, 233, 0.2)",
+    checkColor: "#0ea5e9",
+  },
+  {
+    id: "tier_100gb",
+    name: "Scale Tier",
+    capacity: "100 GB",
+    photos: "~20,000 photos",
+    prices: {
+      monthly: { price: "₹1,299", period: "/ 30 days (then deleted)", save: null },
+      quarterly: { price: "₹1,499", period: "/ 90 days (then deleted)", save: "Save 61%" },
+      semiannual: { price: "₹1,699", period: "/ 180 days (then deleted)", save: "Save 78%" },
+      yearly: { price: "₹2,299", period: "/ 365 days (then deleted)", save: "Save 85%" },
+    },
+    isPopular: true,
+    features: [
+      "25 Active Events",
+      "100 GB Cloud Storage",
+      "All Premium Templates",
+      "Authorized Guest Sign-In",
+      "Guest Approval + Traffic Logs",
+      "Face Recognition Search",
+      "Custom Subdomain Support",
+      "Priority Support & Faster CDN",
+    ],
+    cta: "Select Scale",
+    accentColor: "#d4af37",
+    checkColor: "#d4af37",
+  },
+  {
+    id: "tier_300gb",
+    name: "Apex Tier",
+    capacity: "300 GB",
+    photos: "~60,000 photos",
+    prices: {
+      monthly: { price: "₹3,549", period: "/ month", save: null },
+      quarterly: { price: "₹9,499", period: "/ 3 mo", save: "Save 10%" },
+      semiannual: { price: "₹16,999", period: "/ 6 mo", save: "Save 20%" },
+      yearly: { price: "₹27,999", period: "/ yr", save: "Save 34%" },
+    },
+    features: [
+      "Unlimited Events",
+      "300 GB Cloud Storage",
+      "All Premium Templates",
+      "Authorized Guest Sign-In",
+      "Face Recognition Search",
+      "Custom Subdomain Support",
+      "Dedicated Support Manager",
+      "RAW + JPG Download Options",
+      "Delegate 5 Team Members",
+    ],
+    cta: "Select Apex",
+    accentColor: "rgba(139, 92, 246, 0.3)",
+    checkColor: "#8b5cf6",
+  },
+  {
+    id: "tier_500gb",
+    name: "Summit Tier",
+    capacity: "500 GB",
+    photos: "~100,000 photos",
+    prices: {
+      monthly: { price: "₹5,699", period: "/ month", save: null },
+      quarterly: { price: "₹14,999", period: "/ 3 mo", save: "Save 12%" },
+      semiannual: { price: "₹26,999", period: "/ 6 mo", save: "Save 21%" },
+      yearly: { price: "₹44,999", period: "/ yr", save: "Save 34%" },
+    },
+    features: [
+      "Unlimited Events",
+      "500 GB Cloud Storage",
+      "All Premium Templates",
+      "Authorized Guest Sign-In",
+      "Face Recognition Search",
+      "Custom Subdomain Support",
+      "Dedicated Account Manager",
+      "RAW + JPG Download Options",
+      "Unlimited Team Members",
+      "White-Label Branding & API Access",
+    ],
+    cta: "Select Summit",
+    accentColor: "rgba(236, 72, 153, 0.3)",
+    checkColor: "#ec4899",
+  },
+];
+
+export default function PricingScreen() {
+  const router = useRouter();
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'quarterly' | 'semiannual' | 'yearly'>('monthly');
+  const [selectedTierIndex, setSelectedTierIndex] = useState<number>(3); // Default to 100 GB (index 3)
+
+  const activePackage = packages[selectedTierIndex];
+  const activePlanData = activePackage.prices[billingCycle];
+
+  return (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <Stack.Screen options={{ headerShown: false }} />
+      
+      {/* Custom Navigation Header */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity 
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)/dashboard');
+            }
+          }} 
+          style={styles.backButton}
+        >
+          <IconSymbol name="chevron.left" size={24} color="#d4af37" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Upgrade Plan</Text>
+        <View style={{ width: 40 }} /> 
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Simple, Transparent Pricing</Text>
+          <Text style={styles.subtitle}>Find the exact storage tier that fits your story.</Text>
+        </View>
+
+        {/* Dynamic Billing Filter Selector */}
+        <View style={styles.filterContainer}>
+          {[
+            { id: 'monthly', label: '1 Month' },
+            { id: 'quarterly', label: '3 Months' },
+            { id: 'semiannual', label: '6 Months' },
+            { id: 'yearly', label: 'Yearly' },
+          ].map((tab) => {
+            const isActive = billingCycle === tab.id;
+            return (
+              <TouchableOpacity
+                key={tab.id}
+                style={[styles.filterTab, isActive && styles.filterTabActive]}
+                onPress={() => setBillingCycle(tab.id as any)}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.filterTabText, isActive && styles.filterTabTextActive]}>
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Dynamic Storage Tier Selection Pills */}
+        <Text style={styles.sectionLabel}>Select Storage Tier</Text>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          contentContainerStyle={styles.pillsScrollContainer}
+          style={styles.pillsScroll}
+        >
+          {packages.map((pkg, idx) => {
+            const isSelected = selectedTierIndex === idx;
+            return (
+              <TouchableOpacity
+                key={pkg.id}
+                style={[
+                  styles.tierPill,
+                  isSelected && styles.tierPillActive,
+                  pkg.isPopular && !isSelected && styles.tierPillPopularBorder
+                ]}
+                onPress={() => setSelectedTierIndex(idx)}
+                activeOpacity={0.85}
+              >
+                {pkg.isPopular && (
+                  <View style={styles.popularBadgeMini}>
+                    <Text style={styles.popularBadgeMiniText}>POPULAR</Text>
+                  </View>
+                )}
+                <Text style={[styles.tierPillTitle, isSelected && styles.tierPillTitleActive]}>
+                  {pkg.capacity}
+                </Text>
+                <Text style={styles.tierPillSubtitle}>
+                  {pkg.photos.split(" ")[0] + " " + pkg.photos.split(" ")[1]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* Detail Plan Dynamic Card */}
+        <View 
+          style={[
+            styles.detailCard, 
+            activePackage.isPopular && styles.cardPopularBorder,
+          ]}
+        >
+          {activePackage.isPopular && (
+            <LinearGradient
+              colors={['rgba(212, 175, 55, 0.25)', 'rgba(212, 175, 55, 0.02)']}
+              style={StyleSheet.absoluteFill}
+            />
+          )}
+
+          <View style={styles.planHeaderRow}>
+            <View>
+              <Text style={styles.planName}>{activePackage.name}</Text>
+              <Text style={styles.planCapacityLabel}>
+                {activePackage.capacity} cloud space ({activePackage.photos})
+              </Text>
+            </View>
+            {activePlanData.save && (
+              <View style={styles.saveBadge}>
+                <Text style={styles.saveBadgeText}>{activePlanData.save}</Text>
+              </View>
+            )}
+          </View>
+          
+          <View style={styles.priceRow}>
+            <Text style={styles.planPrice}>{activePlanData.price}</Text>
+            <Text style={styles.planPeriod}>{activePlanData.period}</Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.featuresList}>
+            {activePackage.features.map((feature, fIndex) => (
+              <View key={fIndex} style={styles.featureRow}>
+                <View style={[styles.iconBox, { backgroundColor: `${activePackage.checkColor}20` }]}>
+                  <IconSymbol 
+                    name="checkmark" 
+                    size={12} 
+                    color={activePackage.checkColor} 
+                  />
+                </View>
+                <Text style={styles.featureText}>{feature}</Text>
+              </View>
+            ))}
+          </View>
+
+          <TouchableOpacity 
+            style={[
+              styles.ctaButton, 
+              { backgroundColor: activePackage.isPopular ? '#d4af37' : '#1e293b' }
+            ]}
+            onPress={() => {
+              router.push('/(tabs)/menu'); 
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={[
+              styles.ctaText, 
+              activePackage.isPopular && { color: '#020617', fontFamily: 'Outfit_800ExtraBold' }
+            ]}>{activePackage.cta}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.footer}>
+          <IconSymbol name="info.circle" size={18} color="#94a3b8" />
+          <Text style={styles.footerText}>
+            Fair Usage Policy: Bandwidth usage beyond fair limits may incur additional charges. Extra Storage: ₹5/GB • Extra Bandwidth: ₹7–₹10/GB.
+          </Text>
+        </View>
+
+        <View style={styles.customPlanCard}>
+          <Text style={styles.customPlanTitle}>Need a custom plan?</Text>
+          <Text style={styles.customPlanDesc}>
+            {`Running a large studio or enterprise operation? Let's build a plan tailored to your exact needs.`}
+          </Text>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/menu')} activeOpacity={0.7}>
+            <Text style={styles.customPlanLink}>Contact Us for Custom Quote →</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#020617',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1.5,
+    borderBottomColor: 'rgba(212, 175, 55, 0.2)',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  headerTitle: {
+    fontSize: 13,
+    fontFamily: 'Inter_700Bold',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  header: {
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  title: {
+    fontSize: 28,
+    fontFamily: 'Outfit_800ExtraBold',
+    color: '#ffffff',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 14,
+    fontFamily: 'Inter_500Medium',
+    color: '#94a3b8',
+    textAlign: 'center',
+    paddingHorizontal: 16,
+    lineHeight: 20,
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  filterTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  filterTabActive: {
+    backgroundColor: '#d4af37',
+  },
+  filterTabText: {
+    fontSize: 12,
+    fontFamily: 'Outfit_600SemiBold',
+    color: '#94a3b8',
+  },
+  filterTabTextActive: {
+    color: '#020617',
+    fontFamily: 'Outfit_800ExtraBold',
+  },
+  sectionLabel: {
+    fontSize: 14,
+    fontFamily: 'Inter_700Bold',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  pillsScroll: {
+    marginBottom: 24,
+  },
+  pillsScrollContainer: {
+    gap: 10,
+    paddingHorizontal: 4,
+    paddingBottom: 4,
+  },
+  tierPill: {
+    width: 90,
+    height: 75,
+    backgroundColor: '#0f172a',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  tierPillActive: {
+    borderColor: '#d4af37',
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+  },
+  tierPillPopularBorder: {
+    borderColor: 'rgba(212, 175, 55, 0.3)',
+  },
+  popularBadgeMini: {
+    position: 'absolute',
+    top: -6,
+    backgroundColor: '#d4af37',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  popularBadgeMiniText: {
+    fontSize: 8,
+    fontFamily: 'Outfit_800ExtraBold',
+    color: '#020617',
+  },
+  tierPillTitle: {
+    fontSize: 16,
+    fontFamily: 'Outfit_800ExtraBold',
+    color: '#f8fafc',
+  },
+  tierPillTitleActive: {
+    color: '#d4af37',
+  },
+  tierPillSubtitle: {
+    fontSize: 10,
+    fontFamily: 'Inter_500Medium',
+    color: '#64748b',
+    marginTop: 2,
+  },
+  detailCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    overflow: 'hidden',
+    padding: 24,
+  },
+  cardPopularBorder: {
+    borderColor: '#d4af37',
+    borderWidth: 1.5,
+  },
+  planHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  planName: {
+    fontSize: 24,
+    fontFamily: 'Outfit_800ExtraBold',
+    color: '#ffffff',
+  },
+  planCapacityLabel: {
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+    color: '#94a3b8',
+    marginTop: 2,
+  },
+  saveBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  saveBadgeText: {
+    color: '#10b981',
+    fontSize: 11,
+    fontFamily: 'Outfit_700Bold',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 20,
+  },
+  planPrice: {
+    fontSize: 42,
+    fontFamily: 'Outfit_800ExtraBold',
+    color: '#ffffff',
+  },
+  planPeriod: {
+    fontSize: 14,
+    fontFamily: 'Inter_500Medium',
+    color: '#94a3b8',
+    marginLeft: 6,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 20,
+  },
+  featuresList: {
+    gap: 14,
+    marginBottom: 28,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  featureText: {
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+    color: '#e2e8f0',
+    flex: 1,
+  },
+  ctaButton: {
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  ctaText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontFamily: 'Outfit_700Bold',
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#0f172a',
+    padding: 16,
+    borderRadius: 16,
+    marginTop: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  footerText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    color: '#94a3b8',
+    marginLeft: 12,
+    lineHeight: 18,
+  },
+  customPlanCard: {
+    backgroundColor: '#0f172a',
+    padding: 24,
+    borderRadius: 20,
+    marginTop: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.2)',
+  },
+  customPlanTitle: {
+    fontSize: 20,
+    fontFamily: 'Outfit_700Bold',
+    color: '#ffffff',
+    marginBottom: 8,
+  },
+  customPlanDesc: {
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 22,
+  },
+  customPlanLink: {
+    color: '#d4af37',
+    fontSize: 14,
+    fontFamily: 'Outfit_700Bold',
+  },
+});

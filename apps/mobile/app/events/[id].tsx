@@ -5950,14 +5950,18 @@ export default function EventDetailScreen() {
             <Text style={{ color: '#94a3b8', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Dashboard</Text>
           </TouchableOpacity>
 
-          {/* TAB 4: Social */}
+          {/* TAB 4: Marketplace */}
           <TouchableOpacity
             style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-            onPress={() => router.replace('/(tabs)/social')}
+            onPress={() => router.replace('/(tabs)/explore-business')}
             activeOpacity={0.8}
           >
-            <IconSymbol size={28} name="person.2.fill" color="#94a3b8" />
-            <Text style={{ color: '#94a3b8', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Social</Text>
+            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <Path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/>
+              <Path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/>
+              <Path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/>
+            </Svg>
+            <Text style={{ color: '#94a3b8', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Marketplace</Text>
           </TouchableOpacity>
 
           {/* TAB 5: Profile */}
