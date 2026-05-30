@@ -1759,11 +1759,11 @@ headerGreeting: {
   description: { fontSize: 16, color: MidnightColors.slate400, fontFamily: Fonts.inter.regular, lineHeight: 24, marginBottom: 32 },
 
   // Tabs
-  tabBar: { flexDirection: 'row', gap: 12, marginBottom: 24, backgroundColor: 'rgba(255,255,255,0.05)', padding: 6, borderRadius: 16 },
-  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 12 },
-  activeTab: { backgroundColor: MidnightColors.gold },
+  tabBar: { flexDirection: 'row', gap: 16, marginBottom: 24, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
+  tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  activeTab: { borderBottomWidth: 2, borderBottomColor: MidnightColors.gold },
   tabText: { color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.outfit.bold },
-  activeTabText: { color: MidnightColors.background },
+  activeTabText: { color: MidnightColors.gold },
   badge: { position: 'absolute', top: 4, right: 4, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1, borderColor: MidnightColors.background },
   badgeText: { color: '#fff', fontSize: 9, fontFamily: Fonts.inter.bold },
 

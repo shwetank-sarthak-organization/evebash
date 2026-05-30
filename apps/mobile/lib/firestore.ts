@@ -118,6 +118,14 @@ export interface UserProfile {
     username?: string;
     isPrivate?: boolean;
     createdAt?: Timestamp;
+    location?: string;
+    gender?: string;
+    relationshipStatus?: string;
+    persona?: string | string[];
+    discoverable?: boolean;
+    notificationPreferences?: any;
+    birthday?: string;
+    anniversaryDate?: string;
 }
 
 export interface GuestLog {
@@ -333,14 +341,63 @@ export async function isUsernameUnique(username: string, excludeUid?: string): P
     }
 }
 
-export async function updateUserProfile(uid: string, updateData: { name: string; username: string; profileImage?: string; phone?: string }) {
+export async function updateUserProfile(uid: string, updateData: { 
+    name?: string; 
+    username?: string; 
+    profileImage?: string; 
+    phone?: string; 
+    location?: string;
+    gender?: string;
+    relationshipStatus?: string;
+    persona?: string | string[];
+    discoverable?: boolean;
+    notificationPreferences?: any;
+    birthday?: string;
+    anniversaryDate?: string;
+}) {
     try {
         const docRef = doc(db, "users", uid);
-        await updateDoc(docRef, updateData);
+        const sanitizedData = { ...updateData } as Record<string, any>;
+        Object.keys(sanitizedData).forEach((key) => {
+            if (sanitizedData[key] === undefined) {
+                delete sanitizedData[key];
+            }
+        });
+        await updateDoc(docRef, sanitizedData);
         return true;
     } catch (error) {
         console.error("Error updating user profile:", error);
         return false;
+    }
+}
+
+export async function submitFeedback(userId: string, userName: string, text: string, category: string) {
+    try {
+        const feedbackCol = collection(db, "feedback");
+        await addDoc(feedbackCol, {
+            userId,
+            userName,
+            text,
+            category,
+            createdAt: serverTimestamp()
+        });
+        return true;
+    } catch (error) {
+        console.error("Error submitting feedback:", error);
+        return false;
+    }
+}
+
+export async function getUserPhotosCount(uid: string): Promise<number> {
+    if (!uid) return 0;
+    try {
+        const photosCol = collection(db, "photos");
+        const q = query(photosCol, where("userId", "==", uid));
+        const snapshot = await getDocs(q);
+        return snapshot.size;
+    } catch (error) {
+        console.error("Error fetching user photos count:", error);
+        return 0;
     }
 }
 

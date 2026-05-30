@@ -23,6 +23,15 @@ interface AppUser {
   shortlisted?: string[];
   username?: string;
   isPrivate?: boolean;
+  createdAt?: any;
+  location?: string;
+  gender?: string;
+  relationshipStatus?: string;
+  persona?: string | string[];
+  discoverable?: boolean;
+  notificationPreferences?: any;
+  birthday?: string;
+  anniversaryDate?: string;
 }
 
 interface AuthContextType {
@@ -69,6 +78,15 @@ async function fetchOrCreateProfile(firebaseUser: FirebaseUser): Promise<AppUser
     profileImage: snap.data()?.profileImage,
     username: snap.data()?.username,
     isPrivate: snap.data()?.isPrivate ?? false,
+    createdAt: snap.data()?.createdAt,
+    location: snap.data()?.location,
+    gender: snap.data()?.gender,
+    relationshipStatus: snap.data()?.relationshipStatus,
+    persona: snap.data()?.persona,
+    discoverable: snap.data()?.discoverable ?? true,
+    notificationPreferences: snap.data()?.notificationPreferences || null,
+    birthday: snap.data()?.birthday,
+    anniversaryDate: snap.data()?.anniversaryDate,
   };
 }
 
@@ -141,6 +159,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 shortlisted: data.shortlisted || [],
                 username: data.username,
                 isPrivate: data.isPrivate ?? false,
+                createdAt: data.createdAt,
+                location: data.location,
+                gender: data.gender,
+                relationshipStatus: data.relationshipStatus,
+                persona: data.persona,
+                discoverable: data.discoverable ?? true,
+                notificationPreferences: data.notificationPreferences || null,
+                birthday: data.birthday,
+                anniversaryDate: data.anniversaryDate,
               });
             }
             setLoading(false);

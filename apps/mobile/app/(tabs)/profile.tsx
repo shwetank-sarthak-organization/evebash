@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import SettingsIcon from '@/components/ui/SettingsIcon';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { 
@@ -25,12 +26,113 @@ import {
   updateUserProfile,
   getUsers,
   followUser,
-  unfollowUser
+  unfollowUser,
+  getUserPhotosCount,
+  getUserEventCount,
+  getApprovedSharedEventsForUser
 } from '@/lib/firestore';
 import { collection, query, where, onSnapshot, getFirestore } from 'firebase/firestore';
 import { uploadProfileImage } from '@/lib/storage';
 
 const { width } = Dimensions.get('window');
+
+const formatJoinedDate = (createdAt: any) => {
+  if (!createdAt) return 'Not available';
+  
+  let date: Date;
+  if (typeof createdAt.toDate === 'function') {
+    date = createdAt.toDate();
+  } else if (createdAt.seconds) {
+    date = new Date(createdAt.seconds * 1000);
+  } else {
+    date = new Date(createdAt);
+  }
+
+  if (isNaN(date.getTime())) {
+    return 'Not available';
+  }
+
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+};
+
+const getPersonasArray = (personaVal: any): string[] => {
+  if (!personaVal) return [];
+  
+  let rawList: string[] = [];
+  
+  if (Array.isArray(personaVal)) {
+    rawList = personaVal.map(String);
+  } else if (typeof personaVal === 'string') {
+    const trimmed = personaVal.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          rawList = parsed.map(String);
+        }
+      } catch (e) {
+        rawList = [trimmed];
+      }
+    } else if (trimmed.includes(',')) {
+      rawList = trimmed.split(',').map(s => s.trim());
+    } else {
+      rawList = [trimmed];
+    }
+  } else {
+    rawList = [String(personaVal)];
+  }
+
+  // Filter and map raw items to their premium display versions
+  const normalizedSet = new Set<string>();
+  
+  // First, check list-wide string matching in case it's a character array (e.g. ['G','u','e','s','t'])
+  const allJoinedClean = rawList.map(s => s.trim()).join('').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  
+  if (allJoinedClean.includes('guest') && allJoinedClean.includes('host') && allJoinedClean.includes('vendor')) {
+    return ['Guest', 'Host / Organizer', 'Vendor / Business'];
+  }
+  if (allJoinedClean.includes('guest') && allJoinedClean.includes('host')) {
+    return ['Guest', 'Host / Organizer'];
+  }
+  if (allJoinedClean.includes('guest') && allJoinedClean.includes('vendor')) {
+    return ['Guest', 'Vendor / Business'];
+  }
+  if (allJoinedClean.includes('host') && allJoinedClean.includes('vendor')) {
+    return ['Host / Organizer', 'Vendor / Business'];
+  }
+  if (allJoinedClean === 'guest' || allJoinedClean === 'g' || allJoinedClean === 'u' || allJoinedClean === 'e' || allJoinedClean === 's' || allJoinedClean === 't') {
+    return ['Guest'];
+  }
+  if (allJoinedClean === 'host' || allJoinedClean === 'organizer' || allJoinedClean === 'hostorganizer') {
+    return ['Host / Organizer'];
+  }
+  if (allJoinedClean === 'vendor' || allJoinedClean === 'business' || allJoinedClean === 'vendorbusiness') {
+    return ['Vendor / Business'];
+  }
+
+  // If list-wide check did not yield complete results, map individual words
+  for (const item of rawList) {
+    const clean = item.toLowerCase();
+    if (clean.includes('guest')) {
+      normalizedSet.add('Guest');
+    } else if (clean.includes('host') || clean.includes('organizer')) {
+      normalizedSet.add('Host / Organizer');
+    } else if (clean.includes('vendor') || clean.includes('business')) {
+      normalizedSet.add('Vendor / Business');
+    }
+  }
+
+  if (normalizedSet.size > 0) {
+    return Array.from(normalizedSet);
+  }
+
+  // Final fallback
+  return ['Guest'];
+};
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
@@ -55,8 +157,22 @@ export default function ProfileScreen() {
   const [editName, setEditName] = useState('');
   const [editUsername, setEditUsername] = useState('');
   const [editPhone, setEditPhone] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editGender, setEditGender] = useState('');
+  const [editRelationshipStatus, setEditRelationshipStatus] = useState('');
+  const [editPersona, setEditPersona] = useState<string[]>([]);
   const [editImage, setEditImage] = useState<string | null>(null);
   const [editImageBase64, setEditImageBase64] = useState<string | null>(null);
+  const [editBirthday, setEditBirthday] = useState('');
+  const [editAnniversaryDate, setEditAnniversaryDate] = useState('');
+
+  // Gamified activity stats state
+  const [activityStats, setActivityStats] = useState({
+    photosCount: 0,
+    eventsOrganized: 0,
+    eventsJoined: 0,
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
   const [saving, setSaving] = useState(false);
 
   // Username validation state
@@ -115,8 +231,14 @@ export default function ProfileScreen() {
     setEditName(user?.name || '');
     setEditUsername(user?.username || '');
     setEditPhone(user?.phone && user.phone !== 'No Phone' ? user.phone : '');
+    setEditLocation(user?.location || '');
+    setEditGender(user?.gender || '');
+    setEditRelationshipStatus(user?.relationshipStatus || '');
+    setEditPersona(getPersonasArray(user?.persona));
     setEditImage(user?.profileImage || null);
     setEditImageBase64(null);
+    setEditBirthday(user?.birthday || '');
+    setEditAnniversaryDate(user?.anniversaryDate || '');
     setUsernameStatus('idle');
     setIsUsernameValid(true);
     setIsEditing(true);
@@ -175,7 +297,13 @@ export default function ProfileScreen() {
         name: editName.trim(),
         username: editUsername.trim().toLowerCase(),
         profileImage: finalImageUrl,
-        phone: editPhone.trim() || undefined,
+        phone: editPhone.trim() || '',
+        location: editLocation.trim() || '',
+        gender: editGender || '',
+        relationshipStatus: editRelationshipStatus || '',
+        persona: editPersona || '',
+        birthday: editBirthday.trim() || '',
+        anniversaryDate: editAnniversaryDate.trim() || '',
       });
 
       if (success) {
@@ -231,6 +359,32 @@ export default function ProfileScreen() {
       unsubFollowers();
       unsubFollowing();
     };
+  }, [user?.uid]);
+
+  // Fetch activity stats
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const fetchActivityStats = async () => {
+      try {
+        const pCount = await getUserPhotosCount(user.uid);
+        const organizedCount = await getUserEventCount(user.uid);
+        const identifiers = [user.uid, user.email, user.phone].filter(Boolean) as string[];
+        const joinedEvents = await getApprovedSharedEventsForUser(identifiers);
+        
+        setActivityStats({
+          photosCount: pCount,
+          eventsOrganized: organizedCount,
+          eventsJoined: joinedEvents.length,
+        });
+      } catch (err) {
+        console.error('Error fetching activity stats:', err);
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+
+    fetchActivityStats();
   }, [user?.uid]);
 
   const openNetworkModal = (type: 'followers' | 'following') => {
@@ -318,7 +472,6 @@ export default function ProfileScreen() {
           colors={[colors.deepSlate, colors.background]}
           style={[styles.header, { paddingTop: insets.top + 2 }]}
         >
-
           <View style={styles.profileRow}>
             <View style={styles.avatarRing}>
               {user.profileImage ? (
@@ -357,14 +510,44 @@ export default function ProfileScreen() {
                 </View>
               </View>
             </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push('/settings' as any)}
+              style={styles.settingsBtn}
+            >
+              <SettingsIcon size={22} color="#d4af37" />
+            </TouchableOpacity>
           </View>
         </LinearGradient>
 
         <View style={styles.content}>
+          
+          {/* Gamified Activity Stats Section */}
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionLabel}>Your Activity</Text>
+          </View>
+          
+          <View style={styles.statsCardCompact}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{activityStats.photosCount}</Text>
+              <Text style={styles.statLabel}>Photos Added</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{activityStats.eventsOrganized}</Text>
+              <Text style={styles.statLabel}>Event Hosted</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{activityStats.eventsJoined}</Text>
+              <Text style={styles.statLabel}>Event Joined</Text>
+            </View>
+          </View>
+
           <View style={styles.sectionHead}>
             <Text style={styles.sectionLabel}>Account Info</Text>
             <TouchableOpacity style={styles.editBtn} activeOpacity={0.7} onPress={openEditModal}>
-              <IconSymbol name="pencil" size={14} color="#60a5fa" />
+              <IconSymbol name="pencil" size={12} color="#020617" style={{ marginTop: -1 }} />
               <Text style={styles.editBtnText}>Edit</Text>
             </TouchableOpacity>
           </View>
@@ -420,52 +603,95 @@ export default function ProfileScreen() {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.actionItem} activeOpacity={0.7} onPress={togglePrivacy} disabled={updatingPrivacy}>
-              <View style={[styles.infoIconBox, { backgroundColor: isPrivate ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)' }]}>
-                <IconSymbol name={isPrivate ? "lock.fill" : "globe"} size={18} color={isPrivate ? "#ef4444" : "#10b981"} />
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconBox}>
+                <IconSymbol name="mappin.and.ellipse" size={16} color="#d4af37" />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.actionText}>{isPrivate ? 'Private Account' : 'Public Account'}</Text>
-                <Text style={{ fontSize: 11, color: '#64748b', fontFamily: 'Inter_400Regular', marginTop: 2 }}>
-                  {isPrivate ? 'Followers must be approved' : 'Anyone can follow you'}
-                </Text>
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoLabel}>Location</Text>
+                <Text style={styles.infoValue}>{user.location || 'Not set'}</Text>
               </View>
-              <View style={[styles.toggleBtn, isPrivate && styles.toggleBtnActive]}>
-                {updatingPrivacy ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <View style={[styles.toggleDot, isPrivate && styles.toggleDotActive]} />
-                )}
-              </View>
-            </TouchableOpacity>
+            </View>
 
             <View style={styles.divider} />
 
-            <View style={styles.actionItem}>
-              <View style={[styles.infoIconBox, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}>
-                <IconSymbol name={isDark ? "moon.fill" : "sun.max.fill"} size={18} color="#d4af37" />
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconBox}>
+                <IconSymbol name="person.fill" size={16} color="#d4af37" />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.actionText}>App Theme</Text>
-                <Text style={{ fontSize: 11, color: colors.slate400, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
-                  Switch appearance style
-                </Text>
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoLabel}>Gender</Text>
+                <Text style={styles.infoValue}>{user.gender || 'Not specified'}</Text>
               </View>
-              <View style={styles.themeToggleContainer}>
-                <TouchableOpacity 
-                  style={[styles.themePill, isDark && styles.themePillActive]} 
-                  activeOpacity={0.8}
-                  onPress={() => setTheme('dark')}
-                >
-                  <Text style={[styles.themePillText, isDark && styles.themePillTextActive]}>Dark</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.themePill, !isDark && styles.themePillActive]} 
-                  activeOpacity={0.8}
-                  onPress={() => setTheme('light')}
-                >
-                  <Text style={[styles.themePillText, !isDark && styles.themePillTextActive]}>Light</Text>
-                </TouchableOpacity>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconBox}>
+                <IconSymbol name="heart.fill" size={16} color="#d4af37" />
+              </View>
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoLabel}>Relationship Status</Text>
+                <Text style={styles.infoValue}>{user.relationshipStatus || 'Not specified'}</Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconBox}>
+                <IconSymbol name="gift.fill" size={16} color="#d4af37" />
+              </View>
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoLabel}>Birthday</Text>
+                <Text style={styles.infoValue}>{user.birthday || 'Not specified'}</Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconBox}>
+                <IconSymbol name="sparkles" size={16} color="#d4af37" />
+              </View>
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoLabel}>Anniversary / Milestone Date</Text>
+                <Text style={styles.infoValue}>{user.anniversaryDate || 'Not specified'}</Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconBox}>
+                <IconSymbol name="person.2.fill" size={16} color="#d4af37" />
+              </View>
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoLabel}>I am a</Text>
+                <View style={styles.badgeRow}>
+                  {getPersonasArray(user.persona).length > 0 ? (
+                    getPersonasArray(user.persona).map((item) => (
+                      <View key={item} style={styles.badgePill}>
+                        <Text style={styles.badgeText}>{item}</Text>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.infoValue}>Guest</Text>
+                  )}
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconBox}>
+                <IconSymbol name="calendar" size={16} color="#d4af37" />
+              </View>
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoLabel}>Joined EveBash</Text>
+                <Text style={styles.infoValue}>{formatJoinedDate(user.createdAt)}</Text>
               </View>
             </View>
 
@@ -490,17 +716,6 @@ export default function ProfileScreen() {
                 </View>
               </LinearGradient>
             </TouchableOpacity>
-
-            <View style={styles.divider} />
-
-            <TouchableOpacity style={styles.actionItem} activeOpacity={0.7} onPress={() => router.push('/' as any)}>
-              <View style={[styles.infoIconBox, { backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}>
-                <IconSymbol name="house.fill" size={18} color="#d4af37" />
-              </View>
-              <Text style={styles.actionText}>About EveBash</Text>
-              <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
-            </TouchableOpacity>
-
 
           </View>
 
@@ -648,6 +863,140 @@ export default function ProfileScreen() {
                     />
                   </View>
                   <Text style={styles.inputHint}>Optional — include country code</Text>
+                </View>
+
+                {/* Location Input */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Location</Text>
+                  <View style={styles.inputWrapper}>
+                    <IconSymbol name="mappin.and.ellipse" size={16} color="#d4af37" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.textInput}
+                      value={editLocation}
+                      onChangeText={setEditLocation}
+                      placeholder="e.g. Mumbai, Maharashtra"
+                      placeholderTextColor="#475569"
+                      editable={!saving}
+                    />
+                  </View>
+                  <Text style={styles.inputHint}>Optional — city or region name</Text>
+                </View>
+
+                {/* Gender Picker */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Gender</Text>
+                  <View style={styles.pickerContainer}>
+                    {['Male', 'Female', 'Other', 'Prefer not to say'].map((item) => (
+                      <TouchableOpacity
+                        key={item}
+                        activeOpacity={0.7}
+                        onPress={() => setEditGender(item)}
+                        style={[
+                          styles.pickerPill,
+                          editGender === item && styles.pickerPillSelected
+                        ]}
+                      >
+                        <Text style={[
+                          styles.pickerPillText,
+                          editGender === item && styles.pickerPillTextSelected
+                        ]}>{item}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Relationship Status Picker */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Relationship Status</Text>
+                  <View style={styles.pickerContainer}>
+                    {['Single', 'Engaged', 'Married', 'Prefer not to say'].map((item) => (
+                      <TouchableOpacity
+                        key={item}
+                        activeOpacity={0.7}
+                        onPress={() => setEditRelationshipStatus(item)}
+                        style={[
+                          styles.pickerPill,
+                          editRelationshipStatus === item && styles.pickerPillSelected
+                        ]}
+                      >
+                        <Text style={[
+                          styles.pickerPillText,
+                          editRelationshipStatus === item && styles.pickerPillTextSelected
+                        ]}>{item}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Birthday Input */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Birthday</Text>
+                  <View style={styles.inputWrapper}>
+                    <IconSymbol name="gift.fill" size={16} color="#d4af37" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.textInput}
+                      value={editBirthday}
+                      onChangeText={setEditBirthday}
+                      placeholder="e.g. October 24 (or DD/MM/YYYY)"
+                      placeholderTextColor="#475569"
+                      editable={!saving}
+                    />
+                  </View>
+                  <Text style={styles.inputHint}>Optional — used for premium milestone rewards</Text>
+                </View>
+
+                {/* Anniversary / Milestone Date Input */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Anniversary / Milestone Date</Text>
+                  <View style={styles.inputWrapper}>
+                    <IconSymbol name="sparkles" size={16} color="#d4af37" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.textInput}
+                      value={editAnniversaryDate}
+                      onChangeText={setEditAnniversaryDate}
+                      placeholder="e.g. December 18, 2026"
+                      placeholderTextColor="#475569"
+                      editable={!saving}
+                    />
+                  </View>
+                  <Text style={styles.inputHint}>Optional — used to match vendor services & local milestones</Text>
+                </View>
+
+                {/* Persona Picker */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>I am a...</Text>
+                  <Text style={styles.inputHint}>Select all that apply</Text>
+                  <View style={styles.pickerContainer}>
+                    {['Guest', 'Host / Organizer', 'Vendor / Business'].map((item) => {
+                      const isSelected = editPersona.includes(item);
+                      return (
+                        <TouchableOpacity
+                          key={item}
+                          activeOpacity={0.7}
+                          onPress={() => {
+                            if (isSelected) {
+                              if (editPersona.length > 1) {
+                                setEditPersona(editPersona.filter((p) => p !== item));
+                              } else {
+                                Alert.alert('Selection Required', 'Please select at least one role.');
+                              }
+                            } else {
+                              setEditPersona([...editPersona, item]);
+                            }
+                          }}
+                          style={[
+                            styles.pickerPill,
+                            isSelected && styles.pickerPillSelected
+                          ]}
+                        >
+                          <Text style={[
+                            styles.pickerPillText,
+                            isSelected && styles.pickerPillTextSelected
+                          ]}>{item}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
                 </View>
 
               </View>
@@ -811,6 +1160,14 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingTop: 2, 
     paddingBottom: 6,
   },
+  settingsBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
   profileRow: { 
     flexDirection: 'row', 
     alignItems: 'center', 
@@ -818,7 +1175,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   profileInfo: { 
     marginLeft: 20, 
-    paddingRight: 36,
+    paddingRight: 8,
     flex: 1 
   },
 
@@ -859,8 +1216,8 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   headerBadgeRow: {
     flexDirection: 'column',
     alignItems: 'flex-start',
-    gap: 8,
-    marginTop: 6,
+    gap: 0,
+    marginTop: 0,
   },
   socialStatsRow: {
     flexDirection: 'row',
@@ -897,15 +1254,20 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    backgroundColor: colors.gold,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
   },
   editBtnText: {
-    color: '#60a5fa',
+    color: '#020617',
     fontSize: 12,
-    fontFamily: 'Outfit_600SemiBold',
+    fontFamily: 'Outfit_700Bold',
   },
   sectionLabel: {
     fontSize: 13,
@@ -916,15 +1278,15 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   settingsCard: { 
     backgroundColor: colors.deepSlate, 
-    borderRadius: 20, 
-    padding: 16, 
+    borderRadius: 24, 
+    padding: 24, 
     borderWidth: 1,
     borderColor: colors.cardBorder,
     shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 10 }, 
+    shadowOffset: { width: 0, height: 12 }, 
     shadowOpacity: isDark ? 0.3 : 0.05, 
-    shadowRadius: 20, 
-    elevation: isDark ? 10 : 2 
+    shadowRadius: 24, 
+    elevation: isDark ? 12 : 3 
   },
   usageCard: {
     borderRadius: 16,
@@ -971,7 +1333,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 18,
   },
   infoIconBox: {
     width: 34,
@@ -1000,7 +1362,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: colors.cardBorder,
-    marginVertical: 12,
+    marginVertical: 20,
   },
   actionItem: { 
     flexDirection: 'row', 
@@ -1406,5 +1768,89 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     color: colors.slate400,
     fontSize: 14,
     fontFamily: 'Inter_400Regular',
+  },
+  statsCardCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: colors.deepSlate,
+    borderRadius: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: isDark ? 0.15 : 0.02,
+    shadowRadius: 8,
+    elevation: isDark ? 4 : 1,
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: colors.cardBorder,
+  },
+  statNumber: {
+    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
+    color: colors.white,
+  },
+  statLabel: {
+    fontSize: 10,
+    fontFamily: 'Inter_500Medium',
+    color: colors.slate400,
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  pickerContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 6,
+  },
+  pickerPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  pickerPillSelected: {
+    backgroundColor: 'rgba(212, 175, 55, 0.15)',
+    borderColor: '#d4af37',
+  },
+  pickerPillText: {
+    fontSize: 12,
+    fontFamily: 'Inter_500Medium',
+    color: colors.slate400,
+  },
+  pickerPillTextSelected: {
+    color: '#d4af37',
+    fontFamily: 'Inter_600SemiBold',
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  badgePill: {
+    backgroundColor: 'rgba(212, 175, 55, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 0.5,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
+  },
+  badgeText: {
+    color: '#d4af37',
+    fontSize: 10,
+    fontFamily: 'Inter_600SemiBold',
   },
 });

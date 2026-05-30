@@ -716,48 +716,58 @@ export default function ManageBusinessScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.header}>
-        {isEditing ? (
-          <TouchableOpacity onPress={handleCancel} style={styles.cancelBtn}>
-            <Text style={styles.cancelBtnText}>Cancel</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <IconSymbol name="chevron.left" size={24} color="#ffffff" />
-          </TouchableOpacity>
-        )}
+        <View style={styles.headerLeft}>
+          {isEditing ? (
+            <TouchableOpacity onPress={handleCancel} style={styles.cancelBtn}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <IconSymbol name="chevron.left" size={24} color="#d4af37" />
+            </TouchableOpacity>
+          )}
+        </View>
 
-        {isEditing ? (
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isUpdating}>
-            {isUpdating ? (
-              <ActivityIndicator size="small" color="#0f172a" />
-            ) : (
-              <Text style={styles.saveBtnText}>Save</Text>
-            )}
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.headerRight}>
-            {activeTab === 'Portfolio' && (
-              <TouchableOpacity style={styles.editBtn} onPress={pickImage}>
-                <IconSymbol name="plus" size={16} color="#0f172a" />
-                <Text style={styles.editBtnText}>Add</Text>
-              </TouchableOpacity>
-            )}
-            {activeTab !== 'Enquiries' && (
-              <TouchableOpacity 
-                style={[styles.editBtn, activeTab === 'Portfolio' && { marginLeft: 8 }]} 
-                onPress={() => {
-                  if (id) {
-                    const bizId = Array.isArray(id) ? id[0] : id;
-                    router.push({ pathname: '/business-enquiries', params: { id: bizId } });
-                  }
-                }}
-              >
-                <IconSymbol name="message.fill" size={16} color="#0f172a" />
-                <Text style={styles.editBtnText}>Enquiries</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={styles.headerTitle}>Manage Hub</Text>
+          <Text style={styles.headerSubtitle} numberOfLines={1} ellipsizeMode="tail">
+            {business?.name || "Manage Empire"}
+          </Text>
+        </View>
+
+        <View style={styles.headerRight}>
+          {isEditing ? (
+            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isUpdating}>
+              {isUpdating ? (
+                <ActivityIndicator size="small" color="#0f172a" />
+              ) : (
+                <Text style={styles.saveBtnText}>Save</Text>
+              )}
+            </TouchableOpacity>
+          ) : (
+            <>
+              {activeTab === 'Portfolio' && (
+                <TouchableOpacity style={styles.compactEditBtn} onPress={pickImage}>
+                  <IconSymbol name="plus" size={12} color="#0f172a" />
+                  <Text style={styles.compactEditBtnText}>Add</Text>
+                </TouchableOpacity>
+              )}
+              {activeTab !== 'Enquiries' && activeTab !== 'Portfolio' && (
+                <TouchableOpacity 
+                  style={styles.compactEditBtn} 
+                  onPress={() => {
+                    if (id) {
+                      const bizId = Array.isArray(id) ? id[0] : id;
+                      router.push({ pathname: '/business-enquiries', params: { id: bizId } });
+                    }
+                  }}
+                >
+                  <Text style={styles.compactEditBtnText}>Enquiries</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -1934,17 +1944,24 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     fontFamily: 'Outfit_600SemiBold',
     fontSize: 14,
   },
-  headerTitle: {
-    fontSize: 18,
-    color: colors.white,
-    fontFamily: 'Outfit_800ExtraBold',
+  headerLeft: {
+    minWidth: 60,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
   },
-  headerShortId: {
-    fontSize: 10,
-    color: '#d4af37',
-    fontFamily: 'Outfit_700Bold',
-    letterSpacing: 1,
-    marginTop: -2,
+  headerTitle: {
+    fontSize: 28,
+    color: colors.white,
+    fontFamily: 'AkayaKanadaka_400Regular',
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: colors.slate400,
+    fontFamily: 'Inter_500Medium',
+    textAlign: 'center',
+    marginTop: -18,
   },
   editBtn: {
     flexDirection: 'row',
@@ -1954,6 +1971,14 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 12,
+  },
+  compactEditBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#d4af37',
+    paddingHorizontal: 11,
+    paddingVertical: 6.5,
+    borderRadius: 9,
   },
   editBtnSmall: {
     flexDirection: 'row',
@@ -1968,6 +1993,11 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     color: isDark ? '#0f172a' : '#ffffff',
     fontFamily: 'Outfit_700Bold',
     fontSize: 14,
+  },
+  compactEditBtnText: {
+    color: isDark ? '#0f172a' : '#ffffff',
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 12.5,
   },
   editBtnSmallText: {
     color: isDark ? '#0f172a' : '#ffffff',
@@ -1987,7 +2017,7 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    minWidth: 80,
+    minWidth: 60,
   },
   saveBtnText: {
     color: isDark ? '#0f172a' : '#ffffff',

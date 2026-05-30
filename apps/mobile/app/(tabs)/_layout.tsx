@@ -100,6 +100,18 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="business/[id]"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="manage-business"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

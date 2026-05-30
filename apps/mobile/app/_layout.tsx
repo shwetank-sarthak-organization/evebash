@@ -165,6 +165,7 @@ function RootLayoutContent() {
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '' }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          <Stack.Screen name="settings" options={{ headerShown: false }} />
         </Stack>
       </AuthGate>
       <StatusBar style={isDark ? "light" : "dark"} />
