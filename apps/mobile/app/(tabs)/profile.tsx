@@ -31,7 +31,7 @@ import {
   getUserEventCount,
   getApprovedSharedEventsForUser
 } from '@/lib/firestore';
-import { collection, query, where, onSnapshot, getFirestore } from 'firebase/firestore';
+
 import { uploadProfileImage } from '@/lib/storage';
 
 const { width } = Dimensions.get('window');
@@ -323,24 +323,12 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (!user?.uid) return;
 
-    const db = getFirestore();
-    const relCol = collection(db, 'relationships');
+    // Real-time listeners stubbed out for stability since relationships are legacy/disabled
+    setFollowerRelations([]);
+    setStats((prev) => ({ ...prev, followers: 0 }));
 
-    // Real-time listener for followers (people who follow ME)
-    const followersQ = query(relCol, where('followedId', '==', user.uid), where('status', '==', 'accepted'));
-    const unsubFollowers = onSnapshot(followersQ, (snap) => {
-      const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setFollowerRelations(list);
-      setStats((prev) => ({ ...prev, followers: list.length }));
-    });
-
-    // Real-time listener for following (people I follow)
-    const followingQ = query(relCol, where('followerId', '==', user.uid), where('status', '==', 'accepted'));
-    const unsubFollowing = onSnapshot(followingQ, (snap) => {
-      const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setFollowingRelations(list);
-      setStats((prev) => ({ ...prev, following: list.length }));
-    });
+    setFollowingRelations([]);
+    setStats((prev) => ({ ...prev, following: 0 }));
 
     if (user.isPrivate !== undefined) setIsPrivate(user.isPrivate);
 
@@ -354,11 +342,6 @@ export default function ProfileScreen() {
       }
     };
     fetchAllUsers();
-
-    return () => {
-      unsubFollowers();
-      unsubFollowing();
-    };
   }, [user?.uid]);
 
   // Fetch activity stats

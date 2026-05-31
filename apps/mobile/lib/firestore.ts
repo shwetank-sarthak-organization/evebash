@@ -1119,13 +1119,14 @@ export async function getBusinessById(id: string): Promise<Business | null> {
 
 export async function getEventsCountForVendor(vendorId: string): Promise<number> {
   try {
-    const { count, error } = await supabase
-        .from('events')
-        .select('*', { count: 'exact', head: true })
-        .contains('vendors', [vendorId]);
+    const { data, error } = await supabase
+        .from('businesses')
+        .select('events_hosted')
+        .eq('id', vendorId)
+        .maybeSingle();
 
     if (error) throw error;
-    return count || 0;
+    return data?.events_hosted || 0;
   } catch (e) {
     console.error("Error fetching event count for vendor:", e);
     return 0;
