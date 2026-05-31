@@ -15,8 +15,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { onChatMessages, sendMessage, ChatMessage, closeChatRoom, ChatRoom } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
-import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -46,27 +45,76 @@ export default function ChatScreen() {
   useEffect(() => {
     if (!roomId) return;
     
-    const roomRef = doc(db, "chatRooms", roomId as string);
-    const unsubscribe = onSnapshot(roomRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setChatRoom({ id: docSnap.id, ...docSnap.data() } as ChatRoom);
-      }
-    }, (err) => {
-      console.warn("Error listening to chat room document:", err);
-    });
+    const fetchAndSetRoom = async () => {
+      try {
+        const { data: r, error } = await supabase
+          .from('chat_rooms')
+          .select('*, profiles(name)')
+          .eq('id', roomId as string)
+          .maybeSingle();
 
-    return () => unsubscribe();
+        if (error) throw error;
+        if (r) {
+          setChatRoom({
+            id: r.id,
+            clientUid: r.client_uid,
+            clientName: r.profiles?.name || 'Client',
+            vendorUid: r.vendor_uid,
+            vendorName: r.profiles?.name || 'Vendor',
+            businessId: 'vendor-listing',
+            createdAt: r.created_at,
+            status: r.status,
+            clientDeleted: r.client_deleted,
+            vendorDeleted: r.vendor_deleted,
+            lastRead: r.last_read
+          } as any);
+        }
+      } catch (err) {
+        console.error("Error fetching chat room:", err);
+      }
+    };
+
+    fetchAndSetRoom();
+
+    const channel = supabase
+      .channel(`chat-room-doc-${roomId}`)
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'chat_rooms', 
+        filter: `id=eq.${roomId}` 
+      }, () => {
+        fetchAndSetRoom();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [roomId]);
 
   useEffect(() => {
     if (!roomId || !user?.uid) return;
     
-    const roomRef = doc(db, "chatRooms", roomId as string);
     const markAsRead = async () => {
       try {
-        await updateDoc(roomRef, {
-          [`lastRead.${user.uid}`]: serverTimestamp()
-        });
+        const { data: currentRoom } = await supabase
+          .from('chat_rooms')
+          .select('last_read')
+          .eq('id', roomId as string)
+          .maybeSingle();
+
+        const updatedLastRead = {
+          ...(currentRoom?.last_read || {}),
+          [user.uid]: new Date().toISOString()
+        };
+
+        await supabase
+          .from('chat_rooms')
+          .update({
+            last_read: updatedLastRead
+          })
+          .eq('id', roomId as string);
       } catch (err) {
         console.error("Error marking chat as read:", err);
       }
@@ -77,14 +125,16 @@ export default function ChatScreen() {
   const getIsExpired = () => {
     if (!chatRoom?.createdAt) return false;
     let createdTime = 0;
-    if (typeof chatRoom.createdAt.toDate === 'function') {
+    if (typeof chatRoom.createdAt === 'string') {
+      createdTime = new Date(chatRoom.createdAt).getTime();
+    } else if (typeof chatRoom.createdAt.toDate === 'function') {
       createdTime = chatRoom.createdAt.toDate().getTime();
     } else if (chatRoom.createdAt.seconds) {
       createdTime = chatRoom.createdAt.seconds * 1000;
     } else if (chatRoom.createdAt instanceof Date) {
       createdTime = chatRoom.createdAt.getTime();
     } else {
-      createdTime = new Date().getTime();
+      createdTime = new Date(chatRoom.createdAt).getTime();
     }
     return (new Date().getTime() - createdTime) > 48 * 60 * 60 * 1000;
   };
@@ -118,9 +168,18 @@ export default function ChatScreen() {
 
   const renderItem = ({ item }: { item: ChatMessage }) => {
     const isMe = item.senderId === user?.uid;
-    const dateStr = item.createdAt?.toDate 
-      ? item.createdAt.toDate().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-      : 'Just now';
+    const rawDate = item.createdAt;
+    let dateStr = 'Just now';
+    if (rawDate) {
+      try {
+        const date = new Date(rawDate);
+        if (!isNaN(date.getTime())) {
+          dateStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        }
+      } catch (e) {
+        console.warn("Failed to parse message date:", rawDate);
+      }
+    }
 
     return (
       <View style={[styles.messageRow, isMe ? styles.myRow : styles.otherRow]}>

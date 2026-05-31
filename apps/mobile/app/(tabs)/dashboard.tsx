@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { query, collection, where, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 import {
   View,
   Text,
@@ -381,50 +380,64 @@ export default function DashboardScreen() {
       return;
     }
 
-    const chatRoomsCol = collection(db, "chatRooms");
-    const clientQuery = query(chatRoomsCol, where("clientUid", "==", user.uid));
-    const vendorQuery = query(chatRoomsCol, where("vendorUid", "==", user.uid));
+    let isMounted = true;
 
-    let clientRooms: any[] = [];
-    let vendorRooms: any[] = [];
+    const checkUnreadChats = async () => {
+      try {
+        const { data: rooms, error: roomsErr } = await supabase
+          .from('chat_rooms')
+          .select('id, last_read, status')
+          .or(`client_uid.eq.${user.uid},vendor_uid.eq.${user.uid}`)
+          .eq('status', 'active');
 
-    const checkUnread = (rooms: any[]) => {
-      return rooms.some(room => {
-        if (room.status === 'closed') return false;
-        if (!room.lastMessageAt || room.lastSenderId === user.uid) return false;
-        
-        const lastRead = room.lastRead?.[user.uid];
-        if (!lastRead) return true; // Never read
-        
-        const lastReadTime = lastRead.toDate ? lastRead.toDate().getTime() : (lastRead.seconds ? lastRead.seconds * 1000 : 0);
-        const lastMsgTime = room.lastMessageAt.toDate ? room.lastMessageAt.toDate().getTime() : (room.lastMessageAt.seconds ? room.lastMessageAt.seconds * 1000 : 0);
-        
-        return lastMsgTime > lastReadTime;
-      });
+        if (roomsErr) throw roomsErr;
+        if (!rooms || rooms.length === 0) {
+          if (isMounted) setHasUnreadChats(false);
+          return;
+        }
+
+        const roomIds = rooms.map(r => r.id);
+
+        const { data: unreadMsgs, error: msgsErr } = await supabase
+          .from('messages')
+          .select('room_id, created_at, sender_id')
+          .in('room_id', roomIds)
+          .neq('sender_id', user.uid);
+
+        if (msgsErr) throw msgsErr;
+
+        const hasUnread = (rooms as any[]).some(room => {
+          const lastReadTimeStr = room.last_read?.[user.uid];
+          const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
+          
+          const roomMsgs = (unreadMsgs || []).filter(m => m.room_id === room.id);
+          return roomMsgs.some(msg => {
+            const msgTime = new Date(msg.created_at).getTime();
+            return msgTime > lastReadTime;
+          });
+        });
+
+        if (isMounted) setHasUnreadChats(hasUnread);
+      } catch (err) {
+        console.error("Error checking unread chats:", err);
+      }
     };
 
-    const updateUnreadStatus = () => {
-      const allRooms = [...clientRooms, ...vendorRooms];
-      setHasUnreadChats(checkUnread(allRooms));
-    };
+    checkUnreadChats();
 
-    const unsubClient = onSnapshot(clientQuery, (snapshot) => {
-      clientRooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      updateUnreadStatus();
-    }, (err) => {
-      console.error("Error listening to client chat rooms:", err);
-    });
-
-    const unsubVendor = onSnapshot(vendorQuery, (snapshot) => {
-      vendorRooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      updateUnreadStatus();
-    }, (err) => {
-      console.error("Error listening to vendor chat rooms:", err);
-    });
+    const roomsChannel = supabase
+      .channel('dashboard-chat-rooms')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_rooms' }, () => {
+        checkUnreadChats();
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
+        checkUnreadChats();
+      })
+      .subscribe();
 
     return () => {
-      unsubClient();
-      unsubVendor();
+      isMounted = false;
+      supabase.removeChannel(roomsChannel);
     };
   }, [user?.uid]);
 

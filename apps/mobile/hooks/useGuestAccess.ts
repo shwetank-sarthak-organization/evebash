@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { supabase } from '@/lib/supabase';
 import { logGuestLogin } from '@/lib/firestore';
 
 export function useGuestAccess(
@@ -51,7 +50,7 @@ export function useGuestAccess(
       return;
     }
 
-    let unsubscribe: (() => void) | null = null;
+    let channel: any = null;
     let isActive = true;
 
     const checkGuestAccess = async () => {
@@ -75,12 +74,16 @@ export function useGuestAccess(
 
       for (const identifier of identifiers) {
         const logId = `${identifier}_${id}`;
-        const docRef = doc(db, 'guests', logId);
         try {
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
+          const { data, error } = await supabase
+            .from('guests')
+            .select('status')
+            .eq('id', logId)
+            .maybeSingle();
+
+          if (!error && data) {
             foundLogId = logId;
-            foundStatus = docSnap.data().status || 'pending';
+            foundStatus = data.status || 'pending';
             break;
           }
         } catch (err) {
@@ -92,12 +95,20 @@ export function useGuestAccess(
 
       if (foundLogId && foundStatus) {
         setGuestStatus(foundStatus);
-        const docRef = doc(db, 'guests', foundLogId);
-        unsubscribe = onSnapshot(docRef, (snapshot) => {
-          if (snapshot.exists() && isActive) {
-            setGuestStatus(snapshot.data().status || 'pending');
-          }
-        });
+        
+        // Listen to changes in guests status using Supabase real-time Websockets
+        channel = supabase
+          .channel(`guest-status-${foundLogId}`)
+          .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'guests', filter: `id=eq.${foundLogId}` },
+            (payload) => {
+              if (payload.new && payload.new.status && isActive) {
+                setGuestStatus(payload.new.status);
+              }
+            }
+          )
+          .subscribe();
       } else {
         setGuestStatus(null);
       }
@@ -107,7 +118,9 @@ export function useGuestAccess(
 
     return () => {
       isActive = false;
-      if (unsubscribe) unsubscribe();
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [id, user, submittedIdentifier, isOwner, isPrivilegedViewer]);
 
@@ -156,12 +169,20 @@ export function useGuestAccess(
         setSubmittedIdentifier(normalizedIdentifier);
         const logId = `${normalizedIdentifier}_${id}`;
         setGuestStatus('pending');
-        const docRef = doc(db, 'guests', logId);
-        onSnapshot(docRef, (snapshot) => {
-          if (snapshot.exists()) {
-            setGuestStatus(snapshot.data().status || 'pending');
-          }
-        });
+        
+        // Dynamic one-time listener setup for status updates
+        const setupChannel = supabase
+          .channel(`guest-status-new-${logId}`)
+          .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'guests', filter: `id=eq.${logId}` },
+            (payload) => {
+              if (payload.new && payload.new.status) {
+                setGuestStatus(payload.new.status);
+              }
+            }
+          )
+          .subscribe();
       } else {
         Alert.alert("Error", "Failed to send access request.");
       }

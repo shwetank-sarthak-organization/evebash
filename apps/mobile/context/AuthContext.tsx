@@ -1,14 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth } from '@/lib/firebase';
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  updateProfile,
-  signOut,
-  User as FirebaseUser,
-} from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { supabase } from '@/lib/supabase';
+import { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface AppUser {
   uid: string;
@@ -32,6 +24,8 @@ interface AppUser {
   notificationPreferences?: any;
   birthday?: string;
   anniversaryDate?: string;
+  displayName?: string;
+  phoneNumber?: string;
 }
 
 interface AuthContextType {
@@ -45,51 +39,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-async function fetchOrCreateProfile(firebaseUser: FirebaseUser): Promise<AppUser> {
-  const db = getFirestore();
-  const ref = doc(db, 'users', firebaseUser.uid);
-  const snap = await getDoc(ref);
-
-  const name =
-    snap.data()?.name ||
-    firebaseUser.displayName ||
-    firebaseUser.email?.split('@')[0] ||
-    'Guest';
-
-  if (!snap.exists()) {
-    await setDoc(
-      ref,
-      {
-        uid: firebaseUser.uid,
-        name,
-        email: firebaseUser.email,
-        role: 'user',
-        createdAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
-  }
-
-  return {
-    uid: firebaseUser.uid,
-    name,
-    email: firebaseUser.email,
-    role: snap.data()?.role || 'user',
-    profileImage: snap.data()?.profileImage,
-    username: snap.data()?.username,
-    isPrivate: snap.data()?.isPrivate ?? false,
-    createdAt: snap.data()?.createdAt,
-    location: snap.data()?.location,
-    gender: snap.data()?.gender,
-    relationshipStatus: snap.data()?.relationshipStatus,
-    persona: snap.data()?.persona,
-    discoverable: snap.data()?.discoverable ?? true,
-    notificationPreferences: snap.data()?.notificationPreferences || null,
-    birthday: snap.data()?.birthday,
-    anniversaryDate: snap.data()?.anniversaryDate,
-  };
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   console.log('[Auth] AuthProvider mounting...');
   const [user, setUser] = useState<AppUser | null>(null);
@@ -99,99 +48,160 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let isMounted = true;
     let profileUnsubscribe: (() => void) | undefined;
 
-    const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log('[Auth] onAuthStateChanged fired. User:', firebaseUser?.uid || 'none');
+    // Fetch initial session
+    const checkSession = async () => {
       try {
-        if (firebaseUser) {
-          // Stop any previous profile listener
-          if (profileUnsubscribe) profileUnsubscribe();
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        if (session?.user && isMounted) {
+          await handleUserSession(session.user);
+        } else {
+          if (isMounted) setLoading(false);
+        }
+      } catch (err) {
+        console.error('[Auth] Error getting initial session:', err);
+        if (isMounted) setLoading(false);
+      }
+    };
 
-          const db = getFirestore();
-          const profileRef = doc(db, 'users', firebaseUser.uid);
+    const handleUserSession = async (supabaseUser: SupabaseUser) => {
+      try {
+        // Stop any previous profile listener
+        if (profileUnsubscribe) profileUnsubscribe();
 
-          // First, ensure profile exists - handle offline/error
-          try {
-            const snap = await getDoc(profileRef);
-            if (!snap.exists()) {
-              const name = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User';
-              await setDoc(profileRef, {
-                uid: firebaseUser.uid,
+        // Ensure profile exists in 'profiles' table
+        try {
+          const { data: existingProfile, error: getErr } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', supabaseUser.id)
+            .maybeSingle();
+
+          if (getErr) throw getErr;
+
+          if (!existingProfile) {
+            const name = supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'User';
+            const { error: insertErr } = await supabase
+              .from('profiles')
+              .insert({
+                id: supabaseUser.id,
                 name,
-                email: firebaseUser.email,
+                email: supabaseUser.email || null,
                 role: 'user',
-                createdAt: serverTimestamp(),
-              }, { merge: true });
-            }
-          } catch (docErr) {
-            console.log('[Auth] Profile fetch skipped while offline:', docErr);
-            // Non-blocking: just show them as a basic user for now
-            if (!isMounted) return;
-            setUser({
-              uid: firebaseUser.uid,
-              name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
-              email: firebaseUser.email,
-              role: 'user',
-              username: undefined,
-              isPrivate: false,
-            });
-            setLoading(false);
-            // Don't setup onSnapshot if we're clearly offline/having issues
-            return;
+              });
+            if (insertErr) throw insertErr;
           }
+        } catch (docErr) {
+          const nameVal = supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'User';
+          setUser({
+            uid: supabaseUser.id,
+            name: nameVal,
+            displayName: nameVal,
+            email: supabaseUser.email || null,
+            role: 'user',
+            username: undefined,
+            isPrivate: false,
+          });
+          setLoading(false);
+          return;
+        }
 
-          // Now, set up real-time listener for the profile
-          console.log("[Auth] Setting up profile listener for:", firebaseUser.uid);
-          profileUnsubscribe = onSnapshot(profileRef, (profileSnap) => {
-            if (!isMounted) return;
-            if (profileSnap.exists()) {
-              const data = profileSnap.data();
-              console.log("[Auth] Profile updated:", data.role);
+        // Now, set up real-time listener for the profile
+        console.log("[Auth] Setting up profile listener for:", supabaseUser.id);
+        
+        const fetchAndSetUser = async () => {
+          try {
+            const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .maybeSingle();
+              
+            if (error) throw error;
+            if (profile && isMounted) {
+              // Fetch assigned events
+              const { data: assignments } = await supabase
+                .from('profile_assigned_events')
+                .select('event_id')
+                .eq('profile_id', supabaseUser.id);
+              const assignedEvents = (assignments || []).map(a => a.event_id);
+
+              const nameVal = profile.name || supabaseUser.user_metadata?.name || 'User';
               setUser({
-                uid: firebaseUser.uid,
-                name: data.name || firebaseUser.displayName || 'User',
-                email: data.email || firebaseUser.email,
-                role: data.role || 'user',
-                roleType: data.roleType || (data.delegatedBy ? 'event' : 'primary'),
-                delegatedBy: data.delegatedBy,
-                assignedEvents: data.assignedEvents || [],
-                profileImage: data.profileImage,
-                phone: data.phone,
-                shortlisted: data.shortlisted || [],
-                username: data.username,
-                isPrivate: data.isPrivate ?? false,
-                createdAt: data.createdAt,
-                location: data.location,
-                gender: data.gender,
-                relationshipStatus: data.relationshipStatus,
-                persona: data.persona,
-                discoverable: data.discoverable ?? true,
-                notificationPreferences: data.notificationPreferences || null,
-                birthday: data.birthday,
-                anniversaryDate: data.anniversaryDate,
+                uid: supabaseUser.id,
+                name: nameVal,
+                displayName: nameVal,
+                email: profile.email || supabaseUser.email || null,
+                role: profile.role || 'user',
+                roleType: profile.role_type || (profile.delegated_by ? 'event' : 'primary'),
+                delegatedBy: profile.delegated_by || undefined,
+                assignedEvents: assignedEvents,
+                profileImage: profile.profile_image || undefined,
+                phone: profile.phone || undefined,
+                phoneNumber: profile.phone || undefined,
+                shortlisted: profile.shortlisted || [],
+                username: profile.username || undefined,
+                isPrivate: profile.is_private ?? false,
+                createdAt: profile.created_at,
+                location: profile.location || undefined,
+                gender: profile.gender || undefined,
+                relationshipStatus: profile.relationship_status || undefined,
+                persona: profile.persona || undefined,
+                discoverable: profile.discoverable ?? true,
+                notificationPreferences: profile.notification_preferences || null,
+                birthday: profile.birthday || undefined,
+                anniversaryDate: profile.anniversary_date || undefined,
               });
             }
             setLoading(false);
-          }, (error) => {
-            console.error("[Auth] Profile listener error:", error);
-            if (!isMounted) return;
-            setLoading(false);
-          });
-        } else {
-          if (profileUnsubscribe) profileUnsubscribe();
-          if (!isMounted) return;
+          } catch (err) {
+            console.error("[Auth] Error fetching user profile:", err);
+            if (isMounted) setLoading(false);
+          }
+        };
+
+        fetchAndSetUser();
+
+        const profileChannel = supabase
+          .channel(`profile-${supabaseUser.id}-${Math.random().toString(36).slice(2, 8)}`)
+          .on('postgres_changes', { 
+            event: '*', 
+            schema: 'public', 
+            table: 'profiles', 
+            filter: `id=eq.${supabaseUser.id}` 
+          }, () => {
+            console.log("[Auth] Profile updated dynamically in Postgres");
+            fetchAndSetUser();
+          })
+          .subscribe();
+
+        profileUnsubscribe = () => {
+          supabase.removeChannel(profileChannel);
+        };
+      } catch (err) {
+        console.error('[Auth] handleUserSession error:', err);
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[Auth] onAuthStateChange fired. Event:', event, 'User:', session?.user?.id || 'none');
+      if (session?.user) {
+        await handleUserSession(session.user);
+      } else {
+        if (profileUnsubscribe) profileUnsubscribe();
+        if (isMounted) {
           setUser(null);
           setLoading(false);
         }
-      } catch (err) {
-        console.error('[Auth] Global auth handler error:', err);
-        if (!isMounted) return;
-        setLoading(false);
       }
     });
 
     return () => {
       isMounted = false;
-      authUnsubscribe();
+      subscription.unsubscribe();
       if (profileUnsubscribe) profileUnsubscribe();
     };
   }, []);
@@ -201,17 +211,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
       return { success: true };
     } catch (err: any) {
-      const code = err?.code || '';
-      if (code === 'auth/invalid-credential' || code === 'auth/user-not-found') {
-        return { success: false, error: 'Invalid email or password.' };
-      }
-      if (code === 'auth/too-many-requests') {
-        return { success: false, error: 'Too many attempts. Please try again later.' };
-      }
-      return { success: false, error: 'Login failed. Please try again.' };
+      const message = err?.message || 'Login failed. Please try again.';
+      return { success: false, error: message };
     }
   };
 
@@ -221,15 +229,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     name: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const credential = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(credential.user, { displayName: name });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+          },
+        },
+      });
+      if (error) throw error;
+
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            name,
+            email,
+            role: 'user',
+          });
+        if (profileError) {
+          console.warn("[Auth] Profile insert error on signup:", profileError);
+        }
+      }
+
       return { success: true };
     } catch (err: any) {
-      const code = err?.code || '';
-      if (code === 'auth/email-already-in-use') {
-        return { success: false, error: 'An account with this email already exists.' };
-      }
-      return { success: false, error: 'Sign up failed. Please try again.' };
+      const message = err?.message || 'Sign up failed. Please try again.';
+      return { success: false, error: message };
     }
   };
 
@@ -245,37 +273,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const phoneEmail = `${normalizedPhone}@phone-login.local`;
     try {
-      const credential = await createUserWithEmailAndPassword(auth, phoneEmail, password);
-      await updateProfile(credential.user, { displayName: name });
-
-      const db = getFirestore();
-      await setDoc(doc(db, 'users', credential.user.uid), {
-        uid: credential.user.uid,
-        name,
+      const { data, error } = await supabase.auth.signUp({
         email: phoneEmail,
-        phone: normalizedPhone,
-        role: 'user',
-        roleType: 'primary',
-        createdAt: serverTimestamp(),
-        lastLogin: serverTimestamp(),
-      }, { merge: true });
+        password: password,
+        options: {
+          data: {
+            name,
+            phone: normalizedPhone,
+          },
+        },
+      });
+
+      if (error) {
+        if (error.message.includes('already registered') || error.message.includes('User already exists')) {
+          const loginResult = await login(phoneEmail, password);
+          if (loginResult.success) return loginResult;
+          return { success: false, error: 'This phone number already has an account. Check your password.' };
+        }
+        throw error;
+      }
+
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            name,
+            email: phoneEmail,
+            phone: normalizedPhone,
+            role: 'user',
+            role_type: 'primary',
+          });
+        if (profileError) {
+          console.warn("[Auth] Profile insert error on phone signup:", profileError);
+        }
+      }
 
       return { success: true };
     } catch (err: any) {
-      const code = err?.code || '';
-
-      if (code === 'auth/email-already-in-use') {
-        const loginResult = await login(phoneEmail, password);
-        if (loginResult.success) return loginResult;
-        return { success: false, error: 'This phone number already has an account. Check your password.' };
-      }
-
-      return { success: false, error: 'Phone sign in failed. Please try again.' };
+      const message = err?.message || 'Phone sign in failed. Please try again.';
+      return { success: false, error: message };
     }
   };
 
   const logout = async () => {
-    await signOut(auth);
+    await supabase.auth.signOut();
     setUser(null);
   };
 

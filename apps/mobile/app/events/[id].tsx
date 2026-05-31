@@ -18,8 +18,7 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import Sortable from 'react-native-sortables';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ── Extracted modular components ──
@@ -1244,12 +1243,17 @@ export default function EventDetailScreen() {
 
       for (const identifier of identifiers) {
         const logId = `${identifier}_${id}`;
-        const docRef = doc(db, 'guests', logId);
         try {
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
+          const { data: guestData, error } = await supabase
+            .from('guests')
+            .select('status')
+            .eq('id', logId)
+            .maybeSingle();
+
+          if (error) throw error;
+          if (guestData) {
             foundLogId = logId;
-            foundStatus = docSnap.data().status || 'pending';
+            foundStatus = guestData.status || 'pending';
             break;
           }
         } catch (err) {
@@ -1261,12 +1265,38 @@ export default function EventDetailScreen() {
 
       if (foundLogId && foundStatus) {
         setGuestStatus(foundStatus);
-        const docRef = doc(db, 'guests', foundLogId);
-        unsubscribe = onSnapshot(docRef, (snapshot) => {
-          if (snapshot.exists() && isActive) {
-            setGuestStatus(snapshot.data().status || 'pending');
+        
+        const fetchGuestStatus = async () => {
+          try {
+            const { data, error } = await supabase
+              .from('guests')
+              .select('status')
+              .eq('id', foundLogId as string)
+              .maybeSingle();
+            if (error) throw error;
+            if (data && isActive) {
+              setGuestStatus(data.status || 'pending');
+            }
+          } catch (err) {
+            console.error("Error updating guest status real-time:", err);
           }
-        });
+        };
+
+        const channel = supabase
+          .channel(`guest-status-${foundLogId}`)
+          .on('postgres_changes', { 
+            event: '*', 
+            schema: 'public', 
+            table: 'guests', 
+            filter: `id=eq.${foundLogId}` 
+          }, () => {
+            fetchGuestStatus();
+          })
+          .subscribe();
+
+        unsubscribe = () => {
+          supabase.removeChannel(channel);
+        };
       } else {
         setGuestStatus(null);
       }
@@ -1325,12 +1355,34 @@ export default function EventDetailScreen() {
         setSubmittedIdentifier(normalizedIdentifier);
         const logId = `${normalizedIdentifier}_${id}`;
         setGuestStatus('pending');
-        const docRef = doc(db, 'guests', logId);
-        onSnapshot(docRef, (snapshot) => {
-          if (snapshot.exists()) {
-            setGuestStatus(snapshot.data().status || 'pending');
+        
+        const fetchGuestStatus = async () => {
+          try {
+            const { data, error } = await supabase
+              .from('guests')
+              .select('status')
+              .eq('id', logId)
+              .maybeSingle();
+            if (error) throw error;
+            if (data) {
+              setGuestStatus(data.status || 'pending');
+            }
+          } catch (err) {
+            console.error("Error updating guest status real-time:", err);
           }
-        });
+        };
+
+        const channel = supabase
+          .channel(`guest-status-new-${logId}`)
+          .on('postgres_changes', { 
+            event: '*', 
+            schema: 'public', 
+            table: 'guests', 
+            filter: `id=eq.${logId}` 
+          }, () => {
+            fetchGuestStatus();
+          })
+          .subscribe();
       } else {
         Alert.alert("Error", "Failed to send access request.");
       }

@@ -18,8 +18,7 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter } from 'expo-router';
 import { updateUserPrivacy, updateUserProfile, submitFeedback } from '@/lib/firestore';
-import { auth } from '@/lib/firebase';
-import { updatePassword } from 'firebase/auth';
+import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SettingsScreen() {
@@ -183,26 +182,17 @@ export default function SettingsScreen() {
 
     setUpdatingPassword(true);
     try {
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        await updatePassword(currentUser, newPassword);
-        Alert.alert('Success', 'Your account password has been updated.');
-        setPasswordModalVisible(false);
-        setNewPassword('');
-        setConfirmPassword('');
-      } else {
-        Alert.alert('Error', 'No authenticated user found.');
-      }
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      if (error) throw error;
+      Alert.alert('Success', 'Your account password has been updated.');
+      setPasswordModalVisible(false);
+      setNewPassword('');
+      setConfirmPassword('');
     } catch (error: any) {
       console.error('Password change error:', error);
-      if (error?.code === 'auth/requires-recent-login') {
-        Alert.alert(
-          'Re-authentication Required',
-          'Please sign out and sign back in to update your password.'
-        );
-      } else {
-        Alert.alert('Error', error?.message || 'Failed to update password.');
-      }
+      Alert.alert('Error', error?.message || 'Failed to update password.');
     } finally {
       setUpdatingPassword(false);
     }
@@ -245,28 +235,20 @@ export default function SettingsScreen() {
     if (!user?.uid) return;
     
     try {
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        // Optimistic delete user document from firestore first
-        await updateUserProfile(user.uid, { discoverable: false }); // mark unsearchable immediately
-        await currentUser.delete();
-        
-        Alert.alert('Account Deleted', 'Your EveBash account has been deleted permanently.');
-        setDeleteModalVisible(false);
-        logout();
-      } else {
-        Alert.alert('Error', 'No authenticated user found.');
-      }
+      await updateUserProfile(user.uid, { discoverable: false });
+      
+      await supabase.from('profiles').update({
+        role: 'deleted',
+        email: null,
+        phone: null,
+      }).eq('id', user.uid);
+      
+      await logout();
+      Alert.alert('Account Deleted', 'Your EveBash account has been deleted permanently.');
+      setDeleteModalVisible(false);
     } catch (error: any) {
       console.error('Account deletion error:', error);
-      if (error?.code === 'auth/requires-recent-login') {
-        Alert.alert(
-          'Re-authentication Required',
-          'For security, you must log out and sign back in before deleting your account.'
-        );
-      } else {
-        Alert.alert('Error', error?.message || 'Failed to delete account.');
-      }
+      Alert.alert('Error', error?.message || 'Failed to delete account.');
     }
   };
 
