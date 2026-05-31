@@ -813,6 +813,47 @@ export default function PortfolioTabScreen() {
               </View>
             </View>
           </View>
+
+          {/* ── HOW TO HOST — YouTube Card ── */}
+          <TouchableOpacity
+            activeOpacity={0.9}
+            style={styles.howToHostCard}
+            onPress={() => Linking.openURL('https://www.youtube.com/@EveBashApp')}
+          >
+            <LinearGradient
+              colors={['#312e81', '#1e1b4b']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.howToHostGradient}
+            >
+              {/* Left: text content */}
+              <View style={{ flex: 1 }}>
+                <View style={styles.howToHostBadge}>
+                  <Text style={styles.howToHostBadgeText}>HOW TO HOST</Text>
+                </View>
+                <Text style={styles.howToHostTitle}>Watch & Learn</Text>
+                <Text style={styles.howToHostSubtitle}>
+                  Step-by-step video tutorials to help you host a flawless event.
+                </Text>
+                <TouchableOpacity
+                  style={styles.howToHostYtBtn}
+                  activeOpacity={0.85}
+                  onPress={() => Linking.openURL('https://www.youtube.com/@EveBashApp')}
+                >
+                  <IconSymbol name="play.fill" size={11} color="#ffffff" />
+                  <Text style={styles.howToHostYtBtnText}>Watch on YouTube</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Right: play icon watermark */}
+              <View style={{ marginLeft: 10, justifyContent: 'center', alignItems: 'center' }}>
+                <View style={styles.howToHostPlayCircle}>
+                  <IconSymbol name="play.fill" size={28} color="rgba(167,139,250,0.6)" />
+                </View>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+
         </View>
 
       </ScrollView>
@@ -1390,6 +1431,77 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     color: colors.slate400,
     fontFamily: Fonts.inter.regular,
     lineHeight: 18,
+  },
+
+  // ── How To Host Card ──
+  howToHostCard: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginTop: 16,
+    elevation: 6,
+    shadowColor: '#312e81',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+  },
+  howToHostGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+  },
+  howToHostBadge: {
+    backgroundColor: 'rgba(167,139,250,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(167,139,250,0.3)',
+  },
+  howToHostBadgeText: {
+    color: '#c4b5fd',
+    fontSize: 9,
+    fontFamily: Fonts.outfit.extraBold,
+    letterSpacing: 0.8,
+  },
+  howToHostTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontFamily: Fonts.outfit.extraBold,
+    marginBottom: 4,
+  },
+  howToHostSubtitle: {
+    color: 'rgba(196,181,253,0.85)',
+    fontSize: 12,
+    fontFamily: Fonts.inter.regular,
+    lineHeight: 17,
+    marginBottom: 14,
+  },
+  howToHostYtBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#ff0000',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+  },
+  howToHostYtBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontFamily: Fonts.outfit.bold,
+  },
+  howToHostPlayCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(167,139,250,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   // Header

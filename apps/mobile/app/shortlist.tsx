@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter, Stack } from 'expo-router';
@@ -13,6 +13,7 @@ const { width } = Dimensions.get('window');
 export default function ShortlistScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [vendors, setVendors] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -48,12 +49,14 @@ export default function ShortlistScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ 
-        headerShown: true, 
-        headerTransparent: true,
-        headerTitle: '',
-        headerTintColor: '#ffffff',
-        headerLeft: () => (
+      <Stack.Screen options={{ headerShown: false }} />
+
+      {/* ── HEADER ── */}
+      <LinearGradient
+        colors={['#0f172a', '#020617']}
+        style={[styles.header, { paddingTop: insets.top + 4 }]}
+      >
+        <View style={styles.headerLeft}>
           <TouchableOpacity 
             onPress={() => {
               if (router.canGoBack()) {
@@ -61,23 +64,23 @@ export default function ShortlistScreen() {
               } else {
                 router.replace('/(tabs)/dashboard');
               }
-            }}
+            }} 
             style={styles.backBtn}
-            hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <IconSymbol name="chevron.left" size={28} color="#ffffff" />
+            <IconSymbol name="chevron.left" size={24} color="#ffffff" />
           </TouchableOpacity>
-        ),
-      }} />
-
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Custom Header Section */}
-        <View style={styles.customHeader}>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={styles.headerTitle}>My Shortlist</Text>
-          <Text style={styles.headerSubtitle}>
-            {loading ? 'Updating list...' : `${vendors.length} Saved Vendors`}
+          <Text style={styles.tagline}>
+            {loading ? 'Updating list...' : `${vendors.length} Saved Vendors ✨`}
           </Text>
         </View>
+        <View style={styles.headerRight} />
+      </LinearGradient>
+
+      <View style={{ flex: 1 }}>
 
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -103,93 +106,146 @@ export default function ShortlistScreen() {
           </ScrollView>
         ) : (
           <ScrollView contentContainerStyle={styles.scrollContentList}>
-            <View style={styles.gridContainer}>
+            <View style={styles.listContainer}>
               {vendors.map((vendor) => (
-                <View key={vendor.id} style={styles.gridCard}>
-                  {/* Floating Remove Button */}
-                  <TouchableOpacity 
-                    style={styles.removeBtnFloat} 
-                    onPress={() => handleRemove(vendor.id)}
-                  >
-                    <IconSymbol name="heart.fill" size={16} color="#ef4444" />
-                  </TouchableOpacity>
-
-                  <ExpoImage source={{ uri: vendor.coverImage }} style={styles.gridImage} contentFit="cover" />
+                <TouchableOpacity 
+                  key={vendor.id} 
+                  style={styles.listCard} 
+                  activeOpacity={0.9}
+                  onPress={() => router.push(`/business/${vendor.id}`)}
+                >
+                  <View style={styles.listImageContainer}>
+                    {/* Ambient Blurred Backdrop */}
+                    <ExpoImage 
+                      source={{ uri: vendor.coverImage }} 
+                      style={[StyleSheet.absoluteFill, { opacity: 0.35 }]} 
+                      contentFit="cover"
+                      blurRadius={15}
+                    />
+                    {/* Sharp Contain Foreground */}
+                    <ExpoImage 
+                      source={{ uri: vendor.coverImage }} 
+                      style={StyleSheet.absoluteFill} 
+                      contentFit="contain"
+                      transition={300}
+                    />
+                  </View>
                   
-                  <View style={styles.gridInfo}>
-                    <View style={styles.nameRow}>
-                      <Text style={styles.gridName} numberOfLines={1}>{vendor.name}</Text>
+                  <View style={styles.listInfo}>
+                    <View style={styles.listHeaderRow}>
+                      <View style={styles.listNameRow}>
+                        <Text style={styles.listName} numberOfLines={1}>{vendor.name}</Text>
+                      </View>
+                      <TouchableOpacity 
+                        style={styles.listHeartBtn} 
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleRemove(vendor.id);
+                        }}
+                      >
+                        <IconSymbol name="heart.fill" size={12} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                      <View style={[styles.listCategoryBadge, styles.indigoBadgeChip, { marginBottom: 0 }]}>
+                        <Text style={styles.listCategoryText}>{vendor.type}</Text>
+                      </View>
                       {vendor.rating >= 4.0 && (
-                        <View style={styles.verifiedIcon}>
-                          <IconSymbol name="checkmark.seal.fill" size={10} color="#ffffff" />
-                        </View>
+                        <IconSymbol name="checkmark.seal.fill" size={12} color="#3b82f6" />
                       )}
                     </View>
-                    
-                    <View style={styles.gridMeta}>
-                      <View style={[styles.badgeChip, styles.indigoBadgeChip]}>
-                        <Text style={styles.badgeChipText}>{vendor.type}</Text>
+
+                    <View style={styles.listMetaRow}>
+                      <View style={styles.listMetaItem}>
+                        <IconSymbol name="mappin.fill" size={9} color="#64748b" />
+                        <Text style={styles.listMetaText} numberOfLines={1}>
+                          {vendor.location?.address || 'Local'}
+                        </Text>
                       </View>
-                      <View style={styles.locationRow}>
-                        <IconSymbol name="mappin.fill" size={10} color="#64748b" />
-                        <Text style={styles.locationText} numberOfLines={1}>
-                          {vendor.location?.address || 'Mumbai'}
+                      <View style={styles.listMetaItem}>
+                        <IconSymbol name="clock.fill" size={9} color="#d4af37" />
+                        <Text style={styles.listMetaText}>
+                          {(vendor.experience !== undefined && vendor.experience !== null && String(vendor.experience) !== '')
+                            ? `${vendor.experience}+ Yrs`
+                            : (vendor.startedDate
+                              ? `Est. ${new Date(vendor.startedDate?.seconds ? vendor.startedDate.seconds * 1000 : vendor.startedDate).getFullYear()}`
+                              : 'Established')}
                         </Text>
                       </View>
                     </View>
-                    
-                    <View style={styles.footerRow}>
-                      <View style={styles.ratingContainer}>
-                        <IconSymbol name="star.fill" size={10} color="#d4af37" />
-                        <Text style={styles.ratingText}>{vendor.rating || '5.0'}</Text>
+
+                    <View style={styles.listFooterRow}>
+                      <View style={styles.listRatingBadge}>
+                        <IconSymbol name="star.fill" size={9} color="#d4af37" />
+                        <Text style={styles.listRatingText}>{vendor.rating || '5.0'}</Text>
                       </View>
-                      <TouchableOpacity 
-                        style={styles.viewPortfolioBtn}
-                        onPress={() => router.push(`/business/${vendor.id}`)}
-                      >
-                        <Text style={styles.viewPortfolioText}>Portfolio</Text>
-                        <IconSymbol name="chevron.right" size={10} color="#818cf8" />
-                      </TouchableOpacity>
+                      <View style={styles.listActionBtn}>
+                        <Text style={styles.listActionBtnText}>View Portfolio</Text>
+                        <IconSymbol name="chevron.right" size={9} color="#818cf8" />
+                      </View>
                     </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           </ScrollView>
         )}
-      </SafeAreaView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#020617' },
-  safeArea: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 20,
+    backgroundColor: '#020617',
+    gap: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  headerLeft: {
+    width: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  headerRight: {
+    width: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
   backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.05)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 16,
-    marginTop: 8,
-  },
-  customHeader: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 8,
   },
   headerTitle: {
     fontSize: 28,
     color: '#ffffff',
-    fontFamily: 'Outfit_800ExtraBold',
+    fontFamily: 'AkayaKanadaka_400Regular',
+    letterSpacing: 0.5,
+    textAlign: 'center',
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#818cf8',
-    fontFamily: 'Outfit_700Bold',
-    marginTop: 4,
+  tagline: {
+    fontSize: 15,
+    color: '#94a3b8',
+    fontFamily: 'AkayaKanadaka_400Regular',
+    textAlign: 'center',
+    marginTop: -18,
   },
   loadingContainer: {
     flex: 1,
@@ -248,119 +304,128 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Outfit_800ExtraBold',
   },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+  listContainer: {
+    marginTop: 16,
+    gap: 16,
   },
-  gridCard: {
-    width: (width - 44) / 2,
+  listCard: {
     backgroundColor: '#0f172a',
-    borderRadius: 20,
-    marginBottom: 16,
-    overflow: 'hidden',
+    borderRadius: 16,
+    marginHorizontal: 0,
+    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(129, 140, 248, 0.15)',
-    position: 'relative',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  removeBtnFloat: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  listImageContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#020617',
+    position: 'relative',
+    borderWidth: 0.5,
+    borderColor: 'rgba(129, 140, 248, 0.15)',
+  },
+  listInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  listHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  listNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    paddingRight: 8,
+  },
+  listName: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontFamily: 'Outfit_700Bold',
+  },
+  listHeartBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-    zIndex: 10,
   },
-  gridImage: {
-    width: '100%',
-    height: 120,
-  },
-  gridInfo: {
-    padding: 12,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  gridName: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontFamily: 'Outfit_700Bold',
-    flex: 1,
-  },
-  verifiedIcon: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#3b82f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gridMeta: {
-    marginTop: 6,
-    gap: 6,
-  },
-  badgeChip: {
+  listCategoryBadge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   indigoBadgeChip: {
     backgroundColor: 'rgba(129, 140, 248, 0.12)',
     borderWidth: 0.5,
     borderColor: 'rgba(129, 140, 248, 0.3)',
   },
-  badgeChipText: {
+  listCategoryText: {
     color: '#818cf8',
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: 'Inter_700Bold',
   },
-  locationRow: {
+  listMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  listMetaItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flex: 1,
   },
-  locationText: {
+  listMetaText: {
     color: '#64748b',
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: 'Inter_500Medium',
     flex: 1,
   },
-  footerRow: {
+  listFooterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.04)',
-    paddingTop: 8,
+    paddingTop: 6,
   },
-  ratingContainer: {
+  listRatingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  ratingText: {
+  listRatingText: {
     color: '#ffffff',
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: 'Outfit_700Bold',
   },
-  viewPortfolioBtn: {
+  listActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
   },
-  viewPortfolioText: {
+  listActionBtnText: {
     color: '#818cf8',
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: 'Outfit_700Bold',
   },
 });

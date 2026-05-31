@@ -29,9 +29,9 @@ import * as Location from 'expo-location';
 
 const { width } = Dimensions.get('window');
 
-const INDIGO = '#6366f1';
-const INDIGO_LIGHT = '#818cf8';
-const INDIGO_DARK = '#4f46e5';
+const INDIGO = '#818cf8';
+const INDIGO_LIGHT = '#a5b4fc';
+const INDIGO_DARK = '#6366f1';
 const INDIGO_BORDER = 'rgba(99, 102, 241, 0.25)';
 const INDIGO_BG_LIGHT = 'rgba(99, 102, 241, 0.1)';
 const INDIGO_BG_SUPER_LIGHT = 'rgba(99, 102, 241, 0.05)';

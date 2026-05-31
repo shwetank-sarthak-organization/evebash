@@ -18,6 +18,7 @@ import {
   Alert,
   PanResponder,
   Animated,
+  Linking,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -578,7 +579,7 @@ export default function DashboardScreen() {
               {/* ── SECTION 3: HOST AN EVENT ── */}
               <TouchableOpacity 
                 activeOpacity={0.9} 
-                style={[styles.heroCard, { marginBottom: 80 }]}
+                style={[styles.heroCard, { marginBottom: 16 }]}
                 onPress={() => router.push('/(tabs)/gallery')}
               >
                 <LinearGradient
@@ -602,6 +603,37 @@ export default function DashboardScreen() {
                   </View>
                   <View style={styles.heroIconContainer}>
                     <IconSymbol name="calendar.badge.plus" size={60} color="rgba(255,255,255,0.2)" />
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {/* ── HOST YOUR PERFECT EVENT — HOW TO HOST ── */}
+              <TouchableOpacity
+                activeOpacity={0.9}
+                style={[styles.heroCard, { marginBottom: 80 }]}
+                onPress={() => Linking.openURL('https://www.youtube.com/@EveBashApp')}
+              >
+                <LinearGradient
+                  colors={['#312e81', '#1e1b4b']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.heroGradient}
+                >
+                  <View style={styles.heroContent}>
+                    <View style={[styles.heroBadge, { backgroundColor: 'rgba(167,139,250,0.25)' }]}>
+                      <Text style={[styles.heroBadgeText, { color: '#c4b5fd' }]}>HOW TO HOST</Text>
+                    </View>
+                    <Text style={[styles.heroTitle, { color: '#ffffff' }]}>Host Your Perfect Event</Text>
+                    <Text style={[styles.heroSubtitle, { color: 'rgba(196,181,253,0.85)' }]}>
+                      Watch our step-by-step tutorials and host your event like a pro.
+                    </Text>
+                    <View style={styles.howToHostBtn}>
+                      <IconSymbol name="play.fill" size={10} color="#ffffff" />
+                      <Text style={styles.howToHostBtnText}>Watch on YouTube</Text>
+                    </View>
+                  </View>
+                  <View style={styles.heroIconContainer}>
+                    <IconSymbol name="play.rectangle.fill" size={60} color="rgba(167,139,250,0.25)" />
                   </View>
                 </LinearGradient>
               </TouchableOpacity>
@@ -1346,6 +1378,22 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   heroBtnText: {
     color: isDark ? '#ffffff' : '#0f172a',
+    fontSize: 12,
+    fontFamily: 'Outfit_700Bold',
+  },
+  // ── How to Host Button ──
+  howToHostBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#ff0000',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  howToHostBtnText: {
+    color: '#ffffff',
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },

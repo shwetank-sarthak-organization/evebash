@@ -148,7 +148,7 @@ export default function ExploreBusinessScreen() {
     lng: b.location.longitude,
     image: b.coverImage,
     verified: true, // All listed businesses on EveBash are verified
-    experience: b.experience || 0,
+    experience: b.experience,
   }));
 
   const filteredVendors = allAvailableVendors.filter((v) => {
@@ -371,7 +371,11 @@ export default function ExploreBusinessScreen() {
 
                     <View style={styles.experienceBadge}>
                       <IconSymbol name="clock.fill" size={10} color={isDark ? colors.gold : '#4f46e5'} />
-                      <Text style={styles.experienceText}>{vendor.experience}+ Years Exp</Text>
+                      <Text style={styles.experienceText}>
+                        {(vendor.experience !== undefined && vendor.experience !== null && vendor.experience !== 0)
+                          ? `${vendor.experience}+ Yrs Exp`
+                          : 'Established'}
+                      </Text>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -457,7 +461,11 @@ export default function ExploreBusinessScreen() {
                       </View>
                       <View style={styles.listMetaItem}>
                         <IconSymbol name="clock.fill" size={10} color="#d4af37" />
-                        <Text style={styles.listMetaText}>{vendor.experience}+ Years</Text>
+                        <Text style={styles.listMetaText}>
+                          {(vendor.experience !== undefined && vendor.experience !== null && vendor.experience !== 0)
+                            ? `${vendor.experience}+ Yrs`
+                            : 'Established'}
+                        </Text>
                       </View>
                     </View>
 
