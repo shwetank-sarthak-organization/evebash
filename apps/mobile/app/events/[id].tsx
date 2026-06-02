@@ -1697,7 +1697,13 @@ export default function EventDetailScreen() {
         <Text style={styles.memberNumber}>#{String(index + 1).padStart(2, '0')}</Text>
         <TouchableOpacity
           style={styles.memberDelete}
-          onPress={() => deleteGuest(log.id).then(loadEvent)}
+          onPress={() => {
+            if (doesGuestLogBelongToCurrentUser(log) && !isOwner) {
+              Alert.alert("Permission Denied", "Ask host to remove you.");
+              return;
+            }
+            deleteGuest(log.id).then(loadEvent);
+          }}
         >
           <IconSymbol name="trash.fill" size={16} color="rgba(239, 68, 68, 0.4)" />
         </TouchableOpacity>
@@ -4169,12 +4175,23 @@ export default function EventDetailScreen() {
                           { id: 'canComment', label: 'Allow Comments', desc: 'Can react and post comments on any media', icon: 'bubble.left.fill' },
                         ].map((perm) => {
                           const isActive = (selectedGuest as any)?.[perm.id];
+                          const isSelfAdminCheck = perm.id === 'canAdmin' && selectedGuest && doesGuestLogBelongToCurrentUser(selectedGuest) && !isOwner;
+                          const displayDesc = isSelfAdminCheck ? "Ask host to remove you" : perm.desc;
+
                           return (
                             <TouchableOpacity
                               key={perm.id}
-                              style={[styles.richPermCard, isActive && styles.richPermCardActive]}
+                              style={[
+                                styles.richPermCard, 
+                                isActive && styles.richPermCardActive,
+                                isSelfAdminCheck && { opacity: 0.8 }
+                              ]}
                               onPress={() => {
                                 if (selectedGuest) {
+                                  if (isSelfAdminCheck) {
+                                    Alert.alert("Permission Denied", "Ask host to remove you.");
+                                    return;
+                                  }
                                   const newPerms = { [perm.id]: !isActive };
                                   updateGuestPermissions(selectedGuest.id, newPerms).then(() => {
                                     setSelectedGuest({ ...selectedGuest, ...newPerms });
@@ -4189,10 +4206,18 @@ export default function EventDetailScreen() {
 
                               <View style={{ flex: 1, paddingRight: 10 }}>
                                 <Text style={[styles.richPermLabel, isActive && { color: '#fff' }]}>{perm.label}</Text>
-                                <Text style={styles.richPermDesc} numberOfLines={2}>{perm.desc}</Text>
+                                <Text 
+                                  style={[
+                                    styles.richPermDesc,
+                                    isSelfAdminCheck && { color: MidnightColors.gold, fontWeight: '600' }
+                                  ]} 
+                                  numberOfLines={2}
+                                >
+                                  {displayDesc}
+                                </Text>
                               </View>
 
-                              <View style={[styles.customToggle, isActive && styles.customToggleActive]}>
+                              <View style={[styles.customToggle, isActive && styles.customToggleActive, isSelfAdminCheck && { opacity: 0.6 }]}>
                                 <View style={[styles.customToggleThumb, isActive && styles.customToggleThumbActive]} />
                               </View>
                             </TouchableOpacity>

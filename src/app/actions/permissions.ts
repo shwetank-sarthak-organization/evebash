@@ -1,6 +1,7 @@
 "use server";
 
-import { adminDb } from "@/lib/firebase-admin";
+import { supabase } from "@/lib/supabase";
+import { updateGuestStatus, deleteGuest } from "@/lib/firestore";
 
 const SUPER_ADMIN_EMAILS = [
     "shwetank.chauhan17@gmail.com",
@@ -14,35 +15,44 @@ type Requester = {
 };
 
 async function canManageGuestLog(logId: string, requester: Requester) {
-    if (!requester.uid && !requester.email) return { allowed: false, logRef: null };
+    if (!requester.uid && !requester.email) return false;
     if (requester.email && SUPER_ADMIN_EMAILS.includes(requester.email)) {
-        return { allowed: true, logRef: adminDb.collection("guests").doc(logId) };
+        return true;
     }
 
-    const logRef = adminDb.collection("guests").doc(logId);
-    const logSnap = await logRef.get();
-    if (!logSnap.exists) return { allowed: false, logRef };
+    const { data: log, error } = await supabase
+        .from('guests')
+        .select('parent_event_owner_id')
+        .eq('id', logId)
+        .maybeSingle();
 
-    const log = logSnap.data() || {};
-    const ownerId = log.parentEventOwnerId;
-    if (!ownerId) return { allowed: false, logRef };
+    if (error || !log) return false;
+
+    const ownerId = log.parent_event_owner_id;
+    if (!ownerId) return false;
 
     if (ownerId === requester.uid || ownerId === requester.email) {
-        return { allowed: true, logRef };
+        return true;
     }
 
     if (requester.uid) {
-        const profileSnap = await adminDb.collection("users").doc(requester.uid).get();
-        const profile = profileSnap.data() || {};
-        const isGlobalAdmin = profile.role === "admin" && !profile.delegatedBy;
-        const isDelegatedPrimary = profile.delegatedBy === ownerId && profile.roleType === "primary";
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role, delegated_by, role_type')
+            .eq('id', requester.uid)
+            .maybeSingle();
 
-        if (isGlobalAdmin || isDelegatedPrimary) {
-            return { allowed: true, logRef };
+        if (profile) {
+            const isGlobalAdmin = profile.role === "admin" && !profile.delegated_by;
+            const isDelegatedPrimary = profile.delegated_by === ownerId && profile.role_type === "primary";
+
+            if (isGlobalAdmin || isDelegatedPrimary) {
+                return true;
+            }
         }
     }
 
-    return { allowed: false, logRef };
+    return false;
 }
 
 export async function updateGuestStatusAction(
@@ -51,12 +61,13 @@ export async function updateGuestStatusAction(
     requester: Requester
 ) {
     try {
-        const { allowed, logRef } = await canManageGuestLog(logId, requester);
-        if (!allowed || !logRef) {
+        const allowed = await canManageGuestLog(logId, requester);
+        if (!allowed) {
             return { success: false, error: "You do not have permission to update this guest." };
         }
 
-        await logRef.update({ status });
+        const success = await updateGuestStatus(logId, status);
+        if (!success) throw new Error("Failed to update status in database");
         return { success: true };
     } catch (error: unknown) {
         console.error("[Permissions] Failed to update guest status:", error);
@@ -66,12 +77,13 @@ export async function updateGuestStatusAction(
 
 export async function deleteGuestAction(logId: string, requester: Requester) {
     try {
-        const { allowed, logRef } = await canManageGuestLog(logId, requester);
-        if (!allowed || !logRef) {
+        const allowed = await canManageGuestLog(logId, requester);
+        if (!allowed) {
             return { success: false, error: "You do not have permission to remove this guest." };
         }
 
-        await logRef.delete();
+        const success = await deleteGuest(logId);
+        if (!success) throw new Error("Failed to delete guest from database");
         return { success: true };
     } catch (error: unknown) {
         console.error("[Permissions] Failed to delete guest:", error);
