@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { formatEventDate } from "./utils";
 
 // Memory caches to optimize lookups
 const eventCache: Record<string, Event> = {};
@@ -16,8 +17,10 @@ export interface Event {
     type?: 'main' | 'sub';
     parentId?: string;
     legacyId?: string; // Captures original truncated/mismatched ID for backward compatibility
+    category?: string;
     templateId?: string; // 'hero' | 'classic', defaults to 'hero'
     joinId?: string; // 6-digit unique code for guests to join
+    vendors?: string[];
 }
 
 export interface Photo {
@@ -71,6 +74,9 @@ export interface GuestLog {
     eventTitle?: string;
     loginAt?: any;
     status: 'pending' | 'approved' | 'rejected';
+    canAdmin?: boolean;
+    canUpload?: boolean;
+    canComment?: boolean;
 }
 
 export interface Like {
@@ -97,15 +103,17 @@ function mapSqlToEvent(e: any): Event {
     return {
         id: e.id,
         title: e.title,
-        date: e.date,
+        date: formatEventDate(e.date),
         coverImage: e.cover_image,
         description: e.description,
         createdBy: e.created_by,
         type: e.type,
         parentId: e.parent_id,
         legacyId: e.legacy_id,
+        category: e.category,
         templateId: e.template_id,
-        joinId: e.join_id
+        joinId: e.join_id,
+        vendors: e.vendors || []
     };
 }
 
@@ -153,7 +161,10 @@ function mapSqlToGuestLog(g: any): GuestLog {
         parentEventOwnerId: g.parent_event_owner_id,
         eventTitle: g.event_title,
         loginAt: g.login_at,
-        status: g.status
+        status: g.status,
+        canAdmin: g.can_admin,
+        canUpload: g.can_upload,
+        canComment: g.can_comment
     };
 }
 
@@ -384,14 +395,40 @@ export async function logGuestLogin(
  */
 export async function updateGuestStatus(logId: string, status: 'pending' | 'approved' | 'rejected') {
     try {
+        const updateData: any = { status };
+        if (status === 'approved') {
+            updateData.can_upload = true;
+            updateData.can_comment = true;
+        }
+
         const { error } = await supabase
             .from('guests')
-            .update({ status })
+            .update(updateData)
             .eq('id', logId);
         if (error) throw error;
         return true;
     } catch (error) {
         console.error("Error updating guest status:", error);
+        return false;
+    }
+}
+
+export async function updateGuestPermissions(logId: string, permissions: Partial<{ canAdmin: boolean, canUpload: boolean, canComment: boolean }>) {
+    try {
+        const updateData: any = {};
+        if (permissions.canAdmin !== undefined) updateData.can_admin = permissions.canAdmin;
+        if (permissions.canUpload !== undefined) updateData.can_upload = permissions.canUpload;
+        if (permissions.canComment !== undefined) updateData.can_comment = permissions.canComment;
+
+        const { error } = await supabase
+            .from('guests')
+            .update(updateData)
+            .eq('id', logId);
+
+        if (error) throw error;
+        return true;
+    } catch (error) {
+        console.error("Error updating guest permissions:", error);
         return false;
     }
 }
@@ -938,8 +975,10 @@ export async function createEvent(event: Event) {
             type: event.type || null,
             parent_id: event.parentId || null,
             legacy_id: event.legacyId || null,
+            category: event.category || null,
             template_id: event.templateId || 'hero',
-            join_id: event.joinId || null
+            join_id: event.joinId || null,
+            vendors: event.vendors || []
         });
 
         if (error) throw error;
@@ -1073,8 +1112,10 @@ export async function updateEvent(eventId: string, data: Partial<Event>): Promis
         if (data.date !== undefined) updateData.date = data.date ? new Date(data.date).toISOString() : null;
         if (data.coverImage !== undefined) updateData.cover_image = data.coverImage;
         if (data.description !== undefined) updateData.description = data.description;
+        if (data.category !== undefined) updateData.category = data.category;
         if (data.templateId !== undefined) updateData.template_id = data.templateId;
         if (data.joinId !== undefined) updateData.join_id = data.joinId;
+        if (data.vendors !== undefined) updateData.vendors = data.vendors;
 
         const { error } = await supabase
             .from('events')

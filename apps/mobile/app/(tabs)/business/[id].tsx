@@ -49,6 +49,10 @@ function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   return R * c;
 }
 
+function getFAQsForBusiness(business: Business) {
+  return business.faqs && business.faqs.length > 0 ? business.faqs : [];
+}
+
 export default function BusinessDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -83,6 +87,7 @@ export default function BusinessDetailScreen() {
   const [reviews, setReviews] = useState<any[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [reviewComment, setReviewComment] = useState('');
+  const [expandedFaqIndex, setExpandedFaqIndex] = useState<number | null>(null);
 
   const handleRatingSubmit = async () => {
     if (!business || typeof id !== 'string') return;
@@ -647,17 +652,37 @@ export default function BusinessDetailScreen() {
                 </View>
               )}
 
-              {business.faqs && business.faqs.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>FAQs</Text>
-                  {business.faqs.map((faq, i) => (
-                    <View key={i} style={styles.faqItem}>
-                      <Text style={styles.faqQuestion}>{faq.q}</Text>
-                      <Text style={styles.faqAnswer}>{faq.a}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
+              {(() => {
+                const faqsList = getFAQsForBusiness(business);
+                return faqsList.length > 0 && (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>FAQs</Text>
+                    {faqsList.map((faq, i) => {
+                      const isExpanded = expandedFaqIndex === i;
+                      return (
+                        <TouchableOpacity 
+                          key={i} 
+                          style={[styles.faqItem, isExpanded && styles.faqItemExpanded]}
+                          activeOpacity={0.75}
+                          onPress={() => setExpandedFaqIndex(isExpanded ? null : i)}
+                        >
+                          <View style={styles.faqHeader}>
+                            <Text style={styles.faqQuestion}>{faq.q}</Text>
+                            <IconSymbol 
+                              name={isExpanded ? "chevron.up" : "chevron.down"} 
+                              size={16} 
+                              color={isExpanded ? INDIGO : '#94a3b8'} 
+                            />
+                          </View>
+                          {isExpanded && (
+                            <Text style={styles.faqAnswer}>{faq.a}</Text>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                );
+              })()}
             </View>
           )}
 
@@ -1557,17 +1582,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.03)',
   },
+  faqItemExpanded: {
+    borderColor: INDIGO,
+    backgroundColor: 'rgba(99, 102, 241, 0.04)',
+  },
+  faqHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
   faqQuestion: {
+    flex: 1,
     fontSize: 15,
     color: '#ffffff',
     fontFamily: 'Outfit_600SemiBold',
-    marginBottom: 6,
   },
   faqAnswer: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#94a3b8',
     fontFamily: 'Inter_400Regular',
     lineHeight: 20,
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+    paddingTop: 8,
   },
   portfolioGrid: {
     flexDirection: 'row',

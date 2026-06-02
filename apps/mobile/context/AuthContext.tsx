@@ -52,14 +52,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const checkSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
+        if (error) {
+          // If it is a refresh token or invalid grant error, we want to clear the storage
+          const isRefreshTokenError = 
+            error.message?.includes('Refresh Token') || 
+            error.message?.includes('invalid_grant') ||
+            error.status === 400;
+          
+          if (isRefreshTokenError) {
+            console.warn('[Auth] Stale or invalid refresh token found. Clearing session via signOut.');
+            try {
+              await supabase.auth.signOut();
+            } catch (signOutErr) {
+              console.warn('[Auth] Failed to sign out during session cleanup:', signOutErr);
+            }
+          }
+          throw error;
+        }
         if (session?.user && isMounted) {
           await handleUserSession(session.user);
         } else {
           if (isMounted) setLoading(false);
         }
       } catch (err) {
-        console.error('[Auth] Error getting initial session:', err);
+        console.warn('[Auth] Error getting initial session (or handled session refresh failure):', err);
         if (isMounted) setLoading(false);
       }
     };

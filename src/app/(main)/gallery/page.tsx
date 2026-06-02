@@ -11,6 +11,7 @@ import { DashboardHeader } from "@/components/DashboardHeader";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { Tooltip } from "@/components/Tooltip";
 import { navigateWithModifierClick } from "@/lib/navigation";
+import { formatEventDate } from "@/lib/utils";
 
 type EventOwnerProfile = {
     id?: string;
@@ -174,7 +175,7 @@ export default function GalleryPage() {
                                 </div>
                             )}
                             <p className="text-royal-gold text-xs font-bold uppercase tracking-widest mb-3">
-                                {event.date}
+                                {formatEventDate(event.date)}
                             </p>
                             <h3 className="text-2xl font-bold text-white mb-4 italic tracking-tight">
                                 {event.title}

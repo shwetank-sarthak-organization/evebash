@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { createUserProfile, getUserProfile } from "@/lib/firestore";
+import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
 interface AuthContextType {
@@ -63,168 +63,148 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     useEffect(() => {
-        let unsubscribe: () => void;
-        let unsubscribeProfile: (() => void) | undefined;
+        let isMounted = true;
+        let profileUnsubscribe: (() => void) | undefined;
 
-        const initAuth = async () => {
-            const { onAuthStateChanged, setPersistence, browserLocalPersistence } = await import("firebase/auth");
-            const { auth } = await import("@/lib/firebase");
-            const { getUserProfile, createUserProfile } = await import("@/lib/firestore");
-            const { doc, onSnapshot } = await import("firebase/firestore");
-            const { db } = await import("@/lib/firebase");
+        const checkSession = async () => {
+            try {
+                const { data: { session }, error } = await supabase.auth.getSession();
+                if (error) throw error;
 
-            // Set persistence to local (persists across tabs and browser restarts)
-            await setPersistence(auth, browserLocalPersistence);
-
-            unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-                if (unsubscribeProfile) {
-                    unsubscribeProfile();
-                    unsubscribeProfile = undefined;
-                }
-
-                if (firebaseUser) {
-                    console.log("[Auth] Live state changed: User is logged in", firebaseUser.uid);
-
-                    // Always ensure a profile exists in Firestore (Handles recreation with new UID)
-                    const name = firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "Wedding User";
-                    await createUserProfile(firebaseUser.uid, name, firebaseUser.email || "");
-
-                    // Fetch fresh profile data
-                    const profile = await getUserProfile(firebaseUser.uid);
-
-                    const userData = {
-                        uid: firebaseUser.uid,
-                        name: profile?.name || name,
-                        phone: profile?.phone || "No Phone",
-                        role: profile?.role || "user",
-                        roleType: profile?.roleType || (profile?.delegatedBy ? "event" : "primary"),
-                        assignedEvents: profile?.assignedEvents || [],
-                        profileImage: profile?.profileImage,
-                        email: firebaseUser.email,
-                        delegatedBy: profile?.delegatedBy,
-                        username: profile?.username || ""
-                    };
-
-                    syncUserSession(userData);
-
-                    if (db) {
-                        unsubscribeProfile = onSnapshot(doc(db, "users", firebaseUser.uid), (profileSnap) => {
-                            if (!profileSnap.exists()) return;
-
-                            const liveProfile = profileSnap.data();
-                            syncUserSession({
-                                uid: firebaseUser.uid,
-                                name: liveProfile?.name || name,
-                                phone: liveProfile?.phone || "No Phone",
-                                role: liveProfile?.role || "user",
-                                roleType: liveProfile?.roleType || (liveProfile?.delegatedBy ? "event" : "primary"),
-                                assignedEvents: liveProfile?.assignedEvents || [],
-                                profileImage: liveProfile?.profileImage,
-                                email: firebaseUser.email,
-                                delegatedBy: liveProfile?.delegatedBy,
-                                username: liveProfile?.username
-                            });
-                        });
-                    }
+                if (session?.user && isMounted) {
+                    await handleUserSession(session.user);
                 } else {
-                    console.log("[Auth] Live state changed: No user found in Firebase Auth");
-                    // Before wiping out the user, check if we have a valid guest session (phone login)
                     const storedUser = localStorage.getItem("wedding_guest_user");
-                    if (storedUser) {
+                    if (storedUser && isMounted) {
                         try {
                             const parsed = JSON.parse(storedUser);
                             if (parsed && typeof parsed.uid === "string" && parsed.uid.startsWith("phone_")) {
-                                console.log("[Auth] Valid guest phone session found, preserving user state.");
                                 setUser(parsed);
-
-                                if (db) {
-                                    unsubscribeProfile = onSnapshot(doc(db, "users", parsed.uid), (profileSnap) => {
-                                        if (!profileSnap.exists()) return;
-                                        const liveProfile = profileSnap.data();
-                                        syncUserSession({
-                                            uid: parsed.uid,
-                                            name: liveProfile?.name || parsed.name,
-                                            phone: liveProfile?.phone || parsed.phone || "No Phone",
-                                            role: liveProfile?.role || parsed.role || "user",
-                                            roleType: liveProfile?.roleType || parsed.roleType || "event",
-                                            assignedEvents: liveProfile?.assignedEvents || parsed.assignedEvents || [],
-                                            profileImage: liveProfile?.profileImage || parsed.profileImage,
-                                            email: parsed.email || null,
-                                            delegatedBy: liveProfile?.delegatedBy || parsed.delegatedBy,
-                                            username: liveProfile?.username
-                                        });
-                                    });
-                                }
-                                setLoading(false);
-                                return; // Exit early, do not clear session!
                             }
                         } catch (e) {
                             console.error("[Auth] Failed to parse guest session", e);
                         }
                     }
-
-                    setUser(null);
-                    localStorage.removeItem("wedding_guest_user");
+                    if (isMounted) setLoading(false);
                 }
-                setLoading(false);
-            });
+            } catch (err) {
+                console.error("[Auth] Error getting session:", err);
+                if (isMounted) setLoading(false);
+            }
         };
 
-        initAuth();
+        const handleUserSession = async (supabaseUser: any) => {
+            try {
+                const { getUserProfile, createUserProfile } = await import("@/lib/firestore");
+                
+                // Ensure profile exists in Supabase
+                const name = supabaseUser.user_metadata?.name || supabaseUser.email?.split("@")[0] || "Wedding User";
+                await createUserProfile(supabaseUser.id, name, supabaseUser.email || "");
+
+                // Fetch fresh profile data
+                const profile = await getUserProfile(supabaseUser.id);
+
+                const userData = {
+                    uid: supabaseUser.id,
+                    name: profile?.name || name,
+                    phone: profile?.phone || "No Phone",
+                    role: profile?.role || "user",
+                    roleType: profile?.roleType || (profile?.delegatedBy ? "event" : "primary") as any,
+                    assignedEvents: profile?.assignedEvents || [],
+                    profileImage: profile?.profileImage,
+                    email: supabaseUser.email,
+                    delegatedBy: profile?.delegatedBy,
+                    username: profile?.username || ""
+                };
+
+                if (isMounted) {
+                    syncUserSession(userData);
+
+                    const profileChannel = supabase
+                        .channel(`profile-${supabaseUser.id}`)
+                        .on('postgres_changes', {
+                            event: '*',
+                            schema: 'public',
+                            table: 'profiles',
+                            filter: `id=eq.${supabaseUser.id}`
+                        }, async () => {
+                            const updatedProfile = await getUserProfile(supabaseUser.id);
+                            if (updatedProfile && isMounted) {
+                                syncUserSession({
+                                    uid: supabaseUser.id,
+                                    name: updatedProfile.name || userData.name,
+                                    phone: updatedProfile.phone || userData.phone,
+                                    role: updatedProfile.role || userData.role,
+                                    roleType: updatedProfile.roleType || userData.roleType,
+                                    assignedEvents: updatedProfile.assignedEvents || userData.assignedEvents,
+                                    profileImage: updatedProfile.profileImage || userData.profileImage,
+                                    email: supabaseUser.email,
+                                    delegatedBy: updatedProfile.delegatedBy,
+                                    username: updatedProfile.username || ""
+                                });
+                            }
+                        })
+                        .subscribe();
+
+                    profileUnsubscribe = () => {
+                        supabase.removeChannel(profileChannel);
+                    };
+                }
+            } catch (err) {
+                console.error("[Auth] Error handling user session:", err);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+
+        checkSession();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log("[Auth] Auth state change event:", event);
+            if (session?.user) {
+                await handleUserSession(session.user);
+            } else {
+                if (profileUnsubscribe) profileUnsubscribe();
+                const storedUser = localStorage.getItem("wedding_guest_user");
+                if (storedUser && isMounted) {
+                    try {
+                        const parsed = JSON.parse(storedUser);
+                        if (parsed && typeof parsed.uid === "string" && parsed.uid.startsWith("phone_")) {
+                            setLoading(false);
+                            return; // Keep phone guest session intact
+                        }
+                    } catch (e) {
+                        console.error("[Auth] Failed to parse guest session on auth change", e);
+                    }
+                }
+                if (isMounted) {
+                    setUser(null);
+                    localStorage.removeItem("wedding_guest_user");
+                    setLoading(false);
+                }
+            }
+        });
 
         return () => {
-            if (unsubscribe) unsubscribe();
-            if (unsubscribeProfile) unsubscribeProfile();
+            isMounted = false;
+            subscription.unsubscribe();
+            if (profileUnsubscribe) profileUnsubscribe();
         };
     }, []);
 
     const login = async (email: string, password: string) => {
         try {
             console.log("Starting login flow for:", email);
-            const { signInWithEmailAndPassword } = await import("firebase/auth");
-            const { auth, isFirebaseConfigured } = await import("@/lib/firebase");
+            const { error } = await supabase.auth.signInWithPassword({
+                email,
+                password
+            });
 
-            if (!isFirebaseConfigured) {
-                alert("Firebase configuration is missing! Please set up your .env.local file.");
-                return false;
-            }
-
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
-            console.log("Login successful:", user.uid);
-
-            const name = user.displayName || user.email?.split("@")[0] || "Guest User";
-
-            // 3. Sync to Firestore: Ensure profile exists even if UID changed (e.g. recreation)
-            console.log("Syncing user data to Firestore on login...");
-            await createUserProfile(user.uid, name, user.email || "");
-
-            // 4. Fetch full profile to get the correct role
-            const profile = await getUserProfile(user.uid);
-
-            const userData = {
-                uid: userCredential.user.uid,
-                name: profile?.name || "Wedding User",
-                phone: profile?.phone || "No Phone",
-                role: profile?.role || "user",
-                roleType: profile?.roleType || "primary",
-                assignedEvents: profile?.assignedEvents || [],
-                profileImage: profile?.profileImage,
-                email: userCredential.user.email,
-                delegatedBy: profile?.delegatedBy,
-                username: profile?.username
-            };
-            setUser(userData);
-            localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
+            if (error) throw error;
             return true;
-        } catch (error: unknown) {
-            const err = error as { code?: string; message?: string };
-            console.error("Login Error:", err);
-            if (err.code === "auth/invalid-credential" || err.code === "auth/user-not-found") {
-                alert("Invalid email or password. Please try again.");
-            } else {
-                alert(`Login failed: ${err.message || 'Unknown error'}`);
-            }
+        } catch (error: any) {
+            console.error("Login Error:", error);
+            alert(`Login failed: ${error.message || "Invalid credentials"}`);
             return false;
         }
     };
@@ -232,176 +212,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const signup = async (email: string, password: string, name: string) => {
         try {
             console.log("Starting signup flow for:", email);
-            const { createUserWithEmailAndPassword, updateProfile } = await import("firebase/auth");
-            const { auth, isFirebaseConfigured } = await import("@/lib/firebase");
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: { name }
+                }
+            });
 
-            if (!isFirebaseConfigured) {
-                alert("Firebase configuration is missing! Please set up your .env.local file.");
-                return false;
+            if (error) throw error;
+
+            if (data.user) {
+                const { createUserProfile } = await import("@/lib/firestore");
+                await createUserProfile(data.user.id, name, email);
             }
-
-            console.log("Creating user account...");
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
-            console.log("User account created successfully:", user.uid);
-
-            // Update the display name in Firebase Auth
-            console.log("Updating user profile name...");
-            await updateProfile(user, { displayName: name });
-            console.log("Profile name updated.");
-
-            // Sync to Firestore
-            console.log("Syncing user data to Firestore...");
-            try {
-                // We use a timeout or just log before/after to see if it hangs
-                await createUserProfile(user.uid, name, user.email || "");
-                console.log("Firestore sync complete.");
-            } catch (fsError) {
-                console.error("Firestore sync failed (but account was created):", fsError);
-                // We might still want to allow the user in even if sync fails
-            }
-
-            const profile = await getUserProfile(user.uid);
-            const userData = {
-                uid: user.uid,
-                name: name,
-                phone: "",
-                role: "user",
-                roleType: "primary" as const,
-                profileImage: undefined,
-                email: user.email,
-                username: profile?.username || name.toLowerCase().replace(/[^a-z0-9_.]/g, "_")
-            };
-            setUser(userData);
-            localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
-            console.log("Signup flow complete, navigating...");
             return true;
-        } catch (error: unknown) {
-            const err = error as { message?: string };
-            console.error("Signup Error detail:", err);
-            if (err.message) alert(`Signup failed: ${err.message}`);
+        } catch (error: any) {
+            console.error("Signup Error:", error);
+            alert(`Signup failed: ${error.message}`);
             return false;
         }
     };
 
     const loginWithGoogle = async () => {
         try {
-            const { signInWithPopup } = await import("firebase/auth");
-            const { auth, googleProvider, isFirebaseConfigured } = await import("@/lib/firebase");
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: "google",
+                options: {
+                    redirectTo: `${window.location.origin}/profile`
+                }
+            });
 
-            if (!isFirebaseConfigured) {
-                alert("Firebase configuration is missing! Please set up your .env.local file.");
-                return false;
-            }
-
-            const result = await signInWithPopup(auth, googleProvider);
-            const googleUser = result.user;
-
-            // EMERGENCY FIX: Force the owner(s) to ALWAYS be admin, updating Firestore if needed.
-            // This ensures these primary emails always have Super Admin status.
-            const superAdmins = [
-                "shwetank.chauhan17@gmail.com",
-                "shwetank.chauhan3@gmail.com",
-                "code4sarthak@gmail.com"
-            ];
-
-            if (googleUser.email && superAdmins.includes(googleUser.email)) {
-                const { updateUserRole } = await import("@/lib/firestore");
-                console.log(`Detected Super Admin login (${googleUser.email}). Forcing admin role update...`);
-                await updateUserRole(googleUser.uid, "admin");
-            }
-
-            // Sync to Firestore and ensure they have a role.
-            // We default to 'admin' to preserve access for the project owner.
-            await createUserProfile(googleUser.uid, googleUser.displayName || "User", googleUser.email || "", "user");
-            const profile = await getUserProfile(googleUser.uid);
-
-            const userData = {
-                uid: result.user.uid,
-                name: result.user.displayName || "Wedding Guest",
-                phone: profile?.phone || "No Phone",
-                role: profile?.role || "user",
-                roleType: profile?.roleType || "primary",
-                assignedEvents: profile?.assignedEvents || [],
-                profileImage: profile?.profileImage,
-                email: result.user.email,
-                delegatedBy: profile?.delegatedBy,
-                username: profile?.username
-            };
-
-            setUser(userData);
-            localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
+            if (error) throw error;
             return true;
-        } catch (error: unknown) {
-            const err = error as { code?: string; message?: string };
-            if (err.code === "auth/cancelled-popup-request" || err.code === "auth/popup-closed-by-user") {
-                console.warn("Google Login popup closed or cancelled by user.");
-                return false;
-            }
-            console.error("Google Login Error:", err);
-            if (err.code) {
-                console.error("Firebase Error Code:", err.code);
-                alert(`Login failed: ${err.code}. Check console for details.`);
-            } else {
-                alert("Google Login failed. Please check your internet connection and Firebase Console settings.");
-            }
+        } catch (error: any) {
+            console.error("Google Login Error:", error);
+            alert(`Google login failed: ${error.message}`);
             return false;
         }
     };
 
     const resetPassword = async (email: string) => {
         try {
-            const { sendPasswordResetEmail } = await import("firebase/auth");
-            const { auth } = await import("@/lib/firebase");
-            await sendPasswordResetEmail(auth, email);
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: `${window.location.origin}/reset-password`
+            });
+            if (error) throw error;
             return true;
-        } catch (error: unknown) {
-            const err = error as { code?: string; message?: string };
-            console.error("Reset Password Error:", err);
-            if (err.code === "auth/user-not-found") {
-                alert("No user found with this email address.");
-            } else if (err.code === "auth/invalid-email") {
-                alert("Please enter a valid email address.");
-            } else {
-                alert(`Error: ${err.message || 'Unknown error'}`);
-            }
+        } catch (error: any) {
+            console.error("Reset Password Error:", error);
+            alert(`Error resetting password: ${error.message}`);
             return false;
         }
     };
 
-
     const loginWithPhoneSimple = async (name: string, phone: string) => {
         try {
-            alert(`[Debug] Attempting login for phone: ${phone}`);
-
+            console.log("Simple Phone login:", phone);
             const { getAllowedUser, createUserProfile, getUserProfile, logGuestLogin } = await import("@/lib/firestore");
 
-            // Generate a stable UID for the phone user (non-firebase-auth)
             const phoneUid = `phone_${phone.replace(/\D/g, "")}`;
-
-            // Check for master admin override
             const isMasterAdmin = phone === "8535029872";
-
-            if (isMasterAdmin) {
-                alert(`[Debug] Master Admin detected!`);
-            }
-
-            // Check if user is allowed (unless master admin)
             const allowedUser = await getAllowedUser(phone);
 
             if (!isMasterAdmin && !allowedUser) {
-                alert(`[Debug] Not a master admin and not an invited guest. Prompting for Request.`);
-                return false; // Not allowed, triggers requestAccess flow in the UI
+                return false;
             }
 
             const assignedRole = isMasterAdmin ? "admin" : (allowedUser?.role || "user");
-
-            alert(`[Debug] Role assigned: ${assignedRole}. Syncing to Firestore...`);
-
-            // Sync to Firestore
             await createUserProfile(phoneUid, name || allowedUser?.name || "Guest", "", phone, assignedRole);
-
-            // Fetch full profile (in case they have a different name in DB)
             const profile = await getUserProfile(phoneUid) as any;
 
             const userData = {
@@ -419,61 +298,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             setUser(userData);
             localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
-
             await logGuestLogin(userData.name, phone);
-
-            alert(`[Debug] Success! User data saved to session. Redirecting...`);
             return true;
         } catch (error: any) {
             console.error("Simple Phone Login Error:", error);
-            alert(`[Debug Error] Login failed with exception: ${error.message}`);
+            alert(`Login failed: ${error.message}`);
             return false;
         }
     };
 
     const authWithEmailLogic = async (name: string, email: string, password: string, phoneStr: string = "") => {
         try {
-            const { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } = await import("firebase/auth");
-            const { auth, isFirebaseConfigured } = await import("@/lib/firebase");
+            let sessionUser;
+            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                email,
+                password
+            });
 
-            if (!isFirebaseConfigured) {
-                alert("Firebase configuration is missing!");
-                return false;
-            }
+            if (signInError) {
+                if (signInError.message.includes("Invalid login credentials") || signInError.message.includes("User not found")) {
+                    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                        email,
+                        password,
+                        options: {
+                            data: { name }
+                        }
+                    });
 
-            let user;
-            try {
-                // Try Login
-                const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                user = userCredential.user;
-            } catch (loginError: any) {
-                // If user not found, try Signup
-                if (loginError.code === "auth/invalid-credential" || loginError.code === "auth/user-not-found" || loginError.code === "auth/wrong-password") {
-                    if (loginError.code === "auth/wrong-password" || loginError.message.includes('password')) {
-                         alert("Incorrect password for this account.");
-                         return false;
-                    }
-                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                    user = userCredential.user;
-                    await updateProfile(user, { displayName: name });
+                    if (signUpError) throw signUpError;
+                    sessionUser = signUpData.user;
                 } else {
-                    throw loginError;
+                    throw signInError;
                 }
+            } else {
+                sessionUser = signInData.user;
             }
+
+            if (!sessionUser) throw new Error("Authentication failed");
 
             const { createUserProfile, getUserProfile } = await import("@/lib/firestore");
-            
-            // Only overwrite empty fields to avoid erasing existing data
-            const existingProfile = await getUserProfile(user.uid);
+            const existingProfile = await getUserProfile(sessionUser.id);
             const finalPhone = existingProfile?.phone || phoneStr;
             const finalName = existingProfile?.name || name;
 
-            await createUserProfile(user.uid, finalName, email, finalPhone, existingProfile?.role || "user");
-
-            const profile = await getUserProfile(user.uid);
+            await createUserProfile(sessionUser.id, finalName, email, finalPhone, existingProfile?.role || "user");
+            const profile = await getUserProfile(sessionUser.id);
 
             const userData = {
-                uid: user.uid,
+                uid: sessionUser.id,
                 name: profile?.name || finalName,
                 phone: profile?.phone || finalPhone,
                 role: profile?.role || "user",
@@ -506,15 +378,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const logout = async () => {
         try {
-            const { auth } = await import("@/lib/firebase");
-            const { signOut } = await import("firebase/auth");
-            await signOut(auth);
+            await supabase.auth.signOut();
         } catch (error) {
-            console.error("Error signing out of Firebase:", error);
+            console.error("Error signing out of Supabase:", error);
         }
         setUser(null);
         localStorage.removeItem("wedding_guest_user");
-        router.push("/login"); // Fixed recursion if already on login, but push is fine.
+        router.push("/login");
     };
 
     return (

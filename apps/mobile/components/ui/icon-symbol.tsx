@@ -67,6 +67,7 @@ const MAPPING = {
   'leaf.fill': 'eco',
   'eye.fill': 'visibility',
   'chevron.down': 'keyboard-arrow-down',
+  'chevron.up': 'keyboard-arrow-up',
   'doc.on.doc.fill': 'content-copy',
   'graduationcap.fill': 'school',
   'figure.run': 'directions-run',

@@ -41,7 +41,7 @@ import {
     QrCode,
     UserPlus
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatEventDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     createEvent,
@@ -72,7 +72,6 @@ import { DashboardHeader } from "@/components/DashboardHeader";
 import { Tooltip } from "@/components/Tooltip";
 import { navigateWithModifierClick } from "@/lib/navigation";
 import { v4 as uuidv4 } from "uuid";
-import { Timestamp } from "firebase/firestore";
 import { syncCloudinaryToFirestore } from "@/app/actions/sync";
 import { deleteGuestAction, updateGuestStatusAction } from "@/app/actions/permissions";
 import * as faceapi from "face-api.js";
@@ -880,7 +879,7 @@ function DashboardContent() {
                     eventId: selectedEventId,
                     cloudinaryPublicId: uploadResult.publicId,
                     url: uploadResult.url,
-                    uploadedAt: Timestamp.now(),
+                    uploadedAt: new Date().toISOString(),
                     userId: user.uid || "anonymous",
                     width: uploadResult.width,
                     height: uploadResult.height,
@@ -1353,7 +1352,7 @@ function DashboardContent() {
                         Managed for: {workspaceOwner.email}
                     </div>
                 )}
-                <p className="text-xs font-sans font-bold uppercase tracking-[0.2em] text-royal-gold mb-3">{evt.date}</p>
+                <p className="text-xs font-sans font-bold uppercase tracking-[0.2em] text-royal-gold mb-3">{formatEventDate(evt.date)}</p>
                 <h3 className="text-2xl font-bold italic tracking-tight mb-4">{evt.title}</h3>
                 <div className="flex items-center text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-y-3 group-hover:translate-y-0 duration-300">
                     {manageLevel === "events" ? (

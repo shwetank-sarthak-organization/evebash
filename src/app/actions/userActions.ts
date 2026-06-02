@@ -1,17 +1,29 @@
 "use server";
 
-import { getAdminAuth, getAdminDb } from "@/lib/firebase-admin";
-import * as admin from 'firebase-admin';
+import { createClient } from "@supabase/supabase-js";
 import { v2 as cloudinary } from 'cloudinary';
 
+// Initialize Cloudinary
 cloudinary.config({
     cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
     api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Initialize Supabase Admin Client using service role key
+const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+        auth: {
+            autoRefreshToken: false,
+            persistSession: false
+        }
+    }
+);
+
 /**
- * Server Action to delete a user's account from Firebase Auth and their profile from Firestore.
+ * Server Action to delete a user's account from Supabase Auth and their profile from Database.
  * This can ONLY be called securely from the server.
  */
 export async function deleteUserCompletely(uid: string, requesterEmail: string) {
@@ -30,27 +42,27 @@ export async function deleteUserCompletely(uid: string, requesterEmail: string) 
             return { success: false, error: "Unauthorized access. Only Super Admins can delete accounts." };
         }
 
-        // 2. Delete from Firebase Authentication
-        console.log(`[Server Action] Deleting Auth record for UID: ${uid}...`);
-        try {
-            const auth = getAdminAuth();
-            await auth.deleteUser(uid);
-            console.log(`[Server Action] Auth record deleted successfully.`);
-        } catch (authError: any) {
-            // If the user doesn't exist in Auth, we continue to delete from Firestore
-            if (authError.code === 'auth/user-not-found') {
-                console.warn(`[Server Action] Auth record not found for UID: ${uid}, proceeding to Firestore.`);
-            } else {
-                console.error(`[Server Action] Failed to delete Auth record:`, authError);
-                throw authError;
-            }
+        // 2. Delete from Supabase Authentication
+        console.log(`[Server Action] Deleting Supabase Auth user: ${uid}...`);
+        const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(uid);
+        if (authError) {
+            console.error("[Server Action] Supabase Auth user deletion warning/error:", authError.message);
+        } else {
+            console.log(`[Server Action] Supabase Auth user deleted successfully.`);
         }
 
-        // 3. Delete from Firestore Database
-        console.log(`[Server Action] Deleting Firestore profile for UID: ${uid}...`);
-        const db = getAdminDb();
-        await db.collection("users").doc(uid).delete();
-        console.log(`[Server Action] Firestore profile deleted successfully.`);
+        // 3. Delete from Database Profile Table
+        console.log(`[Server Action] Deleting profile for UID: ${uid}...`);
+        const { error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .delete()
+            .eq('id', uid);
+
+        if (profileError) {
+            console.error(`[Server Action] Failed to delete profile record:`, profileError);
+            throw profileError;
+        }
+        console.log(`[Server Action] Database profile deleted successfully.`);
 
         return { success: true };
     } catch (error: any) {
@@ -60,7 +72,7 @@ export async function deleteUserCompletely(uid: string, requesterEmail: string) 
 }
 
 /**
- * Server Action to find all users in Firebase Auth and ensure they have a profile in Firestore.
+ * Server Action to find all users in Supabase Auth and ensure they have a profile in Database.
  */
 export async function syncAllAuthUsers(requesterEmail: string) {
     try {
@@ -77,35 +89,50 @@ export async function syncAllAuthUsers(requesterEmail: string) {
             return { success: false, error: "Unauthorized." };
         }
 
-        // 2. List all users from Auth
-        const auth = getAdminAuth();
-        const listUsersResult = await auth.listUsers(1000);
-        const authUsers = listUsersResult.users;
-        console.log(`[Server Action] Found ${authUsers.length} users in Auth.`);
+        // 2. List all users from Supabase Auth
+        console.log(`[Server Action] Fetching users list from Auth...`);
+        const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+        if (listError) throw listError;
 
+        console.log(`[Server Action] Found ${users.length} users in Auth.`);
         let syncCount = 0;
 
-        // 3. Batch process profiles
-        const db = getAdminDb();
-        for (const authUser of authUsers) {
-            const userDoc = await db.collection("users").doc(authUser.uid).get();
+        // 3. Bulk process profiles
+        for (const authUser of users) {
+            const { data: existing, error: fetchError } = await supabaseAdmin
+                .from('profiles')
+                .select('id')
+                .eq('id', authUser.id)
+                .maybeSingle();
 
-            if (!userDoc.exists) {
+            if (fetchError) {
+                console.error(`[Server Action] Error fetching profile for ${authUser.id}:`, fetchError);
+                continue;
+            }
+
+            if (!existing) {
                 console.log(`[Server Action] Creating missing profile for: ${authUser.email}`);
-                await db.collection("users").doc(authUser.uid).set({
-                    name: authUser.displayName || authUser.email?.split("@")[0] || "Wedding User",
-                    email: authUser.email,
-                    role: "user", // Default for bulk sync
-                    roleType: "primary",
-                    createdAt: admin.firestore.Timestamp.now(),
-                    lastLogin: admin.firestore.Timestamp.now(), // Placeholder
-                    syncedAt: admin.firestore.Timestamp.now()
-                });
-                syncCount++;
+                const name = authUser.user_metadata?.name || authUser.email?.split("@")[0] || "Wedding User";
+                const { error: insertError } = await supabaseAdmin
+                    .from('profiles')
+                    .insert({
+                        id: authUser.id,
+                        name,
+                        email: authUser.email || null,
+                        role: "user", // Default for bulk sync
+                        role_type: "primary",
+                        created_at: new Date().toISOString()
+                    });
+
+                if (insertError) {
+                    console.error(`[Server Action] Insert profile failed for ${authUser.id}:`, insertError);
+                } else {
+                    syncCount++;
+                }
             }
         }
 
-        return { success: true, count: authUsers.length, synced: syncCount };
+        return { success: true, count: users.length, synced: syncCount };
     } catch (error: any) {
         console.error("[Server Action] Error syncing all users:", error);
         return { success: false, error: error.message || "Sync failed." };
@@ -120,8 +147,6 @@ export async function uploadProfileImageToCloudinary(base64Image: string, uid: s
     try {
         console.log(`[Server Action] Uploading profile image for UID: ${uid}`);
 
-        // Security Check: Verify UID (this relies on the client passing the current auth context UID honestly.
-        // In a strictly secure app, we'd verify a session token here, but this matches the current Firebase client-auth pattern).
         if (!uid) {
             throw new Error("Unauthorized request. UID is missing.");
         }

@@ -1,5 +1,39 @@
 import { supabase } from "./supabase";
 
+export function formatEventDate(dateStr?: string): string {
+    if (!dateStr) return "";
+
+    try {
+        // If it's already a nicely formatted verbal date (e.g. contains month name and a year),
+        // we can return it directly to preserve user's custom formatting.
+        const isVerbal = /jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(dateStr) && !dateStr.includes("T");
+        if (isVerbal) {
+            return dateStr;
+        }
+
+        let dateObj: Date;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) {
+            // Standard YYYY-MM-DD. Replace dashes with slashes to force local time parsing
+            // to avoid timezone offset shifts.
+            dateObj = new Date(dateStr.replace(/-/g, "/"));
+        } else {
+            dateObj = new Date(dateStr);
+        }
+
+        if (isNaN(dateObj.getTime())) {
+            return dateStr;
+        }
+
+        return dateObj.toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "long",
+            year: "numeric"
+        });
+    } catch (e) {
+        return dateStr;
+    }
+}
+
 export const generateShortId = () => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let result = '';
@@ -173,16 +207,18 @@ function mapSqlToEvent(e: any): Event {
     return {
         id: e.id,
         title: e.title,
-        date: e.date,
+        date: formatEventDate(e.date),
         coverImage: e.cover_image,
         description: e.description,
         createdBy: e.created_by,
         type: e.type,
         parentId: e.parent_id,
         legacyId: e.legacy_id,
+        category: e.category,
         templateId: e.template_id,
         joinId: e.join_id,
-        order: e.order
+        order: e.order,
+        vendors: e.vendors || []
     };
 }
 
@@ -622,20 +658,111 @@ export async function updateSubEventsOrder(orderedIds: string[]): Promise<boolea
     }
 }
 
+export function safeParseDateToISO(dateStr?: string): string | null {
+    if (!dateStr) return null;
+    try {
+        const trimmed = dateStr.trim();
+        if (!trimmed) return null;
+
+        // 1. Try verbal month parsing (e.g. "Jun 2, 2026", "2 June 2026")
+        const lowerStr = trimmed.toLowerCase();
+        const MONTH_MAP: { [key: string]: number } = {
+            jan: 0, january: 0,
+            feb: 1, february: 1,
+            mar: 2, march: 2,
+            apr: 3, april: 3,
+            may: 4,
+            jun: 5, june: 5,
+            jul: 6, july: 6,
+            aug: 7, august: 7,
+            sep: 8, september: 8,
+            oct: 9, october: 9,
+            nov: 10, november: 10,
+            dec: 11, december: 11
+        };
+
+        const monthKeys = Object.keys(MONTH_MAP);
+        let foundMonth: number | null = null;
+        let foundMonthName = "";
+        for (const key of monthKeys) {
+            if (lowerStr.includes(key)) {
+                if (key.length > foundMonthName.length) {
+                    foundMonth = MONTH_MAP[key];
+                    foundMonthName = key;
+                }
+            }
+        }
+
+        if (foundMonth !== null) {
+            const numbers = lowerStr.match(/\d+/g);
+            if (numbers && numbers.length > 0) {
+                let year = new Date().getFullYear();
+                let day = 1;
+                
+                const yearMatch = numbers.find(n => n.length === 4);
+                if (yearMatch) {
+                    year = parseInt(yearMatch, 10);
+                }
+                
+                const dayMatch = numbers.find(n => n.length === 1 || n.length === 2);
+                if (dayMatch) {
+                    day = parseInt(dayMatch, 10);
+                } else if (numbers.length > 1) {
+                    const otherNum = numbers.find(n => n !== yearMatch);
+                    if (otherNum) {
+                        day = parseInt(otherNum, 10);
+                    }
+                }
+                
+                const dateObj = new Date(year, foundMonth, day);
+                if (!isNaN(dateObj.getTime())) {
+                    return dateObj.toISOString();
+                }
+            }
+        }
+
+        // 2. Try standard date parsing with replacements
+        let dateObj: Date;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+            dateObj = new Date(trimmed.replace(/-/g, "/"));
+        } else {
+            dateObj = new Date(trimmed);
+        }
+
+        if (!isNaN(dateObj.getTime())) {
+            return dateObj.toISOString();
+        }
+
+        // 3. Fallback to current date instead of crashing
+        console.warn(`[SafeDate] Failed to parse date string: "${dateStr}". Falling back to current date.`);
+        return new Date().toISOString();
+    } catch (e) {
+        console.error(`[SafeDate] Error parsing date string: "${dateStr}":`, e);
+        try {
+            return new Date().toISOString();
+        } catch (inner) {
+            return null;
+        }
+    }
+}
+
 export async function createEvent(event: Event) {
     try {
         const { error } = await supabase.from('events').upsert({
             id: event.id,
             title: event.title,
-            date: event.date ? new Date(event.date).toISOString() : null,
+            date: event.date ? safeParseDateToISO(event.date) : null,
             cover_image: event.coverImage || null,
             description: event.description || null,
             created_by: event.createdBy || null,
             type: event.type || null,
             parent_id: event.parentId || null,
             legacy_id: event.legacyId || null,
+            category: event.category || null,
             template_id: event.templateId || 'hero',
-            join_id: event.joinId || null
+            join_id: event.joinId || null,
+            order: event.order || 0,
+            vendors: event.vendors || []
         });
 
         if (error) throw error;
@@ -1007,6 +1134,10 @@ export async function updateEvent(eventId: string, data: Partial<Event>) {
         if (data.description !== undefined) updateObj.description = data.description;
         if (data.coverImage !== undefined) updateObj.cover_image = data.coverImage;
         if (data.date !== undefined) updateObj.date = data.date;
+        if (data.category !== undefined) updateObj.category = data.category;
+        if (data.templateId !== undefined) updateObj.template_id = data.templateId;
+        if (data.joinId !== undefined) updateObj.join_id = data.joinId;
+        if (data.vendors !== undefined) updateObj.vendors = data.vendors;
 
         const { error } = await supabase.from('events').update(updateObj).eq('id', eventId);
         if (error) throw error;
@@ -1082,7 +1213,7 @@ export async function createBusiness(businessData: Omit<Business, 'id' | 'create
       allowed_users: businessData.allowedUsers || [],
       description: businessData.description || null,
       experience: businessData.experience || null,
-      started_date: businessData.startedDate ? new Date(businessData.startedDate).toISOString() : null,
+      started_date: businessData.startedDate ? safeParseDateToISO(businessData.startedDate) : null,
       events_hosted: businessData.eventsHosted || 0,
       services: businessData.services || [],
       faqs: businessData.faqs || [],
@@ -1172,9 +1303,48 @@ export async function updateBusiness(bizId: string, data: Partial<Business>): Pr
   try {
     const updateObj: any = {};
     if (data.name !== undefined) updateObj.name = data.name;
-    if (data.description !== undefined) updateObj.description = data.description;
+    if (data.ownerName !== undefined) updateObj.owner_name = data.ownerName;
+    if (data.ownerEmail !== undefined) updateObj.owner_email = data.ownerEmail;
+    if (data.ownerPhone !== undefined) updateObj.owner_phone = data.ownerPhone;
+    if (data.type !== undefined) updateObj.type = data.type;
+    if (data.tags !== undefined) updateObj.tags = data.tags;
+    
+    if (data.location !== undefined) {
+      if (data.location.latitude !== undefined) updateObj.latitude = data.location.latitude;
+      if (data.location.longitude !== undefined) updateObj.longitude = data.location.longitude;
+      if (data.location.address !== undefined) updateObj.address = data.location.address;
+    }
+    
+    if (data.rating !== undefined) updateObj.rating = data.rating;
     if (data.coverImage !== undefined) updateObj.cover_image = data.coverImage;
+    if (data.coverImages !== undefined) updateObj.cover_images = data.coverImages;
+    if (data.admins !== undefined) updateObj.admins = data.admins;
+    if (data.allowedUsers !== undefined) updateObj.allowed_users = data.allowedUsers;
+    if (data.description !== undefined) updateObj.description = data.description;
+    if (data.experience !== undefined) updateObj.experience = data.experience;
+    
+    if (data.startedDate !== undefined) {
+      if (!data.startedDate) {
+        updateObj.started_date = null;
+      } else if (typeof data.startedDate === 'string') {
+        updateObj.started_date = safeParseDateToISO(data.startedDate);
+      } else if (data.startedDate instanceof Date) {
+        updateObj.started_date = data.startedDate.toISOString();
+      } else if (typeof data.startedDate.toDate === 'function') {
+        updateObj.started_date = data.startedDate.toDate().toISOString();
+      } else {
+        updateObj.started_date = data.startedDate;
+      }
+    }
+    
+    if (data.eventsHosted !== undefined) updateObj.events_hosted = data.eventsHosted;
+    if (data.services !== undefined) updateObj.services = data.services;
+    if (data.faqs !== undefined) updateObj.faqs = data.faqs;
     if (data.status !== undefined) updateObj.status = data.status;
+    if (data.shortId !== undefined) updateObj.short_id = data.shortId;
+    if (data.vendorCode !== undefined) updateObj.vendor_code = data.vendorCode;
+    if (data.announcements !== undefined) updateObj.announcements = data.announcements;
+    if (data.profileViews !== undefined) updateObj.profile_views = data.profileViews;
 
     const { error } = await supabase.from('businesses').update(updateObj).eq('id', bizId);
     if (error) throw error;
@@ -1435,7 +1605,7 @@ export async function getEnquiriesForBusiness(businessId: string, userId: string
     try {
         const { data, error } = await supabase
             .from('enquiries')
-            .select('*, profiles(name)')
+            .select('*, profiles:profiles!enquiries_user_id_fkey(name)')
             .eq('vendor_owner_id', userId);
 
         if (error) throw error;

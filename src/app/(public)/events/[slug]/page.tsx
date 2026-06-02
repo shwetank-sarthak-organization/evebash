@@ -13,7 +13,7 @@ import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { Loader2, Image as ImageIcon, ChevronLeft, Share2, Check, Pencil } from "lucide-react";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
-import { cn } from "@/lib/utils";
+import { cn, formatEventDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRef } from "react";
 import { TemplateHero } from "@/components/TemplateHero";
@@ -482,7 +482,7 @@ function EventPageContent() {
 
                                         <div className="absolute bottom-0 left-0 p-8 w-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
                                             <p className="text-royal-gold text-[10px] font-bold uppercase tracking-[0.2em] mb-2">
-                                                {sub.date || "Gallery"}
+                                                {formatEventDate(sub.date) || "Gallery"}
                                             </p>
                                             <h3 className="text-3xl font-serif text-white mb-2 italic tracking-tight">{sub.title}</h3>
                                             <div className="h-[1px] w-0 bg-white/50 group-hover:w-full transition-all duration-700 ease-in-out"></div>

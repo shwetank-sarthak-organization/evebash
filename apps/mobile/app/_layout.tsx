@@ -76,9 +76,6 @@ import {
 SplashScreen.preventAutoHideAsync();
 
 LogBox.ignoreLogs([
-  '@firebase/firestore: Firestore',
-  'Could not reach Cloud Firestore backend',
-  'Backend didn\'t respond within 10 seconds',
   'backTitle prop is not available on Android',
   'backTitleFontFamily prop is not available on Android',
   'backTitleVisible prop is not available on Android',

@@ -1,7 +1,6 @@
 "use client";
 
-import { db } from "./firebase";
-import { doc, setDoc, Firestore } from "firebase/firestore";
+import { supabase } from "./supabase";
 
 const eventData = {
     haldi: {
@@ -31,29 +30,26 @@ const eventData = {
 };
 
 export async function seedDatabase() {
-    console.log("Seeding started...");
-
-    const firestore = db as Firestore;
-
-    if (!firestore) {
-        throw new Error("Firebase Firestore not initialized. Check your environment variables.");
-    }
+    console.log("Seeding started in Supabase...");
 
     try {
         for (const [key, data] of Object.entries(eventData)) {
-            // Create Event Metadata Only
-            await setDoc(doc(firestore, "events", key), {
+            const { error } = await supabase.from("events").upsert({
+                id: key,
                 title: data.title,
                 description: data.description,
                 date: data.date,
-                coverImage: data.coverImage,
-            }, { merge: true }); // Merge to avoid overwriting if exists
+                cover_image: data.coverImage,
+                template_id: "hero",
+                type: "main"
+            });
+
+            if (error) throw error;
         }
-        console.log("Seeding completed!");
+        console.log("Seeding completed in Supabase!");
         return "Success";
     } catch (error) {
         console.error("Error seeding database:", error);
         throw error;
     }
 }
-
