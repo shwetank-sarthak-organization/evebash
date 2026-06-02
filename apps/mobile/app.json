@@ -18,7 +18,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.wed_albummobile"
+      "package": "com.anonymous.wed_albummobile",
+      "usesCleartextTraffic": true
     },
     "web": {
       "output": "static",

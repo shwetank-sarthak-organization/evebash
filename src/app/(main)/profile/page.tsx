@@ -35,7 +35,7 @@ import {
     updateUserProfile,
     Event as FirestoreEvent,
 } from "@/lib/firestore";
-import { uploadProfileImageToCloudinary } from "@/app/actions/userActions";
+import { uploadProfileImageToBackblaze } from "@/app/actions/userActions";
 import Image from "next/image";
 import { navigateWithModifierClick } from "@/lib/navigation";
 import { useTheme } from "@/context/ThemeContext";
@@ -257,7 +257,7 @@ export default function ProfilePage() {
             reader.readAsDataURL(file);
             reader.onload = async () => {
                 const base64Image = reader.result as string;
-                const result = await uploadProfileImageToCloudinary(base64Image, user.uid);
+                const result = await uploadProfileImageToBackblaze(base64Image, user.uid);
                 if (result.success && result.url) {
                     await updateUserProfileImage(user.uid, result.url);
                     setProfileImage(result.url);

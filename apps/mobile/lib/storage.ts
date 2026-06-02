@@ -1,57 +1,130 @@
-
-/**
- * Simple Cloudinary upload for mobile
- * Uses unsigned upload for simplicity since we don't have a backend to sign requests
- */
-
-const CLOUD_NAME = (process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || "db0feghsr").trim();
-const UPLOAD_PRESET = (process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ml_default").trim();
-
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+import { supabase } from './supabase';
 
 type EventUploadResourceType = 'image' | 'video' | 'auto';
 
+type UploadFile = {
+    uri: string;
+    name: string;
+    type: string;
+};
+
+function joinUrl(baseUrl: string, path: string) {
+    return `${baseUrl.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`;
+}
+
+function getUploadEndpoints() {
+    const explicitEndpoint = process.env.EXPO_PUBLIC_MEDIA_UPLOAD_URL?.trim();
+    if (explicitEndpoint) return [explicitEndpoint];
+
+    const endpoints: string[] = [];
+
+    const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+    if (apiBaseUrl) {
+        endpoints.push(joinUrl(apiBaseUrl, '/api/media/upload'));
+    }
+
+    const hostUri = Constants.expoConfig?.hostUri || Constants.manifest2?.extra?.expoGo?.developer?.hostUri;
+    const devHost = typeof hostUri === 'string' ? hostUri.split(':')[0] : '';
+    if (devHost) {
+        endpoints.push(`http://${devHost}:3000/api/media/upload`);
+    }
+
+    if (Platform.OS === 'android') {
+        endpoints.push('http://10.0.2.2:3000/api/media/upload');
+    }
+
+    endpoints.push('http://localhost:3000/api/media/upload');
+
+    return Array.from(new Set(endpoints));
+}
+
+async function fetchWithEndpointFallback(
+    requestFactory: (endpoint: string) => Promise<Response>,
+    context: string
+) {
+    const endpoints = getUploadEndpoints();
+    let lastError: unknown;
+
+    for (const endpoint of endpoints) {
+        try {
+            console.log(`[Storage] Trying ${context} endpoint: ${endpoint}`);
+            return await requestFactory(endpoint);
+        } catch (error) {
+            lastError = error;
+            console.warn(`[Storage] ${context} endpoint failed: ${endpoint}`, error);
+        }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error(`${context} request failed`);
+}
+
+function inferResourceType(resourceType: EventUploadResourceType, mimeType: string) {
+    if (resourceType === 'auto') {
+        return mimeType.startsWith('video/') ? 'video' : 'image';
+    }
+    return resourceType;
+}
+
 export async function uploadEventMedia(
-    file: { uri: string; name: string; type: string },
+    file: UploadFile,
     eventId: string,
     userId?: string,
     resourceType: EventUploadResourceType = 'image'
 ) {
     try {
-        console.log(`[Storage] Starting upload for ${file.name} to event ${eventId}`);
-        console.log(`[Storage] Config - Cloud Name: "${CLOUD_NAME}", Upload Preset: "${UPLOAD_PRESET}"`);
+        const resolvedResourceType = inferResourceType(resourceType, file.type);
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
 
-        const formData = new FormData();
-        formData.append('file', {
-            uri: file.uri,
-            type: file.type,
-            name: file.name,
-        } as any);
-        formData.append('upload_preset', UPLOAD_PRESET);
-        formData.append('folder', `wed_album/${userId ? `${userId}/${eventId}` : eventId}`);
+        if (!accessToken) {
+            throw new Error('Please log in before uploading media.');
+        }
 
-        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/upload`, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'Content-Type': 'multipart/form-data',
+        console.log(`[Storage] Uploading ${file.name} to Backblaze for event ${eventId}`);
+
+        const response = await fetchWithEndpointFallback(
+            (endpoint) => {
+                const formData = new FormData();
+                formData.append('file', {
+                    uri: file.uri,
+                    type: file.type,
+                    name: file.name,
+                } as any);
+                formData.append('eventId', eventId);
+                formData.append('resourceType', resolvedResourceType);
+                if (userId) {
+                    formData.append('userId', userId);
+                }
+
+                return fetch(endpoint, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                });
             },
-        });
+            'media upload'
+        );
 
-        const result = await response.json();
+        const result = await response.json().catch(() => ({}));
 
         if (!response.ok) {
-            console.error('[Cloudinary] Upload failed:', result);
-            throw new Error(result.error?.message || 'Upload failed');
+            throw new Error(result.error || 'Upload failed');
         }
 
         return {
-            url: result.secure_url,
-            publicId: result.public_id,
+            url: result.url,
+            publicId: result.publicId || result.storageKey || '',
+            storageKey: result.storageKey,
             width: result.width,
             height: result.height,
             bytes: result.bytes,
             format: result.format,
-            resourceType: result.resource_type || resourceType
+            mediaType: result.mediaType,
+            resourceType: result.resourceType || resolvedResourceType,
         };
     } catch (error) {
         console.error('[Storage] Error:', error);
@@ -59,36 +132,47 @@ export async function uploadEventMedia(
     }
 }
 
-export async function uploadEventImage(file: { uri: string; name: string; type: string }, eventId: string, userId?: string) {
+export async function uploadEventImage(file: UploadFile, eventId: string, userId?: string) {
     return uploadEventMedia(file, eventId, userId, 'image');
 }
 
 export async function uploadProfileImage(base64: string, userId: string) {
     try {
-        console.log(`[Storage] Starting profile upload to Cloudinary for user ${userId}`);
-        console.log(`[Storage] Config - Cloud Name: "${CLOUD_NAME}", Upload Preset: "${UPLOAD_PRESET}"`);
+        console.log(`[Storage] Starting profile upload to Backblaze for user ${userId}`);
 
-        const formData = new FormData();
-        formData.append('file', base64);
-        formData.append('upload_preset', UPLOAD_PRESET);
-        formData.append('folder', `wed_album/profiles/${userId}`);
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
 
-        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-            method: 'POST',
-            body: formData,
-        });
+        if (!accessToken) {
+            throw new Error('Please log in before uploading a profile image.');
+        }
 
-        const result = await response.json();
+        const response = await fetchWithEndpointFallback((endpoint) => fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    scope: 'profile',
+                    base64,
+                    fileName: `profile-${userId}.jpg`,
+                    contentType: 'image/jpeg',
+                    resourceType: 'image',
+                }),
+            }),
+            'profile upload'
+        );
+
+        const result = await response.json().catch(() => ({}));
 
         if (!response.ok) {
-            console.error('[Cloudinary] Profile photo upload failed:', result);
-            console.error('[Cloudinary] Failed with config - Cloud Name:', CLOUD_NAME, 'Preset:', UPLOAD_PRESET);
-            throw new Error(result.error?.message || 'Upload failed');
+            throw new Error(result.error || 'Upload failed');
         }
 
         return {
-            url: result.secure_url,
-            publicId: result.public_id,
+            url: result.url,
+            publicId: result.publicId || result.storageKey || '',
         };
     } catch (error) {
         console.error('[Storage] Error in uploadProfileImage:', error);

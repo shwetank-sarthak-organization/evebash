@@ -315,7 +315,7 @@ export default function PricingScreen() {
               { backgroundColor: activePackage.isPopular ? '#d4af37' : '#1e293b' }
             ]}
             onPress={() => {
-              router.push('/(tabs)/menu'); 
+              router.push('/contact');
             }}
             activeOpacity={0.8}
           >
@@ -338,7 +338,7 @@ export default function PricingScreen() {
           <Text style={styles.customPlanDesc}>
             {`Running a large studio or enterprise operation? Let's build a plan tailored to your exact needs.`}
           </Text>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/menu')} activeOpacity={0.7}>
+          <TouchableOpacity onPress={() => router.push('/contact')} activeOpacity={0.7}>
             <Text style={styles.customPlanLink}>Contact Us for Custom Quote →</Text>
           </TouchableOpacity>
         </View>

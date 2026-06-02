@@ -44,7 +44,7 @@ export default function FaceIndexPage() {
 
         try {
             // 1. Fetch all photos
-            addLog("Fetching photo list from Cloudinary...");
+            addLog("Fetching photo list from media storage...");
             const allPhotos = await getAllPhotos();
             addLog(`Found ${allPhotos.length} photos in total.`);
 
@@ -58,10 +58,7 @@ export default function FaceIndexPage() {
                 // We'll rely on the indexing state, though this loop won't stop immediately if unmounted.
 
                 try {
-                    // Use a smaller image for detection speed if possible, 
-                    // but for ACCURACY (since this is run once by admin), we might want the full or slightly larger res.
-                    // Let's use w_800 for a balance.
-                    const scanUrl = photo.src.replace("/upload/", "/upload/w_800/");
+                    const scanUrl = photo.src;
 
                     // Fetch image as HTMLImageElement for face-api
                     const img = await faceapi.fetchImage(scanUrl);

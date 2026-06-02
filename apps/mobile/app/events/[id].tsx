@@ -1041,12 +1041,20 @@ export default function EventDetailScreen() {
 
   const handleUploadGalleryMedia = async (mediaType: 'photo' | 'video' = 'photo') => {
     if (!event) return;
+    if (!user?.uid) {
+      Alert.alert("Login Required", "Please log in before uploading media.");
+      return;
+    }
     const activeId = selectedAdminGallery !== undefined
       ? (selectedAdminGallery ? selectedAdminGallery.id : event.id)
       : (activeSubEvent ? activeSubEvent.id : event.id);
     const activeLegacyId = selectedAdminGallery !== undefined
       ? (selectedAdminGallery ? selectedAdminGallery.legacyId : event.legacyId)
       : (activeSubEvent ? activeSubEvent.legacyId : event.legacyId);
+    if (!activeId) {
+      Alert.alert("Error", "Please select a valid gallery before uploading.");
+      return;
+    }
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: mediaType === 'video' ? ['videos'] : ['images'],
@@ -1066,30 +1074,33 @@ export default function EventDetailScreen() {
           type: asset.mimeType || fallbackType,
         } as any;
         const upload = mediaType === 'video'
-          ? await uploadEventMedia(file, activeId, user?.uid || 'anon', 'video')
-          : await uploadEventImage(file, activeId, user?.uid || 'anon');
+          ? await uploadEventMedia(file, activeId, user.uid, 'video')
+          : await uploadEventImage(file, activeId, user.uid);
 
         const { addPhoto } = await import('@/lib/firestore');
-        await addPhoto({
+        const savedPhotoId = await addPhoto({
           eventId: activeId,
           url: upload.url,
           cloudinaryPublicId: upload.publicId || '',
           mediaType,
           resourceType: upload.resourceType,
           uploadedAt: new Date(),
-          userId: user?.uid || 'anon',
+          userId: user.uid,
           width: upload.width,
           height: upload.height,
           size: upload.bytes,
           format: upload.format,
         });
+        if (!savedPhotoId) {
+          throw new Error("Media uploaded, but saving its gallery record failed.");
+        }
 
         loadPhotos(activeId, activeLegacyId);
         setGalleryMediaTab(mediaType === 'video' ? 'videos' : 'photos');
         Alert.alert("Success", `${mediaType === 'video' ? 'Video' : 'Photo'} uploaded successfully!`);
-      } catch (err) {
+      } catch (err: any) {
         console.error('[UploadMedia] Error:', err);
-        Alert.alert("Error", `Failed to upload ${mediaType === 'video' ? 'video' : 'photo'}.`);
+        Alert.alert("Error", `Failed to upload ${mediaType === 'video' ? 'video' : 'photo'}: ${err.message || err}`);
       } finally {
         setUpdating(false);
       }
@@ -1400,6 +1411,10 @@ export default function EventDetailScreen() {
   };
 
   const handleChangeCover = async () => {
+    if (!user?.uid) {
+      Alert.alert("Login Required", "Please log in before changing the cover.");
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -1413,7 +1428,7 @@ export default function EventDetailScreen() {
       setUpdating(true);
       try {
         const file = { uri: result.assets[0].uri, name: 'cover.jpg', type: 'image/jpeg' } as any;
-        const upload = await uploadEventImage(file, event?.id || target.id, user?.uid || 'anon');
+        const upload = await uploadEventImage(file, event?.id || target.id, user.uid);
         
         const updatedFields = {
           coverImage: upload.url,
@@ -1446,6 +1461,10 @@ export default function EventDetailScreen() {
 
   const handleCreateSubEvent = async () => {
     if (!newSubTitle.trim() || !event) return;
+    if (!user?.uid) {
+      Alert.alert("Login Required", "Please log in before creating a gallery.");
+      return;
+    }
     setUpdating(true);
     try {
       const subId = `${newSubTitle.toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).slice(-4)}`;
@@ -1455,7 +1474,7 @@ export default function EventDetailScreen() {
         date: normalizeEventDate(event.date) || event.date,
         coverImage: event.coverImage,
         description: `Welcome to the ${newSubTitle} gallery! Share your beautiful moments and thoughts here.`,
-        createdBy: user?.uid,
+        createdBy: user.uid,
         type: 'sub',
         parentId: event.id,
         templateId: event.templateId || 'hero',

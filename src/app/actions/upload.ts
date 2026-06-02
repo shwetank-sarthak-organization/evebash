@@ -1,43 +1,158 @@
 "use server";
 
-import { v2 as cloudinary } from 'cloudinary';
+import { randomUUID } from "crypto";
 
-cloudinary.config({
-    cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-    secure: true,
-});
+type BackblazeAuth = {
+    authorizationToken: string;
+    apiUrl: string;
+};
 
-export async function uploadToCloudinary(base64Image: string, folder: string) {
+type BackblazeUploadUrl = {
+    uploadUrl: string;
+    authorizationToken: string;
+};
+
+type BackblazeUploadOptions = {
+    fileName?: string;
+    contentType?: string;
+    resourceType?: "image" | "video";
+};
+
+function requireEnv(name: string) {
+    const value = process.env[name]?.trim();
+    if (!value) {
+        throw new Error(`${name} is not configured`);
+    }
+    return value;
+}
+
+function sanitizeSegment(value: string) {
+    return value
+        .trim()
+        .replace(/[^a-zA-Z0-9._-]/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 100);
+}
+
+function parseBase64DataUrl(base64File: string, fallbackContentType?: string) {
+    const match = base64File.match(/^data:([^;]+);base64,(.+)$/);
+    const contentType = match?.[1] || fallbackContentType || "application/octet-stream";
+    const payload = match?.[2] || base64File;
+    return {
+        contentType,
+        bytes: Buffer.from(payload, "base64"),
+    };
+}
+
+function getExtension(fileName: string, contentType: string) {
+    const fromName = fileName.split(".").pop();
+    if (fromName && fromName !== fileName) return fromName.toLowerCase();
+    if (contentType.includes("/")) return contentType.split("/")[1].split("+")[0].toLowerCase();
+    return "bin";
+}
+
+function buildStorageKey(folder: string, options: Required<Pick<BackblazeUploadOptions, "resourceType">> & BackblazeUploadOptions, contentType: string) {
+    const cleanFolder = folder
+        .split("/")
+        .map((segment) => sanitizeSegment(segment))
+        .filter(Boolean)
+        .join("/");
+    const mediaFolder = options.resourceType === "video" ? "videos" : "photos";
+    const safeFileName = sanitizeSegment(options.fileName || `upload.${getExtension("", contentType)}`);
+    const extension = getExtension(safeFileName, contentType);
+    const finalName = safeFileName.includes(".") ? safeFileName : `${safeFileName}.${extension}`;
+
+    return `${cleanFolder || "uploads"}/${mediaFolder}/${Date.now()}-${randomUUID()}-${finalName}`;
+}
+
+async function authorizeBackblaze(): Promise<BackblazeAuth> {
+    const keyId = requireEnv("B2_KEY_ID");
+    const applicationKey = requireEnv("B2_APPLICATION_KEY");
+    const credentials = Buffer.from(`${keyId}:${applicationKey}`).toString("base64");
+
+    const response = await fetch("https://api.backblazeb2.com/b2api/v3/b2_authorize_account", {
+        headers: {
+            Authorization: `Basic ${credentials}`,
+        },
+    });
+
+    if (!response.ok) {
+        throw new Error(`Backblaze authorization failed with ${response.status}`);
+    }
+
+    const data = await response.json();
+    return {
+        authorizationToken: data.authorizationToken,
+        apiUrl: data.apiInfo.storageApi.apiUrl,
+    };
+}
+
+async function getUploadUrl(auth: BackblazeAuth): Promise<BackblazeUploadUrl> {
+    const bucketId = requireEnv("B2_BUCKET_ID");
+    const response = await fetch(`${auth.apiUrl}/b2api/v3/b2_get_upload_url`, {
+        method: "POST",
+        headers: {
+            Authorization: auth.authorizationToken,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ bucketId }),
+    });
+
+    if (!response.ok) {
+        throw new Error(`Backblaze upload URL request failed with ${response.status}`);
+    }
+
+    return response.json();
+}
+
+export async function uploadToBackblaze(base64File: string, folder: string, options: BackblazeUploadOptions = {}) {
     try {
-        console.log(`[Server Action] Received upload request. Payload size: ${Math.round(base64Image.length / 1024 / 1024 * 100) / 100} MB`);
+        const resourceType = options.resourceType || (options.contentType?.startsWith("video/") ? "video" : "image");
+        const { contentType, bytes } = parseBase64DataUrl(base64File, options.contentType);
+        const storageKey = buildStorageKey(folder, { ...options, resourceType }, contentType);
 
-        const result = await cloudinary.uploader.upload(base64Image, {
-            folder: `wed_album/${folder}`,
-            resource_type: 'auto',
-            transformation: [
-                { quality: 'auto', fetch_format: 'auto' },
-                { width: 2500, height: 2500, crop: 'limit' }
-            ]
+        console.log(`[Server Action] Uploading media to Backblaze. Size: ${Math.round(bytes.length / 1024 / 1024 * 100) / 100} MB`);
+
+        const auth = await authorizeBackblaze();
+        const uploadUrl = await getUploadUrl(auth);
+
+        const uploadResponse = await fetch(uploadUrl.uploadUrl, {
+            method: "POST",
+            headers: {
+                Authorization: uploadUrl.authorizationToken,
+                "Content-Type": contentType,
+                "X-Bz-File-Name": encodeURIComponent(storageKey),
+                "X-Bz-Content-Sha1": "do_not_verify",
+            },
+            body: bytes,
         });
 
-        console.log(`[Server Action] Cloudinary upload success: ${result.public_id}`);
+        const uploadResult = await uploadResponse.json().catch(() => ({}));
+        if (!uploadResponse.ok) {
+            throw new Error(uploadResult.message || `Backblaze upload failed with ${uploadResponse.status}`);
+        }
+
+        const mediaDomain = requireEnv("MEDIA_DOMAIN").replace(/^https?:\/\//, "").replace(/\/+$/, "");
+        const url = `https://${mediaDomain}/${storageKey}`;
 
         return {
             success: true,
-            url: result.secure_url,
-            public_id: result.public_id,
-            width: result.width,
-            height: result.height,
-            bytes: result.bytes,
-            format: result.format,
+            url,
+            public_id: storageKey,
+            storageKey,
+            fileId: uploadResult.fileId,
+            width: undefined,
+            height: undefined,
+            bytes: uploadResult.contentLength || bytes.length,
+            format: getExtension(options.fileName || storageKey, contentType),
+            resourceType,
         };
-    } catch (error: any) {
-        console.error("[Server Action] Cloudinary Upload Error Detail:", error);
+    } catch (error: unknown) {
+        console.error("[Server Action] Backblaze upload error:", error);
         return {
             success: false,
-            error: error?.message || "Cloudinary upload failed",
+            error: error instanceof Error ? error.message : "Backblaze upload failed",
         };
     }
 }

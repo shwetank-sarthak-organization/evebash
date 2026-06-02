@@ -242,9 +242,9 @@ export function useEventState(id: string, user: any) {
 
         loadPhotos(activeId, activeLegacyId);
         Alert.alert("Success", "Photo uploaded successfully!");
-      } catch (err) {
-        console.error('[UploadPhoto] Error:', err);
-        Alert.alert("Error", "Failed to upload photo.");
+      } catch (err: any) {
+        console.error('[EventUpload] Error:', err);
+        Alert.alert("Error", `Failed to upload photo: ${err.message || err}`);
       } finally {
         setUpdating(false);
       }

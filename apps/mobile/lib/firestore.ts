@@ -31,6 +31,7 @@ export interface Event {
     order?: number;
     titleAlign?: 'left' | 'center' | 'right';
     hostName?: string;
+    showWelcomeCard?: boolean;
 }
 
 export interface Photo {
@@ -182,7 +183,16 @@ function mapSqlToEvent(e: any): Event {
         legacyId: e.legacy_id,
         templateId: e.template_id,
         joinId: e.join_id,
-        order: e.order
+        order: e.order,
+        category: e.category,
+        showWelcomeCard: e.show_welcome_card,
+        coverOffset: e.cover_offset,
+        coverOffsetX: e.cover_offset_x,
+        coverScale: e.cover_scale,
+        coverMode: e.cover_mode,
+        titleAlign: e.title_align,
+        vendors: e.vendors || [],
+        hostName: e.host_name
     };
 }
 
@@ -192,6 +202,8 @@ function mapSqlToPhoto(p: any): Photo {
         eventId: p.event_id,
         cloudinaryPublicId: p.cloudinary_public_id,
         url: p.url,
+        mediaType: p.media_type,
+        resourceType: p.resource_type,
         uploadedAt: p.uploaded_at,
         userId: p.user_id,
         width: p.width,
@@ -635,7 +647,11 @@ export async function createEvent(event: Event) {
             parent_id: event.parentId || null,
             legacy_id: event.legacyId || null,
             template_id: event.templateId || 'hero',
-            join_id: event.joinId || null
+            join_id: event.joinId || null,
+            category: event.category || null,
+            order: event.order ?? null,
+            show_welcome_card: event.showWelcomeCard ?? true,
+            title_align: event.titleAlign || null
         });
 
         if (error) throw error;
@@ -1007,6 +1023,16 @@ export async function updateEvent(eventId: string, data: Partial<Event>) {
         if (data.description !== undefined) updateObj.description = data.description;
         if (data.coverImage !== undefined) updateObj.cover_image = data.coverImage;
         if (data.date !== undefined) updateObj.date = data.date;
+        if (data.category !== undefined) updateObj.category = data.category;
+        if (data.templateId !== undefined) updateObj.template_id = data.templateId;
+        if (data.showWelcomeCard !== undefined) updateObj.show_welcome_card = data.showWelcomeCard;
+        if (data.coverOffset !== undefined) updateObj.cover_offset = data.coverOffset;
+        if (data.coverOffsetX !== undefined) updateObj.cover_offset_x = data.coverOffsetX;
+        if (data.coverScale !== undefined) updateObj.cover_scale = data.coverScale;
+        if (data.coverMode !== undefined) updateObj.cover_mode = data.coverMode;
+        if (data.order !== undefined) updateObj.order = data.order;
+        if (data.titleAlign !== undefined) updateObj.title_align = data.titleAlign;
+        if (data.vendors !== undefined) updateObj.vendors = data.vendors;
 
         const { error } = await supabase.from('events').update(updateObj).eq('id', eventId);
         if (error) throw error;
@@ -1047,6 +1073,8 @@ export async function addPhoto(data: Omit<Photo, 'id'>) {
             height: data.height || null,
             size: data.size || null,
             format: data.format || null,
+            media_type: data.mediaType || 'photo',
+            resource_type: data.resourceType || (data.mediaType === 'video' ? 'video' : 'image'),
             uploaded_at: new Date().toISOString()
         });
         if (error) throw error;

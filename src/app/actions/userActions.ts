@@ -2,13 +2,7 @@
 
 import { getAdminAuth, getAdminDb } from "@/lib/firebase-admin";
 import * as admin from 'firebase-admin';
-import { v2 as cloudinary } from 'cloudinary';
-
-cloudinary.config({
-    cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+import { uploadToBackblaze } from "./upload";
 
 /**
  * Server Action to delete a user's account from Firebase Auth and their profile from Firestore.
@@ -113,10 +107,10 @@ export async function syncAllAuthUsers(requesterEmail: string) {
 }
 
 /**
- * Server Action to securely upload a base64 encoded profile image to Cloudinary.
+ * Server Action to securely upload a base64 encoded profile image to Backblaze.
  * Returns the secure URL of the uploaded image.
  */
-export async function uploadProfileImageToCloudinary(base64Image: string, uid: string) {
+export async function uploadProfileImageToBackblaze(base64Image: string, uid: string) {
     try {
         console.log(`[Server Action] Uploading profile image for UID: ${uid}`);
 
@@ -126,22 +120,20 @@ export async function uploadProfileImageToCloudinary(base64Image: string, uid: s
             throw new Error("Unauthorized request. UID is missing.");
         }
 
-        // Upload the image to Cloudinary
-        const uploadResponse = await cloudinary.uploader.upload(base64Image, {
-            folder: `wedding_app_profiles/${uid}`,
-            public_id: 'profile_pic',
-            overwrite: true,
-            resource_type: 'image',
-            transformation: [
-                { width: 500, height: 500, crop: "fill", gravity: "face" },
-                { quality: "auto:good" }
-            ]
+        const uploadResponse = await uploadToBackblaze(base64Image, `profiles/${uid}`, {
+            fileName: "profile_pic.jpg",
+            contentType: "image/jpeg",
+            resourceType: "image",
         });
 
-        console.log(`[Server Action] Profile image uploaded successfully: ${uploadResponse.secure_url}`);
-        return { success: true, url: uploadResponse.secure_url };
+        if (!uploadResponse.success || !uploadResponse.url) {
+            throw new Error(uploadResponse.error || "Upload failed.");
+        }
+
+        console.log(`[Server Action] Profile image uploaded successfully: ${uploadResponse.url}`);
+        return { success: true, url: uploadResponse.url };
     } catch (error: any) {
-        console.error("[Server Action] Error uploading profile image to Cloudinary:", error);
+        console.error("[Server Action] Error uploading profile image to Backblaze:", error);
         return { success: false, error: error.message || "Upload failed." };
     }
 }

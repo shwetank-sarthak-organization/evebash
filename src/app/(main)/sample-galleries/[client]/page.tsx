@@ -13,12 +13,12 @@ const clients = {
     "samarth-jyoti-wedding": {
         title: "Samarth & Jyoti Wedding",
         description: "A royal celebration of love in Dehradun.",
-        coverImg: "https://res.cloudinary.com/dkphvdlwk/image/upload/v1767722218/0D2A5838_2_cgepes.jpg",
+        coverImg: "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1400&auto=format&fit=crop",
         events: [
-            { name: "Haldi", slug: "haldi", category: "Pre-Wedding", img: "https://res.cloudinary.com/dkphvdlwk/image/upload/v1767724606/7C0A9948_1_cwl7g6.jpg" },
-            { name: "Mehendi", slug: "mehendi", category: "Pre-Wedding", img: "https://res.cloudinary.com/dkphvdlwk/image/upload/v1767692471/7C0A0649_kkwbbu.jpg" },
-            { name: "Wedding", slug: "wedding", category: "Ceremony", img: "https://res.cloudinary.com/dkphvdlwk/image/upload/v1767692961/0D2A5755_1_cipyfz.jpg" },
-            { name: "Reception", slug: "reception", category: "Celebration", img: "https://res.cloudinary.com/dkphvdlwk/image/upload/v1767724545/VIS_5683_1_fx794l.jpg" },
+            { name: "Haldi", slug: "haldi", category: "Pre-Wedding", img: "https://images.unsplash.com/photo-1606800052052-a08af7148866?q=80&w=1400&auto=format&fit=crop" },
+            { name: "Mehendi", slug: "mehendi", category: "Pre-Wedding", img: "https://images.unsplash.com/photo-1610173827043-62c0f1f05d04?q=80&w=1400&auto=format&fit=crop" },
+            { name: "Wedding", slug: "wedding", category: "Ceremony", img: "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1400&auto=format&fit=crop" },
+            { name: "Reception", slug: "reception", category: "Celebration", img: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=1400&auto=format&fit=crop" },
         ]
     }
 };

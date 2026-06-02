@@ -944,7 +944,7 @@ export default function DashboardScreen() {
                       marginBottom: 24
                     }}>
                       <Text style={{ fontFamily: 'Outfit_700Bold', color: colors.gold }}>
-                        "{selectedRequestEvent?.eventTitle || 'This event'}"
+                        {`"${selectedRequestEvent?.eventTitle || 'This event'}"`}
                       </Text> is private. Would you like to request access from the creator? Once approved, it will automatically appear in your collections dashboard.
                     </Text>
 
@@ -1068,7 +1068,7 @@ export default function DashboardScreen() {
                         marginBottom: 16,
                         paddingHorizontal: 16
                       }}>
-                        "{statusModalConfig.eventName}"
+                        {`"${statusModalConfig.eventName}"`}
                       </Text>
                     ) : null}
 

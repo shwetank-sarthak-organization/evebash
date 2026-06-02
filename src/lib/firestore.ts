@@ -23,7 +23,7 @@ export interface Event {
 export interface Photo {
     id: string;
     eventId: string;
-    cloudinaryPublicId: string; // The ID in Cloudinary (or Firebase path)
+    cloudinaryPublicId: string; // Legacy field name; stores the media storage key
     url: string;                // The public URL
     driveDownloadUrl?: string;  // Fallback
     height?: number;

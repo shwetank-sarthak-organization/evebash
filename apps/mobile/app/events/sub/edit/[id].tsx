@@ -17,15 +17,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { getEventById, getEventPhotos, deletePhoto, addPhoto, Event as FirestoreEvent, Photo } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
+import { uploadEventImage } from '@/lib/storage';
 
 const { width } = Dimensions.get('window');
 const COLUMN_COUNT = 3;
 const IMAGE_MARGIN = 2;
 const IMAGE_SIZE = (width - (COLUMN_COUNT + 1) * IMAGE_MARGIN) / COLUMN_COUNT;
-
-// Cloudinary Config (from web app)
-const CLOUDINARY_CLOUD_NAME = "db0feghsr";
-const CLOUDINARY_UPLOAD_PRESET = "ml_default"; // Usually default for unsigned
 
 export default function EditPhotosScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -84,35 +81,26 @@ export default function EditPhotosScreen() {
 
     for (const asset of assets) {
       try {
-        const base64 = `data:image/jpeg;base64,${asset.base64}`;
-        
-        // Upload to Cloudinary using unsigned preset
-        // Note: In a production app, you'd ideally use a signed upload or a backend proxy.
-        const formData = new FormData();
-        formData.append('file', base64);
-        formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-        formData.append('folder', `wed_album/${id}`);
+        const fileName = asset.fileName || asset.uri?.split('/').pop() || `photo-${Date.now()}.jpg`;
+        const upload = await uploadEventImage({
+          uri: asset.uri,
+          name: fileName,
+          type: asset.mimeType || 'image/jpeg',
+        }, id!, user?.uid);
 
-        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
-          method: 'POST',
-          body: formData,
-        });
-
-        const data = await response.json();
-
-        if (data.secure_url) {
+        if (upload.url) {
           await addPhoto({
             eventId: id!,
-            url: data.secure_url,
-            cloudinaryPublicId: data.public_id,
+            url: upload.url,
+            cloudinaryPublicId: upload.publicId,
             mediaType: 'photo',
             resourceType: 'image',
             uploadedAt: new Date(),
             userId: user?.uid || subEvent?.createdBy,
-            width: data.width || asset.width,
-            height: data.height || asset.height,
-            size: data.bytes || asset.fileSize,
-            format: data.format,
+            width: upload.width || asset.width,
+            height: upload.height || asset.height,
+            size: upload.bytes || asset.fileSize,
+            format: upload.format,
           });
           successCount++;
         }

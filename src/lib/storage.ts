@@ -1,4 +1,4 @@
-import { uploadToCloudinary } from "@/app/actions/upload";
+import { uploadToBackblaze } from "@/app/actions/upload";
 
 /**
  * Converts a File object to a base64 string
@@ -13,34 +13,38 @@ async function fileToBase64(file: File): Promise<string> {
 }
 
 /**
- * Uploads a file to Cloudinary via a Server Action
+ * Uploads a file to Backblaze via a Server Action
  * Returns the download URL and metadata.
  */
 export async function uploadEventImage(file: File, eventId: string, userId?: string) {
     try {
-        console.log(`[Cloudinary] Starting upload for: ${file.name} to event: ${eventId}`);
+        console.log(`[Storage] Starting upload for: ${file.name} to event: ${eventId}`);
 
         const base64 = await fileToBase64(file);
-        const folder = userId ? `${userId}/${eventId}` : eventId;
+        const folder = userId ? `events/${eventId}/${userId}` : `events/${eventId}`;
 
-        const result = await uploadToCloudinary(base64, folder);
+        const result = await uploadToBackblaze(base64, folder, {
+            fileName: file.name,
+            contentType: file.type,
+            resourceType: file.type.startsWith("video/") ? "video" : "image",
+        });
 
         if (!result.success) {
             throw new Error(result.error);
         }
 
-        console.log(`[Cloudinary] Upload complete: ${result.url?.substring(0, 50)}...`);
+        console.log(`[Storage] Upload complete: ${result.url?.substring(0, 50)}...`);
 
         return {
             url: result.url as string,
             publicId: result.public_id as string,
-            width: result.width as number,
-            height: result.height as number,
+            width: result.width,
+            height: result.height,
             bytes: result.bytes as number,
             format: result.format as string
         };
     } catch (error: unknown) {
-        console.error("[Cloudinary] Progress Error:", error);
+        console.error("[Storage] Progress Error:", error);
         throw error;
     }
 }

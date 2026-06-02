@@ -15,8 +15,8 @@ export default function DebugPage() {
             storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
             msgSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
             appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-            cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-            cloudKey: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
+            mediaDomain: process.env.MEDIA_DOMAIN,
+            b2Endpoint: process.env.B2_ENDPOINT,
         });
 
         if (db) {

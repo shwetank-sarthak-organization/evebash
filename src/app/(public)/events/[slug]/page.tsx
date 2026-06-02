@@ -7,7 +7,6 @@ import { notFound, useParams, useRouter, useSearchParams } from "next/navigation
 import LoadingScreen from "@/components/LoadingScreen";
 import { getEvent } from "@/lib/events"; // Static Data
 import { getEventPhotos, getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event, Photo as FirestorePhoto } from "@/lib/firestore"; // Live Data
-import { syncCloudinaryToFirestore } from "@/app/actions/sync";
 import { EventNavbar } from "@/components/EventNavbar";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
@@ -314,18 +313,8 @@ function EventPageContent() {
 
 
                 // 1. Fetch from Firestore CLIENT-SIDE (Authenticated / Rules-friendly)
-                let firestorePhotos = await getEventPhotos(eventData.id, eventData.legacyId);
+                const firestorePhotos = await getEventPhotos(eventData.id, eventData.legacyId);
 
-                // 2. If Empty, trigger server-side Sync fallback
-                if (firestorePhotos.length === 0) {
-                    // ... (keep sync logic)
-                    const syncResult = await syncCloudinaryToFirestore(eventData.id, eventData.createdBy, eventData.legacyId);
-                    if (syncResult.success && (syncResult.count || 0) > 0) {
-                        firestorePhotos = await getEventPhotos(eventData.id, eventData.legacyId);
-                    }
-                }
-
-                // ... (keep transformation)
                 const transformedPhotos = (firestorePhotos as FirestorePhoto[]).map(p => ({
                     id: p.id,
                     src: p.url || "",

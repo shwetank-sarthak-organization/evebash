@@ -76,6 +76,7 @@ import {
 SplashScreen.preventAutoHideAsync();
 
 LogBox.ignoreLogs([
+  "Can't perform a React state update on a component that hasn't mounted yet",
   '@firebase/firestore: Firestore',
   'Could not reach Cloud Firestore backend',
   'Backend didn\'t respond within 10 seconds',

@@ -14,7 +14,7 @@ const albums = [
     slug: "samarth-jyoti-wedding",
     category: "Wedding",
     year: "2024",
-    coverImg: "https://res.cloudinary.com/dkphvdlwk/image/upload/v1767722218/0D2A5838_2_cgepes.jpg"
+    coverImg: "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1400&auto=format&fit=crop"
   },
 ];
 

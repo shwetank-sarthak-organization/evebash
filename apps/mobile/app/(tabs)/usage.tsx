@@ -191,7 +191,7 @@ export default function UsageScreen() {
             <TouchableOpacity 
               style={styles.listItem}
               activeOpacity={0.7}
-              onPress={() => router.push('/billing')}
+              onPress={() => router.push('/(tabs)/pricing')}
             >
               <View style={styles.listItemLeft}>
                 <View style={[styles.listIconBox, { backgroundColor: 'rgba(148, 163, 184, 0.1)' }]}>
@@ -225,7 +225,7 @@ export default function UsageScreen() {
             <TouchableOpacity 
               style={styles.listItem}
               activeOpacity={0.7}
-              onPress={() => router.push('/help')}
+              onPress={() => router.push('/contact')}
             >
               <View style={styles.listItemLeft}>
                 <View style={[styles.listIconBox, { backgroundColor: 'rgba(148, 163, 184, 0.1)' }]}>

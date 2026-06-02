@@ -51,6 +51,7 @@ function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
 
 export default function BusinessDetailScreen() {
   const { id } = useLocalSearchParams();
+  const businessId = Array.isArray(id) ? id[0] : id;
   const router = useRouter();
   const { user } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
@@ -85,7 +86,7 @@ export default function BusinessDetailScreen() {
   const [reviewComment, setReviewComment] = useState('');
 
   const handleRatingSubmit = async () => {
-    if (!business || typeof id !== 'string') return;
+    if (!business || !businessId) return;
     if (!user || !user.uid) {
       Alert.alert("Authentication Required", "Please sign in to submit a rating.");
       return;
@@ -93,7 +94,7 @@ export default function BusinessDetailScreen() {
     setSubmittingRating(true);
     try {
       // 1. Fetch user's existing rating if they have rated before
-      const existingUserRating = await getUserRatingForBusiness(user.uid, id);
+      const existingUserRating = await getUserRatingForBusiness(user.uid, businessId);
       
       const currentRating = business.rating || 5.0;
       const weight = 8; // Weighted average historical anchor
@@ -112,14 +113,14 @@ export default function BusinessDetailScreen() {
       }
       
       // 2. Securely persist user rating log with optional text review comment
-      const saveSuccess = await saveUserRating(user.uid, id, selectedRating, reviewComment, user.name);
+      const saveSuccess = await saveUserRating(user.uid, businessId, selectedRating, reviewComment, user.name);
       if (!saveSuccess) {
         Alert.alert("Error", "Failed to save rating log. Please try again.");
         return;
       }
 
       // 3. Update the aggregate business profile rating field
-      const success = await updateBusiness(id, { rating: roundedRating });
+      const success = await updateBusiness(businessId, { rating: roundedRating });
       if (success) {
         setBusiness({
           ...business,
@@ -127,7 +128,7 @@ export default function BusinessDetailScreen() {
         });
         
         // Refresh reviews list in background
-        getReviewsForBusiness(id).then(list => setReviews(list)).catch(err => console.log('Reviews refresh failed', err));
+        getReviewsForBusiness(businessId).then(list => setReviews(list)).catch(err => console.log('Reviews refresh failed', err));
         setReviewComment(''); // Clear review comment input state
         
         const message = existingUserRating !== null
@@ -150,20 +151,20 @@ export default function BusinessDetailScreen() {
   useFocusEffect(
     React.useCallback(() => {
       async function fetchBusiness() {
-        if (typeof id === 'string') {
+        if (businessId) {
           // 1. Fetch core business data as fast as possible
-          let data = await getBusinessById(id);
+          let data = await getBusinessById(businessId);
           
           if (data) {
             // Generate a unique deterministic vendorCode based on the business ID prefix
             if (!data.vendorCode) {
-              const docIdCode = id.substring(0, 6).toUpperCase();
+              const docIdCode = businessId.substring(0, 6).toUpperCase();
               const vendorCode = `VEN-${docIdCode}`;
               data = { ...data, vendorCode };
               
               if (user && (user.uid === data.createdBy || user.email === data.ownerEmail)) {
                 // Background update (non-blocking)
-                updateBusiness(id, { vendorCode }).catch(err => 
+                updateBusiness(businessId, { vendorCode }).catch(err => 
                   console.warn("Silent ignore: Failed to save vendorCode to db", err)
                 );
               }
@@ -173,16 +174,16 @@ export default function BusinessDetailScreen() {
             
             // Track profile view — fire-and-forget, non-blocking, skip for the business owner
             if (user?.uid !== data.createdBy) {
-              incrementBusinessViewCount(id).catch(() => {});
+              incrementBusinessViewCount(businessId).catch(() => {});
             }
 
             // Load shortlist state — prefer local user.shortlisted, fall back to Firestore
             if (user?.uid) {
-              const alreadyShortlisted = user.shortlisted?.includes(id) ?? false;
+              const alreadyShortlisted = user.shortlisted?.includes(businessId) ?? false;
               setIsFavorited(alreadyShortlisted);
               // If shortlisted array is not in context yet, confirm with a background fetch
               if (!user.shortlisted) {
-                getBusinessShortlistStatus(user.uid, id)
+                getBusinessShortlistStatus(user.uid, businessId)
                   .then(status => setIsFavorited(status))
                   .catch(() => {});
               }
@@ -196,18 +197,18 @@ export default function BusinessDetailScreen() {
           // 3. Perform background updates (completely non-blocking)
           if (data) {
             // Fetch dynamic events count in background
-            getEventsCountForVendor(id).then(count => {
+            getEventsCountForVendor(businessId).then(count => {
               setEventsLikedCount(count);
             }).catch(err => console.log('Background events fetch failed', err));
 
             // Fetch dynamic announcements in background
-            getAnnouncementsForBusiness(id).then(list => {
+            getAnnouncementsForBusiness(businessId).then(list => {
               setAnnouncementsList(list);
             }).catch(err => console.log('Background announcements fetch failed', err));
             
             // Fetch dynamic reviews in background
             setLoadingReviews(true);
-            getReviewsForBusiness(id).then(list => {
+            getReviewsForBusiness(businessId).then(list => {
               setReviews(list);
             }).catch(err => console.log('Background reviews fetch failed', err))
               .finally(() => setLoadingReviews(false));
@@ -250,7 +251,7 @@ export default function BusinessDetailScreen() {
         }
       }
       fetchBusiness();
-    }, [id])
+    }, [businessId])
   );
 
   const getDistanceString = () => {
@@ -484,12 +485,12 @@ export default function BusinessDetailScreen() {
               style={[styles.glassBtn, isFavorited && styles.glassBtnActive]} 
               disabled={isShortlisting || !user?.uid}
               onPress={async () => {
-                if (!user?.uid || typeof id !== 'string') return;
+                if (!user?.uid || !businessId) return;
                 // Optimistic update
                 setIsFavorited(prev => !prev);
                 setIsShortlisting(true);
                 try {
-                  await toggleBusinessShortlist(user.uid, id, isFavorited);
+                  await toggleBusinessShortlist(user.uid, businessId, isFavorited);
                 } catch {
                   // Rollback on error
                   setIsFavorited(prev => !prev);
@@ -590,7 +591,6 @@ export default function BusinessDetailScreen() {
                       style={[styles.tabText, activeTab === tab && styles.tabTextActive]}
                       numberOfLines={1}
                       adjustsFontSizeToFit
-                      minimumScaleFactor={0.75}
                     >
                       {tab}
                     </Text>
@@ -753,7 +753,8 @@ export default function BusinessDetailScreen() {
                 <Text style={styles.sectionTitle}>What Clients Say</Text>
                 <TouchableOpacity onPress={() => {
                   if (user && user.uid) {
-                    getUserRatingForBusiness(user.uid, id).then(r => {
+                    if (!businessId) return;
+                    getUserRatingForBusiness(user.uid, businessId).then(r => {
                       if (r !== null) setSelectedRating(r);
                     }).catch(() => {});
                   }

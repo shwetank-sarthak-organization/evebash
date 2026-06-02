@@ -73,7 +73,6 @@ import { Tooltip } from "@/components/Tooltip";
 import { navigateWithModifierClick } from "@/lib/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { Timestamp } from "firebase/firestore";
-import { syncCloudinaryToFirestore } from "@/app/actions/sync";
 import { deleteGuestAction, updateGuestStatusAction } from "@/app/actions/permissions";
 import * as faceapi from "face-api.js";
 import { saveFaceToIndex } from "@/lib/firestore";
@@ -489,33 +488,7 @@ function DashboardContent() {
             // 1. Fetch from Firestore CLIENT-SIDE (Respects permissions)
             // Use legacyId if available, fallback to selectedEventId
             const legacyId = currentEvent?.legacyId;
-            let photos = await getEventPhotos(selectedEventId, legacyId);
-
-            // 2. If Empty, trigger SERVER-SIDE Sync
-            if (photos.length === 0) {
-                setStatus("uploading");
-                setMessage("Syncing from Cloudinary...");
-
-                const syncResult = await syncCloudinaryToFirestore(
-                    selectedEventId,
-                    currentEvent?.createdBy,
-                    currentEvent?.legacyId
-                );
-
-                if (syncResult.success && (syncResult.count || 0) > 0) {
-                    // Re-fetch on client after successful sync
-                    photos = await getEventPhotos(selectedEventId, legacyId);
-                    setMessage(`Sync success! ${syncResult.count || 0} photos restored. ✨`);
-                    setStatus("success");
-                    setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
-                } else if (!syncResult.success) {
-                    setStatus("idle");
-                    setMessage("");
-                } else {
-                    setStatus("idle");
-                    setMessage("");
-                }
-            }
+            const photos = await getEventPhotos(selectedEventId, legacyId);
 
             setCurrentEventPhotos(photos as Photo[]);
         } catch (error) {

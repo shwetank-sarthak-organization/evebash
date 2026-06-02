@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CldImage } from "next-cloudinary";
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment } from "@/lib/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { Heart, MessageCircle, Send, X, Download, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
@@ -124,10 +123,7 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
         e.stopPropagation();
         if (!photo || disableDownload) return;
         try {
-            let downloadUrl = photo.src;
-            if (downloadUrl.includes("cloudinary.com") && downloadUrl.includes("/upload/")) {
-                downloadUrl = downloadUrl.replace("/upload/", "/upload/fl_attachment/");
-            }
+            const downloadUrl = photo.src;
             const link = document.createElement('a');
             link.href = downloadUrl;
             link.setAttribute('download', photo.filename || 'wedding-photo');
@@ -166,8 +162,6 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
     }, [isOpen, onClose, onNext, onPrev, showComments]);
 
     if (!photo) return null;
-
-    const useCloudinary = !!photo.cloudinaryPublicId || !photo.src.startsWith("http");
 
     return (
         <AnimatePresence>
@@ -243,22 +237,11 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                 transition={{ duration: 0.3 }}
                                 className="relative flex items-center justify-center pointer-events-none"
                             >
-                                {useCloudinary ? (
-                                    <CldImage
-                                        src={photo.cloudinaryPublicId || photo.src}
-                                        width={photo.width || 1200}
-                                        height={photo.height || 1200}
-                                        alt={photo.alt || "Event Photo"}
-                                        preserveTransformations
-                                        className="max-w-[95vw] md:max-w-full max-h-[60vh] md:max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
-                                    />
-                                ) : (
-                                    <img
-                                        src={photo.src}
-                                        alt={photo.alt || "Event Photo"}
-                                        className="max-w-[95vw] md:max-w-full max-h-[60vh] md:max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
-                                    />
-                                )}
+                                <img
+                                    src={photo.src}
+                                    alt={photo.alt || "Event Photo"}
+                                    className="max-w-[95vw] md:max-w-full max-h-[60vh] md:max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
+                                />
                             </motion.div>
                         </div>
 

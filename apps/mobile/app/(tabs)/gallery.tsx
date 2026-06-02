@@ -1966,6 +1966,8 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   scannerCloseBtn: { position: 'absolute', bottom: 20, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },
   scannerCloseText: { color: colors.white, fontFamily: Fonts.inter.bold, fontSize: 12 },
   permissionText: { color: colors.white, textAlign: 'center', marginBottom: 20, fontFamily: Fonts.inter.medium },
+  upgradeBtn: { backgroundColor: colors.gold, paddingHorizontal: 18, paddingVertical: 12, borderRadius: 8 },
+  upgradeText: { color: colors.midnight, fontFamily: Fonts.inter.bold },
   modalDivider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 24 },
   dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
   dividerText: { color: colors.slate400, fontSize: 12, fontFamily: Fonts.inter.bold },

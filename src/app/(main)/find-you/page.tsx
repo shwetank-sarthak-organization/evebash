@@ -95,7 +95,7 @@ export default function FindYouPage() {
             const uniqueMatches = Array.from(new Map(matches.map(item => [item.imageId, item])).values());
 
             setMatchedPhotos(uniqueMatches.map(p => ({
-                id: p.imageId, // Use the cloudinary ID
+                id: p.imageId,
                 src: p.imageUrl,
                 width: p.width,
                 height: p.height,

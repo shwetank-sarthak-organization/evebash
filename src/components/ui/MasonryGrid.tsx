@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { CldImage } from "next-cloudinary";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { onPhotoInteractions, toggleLike } from "@/lib/firestore";
@@ -98,10 +97,7 @@ function PhotoCard({
         if (disableDownload) return;
         setIsDownloading(true);
         try {
-            let downloadUrl = photo.src;
-            if (downloadUrl.includes("cloudinary.com") && downloadUrl.includes("/upload/")) {
-                downloadUrl = downloadUrl.replace("/upload/", "/upload/fl_attachment/");
-            }
+            const downloadUrl = photo.src;
 
             const link = document.createElement('a');
             link.href = downloadUrl;
@@ -116,8 +112,6 @@ function PhotoCard({
         }
     };
 
-    const useCloudinary = !!photo.cloudinaryPublicId || !photo.src.startsWith("http");
-
     return (
         <motion.div
             initial={{ opacity: 0, y: 40 }}
@@ -131,27 +125,12 @@ function PhotoCard({
             )}
         >
             <div className="relative w-full overflow-hidden">
-                {useCloudinary ? (
-                    <CldImage
-                        src={photo.cloudinaryPublicId || photo.src}
-                        width={photo.width || 500}
-                        height={photo.height || 500}
-                        alt={photo.alt || "Event Photo"}
-                        crop="fill"
-                        gravity="auto"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        className="w-full h-auto object-cover transform transition-all duration-700 group-hover:scale-[1.02]"
-                        placeholder="blur"
-                        blurDataURL="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxIDEiPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNlN2U1ZTQiLz48L3N2Zz4="
-                    />
-                ) : (
-                    <img
-                        src={photo.src}
-                        alt={photo.alt || "Event Photo"}
-                        className="w-full h-auto object-cover transform transition-all duration-700 group-hover:scale-[1.02]"
-                        loading="lazy"
-                    />
-                )}
+                <img
+                    src={photo.src}
+                    alt={photo.alt || "Event Photo"}
+                    className="w-full h-auto object-cover transform transition-all duration-700 group-hover:scale-[1.02]"
+                    loading="lazy"
+                />
             </div>
 
             {/* Bottom Instagram-style Bar */}

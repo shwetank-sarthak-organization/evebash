@@ -1,50 +1,35 @@
 "use server";
 
-import { getCloudinaryImages } from "@/lib/cloudinary";
-import { getEvents } from "@/lib/firestore";
-
+import { supabase } from "@/lib/supabase";
 
 export interface SimplePhoto {
     id: string;
     src: string;
+    eventId: string;
     width: number;
     height: number;
-    eventName: string;
-    eventId: string;
 }
 
 export async function getAllPhotos(): Promise<SimplePhoto[]> {
-    try {
-        const events = await getEvents();
-        const allPhotos: SimplePhoto[] = [];
+    const { data, error } = await supabase
+        .from("photos")
+        .select("id,event_id,url,width,height,media_type,resource_type")
+        .neq("media_type", "video")
+        .neq("resource_type", "video")
+        .order("uploaded_at", { ascending: false });
 
-
-        // Fetch from all events in parallel
-        const promises = events.map(async (event) => {
-            const folderName = event.id; // Use event ID as folder name (or add a field if needed)
-            const result = await getCloudinaryImages(folderName);
-            const images = result.resources || [];
-
-            return images.map(img => ({
-                id: img.public_id,
-                src: img.secure_url,
-                width: img.width,
-                height: img.height,
-                eventName: event.title,
-                eventId: event.id
-            }));
-        });
-
-        const results = await Promise.all(promises);
-
-        // Flatten the array
-        results.forEach(photos => {
-            allPhotos.push(...photos);
-        });
-
-        return allPhotos;
-    } catch (error) {
-        console.error("Error fetching all photos:", error);
+    if (error) {
+        console.error("[Photos] Failed to fetch photos:", error);
         return [];
     }
+
+    return (data || [])
+        .filter((photo) => !!photo.url)
+        .map((photo) => ({
+            id: photo.id,
+            src: photo.url,
+            eventId: photo.event_id,
+            width: photo.width || 800,
+            height: photo.height || 600,
+        }));
 }

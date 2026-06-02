@@ -24,7 +24,7 @@ export default function Home() {
             <section className="relative h-screen w-full flex items-center justify-center overflow-hidden">
                 <motion.div style={{ y, opacity }} className="absolute inset-0 z-0 h-[120%] -top-[10%]">
                     <Image
-                        src="https://res.cloudinary.com/dkphvdlwk/image/upload/v1767692961/0D2A5755_1_cipyfz.jpg"
+                        src="https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1400&auto=format&fit=crop"
                         alt="Royal Couple"
                         fill
                         className="object-cover object-[50%_35%] opacity-90"
@@ -96,7 +96,7 @@ export default function Home() {
                     <ScrollReveal direction="left" delay={0.2}>
                         <div className="relative aspect-[3/4] w-full max-w-md mx-auto shadow-2xl rounded-[3rem] overflow-hidden group border-8 border-white/50">
                             <Image
-                                src="https://res.cloudinary.com/dkphvdlwk/image/upload/v1767692961/0D2A5755_1_cipyfz.jpg"
+                                src="https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1400&auto=format&fit=crop"
                                 alt="Photographer"
                                 fill
                                 className="object-cover transition-transform duration-1000 group-hover:scale-110"
