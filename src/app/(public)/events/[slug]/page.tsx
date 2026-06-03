@@ -318,10 +318,11 @@ function EventPageContent() {
                 const transformedPhotos = (firestorePhotos as FirestorePhoto[]).map(p => ({
                     id: p.id,
                     src: p.url || "",
-                    cloudinaryPublicId: p.cloudinaryPublicId || "",
+                    thumbnailUrl: p.thumbnailUrl || undefined,
+                    storageKey: p.storageKey || "",
                     width: p.width || 800,
                     height: p.height || 600,
-                    filename: p.cloudinaryPublicId ? p.cloudinaryPublicId.split('/').pop() : 'photo'
+                    filename: p.storageKey ? p.storageKey.split('/').pop() : 'photo'
                 }));
                 setPhotos(transformedPhotos);
             }

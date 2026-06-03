@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 interface Photo {
     id: string;
     src: string;
-    cloudinaryPublicId?: string;
+    storageKey?: string;
     alt?: string;
     height?: number;
     width?: number;
@@ -57,7 +57,7 @@ export function MasonryGrid({ photos, className, eventSlug }: MasonryGridProps) 
         <div className={cn("container mx-auto px-4 py-8", className)}>
             <div className="columns-1 sm:columns-2 md:columns-3 gap-6 space-y-6">
                 {photos.map((photo, index) => {
-                    const useCloudinary = !!photo.cloudinaryPublicId || !photo.src.startsWith("http");
+                    const useCloudinary = !!photo.storageKey || !photo.src.startsWith("http");
                     const isDownloading = downloadingId === photo.id;
 
                     return (
@@ -72,7 +72,7 @@ export function MasonryGrid({ photos, className, eventSlug }: MasonryGridProps) 
                             <div className="relative w-full">
                                 {useCloudinary ? (
                                     <CldImage
-                                        src={photo.cloudinaryPublicId || photo.src}
+                                        src={photo.storageKey || photo.src}
                                         width={photo.width || 500}
                                         height={photo.height || 500}
                                         alt={photo.alt || "Event Photo"}

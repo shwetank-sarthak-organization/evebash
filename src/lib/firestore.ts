@@ -26,7 +26,7 @@ export interface Event {
 export interface Photo {
     id: string;
     eventId: string;
-    cloudinaryPublicId: string; // Legacy field name; stores the media storage key
+    storageKey: string; // Legacy field name; stores the media storage key
     url: string;                // The public URL
     driveDownloadUrl?: string;  // Fallback
     height?: number;
@@ -36,6 +36,7 @@ export interface Photo {
     userId?: string;            // UID of the owner
     size?: number;              // File size in bytes
     format?: string;            // e.g., 'jpg', 'png'
+    thumbnailUrl?: string;      // The thumbnail URL
 }
 
 export interface FaceRecord {
@@ -121,7 +122,7 @@ function mapSqlToPhoto(p: any): Photo {
     return {
         id: p.id,
         eventId: p.event_id,
-        cloudinaryPublicId: p.cloudinary_public_id,
+        storageKey: p.storage_key,
         url: p.url,
         driveDownloadUrl: p.drive_download_url,
         height: p.height,
@@ -130,7 +131,8 @@ function mapSqlToPhoto(p: any): Photo {
         tags: p.tags,
         userId: p.user_id,
         size: p.size,
-        format: p.format
+        format: p.format,
+        thumbnailUrl: p.thumbnail_url
     };
 }
 
@@ -260,7 +262,7 @@ export async function savePhoto(photo: Photo) {
         const { error } = await supabase.from('photos').upsert({
             id: photo.id,
             event_id: photo.eventId,
-            cloudinary_public_id: photo.cloudinaryPublicId,
+            storage_key: photo.storageKey,
             url: photo.url,
             drive_download_url: photo.driveDownloadUrl || null,
             height: photo.height || null,
@@ -269,7 +271,8 @@ export async function savePhoto(photo: Photo) {
             tags: photo.tags || [],
             user_id: photo.userId || null,
             size: photo.size || null,
-            format: photo.format || null
+            format: photo.format || null,
+            thumbnail_url: photo.thumbnailUrl || null
         });
         if (error) throw error;
         return true;

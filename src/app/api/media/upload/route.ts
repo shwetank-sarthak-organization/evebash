@@ -261,9 +261,10 @@ export async function POST(request: NextRequest) {
       mediaType,
       resourceType,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[MediaUpload] Error:", error);
-    require('fs').appendFileSync('backend_error.log', `[MediaUpload] Error: ${error}\n${error.stack}\n`);
+    const errStack = error instanceof Error ? error.stack : "";
+    require('fs').appendFileSync('backend_error.log', `[MediaUpload] Error: ${error}\n${errStack}\n`);
     return jsonResponse({ error: error instanceof Error ? error.message : "Upload failed" }, 500);
   }
 }

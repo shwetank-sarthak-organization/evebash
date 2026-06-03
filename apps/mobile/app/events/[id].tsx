@@ -13,6 +13,7 @@ import { styles, FunkyFonts } from '../../components/eventStyles';
 import PhotoViewer from '../../components/PhotoViewer';
 import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory } from '../../constants/templates';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { uploadEventImage, uploadEventMedia } from '@/lib/storage';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -1059,7 +1060,7 @@ export default function EventDetailScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: mediaType === 'video' ? ['videos'] : ['images'],
       allowsEditing: false,
-      quality: 0.8,
+      quality: 1.0,
     });
 
     if (!result.canceled) {
@@ -1077,11 +1078,36 @@ export default function EventDetailScreen() {
           ? await uploadEventMedia(file, activeId, user.uid, 'video')
           : await uploadEventImage(file, activeId, user.uid);
 
+        // Generate and Upload Thumbnail (Only for Photos)
+        let thumbnailUrl: string | undefined = undefined;
+        if (mediaType === 'photo') {
+          try {
+            console.log(`[Storage] Generating thumbnail for ${file.name} client-side...`);
+            const manipulated = await ImageManipulator.manipulateAsync(
+              asset.uri,
+              [{ resize: { width: 500 } }],
+              { compress: 0.75, format: ImageManipulator.SaveFormat.JPEG }
+            );
+
+            const thumbFile = {
+              uri: manipulated.uri,
+              name: `thumb_${asset.fileName || fallbackName}`,
+              type: 'image/jpeg',
+            } as any;
+
+            const thumbUpload = await uploadEventImage(thumbFile, activeId, user.uid);
+            thumbnailUrl = thumbUpload.url;
+          } catch (thumbErr) {
+            console.error('[UploadMedia] Thumbnail generation/upload failed:', thumbErr);
+          }
+        }
+
         const { addPhoto } = await import('@/lib/firestore');
         const savedPhotoId = await addPhoto({
           eventId: activeId,
           url: upload.url,
-          cloudinaryPublicId: upload.publicId || '',
+          thumbnailUrl: thumbnailUrl,
+          storageKey: upload.publicId || '',
           mediaType,
           resourceType: upload.resourceType,
           uploadedAt: new Date(),
@@ -4010,7 +4036,7 @@ export default function EventDetailScreen() {
                             renderItem={({ item }: { item: any }) => (
                               <View style={{ position: 'relative', borderRadius: 10, overflow: 'hidden' }}>
                                 <Image
-                                  source={{ uri: item.url }}
+                                  source={{ uri: item.thumbnailUrl || item.url }}
                                   style={{
                                     width: '100%',
                                     aspectRatio: 1,

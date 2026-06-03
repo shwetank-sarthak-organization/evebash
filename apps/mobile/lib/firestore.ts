@@ -71,7 +71,7 @@ export interface Event {
 export interface Photo {
     id: string;
     eventId: string;
-    cloudinaryPublicId: string;
+    storageKey: string;
     url: string;
     mediaType?: 'photo' | 'video';
     resourceType?: 'image' | 'video' | string;
@@ -82,6 +82,7 @@ export interface Photo {
     size?: number;
     format?: string;
     order?: number;
+    thumbnailUrl?: string;
 }
 
 export interface Business {
@@ -234,7 +235,7 @@ function mapSqlToPhoto(p: any): Photo {
     return {
         id: p.id,
         eventId: p.event_id,
-        cloudinaryPublicId: p.cloudinary_public_id,
+        storageKey: p.storage_key,
         url: p.url,
         mediaType: p.media_type,
         resourceType: p.resource_type,
@@ -244,7 +245,8 @@ function mapSqlToPhoto(p: any): Photo {
         height: p.height,
         size: p.size,
         format: p.format,
-        order: p.order
+        order: p.order,
+        thumbnailUrl: p.thumbnail_url
     };
 }
 
@@ -1190,7 +1192,7 @@ export async function addPhoto(data: Omit<Photo, 'id'>) {
         const { error } = await supabase.from('photos').insert({
             id: generatedId,
             event_id: data.eventId,
-            cloudinary_public_id: data.cloudinaryPublicId,
+            storage_key: data.storageKey,
             url: data.url,
             user_id: data.userId || null,
             width: data.width || null,
@@ -1199,6 +1201,7 @@ export async function addPhoto(data: Omit<Photo, 'id'>) {
             format: data.format || null,
             media_type: data.mediaType || 'photo',
             resource_type: data.resourceType || (data.mediaType === 'video' ? 'video' : 'image'),
+            thumbnail_url: data.thumbnailUrl || null,
             uploaded_at: new Date().toISOString()
         });
         if (error) throw error;

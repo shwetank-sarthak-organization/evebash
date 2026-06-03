@@ -391,6 +391,50 @@ function DashboardContent() {
         });
     };
 
+    const createThumbnail = async (file: File): Promise<File> => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                let width = img.width;
+                let height = img.height;
+
+                const MAX_DIM = 500;
+                if (width > height) {
+                    if (width > MAX_DIM) {
+                        height *= MAX_DIM / width;
+                        width = MAX_DIM;
+                    }
+                } else {
+                    if (height > MAX_DIM) {
+                        width *= MAX_DIM / height;
+                        height = MAX_DIM;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext("2d");
+                ctx?.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob(
+                    (blob) => {
+                        if (blob) {
+                            resolve(new File([blob], `thumb_${file.name}`, { type: "image/jpeg" }));
+                        } else {
+                            resolve(file);
+                        }
+                    },
+                    "image/jpeg",
+                    0.75
+                );
+                URL.revokeObjectURL(img.src);
+            };
+            img.onerror = (err) => reject(err);
+        });
+    };
+
     const fetchUserEvents = async () => {
         if (!user || !user.uid) return;
         setLoadingEvents(true);
@@ -836,13 +880,18 @@ function DashboardContent() {
             const photoPromises = Array.from(selectedFiles).map(async (file, index) => {
                 console.log(`[Dashboard] Processing file ${index + 1}/${selectedFiles.length}: ${file.name}`);
 
-                // Compress if needed before sending to storage layer
-                const optimizedFile = await compressImage(file);
-                if (optimizedFile.size !== file.size) {
-                    console.log(`[Dashboard] Optimized ${file.name}: ${Math.round(file.size / 1024 / 1024 * 10) / 10}MB -> ${Math.round(optimizedFile.size / 1024 / 1024 * 10) / 10}MB`);
-                }
+                // 1. Upload Raw Original File
+                const uploadResult = await uploadEventImage(file, selectedEventId, user.uid || "anonymous");
 
-                const uploadResult = await uploadEventImage(optimizedFile, selectedEventId, user.uid || "anonymous");
+                // 2. Generate and Upload Thumbnail File
+                let thumbnailUrl: string | undefined = undefined;
+                try {
+                    const thumbFile = await createThumbnail(file);
+                    const thumbResult = await uploadEventImage(thumbFile, selectedEventId, user.uid || "anonymous");
+                    thumbnailUrl = thumbResult.url;
+                } catch (thumbErr) {
+                    console.error("[Dashboard] Thumbnail generation or upload failed:", thumbErr);
+                }
 
                 if (index === 0) firstUploadedUrl = uploadResult.url;
 
@@ -850,18 +899,19 @@ function DashboardContent() {
                 const photo: Photo = {
                     id: uniqueId,
                     eventId: selectedEventId,
-                    cloudinaryPublicId: uploadResult.publicId,
+                    storageKey: uploadResult.publicId,
                     url: uploadResult.url,
+                    thumbnailUrl: thumbnailUrl,
                     uploadedAt: new Date().toISOString(),
                     userId: user.uid || "anonymous",
                     width: uploadResult.width,
                     height: uploadResult.height,
-                    size: (uploadResult as any).bytes,
-                    format: (uploadResult as any).format
+                    size: uploadResult.bytes || file.size,
+                    format: uploadResult.format || file.name.split('.').pop() || "jpg"
                 };
 
                 await savePhoto(photo);
-                uploadResults.push({ file: optimizedFile, photo }); // Store for background indexing
+                uploadResults.push({ file, photo }); // Store for background indexing
             });
 
             await Promise.all(photoPromises);
@@ -1851,10 +1901,10 @@ function DashboardContent() {
                                                         onClick={() => setViewingPhoto({
                                                             id: photo.id,
                                                             src: photo.url,
-                                                            cloudinaryPublicId: photo.cloudinaryPublicId,
+                                                            storageKey: photo.storageKey,
                                                             width: photo.width,
                                                             height: photo.height,
-                                                            filename: photo.cloudinaryPublicId?.split('/').pop() || "photo"
+                                                            filename: photo.storageKey?.split('/').pop() || "photo"
                                                         })}
                                                     >
                                                         {/* Inner Clipping Container for Photo */}
@@ -2036,10 +2086,10 @@ function DashboardContent() {
                                                                                 onClick={() => setViewingPhoto({
                                                                                     id: photo.id,
                                                                                     src: photo.url,
-                                                                                    cloudinaryPublicId: photo.cloudinaryPublicId,
+                                                                                    storageKey: photo.storageKey,
                                                                                     width: photo.width,
                                                                                     height: photo.height,
-                                                                                    filename: photo.cloudinaryPublicId?.split('/').pop() || "photo"
+                                                                                    filename: photo.storageKey?.split('/').pop() || "photo"
                                                                                 })}
                                                                             >
                                                                                 <img src={photo.url} alt="" className="w-full h-full object-cover" />
@@ -2693,10 +2743,10 @@ function DashboardContent() {
                             setViewingPhoto({
                                 id: nextPhoto.id,
                                 src: nextPhoto.url,
-                                cloudinaryPublicId: nextPhoto.cloudinaryPublicId,
+                                storageKey: nextPhoto.storageKey,
                                 width: nextPhoto.width,
                                 height: nextPhoto.height,
-                                filename: nextPhoto.cloudinaryPublicId?.split('/').pop() || "photo"
+                                filename: nextPhoto.storageKey?.split('/').pop() || "photo"
                             });
                         }
                     }}
@@ -2708,10 +2758,10 @@ function DashboardContent() {
                             setViewingPhoto({
                                 id: prevPhoto.id,
                                 src: prevPhoto.url,
-                                cloudinaryPublicId: prevPhoto.cloudinaryPublicId,
+                                storageKey: prevPhoto.storageKey,
                                 width: prevPhoto.width,
                                 height: prevPhoto.height,
-                                filename: prevPhoto.cloudinaryPublicId?.split('/').pop() || "photo"
+                                filename: prevPhoto.storageKey?.split('/').pop() || "photo"
                             });
                         }
                     }}

@@ -92,7 +92,7 @@ export default function EditPhotosScreen() {
           await addPhoto({
             eventId: id!,
             url: upload.url,
-            cloudinaryPublicId: upload.publicId,
+            storageKey: upload.publicId,
             mediaType: 'photo',
             resourceType: 'image',
             uploadedAt: new Date(),

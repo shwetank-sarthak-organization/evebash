@@ -11,7 +11,8 @@ import { Lightbox } from "./Lightbox";
 interface Photo {
     id: string;
     src: string;
-    cloudinaryPublicId?: string;
+    thumbnailUrl?: string;  // Lightweight thumbnail for grid display
+    storageKey?: string;
     alt?: string;
     height?: number;
     width?: number;
@@ -126,7 +127,7 @@ function PhotoCard({
         >
             <div className="relative w-full overflow-hidden">
                 <img
-                    src={photo.src}
+                    src={photo.thumbnailUrl || photo.src}
                     alt={photo.alt || "Event Photo"}
                     className="w-full h-auto object-cover transform transition-all duration-700 group-hover:scale-[1.02]"
                     loading="lazy"

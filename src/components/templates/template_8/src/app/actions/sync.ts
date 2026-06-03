@@ -62,7 +62,7 @@ export async function syncCloudinaryToFirestore(eventId: string) {
                 batch.set(photoRef, {
                     id: uniqueId,
                     eventId: eventId,
-                    cloudinaryPublicId: img.public_id,
+                    storageKey: img.public_id,
                     width: img.width,
                     height: img.height,
                     url: img.secure_url,

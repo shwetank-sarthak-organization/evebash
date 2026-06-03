@@ -14,7 +14,7 @@ export interface Event {
 export interface Photo {
     id: string;
     eventId: string;
-    cloudinaryPublicId: string; // The ID in Cloudinary (e.g., "wed_album/mehendi/IMG_1234")
+    storageKey: string; // The ID in Cloudinary (e.g., "wed_album/mehendi/IMG_1234")
     url: string;                // The public URL (Cloudinary secure_url)
     driveDownloadUrl?: string;  // The direct download link from Drive (optional/fallback)
     height?: number;            // Important for Next.js Image optimization & CLS prevention

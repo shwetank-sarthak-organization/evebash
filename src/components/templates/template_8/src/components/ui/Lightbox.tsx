@@ -9,7 +9,7 @@ interface LightboxProps {
     onClose: () => void;
     photo: {
         src: string;
-        cloudinaryPublicId?: string;
+        storageKey?: string;
         alt?: string;
         width?: number;
         height?: number;
@@ -36,7 +36,7 @@ export function Lightbox({ isOpen, onClose, photo }: LightboxProps) {
 
     if (!photo) return null;
 
-    const useCloudinary = !!photo.cloudinaryPublicId || !photo.src.startsWith("http");
+    const useCloudinary = !!photo.storageKey || !photo.src.startsWith("http");
 
     return (
         <AnimatePresence>
@@ -69,7 +69,7 @@ export function Lightbox({ isOpen, onClose, photo }: LightboxProps) {
                     >
                         {useCloudinary ? (
                             <CldImage
-                                src={photo.cloudinaryPublicId || photo.src}
+                                src={photo.storageKey || photo.src}
                                 width={photo.width || 1200}
                                 height={photo.height || 1200}
                                 alt={photo.alt || "Event Photo"}

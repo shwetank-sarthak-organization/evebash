@@ -235,7 +235,7 @@ export function useEventState(id: string, user: any) {
         await addPhoto({
           eventId: activeId,
           url: upload.url,
-          cloudinaryPublicId: '',
+          storageKey: '',
           uploadedAt: new Date(),
           userId: user?.uid || 'anon'
         });

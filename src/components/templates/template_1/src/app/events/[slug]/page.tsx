@@ -27,10 +27,10 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
         return {
             id: p.id,
             src: p.url || "", // Fallback if url is missing
-            cloudinaryPublicId: p.cloudinaryPublicId,
+            storageKey: p.storageKey,
             width: p.width || 800,
             height: p.height || 600,
-            filename: p.cloudinaryPublicId.split('/').pop()
+            filename: p.storageKey.split('/').pop()
         };
     });
 

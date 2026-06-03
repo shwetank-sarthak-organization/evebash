@@ -13,7 +13,7 @@ interface LightboxProps {
     photo: {
         id: string;
         src: string;
-        cloudinaryPublicId?: string;
+        storageKey?: string;
         alt?: string;
         width?: number;
         height?: number;
