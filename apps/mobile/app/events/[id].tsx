@@ -14,6 +14,8 @@ import PhotoViewer from '../../components/PhotoViewer';
 import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory } from '../../constants/templates';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadEventImage, uploadEventMedia } from '@/lib/storage';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { subscribeToUploadQueue, addToUploadQueue, retryUploadItem, cancelUploadItem, clearFinishedUploads, resetUploadQueue, UploadQueueItem } from '@/lib/uploadQueue';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -522,6 +524,10 @@ export default function EventDetailScreen() {
   const [linkedVendors, setLinkedVendors] = useState<Business[]>([]);
   const [guestLogs, setGuestLogs] = useState<any[]>([]);
   const [updating, setUpdating] = useState(false);
+  const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
+  const [showUploadCompleteModal, setShowUploadCompleteModal] = useState(false);
+  const [showUploadFailedModal, setShowUploadFailedModal] = useState(false);
+  const prevActiveCountRef = React.useRef(0);
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -1049,9 +1055,6 @@ export default function EventDetailScreen() {
     const activeId = selectedAdminGallery !== undefined
       ? (selectedAdminGallery ? selectedAdminGallery.id : event.id)
       : (activeSubEvent ? activeSubEvent.id : event.id);
-    const activeLegacyId = selectedAdminGallery !== undefined
-      ? (selectedAdminGallery ? selectedAdminGallery.legacyId : event.legacyId)
-      : (activeSubEvent ? activeSubEvent.legacyId : event.legacyId);
     if (!activeId) {
       Alert.alert("Error", "Please select a valid gallery before uploading.");
       return;
@@ -1060,51 +1063,26 @@ export default function EventDetailScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: mediaType === 'video' ? ['videos'] : ['images'],
       allowsEditing: false,
+      allowsMultipleSelection: true,
       quality: 1.0,
     });
 
-    if (!result.canceled) {
-      setUpdating(true);
+    if (!result.canceled && result.assets && result.assets.length > 0) {
       try {
-        const asset = result.assets[0];
-        const fallbackType = mediaType === 'video' ? 'video/mp4' : 'image/jpeg';
-        const fallbackName = mediaType === 'video' ? 'video.mp4' : 'photo.jpg';
-        const file = {
-          uri: asset.uri,
-          name: asset.fileName || fallbackName,
-          type: asset.mimeType || fallbackType,
-        } as any;
-        const upload = mediaType === 'video'
-          ? await uploadEventMedia(file, activeId, user.uid, 'video')
-          : await uploadEventImage(file, activeId, user.uid);
-
-        // Cloudflare Image Resizing handles thumbnails on the fly — no extra upload needed
-        const { addPhoto } = await import('@/lib/firestore');
-        const savedPhotoId = await addPhoto({
-          eventId: activeId,
-          url: upload.url,
-          storageKey: upload.publicId || '',
-          mediaType,
-          resourceType: upload.resourceType,
-          uploadedAt: new Date(),
-          userId: user.uid,
-          width: upload.width,
-          height: upload.height,
-          size: upload.bytes,
-          format: upload.format,
+        const files = result.assets.map(asset => {
+          const fallbackType = mediaType === 'video' ? 'video/mp4' : 'image/jpeg';
+          const fallbackName = mediaType === 'video' ? 'video.mp4' : 'photo.jpg';
+          return {
+            uri: asset.uri,
+            name: asset.fileName || fallbackName,
+            type: asset.mimeType || fallbackType,
+          };
         });
-        if (!savedPhotoId) {
-          throw new Error("Media uploaded, but saving its gallery record failed.");
-        }
 
-        loadPhotos(activeId, activeLegacyId);
-        setGalleryMediaTab(mediaType === 'video' ? 'videos' : 'photos');
-        Alert.alert("Success", `${mediaType === 'video' ? 'Video' : 'Photo'} uploaded successfully!`);
+        await addToUploadQueue(files, activeId, user.uid, mediaType);
       } catch (err: any) {
-        console.error('[UploadMedia] Error:', err);
-        Alert.alert("Error", `Failed to upload ${mediaType === 'video' ? 'video' : 'photo'}: ${err.message || err}`);
-      } finally {
-        setUpdating(false);
+        console.error('[UploadMedia] Error queueing uploads:', err);
+        Alert.alert("Error", `Failed to start upload: ${err.message || err}`);
       }
     }
   };
@@ -1198,6 +1176,46 @@ export default function EventDetailScreen() {
     if (!id) return;
     loadEvent();
   }, [id, user]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToUploadQueue((items) => {
+      const currentActiveId = selectedAdminGallery !== undefined
+        ? (selectedAdminGallery ? selectedAdminGallery.id : event?.id)
+        : (activeSubEvent ? activeSubEvent.id : event?.id);
+
+      if (!currentActiveId) return;
+
+      const filtered = items.filter(item => item.eventId === currentActiveId);
+      setUploadQueue(filtered);
+
+      const activeItems = filtered.filter(i => i.status === 'uploading' || i.status === 'pending');
+      const completedItems = filtered.filter(i => i.status === 'completed');
+      const failedItems = filtered.filter(i => i.status === 'failed');
+
+      const prevActiveCount = prevActiveCountRef.current;
+      prevActiveCountRef.current = activeItems.length;
+
+      if (prevActiveCount > 0 && activeItems.length === 0) {
+        if (failedItems.length > 0) {
+          setShowUploadFailedModal(true);
+        } else if (completedItems.length > 0) {
+          setShowUploadCompleteModal(true);
+        }
+        clearFinishedUploads();
+      }
+
+      // Reload photos if any upload just finished successfully
+      const hasCompleted = items.some(item => item.status === 'completed' && item.eventId === currentActiveId);
+      if (hasCompleted) {
+        const activeLegacyId = selectedAdminGallery !== undefined
+          ? (selectedAdminGallery ? selectedAdminGallery.legacyId : event?.legacyId)
+          : (activeSubEvent ? activeSubEvent.legacyId : event?.legacyId);
+        loadPhotos(currentActiveId, activeLegacyId);
+      }
+    });
+
+    return unsubscribe;
+  }, [event?.id, activeSubEvent?.id, selectedAdminGallery?.id]);
 
   useEffect(() => {
     if (user) {
@@ -1429,7 +1447,12 @@ export default function EventDetailScreen() {
       if (!target) return;
       setUpdating(true);
       try {
-        const file = { uri: result.assets[0].uri, name: 'cover.jpg', type: 'image/jpeg' } as any;
+        const manipulated = await ImageManipulator.manipulateAsync(
+          result.assets[0].uri,
+          [{ resize: { width: 1200 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        const file = { uri: manipulated.uri, name: 'cover.jpg', type: 'image/jpeg' } as any;
         const upload = await uploadEventImage(file, event?.id || target.id, user.uid);
         
         const updatedFields = {
@@ -1743,6 +1766,96 @@ export default function EventDetailScreen() {
     if (words.length === 0) return ['W', 'E', 'D'];
     const letters = words.slice(0, 4).map(w => w.charAt(0).toUpperCase());
     return letters;
+  };
+
+  const renderUploadProgressCard = () => {
+    const active = uploadQueue.filter(i => i.status === 'uploading' || i.status === 'pending');
+    const failed = uploadQueue.filter(i => i.status === 'failed');
+    
+    if (active.length === 0 && failed.length === 0) return null;
+
+    const total = uploadQueue.length;
+    const completed = uploadQueue.filter(i => i.status === 'completed').length;
+    const currentUploading = uploadQueue.find(i => i.status === 'uploading');
+
+    // Calculate progress percentage
+    const progressSum = uploadQueue.reduce((sum, item) => {
+      if (item.status === 'completed') return sum + 100;
+      return sum + item.progress;
+    }, 0);
+    const overallPercent = total > 0 ? progressSum / (total * 100) * 100 : 0;
+
+    const bottomPosition = showAdminView ? 70 + insets.bottom : 20 + insets.bottom;
+
+    return (
+      <View style={[localStyles.progressCard, { bottom: bottomPosition, backgroundColor: selectedTemplate.panel, borderColor: selectedTemplate.accentBg }]}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={localStyles.progressCardTitle}>
+              {active.length > 0 
+                ? `Uploading Media (${completed}/${total})` 
+                : 'Upload Halted with Issues'}
+            </Text>
+            {currentUploading && (
+              <Text style={localStyles.progressCardSubtitle} numberOfLines={1}>
+                {currentUploading.fileName} ({Math.round(currentUploading.progress)}%)
+              </Text>
+            )}
+            {failed.length > 0 && (
+              <Text style={[localStyles.progressCardSubtitle, { color: '#f87171' }]}>
+                {failed.length} upload(s) failed.
+              </Text>
+            )}
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {failed.length > 0 && (
+              <TouchableOpacity 
+                style={[localStyles.progressCardBtn, { backgroundColor: 'rgba(248,113,113,0.15)' }]}
+                onPress={async () => {
+                  for (const item of failed) {
+                    await retryUploadItem(item.id);
+                  }
+                }}
+              >
+                <Text style={{ color: '#f87171', fontSize: 11, fontWeight: 'bold' }}>Retry</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity 
+              style={[localStyles.progressCardBtn, { backgroundColor: 'rgba(255,255,255,0.08)' }]}
+              onPress={async () => {
+                if (active.length > 0) {
+                  Alert.alert(
+                    "Cancel Uploads",
+                    "Are you sure you want to cancel all ongoing uploads?",
+                    [
+                      { text: "No", style: "cancel" },
+                      { 
+                        text: "Yes, Cancel All", 
+                        style: "destructive", 
+                        onPress: async () => {
+                          await resetUploadQueue();
+                        } 
+                      }
+                    ]
+                  );
+                } else {
+                  await clearFinishedUploads();
+                }
+              }}
+            >
+              <Text style={{ color: '#cbd5e1', fontSize: 11, fontWeight: 'bold' }}>
+                {active.length > 0 ? 'Cancel' : 'Dismiss'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        
+        {/* Progress Bar */}
+        <View style={localStyles.progressBarBg}>
+          <View style={[localStyles.progressBarFill, { width: `${overallPercent}%`, backgroundColor: selectedTemplate.accent }]} />
+        </View>
+      </View>
+    );
   };
 
   return (
@@ -6155,6 +6268,207 @@ export default function EventDetailScreen() {
           </View>
         </View>
       )}
+
+      {/* ── UPLOAD PROGRESS CARD OVERLAY (Managed in Dashboard Notifications Modal) ── */}
+
+      {/* ── CUSTOM THEME-STYLED UPLOAD COMPLETE MODAL ── */}
+      <Modal
+        visible={showUploadCompleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowUploadCompleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowUploadCompleteModal(false)} />
+          <View style={[
+            styles.modalContent, 
+            { 
+              padding: 24, 
+              borderRadius: 24, 
+              borderWidth: 1.5, 
+              backgroundColor: selectedTemplate.panel || (isDark ? '#0f172a' : '#ffffff'),
+              borderColor: selectedTemplate.accentBg || 'rgba(212, 175, 55, 0.3)',
+              alignItems: 'center',
+              alignSelf: 'center',
+              width: width * 0.8,
+            }
+          ]}>
+            <View style={{ 
+              width: 60, 
+              height: 60, 
+              borderRadius: 30, 
+              backgroundColor: 'rgba(34, 197, 94, 0.1)', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: 'rgba(34, 197, 94, 0.3)',
+            }}>
+              <IconSymbol name="checkmark.circle.fill" size={32} color="#22c55e" />
+            </View>
+            
+            <Text style={{ 
+              fontSize: 20, 
+              fontWeight: 'bold', 
+              color: selectedTemplate.accent || colors.gold || '#CCA43B', 
+              marginBottom: 8,
+              fontFamily: Fonts.outfit.bold,
+              textAlign: 'center',
+            }}>
+              Upload Complete
+            </Text>
+            
+            <Text style={{ 
+              fontSize: 14, 
+              color: isDark ? '#cbd5e1' : '#64748b', 
+              textAlign: 'center', 
+              marginBottom: 20,
+              fontFamily: Fonts.inter.regular,
+            }}>
+              Upload complete
+            </Text>
+            
+            <TouchableOpacity 
+              style={{ 
+                backgroundColor: selectedTemplate.accent || colors.gold || '#CCA43B', 
+                paddingVertical: 12, 
+                paddingHorizontal: 24, 
+                borderRadius: 12,
+                width: '100%',
+                alignItems: 'center'
+              }}
+              onPress={() => setShowUploadCompleteModal(false)}
+            >
+              <Text style={{ color: isDark ? '#020617' : '#ffffff', fontWeight: 'bold', fontFamily: Fonts.outfit.semiBold }}>
+                Done
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── CUSTOM THEME-STYLED UPLOAD FAILED MODAL ── */}
+      <Modal
+        visible={showUploadFailedModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowUploadFailedModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowUploadFailedModal(false)} />
+          <View style={[
+            styles.modalContent, 
+            { 
+              padding: 24, 
+              borderRadius: 24, 
+              borderWidth: 1.5, 
+              backgroundColor: selectedTemplate.panel || (isDark ? '#0f172a' : '#ffffff'),
+              borderColor: 'rgba(239, 68, 68, 0.3)',
+              alignItems: 'center',
+              alignSelf: 'center',
+              width: width * 0.8,
+            }
+          ]}>
+            <View style={{ 
+              width: 60, 
+              height: 60, 
+              borderRadius: 30, 
+              backgroundColor: 'rgba(239, 68, 68, 0.1)', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: 'rgba(239, 68, 68, 0.3)',
+            }}>
+              <IconSymbol name="xmark.circle.fill" size={32} color="#ef4444" />
+            </View>
+            
+            <Text style={{ 
+              fontSize: 20, 
+              fontWeight: 'bold', 
+              color: '#ef4444', 
+              marginBottom: 8,
+              fontFamily: Fonts.outfit.bold,
+              textAlign: 'center',
+            }}>
+              Upload Failed
+            </Text>
+            
+            <Text style={{ 
+              fontSize: 14, 
+              color: isDark ? '#cbd5e1' : '#64748b', 
+              textAlign: 'center', 
+              marginBottom: 20,
+              fontFamily: Fonts.inter.regular,
+            }}>
+              Upload failed
+            </Text>
+            
+            <TouchableOpacity 
+              style={{ 
+                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0', 
+                paddingVertical: 12, 
+                paddingHorizontal: 24, 
+                borderRadius: 12,
+                width: '100%',
+                alignItems: 'center'
+              }}
+              onPress={() => setShowUploadFailedModal(false)}
+            >
+              <Text style={{ color: isDark ? '#ffffff' : '#0f172a', fontWeight: 'bold', fontFamily: Fonts.outfit.semiBold }}>
+                Close
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
+
+const localStyles = StyleSheet.create({
+  progressCard: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    zIndex: 999,
+  },
+  progressCardTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+    fontFamily: Fonts.inter.bold,
+  },
+  progressCardSubtitle: {
+    color: '#94a3b8',
+    fontSize: 12,
+    marginTop: 4,
+    fontFamily: Fonts.inter.regular,
+  },
+  progressCardBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressBarBg: {
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 3,
+    marginTop: 12,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+});

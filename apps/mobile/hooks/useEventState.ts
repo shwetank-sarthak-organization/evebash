@@ -18,6 +18,7 @@ import {
 } from '@/lib/firestore';
 import { uploadEventImage } from '@/lib/storage';
 import { getDefaultTemplateForEventCategory } from '@/constants/templates';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 export function useEventState(id: string, user: any) {
   const router = useRouter();
@@ -328,7 +329,12 @@ export function useEventState(id: string, user: any) {
       if (!target) return;
       setUpdating(true);
       try {
-        const file = { uri: result.assets[0].uri, name: 'cover.jpg', type: 'image/jpeg' } as any;
+        const manipulated = await ImageManipulator.manipulateAsync(
+          result.assets[0].uri,
+          [{ resize: { width: 1200 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        const file = { uri: manipulated.uri, name: 'cover.jpg', type: 'image/jpeg' } as any;
         const upload = await uploadEventImage(file, event?.id || target.id, user?.uid || 'anon');
         
         const updatedFields = {

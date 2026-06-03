@@ -12,6 +12,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { AppThemeProvider, useAppTheme } from '@/context/ThemeContext';
 import * as SplashScreen from 'expo-splash-screen';
+import { initUploadQueue } from '@/lib/uploadQueue';
 import { 
   useFonts, 
   Outfit_400Regular, 
@@ -139,6 +140,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
 function RootLayoutContent() {
   const { isDark, colors } = useAppTheme();
+
+  useEffect(() => {
+    initUploadQueue().catch(err => console.error('[RootLayout] Queue init failed:', err));
+  }, []);
 
   const customTheme = {
     ...(isDark ? DarkTheme : DefaultTheme),

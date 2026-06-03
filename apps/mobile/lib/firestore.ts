@@ -1141,7 +1141,7 @@ export async function deleteEvent(eventId: string) {
     }
 }
 
-export async function updateEvent(eventId: string, data: Partial<Event>) {
+export async function updateEvent(eventId: string, data: Partial<Event>): Promise<boolean> {
     try {
         const updateObj: any = {};
         if (data.title !== undefined) updateObj.title = data.title;
@@ -1161,7 +1161,42 @@ export async function updateEvent(eventId: string, data: Partial<Event>) {
         if (data.vendors !== undefined) updateObj.vendors = data.vendors;
 
         const { error } = await supabase.from('events').update(updateObj).eq('id', eventId);
-        if (error) throw error;
+        if (error) {
+            // Self-healing retry for missing table columns (PostgREST PGRST204)
+            if (error.code === 'PGRST204') {
+                const match = error.message.match(/Could not find the '([^']+)' column/i);
+                if (match && match[1]) {
+                    const missingCol = match[1];
+                    console.warn(`[Firestore] Column '${missingCol}' does not exist on 'events' table. Pruning and retrying...`);
+                    
+                    const dbToPropMap: Record<string, string> = {
+                        title: 'title',
+                        description: 'description',
+                        cover_image: 'coverImage',
+                        date: 'date',
+                        category: 'category',
+                        template_id: 'templateId',
+                        show_welcome_card: 'showWelcomeCard',
+                        cover_offset: 'coverOffset',
+                        cover_offset_x: 'coverOffsetX',
+                        cover_scale: 'coverScale',
+                        cover_mode: 'coverMode',
+                        order: 'order',
+                        title_align: 'titleAlign',
+                        join_id: 'joinId',
+                        vendors: 'vendors',
+                    };
+
+                    const prop = dbToPropMap[missingCol];
+                    if (prop && data[prop as keyof typeof data] !== undefined) {
+                        const nextData = { ...data };
+                        delete nextData[prop as keyof typeof data];
+                        return updateEvent(eventId, nextData);
+                    }
+                }
+            }
+            throw error;
+        }
         return true;
     } catch (error) {
         console.error("Error updating event:", error);

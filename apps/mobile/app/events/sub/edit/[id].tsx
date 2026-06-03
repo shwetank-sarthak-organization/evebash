@@ -9,7 +9,8 @@ import {
   ActivityIndicator, 
   Alert, 
   Dimensions,
-  Platform
+  Platform,
+  Modal
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,6 +19,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { getEventById, getEventPhotos, deletePhoto, addPhoto, Event as FirestoreEvent, Photo } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { uploadEventImage } from '@/lib/storage';
+import { useAppTheme } from '@/context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 const COLUMN_COUNT = 3;
@@ -28,11 +30,14 @@ export default function EditPhotosScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
   
   const [subEvent, setSubEvent] = useState<FirestoreEvent | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [showUploadCompleteModal, setShowUploadCompleteModal] = useState(false);
+  const [showUploadFailedModal, setShowUploadFailedModal] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -111,10 +116,10 @@ export default function EditPhotosScreen() {
 
     setUploading(false);
     if (successCount > 0) {
-      Alert.alert('Success', `Successfully uploaded ${successCount} photo(s).`);
+      setShowUploadCompleteModal(true);
       fetchData();
     } else {
-      Alert.alert('Upload Failed', 'There was an error uploading your photos.');
+      setShowUploadFailedModal(true);
     }
   };
 
@@ -199,6 +204,164 @@ export default function EditPhotosScreen() {
           </TouchableOpacity>
         }
       />
+
+      {/* ── CUSTOM THEME-STYLED UPLOAD COMPLETE MODAL ── */}
+      <Modal
+        visible={showUploadCompleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowUploadCompleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowUploadCompleteModal(false)} />
+          <View style={[
+            styles.modalContent, 
+            { 
+              padding: 24, 
+              borderRadius: 24, 
+              borderWidth: 1.5, 
+              backgroundColor: isDark ? '#0f172a' : '#ffffff',
+              borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+              alignItems: 'center',
+              alignSelf: 'center',
+              width: width * 0.8,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: isDark ? 0.25 : 0.08,
+              shadowRadius: 20,
+              elevation: 10,
+            }
+          ]}>
+            <View style={{ 
+              width: 60, 
+              height: 60, 
+              borderRadius: 30, 
+              backgroundColor: 'rgba(34, 197, 94, 0.1)', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: 'rgba(34, 197, 94, 0.3)',
+            }}>
+              <IconSymbol name="checkmark.circle.fill" size={32} color="#22c55e" />
+            </View>
+            
+            <Text style={{ 
+              fontSize: 20, 
+              fontWeight: 'bold', 
+              color: isDark ? '#ffffff' : '#0f172a', 
+              marginBottom: 8,
+              textAlign: 'center',
+            }}>
+              Upload Complete
+            </Text>
+            
+            <Text style={{ 
+              fontSize: 14, 
+              color: isDark ? '#cbd5e1' : '#64748b', 
+              textAlign: 'center', 
+              marginBottom: 20,
+            }}>
+              Upload complete
+            </Text>
+            
+            <TouchableOpacity 
+              style={{ 
+                backgroundColor: '#0284c7', 
+                paddingVertical: 12, 
+                paddingHorizontal: 24, 
+                borderRadius: 12,
+                width: '100%',
+                alignItems: 'center'
+              }}
+              onPress={() => setShowUploadCompleteModal(false)}
+            >
+              <Text style={{ color: '#ffffff', fontWeight: 'bold' }}>
+                Done
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── CUSTOM THEME-STYLED UPLOAD FAILED MODAL ── */}
+      <Modal
+        visible={showUploadFailedModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowUploadFailedModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowUploadFailedModal(false)} />
+          <View style={[
+            styles.modalContent, 
+            { 
+              padding: 24, 
+              borderRadius: 24, 
+              borderWidth: 1.5, 
+              backgroundColor: isDark ? '#0f172a' : '#ffffff',
+              borderColor: 'rgba(239, 68, 68, 0.3)',
+              alignItems: 'center',
+              alignSelf: 'center',
+              width: width * 0.8,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: isDark ? 0.25 : 0.08,
+              shadowRadius: 20,
+              elevation: 10,
+            }
+          ]}>
+            <View style={{ 
+              width: 60, 
+              height: 60, 
+              borderRadius: 30, 
+              backgroundColor: 'rgba(239, 68, 68, 0.1)', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: 'rgba(239, 68, 68, 0.3)',
+            }}>
+              <IconSymbol name="xmark.circle.fill" size={32} color="#ef4444" />
+            </View>
+            
+            <Text style={{ 
+              fontSize: 20, 
+              fontWeight: 'bold', 
+              color: '#ef4444', 
+              marginBottom: 8,
+              textAlign: 'center',
+            }}>
+              Upload Failed
+            </Text>
+            
+            <Text style={{ 
+              fontSize: 14, 
+              color: isDark ? '#cbd5e1' : '#64748b', 
+              textAlign: 'center', 
+              marginBottom: 20,
+            }}>
+              Upload failed
+            </Text>
+            
+            <TouchableOpacity 
+              style={{ 
+                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0', 
+                paddingVertical: 12, 
+                paddingHorizontal: 24, 
+                borderRadius: 12,
+                width: '100%',
+                alignItems: 'center'
+              }}
+              onPress={() => setShowUploadFailedModal(false)}
+            >
+              <Text style={{ color: isDark ? '#ffffff' : '#0f172a', fontWeight: 'bold' }}>
+                Close
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -278,5 +441,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     marginTop: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  modalContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
   }
 });

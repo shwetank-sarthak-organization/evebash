@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, Event as FirestoreEvent } from '@/lib/firestore';
+import { getImageUrl } from '@/lib/imageUrl';
 import { MidnightColors, Fonts } from '../constants/theme';
 import { styles } from './eventStyles';
 
@@ -300,7 +301,7 @@ export default function PhotoViewer({
               <ViewerVideo uri={photos[currentPhotoIndex].url} frameBg={viewerTheme.tileBg} />
             ) : (
               <Image
-                source={{ uri: photos[currentPhotoIndex].url }}
+                source={{ uri: getImageUrl(photos[currentPhotoIndex].url, { width: 1600, quality: 80, format: 'webp' }) }}
                 style={{ width: '100%', height: '100%' }}
                 resizeMode="contain"
               />

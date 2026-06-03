@@ -57,7 +57,8 @@ async function fetchWithEndpointFallback(
         }
     }
 
-    throw lastError instanceof Error ? lastError : new Error(`${context} request failed`);
+    const endpointsStr = endpoints.join(', ');
+    throw new Error(`Failed to connect to any ${context} endpoint. Tried: [${endpointsStr}]. Last error: ${lastError instanceof Error ? lastError.message : lastError}`);
 }
 
 function inferResourceType(resourceType: EventUploadResourceType, mimeType: string) {

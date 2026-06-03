@@ -156,3 +156,40 @@ export async function uploadToBackblaze(base64File: string, folder: string, opti
         };
     }
 }
+
+export async function getPresignedUploadUrl(
+    folder: string,
+    fileName: string,
+    contentType: string,
+    resourceType: "image" | "video" = "image"
+) {
+    try {
+        const auth = await authorizeBackblaze();
+        const uploadUrlData = await getUploadUrl(auth);
+        
+        const storageKey = buildStorageKey(
+            folder,
+            { fileName, contentType, resourceType },
+            contentType
+        );
+        
+        const mediaDomain = requireEnv("MEDIA_DOMAIN")
+            .replace(/^https?:\/\//, "")
+            .replace(/\/+$/, "");
+
+        return {
+            success: true as const,
+            uploadUrl: uploadUrlData.uploadUrl,
+            authToken: uploadUrlData.authorizationToken,
+            storageKey,
+            finalUrl: `https://${mediaDomain}/${storageKey}`,
+        };
+    } catch (error: unknown) {
+        console.error("[Server Action] getPresignedUploadUrl error:", error);
+        return {
+            success: false as const,
+            error: error instanceof Error ? error.message : "Failed to generate upload URL",
+        };
+    }
+}
+

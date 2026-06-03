@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment } from "@/lib/firestore";
 import { useAuth } from "@/context/AuthContext";
+import { getImageUrl } from "@/lib/imageUrl";
 import { Heart, MessageCircle, Send, X, Download, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -238,7 +239,7 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                 className="relative flex items-center justify-center pointer-events-none"
                             >
                                 <img
-                                    src={photo.src}
+                                    src={getImageUrl(photo.src, { width: 1600, quality: 80, format: 'webp' })}
                                     alt={photo.alt || "Event Photo"}
                                     className="max-w-[95vw] md:max-w-full max-h-[60vh] md:max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
                                 />

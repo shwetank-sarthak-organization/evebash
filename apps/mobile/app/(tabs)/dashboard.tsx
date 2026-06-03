@@ -33,6 +33,7 @@ import {
   getNotifications,
   checkGuestRequestStatus,
 } from '@/lib/firestore';
+import { subscribeToUploadQueue } from '@/lib/uploadQueue';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path } from 'react-native-svg';
@@ -128,6 +129,7 @@ export default function DashboardScreen() {
   const [sendingRequest, setSendingRequest] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusModalConfig, setStatusModalConfig] = useState({ title: '', message: '', type: 'success' as 'success' | 'pending' | 'rejected', eventName: '' as string | undefined });
+  const [showUploadCompleteModal, setShowUploadCompleteModal] = useState(false);
 
   const loadDismissedNotifs = async () => {
     if (!user?.uid) return new Set<string>();
@@ -152,19 +154,69 @@ export default function DashboardScreen() {
       const list = await getNotifications(user.uid);
       const dismissed = await loadDismissedNotifs();
       const filtered = list.filter(item => !dismissed.has(item.id));
-      setNotifications(filtered);
+      
+      const { getUploadQueue } = require('@/lib/uploadQueue');
+      const queueItems = getUploadQueue();
+      const active = queueItems.filter((i: any) => i.status === 'uploading' || i.status === 'pending');
+      const failed = queueItems.filter((i: any) => i.status === 'failed');
+      const completed = queueItems.filter((i: any) => i.status === 'completed');
+      
+      let uploadNotif: any = null;
+      const total = queueItems.length;
+      const completedCount = completed.length;
+      const progressSum = queueItems.reduce((sum: number, item: any) => {
+        if (item.status === 'completed') return sum + 100;
+        return sum + item.progress;
+      }, 0);
+      const overallPercentage = total > 0 ? progressSum / (total * 100) * 100 : 0;
+
+      if (active.length > 0) {
+        uploadNotif = {
+          id: 'upload-active',
+          title: '📤 Uploading Media',
+          body: `Uploading: ${completedCount}/${total} files (${Math.round(overallPercentage)}%)`,
+          createdAt: new Date(),
+          type: 'upload_progress',
+          targetId: 'upload_queue'
+        };
+      } else if (failed.length > 0) {
+        uploadNotif = {
+          id: 'upload-failed',
+          title: '❌ Upload Halted with Issues',
+          body: `Succeeded: ${completedCount}, Failed: ${failed.length}. Tap to retry.`,
+          createdAt: new Date(),
+          type: 'upload_failed',
+          targetId: 'upload_queue'
+        };
+      } else if (completedCount > 0) {
+        uploadNotif = {
+          id: 'upload-success',
+          title: '✅ Upload Complete',
+          body: 'Upload complete',
+          createdAt: new Date(),
+          type: 'upload_success',
+          targetId: 'upload_queue'
+        };
+      }
+
+      const finalNotifs = [...filtered];
+      if (uploadNotif && !dismissed.has(uploadNotif.id)) {
+        finalNotifs.unshift(uploadNotif);
+      }
+
+      setNotifications(finalNotifs);
       
       const lastReadStr = await AsyncStorage.getItem(`EVEBASH_NOTIFS_LAST_READ_${user.uid}`);
       const lastReadTime = lastReadStr ? parseInt(lastReadStr, 10) : 0;
       setLastReadNotifs(lastReadTime);
 
-      if (filtered.length > 0) {
-        const latestNotif = filtered[0];
+      if (finalNotifs.length > 0) {
+        const latestNotif = finalNotifs[0];
         const latestTime = latestNotif.createdAt?.seconds 
           ? latestNotif.createdAt.seconds * 1000 
           : (latestNotif.createdAt instanceof Date ? latestNotif.createdAt.getTime() : 0);
         
-        if (latestTime > lastReadTime) {
+        if (latestTime > lastReadTime || (uploadNotif && (active.length > 0 || failed.length > 0 || completedCount > 0))) {
           setHasUnreadNotifications(true);
         } else {
           setHasUnreadNotifications(false);
@@ -181,6 +233,15 @@ export default function DashboardScreen() {
 
   const handleDismissNotification = async (notifId: string) => {
     try {
+      if (notifId.startsWith('upload-')) {
+        const { resetUploadQueue, clearFinishedUploads } = require('@/lib/uploadQueue');
+        if (notifId === 'upload-success') {
+          await clearFinishedUploads();
+        } else {
+          await resetUploadQueue();
+        }
+      }
+
       const updated = new Set(dismissedNotifIds);
       updated.add(notifId);
       setDismissedNotifIds(updated);
@@ -373,6 +434,66 @@ export default function DashboardScreen() {
   };
 
   useEffect(() => { fetchData(); }, [user]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToUploadQueue((queueItems) => {
+      const active = queueItems.filter(i => i.status === 'uploading' || i.status === 'pending');
+      const failed = queueItems.filter(i => i.status === 'failed');
+      const completed = queueItems.filter(i => i.status === 'completed');
+      
+      const total = queueItems.length;
+      const completedCount = completed.length;
+      const progressSum = queueItems.reduce((sum, item) => {
+        if (item.status === 'completed') return sum + 100;
+        return sum + item.progress;
+      }, 0);
+      const overallPercentage = total > 0 ? progressSum / (total * 100) * 100 : 0;
+
+      let uploadNotif: any = null;
+
+      if (active.length > 0) {
+        uploadNotif = {
+          id: 'upload-active',
+          title: '📤 Uploading Media',
+          body: `Uploading: ${completedCount}/${total} files (${Math.round(overallPercentage)}%)`,
+          createdAt: new Date(),
+          type: 'upload_progress',
+          targetId: 'upload_queue'
+        };
+      } else if (failed.length > 0) {
+        uploadNotif = {
+          id: 'upload-failed',
+          title: '❌ Upload Halted with Issues',
+          body: `Succeeded: ${completedCount}, Failed: ${failed.length}. Tap to retry.`,
+          createdAt: new Date(),
+          type: 'upload_failed',
+          targetId: 'upload_queue'
+        };
+      } else if (completedCount > 0) {
+        uploadNotif = {
+          id: 'upload-success',
+          title: '✅ Upload Complete',
+          body: 'Upload complete',
+          createdAt: new Date(),
+          type: 'upload_success',
+          targetId: 'upload_queue'
+        };
+      }
+
+      setNotifications(prev => {
+        const filtered = prev.filter(n => !n.id.startsWith('upload-'));
+        if (!uploadNotif) return filtered;
+        if (dismissedNotifIds.has(uploadNotif.id)) return filtered;
+        return [uploadNotif, ...filtered];
+      });
+
+      if (uploadNotif && (active.length > 0 || failed.length > 0 || completedCount > 0)) {
+        setHasUnreadNotifications(true);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [dismissedNotifIds]);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -843,6 +964,59 @@ export default function DashboardScreen() {
                                 style={[styles.notificationItem, { marginBottom: 0 }]}
                                 activeOpacity={0.85}
                                 onPress={async () => {
+                                  if (item.id === 'upload-failed') {
+                                    Alert.alert(
+                                      "Upload Halted",
+                                      "Would you like to retry the failed uploads or clear the queue?",
+                                      [
+                                        { text: "Cancel", style: "cancel" },
+                                        {
+                                          text: "Clear Queue",
+                                          style: "destructive",
+                                          onPress: async () => {
+                                            const { resetUploadQueue } = require('@/lib/uploadQueue');
+                                            await resetUploadQueue();
+                                          }
+                                        },
+                                        {
+                                          text: "Retry All",
+                                          onPress: async () => {
+                                            const { getUploadQueue, retryUploadItem } = require('@/lib/uploadQueue');
+                                            const qItems = getUploadQueue();
+                                            const failedItems = qItems.filter((i: any) => i.status === 'failed');
+                                            for (const f of failedItems) {
+                                              await retryUploadItem(f.id);
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    );
+                                    return;
+                                  }
+                                  if (item.id === 'upload-active') {
+                                    Alert.alert(
+                                      "Upload Active",
+                                      "Would you like to cancel all ongoing uploads?",
+                                      [
+                                        { text: "No", style: "cancel" },
+                                        {
+                                          text: "Yes, Cancel All",
+                                          style: "destructive",
+                                          onPress: async () => {
+                                            const { resetUploadQueue } = require('@/lib/uploadQueue');
+                                            await resetUploadQueue();
+                                          }
+                                        }
+                                      ]
+                                    );
+                                    return;
+                                  }
+                                  if (item.id === 'upload-success') {
+                                    setShowNotificationsModal(false);
+                                    setShowUploadCompleteModal(true);
+                                    return;
+                                  }
+
                                   setShowNotificationsModal(false);
                                   if (item.type === 'followed_event') {
                                     // 1. Check local dashboard list
@@ -894,7 +1068,10 @@ export default function DashboardScreen() {
                                      item.type === 'followed_business' ? '💼' :
                                      item.type === 'shortlist_creation' ? '✨' :
                                      item.type === 'shortlist_faq' ? '❓' :
-                                     item.type === 'shortlist_portfolio' ? '📸' : '📢'}
+                                     item.type === 'shortlist_portfolio' ? '📸' : 
+                                     item.type === 'upload_progress' ? '📤' :
+                                     item.type === 'upload_success' ? '✅' :
+                                     item.type === 'upload_failed' ? '❌' : '📢'}
                                   </Text>
                                 </View>
                                 <View style={styles.notificationTextWrapper}>
@@ -1147,6 +1324,78 @@ export default function DashboardScreen() {
                         }
                       ]}>
                         Got It!
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Modal>
+
+              {/* ── CUSTOM THEME-STYLED UPLOAD COMPLETE MODAL ── */}
+              <Modal
+                visible={showUploadCompleteModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowUploadCompleteModal(false)}
+              >
+                <View style={styles.modalBackdrop}>
+                  <View style={[
+                    styles.modalContent, 
+                    { 
+                      padding: 24, 
+                      borderRadius: 24, 
+                      borderWidth: 1.5, 
+                      backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                      borderColor: isDark ? 'rgba(212, 175, 55, 0.3)' : 'rgba(212, 175, 55, 0.15)',
+                      alignItems: 'center',
+                      alignSelf: 'center',
+                      width: width * 0.8,
+                    }
+                  ]}>
+                    <View style={{ 
+                      width: 60, 
+                      height: 60, 
+                      borderRadius: 30, 
+                      backgroundColor: 'rgba(34, 197, 94, 0.1)', 
+                      justifyContent: 'center', 
+                      alignItems: 'center',
+                      marginBottom: 16,
+                      borderWidth: 1,
+                      borderColor: 'rgba(34, 197, 94, 0.3)',
+                    }}>
+                      <IconSymbol name="checkmark.circle.fill" size={32} color="#22c55e" />
+                    </View>
+                    
+                    <Text style={{ 
+                      fontSize: 20, 
+                      fontWeight: 'bold', 
+                      color: colors.gold || '#CCA43B', 
+                      marginBottom: 8,
+                      fontFamily: 'Outfit_700Bold',
+                      textAlign: 'center',
+                    }}>
+                      Upload Complete
+                    </Text>
+                    
+                    <Text style={{ 
+                      fontSize: 14, 
+                      color: isDark ? '#cbd5e1' : '#64748b', 
+                      textAlign: 'center', 
+                      marginBottom: 20,
+                      fontFamily: 'Inter_400Regular',
+                    }}>
+                      Upload complete
+                    </Text>
+                    
+                    <TouchableOpacity 
+                      style={[styles.modalCloseBtn, { width: '100%' }]}
+                      onPress={async () => {
+                        setShowUploadCompleteModal(false);
+                        const { clearFinishedUploads } = require('@/lib/uploadQueue');
+                        await clearFinishedUploads();
+                      }}
+                    >
+                      <Text style={styles.modalCloseBtnText}>
+                        Done
                       </Text>
                     </TouchableOpacity>
                   </View>

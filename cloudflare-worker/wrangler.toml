@@ -1,0 +1,8 @@
+name = "media-proxy"
+main = "src/index.ts"
+compatibility_date = "2026-06-03"
+
+[vars]
+B2_BUCKET_NAME = "EveBash"
+B2_ENDPOINT = "s3.ca-east-006.backblazeb2.com"
+B2_REGION = "ca-east-006"
