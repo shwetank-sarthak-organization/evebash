@@ -391,50 +391,6 @@ function DashboardContent() {
         });
     };
 
-    const createThumbnail = async (file: File): Promise<File> => {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.src = URL.createObjectURL(file);
-            img.onload = () => {
-                const canvas = document.createElement("canvas");
-                let width = img.width;
-                let height = img.height;
-
-                const MAX_DIM = 500;
-                if (width > height) {
-                    if (width > MAX_DIM) {
-                        height *= MAX_DIM / width;
-                        width = MAX_DIM;
-                    }
-                } else {
-                    if (height > MAX_DIM) {
-                        width *= MAX_DIM / height;
-                        height = MAX_DIM;
-                    }
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext("2d");
-                ctx?.drawImage(img, 0, 0, width, height);
-
-                canvas.toBlob(
-                    (blob) => {
-                        if (blob) {
-                            resolve(new File([blob], `thumb_${file.name}`, { type: "image/jpeg" }));
-                        } else {
-                            resolve(file);
-                        }
-                    },
-                    "image/jpeg",
-                    0.75
-                );
-                URL.revokeObjectURL(img.src);
-            };
-            img.onerror = (err) => reject(err);
-        });
-    };
-
     const fetchUserEvents = async () => {
         if (!user || !user.uid) return;
         setLoadingEvents(true);
@@ -880,18 +836,8 @@ function DashboardContent() {
             const photoPromises = Array.from(selectedFiles).map(async (file, index) => {
                 console.log(`[Dashboard] Processing file ${index + 1}/${selectedFiles.length}: ${file.name}`);
 
-                // 1. Upload Raw Original File
+                // Upload the original file — Cloudflare Image Resizing handles thumbnails on the fly
                 const uploadResult = await uploadEventImage(file, selectedEventId, user.uid || "anonymous");
-
-                // 2. Generate and Upload Thumbnail File
-                let thumbnailUrl: string | undefined = undefined;
-                try {
-                    const thumbFile = await createThumbnail(file);
-                    const thumbResult = await uploadEventImage(thumbFile, selectedEventId, user.uid || "anonymous");
-                    thumbnailUrl = thumbResult.url;
-                } catch (thumbErr) {
-                    console.error("[Dashboard] Thumbnail generation or upload failed:", thumbErr);
-                }
 
                 if (index === 0) firstUploadedUrl = uploadResult.url;
 
@@ -901,7 +847,6 @@ function DashboardContent() {
                     eventId: selectedEventId,
                     storageKey: uploadResult.publicId,
                     url: uploadResult.url,
-                    thumbnailUrl: thumbnailUrl,
                     uploadedAt: new Date().toISOString(),
                     userId: user.uid || "anonymous",
                     width: uploadResult.width,

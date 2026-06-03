@@ -37,7 +37,6 @@ export default async function SubEventPage({ params }: { params: Promise<{ slug:
         return {
             id: p.id,
             src: p.url || "",
-            thumbnailUrl: p.thumbnailUrl || undefined,
             storageKey: p.storageKey,
             width: p.width || 800,
             height: p.height || 600,

@@ -7,11 +7,11 @@ import { onPhotoInteractions, toggleLike } from "@/lib/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { Heart, MessageCircle, Download } from "lucide-react";
 import { Lightbox } from "./Lightbox";
+import { getGridThumbnail } from "@/lib/imageUrl";
 
 interface Photo {
     id: string;
     src: string;
-    thumbnailUrl?: string;  // Lightweight thumbnail for grid display
     storageKey?: string;
     alt?: string;
     height?: number;
@@ -127,7 +127,7 @@ function PhotoCard({
         >
             <div className="relative w-full overflow-hidden">
                 <img
-                    src={photo.thumbnailUrl || photo.src}
+                    src={getGridThumbnail(photo.src)}
                     alt={photo.alt || "Event Photo"}
                     className="w-full h-auto object-cover transform transition-all duration-700 group-hover:scale-[1.02]"
                     loading="lazy"
