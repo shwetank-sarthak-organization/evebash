@@ -20,7 +20,7 @@ const { height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   console.log('LoginScreen rendering...');
-  const { login, signup, authWithPhone } = useAuth();
+  const { login, signup, authWithPhone, loginWithGoogle, loginWithApple } = useAuth();
   const router = useRouter();
 
   const [isSignUp, setIsSignUp] = useState(false);
@@ -30,13 +30,40 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [verificationMessage, setVerificationMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('email');
   const isPhoneAuth = authMethod === 'phone';
 
+  // Password validation states
+  const passLength = password.length >= 8;
+  const passUpper = /[A-Z]/.test(password);
+  const passLower = /[a-z]/.test(password);
+  const passNumber = /[0-9]/.test(password);
+  const passSpecial = /[^A-Za-z0-9]/.test(password);
+  const isPassValid = passLength && passUpper && passLower && passNumber && passSpecial;
+
+  const generateStrongPassword = () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+';
+    let newPass = '';
+    newPass += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)];
+    newPass += 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)];
+    newPass += '0123456789'[Math.floor(Math.random() * 10)];
+    newPass += '!@#$%^&*()_+'[Math.floor(Math.random() * 12)];
+    for (let i = 0; i < 12; i++) {
+      newPass += chars[Math.floor(Math.random() * chars.length)];
+    }
+    newPass = newPass.split('').sort(() => 0.5 - Math.random()).join('');
+    
+    setPassword(newPass);
+    setConfirmPassword(newPass);
+    setShowPass(true);
+  };
+
   const handleSubmit = async () => {
     setError('');
+    setVerificationMessage('');
 
     if (!password.trim()) {
       setError('Please enter your password.');
@@ -55,6 +82,10 @@ export default function LoginScreen() {
       return;
     }
     if (isSignUp) {
+      if (!isPassValid) {
+        setError('Please meet all password requirements.');
+        return;
+      }
       if (!name.trim()) {
         setError('Please enter your name.');
         return;
@@ -75,15 +106,42 @@ export default function LoginScreen() {
     setLoading(false);
 
     if (result.success) {
-      router.replace('/(tabs)/dashboard');
+      if ((result as any).needsEmailVerification) {
+        setVerificationMessage(`A verification email has been sent to ${email.trim()}. Please check your inbox and verify your email to log in.`);
+      } else {
+        router.replace('/(tabs)/dashboard');
+      }
     } else {
       setError(result.error || 'Something went wrong.');
     }
   };
+  const handleGoogleLogin = async () => {
+    setError('');
+    setLoading(true);
+    const result = await loginWithGoogle();
+    setLoading(false);
+    if (result.success) {
+      router.replace('/(tabs)/dashboard');
+    } else {
+      setError(result.error || 'Google login failed.');
+    }
+  };
 
+  const handleAppleLogin = async () => {
+    setError('');
+    setLoading(true);
+    const result = await loginWithApple();
+    setLoading(false);
+    if (result.success) {
+      router.replace('/(tabs)/dashboard');
+    } else {
+      setError(result.error || 'Apple login failed.');
+    }
+  };
   const toggleMode = () => {
     setIsSignUp((v) => !v);
     setError('');
+    setVerificationMessage('');
     setName('');
     setPhone('');
     setPassword('');
@@ -192,7 +250,14 @@ export default function LoginScreen() {
               )}
 
               <View style={styles.fieldGroup}>
-                <Text style={styles.label}>Password</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
+                  <Text style={[styles.label, { marginBottom: 0 }]}>Password</Text>
+                  {isSignUp && (
+                    <TouchableOpacity onPress={generateStrongPassword}>
+                      <Text style={{ color: '#0284c7', fontSize: 12, fontWeight: '700' }}>Suggest Strong Password</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
                 <View style={styles.passwordRow}>
                   <TextInput
                     style={[styles.input, styles.passwordInput]}
@@ -212,6 +277,32 @@ export default function LoginScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
+
+              {isSignUp && (
+                <View style={styles.passwordChecklist}>
+                  <Text style={[styles.checkItem, passLength ? styles.checkMet : null]}>
+                    {passLength ? '✓' : '○'} At least 8 characters
+                  </Text>
+                  <Text style={[styles.checkItem, passUpper ? styles.checkMet : null]}>
+                    {passUpper ? '✓' : '○'} One uppercase letter
+                  </Text>
+                  <Text style={[styles.checkItem, passLower ? styles.checkMet : null]}>
+                    {passLower ? '✓' : '○'} One lowercase letter
+                  </Text>
+                  <Text style={[styles.checkItem, passNumber ? styles.checkMet : null]}>
+                    {passNumber ? '✓' : '○'} One number
+                  </Text>
+                  <Text style={[styles.checkItem, passSpecial ? styles.checkMet : null]}>
+                    {passSpecial ? '✓' : '○'} One special character
+                  </Text>
+                </View>
+              )}
+
+              {!isSignUp && !isPhoneAuth && (
+                <TouchableOpacity onPress={() => router.push('/forgot-password')} style={{ alignSelf: 'flex-end', marginTop: -8, marginBottom: 12 }}>
+                  <Text style={{ color: '#0284c7', fontSize: 13, fontWeight: '600' }}>Forgot Password?</Text>
+                </TouchableOpacity>
+              )}
 
               {isSignUp && (
                 <View style={styles.fieldGroup}>
@@ -236,6 +327,13 @@ export default function LoginScreen() {
                 </View>
               )}
 
+              {/* Verification Message */}
+              {!!verificationMessage && (
+                <View style={styles.successBox}>
+                  <Text style={styles.successText}>{verificationMessage}</Text>
+                </View>
+              )}
+
               {/* Submit */}
               <TouchableOpacity
                 style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
@@ -249,6 +347,33 @@ export default function LoginScreen() {
                   <Text style={styles.submitText}>{isSignUp ? 'Create Account' : 'Sign In'}</Text>
                 )}
               </TouchableOpacity>
+
+              {/* Social Login Options */}
+              <View style={styles.socialDivider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <TouchableOpacity
+                style={styles.socialBtnGoogle}
+                onPress={handleGoogleLogin}
+                disabled={loading}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.socialBtnGoogleText}>Continue with Google</Text>
+              </TouchableOpacity>
+
+              {Platform.OS === 'ios' && (
+                <TouchableOpacity
+                  style={styles.socialBtnApple}
+                  onPress={handleAppleLogin}
+                  disabled={loading}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.socialBtnAppleText}>Continue with Apple</Text>
+                </TouchableOpacity>
+              )}
 
               {/* Toggle */}
               <View style={styles.toggleRow}>
@@ -423,6 +548,19 @@ const styles = StyleSheet.create({
   eyeText: {
     fontSize: 18,
   },
+  passwordChecklist: {
+    marginTop: -10,
+    marginBottom: 20,
+    paddingHorizontal: 4,
+  },
+  checkItem: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginBottom: 4,
+  },
+  checkMet: {
+    color: '#10b981',
+  },
 
   // Error
   errorBox: {
@@ -435,8 +573,24 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   errorText: {
-    color: '#dc2626',
-    fontSize: 13,
+    color: '#ef4444',
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  
+  // Success
+  successBox: {
+    backgroundColor: '#d1fae5',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#34d399',
+  },
+  successText: {
+    color: '#059669',
+    fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
   },
@@ -479,6 +633,52 @@ const styles = StyleSheet.create({
     color: '#0284c7',
     fontSize: 14,
     fontWeight: '700',
+  },
+
+  // Social Login
+  socialDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 28,
+    marginBottom: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e2e8f0',
+  },
+  dividerText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '700',
+    paddingHorizontal: 12,
+    letterSpacing: 0.5,
+  },
+  socialBtnGoogle: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  socialBtnGoogleText: {
+    color: '#0f172a',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  socialBtnApple: {
+    backgroundColor: '#000000',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  socialBtnAppleText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
   },
 
   // Footer
