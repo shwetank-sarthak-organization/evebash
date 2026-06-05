@@ -33,12 +33,27 @@ const { width } = Dimensions.get('window');
 const CATEGORIES = [
   { id: '1', name: 'All', icon: 'square.grid.2x2.fill' },
   { id: '2', name: 'Weddings', icon: 'heart.fill' },
-  { id: '3', name: 'Sports', icon: 'trophy.fill' },
-  { id: '4', name: 'Birthdays', icon: 'gift.fill' },
-  { id: '5', name: 'Cultural', icon: 'sparkles' },
-  { id: '6', name: 'Corporate', icon: 'briefcase.fill' },
-  { id: '7', name: 'Private', icon: 'lock.fill' },
+  { id: '3', name: 'Birthday', icon: 'gift.fill' },
+  { id: '4', name: 'Corporate', icon: 'briefcase.fill' },
+  { id: '5', name: 'Sports', icon: 'trophy.fill' },
+  { id: '6', name: 'Venue', icon: 'mappin.and.ellipse' },
+  { id: '7', name: 'Photo', icon: 'camera.fill' },
+  { id: '8', name: 'Food', icon: 'fork.knife' },
+  { id: '9', name: 'Decor', icon: 'sparkles' },
+  { id: '10', name: 'Fashion', icon: 'tshirt.fill' },
 ];
+
+const CATEGORY_MATCHERS: Record<string, string[]> = {
+  Weddings: ['Wedding', 'Weddings'],
+  Birthday: ['Birthday', 'Birthdays'],
+  Corporate: ['Corporate'],
+  Sports: ['Sports'],
+  Venue: ['Venue'],
+  Photo: ['Photography', 'Videography', 'Photo', 'Video'],
+  Food: ['Catering', 'Food Stalls', 'Food'],
+  Decor: ['Decor', 'Lighting'],
+  Fashion: ['Apparel', 'Makeup'],
+};
 
 // Removed dummy ALL_VENDORS
 
@@ -152,7 +167,10 @@ export default function ExploreBusinessScreen() {
   }));
 
   const filteredVendors = allAvailableVendors.filter((v) => {
-    const matchesCategory = selectedCategory === 'All' || v.eventTypes.includes(selectedCategory);
+    const selectedCategoryMatches = CATEGORY_MATCHERS[selectedCategory] || [selectedCategory];
+    const matchesCategory = selectedCategory === 'All' ||
+      selectedCategoryMatches.includes(v.category) ||
+      v.eventTypes.some((eventType) => selectedCategoryMatches.includes(eventType));
     const matchesLocation = selectedLocation === 'All Cities' || 
                            (selectedLocation === 'Near Me' && userCoords ? true : v.location === selectedLocation);
     

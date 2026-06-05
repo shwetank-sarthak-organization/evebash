@@ -37,10 +37,10 @@ const INDIGO_BG_LIGHT = 'rgba(99, 102, 241, 0.1)';
 const INDIGO_BG_SUPER_LIGHT = 'rgba(99, 102, 241, 0.05)';
 
 const BUSINESS_TYPES = [
-  'Venue', 'Photography', 'Videography', 'Catering', 'Food Stalls',
-  'Music & DJ', 'Lighting', 'Decor', 'Event Planner', 'Security',
-  'Anchors', 'Gifts', 'Travel', 'Staff', 'Invitations', 'Makeup',
-  'Apparel', 'Trophies'
+  'Anchors', 'Apparel', 'Catering', 'Decor', 'Event Planner',
+  'Food Stalls', 'Gifts', 'Invitations', 'Lighting', 'Makeup',
+  'Music & DJ', 'Photography', 'Security', 'Staff', 'Travel',
+  'Trophies', 'Venue', 'Videography'
 ];
 
 export default function ManageBusinessScreen() {
