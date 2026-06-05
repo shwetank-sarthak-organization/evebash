@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { sendPushNotificationDirectly } from "./notifications";
 
 export function formatEventDate(dateStr?: string): string {
     if (!dateStr) return "";
@@ -141,6 +142,7 @@ export interface UserProfile {
     notificationPreferences?: any;
     birthday?: string;
     anniversaryDate?: string;
+    pushToken?: string;
 }
 
 export interface GuestLog {
@@ -263,7 +265,10 @@ function mapSqlToProfile(u: any): UserProfile {
         createdAt: u.created_at,
         username: u.username,
         isPrivate: u.is_private || false,
-        assignedEvents: []
+        assignedEvents: [],
+        discoverable: u.discoverable ?? true,
+        notificationPreferences: u.notification_preferences,
+        pushToken: u.push_token
     };
 }
 
@@ -540,6 +545,9 @@ export async function updateUserProfile(uid: string, updateData: Partial<UserPro
         if (updateData.profileImage !== undefined) updateObj.profile_image = updateData.profileImage;
         if (updateData.phone !== undefined) updateObj.phone = updateData.phone;
         if (updateData.email !== undefined) updateObj.email = updateData.email;
+        if (updateData.discoverable !== undefined) updateObj.discoverable = updateData.discoverable;
+        if (updateData.notificationPreferences !== undefined) updateObj.notification_preferences = updateData.notificationPreferences;
+        if (updateData.pushToken !== undefined) updateObj.push_token = updateData.pushToken;
 
         const { error } = await supabase
             .from('profiles')
@@ -997,6 +1005,20 @@ export async function logGuestLogin(
         });
 
         if (error) throw error;
+
+        // Notify event owner when a new guest joins their event
+        if (ownerId && ownerId !== phone) {
+            const isNew = !existing;
+            if (isNew) {
+                sendPushNotificationDirectly(
+                    ownerId,
+                    '🎉 New guest joined',
+                    `${name} just joined "${eventTitle || 'your event'}"`,
+                    { eventId: eventId || '' }
+                ).catch(() => {});
+            }
+        }
+
         return true;
     } catch (error) {
         console.error("Error logging guest login:", error);
@@ -1240,6 +1262,28 @@ export async function addPhoto(data: Omit<Photo, 'id'>) {
             uploaded_at: new Date().toISOString()
         });
         if (error) throw error;
+
+        // Notify event owner when a guest uploads a photo
+        if (data.eventId && data.userId) {
+            supabase
+                .from('events')
+                .select('created_by, title')
+                .eq('id', data.eventId)
+                .maybeSingle()
+                .then(({ data: event }) => {
+                    if (event?.created_by && event.created_by !== data.userId) {
+                        const isVideo = data.mediaType === 'video';
+                        sendPushNotificationDirectly(
+                            event.created_by,
+                            isVideo ? '🎥 New video uploaded' : '📸 New photo uploaded',
+                            `Someone added a ${isVideo ? 'video' : 'photo'} to "${event.title}"`,
+                            { eventId: data.eventId }
+                        ).catch(() => {});
+                    }
+                })
+                .catch(() => {});
+        }
+
         return generatedId;
     } catch (error) {
         console.error("Error adding photo:", error);
@@ -1653,7 +1697,19 @@ export async function addEnquiry(enquiry: Omit<Enquiry, 'id' | 'createdAt' | 'st
         }).select('id').maybeSingle();
 
         if (error) throw error;
-        return data ? data.id : `enq_${Math.random()}`;
+        const enquiryId = data ? data.id : `enq_${Math.random()}`;
+
+        // Notify vendor of new enquiry
+        if (enquiry.vendorOwnerId) {
+            sendPushNotificationDirectly(
+                enquiry.vendorOwnerId,
+                '📩 New enquiry received',
+                `You have a new enquiry${enquiry.category ? ` about ${enquiry.category}` : ''}`,
+                { enquiryId }
+            ).catch(() => {});
+        }
+
+        return enquiryId;
     } catch (error) {
         console.error("Error adding enquiry:", error);
         return null;
@@ -1727,6 +1783,29 @@ export async function sendMessage(
     });
     
     if (error) throw error;
+
+    // Trigger push notification to the other chat member in background
+    supabase
+      .from('chat_rooms')
+      .select('client_uid, vendor_uid')
+      .eq('id', roomId)
+      .maybeSingle()
+      .then(({ data: room }) => {
+        if (room) {
+          const recipientUid = senderId === room.client_uid ? room.vendor_uid : room.client_uid;
+          if (recipientUid) {
+            sendPushNotificationDirectly(
+              recipientUid,
+              `New message from ${senderName}`,
+              text.length > 60 ? `${text.substring(0, 60)}...` : text,
+              { roomId, senderId },
+              'likesAndComments'
+            ).catch(err => console.warn('[sendMessage] Failed to send push:', err));
+          }
+        }
+      })
+      .catch(err => console.warn('[sendMessage] Failed to query chat room for push:', err));
+
     return true;
   } catch (error) {
     console.error("Error sending message:", error);

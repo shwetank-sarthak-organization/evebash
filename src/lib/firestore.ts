@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { formatEventDate } from "./utils";
+import { sendPushNotification } from "./pushNotifications";
 
 // Memory caches to optimize lookups
 const eventCache: Record<string, Event> = {};
@@ -63,6 +64,8 @@ export interface UserProfile {
     createdAt?: any;
     lastLogin?: any;
     username?: string;
+    pushToken?: string;
+    notificationPreferences?: any;
 }
 
 export interface GuestLog {
@@ -149,7 +152,9 @@ function mapSqlToProfile(u: any): UserProfile {
         createdAt: u.created_at,
         lastLogin: u.last_login,
         username: u.username,
-        assignedEvents: [] // Will be populated when querying assignments
+        assignedEvents: [], // Will be populated when querying assignments
+        pushToken: u.push_token,
+        notificationPreferences: u.notification_preferences
     };
 }
 
@@ -388,6 +393,19 @@ export async function logGuestLogin(
             status: existing?.status || status
         });
         if (error) throw error;
+
+        // Send push notification to the event owner if it's a new pending request
+        if (!existing && status === 'pending' && ownerId) {
+            sendPushNotification(
+                ownerId,
+                "New Guest Access Request 🔔",
+                `${name} is requesting access to your event "${eventTitle || 'Wedding'}".`,
+                { eventId: eventId || null, guestName: name },
+                'eventInvites'
+            ).catch(err => {
+                console.error("[PushNotifications] Error sending guest request notification:", err);
+            });
+        }
     } catch (error) {
         console.error("Error logging guest login:", error);
     }
@@ -409,6 +427,40 @@ export async function updateGuestStatus(logId: string, status: 'pending' | 'appr
             .update(updateData)
             .eq('id', logId);
         if (error) throw error;
+
+        // Fetch the guest's details to notify them of approval/update in background
+        supabase
+            .from('guests')
+            .select('phone, event_title')
+            .eq('id', logId)
+            .maybeSingle()
+            .then(({ data: guestLog }) => {
+                if (guestLog && guestLog.phone) {
+                    supabase
+                        .from('profiles')
+                        .select('id')
+                        .eq('phone', guestLog.phone)
+                        .maybeSingle()
+                        .then(({ data: guestProfile }) => {
+                            if (guestProfile) {
+                                const title = status === 'approved' ? "Access Approved! ✨" : "Access Request Update";
+                                const body = status === 'approved'
+                                    ? `You have been approved to join the event "${guestLog.event_title || 'Wedding'}"!`
+                                    : `Your access request to "${guestLog.event_title || 'Wedding'}" was updated.`;
+
+                                sendPushNotification(
+                                    guestProfile.id,
+                                    title,
+                                    body,
+                                    { eventId: logId.split('_')[1] || null },
+                                    'eventInvites'
+                                ).catch(err => console.error("[PushNotifications] Error sending status update push:", err));
+                            }
+                        });
+                }
+            })
+            .catch(err => console.error("[PushNotifications] Error querying guest log for update notification:", err));
+
         return true;
     } catch (error) {
         console.error("Error updating guest status:", error);
@@ -658,16 +710,20 @@ export async function generateUniqueUsername(base: string): Promise<string> {
 /**
  * Updates user profile details in Supabase.
  */
-export async function updateUserProfile(uid: string, updateData: { name: string; username: string; email?: string; phone?: string }) {
+export async function updateUserProfile(uid: string, updateData: Partial<UserProfile>) {
     try {
+        const updateObj: any = {};
+        if (updateData.name !== undefined) updateObj.name = updateData.name;
+        if (updateData.username !== undefined) updateObj.username = updateData.username;
+        if (updateData.profileImage !== undefined) updateObj.profile_image = updateData.profileImage;
+        if (updateData.phone !== undefined) updateObj.phone = updateData.phone;
+        if (updateData.email !== undefined) updateObj.email = updateData.email;
+        if (updateData.pushToken !== undefined) updateObj.push_token = updateData.pushToken;
+        if (updateData.notificationPreferences !== undefined) updateObj.notification_preferences = updateData.notificationPreferences;
+
         const { error } = await supabase
             .from('profiles')
-            .update({
-                name: updateData.name,
-                username: updateData.username,
-                email: updateData.email || undefined,
-                phone: updateData.phone || undefined
-            })
+            .update(updateObj)
             .eq('id', uid);
 
         if (error) throw error;

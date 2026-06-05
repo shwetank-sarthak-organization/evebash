@@ -346,6 +346,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  if (!ctx) {
+    console.warn('[Auth] useAuth was called outside AuthProvider. Returning loading state as fallback.');
+    return {
+      user: null,
+      loading: true,
+      login: async () => ({ success: false, error: 'Auth context not ready' }),
+      signup: async () => ({ success: false, error: 'Auth context not ready' }),
+      authWithPhone: async () => ({ success: false, error: 'Auth context not ready' }),
+      logout: async () => {},
+    };
+  }
   return ctx;
 }

@@ -13,6 +13,8 @@ import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { AppThemeProvider, useAppTheme } from '@/context/ThemeContext';
 import * as SplashScreen from 'expo-splash-screen';
 import { initUploadQueue } from '@/lib/uploadQueue';
+import { registerDeviceForPushNotifications } from '@/lib/notifications';
+import * as Notifications from 'expo-notifications';
 import { 
   useFonts, 
   Outfit_400Regular, 
@@ -130,6 +132,43 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       return () => clearTimeout(timeoutId);
     }
   }, [user, loading, segments, rootNavigationState?.key, router]);
+
+  // Register push notifications when user is signed in
+  useEffect(() => {
+    if (user?.uid) {
+      registerDeviceForPushNotifications(user.uid);
+    }
+  }, [user?.uid]);
+
+  // Handle notification taps — route user to the right screen
+  useEffect(() => {
+    // Handle tap when app is already open
+    const tapSubscription = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data as Record<string, string>;
+      if (data?.roomId) {
+        router.push(`/chat/${data.roomId}` as any);
+      } else if (data?.eventId) {
+        router.push(`/events/${data.eventId}` as any);
+      } else if (data?.enquiryId) {
+        router.push(`/enquiries` as any);
+      }
+    });
+
+    // Handle tap when app was closed / in background
+    Notifications.getLastNotificationResponseAsync().then(response => {
+      if (!response) return;
+      const data = response.notification.request.content.data as Record<string, string>;
+      if (data?.roomId) {
+        router.push(`/chat/${data.roomId}` as any);
+      } else if (data?.eventId) {
+        router.push(`/events/${data.eventId}` as any);
+      } else if (data?.enquiryId) {
+        router.push(`/enquiries` as any);
+      }
+    });
+
+    return () => tapSubscription.remove();
+  }, [router]);
 
   if (loading || !rootNavigationState?.key) {
     return <LoadingScreen message="Loading your account" />;

@@ -8,7 +8,8 @@
     "scheme": "evebash",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.wed-albummobile"
     },
     "android": {
       "adaptiveIcon": {
@@ -39,15 +40,31 @@
           }
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#ffffff",
+          "androidMode": "default",
+          "androidCollapsedTitle": "EveBash"
+        }
+      ],
       "expo-font",
       "expo-image",
       "expo-web-browser",
       "@react-native-community/datetimepicker",
       "expo-video"
     ],
+    "extra": {
+      "eas": {
+        "projectId": "c56e7efd-1e46-4243-a77c-bff834914615"
+      },
+      "router": {}
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": false
-    }
+    },
+    "owner": "elnino_009"
   }
 }
