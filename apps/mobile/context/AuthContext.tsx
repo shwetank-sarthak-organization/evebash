@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 interface AppUser {
   uid: string;
@@ -32,8 +34,11 @@ interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (email: string, password: string, name: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (email: string, password: string, name: string) => Promise<{ success: boolean; error?: string; needsEmailVerification?: boolean }>;
   authWithPhone: (name: string, phone: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
+  loginWithApple: () => Promise<{ success: boolean; error?: string }>;
+  resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
 }
 
@@ -45,6 +50,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'YOUR_WEB_CLIENT_ID_HERE',
+      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'YOUR_IOS_CLIENT_ID_HERE',
+    });
+
     let isMounted = true;
     let profileUnsubscribe: (() => void) | undefined;
 
@@ -243,7 +253,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string,
     password: string,
     name: string
-  ): Promise<{ success: boolean; error?: string }> => {
+  ): Promise<{ success: boolean; error?: string; needsEmailVerification?: boolean }> => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -255,6 +265,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       });
       if (error) throw error;
+
+      const needsEmailVerification = !!(data.user && data.session === null);
 
       if (data.user) {
         const { error: profileError } = await supabase
@@ -270,7 +282,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      return { success: true };
+      return { success: true, needsEmailVerification };
     } catch (err: any) {
       const message = err?.message || 'Sign up failed. Please try again.';
       return { success: false, error: message };
@@ -332,13 +344,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const loginWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+      // @ts-ignore - Handle both v10 and v11/12 return structures
+      const idToken = response.data?.idToken || response.idToken;
+      if (!idToken) throw new Error('No ID token present!');
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: idToken,
+      });
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.warn('Google sign-in failed:', err);
+      return { success: false, error: err?.message || 'Google sign-in failed.' };
+    }
+  };
+
+  const loginWithApple = async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (credential.identityToken) {
+        const { error } = await supabase.auth.signInWithIdToken({
+          provider: 'apple',
+          token: credential.identityToken,
+        });
+        if (error) throw error;
+        return { success: true };
+      } else {
+        throw new Error('No identity token.');
+      }
+    } catch (err: any) {
+      if (err.code === 'ERR_REQUEST_CANCELED') {
+        return { success: false, error: 'User canceled.' };
+      }
+      return { success: false, error: err?.message || 'Apple sign-in failed.' };
+    }
+  };
+
+  const resetPassword = async (email: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Failed to send reset email.' };
+    }
+  };
+
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, authWithPhone, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, authWithPhone, loginWithGoogle, loginWithApple, resetPassword, logout }}>
       {children}
     </AuthContext.Provider>
   );
