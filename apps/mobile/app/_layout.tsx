@@ -81,6 +81,8 @@ SplashScreen.preventAutoHideAsync();
 LogBox.ignoreLogs([
   "Can't perform a React state update on a component that hasn't mounted yet",
   '@firebase/firestore: Firestore',
+  'AuthRetryableFetchError',
+  'network_request_failed',
   'Could not reach Cloud Firestore backend',
   'Backend didn\'t respond within 10 seconds',
   'backTitle prop is not available on Android',

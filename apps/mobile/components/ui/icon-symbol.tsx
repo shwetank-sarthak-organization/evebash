@@ -95,6 +95,8 @@ const MAPPING = {
   'play.fill': 'play-arrow',
   'play.rectangle.fill': 'smart-display',
   'video.fill': 'videocam',
+  'fork.knife': 'restaurant',
+  'tshirt.fill': 'checkroom',
   'pause.fill': 'pause',
   'backward.fill': 'fast-rewind',
   'forward.fill': 'fast-forward',

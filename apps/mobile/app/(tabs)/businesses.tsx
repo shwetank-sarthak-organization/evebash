@@ -35,10 +35,10 @@ const INDIGO_BG_LIGHT = 'rgba(99, 102, 241, 0.1)';
 const INDIGO_BG_SUPER_LIGHT = 'rgba(99, 102, 241, 0.05)';
 
 const BUSINESS_TYPES = [
-  'Venue', 'Photography', 'Videography', 'Catering', 'Food Stalls',
-  'Music & DJ', 'Lighting', 'Decor', 'Event Planner', 'Security',
-  'Anchors', 'Gifts', 'Travel', 'Staff', 'Invitations', 'Makeup',
-  'Apparel', 'Trophies'
+  'Anchors', 'Apparel', 'Catering', 'Decor', 'Event Planner',
+  'Food Stalls', 'Gifts', 'Invitations', 'Lighting', 'Makeup',
+  'Music & DJ', 'Photography', 'Security', 'Staff', 'Travel',
+  'Trophies', 'Venue', 'Videography'
 ];
 const EVENT_TAGS = ['Wedding', 'Birthdays', 'Sports', 'Corporate', 'Cultural', 'Private'];
 
@@ -111,7 +111,33 @@ export default function BusinessLandingScreen() {
         Alert.alert('Permission denied', 'Location permission is required to pinpoint your business.');
         return;
       }
-      const loc = await Location.getCurrentPositionAsync({});
+
+      if (Platform.OS === 'android') {
+        try {
+          await Location.enableNetworkProviderAsync();
+        } catch (providerError) {
+          console.warn('[Business] Location provider prompt skipped:', providerError);
+        }
+      }
+
+      let loc: Location.LocationObject | null = null;
+      try {
+        loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 5000,
+        });
+      } catch (currentError) {
+        console.warn('[Business] Current location failed, trying last known location:', currentError);
+        loc = await Location.getLastKnownPositionAsync({
+          maxAge: 1000 * 60 * 30,
+          requiredAccuracy: 5000,
+        });
+      }
+
+      if (!loc) {
+        throw new Error('No location fix is available.');
+      }
+
       const coords = {
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude,
@@ -135,8 +161,12 @@ export default function BusinessLandingScreen() {
       } catch (err) {
         setCapturedAddress(`${coords.latitude.toFixed(4)}°, ${coords.longitude.toFixed(4)}°`);
       }
-    } catch (error) {
-      Alert.alert('Error', 'Could not fetch your location.');
+    } catch (error: any) {
+      console.warn('[Business] Could not fetch location:', error);
+      Alert.alert(
+        'Location unavailable',
+        error?.message || 'Could not fetch your location. Please check location services and try again.'
+      );
     } finally {
       setIsLocating(false);
     }

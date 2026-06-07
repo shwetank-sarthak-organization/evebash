@@ -2,7 +2,65 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { NativeModules } from 'react-native';
+
+type GoogleSigninModule = {
+  configure: (options: { webClientId: string; iosClientId: string }) => void;
+  hasPlayServices: () => Promise<boolean> | boolean;
+  signIn: () => Promise<any>;
+};
+
+let googleSigninModule: GoogleSigninModule | null | undefined;
+let googleSigninConfigured = false;
+
+const getGoogleSignin = async (): Promise<GoogleSigninModule | null> => {
+  if (googleSigninModule !== undefined) return googleSigninModule;
+
+  if (!NativeModules.RNGoogleSignin) {
+    googleSigninModule = null;
+    return googleSigninModule;
+  }
+
+  try {
+    const module = await import('@react-native-google-signin/google-signin');
+    googleSigninModule = module.GoogleSignin;
+  } catch (err) {
+    console.warn('[Auth] Google Sign-In native module is unavailable in this build:', err);
+    googleSigninModule = null;
+  }
+
+  return googleSigninModule;
+};
+
+const configureGoogleSignin = async () => {
+  const GoogleSignin = await getGoogleSignin();
+  if (!GoogleSignin || googleSigninConfigured) return GoogleSignin;
+
+  GoogleSignin.configure({
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'YOUR_WEB_CLIENT_ID_HERE',
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'YOUR_IOS_CLIENT_ID_HERE',
+  });
+  googleSigninConfigured = true;
+
+  return GoogleSignin;
+};
+
+const getAuthErrorMessage = (err: any, fallback: string) => {
+  const rawMessage = typeof err?.message === 'string' ? err.message : '';
+  const rawText = `${rawMessage} ${err?.name || ''} ${err?.code || ''}`;
+
+  if (
+    err?.status === 503 ||
+    rawText.includes('network_request_failed') ||
+    rawText.includes('Network request failed') ||
+    rawText.includes('Supabase request timed out') ||
+    rawText.includes('AuthRetryableFetchError')
+  ) {
+    return 'Unable to reach the server. Please check your internet connection and try again.';
+  }
+
+  return rawMessage || fallback;
+};
 
 interface AppUser {
   uid: string;
@@ -50,13 +108,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    GoogleSignin.configure({
-      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'YOUR_WEB_CLIENT_ID_HERE',
-      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'YOUR_IOS_CLIENT_ID_HERE',
-    });
+    configureGoogleSignin();
 
     let isMounted = true;
     let profileUnsubscribe: (() => void) | undefined;
+    const authLoadingFallback = setTimeout(() => {
+      if (isMounted) {
+        console.warn('[Auth] Initial auth check timed out. Showing login screen.');
+        setLoading(false);
+      }
+    }, 9000);
 
     // Fetch initial session
     const checkSession = async () => {
@@ -227,6 +288,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       isMounted = false;
+      clearTimeout(authLoadingFallback);
       subscription.unsubscribe();
       if (profileUnsubscribe) profileUnsubscribe();
     };
@@ -244,7 +306,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       return { success: true };
     } catch (err: any) {
-      const message = err?.message || 'Login failed. Please try again.';
+      const message = getAuthErrorMessage(err, 'Login failed. Please try again.');
       return { success: false, error: message };
     }
   };
@@ -284,7 +346,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return { success: true, needsEmailVerification };
     } catch (err: any) {
-      const message = err?.message || 'Sign up failed. Please try again.';
+      const message = getAuthErrorMessage(err, 'Sign up failed. Please try again.');
       return { success: false, error: message };
     }
   };
@@ -339,13 +401,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return { success: true };
     } catch (err: any) {
-      const message = err?.message || 'Phone sign in failed. Please try again.';
+      const message = getAuthErrorMessage(err, 'Phone sign in failed. Please try again.');
       return { success: false, error: message };
     }
   };
 
   const loginWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
     try {
+      const GoogleSignin = await configureGoogleSignin();
+      if (!GoogleSignin) {
+        return {
+          success: false,
+          error: 'Google sign-in is not available in this app build. Rebuild the native app to enable it.',
+        };
+      }
+
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();
       // @ts-ignore - Handle both v10 and v11/12 return structures
@@ -359,7 +429,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: true };
     } catch (err: any) {
       console.warn('Google sign-in failed:', err);
-      return { success: false, error: err?.message || 'Google sign-in failed.' };
+      return { success: false, error: getAuthErrorMessage(err, 'Google sign-in failed.') };
     }
   };
 
@@ -385,7 +455,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (err.code === 'ERR_REQUEST_CANCELED') {
         return { success: false, error: 'User canceled.' };
       }
-      return { success: false, error: err?.message || 'Apple sign-in failed.' };
+      return { success: false, error: getAuthErrorMessage(err, 'Apple sign-in failed.') };
     }
   };
 
@@ -395,7 +465,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       return { success: true };
     } catch (err: any) {
-      return { success: false, error: err?.message || 'Failed to send reset email.' };
+      return { success: false, error: getAuthErrorMessage(err, 'Failed to send reset email.') };
     }
   };
 
