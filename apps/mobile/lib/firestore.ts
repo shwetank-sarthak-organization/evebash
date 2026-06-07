@@ -678,9 +678,14 @@ export async function updateSubEventsOrder(orderedIds: string[]): Promise<boolea
     }
 }
 
-export function safeParseDateToISO(dateStr?: string): string | null {
-    if (!dateStr) return null;
+export function safeParseDateToISO(dateInput?: string | Date): string | null {
+    if (!dateInput) return null;
+    if (dateInput instanceof Date) {
+        if (isNaN(dateInput.getTime())) return null;
+        return dateInput.toISOString();
+    }
     try {
+        const dateStr = String(dateInput);
         const trimmed = dateStr.trim();
         if (!trimmed) return null;
 

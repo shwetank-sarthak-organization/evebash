@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import Footer from "@/components/Footer";
+import MainWrapper from "@/components/MainWrapper";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -36,9 +37,9 @@ export default function RootLayout({
         <AuthProvider>
           <ThemeProvider>
             <Navbar />
-            <main className="pt-20 min-h-screen">
+            <MainWrapper>
               {children}
-            </main>
+            </MainWrapper>
             <Footer />
           </ThemeProvider>
         </AuthProvider>

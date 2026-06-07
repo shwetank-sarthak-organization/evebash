@@ -1,7 +1,13 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from "lucide-react";
 
 export default function Footer() {
+    const pathname = usePathname();
+
+    if (pathname === '/login') return null;
     return (
         <footer className="bg-slate-50 text-slate-600 pt-16 pb-8 border-t border-slate-200">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

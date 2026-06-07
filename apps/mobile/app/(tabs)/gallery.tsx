@@ -781,8 +781,10 @@ export default function PortfolioTabScreen() {
 
         {/* ── HOST GUIDE ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Host Your Perfect Event</Text>
-          <View style={styles.benefitsGrid}>
+          {false && (
+            <>
+              <Text style={styles.sectionTitle}>Host Your Perfect Event</Text>
+              <View style={styles.benefitsGrid}>
             <View style={styles.benefitCard}>
               <View style={styles.benefitIcon}>
                 <IconSymbol name="photo.on.rectangle" size={20} color={colors.gold} />
@@ -813,6 +815,8 @@ export default function PortfolioTabScreen() {
               </View>
             </View>
           </View>
+          </>
+          )}
 
           {/* ── HOW TO HOST — YouTube Card ── */}
           <TouchableOpacity

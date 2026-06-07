@@ -81,8 +81,12 @@ export async function registerDeviceForPushNotifications(userId: string): Promis
     }
 
     return token;
-  } catch (error) {
-    console.error('[Notifications] Error during registerDeviceForPushNotifications:', error);
+  } catch (error: any) {
+    if (error?.code === 'E_REGISTRATION_FAILED' || (error?.message && error.message.includes('FirebaseApp'))) {
+      console.log('[Notifications] Push notifications skipped: Firebase is not configured yet.');
+    } else {
+      console.warn('[Notifications] Could not register push token:', error?.message || error);
+    }
     return null;
   }
 }

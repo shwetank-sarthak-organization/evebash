@@ -25,7 +25,8 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "tailwind-merge": "^3.4.0",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "react-native": "0.83.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

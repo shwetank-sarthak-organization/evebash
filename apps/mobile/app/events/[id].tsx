@@ -1313,8 +1313,10 @@ export default function EventDetailScreen() {
           }
         };
 
+        // Create a completely unique channel name so React re-renders don't try to attach listeners to an already-subscribed channel
+        const uniqueChannelName = `guest-status-${foundLogId}-${Math.random().toString(36).substring(7)}`;
         const channel = supabase
-          .channel(`guest-status-${foundLogId}`)
+          .channel(uniqueChannelName)
           .on('postgres_changes', { 
             event: '*', 
             schema: 'public', 

@@ -181,8 +181,8 @@ export default function BusinessLandingScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!name || !ownerName || !ownerEmail || !ownerPhone || !businessType || !location) {
-      Alert.alert('Missing Info', 'Please fill in all basic fields and pinpoint your location.');
+    if (!name || !ownerName || !ownerEmail || !ownerPhone || !businessType) {
+      Alert.alert('Missing Info', 'Please fill in all basic fields.');
       return;
     }
 
@@ -200,10 +200,10 @@ export default function BusinessLandingScreen() {
         ownerPhone,
         type: businessType,
         tags: selectedTags,
-        location: {
+        location: location ? {
           latitude: location.latitude,
           longitude: location.longitude,
-        },
+        } : { latitude: 0, longitude: 0 },
         description,
         startedDate: startedDate,
         experience: Math.floor((new Date().getTime() - startedDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25)),
@@ -600,61 +600,7 @@ export default function BusinessLandingScreen() {
                   <IconSymbol name="chevron.down" size={16} color={INDIGO_LIGHT} />
                 </TouchableOpacity>
 
-                <Modal
-                  visible={showCategoryPicker}
-                  transparent={true}
-                  animationType="fade"
-                  onRequestClose={() => setShowCategoryPicker(false)}
-                >
-                  <TouchableOpacity 
-                    style={styles.pickerOverlay} 
-                    activeOpacity={1} 
-                    onPress={() => setShowCategoryPicker(false)}
-                  >
-                    <View style={styles.pickerModalContainer}>
-                      <View style={styles.pickerHeader}>
-                        <Text style={styles.pickerTitle}>Select Category</Text>
-                        <TouchableOpacity onPress={() => setShowCategoryPicker(false)}>
-                          <IconSymbol name="xmark" size={20} color="#94a3b8" />
-                        </TouchableOpacity>
-                      </View>
-                      <View>
-                        <ScrollView 
-                          style={styles.pickerList}
-                          showsVerticalScrollIndicator={true}
-                          contentContainerStyle={{ paddingBottom: 40 }}
-                        >
-                          {BUSINESS_TYPES.map((item) => (
-                            <TouchableOpacity 
-                              key={item} 
-                              style={[styles.pickerItem, businessType === item && styles.pickerItemActive]}
-                              onPress={() => {
-                                setBusinessType(item);
-                                setShowCategoryPicker(false);
-                              }}
-                            >
-                              <Text style={[styles.pickerItemText, businessType === item && styles.pickerItemTextActive]}>
-                                {item}
-                              </Text>
-                              {businessType === item && (
-                                <IconSymbol name="checkmark" size={16} color={INDIGO_LIGHT} />
-                              )}
-                            </TouchableOpacity>
-                          ))}
-                        </ScrollView>
-                        <LinearGradient
-                          colors={isDark ? ['transparent', 'rgba(15, 23, 42, 0.9)', '#0f172a'] : ['transparent', 'rgba(255, 255, 255, 0.9)', colors.background]}
-                          style={styles.pickerFade}
-                          pointerEvents="none"
-                        />
-                      </View>
-                      <View style={styles.pickerFooter}>
-                        <IconSymbol name="chevron.down" size={12} color="#475569" />
-                        <Text style={styles.pickerFooterText}>Scroll for more</Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                </Modal>
+
               </View>
 
               <View style={styles.inputGroup}>
@@ -711,7 +657,7 @@ export default function BusinessLandingScreen() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Pinpoint Location *</Text>
+                <Text style={styles.inputLabel}>Pinpoint Location (Optional)</Text>
                 <TouchableOpacity 
                   style={[styles.locationBtn, location && styles.locationBtnActive]} 
                   onPress={handleGetLocation}
@@ -747,6 +693,64 @@ export default function BusinessLandingScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+
+      {/* ── CATEGORY PICKER MODAL (Moved outside to prevent Android nested modal bug) ── */}
+      <Modal
+        visible={showCategoryPicker}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowCategoryPicker(false)}
+      >
+        <TouchableOpacity 
+          style={styles.pickerOverlay} 
+          activeOpacity={1} 
+          onPress={() => setShowCategoryPicker(false)}
+        >
+          <View style={styles.pickerModalContainer}>
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Select Category</Text>
+              <TouchableOpacity onPress={() => setShowCategoryPicker(false)}>
+                <IconSymbol name="xmark" size={20} color="#94a3b8" />
+              </TouchableOpacity>
+            </View>
+            <View>
+              <ScrollView 
+                style={styles.pickerList}
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={{ paddingBottom: 40 }}
+              >
+                {BUSINESS_TYPES.map((item) => (
+                  <TouchableOpacity 
+                    key={item} 
+                    style={[styles.pickerItem, businessType === item && styles.pickerItemActive]}
+                    onPress={() => {
+                      setBusinessType(item);
+                      setShowCategoryPicker(false);
+                    }}
+                  >
+                    <Text style={[styles.pickerItemText, businessType === item && styles.pickerItemTextActive]}>
+                      {item}
+                    </Text>
+                    {businessType === item && (
+                      <IconSymbol name="checkmark" size={16} color={INDIGO_LIGHT} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <LinearGradient
+                colors={isDark ? ['transparent', 'rgba(15, 23, 42, 0.9)', '#0f172a'] : ['transparent', 'rgba(255, 255, 255, 0.9)', colors.background]}
+                style={styles.pickerFade}
+                pointerEvents="none"
+              />
+            </View>
+            <View style={styles.pickerFooter}>
+              <IconSymbol name="chevron.down" size={12} color="#475569" />
+              <Text style={styles.pickerFooterText}>Scroll for more</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
     </View>
   );
 }
@@ -1001,7 +1005,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: colors.modalBackdrop,
+    backgroundColor: colors.modalBackdrop || 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'flex-end',
   },
   formContainer: {
@@ -1137,7 +1141,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   pickerOverlay: {
     flex: 1,
-    backgroundColor: colors.modalBackdrop,
+    backgroundColor: colors.modalBackdrop || 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
   },
