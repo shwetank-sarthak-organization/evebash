@@ -1,4 +1,5 @@
 "use client";
+import { getImageUrl } from "@/lib/imageUrl";
 
 import React, { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -78,7 +79,7 @@ export function Lightbox({ isOpen, onClose, photo }: LightboxProps) {
                             />
                         ) : (
                             <img
-                                src={photo.src}
+                                src={getImageUrl(photo.src, { width: 1600, quality: 80, format: 'webp' })}
                                 alt={photo.alt || "Event Photo"}
                                 className="max-w-full max-h-[90vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
                             />

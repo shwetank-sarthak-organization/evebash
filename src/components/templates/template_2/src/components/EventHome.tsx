@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
+import { getImageUrl } from "@/lib/imageUrl";
 import { Event } from "@/lib/firestore";
 
 interface EventHomeProps {
@@ -24,13 +24,7 @@ export default function EventHome({ event, subEvents, basePath }: EventHomeProps
                 {/* Background Image */}
                 <div className="absolute inset-0 z-0">
                     {event.coverImage && (
-                        <Image
-                            src={event.coverImage}
-                            alt={event.title}
-                            fill
-                            className="object-cover object-[50%_35%]"
-                            priority
-                        />
+                        <img src={getImageUrl(event.coverImage, { width: 1200, quality: 80, format: 'webp' })} alt={event.title} className="absolute inset-0 w-full h-full object-cover object-[50%_35%]" />
                     )}
                     <div className="absolute inset-0 bg-black/30 mix-blend-multiply"></div>
                     <div className="absolute inset-0 bg-gradient-to-t from-royal-maroon/90 via-transparent to-black/40"></div>
@@ -103,13 +97,7 @@ export default function EventHome({ event, subEvents, basePath }: EventHomeProps
                             >
                                 {/* Background Image */}
                                 {subEvent.coverImage ? (
-                                    <Image
-                                        src={subEvent.coverImage}
-                                        alt={subEvent.title}
-                                        fill
-                                        className="object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500"
-                                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                                    />
+                                    <img src={getImageUrl(subEvent.coverImage, { width: 600, quality: 75, format: 'webp' })} alt={subEvent.title} className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500" />
                                 ) : (
                                     <div className="w-full h-full bg-royal-maroon flex items-center justify-center text-royal-gold">
                                         No Image

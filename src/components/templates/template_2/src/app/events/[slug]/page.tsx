@@ -1,3 +1,4 @@
+import { getImageUrl } from "@/lib/imageUrl";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { notFound } from "next/navigation";
@@ -42,7 +43,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             <div className="relative h-[60vh] w-full overflow-hidden flex items-end justify-center pb-20">
                 <div className="absolute inset-0">
                     <img
-                        src={event.coverImage}
+                        src={getImageUrl(event.coverImage, { width: 1200, quality: 80, format: 'webp' })}
                         alt={event.title}
                         className="w-full h-full object-cover"
                     />

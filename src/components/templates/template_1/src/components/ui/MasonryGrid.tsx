@@ -1,4 +1,5 @@
 "use client";
+import { getGridThumbnail } from "@/lib/imageUrl";
 
 import React, { useState } from "react";
 import { CldImage } from "next-cloudinary";
@@ -85,7 +86,7 @@ export function MasonryGrid({ photos, className, eventSlug }: MasonryGridProps) 
                                     />
                                 ) : (
                                     <img
-                                        src={photo.src}
+                                        src={getGridThumbnail(photo.src)}
                                         alt={photo.alt || "Event Photo"}
                                         className="w-full h-auto object-cover transform transition-all duration-700 group-hover:scale-110"
                                         loading="lazy"

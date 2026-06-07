@@ -429,37 +429,41 @@ export async function updateGuestStatus(logId: string, status: 'pending' | 'appr
         if (error) throw error;
 
         // Fetch the guest's details to notify them of approval/update in background
-        supabase
-            .from('guests')
-            .select('phone, event_title')
-            .eq('id', logId)
-            .maybeSingle()
-            .then(({ data: guestLog }) => {
+        (async () => {
+            try {
+                const { data: guestLog } = await supabase
+                    .from('guests')
+                    .select('phone, event_title')
+                    .eq('id', logId)
+                    .maybeSingle();
+
                 if (guestLog && guestLog.phone) {
-                    supabase
+                    const { data: guestProfile } = await supabase
                         .from('profiles')
                         .select('id')
                         .eq('phone', guestLog.phone)
-                        .maybeSingle()
-                        .then(({ data: guestProfile }) => {
-                            if (guestProfile) {
-                                const title = status === 'approved' ? "Access Approved! ✨" : "Access Request Update";
-                                const body = status === 'approved'
-                                    ? `You have been approved to join the event "${guestLog.event_title || 'Wedding'}"!`
-                                    : `Your access request to "${guestLog.event_title || 'Wedding'}" was updated.`;
+                        .maybeSingle();
 
-                                sendPushNotification(
-                                    guestProfile.id,
-                                    title,
-                                    body,
-                                    { eventId: logId.split('_')[1] || null },
-                                    'eventInvites'
-                                ).catch(err => console.error("[PushNotifications] Error sending status update push:", err));
-                            }
-                        });
+                    if (guestProfile) {
+                        const title = status === 'approved' ? "Access Approved! ✨" : "Access Request Update";
+                        const body = status === 'approved'
+                            ? `You have been approved to join the event "${guestLog.event_title || 'Wedding'}"!`
+                            : `Your access request to "${guestLog.event_title || 'Wedding'}" was updated.`;
+
+                        await sendPushNotification(
+                            guestProfile.id,
+                            title,
+                            body,
+                            { eventId: logId.split('_')[1] || null },
+                            'eventInvites'
+                        );
+                    }
                 }
-            })
-            .catch(err => console.error("[PushNotifications] Error querying guest log for update notification:", err));
+            } catch (err) {
+                console.error("[PushNotifications] Error in guest approval background task:", err);
+            }
+        })();
+
 
         return true;
     } catch (error) {
