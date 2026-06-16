@@ -24,6 +24,7 @@ const MAPPING = {
   'star': 'star-border',
   'checkmark': 'check',
   'checkmark.circle.fill': 'check-circle',
+  'exclamationmark.triangle.fill': 'warning',
   'info.circle': 'info',
   'person.2.fill': 'people',
   'camera.fill': 'photo-camera',

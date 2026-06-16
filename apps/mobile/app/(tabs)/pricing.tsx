@@ -321,7 +321,7 @@ export default function PricingScreen() {
           >
             <Text style={[
               styles.ctaText, 
-              activePackage.isPopular && { color: '#020617', fontFamily: 'Outfit_800ExtraBold' }
+              activePackage.isPopular && { color: '#050505', fontFamily: 'Outfit_800ExtraBold' }
             ]}>{activePackage.cta}</Text>
           </TouchableOpacity>
         </View>
@@ -350,7 +350,7 @@ export default function PricingScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: '#050505',
   },
   headerRow: {
     flexDirection: 'row',
@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
   },
   filterTabTextActive: {
-    color: '#020617',
+    color: '#050505',
     fontFamily: 'Outfit_800ExtraBold',
   },
   sectionLabel: {
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
   tierPill: {
     width: 90,
     height: 75,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.06)',
@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
   popularBadgeMiniText: {
     fontSize: 8,
     fontFamily: 'Outfit_800ExtraBold',
-    color: '#020617',
+    color: '#050505',
   },
   tierPillTitle: {
     fontSize: 16,
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   detailCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     borderRadius: 24,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.06)',
@@ -589,7 +589,7 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     padding: 16,
     borderRadius: 16,
     marginTop: 32,
@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   customPlanCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     padding: 24,
     borderRadius: 20,
     marginTop: 20,

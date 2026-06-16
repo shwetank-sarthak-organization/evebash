@@ -30,9 +30,10 @@ import {
   getUserPhotosCount,
   getUserEventCount,
   getApprovedSharedEventsForUser
-} from '@/lib/firestore';
+} from '@/lib/database';
 
 import { uploadProfileImage } from '@/lib/storage';
+import { supabase } from '@/lib/supabase';
 
 const { width } = Dimensions.get('window');
 
@@ -155,6 +156,7 @@ export default function ProfileScreen() {
   // Edit Profile States
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
   const [editUsername, setEditUsername] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editLocation, setEditLocation] = useState('');
@@ -174,6 +176,7 @@ export default function ProfileScreen() {
   });
   const [loadingStats, setLoadingStats] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [verification, setVerification] = useState({ email: false, phone: false });
 
   // Username validation state
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
@@ -227,8 +230,26 @@ export default function ProfileScreen() {
     return () => clearTimeout(timer);
   }, [editUsername, isEditing, user]);
 
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const loadVerificationStatus = async () => {
+      const { data } = await supabase.auth.getUser();
+      const authUser = data.user;
+      const authEmail = authUser?.email?.toLowerCase();
+      const profileEmail = user.email?.toLowerCase();
+      setVerification({
+        email: Boolean(authUser?.email_confirmed_at && authEmail && authEmail === profileEmail),
+        phone: Boolean((authUser as any)?.phone_confirmed_at && (authUser as any)?.phone && (authUser as any).phone === user.phone),
+      });
+    };
+
+    loadVerificationStatus();
+  }, [user?.uid, user?.email, user?.phone]);
+
   const openEditModal = () => {
     setEditName(user?.name || '');
+    setEditEmail(user?.email || '');
     setEditUsername(user?.username || '');
     setEditPhone(user?.phone && user.phone !== 'No Phone' ? user.phone : '');
     setEditLocation(user?.location || '');
@@ -277,6 +298,11 @@ export default function ProfileScreen() {
       Alert.alert('Error', 'Full name cannot be empty.');
       return;
     }
+    const normalizedEmail = editEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      Alert.alert('Error', 'Please enter a valid email address.');
+      return;
+    }
     if (!isUsernameValid) {
       Alert.alert('Error', 'Please choose a valid and available username.');
       return;
@@ -295,6 +321,7 @@ export default function ProfileScreen() {
 
       const success = await updateUserProfile(user.uid, {
         name: editName.trim(),
+        email: normalizedEmail,
         username: editUsername.trim().toLowerCase(),
         profileImage: finalImageUrl,
         phone: editPhone.trim() || '',
@@ -444,6 +471,29 @@ export default function ProfileScreen() {
     setUpdatingPrivacy(false);
   };
 
+  const renderVerificationBadge = (verified: boolean, missing: boolean, missingText: string) => (
+    <View
+      style={[
+        styles.verificationBadge,
+        missing ? styles.verificationBadgeMissing : verified ? styles.verificationBadgeVerified : styles.verificationBadgeUnverified,
+      ]}
+    >
+      <IconSymbol
+        name={verified && !missing ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"}
+        size={12}
+        color={missing ? "#fbbf24" : verified ? "#34d399" : "#fb7185"}
+      />
+      <Text
+        style={[
+          styles.verificationBadgeText,
+          missing ? styles.verificationTextMissing : verified ? styles.verificationTextVerified : styles.verificationTextUnverified,
+        ]}
+      >
+        {missing ? missingText : verified ? "Verified" : "Not verified"}
+      </Text>
+    </View>
+  );
+
   if (!user) return null;
 
   return (
@@ -530,7 +580,7 @@ export default function ProfileScreen() {
           <View style={styles.sectionHead}>
             <Text style={styles.sectionLabel}>Account Info</Text>
             <TouchableOpacity style={styles.editBtn} activeOpacity={0.7} onPress={openEditModal}>
-              <IconSymbol name="pencil" size={12} color="#020617" style={{ marginTop: -1 }} />
+              <IconSymbol name="pencil" size={12} color="#050505" style={{ marginTop: -1 }} />
               <Text style={styles.editBtnText}>Edit</Text>
             </TouchableOpacity>
           </View>
@@ -567,6 +617,11 @@ export default function ProfileScreen() {
               <View style={styles.infoTextContainer}>
                 <Text style={styles.infoLabel}>Email Address</Text>
                 <Text style={styles.infoValue}>{user.email || 'Not provided'}</Text>
+                {renderVerificationBadge(
+                  verification.email,
+                  !user.email,
+                  'Email needs to be entered'
+                )}
               </View>
             </View>
 
@@ -581,6 +636,11 @@ export default function ProfileScreen() {
                 <Text style={styles.infoValue}>
                   {user.phone && user.phone !== 'No Phone' ? user.phone : 'Not provided'}
                 </Text>
+                {renderVerificationBadge(
+                  verification.phone,
+                  !user.phone || user.phone === 'No Phone',
+                  'Phone number needs to be entered'
+                )}
               </View>
             </View>
 
@@ -774,7 +834,7 @@ export default function ProfileScreen() {
                 
                 {/* Full Name Input */}
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Full Name</Text>
+                  <Text style={styles.inputLabel}>Full Name <Text style={styles.requiredMark}>*</Text></Text>
                   <View style={styles.inputWrapper}>
                     <IconSymbol name="person.fill" size={16} color="#d4af37" style={styles.inputIcon} />
                     <TextInput
@@ -788,9 +848,28 @@ export default function ProfileScreen() {
                   </View>
                 </View>
 
+                {/* Email Address Input */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Email Address <Text style={styles.requiredMark}>*</Text></Text>
+                  <View style={styles.inputWrapper}>
+                    <IconSymbol name="envelope.fill" size={16} color="#d4af37" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.textInput}
+                      value={editEmail}
+                      onChangeText={(val) => setEditEmail(val.trim().toLowerCase())}
+                      placeholder="name@example.com"
+                      placeholderTextColor="#475569"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      editable={!saving}
+                    />
+                  </View>
+                </View>
+
                 {/* Username Input */}
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Username</Text>
+                  <Text style={styles.inputLabel}>Username <Text style={styles.requiredMark}>*</Text></Text>
                   <View style={styles.inputWrapper}>
                     <Text style={styles.usernamePrefix}>@</Text>
                     <TextInput
@@ -998,14 +1077,14 @@ export default function ProfileScreen() {
                 <TouchableOpacity 
                   style={[
                     styles.saveBtn,
-                    (!editName.trim() || !isUsernameValid || saving) && styles.saveBtnDisabled
+                    (!editName.trim() || !editEmail.trim() || !isUsernameValid || saving) && styles.saveBtnDisabled
                   ]} 
                   onPress={handleSaveChanges}
-                  disabled={!editName.trim() || !isUsernameValid || saving}
+                  disabled={!editName.trim() || !editEmail.trim() || !isUsernameValid || saving}
                   activeOpacity={0.7}
                 >
                   {saving ? (
-                    <ActivityIndicator size="small" color="#020617" />
+                    <ActivityIndicator size="small" color="#050505" />
                   ) : (
                     <Text style={styles.saveBtnText}>Save Changes</Text>
                   )}
@@ -1248,7 +1327,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     elevation: 3,
   },
   editBtnText: {
-    color: '#020617',
+    color: '#050505',
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },
@@ -1341,6 +1420,44 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     fontFamily: 'Outfit_600SemiBold', 
     color: colors.white,
     marginTop: 1,
+  },
+  verificationBadge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    marginTop: 7,
+  },
+  verificationBadgeVerified: {
+    backgroundColor: 'rgba(52, 211, 153, 0.1)',
+    borderColor: 'rgba(52, 211, 153, 0.25)',
+  },
+  verificationBadgeUnverified: {
+    backgroundColor: 'rgba(251, 113, 133, 0.1)',
+    borderColor: 'rgba(251, 113, 133, 0.25)',
+  },
+  verificationBadgeMissing: {
+    backgroundColor: 'rgba(251, 191, 36, 0.1)',
+    borderColor: 'rgba(251, 191, 36, 0.25)',
+  },
+  verificationBadgeText: {
+    fontSize: 10,
+    fontFamily: 'Inter_700Bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  verificationTextVerified: {
+    color: '#34d399',
+  },
+  verificationTextUnverified: {
+    color: '#fb7185',
+  },
+  verificationTextMissing: {
+    color: '#fbbf24',
   },
   divider: {
     height: 1,
@@ -1507,6 +1624,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     letterSpacing: 0.5,
     marginLeft: 4,
   },
+  requiredMark: {
+    color: colors.gold,
+  },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1598,7 +1718,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     elevation: 0,
   },
   saveBtnText: {
-    color: '#020617',
+    color: '#050505',
     fontSize: 16,
     fontFamily: 'Outfit_700Bold',
   },
@@ -1626,7 +1746,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     color: colors.slate400,
   },
   themePillTextActive: {
-    color: '#020617',
+    color: '#050505',
     fontFamily: 'Inter_700Bold',
   },
   socialStatBtn: {
@@ -1713,7 +1833,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: colors.gold,
   },
   networkFollowBtnText: {
-    color: '#020617',
+    color: '#050505',
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },

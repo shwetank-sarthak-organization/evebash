@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, ScrollView, KeyboardAvoidingView, 
 import { LinearGradient } from 'expo-linear-gradient';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, Event as FirestoreEvent } from '@/lib/firestore';
+import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, Event as DatabaseEvent } from '@/lib/database';
 import { getImageUrl } from '@/lib/imageUrl';
 import { MidnightColors, Fonts } from '../constants/theme';
 import { styles } from './eventStyles';
@@ -14,7 +14,7 @@ interface PhotoViewerProps {
   photos: any[];
   initialIndex: number;
   viewerIdentity: { id: string; name: string };
-  event: FirestoreEvent | null;
+  event: DatabaseEvent | null;
   selectedTemplate: any;
 }
 
@@ -49,9 +49,9 @@ const VIEWER_TEMPLATE_PALETTES: Record<string, ViewerPalette> = {
   diamond: { background: '#f0f9ff', panel: 'rgba(255,255,255,0.96)', text: '#0c4a6e', muted: '#0369a1', accent: '#0284c7', tileBg: '#ffffff', overlay: ['rgba(240,249,255,0.94)', 'rgba(2,132,199,0.14)'], controlBg: 'rgba(255,255,255,0.9)', controlText: '#0c4a6e', frameBorder: 'rgba(2,132,199,0.36)', radius: 15 },
   blush: { background: '#fff7ed', panel: 'rgba(255,255,255,0.96)', text: '#7c2d12', muted: '#9a3412', accent: '#ea580c', tileBg: '#ffffff', overlay: ['rgba(255,247,237,0.94)', 'rgba(234,88,12,0.14)'], controlBg: 'rgba(255,255,255,0.9)', controlText: '#7c2d12', frameBorder: 'rgba(234,88,12,0.38)', radius: 10 },
   garden: { background: '#E5ECE9', panel: 'rgba(253,251,247,0.96)', text: '#1A3322', muted: '#4D6D53', accent: '#2E6F40', tileBg: '#FDFBF7', overlay: ['rgba(229,236,233,0.94)', 'rgba(46,111,64,0.14)'], controlBg: 'rgba(253,251,247,0.9)', controlText: '#1A3322', frameBorder: 'rgba(46,111,64,0.36)', radius: 22 },
-  midnight_glam: { background: '#020617', panel: 'rgba(15,23,42,0.94)', text: '#f8fafc', muted: '#94a3b8', accent: '#3b82f6', tileBg: '#0f172a', overlay: ['rgba(2,6,23,0.94)', 'rgba(59,130,246,0.16)'], controlBg: 'rgba(15,23,42,0.84)', controlText: '#f8fafc', frameBorder: 'rgba(59,130,246,0.48)', radius: 8 },
+  midnight_glam: { background: '#050505', panel: 'rgba(15,23,42,0.94)', text: '#f8fafc', muted: '#94a3b8', accent: '#3b82f6', tileBg: '#101010', overlay: ['rgba(2,6,23,0.94)', 'rgba(59,130,246,0.16)'], controlBg: 'rgba(15,23,42,0.84)', controlText: '#f8fafc', frameBorder: 'rgba(59,130,246,0.48)', radius: 8 },
   cinematic: { background: '#000000', panel: 'rgba(17,17,17,0.94)', text: '#ffffff', muted: '#a3a3a3', accent: '#ef4444', tileBg: '#111111', overlay: ['rgba(0,0,0,0.94)', 'rgba(239,68,68,0.1)'], controlBg: 'rgba(17,17,17,0.84)', controlText: '#ffffff', frameBorder: 'rgba(239,68,68,0.45)', radius: 4 },
-  modern_lounge: { background: '#f8fafc', panel: 'rgba(255,255,255,0.96)', text: '#0f172a', muted: '#64748b', accent: '#818cf8', tileBg: '#ffffff', overlay: ['rgba(248,250,252,0.94)', 'rgba(129,140,248,0.14)'], controlBg: 'rgba(255,255,255,0.9)', controlText: '#0f172a', frameBorder: 'rgba(129,140,248,0.36)', radius: 2 },
+  modern_lounge: { background: '#f8fafc', panel: 'rgba(255,255,255,0.96)', text: '#101010', muted: '#64748b', accent: '#818cf8', tileBg: '#ffffff', overlay: ['rgba(248,250,252,0.94)', 'rgba(129,140,248,0.14)'], controlBg: 'rgba(255,255,255,0.9)', controlText: '#101010', frameBorder: 'rgba(129,140,248,0.36)', radius: 2 },
   elegant_night: { background: '#111111', panel: 'rgba(26,26,26,0.94)', text: '#ffffff', muted: '#cccccc', accent: '#ffffff', tileBg: '#111111', overlay: ['rgba(17,17,17,0.94)', 'rgba(255,255,255,0.08)'], controlBg: 'rgba(26,26,26,0.84)', controlText: '#ffffff', frameBorder: 'rgba(255,255,255,0.32)', radius: 2 },
   museum: { background: '#f3f0ea', panel: 'rgba(255,255,252,0.96)', text: '#17202b', muted: '#66717d', accent: '#9b7a44', tileBg: '#fffffc', overlay: ['rgba(243,240,234,0.94)', 'rgba(155,122,68,0.14)'], controlBg: 'rgba(255,255,252,0.9)', controlText: '#17202b', frameBorder: 'rgba(155,122,68,0.38)', radius: 22 },
   brutalist: { background: '#efede7', panel: 'rgba(255,255,250,0.96)', text: '#111113', muted: '#62625d', accent: '#1a1a1c', tileBg: '#fffffa', overlay: ['rgba(239,237,231,0.94)', 'rgba(26,26,28,0.12)'], controlBg: 'rgba(255,255,250,0.9)', controlText: '#111113', frameBorder: 'rgba(26,26,28,0.34)', radius: 14 },
@@ -78,7 +78,7 @@ const SPORTS_VIEWER_PALETTES: Record<string, ViewerPalette> = {
   elegant_night: { background: '#07101f', panel: 'rgba(12,23,42,0.94)', text: '#f5eddc', muted: '#d4b474', accent: '#d4b474', tileBg: '#0b1628', overlay: ['rgba(7,16,31,0.94)', 'rgba(212,180,116,0.16)'], controlBg: 'rgba(12,23,42,0.84)', controlText: '#f5eddc', frameBorder: 'rgba(212,180,116,0.5)', radius: 2 },
   polaroid: { ...VIEWER_TEMPLATE_PALETTES.polaroid, background: '#f7efe1', accent: '#b45309' },
   editorial: VIEWER_TEMPLATE_PALETTES.editorial,
-  vibrant: { background: '#08111f', panel: 'rgba(15,23,42,0.94)', text: '#f8fafc', muted: '#cbd5e1', accent: '#f97316', tileBg: '#0f172a', overlay: ['rgba(8,17,31,0.94)', 'rgba(249,115,22,0.18)'], controlBg: 'rgba(15,23,42,0.84)', controlText: '#f8fafc', frameBorder: 'rgba(249,115,22,0.5)', radius: 15 },
+  vibrant: { background: '#08111f', panel: 'rgba(15,23,42,0.94)', text: '#f8fafc', muted: '#cbd5e1', accent: '#f97316', tileBg: '#101010', overlay: ['rgba(8,17,31,0.94)', 'rgba(249,115,22,0.18)'], controlBg: 'rgba(15,23,42,0.84)', controlText: '#f8fafc', frameBorder: 'rgba(249,115,22,0.5)', radius: 15 },
   zen: { ...VIEWER_TEMPLATE_PALETTES.zen, background: '#f1eee6', accent: '#66785f', frameBorder: 'rgba(102,120,95,0.36)' },
 };
 
@@ -298,7 +298,7 @@ export default function PhotoViewer({
             ]}
           >
             {isVideoMedia ? (
-              <ViewerVideo uri={photos[currentPhotoIndex].url} frameBg={viewerTheme.tileBg} />
+              <ViewerVideo key={photos[currentPhotoIndex].id || photos[currentPhotoIndex].url} uri={photos[currentPhotoIndex].url} frameBg={viewerTheme.tileBg} />
             ) : (
               <Image
                 source={{ uri: getImageUrl(photos[currentPhotoIndex].url, { width: 1600, quality: 80, format: 'webp' }) }}

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, ChevronRight, User, LogOut, Camera } from "lucide-react";
-import { Event } from "@/lib/firestore";
+import { Event } from "@/lib/database";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 
@@ -20,7 +20,6 @@ interface EventNavbarProps {
 export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, basePath }: EventNavbarProps) {
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [profileOpen, setProfileOpen] = useState(false);
     const [guestDetails, setGuestDetails] = useState<{name: string, phone: string} | null>(null);
     const pathname = usePathname();
     const { user, logout } = useAuth();
@@ -60,6 +59,7 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, 
 
     // Generate core links
     const navLinks = [
+        { name: "Home", href: `${basePath}${sharedQuery}` },
         ...subEvents.map(sub => ({
             name: sub.title || sub.id,
             href: `${basePath}/events/${sub.id}${sharedQuery}`
@@ -112,63 +112,29 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, 
                         })}
 
                         {activeName && (
-                            <div className="relative ml-4">
-                                <button
-                                    onClick={() => setProfileOpen(!profileOpen)}
-                                    className="flex items-center space-x-2 px-3 py-1.5 rounded-full border transition-all border-slate-200 hover:bg-slate-50"
+                            user ? (
+                                <Link
+                                    href="/profile"
+                                    aria-label="Profile"
+                                    title="Profile"
+                                    className="ml-4 flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white text-slate-700 transition-all hover:bg-slate-50"
                                 >
-                                    <div className="w-6 h-6 rounded-full bg-royal-gold text-white flex items-center justify-center text-[10px] font-bold">
-                                        {activeName.charAt(0).toUpperCase()}
-                                    </div>
-                                    <span className="text-xs font-bold text-slate-700">
-                                        {activeName.split(' ')[0]}
-                                    </span>
-                                </button>
-
-                                <AnimatePresence>
-                                    {profileOpen && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: 10 }}
-                                            className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-stone-100 overflow-hidden"
-                                        >
-                                            <div className="p-4 border-b border-stone-50 bg-stone-50/50">
-                                                <p className="text-sm font-bold text-slate-800 truncate">{activeName}</p>
-                                                <p className="text-[10px] text-stone-500 uppercase tracking-widest truncate mt-0.5">{activeIdentifier || activeRole}</p>
-                                            </div>
-                                            <div className="p-2 flex flex-col space-y-1">
-                                                {user && (
-                                                    <>
-                                                        <Link
-                                                            href="/profile"
-                                                            className="flex items-center space-x-3 w-full px-3 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-stone-50 rounded-xl transition-all"
-                                                        >
-                                                            <User className="w-4 h-4" />
-                                                            <span>My Profile</span>
-                                                        </Link>
-                                                        <Link
-                                                            href={user.role === "admin" && !user.delegatedBy ? "/admin/dashboard" : "/dashboard"}
-                                                            className="flex items-center space-x-3 w-full px-3 py-2 text-xs font-bold text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded-xl transition-all"
-                                                        >
-                                                            <Camera className="w-4 h-4" />
-                                                            <span>{user.role === "admin" && !user.delegatedBy ? "Admin Dashboard" : "Manage Galleries"}</span>
-                                                        </Link>
-                                                        <div className="my-1 border-t border-stone-100"></div>
-                                                    </>
-                                                )}
-                                                <button
-                                                    onClick={handleLogout}
-                                                    className="flex items-center space-x-3 w-full px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                                                >
-                                                    <LogOut className="w-4 h-4" />
-                                                    <span>Logout</span>
-                                                </button>
-                                            </div>
-                                        </motion.div>
+                                    {user.profileImage ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={user.profileImage} alt="" className="h-full w-full object-cover" />
+                                    ) : (
+                                        <User className="h-5 w-5" />
                                     )}
-                                </AnimatePresence>
-                            </div>
+                                </Link>
+                            ) : (
+                                <button
+                                    onClick={handleLogout}
+                                    className="ml-4 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-all hover:bg-slate-50"
+                                    aria-label="Logout"
+                                >
+                                    <LogOut className="h-5 w-5" />
+                                </button>
+                            )
                         )}
                     </div>
 

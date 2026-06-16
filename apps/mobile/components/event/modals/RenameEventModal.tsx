@@ -1,12 +1,10 @@
 import React from 'react';
 import {
   Modal,
-  KeyboardAvoidingView,
   TouchableOpacity,
   View,
   Text,
   TextInput,
-  Platform
 } from 'react-native';
 import { MidnightColors } from '../../../constants/theme';
 
@@ -33,10 +31,7 @@ export function RenameEventModal({
 }: RenameEventModalProps) {
   return (
     <Modal visible={visible} transparent animationType="fade">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.modalOverlay}
-      >
+      <View style={styles.modalOverlay}>
         <TouchableOpacity
           style={styles.modalBackdrop}
           activeOpacity={1}
@@ -58,7 +53,6 @@ export function RenameEventModal({
             onChangeText={setEditTitle}
             placeholder="Event Name"
             placeholderTextColor={MidnightColors.slate400}
-            autoFocus
             multiline
             blurOnSubmit={false}
           />
@@ -73,7 +67,7 @@ export function RenameEventModal({
             </Text>
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }

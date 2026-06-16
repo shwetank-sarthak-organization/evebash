@@ -112,12 +112,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let isMounted = true;
     let profileUnsubscribe: (() => void) | undefined;
-    const authLoadingFallback = setTimeout(() => {
-      if (isMounted) {
-        console.warn('[Auth] Initial auth check timed out. Showing login screen.');
-        setLoading(false);
+    let authLoadingFallback: ReturnType<typeof setTimeout> | undefined;
+
+    const finishAuthLoading = () => {
+      if (authLoadingFallback) {
+        clearTimeout(authLoadingFallback);
+        authLoadingFallback = undefined;
       }
-    }, 9000);
+      if (isMounted) setLoading(false);
+    };
 
     // Fetch initial session
     const checkSession = async () => {
@@ -143,11 +146,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user && isMounted) {
           await handleUserSession(session.user);
         } else {
-          if (isMounted) setLoading(false);
+          finishAuthLoading();
         }
       } catch (err) {
         console.warn('[Auth] Error getting initial session (or handled session refresh failure):', err);
-        if (isMounted) setLoading(false);
+        finishAuthLoading();
       }
     };
 
@@ -155,6 +158,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         // Stop any previous profile listener
         if (profileUnsubscribe) profileUnsubscribe();
+
+        const fallbackName = supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'User';
+        if (isMounted) {
+          setUser({
+            uid: supabaseUser.id,
+            name: fallbackName,
+            displayName: fallbackName,
+            email: supabaseUser.email || null,
+            role: 'user',
+            username: undefined,
+            isPrivate: false,
+          });
+          finishAuthLoading();
+        }
 
         // Ensure profile exists in 'profiles' table
         try {
@@ -189,7 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             username: undefined,
             isPrivate: false,
           });
-          setLoading(false);
+          finishAuthLoading();
           return;
         }
 
@@ -240,10 +257,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 anniversaryDate: profile.anniversary_date || undefined,
               });
             }
-            setLoading(false);
+            finishAuthLoading();
           } catch (err) {
             console.error("[Auth] Error fetching user profile:", err);
-            if (isMounted) setLoading(false);
+            finishAuthLoading();
           }
         };
 
@@ -267,7 +284,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       } catch (err) {
         console.error('[Auth] handleUserSession error:', err);
-        if (isMounted) setLoading(false);
+        finishAuthLoading();
       }
     };
 
@@ -281,14 +298,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (profileUnsubscribe) profileUnsubscribe();
         if (isMounted) {
           setUser(null);
-          setLoading(false);
+          finishAuthLoading();
         }
       }
     });
 
     return () => {
       isMounted = false;
-      clearTimeout(authLoadingFallback);
+      if (authLoadingFallback) clearTimeout(authLoadingFallback);
       subscription.unsubscribe();
       if (profileUnsubscribe) profileUnsubscribe();
     };
@@ -481,7 +498,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextType {
   const ctx = useContext(AuthContext);
   if (!ctx) {
     console.warn('[Auth] useAuth was called outside AuthProvider. Returning loading state as fallback.');
@@ -491,6 +508,9 @@ export function useAuth() {
       login: async () => ({ success: false, error: 'Auth context not ready' }),
       signup: async () => ({ success: false, error: 'Auth context not ready' }),
       authWithPhone: async () => ({ success: false, error: 'Auth context not ready' }),
+      loginWithGoogle: async () => ({ success: false, error: 'Auth context not ready' }),
+      loginWithApple: async () => ({ success: false, error: 'Auth context not ready' }),
+      resetPassword: async () => ({ success: false, error: 'Auth context not ready' }),
       logout: async () => {},
     };
   }

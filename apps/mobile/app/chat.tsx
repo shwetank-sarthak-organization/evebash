@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
-import { onChatMessages, sendMessage, ChatMessage, closeChatRoom, ChatRoom } from '@/lib/firestore';
+import { onChatMessages, sendMessage, ChatMessage, closeChatRoom, ChatRoom } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 
@@ -283,7 +283,7 @@ export default function ChatScreen() {
               disabled={!inputText.trim()}
               activeOpacity={0.8}
             >
-              <IconSymbol name="paperplane.fill" size={16} color="#020617" />
+              <IconSymbol name="paperplane.fill" size={16} color="#050505" />
             </TouchableOpacity>
           </View>
         )}
@@ -295,7 +295,7 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: '#050505',
   },
   center: {
     justifyContent: 'center',
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   otherBubble: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     borderBottomLeftRadius: 4,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.03)',
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   myText: {
-    color: '#020617',
+    color: '#050505',
   },
   otherText: {
     color: '#ffffff',
@@ -409,12 +409,12 @@ const styles = StyleSheet.create({
     padding: 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.05)',
-    backgroundColor: '#020617',
+    backgroundColor: '#050505',
     gap: 12,
   },
   textInput: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -467,7 +467,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.05)',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
   },
   blockedText: {
     color: '#94a3b8',

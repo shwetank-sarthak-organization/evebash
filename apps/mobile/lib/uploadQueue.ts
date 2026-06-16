@@ -3,7 +3,7 @@ import { Platform, Alert } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
-import { addPhoto } from './firestore';
+import { addPhoto } from './database';
 
 let Notifications: any = null;
 try {
@@ -435,7 +435,7 @@ async function processQueue() {
           const result = JSON.parse(response.body);
           console.log(`[UploadQueue] Upload succeeded for ${nextItem.fileName}. Writing DB record...`);
 
-          // Write to Firestore db
+          // Write to Supabase database db
           const savedPhotoId = await addPhoto({
             eventId: nextItem.eventId,
             url: result.url,

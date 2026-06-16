@@ -20,7 +20,8 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path } from 'react-native-svg';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
-import { getUserEvents, getApprovedSharedEventsForUser, Event as FirestoreEvent } from '@/lib/firestore';
+import { getUserEvents, getApprovedSharedEventsForUser, Event as DatabaseEvent } from '@/lib/database';
+import { resolveEventCoverImage } from '@/lib/eventCovers';
 
 const { width } = Dimensions.get('window');
 
@@ -28,7 +29,7 @@ export default function YourEventsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const [events, setEvents] = useState<FirestoreEvent[]>([]);
+  const [events, setEvents] = useState<DatabaseEvent[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -76,19 +77,22 @@ export default function YourEventsScreen() {
     fetchData();
   };
 
-  const renderEventCard = (event: FirestoreEvent) => (
-    <TouchableOpacity
-      key={event.id}
-      style={styles.eventCard}
-      activeOpacity={0.9}
-      onPress={() => router.push(`/events/${event.id}?mode=visitor`)}
-    >
-      <ExpoImage
-        source={{ uri: event.coverImage }}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-        transition={400}
-      />
+  const renderEventCard = (event: DatabaseEvent) => {
+    const coverImage = resolveEventCoverImage(event.coverImage);
+
+    return (
+      <TouchableOpacity
+        key={event.id}
+        style={styles.eventCard}
+        activeOpacity={0.9}
+        onPress={() => router.push(`/events/${event.id}?mode=visitor`)}
+      >
+        <ExpoImage
+          source={{ uri: coverImage }}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          transition={400}
+        />
       <LinearGradient
         colors={['rgba(2,6,23,0.3)', 'rgba(2,6,23,0.85)']}
         style={StyleSheet.absoluteFill}
@@ -111,8 +115,9 @@ export default function YourEventsScreen() {
           </View>
         </View>
       </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.safeArea}>
@@ -125,7 +130,7 @@ export default function YourEventsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <LinearGradient
-          colors={['#0f172a', '#020617']}
+          colors={['#101010', '#050505']}
           style={[styles.header, { paddingTop: insets.top + 4 }]}
         >
           <View style={styles.headerLeft}>
@@ -246,7 +251,7 @@ export default function YourEventsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#020617' },
+  safeArea: { flex: 1, backgroundColor: '#050505' },
   container: { flex: 1 },
   scrollContent: { paddingBottom: 60, paddingTop: 0 },
   
@@ -258,7 +263,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 20,
-    backgroundColor: '#020617',
+    backgroundColor: '#050505',
     gap: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -377,7 +382,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#020617',
+    backgroundColor: '#050505',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -403,7 +408,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     paddingHorizontal: 16,
     height: 50,
     borderRadius: 16,
@@ -434,7 +439,7 @@ const styles = StyleSheet.create({
   eventCard: {
     width: (width - 54) / 2, height: 260,
     borderRadius: 28, overflow: 'hidden',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     borderWidth: 1, borderColor: 'rgba(212,175,55,0.15)',
     marginBottom: 16,
     elevation: 10,
@@ -481,5 +486,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32, paddingVertical: 16,
     borderRadius: 16,
   },
-  emptyActionText: { color: '#020617', fontFamily: Fonts.outfit.extraBold, fontSize: 16 },
+  emptyActionText: { color: '#050505', fontFamily: Fonts.outfit.extraBold, fontSize: 16 },
 });

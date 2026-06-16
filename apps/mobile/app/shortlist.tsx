@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter, Stack } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
-import { getTopRatedBusinesses, toggleShortlistBusiness, Business } from '@/lib/firestore';
+import { getTopRatedBusinesses, toggleShortlistBusiness, Business } from '@/lib/database';
 import { Image as ExpoImage } from 'expo-image';
 
 const { width } = Dimensions.get('window');
@@ -53,7 +53,7 @@ export default function ShortlistScreen() {
 
       {/* ── HEADER ── */}
       <LinearGradient
-        colors={['#0f172a', '#020617']}
+        colors={['#101010', '#050505']}
         style={[styles.header, { paddingTop: insets.top + 4 }]}
       >
         <View style={styles.headerLeft}>
@@ -197,7 +197,7 @@ export default function ShortlistScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#020617' },
+  container: { flex: 1, backgroundColor: '#050505' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 20,
-    backgroundColor: '#020617',
+    backgroundColor: '#050505',
     gap: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   listCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     borderRadius: 16,
     marginHorizontal: 0,
     padding: 8,
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
     height: 70,
     borderRadius: 10,
     overflow: 'hidden',
-    backgroundColor: '#020617',
+    backgroundColor: '#050505',
     position: 'relative',
     borderWidth: 0.5,
     borderColor: 'rgba(129, 140, 248, 0.15)',

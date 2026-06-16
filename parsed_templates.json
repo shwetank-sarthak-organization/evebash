@@ -1,0 +1,354 @@
+[
+  {
+    "id": "royal",
+    "category": "Wedding",
+    "label": "Royal Emerald",
+    "desc": "Deep imperial emerald & palace gold",
+    "background": {
+      "light": "#033026",
+      "dark": "#02231c"
+    },
+    "accent": "#cca43b"
+  },
+  {
+    "id": "classic",
+    "category": "Wedding",
+    "label": "Classic White",
+    "desc": "Timeless and elegant design",
+    "background": {
+      "light": "#FAF9F6",
+      "dark": "#FAF9F6"
+    },
+    "accent": "#cca43b"
+  },
+  {
+    "id": "hero",
+    "category": "Wedding",
+    "label": "Midnight Hero",
+    "desc": "Big impact cinematic dark aesthetic",
+    "background": {
+      "light": "#000000",
+      "dark": "#000000"
+    },
+    "accent": "#cca43b"
+  },
+  {
+    "id": "ethereal",
+    "category": "Wedding",
+    "label": "Ethereal Mist",
+    "desc": "Vintage fine-art album & steel blue",
+    "background": {
+      "light": "#F8FAFC",
+      "dark": "#F8FAFC"
+    },
+    "accent": "#4A6984"
+  },
+  {
+    "id": "scrapbook",
+    "category": "Birthday",
+    "label": "Playful Scrapbook",
+    "desc": "Soft modern keepsake aesthetic",
+    "background": {
+      "light": "#f8f5f0",
+      "dark": "#151c1b"
+    },
+    "accent": "#d9826b"
+  },
+  {
+    "id": "neon",
+    "category": "Birthday",
+    "label": "Neon Party",
+    "desc": "Premium neon birthday album",
+    "background": {
+      "light": "#070611",
+      "dark": "#070611"
+    },
+    "accent": "#ff3df2"
+  },
+  {
+    "id": "pastel",
+    "category": "Birthday",
+    "label": "Pastel Dream",
+    "desc": "Dreamy pastel memory journal",
+    "background": {
+      "light": "#fff7f4",
+      "dark": "#fff7f4"
+    },
+    "accent": "#c9768b"
+  },
+  {
+    "id": "pop",
+    "category": "Birthday",
+    "label": "Pop Art",
+    "desc": "Comic poster birthday album",
+    "background": {
+      "light": "#ffe84a",
+      "dark": "#ffe84a"
+    },
+    "accent": "#ef2b3a"
+  },
+  {
+    "id": "golden_years",
+    "category": "Anniversary",
+    "label": "Golden Years",
+    "desc": "Champagne legacy celebration",
+    "background": {
+      "light": "#fbf4e6",
+      "dark": "#1f1710"
+    },
+    "accent": "#c99a2e"
+  },
+  {
+    "id": "vintage",
+    "category": "Anniversary",
+    "label": "Vintage Noir",
+    "desc": "Dark archival anniversary journal",
+    "background": {
+      "light": "#0F0E0B",
+      "dark": "#0F0E0B"
+    },
+    "accent": "#B89145"
+  },
+  {
+    "id": "rose",
+    "category": "Anniversary",
+    "label": "Rose Garden",
+    "desc": "Romantic floral memory journal",
+    "background": {
+      "light": "#fff9f5",
+      "dark": "#30151d"
+    },
+    "accent": "#b76578"
+  },
+  {
+    "id": "minimal_love",
+    "category": "Anniversary",
+    "label": "Minimal Love",
+    "desc": "Minimal romantic editorial journal",
+    "background": {
+      "light": "#f7efe4",
+      "dark": "#17120d"
+    },
+    "accent": "#6d4b34"
+  },
+  {
+    "id": "bohemian",
+    "category": "Other",
+    "label": "Bohemian Rhapsody",
+    "desc": "Sunset acoustic & festival theme",
+    "background": {
+      "light": "#fff7ed",
+      "dark": "#2f241d"
+    },
+    "accent": "#fb923c"
+  },
+  {
+    "id": "diamond",
+    "category": "Other",
+    "label": "Diamond Shine",
+    "desc": "Cool blues and sparkle",
+    "background": {
+      "light": "#f0f9ff",
+      "dark": "#082f49"
+    },
+    "accent": "#0284c7"
+  },
+  {
+    "id": "blush",
+    "category": "Other",
+    "label": "Blush & Bashful",
+    "desc": "Soft pink champagne",
+    "background": {
+      "light": "#fff7ed",
+      "dark": "#431407"
+    },
+    "accent": "#ea580c"
+  },
+  {
+    "id": "garden",
+    "category": "Other",
+    "label": "Garden Path",
+    "desc": "Natural greens and ivory",
+    "background": {
+      "light": "#E5ECE9",
+      "dark": "#112217"
+    },
+    "accent": "#2E6F40"
+  },
+  {
+    "id": "midnight_glam",
+    "category": "Other",
+    "label": "Midnight Glam",
+    "desc": "Dark blue and silver",
+    "background": {
+      "light": "#eff6ff",
+      "dark": "#020617"
+    },
+    "accent": "#3b82f6"
+  },
+  {
+    "id": "cinematic",
+    "category": "Other",
+    "label": "Cinematic Noir",
+    "desc": "Dramatic and immersive",
+    "background": {
+      "light": "#f5f5f5",
+      "dark": "#000000"
+    },
+    "accent": "#ef4444"
+  },
+  {
+    "id": "modern_lounge",
+    "category": "Other",
+    "label": "Modern Lounge",
+    "desc": "Sleek and contemporary",
+    "background": {
+      "light": "#f8fafc",
+      "dark": "#0f172a"
+    },
+    "accent": "#818cf8"
+  },
+  {
+    "id": "elegant_night",
+    "category": "Other",
+    "label": "Elegant Night",
+    "desc": "Sophisticated design",
+    "background": {
+      "light": "#fafafa",
+      "dark": "#111111"
+    },
+    "accent": "#171717"
+  },
+  {
+    "id": "museum",
+    "category": "Corporate",
+    "label": "Museum Gallery",
+    "desc": "Luxury corporate exhibition",
+    "background": {
+      "light": "#f3f0ea",
+      "dark": "#0b1118"
+    },
+    "accent": "#9b7a44"
+  },
+  {
+    "id": "brutalist",
+    "category": "Corporate",
+    "label": "Brutalist Grid",
+    "desc": "Modern architectural editorial grid",
+    "background": {
+      "light": "#efede7",
+      "dark": "#111113"
+    },
+    "accent": "#1a1a1c"
+  },
+  {
+    "id": "tech_sleek",
+    "category": "Corporate",
+    "label": "Tech Sleek",
+    "desc": "Futuristic and clean",
+    "background": {
+      "light": "#050b17",
+      "dark": "#050b17"
+    },
+    "accent": "#22d3ee"
+  },
+  {
+    "id": "executive",
+    "category": "Corporate",
+    "label": "Executive Suite",
+    "desc": "Professional theme",
+    "background": {
+      "light": "#08111f",
+      "dark": "#08111f"
+    },
+    "accent": "#d4b474"
+  },
+  {
+    "id": "polaroid",
+    "category": "Other",
+    "label": "Vintage Polaroid",
+    "desc": "Classic photo frames",
+    "background": {
+      "light": "#f8f3e7",
+      "dark": "#1c1917"
+    },
+    "accent": "#b45309"
+  },
+  {
+    "id": "editorial",
+    "category": "Other",
+    "label": "Editorial Mag",
+    "desc": "Magazine layout style",
+    "background": {
+      "light": "#fafaf9",
+      "dark": "#171717"
+    },
+    "accent": "#111827"
+  },
+  {
+    "id": "vibrant",
+    "category": "Other",
+    "label": "Vibrant Energy",
+    "desc": "Colorful and dynamic",
+    "background": {
+      "light": "#f5f3ff",
+      "dark": "#4c1d95"
+    },
+    "accent": "#8b5cf6"
+  },
+  {
+    "id": "zen",
+    "category": "Other",
+    "label": "Zen Garden",
+    "desc": "Calm and peaceful",
+    "background": {
+      "light": "#f5f5f4",
+      "dark": "#1c1917"
+    },
+    "accent": "#57534e"
+  },
+  {
+    "id": "cyber_tech",
+    "category": "College",
+    "label": "Cyber Tech",
+    "desc": "Neon cyber hackathon & coding terminal",
+    "background": {
+      "light": "#090d16",
+      "dark": "#05070c"
+    },
+    "accent": "#00f0ff"
+  },
+  {
+    "id": "retro_arcade",
+    "category": "College",
+    "label": "Retro Arcade",
+    "desc": "Bold pop art & funky festival vibe",
+    "background": {
+      "light": "#ffde4a",
+      "dark": "#ffe663"
+    },
+    "accent": "#ff3562"
+  },
+  {
+    "id": "academic_editorial",
+    "category": "College",
+    "label": "Academic Editorial",
+    "desc": "Clean minimalist journal & campus registry style",
+    "background": {
+      "light": "#FCFAF7",
+      "dark": "#0B0E14"
+    },
+    "accent": "#800020"
+  },
+  {
+    "id": "neon_carnival",
+    "category": "College",
+    "label": "Neon Carnival",
+    "desc": "Glowing festival lights & concert stage",
+    "background": {
+      "light": "#0c0714",
+      "dark": "#06030a"
+    },
+    "accent": "#d946ef"
+  }
+]

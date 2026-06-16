@@ -2,7 +2,7 @@
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { notFound } from "next/navigation";
-import { getEventById, getEventPhotos } from "@/lib/firestore";
+import { getEventById, getEventPhotos } from "@/lib/database";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import React from "react";
@@ -30,10 +30,10 @@ export default async function SubEventPage({ params }: { params: Promise<{ slug:
     if (!mainEvent || !subEvent) return notFound();
 
     // 2. Get LIVE Photos for this sub-event
-    const firestorePhotos = await getEventPhotos(eventId);
+    const databasePhotos = await getEventPhotos(eventId);
 
     // 3. Transform for the Grid
-    const photos = firestorePhotos.map(p => {
+    const photos = databasePhotos.map(p => {
         return {
             id: p.id,
             src: p.url || "",

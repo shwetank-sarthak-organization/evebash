@@ -6,11 +6,11 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { notFound, useParams, useRouter, useSearchParams } from "next/navigation";
 import LoadingScreen from "@/components/LoadingScreen";
 import { getEvent } from "@/lib/events"; // Static Data
-import { getEventPhotos, getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event, Photo as FirestorePhoto } from "@/lib/firestore"; // Live Data
+import { getEventPhotos, getEventPhotosPaginated, getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event, Photo as DatabasePhoto } from "@/lib/database"; // Live Data
 import { EventNavbar } from "@/components/EventNavbar";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
-import { Loader2, Image as ImageIcon, ChevronLeft, Share2, Check, Pencil } from "lucide-react";
+import { Loader2, Image as ImageIcon, ChevronLeft, ChevronDown, Share2, Check, Pencil } from "lucide-react";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { cn, formatEventDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -54,6 +54,11 @@ function EventPageContent() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
+
+    // Pagination State
+    const [photoPage, setPhotoPage] = useState(0);
+    const [hasMorePhotos, setHasMorePhotos] = useState(false);
+    const [loadingMorePhotos, setLoadingMorePhotos] = useState(false);
 
     // Guest Tracking State
     const [showGuestModal, setShowGuestModal] = useState(false);
@@ -224,13 +229,21 @@ function EventPageContent() {
             let stableId = identifier;
 
             if (isSignUp) {
-                success = isPhoneMode
-                    ? await authWithPhone(guestName, guestPhone, password)
-                    : await signup(email, password, guestName);
+                if (isPhoneMode) {
+                    const result = await authWithPhone(guestName, guestPhone, password);
+                    success = result.success;
+                    if (!success && result.error) setAuthError(result.error);
+                } else {
+                    const result = await signup(email, password, guestName);
+                    success = result.success;
+                    if (!success && result.error) setAuthError(result.error);
+                }
             } else {
                 const loginId = isPhoneMode ? getPhoneLoginEmail(guestPhone) : email;
                 stableId = loginId;
-                success = await login(loginId, password);
+                const result = await login(loginId, password);
+                success = result.success;
+                if (!success && result.error) setAuthError(result.error);
             }
 
             if (success) {
@@ -267,7 +280,7 @@ function EventPageContent() {
             try {
                 eventData = await getEventById(slug);
             } catch (e: any) {
-                console.error("[EventPage] Error fetching from Firestore:", e);
+                console.error("[EventPage] Error fetching from Supabase database:", e);
                 if (e.message?.includes("permissions")) {
                     setError("permissions");
                 }
@@ -275,7 +288,7 @@ function EventPageContent() {
 
             // Fallback to Static Data
             if (!eventData && !error) {
-                console.log("[EventPage] Event not found in Firestore, checking static data...");
+                console.log("[EventPage] Event not found in Supabase database, checking static data...");
                 eventData = getEvent(slug);
             }
 
@@ -312,10 +325,10 @@ function EventPageContent() {
                 }
 
 
-                // 1. Fetch from Firestore CLIENT-SIDE (Authenticated / Rules-friendly)
-                const firestorePhotos = await getEventPhotos(eventData.id, eventData.legacyId);
+                // 1. Fetch from Supabase database CLIENT-SIDE (Authenticated / Rules-friendly)
+                const { photos: databasePhotos, hasMore } = await getEventPhotosPaginated(eventData.id, eventData.legacyId, 0, 20);
 
-                const transformedPhotos = (firestorePhotos as FirestorePhoto[]).map(p => ({
+                const transformedPhotos = (databasePhotos as DatabasePhoto[]).map(p => ({
                     id: p.id,
                     src: p.url || "",
                     storageKey: p.storageKey || "",
@@ -324,12 +337,40 @@ function EventPageContent() {
                     filename: p.storageKey ? p.storageKey.split('/').pop() : 'photo'
                 }));
                 setPhotos(transformedPhotos);
+                setPhotoPage(0);
+                setHasMorePhotos(hasMore);
             }
         } catch (err: any) {
             console.error("[EventPage] Critical error:", err);
             setError(err.message || "An unexpected error occurred");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadMorePhotos = async () => {
+        if (!event || loadingMorePhotos || !hasMorePhotos) return;
+        setLoadingMorePhotos(true);
+        try {
+            const nextPage = photoPage + 1;
+            const { photos: databasePhotos, hasMore } = await getEventPhotosPaginated(event.id, event.legacyId, nextPage, 20);
+
+            const transformedPhotos = (databasePhotos as DatabasePhoto[]).map(p => ({
+                id: p.id,
+                src: p.url || "",
+                storageKey: p.storageKey || "",
+                width: p.width || 800,
+                height: p.height || 600,
+                filename: p.storageKey ? p.storageKey.split('/').pop() : 'photo'
+            }));
+
+            setPhotos(prev => [...prev, ...transformedPhotos]);
+            setPhotoPage(nextPage);
+            setHasMorePhotos(hasMore);
+        } catch (error) {
+            console.error("Error loading more photos:", error);
+        } finally {
+            setLoadingMorePhotos(false);
         }
     };
 
@@ -437,7 +478,7 @@ function EventPageContent() {
                             {error === "permissions" ? (
                                 <>
                                     <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Access restricted...</h2>
-                                    <p className="font-sans text-stone-600">If you are the owner, please ensure your Firestore Security Rules allow public reads for events and photos.</p>
+                                    <p className="font-sans text-stone-600">If you are the owner, please ensure your Supabase database Security Rules allow public reads for events and photos.</p>
                                 </>
                             ) : (
                                 <>
@@ -459,7 +500,7 @@ function EventPageContent() {
                                         className="group relative block w-full aspect-[3/4] overflow-hidden rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all duration-500 cursor-pointer bg-stone-100"
                                     >
                                         <Image
-                                            src={sub.coverImage || '/placeholder-event.jpg'}
+                                            src={sub.coverImage || 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2000&auto=format&fit=crop'}
                                             alt={sub.title}
                                             fill
                                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
@@ -496,7 +537,7 @@ function EventPageContent() {
                             {error === "permissions" ? (
                                 <>
                                     <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Moments restricted...</h2>
-                                    <p className="font-sans text-stone-600 text-sm">Owner: Check Firestore rules to enable shared access.</p>
+                                    <p className="font-sans text-stone-600 text-sm">Owner: Check Supabase database rules to enable shared access.</p>
                                 </>
                             ) : (
                                 <>
@@ -504,6 +545,26 @@ function EventPageContent() {
                                     <p className="font-sans text-stone-600 text-sm">Check back soon to see the captured memories.</p>
                                 </>
                             )}
+                        </div>
+                    )}
+
+                    {/* LOAD MORE BUTTON */}
+                    {hasMorePhotos && photos.length > 0 && (
+                        <div className="flex justify-center mt-16 mb-8 w-full">
+                            <button
+                                onClick={loadMorePhotos}
+                                disabled={loadingMorePhotos}
+                                className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-full font-bold shadow-xl flex items-center space-x-3 transition-all hover:scale-105 active:scale-95"
+                            >
+                                {loadingMorePhotos ? (
+                                    <Loader2 className="w-5 h-5 animate-spin text-white/70" />
+                                ) : (
+                                    <ChevronDown className="w-5 h-5 text-white/70" />
+                                )}
+                                <span className="tracking-widest uppercase text-sm">
+                                    {loadingMorePhotos ? "Loading..." : "Load More Photos"}
+                                </span>
+                            </button>
                         </div>
                     )}
                 </div>

@@ -28,11 +28,11 @@ export const Colors = {
 };
 
 export const MidnightColors = {
-  background: '#020617',
-  deepSlate: '#0f172a',
-  slate900: '#0f172a',
-  slate800: '#1e293b',
-  slate700: '#334155',
+  background: '#050505',
+  deepSlate: '#101010',
+  slate900: '#101010',
+  slate800: '#1a1a1a',
+  slate700: '#2a2a2a',
   slate400: '#94a3b8',
   gold: '#d4af37',
   white: '#ffffff',
@@ -49,7 +49,7 @@ export const LightColors = {
   slate700: '#cbd5e1',
   slate400: '#64748b',
   gold: '#d4af37',
-  white: '#0f172a',
+  white: '#101010',
   ghostWhite: '#1e293b',
   border: 'rgba(212, 175, 55, 0.25)',
   cardBorder: 'rgba(0, 0, 0, 0.05)',

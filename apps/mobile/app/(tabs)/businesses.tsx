@@ -23,7 +23,7 @@ import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
-import { createBusiness, getUserBusinesses, Business, generateShortId, getBusinessTypeColor, getUserTotalStorage } from '@/lib/firestore';
+import { createBusiness, getUserBusinesses, Business, generateShortId, getBusinessTypeColor, getUserTotalStorage } from '@/lib/database';
 
 const { width } = Dimensions.get('window');
 
@@ -340,7 +340,7 @@ export default function BusinessLandingScreen() {
         {!fetchingBusinesses && userBusinesses.length === 0 && (
           <View style={styles.heroSection}>
             <LinearGradient
-              colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]}
+              colors={isDark ? ['#101010', '#050505'] : [colors.deepSlate, colors.background]}
               style={styles.heroGradient}
             >
               <View style={styles.heroBadge}>
@@ -667,7 +667,7 @@ export default function BusinessLandingScreen() {
                     <ActivityIndicator size="small" color={INDIGO_LIGHT} />
                   ) : (
                     <>
-                      <IconSymbol name="location.fill" size={18} color={location ? "#0f172a" : INDIGO_LIGHT} />
+                      <IconSymbol name="location.fill" size={18} color={location ? "#101010" : INDIGO_LIGHT} />
                       <Text style={[styles.locationBtnText, location && styles.locationBtnTextActive]} numberOfLines={1}>
                         {location ? `Captured: ${capturedAddress || 'Location Captured'}` : 'Use Current GPS'}
                       </Text>
@@ -682,7 +682,7 @@ export default function BusinessLandingScreen() {
                 disabled={loading}
               >
                 {loading ? (
-                  <ActivityIndicator color="#0f172a" />
+                  <ActivityIndicator color="#101010" />
                 ) : (
                   <Text style={styles.submitFormText}>Create Business</Text>
                 )}
@@ -738,7 +738,7 @@ export default function BusinessLandingScreen() {
                 ))}
               </ScrollView>
               <LinearGradient
-                colors={isDark ? ['transparent', 'rgba(15, 23, 42, 0.9)', '#0f172a'] : ['transparent', 'rgba(255, 255, 255, 0.9)', colors.background]}
+                colors={isDark ? ['transparent', 'rgba(15, 23, 42, 0.9)', '#101010'] : ['transparent', 'rgba(255, 255, 255, 0.9)', colors.background]}
                 style={styles.pickerFade}
                 pointerEvents="none"
               />
@@ -948,7 +948,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     lineHeight: 18,
   },
   bizManageCard: {
-    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+    backgroundColor: isDark ? '#101010' : '#ffffff',
     borderRadius: 24,
     padding: 16,
     flexDirection: 'row',
@@ -967,7 +967,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     height: 72,
     borderRadius: 18,
     overflow: 'hidden',
-    backgroundColor: isDark ? '#020617' : '#f1f5f9',
+    backgroundColor: isDark ? '#050505' : '#f1f5f9',
     position: 'relative',
     borderWidth: 0.5,
     borderColor: 'rgba(212,175,55,0.1)',
@@ -1100,7 +1100,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
   },
   locationBtnTextActive: {
-    color: '#0f172a',
+    color: '#101010',
   },
   submitFormBtn: {
     backgroundColor: INDIGO,
@@ -1117,7 +1117,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     opacity: 0.7,
   },
   submitFormText: {
-    color: '#0f172a',
+    color: '#101010',
     fontSize: 16,
     fontFamily: 'Outfit_800ExtraBold',
     textTransform: 'uppercase',

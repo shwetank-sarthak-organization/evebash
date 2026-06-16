@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, LayoutDashboard, LogOut, User, LucideIcon, Share2, ShieldCheck } from "lucide-react";
+import { ChevronLeft, ChevronRight, LayoutDashboard, LogOut, Share2, ShieldCheck } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Tooltip } from "./Tooltip";
@@ -11,8 +11,13 @@ interface Breadcrumb {
     onClick?: () => void;
 }
 
+type HeaderUser = {
+    role?: string;
+    delegatedBy?: string;
+};
+
 interface DashboardHeaderProps {
-    user: any;
+    user?: HeaderUser | null;
     title?: string;
     breadcrumbs?: Breadcrumb[];
     onBack?: () => void;
@@ -48,7 +53,7 @@ export function DashboardHeader({
     };
 
     return (
-        <header className="bg-white/80 backdrop-blur-md border-b border-stone-200 sticky top-0 z-30">
+        <header className="bg-slate-950/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-30">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
                 <div className="flex items-center space-x-6">
                     <Tooltip text="Navigate back">
@@ -69,33 +74,28 @@ export function DashboardHeader({
                                         <Tooltip text={`Return to ${crumb.label}`}>
                                             <button
                                                 onClick={crumb.onClick}
-                                                className="text-stone-700 hover:text-slate-900 transition-colors cursor-pointer"
+                                                className="text-slate-400 hover:text-white transition-colors cursor-pointer"
                                             >
                                                 {crumb.label}
                                             </button>
                                         </Tooltip>
                                     ) : (
-                                        <span className="text-slate-900">{crumb.label}</span>
+                                        <span className="text-white">{crumb.label}</span>
                                     )}
                                 </React.Fragment>
                             ))
                         ) : (
-                            <span className="text-slate-900">{title}</span>
+                            <span className="text-white">{title}</span>
                         )}
                     </nav>
                 </div>
 
-                <div className="flex items-center space-x-4 text-slate-800">
-                    <div className="text-right hidden sm:block">
-                        <p className="text-sm font-bold">{user?.name || "User"}</p>
-                        <p className="text-xs text-slate-700 font-sans">{user?.email || ""}</p>
-                    </div>
-
+                <div className="flex items-center space-x-4 text-slate-200">
                     {onShare && (
                         <Tooltip text="Share this view">
                             <button
                                 onClick={onShare}
-                                className="p-2 hover:bg-stone-100 rounded-lg text-emerald-600 transition-colors border border-stone-100 shadow-sm"
+                                className="p-2 hover:bg-slate-800 rounded-lg text-emerald-400 transition-colors border border-slate-700 shadow-sm"
                             >
                                 <Share2 className="w-5 h-5" />
                             </button>
@@ -124,7 +124,7 @@ export function DashboardHeader({
                     {logout && (
                         <button
                             onClick={logout}
-                            className="p-2 hover:bg-stone-100 rounded-full text-stone-700 transition-colors"
+                            className="p-2 hover:bg-slate-800 rounded-full text-slate-300 transition-colors"
                             title="Logout"
                         >
                             <LogOut className="w-5 h-5" />

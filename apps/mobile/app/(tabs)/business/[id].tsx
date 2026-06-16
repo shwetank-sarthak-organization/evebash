@@ -22,7 +22,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image as ExpoImage } from 'expo-image';
 import * as Location from 'expo-location';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { getBusinessById, updateBusiness, getEventsCountForVendor, Business, addEnquiry, getAnnouncementsForBusiness, getUserRatingForBusiness, saveUserRating, getReviewsForBusiness, getBusinessTypeColor, incrementBusinessViewCount, getBusinessShortlistStatus, toggleBusinessShortlist } from '@/lib/firestore';
+import { getBusinessById, updateBusiness, getEventsCountForVendor, Business, addEnquiry, getAnnouncementsForBusiness, getUserRatingForBusiness, saveUserRating, getReviewsForBusiness, getBusinessTypeColor, incrementBusinessViewCount, getBusinessShortlistStatus, toggleBusinessShortlist } from '@/lib/database';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/context/AuthContext';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
@@ -182,7 +182,7 @@ export default function BusinessDetailScreen() {
               incrementBusinessViewCount(businessId).catch(() => {});
             }
 
-            // Load shortlist state — prefer local user.shortlisted, fall back to Firestore
+            // Load shortlist state — prefer local user.shortlisted, fall back to Supabase database
             if (user?.uid) {
               const alreadyShortlisted = user.shortlisted?.includes(businessId) ?? false;
               setIsFavorited(alreadyShortlisted);
@@ -731,7 +731,7 @@ export default function BusinessDetailScreen() {
                     <View key={index} style={[styles.announcementCard, index === 0 && styles.announcementCardLatest]}>
                       {index === 0 && (
                         <View style={styles.latestBanner}>
-                          <IconSymbol name="sparkles" size={10} color="#0f172a" />
+                          <IconSymbol name="sparkles" size={10} color="#101010" />
                           <Text style={styles.latestBannerText}>LATEST UPDATE</Text>
                         </View>
                       )}
@@ -1055,11 +1055,11 @@ export default function BusinessDetailScreen() {
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
-                  <ActivityIndicator color="#020617" />
+                  <ActivityIndicator color="#050505" />
                 ) : (
                   <>
                     <Text style={styles.submitEnquiryBtnText}>Send Inquiry</Text>
-                    <IconSymbol name="paperplane.fill" size={16} color="#020617" />
+                    <IconSymbol name="paperplane.fill" size={16} color="#050505" />
                   </>
                 )}
               </TouchableOpacity>
@@ -1147,7 +1147,7 @@ export default function BusinessDetailScreen() {
                 disabled={submittingRating}
               >
                 {submittingRating ? (
-                  <ActivityIndicator color="#0f172a" />
+                  <ActivityIndicator color="#101010" />
                 ) : (
                   <Text style={styles.submitRatingBtnText}>Submit Rating</Text>
                 )}
@@ -1163,7 +1163,7 @@ export default function BusinessDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: '#050505',
   },
   centerContent: {
     justifyContent: 'center',
@@ -1175,7 +1175,7 @@ const styles = StyleSheet.create({
   heroContainer: {
     width: width,
     height: width * 0.85,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
   },
   heroImage: {
     width: width,
@@ -1232,7 +1232,7 @@ const styles = StyleSheet.create({
   contentSection: {
     paddingHorizontal: 24,
     marginTop: -30,
-    backgroundColor: '#020617',
+    backgroundColor: '#050505',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     paddingTop: 32,
@@ -1266,7 +1266,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 8,
     borderWidth: 2,
-    borderColor: '#020617',
+    borderColor: '#050505',
   },
   locationRow: {
     flexDirection: 'row',
@@ -1362,7 +1362,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
   },
   announcementCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     padding: 20,
     borderRadius: 24,
     borderWidth: 1,
@@ -1471,7 +1471,7 @@ const styles = StyleSheet.create({
   highlightCard: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     paddingVertical: 12,
     paddingHorizontal: 6,
     borderRadius: 14,
@@ -1576,7 +1576,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
   },
   faqItem: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     padding: 16,
     borderRadius: 16,
     marginBottom: 12,
@@ -1635,7 +1635,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   reviewCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     padding: 20,
     borderRadius: 20,
     borderWidth: 1,
@@ -1795,7 +1795,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   optionsContainer: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     padding: 24,
@@ -1874,7 +1874,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   enquiryFormContainer: {
-    backgroundColor: '#020617',
+    backgroundColor: '#050505',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     padding: 24,
@@ -1902,7 +1902,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1920,7 +1920,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   formInput: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     borderRadius: 16,
     padding: 16,
     color: '#ffffff',
@@ -1979,7 +1979,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ratingContainer: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     borderRadius: 28,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
@@ -2089,7 +2089,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderRadius: 12,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.05)',
   },

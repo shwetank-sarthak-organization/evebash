@@ -36,7 +36,7 @@ export default function BusinessNearYouScreen() {
         headerShown: true, 
         headerTransparent: true,
         headerTitle: '',
-        headerTintColor: '#0f172a',
+        headerTintColor: '#101010',
         headerLeft: () => (
           <TouchableOpacity 
             onPress={() => {
@@ -49,7 +49,7 @@ export default function BusinessNearYouScreen() {
             style={styles.backButton}
             hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
           >
-            <IconSymbol name="chevron.left" size={28} color="#0f172a" />
+            <IconSymbol name="chevron.left" size={28} color="#101010" />
           </TouchableOpacity>
         ),
       }} />
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f1f5f9',
   },
   backButton: { padding: 8 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#0f172a' },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#101010' },
   searchContainer: { padding: 16, paddingTop: 80, backgroundColor: '#ffffff' },
   searchBox: {
     flexDirection: 'row',

@@ -21,7 +21,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter, Stack } from 'expo-router';
 import * as Location from 'expo-location';
-import { onTopRatedBusinesses, getTopRatedBusinesses, toggleShortlistBusiness, Business, getBusinessTypeColor } from '@/lib/firestore';
+import { onTopRatedBusinesses, getTopRatedBusinesses, toggleShortlistBusiness, Business, getBusinessTypeColor } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
 
@@ -207,7 +207,7 @@ export default function ExploreBusinessScreen() {
       >
         {/* ── HEADER ── */}
         <LinearGradient
-          colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]}
+          colors={isDark ? ['#101010', '#050505'] : [colors.deepSlate, colors.background]}
           style={[styles.header, { paddingTop: insets.top + 4 }]}
         >
           <View style={styles.headerLeft}>
@@ -259,7 +259,7 @@ export default function ExploreBusinessScreen() {
               <IconSymbol
                 name={cat.icon as any}
                 size={16}
-                color={selectedCategory === cat.name ? (isDark ? '#0f172a' : '#ffffff') : colors.slate400}
+                color={selectedCategory === cat.name ? (isDark ? '#101010' : '#ffffff') : colors.slate400}
               />
               <Text style={[styles.categoryText, selectedCategory === cat.name && styles.categoryTextActive]}>
                 {cat.name}
@@ -783,7 +783,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     fontFamily: 'Outfit_600SemiBold',
   },
   categoryTextActive: {
-    color: isDark ? '#0f172a' : '#ffffff',
+    color: isDark ? '#101010' : '#ffffff',
   },
   heroCard: {
     marginHorizontal: 24,
@@ -880,7 +880,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     height: 220,
     borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+    backgroundColor: isDark ? '#101010' : '#ffffff',
     borderWidth: 1,
     borderColor: 'rgba(212,175,55,0.1)',
     shadowColor: '#000',
@@ -892,7 +892,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   featuredImageContainer: {
     width: '100%',
     height: 125,
-    backgroundColor: isDark ? '#020617' : '#f1f5f9',
+    backgroundColor: isDark ? '#050505' : '#f1f5f9',
     position: 'relative',
     overflow: 'hidden',
   },
@@ -1305,7 +1305,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     gap: 16,
   },
   listCard: {
-    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+    backgroundColor: isDark ? '#101010' : '#ffffff',
     borderRadius: 20,
     marginHorizontal: 24,
     padding: 12,
@@ -1325,7 +1325,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     height: 90,
     borderRadius: 14,
     overflow: 'hidden',
-    backgroundColor: isDark ? '#020617' : '#f1f5f9',
+    backgroundColor: isDark ? '#050505' : '#f1f5f9',
     position: 'relative',
     borderWidth: 0.5,
     borderColor: 'rgba(212,175,55,0.1)',

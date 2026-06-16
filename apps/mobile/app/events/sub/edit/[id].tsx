@@ -16,7 +16,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { getEventById, getEventPhotos, deletePhoto, addPhoto, Event as FirestoreEvent, Photo } from '@/lib/firestore';
+import { getEventById, getEventPhotos, deletePhoto, addPhoto, Event as DatabaseEvent, Photo } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
 import { uploadEventImage } from '@/lib/storage';
 import { useAppTheme } from '@/context/ThemeContext';
@@ -32,7 +32,7 @@ export default function EditPhotosScreen() {
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
   
-  const [subEvent, setSubEvent] = useState<FirestoreEvent | null>(null);
+  const [subEvent, setSubEvent] = useState<DatabaseEvent | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -162,7 +162,7 @@ export default function EditPhotosScreen() {
             style={styles.nativeBackButton}
             hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
           >
-            <IconSymbol name="chevron.left" size={28} color="#0f172a" />
+            <IconSymbol name="chevron.left" size={28} color="#101010" />
           </TouchableOpacity>
         ),
         headerRight: () => (
@@ -220,7 +220,7 @@ export default function EditPhotosScreen() {
               padding: 24, 
               borderRadius: 24, 
               borderWidth: 1.5, 
-              backgroundColor: isDark ? '#0f172a' : '#ffffff',
+              backgroundColor: isDark ? '#101010' : '#ffffff',
               borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
               alignItems: 'center',
               alignSelf: 'center',
@@ -249,7 +249,7 @@ export default function EditPhotosScreen() {
             <Text style={{ 
               fontSize: 20, 
               fontWeight: 'bold', 
-              color: isDark ? '#ffffff' : '#0f172a', 
+              color: isDark ? '#ffffff' : '#101010', 
               marginBottom: 8,
               textAlign: 'center',
             }}>
@@ -299,7 +299,7 @@ export default function EditPhotosScreen() {
               padding: 24, 
               borderRadius: 24, 
               borderWidth: 1.5, 
-              backgroundColor: isDark ? '#0f172a' : '#ffffff',
+              backgroundColor: isDark ? '#101010' : '#ffffff',
               borderColor: 'rgba(239, 68, 68, 0.3)',
               alignItems: 'center',
               alignSelf: 'center',
@@ -355,7 +355,7 @@ export default function EditPhotosScreen() {
               }}
               onPress={() => setShowUploadFailedModal(false)}
             >
-              <Text style={{ color: isDark ? '#ffffff' : '#0f172a', fontWeight: 'bold' }}>
+              <Text style={{ color: isDark ? '#ffffff' : '#101010', fontWeight: 'bold' }}>
                 Close
               </Text>
             </TouchableOpacity>
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#0f172a',
+    color: '#101010',
   },
   photoCount: {
     fontSize: 14,

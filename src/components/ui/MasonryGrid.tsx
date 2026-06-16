@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { onPhotoInteractions, toggleLike } from "@/lib/firestore";
+import { onPhotoInteractions, toggleLike } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
 import { Heart, MessageCircle, Download } from "lucide-react";
 import { Lightbox } from "./Lightbox";

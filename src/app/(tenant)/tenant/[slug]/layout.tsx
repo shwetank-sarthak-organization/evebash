@@ -1,6 +1,6 @@
 import { RoyalNavbar } from "@/components/RoyalNavbar";
 import { EventNavbar } from "@/components/EventNavbar";
-import { getEventById, getSubEvents, serializeFirestoreData } from "@/lib/firestore";
+import { getEventById, getSubEvents, serializeDatabaseData } from "@/lib/database";
 import { notFound } from "next/navigation";
 
 export default async function TenantLayout({
@@ -24,9 +24,9 @@ export default async function TenantLayout({
     // Filter out circular references just in case
     const validSubEvents = subEvents.filter(e => e.id !== event.id);
 
-    // Serialize data to avoid "Only plain objects" error with Firestore Timestamps
-    const serializedEvent = serializeFirestoreData(event);
-    const serializedSubEvents = serializeFirestoreData(validSubEvents);
+    // Serialize data to avoid "Only plain objects" error with Supabase database Timestamps
+    const serializedEvent = serializeDatabaseData(event);
+    const serializedSubEvents = serializeDatabaseData(validSubEvents);
 
     const templateId = event.templateId || 'hero';
 

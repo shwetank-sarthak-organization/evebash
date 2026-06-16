@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { getGuestLogs, deleteGuest, getEvents, getUsers, updateUserRole, deleteUser, deleteEvent } from "@/lib/firestore";
+import { getGuestLogs, deleteGuest, getEvents, getUsers, updateUserRole, deleteUser, deleteEvent } from "@/lib/database";
 import { deleteUserCompletely, syncAllAuthUsers } from "@/app/actions/userActions";
 import { LogOut, Users, ShieldCheck, Calendar, Trash2, ChevronRight, ChevronDown, Folder, User, RefreshCw, Crown, UserCog, UserMinus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -57,7 +57,7 @@ export default function Dashboard() {
     };
 
     const handleSyncUsers = async () => {
-        if (!confirm("This will find all users in Firebase Auth and ensure they have a profile in the database. Continue?")) return;
+        if (!confirm("This will find all users in Supabase Auth and ensure they have a profile in the database. Continue?")) return;
 
         setLoadingData(true);
         try {
@@ -87,12 +87,12 @@ export default function Dashboard() {
             if (result.success) {
                 setUsers(prev => prev.filter(u => u.id !== uid));
             } else {
-                // If Server Action fails (e.g. env variables missing), fallback to Firestore only delete
+                // If Server Action fails (e.g. env variables missing), fallback to Supabase database only delete
                 console.warn("Server side deletion failed, falling back to database-only delete:", result.error);
                 const dbSuccess = await deleteUser(uid);
                 if (dbSuccess) {
                     setUsers(prev => prev.filter(u => u.id !== uid));
-                    alert("User's profile deleted from database, but their login account (Auth) could not be removed automatically. You may need to delete it manually in the Firebase Console.");
+                    alert("User's profile deleted from database, but their login account (Auth) could not be removed automatically. You may need to delete it manually in the Supabase Dashboard.");
                 } else {
                     alert(`Failed to delete user: ${result.error}`);
                 }
@@ -288,7 +288,7 @@ export default function Dashboard() {
                                 <button
                                     onClick={handleSyncUsers}
                                     className="flex items-center px-3 py-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-100"
-                                    title="Fetch all users from Firebase Authentication"
+                                    title="Fetch all users from Supabase Auth"
                                 >
                                     <RefreshCw className={cn("w-3.5 h-3.5 mr-2", loadingData && "animate-spin")} />
                                     Sync All Users

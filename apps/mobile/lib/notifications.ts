@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
-import { updateUserProfile } from './firestore';
+import { updateUserProfile } from './database';
 import { supabase } from './supabase';
 
 let Notifications: any = null;
@@ -82,8 +82,8 @@ export async function registerDeviceForPushNotifications(userId: string): Promis
 
     return token;
   } catch (error: any) {
-    if (error?.code === 'E_REGISTRATION_FAILED' || (error?.message && error.message.includes('FirebaseApp'))) {
-      console.log('[Notifications] Push notifications skipped: Firebase is not configured yet.');
+    if (error?.code === 'E_REGISTRATION_FAILED' || (error?.message && error.message.includes('native push service'))) {
+      console.log('[Notifications] Push notifications skipped: Native push service is not configured yet.');
     } else {
       console.warn('[Notifications] Could not register push token:', error?.message || error);
     }

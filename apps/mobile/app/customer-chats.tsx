@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter, Stack } from 'expo-router';
-import { getUserChatRooms, ChatRoom, deleteChatRoom } from '@/lib/firestore';
+import { getUserChatRooms, ChatRoom, deleteChatRoom } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
 
 export default function CustomerChatsScreen() {
@@ -307,7 +307,7 @@ export default function CustomerChatsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: '#050505',
   },
   center: {
     justifyContent: 'center',
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   exploreBtnText: {
-    color: '#020617',
+    color: '#050505',
     fontSize: 14,
     fontFamily: 'Outfit_700Bold',
   },
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   chatCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
@@ -544,7 +544,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   modalContent: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     borderRadius: 24,
     padding: 24,
     width: '100%',

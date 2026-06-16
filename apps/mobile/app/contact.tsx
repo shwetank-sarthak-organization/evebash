@@ -12,7 +12,7 @@ export default function ContactUsScreen() {
         headerShown: true, 
         headerTransparent: true,
         headerTitle: 'Contact Us',
-        headerTintColor: '#0f172a',
+        headerTintColor: '#101010',
         headerLeft: () => (
           <TouchableOpacity 
             onPress={() => {
@@ -25,7 +25,7 @@ export default function ContactUsScreen() {
             style={styles.nativeBackButton}
             hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
           >
-            <IconSymbol name="chevron.left" size={28} color="#0f172a" />
+            <IconSymbol name="chevron.left" size={28} color="#101010" />
           </TouchableOpacity>
         ),
         headerShadowVisible: false,
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#0f172a',
+    color: '#101010',
     marginBottom: 12,
   },
   subtitle: {
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#0f172a',
+    color: '#101010',
     marginBottom: 24,
     paddingBottom: 16,
     borderBottomWidth: 1,
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#0f172a',
+    color: '#101010',
     marginBottom: 4,
   },
   infoText: {
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   formTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#0f172a',
+    color: '#101010',
     marginBottom: 8,
   },
   formSubtitle: {
@@ -257,13 +257,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#0f172a',
+    color: '#101010',
   },
   textArea: {
     minHeight: 120,
   },
   submitButton: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',

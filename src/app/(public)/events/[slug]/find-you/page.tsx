@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import * as faceapi from "face-api.js";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
-import { getAllFaceEncodings, FaceRecord } from "@/lib/firestore";
+import { getAllFaceEncodings, FaceRecord } from "@/lib/database";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -67,7 +67,7 @@ export default function FindYouPage({ params }: { params: Promise<{ slug: string
             setProcessing(true);
             setStatusMessage("Searching database for matches...");
 
-            // 2. Fetch all indexed faces from Firestore
+            // 2. Fetch all indexed faces from Supabase database
             const indexedFaces = await getAllFaceEncodings();
 
             if (indexedFaces.length === 0) {

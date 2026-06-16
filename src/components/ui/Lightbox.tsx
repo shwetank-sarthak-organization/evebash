@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment } from "@/lib/firestore";
+import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
 import { getImageUrl } from "@/lib/imageUrl";
 import { Heart, MessageCircle, Send, X, Download, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
@@ -19,6 +19,8 @@ interface LightboxProps {
         width?: number;
         height?: number;
         filename?: string;
+        mediaType?: "photo" | "video";
+        resourceType?: "image" | "video" | string;
     } | null;
     onNext?: () => void;
     onPrev?: () => void;
@@ -60,6 +62,7 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
 
     const identity = getIdentity();
     const isLiked = likes.some(l => l.userId === identity.id);
+    const isVideo = photo?.mediaType === "video" || photo?.resourceType === "video";
 
     useEffect(() => {
         if (photo?.id && isOpen) {
@@ -236,13 +239,24 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 1.05 }}
                                 transition={{ duration: 0.3 }}
-                                className="relative flex items-center justify-center pointer-events-none"
+                                className="relative flex w-full items-center justify-center pointer-events-none"
                             >
-                                <img
-                                    src={getImageUrl(photo.src, { width: 1600, quality: 80, format: 'webp' })}
-                                    alt={photo.alt || "Event Photo"}
-                                    className="max-w-[95vw] md:max-w-full max-h-[60vh] md:max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
-                                />
+                                {isVideo ? (
+                                    <video
+                                        key={photo.src}
+                                        src={photo.src}
+                                        className="max-h-[60vh] w-[95vw] max-w-5xl rounded-lg bg-black object-contain shadow-2xl pointer-events-auto md:max-h-[85vh]"
+                                        controls
+                                        playsInline
+                                        autoPlay
+                                    />
+                                ) : (
+                                    <img
+                                        src={getImageUrl(photo.src, { width: 1600, quality: 80, format: 'webp' })}
+                                        alt={photo.alt || "Event Photo"}
+                                        className="max-w-[95vw] md:max-w-full max-h-[60vh] md:max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-2xl pointer-events-auto"
+                                    />
+                                )}
                             </motion.div>
                         </div>
 

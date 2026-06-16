@@ -5,7 +5,7 @@ import Navbar from "@/components/Navbar";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import * as faceapi from "face-api.js";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
-import { getAllFaceEncodings, FaceRecord } from "@/lib/firestore";
+import { getAllFaceEncodings, FaceRecord } from "@/lib/database";
 
 export default function FindYouPage() {
     const [modelsLoaded, setModelsLoaded] = useState(false);
@@ -62,7 +62,7 @@ export default function FindYouPage() {
             setProcessing(true);
             setStatusMessage("Searching database for matches...");
 
-            // 2. Fetch all indexed faces from Firestore
+            // 2. Fetch all indexed faces from Supabase database
             // This is much faster than processing images
             const indexedFaces = await getAllFaceEncodings();
 
@@ -79,7 +79,7 @@ export default function FindYouPage() {
             // Convert selfie descriptor to array if needed, but face-api handles Float32Array
 
             for (const face of indexedFaces) {
-                // Firestore stores descriptor as number[]
+                // Supabase database stores descriptor as number[]
                 // We need to convert it back to Float32Array for face-api math
                 const storedDescriptor = new Float32Array(face.descriptor);
 

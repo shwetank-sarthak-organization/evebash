@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
     width: width,
     height: height * 0.8,
     justifyContent: 'flex-end',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
   },
   heroImage: {
     ...StyleSheet.absoluteFillObject,
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   primaryButtonText: {
-    color: '#0f172a',
+    color: '#101010',
     fontSize: 14,
     fontWeight: 'bold',
     textTransform: 'uppercase',
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   },
   aboutTitle: {
     fontSize: 32,
-    color: '#0f172a',
+    color: '#101010',
     fontWeight: '700',
     letterSpacing: -1,
   },

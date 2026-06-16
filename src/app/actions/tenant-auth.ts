@@ -7,7 +7,7 @@ import {
     getPendingRequests, 
     addAllowedUser, 
     denyRequest 
-} from "@/lib/firestore";
+} from "@/lib/database";
 
 export interface LoginResult {
     success: boolean;

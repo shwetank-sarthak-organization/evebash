@@ -6,7 +6,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { getEventById, getSubEvents, logGuestLogin, Event as FirestoreEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getUsers, UserProfile, removeGuestChatPermission } from '@/lib/firestore';
+import { getEventById, getSubEvents, logGuestLogin, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getUsers, UserProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { styles, FunkyFonts } from '../../components/eventStyles';
@@ -22,6 +22,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import Sortable from 'react-native-sortables';
 import { supabase } from '@/lib/supabase';
 import { getGridThumbnail } from '@/lib/imageUrl';
+import { resolveEventCoverImage } from '@/lib/eventCovers';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ── Extracted modular components ──
@@ -232,12 +233,12 @@ const SPORTS_TEMPLATE_THEMES: Record<string, any> = {
     background: '#08111f',
     overlay: ['rgba(8, 17, 31, 0.84)', 'rgba(249, 115, 22, 0.22)', 'rgba(8, 17, 31, 1)'],
     card: 'rgba(248, 250, 252, 0.94)',
-    text: '#0f172a',
+    text: '#101010',
     muted: '#475569',
     accent: '#f97316',
     accentAlt: '#84cc16',
     imageFrame: '#f8fafc',
-    darkControl: '#0f172a',
+    darkControl: '#101010',
     headingFont: Fonts.spaceGrotesk.bold,
   },
   zen: {
@@ -289,51 +290,94 @@ function normalizeEventDate(value?: string) {
   return formatEventDisplayDate(parsed);
 }
 
-function GalleryVideoCard({ video, accent = '#d4af37', onOpen }: { video: any; accent?: string; onOpen?: () => void }) {
+function GalleryVideoCard({
+  video,
+  accent = '#d4af37',
+  onOpen,
+  compact = false,
+}: {
+  video: any;
+  accent?: string;
+  onOpen?: () => void;
+  compact?: boolean;
+}) {
   const player = useVideoPlayer(video.url, (player) => {
     player.loop = false;
-    player.muted = false;
+    player.muted = compact;
   });
 
   return (
     <View style={{
-      borderRadius: 18,
+      borderRadius: compact ? 10 : 18,
       overflow: 'hidden',
       backgroundColor: 'rgba(15, 23, 42, 0.92)',
       borderWidth: 1,
       borderColor: `${accent}55`,
-      marginBottom: 16,
+      marginBottom: compact ? 0 : 16,
+      ...(compact ? { width: '100%', height: '100%' } : {}),
     }}>
-      <VideoView
-        player={player}
-        nativeControls
-        contentFit="contain"
-        surfaceType="textureView"
-        style={{ width: '100%', aspectRatio: 16 / 9, backgroundColor: '#020617' }}
-      />
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10 }}>
-        <IconSymbol name="play.fill" size={15} color={accent} />
-        <Text style={{ flex: 1, color: '#e2e8f0', fontSize: 12, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>
-          {video.title || 'Uploaded video'}
-        </Text>
+      <View style={{ position: 'relative', backgroundColor: '#050505', flex: compact ? 1 : undefined }}>
+        <VideoView
+          player={player}
+          nativeControls={!compact}
+          contentFit={compact ? "cover" : "contain"}
+          surfaceType="textureView"
+          style={compact ? { width: '100%', height: '100%', backgroundColor: '#050505' } : { width: '100%', aspectRatio: 16 / 9, backgroundColor: '#050505' }}
+        />
         {onOpen && (
           <TouchableOpacity
+            activeOpacity={0.88}
+            onPress={onOpen}
             style={{
-              width: 30,
-              height: 30,
-              borderRadius: 15,
-              backgroundColor: `${accent}22`,
+              position: 'absolute',
+              top: compact ? 0 : 10,
+              right: compact ? 0 : 10,
+              bottom: compact ? 0 : undefined,
+              left: compact ? 0 : undefined,
+              minHeight: compact ? undefined : 34,
+              borderRadius: compact ? 0 : 17,
+              paddingHorizontal: compact ? 0 : 12,
+              backgroundColor: compact ? 'rgba(2, 6, 23, 0.26)' : 'rgba(2, 6, 23, 0.78)',
               alignItems: 'center',
               justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: `${accent}66`,
+              flexDirection: 'row',
+              gap: 6,
+              borderWidth: compact ? 0 : 1,
+              borderColor: `${accent}88`,
             }}
-            onPress={onOpen}
           >
-            <IconSymbol name="arrow.up.right" size={13} color={accent} />
+            {compact ? (
+              <View style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: 'rgba(2, 6, 23, 0.82)',
+                borderWidth: 1,
+                borderColor: `${accent}99`,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <IconSymbol name="play.fill" size={16} color={accent} />
+              </View>
+            ) : (
+              <>
+                <IconSymbol name="arrow.up.right" size={13} color={accent} />
+                <Text style={{ color: accent, fontSize: 11, fontFamily: Fonts.inter.bold }}>
+                  Large View
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
         )}
       </View>
+      {!compact && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10 }}>
+          <IconSymbol name="play.fill" size={15} color={accent} />
+          <Text style={{ flex: 1, color: '#e2e8f0', fontSize: 12, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>
+            {video.title || 'Uploaded video'}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -382,7 +426,7 @@ export default function EventDetailScreen() {
     return (value || '').trim().toLowerCase();
   }, []);
 
-  const [event, setEvent] = useState<FirestoreEvent | null>(null);
+  const [event, setEvent] = useState<DatabaseEvent | null>(null);
   const [selectedGuest, setSelectedGuest] = useState<GuestLog | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<GuestLog | null>(null);
   const [selectedGuestProfile, setSelectedGuestProfile] = useState<UserProfile | null>(null);
@@ -391,7 +435,7 @@ export default function EventDetailScreen() {
   const [selectedRequestProfile, setSelectedRequestProfile] = useState<UserProfile | null>(null);
   const [loadingRequestProfile, setLoadingRequestProfile] = useState(false);
   const [showRequestInfo, setShowRequestInfo] = useState(false);
-  const [subEvents, setSubEvents] = useState<FirestoreEvent[]>([]);
+  const [subEvents, setSubEvents] = useState<DatabaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [guestStatus, setGuestStatus] = useState<string | null>(null);
   const [guestName, setGuestName] = useState('');
@@ -524,6 +568,7 @@ export default function EventDetailScreen() {
   const [linkedVendors, setLinkedVendors] = useState<Business[]>([]);
   const [guestLogs, setGuestLogs] = useState<any[]>([]);
   const [updating, setUpdating] = useState(false);
+  const [coverUploadMessage, setCoverUploadMessage] = useState<string | null>(null);
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
   const [showUploadCompleteModal, setShowUploadCompleteModal] = useState(false);
   const [showUploadFailedModal, setShowUploadFailedModal] = useState(false);
@@ -763,7 +808,7 @@ export default function EventDetailScreen() {
       bohemianEq1.stopAnimation();
       bohemianEq2.stopAnimation();
       bohemianEq3.stopAnimation();
-      
+
       // Reset values or smoothly transit them back
       RNAnimated.parallel([
         RNAnimated.timing(bohemianPulse, {
@@ -811,7 +856,7 @@ export default function EventDetailScreen() {
   const [showShareModal, setShowShareModal] = useState(share === 'true');
   const [showApproved, setShowApproved] = useState(false);
 
-  const [activeSubEvent, setActiveSubEvent] = useState<FirestoreEvent | null>(null);
+  const [activeSubEvent, setActiveSubEvent] = useState<DatabaseEvent | null>(null);
   const [photos, setPhotos] = useState<any[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [galleryMediaTab, setGalleryMediaTab] = useState<'photos' | 'videos'>('photos');
@@ -824,12 +869,13 @@ export default function EventDetailScreen() {
   const [galleryDescText, setGalleryDescText] = useState('');
 
   // Admin Gallery Manager — which gallery is the host currently managing
-  // null = Home gallery, FirestoreEvent = a sub-event gallery
-  const [selectedAdminGallery, setSelectedAdminGallery] = useState<FirestoreEvent | null | undefined>(undefined);
+  // null = Home gallery, DatabaseEvent = a sub-event gallery
+  const [selectedAdminGallery, setSelectedAdminGallery] = useState<DatabaseEvent | null | undefined>(undefined);
 
   const currentActiveEvent = selectedAdminGallery !== undefined
     ? (selectedAdminGallery || event)
     : (activeSubEvent || event);
+  const resolvedActiveCoverImage = resolveEventCoverImage(currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl);
 
   const activeCoverMode = currentActiveEvent ? currentActiveEvent.coverMode : event?.coverMode;
   const activeCoverOffset = currentActiveEvent ? currentActiveEvent.coverOffset : event?.coverOffset;
@@ -839,6 +885,7 @@ export default function EventDetailScreen() {
   // Image Viewer State
   const [viewerVisible, setViewerVisible] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [photoActionItem, setPhotoActionItem] = useState<any | null>(null);
 
   const viewerIdentity = React.useMemo(() => user
     ? { id: user.uid, name: user.name || user.email?.split('@')[0] || 'User' }
@@ -972,7 +1019,7 @@ export default function EventDetailScreen() {
     }
   };
 
-  const handleSubEventChange = (sub: FirestoreEvent | null) => {
+  const handleSubEventChange = (sub: DatabaseEvent | null) => {
     setActiveSubEvent(sub);
     setGalleryMediaTab('photos');
     if (sub) {
@@ -1123,7 +1170,7 @@ export default function EventDetailScreen() {
           onPress: async () => {
             setUpdating(true);
             try {
-              const { deletePhoto } = await import('@/lib/firestore');
+              const { deletePhoto } = await import('@/lib/database');
               await deletePhoto(photoId);
 
               const activeId = selectedAdminGallery !== undefined
@@ -1147,7 +1194,41 @@ export default function EventDetailScreen() {
     );
   };
 
-  const handleOpenGalleryImmersive = (sub: FirestoreEvent | null) => {
+  const syncCoverForEvent = (targetId: string, coverImage: string) => {
+    if (event?.id === targetId) {
+      setEvent({ ...event, coverImage });
+    }
+    if (selectedAdminGallery?.id === targetId) {
+      setSelectedAdminGallery({ ...selectedAdminGallery, coverImage });
+    }
+    if (activeSubEvent?.id === targetId) {
+      setActiveSubEvent({ ...activeSubEvent, coverImage });
+    }
+    setSubEvents(prev => prev.map(sub => sub.id === targetId ? { ...sub, coverImage } : sub));
+  };
+
+  const handleSetGalleryPhotoAsCover = async (photoUrl: string, targetId: string, label: string) => {
+    setUpdating(true);
+    try {
+      const success = await updateEvent(targetId, { coverImage: photoUrl });
+      if (!success) throw new Error("Cover update failed");
+      syncCoverForEvent(targetId, photoUrl);
+      setPhotoActionItem(null);
+      Alert.alert("Updated", `${label} thumbnail updated.`);
+    } catch (err) {
+      console.error('[SetPhotoCover] Error:', err);
+      Alert.alert("Error", `Failed to update ${label.toLowerCase()} thumbnail.`);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const openGalleryPhotoActions = (photo: any) => {
+    if (!event) return;
+    setPhotoActionItem(photo);
+  };
+
+  const handleOpenGalleryImmersive = (sub: DatabaseEvent | null) => {
     console.log('[GalleryOpen] Tapped gallery card:', sub ? sub.title : 'Home');
     try {
       handleSubEventChange(sub);
@@ -1296,7 +1377,7 @@ export default function EventDetailScreen() {
 
       if (foundLogId && foundStatus) {
         setGuestStatus(foundStatus);
-        
+
         const fetchGuestStatus = async () => {
           try {
             const { data, error } = await supabase
@@ -1317,11 +1398,11 @@ export default function EventDetailScreen() {
         const uniqueChannelName = `guest-status-${foundLogId}-${Math.random().toString(36).substring(7)}`;
         const channel = supabase
           .channel(uniqueChannelName)
-          .on('postgres_changes', { 
-            event: '*', 
-            schema: 'public', 
-            table: 'guests', 
-            filter: `id=eq.${foundLogId}` 
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'guests',
+            filter: `id=eq.${foundLogId}`
           }, () => {
             fetchGuestStatus();
           })
@@ -1388,7 +1469,7 @@ export default function EventDetailScreen() {
         setSubmittedIdentifier(normalizedIdentifier);
         const logId = `${normalizedIdentifier}_${id}`;
         setGuestStatus('pending');
-        
+
         const fetchGuestStatus = async () => {
           try {
             const { data, error } = await supabase
@@ -1407,11 +1488,11 @@ export default function EventDetailScreen() {
 
         const channel = supabase
           .channel(`guest-status-new-${logId}`)
-          .on('postgres_changes', { 
-            event: '*', 
-            schema: 'public', 
-            table: 'guests', 
-            filter: `id=eq.${logId}` 
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'guests',
+            filter: `id=eq.${logId}`
           }, () => {
             fetchGuestStatus();
           })
@@ -1448,15 +1529,18 @@ export default function EventDetailScreen() {
       const target = currentActiveEvent;
       if (!target) return;
       setUpdating(true);
+      setCoverUploadMessage("Updating your cover image...");
       try {
+        setCoverUploadMessage("Preparing your cover image...");
         const manipulated = await ImageManipulator.manipulateAsync(
           result.assets[0].uri,
           [{ resize: { width: 1200 } }],
           { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
         );
         const file = { uri: manipulated.uri, name: 'cover.jpg', type: 'image/jpeg' } as any;
+        setCoverUploadMessage("Uploading your cover image...");
         const upload = await uploadEventImage(file, event?.id || target.id, user.uid);
-        
+
         const updatedFields = {
           coverImage: upload.url,
           coverOffset: 0,
@@ -1477,13 +1561,90 @@ export default function EventDetailScreen() {
         }
 
         await updateEvent(target.id, updatedFields);
+        const usageSaved = await saveCoverUsagePhoto({
+          eventId: target.id,
+          storageKey: upload.storageKey || upload.publicId || upload.url,
+          url: upload.url,
+          userId: user.uid,
+          width: upload.width,
+          height: upload.height,
+          size: upload.bytes,
+          format: upload.format,
+          mediaType: upload.mediaType || 'photo',
+          resourceType: upload.resourceType || 'image',
+        });
+
+        if (!usageSaved) {
+          console.warn("[EventDetail] Cover updated, but storage usage could not be synced.");
+        }
+
         showToast("Cover image updated successfully!");
       } catch (err) {
         Alert.alert("Error", "Failed to update cover.");
       } finally {
+        setCoverUploadMessage(null);
         setUpdating(false);
       }
     }
+  };
+
+  const handleRemoveCover = () => {
+    const target = currentActiveEvent;
+    if (!target) return;
+
+    if (!target.coverImage) {
+      showToast("This gallery is already using the default cover.");
+      return;
+    }
+
+    Alert.alert(
+      "Remove Cover",
+      "This will remove only the cover picture. Your event and galleries will stay as they are.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            setUpdating(true);
+            try {
+              const coverUrlToRemove = target.coverImage;
+              const updatedFields = {
+                coverImage: "",
+                coverOffset: 0,
+                coverOffsetX: 0,
+                coverScale: 1.0
+              };
+
+              if (selectedAdminGallery) {
+                const newSub = { ...selectedAdminGallery, ...updatedFields };
+                setSelectedAdminGallery(newSub);
+                setSubEvents(prev => prev.map(sub => sub.id === selectedAdminGallery.id ? newSub : sub));
+              } else if (activeSubEvent && activeSubEvent.id === target.id) {
+                const newSub = { ...activeSubEvent, ...updatedFields };
+                setActiveSubEvent(newSub);
+                setSubEvents(prev => prev.map(sub => sub.id === activeSubEvent.id ? newSub : sub));
+              } else if (event) {
+                setEvent({ ...event, ...updatedFields });
+              }
+
+              await updateEvent(target.id, updatedFields);
+              const usageDeleted = await deleteCoverUsagePhoto(target.id, coverUrlToRemove);
+              if (!usageDeleted) {
+                console.warn("[EventDetail] Cover removed, but storage usage could not be synced.");
+              }
+
+              showToast("Cover picture removed. Default cover restored.");
+            } catch (err) {
+              console.log("Error removing cover:", err);
+              Alert.alert("Error", "Failed to remove cover.");
+            } finally {
+              setUpdating(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleCreateSubEvent = async () => {
@@ -1499,7 +1660,7 @@ export default function EventDetailScreen() {
         id: subId,
         title: newSubTitle,
         date: normalizeEventDate(event.date) || event.date,
-        coverImage: event.coverImage,
+        coverImage: resolveEventCoverImage(event.coverImage),
         description: `Welcome to the ${newSubTitle} gallery! Share your beautiful moments and thoughts here.`,
         createdBy: user.uid,
         type: 'sub',
@@ -1632,11 +1793,7 @@ export default function EventDetailScreen() {
             const success = await deleteEvent(event.id);
             if (success) {
               Alert.alert("Success", "Event deleted successfully.");
-              if (router.canGoBack()) {
-                router.back();
-              } else {
-                router.replace('/(tabs)/dashboard');
-              }
+              router.replace('/(tabs)/gallery');
             } else {
               Alert.alert("Error", "Failed to delete event.");
             }
@@ -1647,7 +1804,7 @@ export default function EventDetailScreen() {
     );
   };
 
-  const handleDeleteSubGallery = async (targetGallery?: FirestoreEvent) => {
+  const handleDeleteSubGallery = async (targetGallery?: DatabaseEvent) => {
     const gallery = targetGallery || selectedAdminGallery;
     if (!gallery) return;
     Alert.alert(
@@ -1693,6 +1850,7 @@ export default function EventDetailScreen() {
   const selectedRequestEmail = selectedRequestProfile?.email || selectedRequest?.email || (selectedRequest?.phone?.includes('@') ? selectedRequest.phone : '') || 'Not set';
   const selectedRequestPhone = selectedRequestProfile?.phone || (!selectedRequest?.phone?.includes('@') ? selectedRequest?.phone : '') || 'Not set';
   const selectedRequestPhoto = selectedRequestProfile?.profileImage;
+  const pendingGuests = guestLogs.filter((log) => log.status === 'pending');
   const approvedGuests = guestLogs.filter((log) => log.status === 'approved');
   const adminGuests = approvedGuests.filter((log) => !!log.canAdmin);
   const memberGuests = approvedGuests.filter((log) => !log.canAdmin);
@@ -1713,9 +1871,10 @@ export default function EventDetailScreen() {
         <View style={styles.memberSecondary}>
           <Text style={styles.memberPhone}>{log.phone}</Text>
           <View style={styles.grantedRowSmall}>
+            {log.status === 'approved' && <View style={styles.miniIcon}><IconSymbol name="eye.fill" size={14} color={MidnightColors.gold} /></View>}
             {log.canAdmin && <View style={styles.miniIcon}><IconSymbol name="shield.fill" size={14} color={MidnightColors.gold} /></View>}
-            {log.canUpload && <View style={styles.miniIcon}><IconSymbol name="camera.fill" size={14} color={MidnightColors.gold} /></View>}
-            {log.canComment && <View style={styles.miniIcon}><IconSymbol name={"bubble.left.fill" as any} size={14} color={MidnightColors.gold} /></View>}
+            {(log.canAdmin || log.canUpload) && <View style={styles.miniIcon}><IconSymbol name="camera.fill" size={14} color={MidnightColors.gold} /></View>}
+            {(log.canAdmin || log.canComment) && <View style={styles.miniIcon}><IconSymbol name={"bubble.left.fill" as any} size={14} color={MidnightColors.gold} /></View>}
           </View>
         </View>
       </View>
@@ -1773,7 +1932,7 @@ export default function EventDetailScreen() {
   const renderUploadProgressCard = () => {
     const active = uploadQueue.filter(i => i.status === 'uploading' || i.status === 'pending');
     const failed = uploadQueue.filter(i => i.status === 'failed');
-    
+
     if (active.length === 0 && failed.length === 0) return null;
 
     const total = uploadQueue.length;
@@ -1794,8 +1953,8 @@ export default function EventDetailScreen() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View style={{ flex: 1, marginRight: 8 }}>
             <Text style={localStyles.progressCardTitle}>
-              {active.length > 0 
-                ? `Uploading Media (${completed}/${total})` 
+              {active.length > 0
+                ? `Uploading Media (${completed}/${total})`
                 : 'Upload Halted with Issues'}
             </Text>
             {currentUploading && (
@@ -1811,7 +1970,7 @@ export default function EventDetailScreen() {
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {failed.length > 0 && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[localStyles.progressCardBtn, { backgroundColor: 'rgba(248,113,113,0.15)' }]}
                 onPress={async () => {
                   for (const item of failed) {
@@ -1822,7 +1981,7 @@ export default function EventDetailScreen() {
                 <Text style={{ color: '#f87171', fontSize: 11, fontWeight: 'bold' }}>Retry</Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[localStyles.progressCardBtn, { backgroundColor: 'rgba(255,255,255,0.08)' }]}
               onPress={async () => {
                 if (active.length > 0) {
@@ -1831,12 +1990,12 @@ export default function EventDetailScreen() {
                     "Are you sure you want to cancel all ongoing uploads?",
                     [
                       { text: "No", style: "cancel" },
-                      { 
-                        text: "Yes, Cancel All", 
-                        style: "destructive", 
+                      {
+                        text: "Yes, Cancel All",
+                        style: "destructive",
                         onPress: async () => {
                           await resetUploadQueue();
-                        } 
+                        }
                       }
                     ]
                   );
@@ -1851,7 +2010,7 @@ export default function EventDetailScreen() {
             </TouchableOpacity>
           </View>
         </View>
-        
+
         {/* Progress Bar */}
         <View style={localStyles.progressBarBg}>
           <View style={[localStyles.progressBarFill, { width: `${overallPercent}%`, backgroundColor: selectedTemplate.accent }]} />
@@ -1948,14 +2107,14 @@ export default function EventDetailScreen() {
         stickyHeaderIndices={!showAdminView ? [1] : undefined}
       >
         {/* ── HERO ── */}
-        <View 
+        <View
           style={[styles.hero, { height: heroHeight, backgroundColor: pageBackground, overflow: 'hidden' }]}
           {...(isRepositioning ? panResponder.panHandlers : {})}
         >
           {isSportsTemplate ? (
             <View style={[styles.sportsHeroStage, { backgroundColor: sportsTheme.background, paddingTop: insets.top }]}>
               <Image
-                source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                source={{ uri: resolvedActiveCoverImage }}
                 style={styles.sportsHeroImage}
                 resizeMode="cover"
                 blurRadius={0.8}
@@ -1995,7 +2154,7 @@ export default function EventDetailScreen() {
                 style={[styles.sportsPosterFrame, { top: insets.top + 82, backgroundColor: sportsTheme.imageFrame, borderColor: `${sportsTheme.accent}66`, shadowColor: sportsTheme.darkControl }]}
               >
                 <Image
-                  source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                  source={{ uri: resolvedActiveCoverImage }}
                   style={styles.sportsPosterImage}
                   resizeMode="cover"
                 />
@@ -2055,7 +2214,7 @@ export default function EventDetailScreen() {
                 colors={isThemeDark ? ['#1e140f', '#3f2214', '#2f241d'] : ['#ffedd5', '#fed7aa', '#fff7ed']}
                 style={StyleSheet.absoluteFillObject}
               />
-              
+
               {/* Subtle background lines/guitar fret lines */}
               <View style={styles.bohemianBgLinesContainer}>
                 <View style={[styles.bohemianBgLine, { opacity: isThemeDark ? 0.05 : 0.08 }]} />
@@ -2079,7 +2238,7 @@ export default function EventDetailScreen() {
                 >
                   <IconSymbol name="chevron.left" size={20} color="#431407" />
                 </TouchableOpacity>
-                
+
                 <View style={styles.bohemianDateBadge}>
                   <Text style={[
                     styles.bohemianHeaderDate,
@@ -2135,7 +2294,7 @@ export default function EventDetailScreen() {
                     },
                   ]}
                 />
-                
+
                 {/* Secondary offset pulse wave for multi-layered ripple depth */}
                 <RNAnimated.View
                   style={[
@@ -2204,12 +2363,12 @@ export default function EventDetailScreen() {
                   ]}
                 >
                   <Image
-                    source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                    source={{ uri: resolvedActiveCoverImage }}
                     style={styles.bohemianSleeveImage}
                   />
                   {/* Decorative double border to look like printed vinyl jacket */}
                   <View style={styles.bohemianSleeveInnerBorder} />
-                  
+
                   {/* Linear gradient overlay for texture/contrast */}
                   <LinearGradient
                     colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.45)']}
@@ -2235,17 +2394,17 @@ export default function EventDetailScreen() {
               <View style={styles.bohemianHudContainer}>
                 {/* Track Info */}
                 <View style={styles.bohemianTrackInfo}>
-                  <Text 
+                  <Text
                     style={[
-                      styles.bohemianTrackTitle, 
-                      { 
-                        fontFamily: selectedTemplate.serifFont, 
+                      styles.bohemianTrackTitle,
+                      {
+                        fontFamily: selectedTemplate.serifFont,
                         color: isThemeDark ? '#fdba74' : '#c2410c',
                         textShadowColor: isThemeDark ? 'rgba(0,0,0,0.5)' : 'rgba(67, 20, 7, 0.15)',
                         textShadowOffset: { width: 0, height: 1 },
                         textShadowRadius: 3,
                       }
-                    ]} 
+                    ]}
                     numberOfLines={1}
                     ellipsizeMode="tail"
                     adjustsFontSizeToFit
@@ -2290,8 +2449,8 @@ export default function EventDetailScreen() {
             </View>
           ) : !showAdminView && event?.templateId === 'classic' ? (
             <View style={styles.classicHeroImageContainer}>
-              <Image 
-                source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }} 
+              <Image
+                source={{ uri: resolvedActiveCoverImage }}
                 style={[
                   styles.classicHeroImage,
                   (activeCoverMode === 'fit') ? {
@@ -2306,15 +2465,15 @@ export default function EventDetailScreen() {
                       { scale: activeCoverScale || 1.0 }
                     ]
                   }
-                ]} 
+                ]}
               />
             </View>
           ) : !showAdminView && event?.templateId === 'ethereal' ? (
             <View style={[StyleSheet.absoluteFillObject, { backgroundColor: selectedTemplate.background }]}>
               {/* Full-bleed Photo */}
               <View style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
-                <Image 
-                  source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }} 
+                <Image
+                  source={{ uri: resolvedActiveCoverImage }}
                   style={{ width: '100%', height: '100%', resizeMode: 'cover', opacity: 0.88 }}
                 />
                 {/* Dark gradient overlay at bottom of image for readability */}
@@ -2376,7 +2535,7 @@ export default function EventDetailScreen() {
                   elevation: 2,
                 }}>
                   <Image
-                    source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                    source={{ uri: resolvedActiveCoverImage }}
                     style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
                   />
                 </View>
@@ -2442,7 +2601,7 @@ export default function EventDetailScreen() {
           ) : !showAdminView && isExecutiveTemplate ? (
             <View style={[styles.executiveHeroStage, { paddingTop: insets.top }]}>
               <Image
-                source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                source={{ uri: resolvedActiveCoverImage }}
                 style={styles.executiveBackdrop}
                 resizeMode="cover"
                 blurRadius={1}
@@ -2466,7 +2625,7 @@ export default function EventDetailScreen() {
 
               <Animated.View entering={FadeInUp.delay(80).duration(650)} style={[styles.executivePortraitFrame, { top: insets.top + 84 }]}>
                 <Image
-                  source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                  source={{ uri: resolvedActiveCoverImage }}
                   style={styles.executivePortraitImage}
                   resizeMode="cover"
                 />
@@ -2509,7 +2668,7 @@ export default function EventDetailScreen() {
           ) : !showAdminView && isTechSleekTemplate ? (
             <View style={[styles.techSleekHeroStage, { paddingTop: insets.top }]}>
               <Image
-                source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                source={{ uri: resolvedActiveCoverImage }}
                 style={styles.techSleekBackdrop}
                 resizeMode="cover"
                 blurRadius={2}
@@ -2540,7 +2699,7 @@ export default function EventDetailScreen() {
 
               <Animated.View entering={FadeInUp.delay(80).duration(650)} style={[styles.techSleekDeviceFrame, { top: insets.top + 84 }]}>
                 <Image
-                  source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                  source={{ uri: resolvedActiveCoverImage }}
                   style={styles.techSleekDeviceImage}
                   resizeMode="cover"
                 />
@@ -2582,7 +2741,7 @@ export default function EventDetailScreen() {
           ) : !showAdminView && isMuseumTemplate ? (
             <View style={[styles.museumHeroStage, { paddingTop: insets.top }]}>
               <Image
-                source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                source={{ uri: resolvedActiveCoverImage }}
                 style={[StyleSheet.absoluteFillObject, { opacity: 0.5 }]}
                 resizeMode="cover"
                 blurRadius={1.2}
@@ -2606,7 +2765,7 @@ export default function EventDetailScreen() {
 
               <Animated.View entering={FadeInUp.delay(80).duration(650)} style={[styles.museumArtworkFrame, { top: insets.top + 82 }]}>
                 <Image
-                  source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                  source={{ uri: resolvedActiveCoverImage }}
                   style={styles.museumArtworkImage}
                   resizeMode="cover"
                 />
@@ -2653,7 +2812,7 @@ export default function EventDetailScreen() {
           ) : !showAdminView && isBrutalistTemplate ? (
             <View style={[styles.brutalistHeroStage, { paddingTop: insets.top }]}>
               <Image
-                source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                source={{ uri: resolvedActiveCoverImage }}
                 style={styles.brutalistHeroBackdrop}
                 resizeMode="cover"
                 blurRadius={0.8}
@@ -2676,7 +2835,7 @@ export default function EventDetailScreen() {
 
               <Animated.View entering={FadeInUp.delay(80).duration(650)} style={[styles.brutalistArtworkBlock, { top: insets.top + 104 }]}>
                 <Image
-                  source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }}
+                  source={{ uri: resolvedActiveCoverImage }}
                   style={styles.brutalistArtworkImage}
                   resizeMode="cover"
                 />
@@ -2707,8 +2866,8 @@ export default function EventDetailScreen() {
               </View>
             </View>
           ) : (
-            <Image 
-              source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }} 
+            <Image
+              source={{ uri: resolvedActiveCoverImage }}
               style={[
                 styles.heroImage,
                 (!showAdminView && event?.templateId === 'pop') ? styles.popPolaroidImage : {},
@@ -2773,7 +2932,7 @@ export default function EventDetailScreen() {
                       coverOffsetX: 0,
                       coverScale: 1.0
                     };
-                    
+
                     if (selectedAdminGallery) {
                       const newSub = { ...selectedAdminGallery, ...updatedFields };
                       setSelectedAdminGallery(newSub as any);
@@ -2785,7 +2944,7 @@ export default function EventDetailScreen() {
                     } else if (event) {
                       setEvent({ ...event, ...updatedFields } as any);
                     }
-                    
+
                     showToast(newMode === 'fit' ? 'Cover set to Fit' : 'Cover set to Fill');
                     await updateEvent(target.id, updatedFields);
                   } catch (err) {
@@ -2832,6 +2991,16 @@ export default function EventDetailScreen() {
               >
                 <IconSymbol name="camera.fill" size={14} color="#fff" />
                 <Text style={styles.coverControlText}>{updating ? '...' : 'Cover'}</Text>
+              </TouchableOpacity>
+
+              {/* Remove Cover */}
+              <TouchableOpacity
+                style={styles.coverControlSubBtn}
+                onPress={handleRemoveCover}
+                disabled={updating}
+              >
+                <IconSymbol name="trash.fill" size={14} color="#fff" />
+                <Text style={styles.coverControlText}>Remove</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -3072,9 +3241,9 @@ export default function EventDetailScreen() {
               {/* 2. Tilted White Polaroid Frame */}
               <View style={[styles.popPolaroidFrame, { marginTop: insets.top + 78 }]}>
                 <View style={styles.popPolaroidInner}>
-                  <Image 
-                    source={{ uri: currentActiveEvent?.coverImage || event.coverImage }} 
-                    style={styles.popPolaroidImage} 
+                  <Image
+                    source={{ uri: resolvedActiveCoverImage }}
+                    style={styles.popPolaroidImage}
                     resizeMode="contain"
                   />
                   <View style={styles.popPolaroidOverlay} />
@@ -3149,9 +3318,9 @@ export default function EventDetailScreen() {
                   <View style={[styles.cyberCorner, styles.cyberCornerTR]} />
                   <View style={[styles.cyberCorner, styles.cyberCornerBL]} />
                   <View style={[styles.cyberCorner, styles.cyberCornerBR]} />
-                  
-                  <Image 
-                    source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }} 
+
+                  <Image
+                    source={{ uri: resolvedActiveCoverImage }}
                     style={styles.cyberPosterImg}
                     resizeMode="cover"
                   />
@@ -3202,8 +3371,8 @@ export default function EventDetailScreen() {
               {/* Poster frame in middle */}
               <View style={styles.retroMiddleFrame}>
                 <View style={styles.retroPosterWrapper}>
-                  <Image 
-                    source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }} 
+                  <Image
+                    source={{ uri: resolvedActiveCoverImage }}
                     style={styles.retroPosterImg}
                     resizeMode="cover"
                   />
@@ -3223,8 +3392,8 @@ export default function EventDetailScreen() {
             <View style={[styles.neonCarnivalHeroOverlay, { paddingTop: insets.top }]}>
               {/* Cover Image spanning full background, blending top & bottom */}
               <View style={styles.neonCarnivalCoverWrapper}>
-                <Image 
-                  source={{ uri: currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl }} 
+                <Image
+                  source={{ uri: resolvedActiveCoverImage }}
                   style={styles.neonCarnivalCoverImg}
                   resizeMode="cover"
                 />
@@ -3257,7 +3426,7 @@ export default function EventDetailScreen() {
                 <Text style={styles.neonCarnivalDateText}>
                   {currentActiveEvent?.date || event.date || 'DATE TBD'}
                 </Text>
-                
+
                 <View style={styles.neonCarnivalTitleWrapper}>
                   <Text style={styles.neonCarnivalTitle} numberOfLines={2} adjustsFontSizeToFit>
                     {(currentActiveEvent?.title || event.title).toUpperCase()}
@@ -3339,7 +3508,7 @@ export default function EventDetailScreen() {
               >
                 <View style={styles.goldenCeremonyPhotoCard}>
                   <Image
-                    source={{ uri: currentActiveEvent?.coverImage || event.coverImage }}
+                    source={{ uri: resolvedActiveCoverImage }}
                     style={styles.goldenCeremonyPhoto}
                     resizeMode="cover"
                   />
@@ -3399,7 +3568,7 @@ export default function EventDetailScreen() {
                   <View style={styles.vintageEditorialTape} />
                   <View style={styles.vintageEditorialClip} />
                   <Image
-                    source={{ uri: currentActiveEvent?.coverImage || event.coverImage }}
+                    source={{ uri: resolvedActiveCoverImage }}
                     style={styles.vintageEditorialImage}
                     resizeMode="cover"
                   />
@@ -3464,7 +3633,7 @@ export default function EventDetailScreen() {
                 <View style={styles.roseBloomPhotoTape} />
                 <View style={styles.roseBloomPhotoCorner} />
                 <Image
-                  source={{ uri: currentActiveEvent?.coverImage || event.coverImage }}
+                  source={{ uri: resolvedActiveCoverImage }}
                   style={styles.roseBloomPhoto}
                   resizeMode="cover"
                 />
@@ -3513,7 +3682,7 @@ export default function EventDetailScreen() {
               <View style={styles.minimalEditorialPhotoPanel}>
                 <View style={styles.minimalEditorialTape} />
                 <Image
-                  source={{ uri: currentActiveEvent?.coverImage || event.coverImage }}
+                  source={{ uri: resolvedActiveCoverImage }}
                   style={styles.minimalEditorialPhoto}
                   resizeMode="cover"
                 />
@@ -3792,7 +3961,7 @@ export default function EventDetailScreen() {
                           <Text style={styles.addBtnText}>Add Gallery</Text>
                         </TouchableOpacity>
                       </View>
-                      
+
                       {/* PRIMARY GALLERY */}
                       <View style={{ width: '100%', marginBottom: 20 }}>
                         <Text style={{
@@ -3820,12 +3989,12 @@ export default function EventDetailScreen() {
 	                            }}
                             activeOpacity={0.85}
                           >
-                            <Image source={{ uri: event.coverImage }} style={styles.subImageFull} />
+                            <Image source={{ uri: resolveEventCoverImage(event.coverImage) }} style={styles.subImageFull} />
                             <LinearGradient
                               colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0.85)']}
                               style={StyleSheet.absoluteFillObject}
                             />
-                            
+
                             {/* Premium Badge */}
                             <View style={styles.badgeContainer}>
                               <LinearGradient
@@ -3864,11 +4033,6 @@ export default function EventDetailScreen() {
                           }}>
                             Sub-Galleries
                           </Text>
-                          {subEvents.length > 1 && (
-                            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>
-                              ✦ Hold & drag
-                            </Text>
-                          )}
                         </View>
 
                         {subEvents.length === 0 ? (
@@ -3888,17 +4052,11 @@ export default function EventDetailScreen() {
                             </Text>
                           </View>
                         ) : (
-                          <Sortable.Grid
-                            data={subEvents}
-                            keyExtractor={(item: any) => item.id}
-                            columns={2}
-                            columnGap={12}
-                            rowGap={12}
-                            onDragEnd={({ data: newData }: { data: any[] }) => handleReorderSubEvents(newData)}
-                            renderItem={({ item: sub }: { item: any }) => (
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, width: '100%' }}>
+                            {subEvents.map((sub: any) => (
                               <TouchableOpacity
                                 key={sub.id}
-                                style={[styles.subCard, { width: '100%' }]}
+                                style={[styles.subCard, { width: '48%' }]}
 	                                onPress={() => {
 	                                  loadPhotos(sub.id, sub.legacyId);
 	                                  setGalleryDescText(sub.description || '');
@@ -3907,7 +4065,7 @@ export default function EventDetailScreen() {
 	                                }}
                                 activeOpacity={0.85}
                               >
-                                <Image source={{ uri: sub.coverImage }} style={styles.subImageFull} />
+                                <Image source={{ uri: resolveEventCoverImage(sub.coverImage) }} style={styles.subImageFull} />
                                 <LinearGradient
                                   colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0.85)']}
                                   style={StyleSheet.absoluteFillObject}
@@ -3955,8 +4113,8 @@ export default function EventDetailScreen() {
                                   </View>
                                 </View>
                               </TouchableOpacity>
-                            )}
-                          />
+                            ))}
+                          </View>
                         )}
                       </View>
 
@@ -4012,7 +4170,7 @@ export default function EventDetailScreen() {
                                     style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
                                     onPress={async () => {
                                       const targetId = selectedAdminGallery === null ? event!.id : selectedAdminGallery.id;
-                                      const { updateEvent } = await import('@/lib/firestore');
+                                      const { updateEvent } = await import('@/lib/database');
                                       await updateEvent(targetId, { description: galleryDescText });
 
                                       if (selectedAdminGallery === null) {
@@ -4069,7 +4227,7 @@ export default function EventDetailScreen() {
                                 style={{ flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 12, backgroundColor: active ? MidnightColors.gold : 'transparent' }}
                                 onPress={() => setGalleryMediaTab(item.id)}
                               >
-                                <Text style={{ color: active ? '#020617' : '#cbd5e1', fontSize: 12, fontFamily: Fonts.inter.bold }}>
+                                <Text style={{ color: active ? '#050505' : '#cbd5e1', fontSize: 12, fontFamily: Fonts.inter.bold }}>
                                   {item.label}
                                 </Text>
                               </TouchableOpacity>
@@ -4089,25 +4247,30 @@ export default function EventDetailScreen() {
                           </Text>
                         </View>
                       ) : galleryMediaTab === 'videos' ? (
-                        <View>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                           {videoItems.map((video, idx) => (
-                            <View key={video.id} style={{ position: 'relative' }}>
-                              <GalleryVideoCard video={video} accent={MidnightColors.gold} onOpen={() => openViewer(idx)} />
+                            <View key={video.id} style={{ position: 'relative', width: '31.5%', aspectRatio: 1 }}>
+                              <GalleryVideoCard
+                                video={video}
+                                accent={MidnightColors.gold}
+                                compact
+                                onOpen={() => openViewer(idx)}
+                              />
                               <TouchableOpacity
                                 style={{
                                   position: 'absolute',
-                                  top: 8,
-                                  right: 8,
-                                  width: 26,
-                                  height: 26,
-                                  borderRadius: 13,
+                                  top: 4,
+                                  right: 4,
+                                  width: 22,
+                                  height: 22,
+                                  borderRadius: 11,
                                   backgroundColor: 'rgba(239,68,68,0.92)',
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                 }}
                                 onPress={() => handleDeleteGalleryPhoto(video.id)}
                               >
-                                <IconSymbol name="trash.fill" size={12} color="#fff" />
+                                <IconSymbol name="trash.fill" size={10} color="#fff" />
                               </TouchableOpacity>
                             </View>
                           ))}
@@ -4126,15 +4289,39 @@ export default function EventDetailScreen() {
                             onDragEnd={({ data: newData }: { data: any[] }) => handleReorderPhotos(newData)}
                             renderItem={({ item }: { item: any }) => (
                               <View style={{ position: 'relative', borderRadius: 10, overflow: 'hidden' }}>
-                                <Image
-                                  source={{ uri: getGridThumbnail(item.url) }}
-                                  style={{
-                                    width: '100%',
-                                    aspectRatio: 1,
-                                    borderRadius: 10,
+                                <TouchableOpacity
+                                  activeOpacity={0.9}
+                                  onPress={() => {
+                                    const photoIndex = photoItems.findIndex(photo => photo.id === item.id);
+                                    openViewer(photoIndex >= 0 ? photoIndex : 0);
                                   }}
-                                  resizeMode="cover"
-                                />
+                                >
+                                  <Image
+                                    source={{ uri: getGridThumbnail(item.url) }}
+                                    style={{
+                                      width: '100%',
+                                      aspectRatio: 1,
+                                      borderRadius: 10,
+                                    }}
+                                    resizeMode="cover"
+                                  />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={{
+                                    position: 'absolute',
+                                    top: 4,
+                                    left: 4,
+                                    width: 22,
+                                    height: 22,
+                                    borderRadius: 11,
+                                    backgroundColor: 'rgba(15,23,42,0.85)',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}
+                                  onPress={() => openGalleryPhotoActions(item)}
+                                >
+                                  <Text style={{ color: '#fff', fontSize: 14, lineHeight: 14, fontWeight: '900' }}>⋯</Text>
+                                </TouchableOpacity>
                                 <TouchableOpacity
                                   style={{
                                     position: 'absolute',
@@ -4177,7 +4364,12 @@ export default function EventDetailScreen() {
 
                   {/* ── PENDING REQUESTS ── */}
                   <View style={{ gap: 12 }}>
-                    {guestLogs.filter(l => l.status === 'pending').map(log => (
+                    {pendingGuests.length > 0 && (
+                      <Text style={[styles.sectionTitle, { fontSize: 16, marginBottom: 4, marginTop: 10 }]}>
+                        Pending Requests ({pendingGuests.length})
+                      </Text>
+                    )}
+                    {pendingGuests.map(log => (
                       <TouchableOpacity
                         key={log.id}
                         style={styles.requestCardItem}
@@ -4215,14 +4407,18 @@ export default function EventDetailScreen() {
                     <View style={{ marginTop: 10 }}>
                       {adminGuests.length > 0 && (
                         <View>
-                          <Text style={[styles.sectionTitle, { fontSize: 16, marginBottom: 16, marginTop: 10 }]}>Admins</Text>
+                          <Text style={[styles.sectionTitle, { fontSize: 16, marginBottom: 16, marginTop: 10 }]}>
+                            Admins ({adminGuests.length})
+                          </Text>
                           {adminGuests.map((log, index) => renderApprovedGuestCard(log, index))}
                         </View>
                       )}
 
                       {memberGuests.length > 0 && (
                         <View style={{ marginTop: adminGuests.length > 0 ? 18 : 0 }}>
-                          <Text style={[styles.sectionTitle, { fontSize: 16, marginBottom: 16, marginTop: 10 }]}>Members</Text>
+                          <Text style={[styles.sectionTitle, { fontSize: 16, marginBottom: 16, marginTop: 10 }]}>
+                            Members ({memberGuests.length})
+                          </Text>
                           {memberGuests.map((log, index) => renderApprovedGuestCard(log, index))}
                         </View>
                       )}
@@ -4243,7 +4439,7 @@ export default function EventDetailScreen() {
                 <View style={styles.premiumModalBackdrop}>
                   <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                     <LinearGradient
-                      colors={['#0f172a', '#020617']}
+                      colors={['#101010', '#050505']}
                       style={styles.premiumModalContent}
                     >
                       {/* Header: Member Identity */}
@@ -4270,6 +4466,10 @@ export default function EventDetailScreen() {
                         <View style={styles.userInfoPanel}>
                           <View style={styles.userInfoDetails}>
                             <View style={styles.userInfoDetailRow}>
+                              <Text style={styles.userInfoDetailLabel}>Profile Name</Text>
+                              <Text style={styles.userInfoDetailValue}>{selectedGuestName}</Text>
+                            </View>
+                            <View style={styles.userInfoDetailRow}>
                               <Text style={styles.userInfoDetailLabel}>Username</Text>
                               <Text style={styles.userInfoDetailValue}>{selectedGuestUsername}</Text>
                             </View>
@@ -4287,11 +4487,15 @@ export default function EventDetailScreen() {
                         <Text style={styles.permissionsGroupLabel}>Member Privileges</Text>
 
                         {[
+                          { id: 'viewAccess', label: 'View Access', desc: 'Can open and view this event gallery', icon: 'eye.fill' },
                           { id: 'canAdmin', label: 'Admin Access', desc: 'Manage event, sub-galleries, and other guests', icon: 'shield.fill' },
                           { id: 'canUpload', label: 'Allow Uploads', desc: 'Can add photos and videos to the event', icon: 'camera.fill' },
                           { id: 'canComment', label: 'Allow Comments', desc: 'Can react and post comments on any media', icon: 'bubble.left.fill' },
                         ].map((perm) => {
-                          const isActive = (selectedGuest as any)?.[perm.id];
+                          const isViewAccess = perm.id === 'viewAccess';
+                          const isActive = isViewAccess
+                            ? selectedGuest?.status === 'approved'
+                            : Boolean((selectedGuest as any)?.[perm.id] || (selectedGuest?.canAdmin && (perm.id === 'canUpload' || perm.id === 'canComment')));
                           const isSelfAdminCheck = perm.id === 'canAdmin' && selectedGuest && doesGuestLogBelongToCurrentUser(selectedGuest) && !isOwner;
                           const displayDesc = isSelfAdminCheck ? "Ask host to remove you" : perm.desc;
 
@@ -4299,21 +4503,49 @@ export default function EventDetailScreen() {
                             <TouchableOpacity
                               key={perm.id}
                               style={[
-                                styles.richPermCard, 
+                                styles.richPermCard,
                                 isActive && styles.richPermCardActive,
                                 isSelfAdminCheck && { opacity: 0.8 }
                               ]}
                               onPress={() => {
                                 if (selectedGuest) {
+                                  if (isViewAccess) {
+                                    const nextStatus: GuestLog['status'] = isActive ? 'rejected' : 'approved';
+                                    updateGuestStatus(selectedGuest.id, nextStatus).then(() => {
+                                      const updatedGuest = {
+                                        ...selectedGuest,
+                                        status: nextStatus,
+                                        ...(nextStatus === 'approved' ? { canUpload: true, canComment: true } : {}),
+                                      };
+                                      setSelectedGuest(nextStatus === 'approved' ? updatedGuest : null);
+                                      loadEvent();
+                                    });
+                                    return;
+                                  }
                                   if (isSelfAdminCheck) {
                                     Alert.alert("Permission Denied", "Ask host to remove you.");
                                     return;
                                   }
-                                  const newPerms = { [perm.id]: !isActive };
-                                  updateGuestPermissions(selectedGuest.id, newPerms).then(() => {
-                                    setSelectedGuest({ ...selectedGuest, ...newPerms });
-                                    loadEvent();
-                                  });
+                                  const nextValue = !isActive;
+                                  const newPerms = perm.id === 'canAdmin' && nextValue
+                                    ? { canAdmin: true, canUpload: true, canComment: true }
+                                    : { [perm.id]: nextValue };
+                                  const applyPermissionUpdate = () => {
+                                    updateGuestPermissions(selectedGuest.id, newPerms).then(() => {
+                                      setSelectedGuest({
+                                        ...selectedGuest,
+                                        ...(perm.id === 'canAdmin' && nextValue ? { status: 'approved' as GuestLog['status'] } : {}),
+                                        ...newPerms,
+                                      });
+                                      loadEvent();
+                                    });
+                                  };
+
+                                  if (perm.id === 'canAdmin' && nextValue && selectedGuest.status !== 'approved') {
+                                    updateGuestStatus(selectedGuest.id, 'approved').then(applyPermissionUpdate);
+                                  } else {
+                                    applyPermissionUpdate();
+                                  }
                                 }
                               }}
                             >
@@ -4323,11 +4555,11 @@ export default function EventDetailScreen() {
 
                               <View style={{ flex: 1, paddingRight: 10 }}>
                                 <Text style={[styles.richPermLabel, isActive && { color: '#fff' }]}>{perm.label}</Text>
-                                <Text 
+                                <Text
                                   style={[
                                     styles.richPermDesc,
                                     isSelfAdminCheck && { color: MidnightColors.gold, fontWeight: '600' }
-                                  ]} 
+                                  ]}
                                   numberOfLines={2}
                                 >
                                   {displayDesc}
@@ -4365,7 +4597,7 @@ export default function EventDetailScreen() {
                 <View style={styles.premiumModalBackdrop}>
                   <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                     <LinearGradient
-                      colors={['#0f172a', '#020617']}
+                      colors={['#101010', '#050505']}
                       style={styles.premiumModalContent}
                     >
                       {/* Header: Member Identity */}
@@ -4391,6 +4623,10 @@ export default function EventDetailScreen() {
                       <View style={styles.permissionsScroll}>
                         <View style={styles.userInfoPanel}>
                           <View style={styles.userInfoDetails}>
+                            <View style={styles.userInfoDetailRow}>
+                              <Text style={styles.userInfoDetailLabel}>Profile Name</Text>
+                              <Text style={styles.userInfoDetailValue}>{selectedRequestName}</Text>
+                            </View>
                             <View style={styles.userInfoDetailRow}>
                               <Text style={styles.userInfoDetailLabel}>Username</Text>
                               <Text style={styles.userInfoDetailValue}>{selectedRequestUsername}</Text>
@@ -5062,8 +5298,8 @@ export default function EventDetailScreen() {
                             ]}
                             onPress={() => router.push(`/business/${biz.id}`)}
                           >
-                            <Image 
-                              source={{ uri: biz.coverImage || 'https://via.placeholder.com/150' }} 
+                            <Image
+                              source={{ uri: biz.coverImage || 'https://via.placeholder.com/150' }}
                               style={[
                                 { width: 64, height: 64, borderRadius: 32, marginRight: 16, borderWidth: 1, borderColor: selectedTemplate.accent },
                                 isPopTemplate && { borderWidth: 2.5, borderColor: '#231f20', borderRadius: 32 },
@@ -5071,7 +5307,7 @@ export default function EventDetailScreen() {
                                 isCyberTechTemplate && { borderWidth: 1, borderColor: '#00f0ff', borderRadius: 8 },
                                 isNeonCarnivalTemplate && { borderWidth: 1.5, borderColor: '#d946ef', borderRadius: 16 },
                                 isGardenTemplate && [styles.gardenPartnerImage, { borderColor: '#2E6F40' }]
-                              ]} 
+                              ]}
                             />
                             <View style={{ flex: 1 }}>
                               <Text style={[
@@ -5829,7 +6065,7 @@ export default function EventDetailScreen() {
                   Choose a category for your gallery
                 </Text>
               </View>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => setShowCategoryModal(false)}
                 style={{ marginTop: 2 }}
               >
@@ -5891,6 +6127,91 @@ export default function EventDetailScreen() {
         event={event}
         selectedTemplate={selectedTemplate}
       />
+
+      <Modal
+        visible={!!photoActionItem}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPhotoActionItem(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setPhotoActionItem(null)} />
+          <View style={[styles.modalContent, { gap: 14 }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+              <View style={{ flex: 1, marginRight: 16 }}>
+                <Text style={{ fontSize: 22, color: '#fff', fontFamily: Fonts.outfit.bold }}>Photo Actions</Text>
+                <Text style={{ color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.inter.regular, marginTop: 4 }}>
+                  Choose where this photo should appear as a thumbnail.
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setPhotoActionItem(null)} style={{ marginTop: 2 }}>
+                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={{
+                width: '100%',
+                minHeight: 56,
+                borderRadius: 18,
+                backgroundColor: MidnightColors.gold,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                paddingHorizontal: 18,
+                gap: 12,
+              }}
+              activeOpacity={0.85}
+              disabled={updating || !photoActionItem || !event}
+              onPress={() => {
+                if (!photoActionItem || !event) return;
+                const activeGallery = selectedAdminGallery === undefined
+                  ? (activeSubEvent || event)
+                  : (selectedAdminGallery || event);
+                handleSetGalleryPhotoAsCover(photoActionItem.url, activeGallery.id, "Gallery");
+              }}
+            >
+              <IconSymbol name="photo.fill" size={16} color="#050505" />
+              <Text
+                style={{ flex: 1, color: '#050505', fontFamily: Fonts.outfit.bold, fontSize: 15 }}
+                numberOfLines={2}
+              >
+                Make Gallery Thumbnail
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                width: '100%',
+                minHeight: 56,
+                borderRadius: 18,
+                borderWidth: 1,
+                borderColor: 'rgba(212, 175, 55, 0.28)',
+                backgroundColor: 'rgba(212, 175, 55, 0.12)',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                paddingHorizontal: 18,
+                gap: 12,
+              }}
+              activeOpacity={0.85}
+              disabled={updating || !photoActionItem || !event}
+              onPress={() => {
+                if (!photoActionItem || !event) return;
+                handleSetGalleryPhotoAsCover(photoActionItem.url, event.id, "Event");
+              }}
+            >
+              <IconSymbol name="star.fill" size={16} color={MidnightColors.gold} />
+              <Text
+                style={{ flex: 1, color: MidnightColors.gold, fontFamily: Fonts.outfit.bold, fontSize: 15 }}
+                numberOfLines={2}
+              >
+                Make Event Thumbnail
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <TemplateSelectionModal
         visible={showTemplateModal}
@@ -6117,7 +6438,7 @@ export default function EventDetailScreen() {
           left: 0,
           right: 0,
           height: 55 + insets.bottom,
-          backgroundColor: '#020617',
+          backgroundColor: '#050505',
           flexDirection: 'row',
           paddingTop: 8,
           paddingBottom: insets.bottom > 0 ? insets.bottom - 5 : 10,
@@ -6195,15 +6516,15 @@ export default function EventDetailScreen() {
 
           {/* Zoom controls */}
           <View style={styles.zoomControlRow}>
-            <TouchableOpacity 
-              style={styles.zoomBtn} 
+            <TouchableOpacity
+              style={styles.zoomBtn}
               onPress={() => setTempCoverScale(prev => Math.max(1.0, prev - 0.1))}
             >
               <IconSymbol name={"minus" as any} size={12} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.zoomText}>{Math.round(tempCoverScale * 100)}%</Text>
-            <TouchableOpacity 
-              style={styles.zoomBtn} 
+            <TouchableOpacity
+              style={styles.zoomBtn}
               onPress={() => setTempCoverScale(prev => Math.min(2.5, prev + 0.1))}
             >
               <IconSymbol name="plus" size={12} color="#fff" />
@@ -6261,6 +6582,15 @@ export default function EventDetailScreen() {
         </View>
       )}
 
+      {coverUploadMessage && (
+        <View style={localStyles.coverUploadOverlay} pointerEvents="auto">
+          <View style={localStyles.coverUploadCard}>
+            <ActivityIndicator size="small" color={MidnightColors.gold} />
+            <Text style={localStyles.coverUploadText}>{coverUploadMessage}</Text>
+          </View>
+        </View>
+      )}
+
       {/* ── TOAST MESSAGE FEEDBACK OVERLAY ── */}
       {toastMessage && (
         <View style={styles.toastContainer}>
@@ -6283,24 +6613,24 @@ export default function EventDetailScreen() {
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowUploadCompleteModal(false)} />
           <View style={[
-            styles.modalContent, 
-            { 
-              padding: 24, 
-              borderRadius: 24, 
-              borderWidth: 1.5, 
-              backgroundColor: selectedTemplate.panel || (isDark ? '#0f172a' : '#ffffff'),
+            styles.modalContent,
+            {
+              padding: 24,
+              borderRadius: 24,
+              borderWidth: 1.5,
+              backgroundColor: selectedTemplate.panel || (isDark ? '#101010' : '#ffffff'),
               borderColor: selectedTemplate.accentBg || 'rgba(212, 175, 55, 0.3)',
               alignItems: 'center',
               alignSelf: 'center',
               width: width * 0.8,
             }
           ]}>
-            <View style={{ 
-              width: 60, 
-              height: 60, 
-              borderRadius: 30, 
-              backgroundColor: 'rgba(34, 197, 94, 0.1)', 
-              justifyContent: 'center', 
+            <View style={{
+              width: 60,
+              height: 60,
+              borderRadius: 30,
+              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              justifyContent: 'center',
               alignItems: 'center',
               marginBottom: 16,
               borderWidth: 1,
@@ -6308,40 +6638,40 @@ export default function EventDetailScreen() {
             }}>
               <IconSymbol name="checkmark.circle.fill" size={32} color="#22c55e" />
             </View>
-            
-            <Text style={{ 
-              fontSize: 20, 
-              fontWeight: 'bold', 
-              color: selectedTemplate.accent || colors.gold || '#CCA43B', 
+
+            <Text style={{
+              fontSize: 20,
+              fontWeight: 'bold',
+              color: selectedTemplate.accent || MidnightColors.gold || '#CCA43B',
               marginBottom: 8,
               fontFamily: Fonts.outfit.bold,
               textAlign: 'center',
             }}>
               Upload Complete
             </Text>
-            
-            <Text style={{ 
-              fontSize: 14, 
-              color: isDark ? '#cbd5e1' : '#64748b', 
-              textAlign: 'center', 
+
+            <Text style={{
+              fontSize: 14,
+              color: isDark ? '#cbd5e1' : '#64748b',
+              textAlign: 'center',
               marginBottom: 20,
               fontFamily: Fonts.inter.regular,
             }}>
               Upload complete
             </Text>
-            
-            <TouchableOpacity 
-              style={{ 
-                backgroundColor: selectedTemplate.accent || colors.gold || '#CCA43B', 
-                paddingVertical: 12, 
-                paddingHorizontal: 24, 
+
+            <TouchableOpacity
+              style={{
+                backgroundColor: selectedTemplate.accent || MidnightColors.gold || '#CCA43B',
+                paddingVertical: 12,
+                paddingHorizontal: 24,
                 borderRadius: 12,
                 width: '100%',
                 alignItems: 'center'
               }}
               onPress={() => setShowUploadCompleteModal(false)}
             >
-              <Text style={{ color: isDark ? '#020617' : '#ffffff', fontWeight: 'bold', fontFamily: Fonts.outfit.semiBold }}>
+              <Text style={{ color: isDark ? '#050505' : '#ffffff', fontWeight: 'bold', fontFamily: Fonts.outfit.semiBold }}>
                 Done
               </Text>
             </TouchableOpacity>
@@ -6359,24 +6689,24 @@ export default function EventDetailScreen() {
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowUploadFailedModal(false)} />
           <View style={[
-            styles.modalContent, 
-            { 
-              padding: 24, 
-              borderRadius: 24, 
-              borderWidth: 1.5, 
-              backgroundColor: selectedTemplate.panel || (isDark ? '#0f172a' : '#ffffff'),
+            styles.modalContent,
+            {
+              padding: 24,
+              borderRadius: 24,
+              borderWidth: 1.5,
+              backgroundColor: selectedTemplate.panel || (isDark ? '#101010' : '#ffffff'),
               borderColor: 'rgba(239, 68, 68, 0.3)',
               alignItems: 'center',
               alignSelf: 'center',
               width: width * 0.8,
             }
           ]}>
-            <View style={{ 
-              width: 60, 
-              height: 60, 
-              borderRadius: 30, 
-              backgroundColor: 'rgba(239, 68, 68, 0.1)', 
-              justifyContent: 'center', 
+            <View style={{
+              width: 60,
+              height: 60,
+              borderRadius: 30,
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              justifyContent: 'center',
               alignItems: 'center',
               marginBottom: 16,
               borderWidth: 1,
@@ -6384,40 +6714,40 @@ export default function EventDetailScreen() {
             }}>
               <IconSymbol name="xmark.circle.fill" size={32} color="#ef4444" />
             </View>
-            
-            <Text style={{ 
-              fontSize: 20, 
-              fontWeight: 'bold', 
-              color: '#ef4444', 
+
+            <Text style={{
+              fontSize: 20,
+              fontWeight: 'bold',
+              color: '#ef4444',
               marginBottom: 8,
               fontFamily: Fonts.outfit.bold,
               textAlign: 'center',
             }}>
               Upload Failed
             </Text>
-            
-            <Text style={{ 
-              fontSize: 14, 
-              color: isDark ? '#cbd5e1' : '#64748b', 
-              textAlign: 'center', 
+
+            <Text style={{
+              fontSize: 14,
+              color: isDark ? '#cbd5e1' : '#64748b',
+              textAlign: 'center',
               marginBottom: 20,
               fontFamily: Fonts.inter.regular,
             }}>
               Upload failed
             </Text>
-            
-            <TouchableOpacity 
-              style={{ 
-                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0', 
-                paddingVertical: 12, 
-                paddingHorizontal: 24, 
+
+            <TouchableOpacity
+              style={{
+                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0',
+                paddingVertical: 12,
+                paddingHorizontal: 24,
                 borderRadius: 12,
                 width: '100%',
                 alignItems: 'center'
               }}
               onPress={() => setShowUploadFailedModal(false)}
             >
-              <Text style={{ color: isDark ? '#ffffff' : '#0f172a', fontWeight: 'bold', fontFamily: Fonts.outfit.semiBold }}>
+              <Text style={{ color: isDark ? '#ffffff' : '#101010', fontWeight: 'bold', fontFamily: Fonts.outfit.semiBold }}>
                 Close
               </Text>
             </TouchableOpacity>
@@ -6429,6 +6759,37 @@ export default function EventDetailScreen() {
 }
 
 const localStyles = StyleSheet.create({
+  coverUploadOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1200,
+    elevation: 1200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(2, 6, 23, 0.45)',
+  },
+  coverUploadCard: {
+    minWidth: 230,
+    maxWidth: '82%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderRadius: 18,
+    backgroundColor: 'rgba(15, 23, 42, 0.94)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.35)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+  },
+  coverUploadText: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: Fonts.inter.bold,
+  },
   progressCard: {
     position: 'absolute',
     left: 16,

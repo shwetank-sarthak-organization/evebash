@@ -14,7 +14,7 @@
   --color-royal-gold: #0ea5e9; /* Sky blue */
   --color-royal-cream: #f8fafc; /* Very light slate-50 gray */
   --color-royal-green: #0ea5e9;
-  --color-slate-800: #0f172a;
+  --color-slate-800: #101010;
   --opacity-noise: 0.15; /* Subtler noise */
 }
 
@@ -40,7 +40,7 @@
   }
 
   body {
-    @apply bg-slate-50 text-slate-600 font-sans antialiased relative min-h-screen selection:bg-sky-200 selection:text-sky-900;
+    @apply bg-black text-slate-200 font-sans antialiased relative min-h-screen selection:bg-sky-500/30 selection:text-white;
   }
 
   /* Subtle Noise Texture */
@@ -64,6 +64,181 @@
   h5,
   h6 {
     @apply font-serif text-slate-900;
+  }
+}
+
+@layer utilities {
+  .bg-slate-950 {
+    background-color: #050505;
+  }
+
+  .bg-slate-900 {
+    background-color: #101010;
+  }
+
+  .bg-slate-800 {
+    background-color: #1a1a1a;
+  }
+
+  .bg-slate-800\/20 {
+    background-color: rgba(26, 26, 26, 0.2);
+  }
+
+  .bg-slate-800\/30 {
+    background-color: rgba(26, 26, 26, 0.3);
+  }
+
+  .bg-slate-800\/40 {
+    background-color: rgba(26, 26, 26, 0.4);
+  }
+
+  .bg-slate-800\/50 {
+    background-color: rgba(26, 26, 26, 0.5);
+  }
+
+  .bg-slate-800\/80 {
+    background-color: rgba(26, 26, 26, 0.8);
+  }
+
+  .bg-slate-800\/90 {
+    background-color: rgba(26, 26, 26, 0.9);
+  }
+
+  .bg-slate-800\/95 {
+    background-color: rgba(26, 26, 26, 0.95);
+  }
+
+  .bg-slate-900\/10 {
+    background-color: rgba(16, 16, 16, 0.1);
+  }
+
+  .bg-slate-900\/20 {
+    background-color: rgba(16, 16, 16, 0.2);
+  }
+
+  .bg-slate-900\/30 {
+    background-color: rgba(16, 16, 16, 0.3);
+  }
+
+  .bg-slate-900\/50 {
+    background-color: rgba(16, 16, 16, 0.5);
+  }
+
+  .bg-slate-900\/60 {
+    background-color: rgba(16, 16, 16, 0.6);
+  }
+
+  .bg-slate-900\/70 {
+    background-color: rgba(16, 16, 16, 0.7);
+  }
+
+  .bg-slate-900\/80 {
+    background-color: rgba(16, 16, 16, 0.8);
+  }
+
+  .bg-slate-900\/95 {
+    background-color: rgba(16, 16, 16, 0.95);
+  }
+
+  .bg-slate-950\/20 {
+    background-color: rgba(5, 5, 5, 0.2);
+  }
+
+  .bg-slate-950\/40 {
+    background-color: rgba(5, 5, 5, 0.4);
+  }
+
+  .bg-slate-950\/45 {
+    background-color: rgba(5, 5, 5, 0.45);
+  }
+
+  .bg-slate-950\/50 {
+    background-color: rgba(5, 5, 5, 0.5);
+  }
+
+  .bg-slate-950\/60 {
+    background-color: rgba(5, 5, 5, 0.6);
+  }
+
+  .bg-slate-950\/70 {
+    background-color: rgba(5, 5, 5, 0.7);
+  }
+
+  .bg-slate-950\/75 {
+    background-color: rgba(5, 5, 5, 0.75);
+  }
+
+  .bg-slate-950\/80 {
+    background-color: rgba(5, 5, 5, 0.8);
+  }
+
+  .bg-slate-950\/90 {
+    background-color: rgba(5, 5, 5, 0.9);
+  }
+
+  .border-slate-800 {
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .border-slate-700 {
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  .border-slate-700\/50 {
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .hover\:bg-slate-900:hover {
+    background-color: #101010;
+  }
+
+  .hover\:bg-slate-900\/50:hover {
+    background-color: rgba(16, 16, 16, 0.5);
+  }
+
+  .hover\:bg-slate-800:hover {
+    background-color: #1a1a1a;
+  }
+
+  .hover\:bg-slate-800\/50:hover {
+    background-color: rgba(26, 26, 26, 0.5);
+  }
+
+  .hover\:bg-slate-700:hover {
+    background-color: #2a2a2a;
+  }
+
+  .hover\:bg-slate-700\/70:hover {
+    background-color: rgba(42, 42, 42, 0.7);
+  }
+
+  .from-slate-900 {
+    --tw-gradient-from: #101010 var(--tw-gradient-from-position);
+    --tw-gradient-to: rgb(16 16 16 / 0) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+  }
+
+  .via-slate-800 {
+    --tw-gradient-to: rgb(26 26 26 / 0) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-from), #1a1a1a var(--tw-gradient-via-position), var(--tw-gradient-to);
+  }
+
+  .via-slate-900\/20 {
+    --tw-gradient-to: rgb(16 16 16 / 0) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-from), rgb(16 16 16 / 0.2) var(--tw-gradient-via-position), var(--tw-gradient-to);
+  }
+
+  .via-slate-950 {
+    --tw-gradient-to: rgb(5 5 5 / 0) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-from), #050505 var(--tw-gradient-via-position), var(--tw-gradient-to);
+  }
+
+  .to-slate-700 {
+    --tw-gradient-to: #2a2a2a var(--tw-gradient-to-position);
+  }
+
+  .to-slate-950 {
+    --tw-gradient-to: #050505 var(--tw-gradient-to-position);
   }
 }
 

@@ -20,11 +20,17 @@ function LoginContent() {
     const [showPass, setShowPass] = useState(false);
     const [verificationMessage, setVerificationMessage] = useState("");
 
-    const { login, signup, authWithPhone, loginWithGoogle } = useAuth();
+    const { login, signup, authWithPhone, loginWithGoogle, user, loading } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
     const returnTo = searchParams.get("returnTo");
     const isPhoneAuth = authMethod === "phone";
+
+    React.useEffect(() => {
+        if (!loading && user) {
+            router.push(returnTo || "/dashboard");
+        }
+    }, [user, loading, returnTo]);
 
     // Password validation states
     const passLength = password.length >= 8;
@@ -105,26 +111,26 @@ function LoginContent() {
 
         try {
             if (isSignUp) {
-                const success = isPhoneAuth
+                const result = isPhoneAuth
                     ? await authWithPhone(name, phone, password)
                     : await signup(email, password, name);
 
-                if (success) {
+                if (result.success) {
                     router.push(returnTo || "/dashboard");
                 } else {
-                    setError("Failed to create account. Please check your details.");
+                    setError(result.error || "Failed to create account. Please check your details.");
                     setStatus("idle");
                 }
             } else {
                 const loginId = isPhoneAuth
                     ? `${phone.replace(/\D/g, "")}@phone-login.local`
-                    : email;
-                const success = await login(loginId, password);
+                    : email.trim();
+                const result = await login(loginId, password);
 
-                if (success) {
+                if (result.success) {
                     router.push(returnTo || "/dashboard");
                 } else {
-                    setError(isPhoneAuth ? "Invalid phone number or password." : "Invalid email or password.");
+                    setError(result.error || (isPhoneAuth ? "Invalid phone number or password." : "Invalid email or password."));
                     setStatus("idle");
                 }
             }
@@ -174,23 +180,23 @@ function LoginContent() {
                 </div>
 
                 {/* Main Card */}
-                <div className="bg-white rounded-[32px] p-8 shadow-2xl">
-                    <h2 className="text-2xl font-bold text-slate-900 mb-1">{isSignUp ? 'Create Account' : 'Welcome Back'}</h2>
-                    <p className="text-slate-500 text-sm mb-6">{isSignUp ? 'Sign up to access your gallery' : 'Sign in to access your gallery'}</p>
+                <div className="bg-slate-800/90 rounded-[32px] p-8 shadow-2xl border border-slate-700 backdrop-blur-sm">
+                    <h2 className="text-2xl font-bold text-white mb-1">{isSignUp ? 'Create Account' : 'Welcome Back'}</h2>
+                    <p className="text-slate-400 text-sm mb-6">{isSignUp ? 'Sign up to access your gallery' : 'Sign in to access your gallery'}</p>
 
                     {/* Segmented Control */}
-                    <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
+                    <div className="flex bg-slate-900/50 p-1 rounded-xl mb-6">
                         <button 
                             type="button"
                             onClick={() => { setAuthMethod('email'); setError(''); }}
-                            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${!isPhoneAuth ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${!isPhoneAuth ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
                         >
                             Email
                         </button>
                         <button 
                             type="button"
                             onClick={() => { setAuthMethod('phone'); setError(''); }}
-                            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${isPhoneAuth ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${isPhoneAuth ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
                         >
                             Phone
                         </button>
@@ -199,12 +205,12 @@ function LoginContent() {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         {isSignUp && (
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Full Name</label>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 ml-1">Full Name</label>
                                 <input
                                     type="text"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all"
+                                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all"
                                     placeholder="John Doe"
                                 />
                             </div>
@@ -212,23 +218,23 @@ function LoginContent() {
 
                         {isPhoneAuth ? (
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Phone Number</label>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 ml-1">Phone Number</label>
                                 <input
                                     type="tel"
                                     value={phone}
                                     onChange={(e) => setPhone(e.target.value)}
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all"
+                                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all"
                                     placeholder="9876543210"
                                 />
                             </div>
                         ) : (
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 ml-1">Email Address</label>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 ml-1">Email Address</label>
                                 <input
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all"
+                                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all"
                                     placeholder="you@example.com"
                                 />
                             </div>
@@ -236,7 +242,7 @@ function LoginContent() {
 
                         <div>
                             <div className="flex justify-between items-center mb-1 ml-1">
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Password</label>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Password</label>
                                 {isSignUp && (
                                     <button type="button" onClick={generateStrongPassword} className="text-xs font-bold text-sky-600 hover:text-sky-700">
                                         Suggest Strong Password
@@ -290,7 +296,7 @@ function LoginContent() {
                                         type={showPass ? "text" : "password"}
                                         value={confirmPassword}
                                         onChange={(e) => setConfirmPassword(e.target.value)}
-                                        className="w-full pl-4 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all"
+                                        className="w-full pl-4 pr-12 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 transition-all"
                                         placeholder="••••••••"
                                     />
                                 </div>
@@ -298,21 +304,21 @@ function LoginContent() {
                         )}
 
                         {error && (
-                            <div className="bg-rose-50 border border-rose-100 p-3 rounded-lg">
-                                <p className="text-sm text-rose-600 text-center font-medium">{error}</p>
+                            <div className="bg-rose-900/30 border border-rose-500/30 p-3 rounded-lg">
+                                <p className="text-sm text-rose-400 text-center font-medium">{error}</p>
                             </div>
                         )}
 
                         {verificationMessage && (
-                            <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-lg">
-                                <p className="text-sm text-emerald-600 text-center font-medium">{verificationMessage}</p>
+                            <div className="bg-emerald-900/30 border border-emerald-500/30 p-3 rounded-lg">
+                                <p className="text-sm text-emerald-400 text-center font-medium">{verificationMessage}</p>
                             </div>
                         )}
 
                         <button
                             type="submit"
-                            disabled={status === "loading"}
-                            className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold text-[15px] hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-all shadow-md mt-2 flex items-center justify-center"
+                            disabled={status !== "idle" || (isSignUp && (!passLength || !passUpper || !passNumber || (password !== confirmPassword)))}
+                            className="w-full py-3.5 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-white rounded-xl font-bold text-[15px] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 focus:ring-offset-slate-900 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 mt-2"
                         >
                             {status === "loading" ? (
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -324,16 +330,16 @@ function LoginContent() {
 
                     {/* Social Login */}
                     <div className="mt-6 mb-6 relative flex items-center py-2">
-                        <div className="flex-grow border-t border-slate-100"></div>
-                        <span className="flex-shrink-0 mx-4 text-slate-400 text-xs font-bold tracking-wider">OR</span>
-                        <div className="flex-grow border-t border-slate-100"></div>
+                        <div className="flex-grow border-t border-slate-700"></div>
+                        <span className="flex-shrink-0 mx-4 text-slate-500 text-xs font-bold uppercase tracking-wider">or continue with</span>
+                        <div className="flex-grow border-t border-slate-700"></div>
                     </div>
 
                     <button
                         type="button"
                         onClick={handleGoogleLogin}
-                        disabled={status === "loading"}
-                        className="w-full py-3.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[15px] hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-200 transition-all shadow-sm flex items-center justify-center gap-3"
+                        disabled={status !== "idle"}
+                        className="w-full py-3.5 bg-slate-900 border border-slate-700 text-white rounded-xl font-bold text-[15px] hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-800 focus:ring-offset-slate-900 transition-all shadow-sm flex items-center justify-center gap-3"
                     >
                         <svg className="w-5 h-5" viewBox="0 0 24 24">
                             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -348,7 +354,7 @@ function LoginContent() {
                     <div className="mt-8 text-center">
                         <p className="text-slate-500 text-sm">
                             {isSignUp ? "Already have an account?" : "Don't have an account?"}
-                            <button onClick={toggleMode} className="ml-1.5 font-bold text-sky-600 hover:text-sky-700 transition-colors">
+                            <button onClick={toggleMode} className="ml-1.5 font-bold text-sky-400 hover:text-sky-300 transition-colors">
                                 {isSignUp ? "Sign In" : "Sign Up"}
                             </button>
                         </p>
@@ -356,7 +362,7 @@ function LoginContent() {
                 </div>
 
                 <div className="text-center mt-6">
-                    <p className="text-slate-400 text-xs font-medium tracking-wide">Protected access to EveBash</p>
+                    <p className="text-slate-500 text-xs font-medium tracking-wide">Protected access to EveBash</p>
                 </div>
             </motion.div>
         </div>

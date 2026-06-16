@@ -5,7 +5,7 @@ import Navbar from "@/components/Navbar";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import * as faceapi from "face-api.js";
 import { getAllPhotos, SimplePhoto } from "@/app/actions/photos";
-import { saveFaceToIndex } from "@/lib/firestore";
+import { saveFaceToIndex } from "@/lib/database";
 
 export default function FaceIndexPage() {
     const [modelsLoaded, setModelsLoaded] = useState(false);
@@ -72,7 +72,7 @@ export default function FaceIndexPage() {
                     if (detections.length > 0) {
                         facesFound += detections.length;
 
-                        // Save each face to Firestore
+                        // Save each face to Supabase database
                         for (const detection of detections) {
                             await saveFaceToIndex({
                                 imageId: photo.id,

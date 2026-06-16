@@ -5,7 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import {
   getEventById,
   getSubEvents,
-  Event as FirestoreEvent,
+  Event as DatabaseEvent,
   updateEvent,
   createEvent,
   getGuestLogs,
@@ -15,7 +15,7 @@ import {
   updatePhotosOrder,
   updateSubEventsOrder,
   getEventPhotos
-} from '@/lib/firestore';
+} from '@/lib/database';
 import { uploadEventImage } from '@/lib/storage';
 import { getDefaultTemplateForEventCategory } from '@/constants/templates';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -23,8 +23,8 @@ import * as ImageManipulator from 'expo-image-manipulator';
 export function useEventState(id: string, user: any) {
   const router = useRouter();
 
-  const [event, setEvent] = useState<FirestoreEvent | null>(null);
-  const [subEvents, setSubEvents] = useState<FirestoreEvent[]>([]);
+  const [event, setEvent] = useState<DatabaseEvent | null>(null);
+  const [subEvents, setSubEvents] = useState<DatabaseEvent[]>([]);
   const [photos, setPhotos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
@@ -59,10 +59,10 @@ export function useEventState(id: string, user: any) {
   const [galleryDescText, setGalleryDescText] = useState('');
 
   // Admin Selected Gallery
-  const [selectedAdminGallery, setSelectedAdminGallery] = useState<FirestoreEvent | null | undefined>(undefined);
+  const [selectedAdminGallery, setSelectedAdminGallery] = useState<DatabaseEvent | null | undefined>(undefined);
 
   // Visitor Active Sub-event
-  const [activeSubEvent, setActiveSubEvent] = useState<FirestoreEvent | null>(null);
+  const [activeSubEvent, setActiveSubEvent] = useState<DatabaseEvent | null>(null);
 
   const currentActiveEvent = selectedAdminGallery !== undefined
     ? (selectedAdminGallery || event)
@@ -149,7 +149,7 @@ export function useEventState(id: string, user: any) {
     loadEvent();
   }, [id, user, loadEvent]);
 
-  const handleSubEventChange = (sub: FirestoreEvent | null) => {
+  const handleSubEventChange = (sub: DatabaseEvent | null) => {
     setActiveSubEvent(sub);
     if (sub) {
       loadPhotos(sub.id, sub.legacyId);
@@ -232,7 +232,7 @@ export function useEventState(id: string, user: any) {
         const file = { uri: result.assets[0].uri, name: 'photo.jpg', type: 'image/jpeg' } as any;
         const upload = await uploadEventImage(file, activeId, user?.uid || 'anon');
 
-        const { addPhoto } = await import('@/lib/firestore');
+        const { addPhoto } = await import('@/lib/database');
         await addPhoto({
           eventId: activeId,
           url: upload.url,
@@ -284,7 +284,7 @@ export function useEventState(id: string, user: any) {
           onPress: async () => {
             setUpdating(true);
             try {
-              const { deletePhoto } = await import('@/lib/firestore');
+              const { deletePhoto } = await import('@/lib/database');
               await deletePhoto(photoId);
 
               const activeId = selectedAdminGallery !== undefined
@@ -308,7 +308,7 @@ export function useEventState(id: string, user: any) {
     );
   };
 
-  const handleOpenGalleryImmersive = (sub: FirestoreEvent | null) => {
+  const handleOpenGalleryImmersive = (sub: DatabaseEvent | null) => {
     try {
       handleSubEventChange(sub);
     } catch (error) {
@@ -513,7 +513,7 @@ export function useEventState(id: string, user: any) {
     );
   };
 
-  const handleDeleteSubGallery = async (targetGallery?: FirestoreEvent) => {
+  const handleDeleteSubGallery = async (targetGallery?: DatabaseEvent) => {
     const gallery = targetGallery || selectedAdminGallery;
     if (!gallery) return;
     Alert.alert(

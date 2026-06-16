@@ -1,6 +1,6 @@
 
 import { notFound } from "next/navigation";
-import { getSubEvents, getEventById } from "@/lib/firestore";
+import { getSubEvents, getEventById } from "@/lib/database";
 import { SubEventsGrid } from "@/components/SubEventsGrid";
 
 import { TemplateBohemian } from "@/components/TemplateBohemian";

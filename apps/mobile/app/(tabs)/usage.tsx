@@ -3,9 +3,11 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Activ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
-import { getUserEventCount, getUserTotalStorage, getUserBusinesses } from '@/lib/firestore';
+import { getUserEventCount, getUserTotalStorage, getUserBusinesses } from '@/lib/database';
+import { getPlanDetails, getUsagePercent } from '@/lib/planLimits';
+import { supabase } from '@/lib/supabase';
 
 const { width } = Dimensions.get('window');
 
@@ -15,21 +17,12 @@ export default function UsageScreen() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ eventCount: 0, storageUsed: 0, businessCount: 0 });
 
-  const getPlanDetails = (role?: string) => {
-    switch (role?.toLowerCase()) {
-      case "admin":    return { name: "Super Admin", storage: "Unlimited", events: "Unlimited", businesses: "Unlimited", color: "#d4af37", storageGB: Infinity, eventsCount: Infinity, businessLimit: Infinity };
-      case "elite":    return { name: "Elite Plan", storage: "500 GB", events: "100", businesses: "10", color: "#d4af37", storageGB: 500, eventsCount: 100, businessLimit: 10 };
-      case "premium":  return { name: "Premium Plan", storage: "100 GB", events: "25", businesses: "3", color: "#818cf8", storageGB: 100, eventsCount: 25, businessLimit: 3 };
-      default:         return { name: "Free Plan", storage: "5 GB", events: "1", businesses: "0", color: "#94a3b8", storageGB: 5, eventsCount: 1, businessLimit: 0 };
-    }
-  };
-
   const plan = getPlanDetails(user?.role);
+  const planColor = plan.accent;
 
-  useEffect(() => {
-    const fetchStats = async () => {
+  const fetchStats = React.useCallback(async (silent = false) => {
       if (!user) return;
-      setLoading(true);
+      if (!silent) setLoading(true);
       try {
         const identifiers = [user.uid];
         if (user.email) identifiers.push(user.email);
@@ -48,12 +41,44 @@ export default function UsageScreen() {
       } catch (error) {
         console.error("Error fetching usage stats:", error);
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
-    };
+    }, [user]);
 
+  useEffect(() => {
     fetchStats();
-  }, [user]);
+  }, [fetchStats]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchStats(true);
+    }, [fetchStats])
+  );
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const identifiers = [user.uid, user.email, user.phone].filter(Boolean) as string[];
+    const channels = identifiers.map((identifier) =>
+      supabase
+        .channel(`usage-storage-${identifier}-${Math.random().toString(36).slice(2, 8)}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'photos', filter: `user_id=eq.${identifier}` },
+          () => fetchStats(true)
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'events', filter: `created_by=eq.${identifier}` },
+          () => fetchStats(true)
+        )
+        .subscribe()
+    );
+
+    return () => {
+      channels.forEach((channel) => supabase.removeChannel(channel));
+    };
+  }, [user?.uid, user?.email, user?.phone, fetchStats]);
 
   const formatStorage = (bytes: number) => {
     if (bytes === 0) return '0 GB';
@@ -62,39 +87,43 @@ export default function UsageScreen() {
     return `${gb.toFixed(2)} GB`;
   };
 
-  const getProgress = (current: number, limit: number) => {
-    if (limit === Infinity) return 0.05;
-    if (limit === 0) return current > 0 ? 1 : 0.05;
-    return Math.min(current / limit, 1);
-  };
-
-  const storageGBUsed = stats.storageUsed / (1024 * 1024 * 1024);
-  const isStorageOver = storageGBUsed > plan.storageGB && plan.storageGB !== Infinity;
-  const isEventsOver = stats.eventCount > plan.eventsCount && plan.eventsCount !== Infinity;
-  const isBizOver = stats.businessCount > plan.businessLimit && plan.businessLimit !== Infinity;
+  const storageProgress = getUsagePercent(stats.storageUsed, plan.storageBytes) / 100;
+  const eventProgress = getUsagePercent(stats.eventCount, plan.eventLimit) / 100;
+  const businessLimit = user?.role === 'admin'
+    ? Infinity
+    : user?.role === 'elite'
+      ? 10
+      : user?.role === 'premium'
+        ? 3
+        : 0;
+  const businessLabel = businessLimit === Infinity ? 'Unlimited' : String(businessLimit);
+  const businessProgress = getUsagePercent(stats.businessCount, businessLimit) / 100;
+  const isStorageOver = stats.storageUsed > plan.storageBytes && plan.storageBytes !== Infinity;
+  const isEventsOver = stats.eventCount > plan.eventLimit && plan.eventLimit !== Infinity;
+  const isBizOver = stats.businessCount > businessLimit && businessLimit !== Infinity;
 
   const usageData = [
     { 
       label: 'Storage Used', 
       value: formatStorage(stats.storageUsed), 
-      limit: plan.storage, 
-      progress: getProgress(storageGBUsed, plan.storageGB), 
+      limit: plan.storageLabel,
+      progress: storageProgress,
       icon: 'cloud.fill',
       isOver: isStorageOver
     },
     { 
       label: 'Active Events', 
       value: stats.eventCount.toString(), 
-      limit: plan.events, 
-      progress: getProgress(stats.eventCount, plan.eventsCount), 
+      limit: plan.eventLabel,
+      progress: eventProgress,
       icon: 'calendar.fill',
       isOver: isEventsOver
     },
     { 
       label: 'Active Businesses', 
       value: stats.businessCount.toString(), 
-      limit: plan.businesses, 
-      progress: getProgress(stats.businessCount, plan.businessLimit), 
+      limit: businessLabel,
+      progress: businessProgress,
       icon: 'briefcase.fill',
       isOver: isBizOver
     },
@@ -106,7 +135,7 @@ export default function UsageScreen() {
       
       {/* Header */}
       <LinearGradient
-        colors={['#0f172a', '#020617']}
+        colors={['#101010', '#050505']}
         style={styles.header}
       >
         <View style={styles.headerRow}>
@@ -126,7 +155,7 @@ export default function UsageScreen() {
         {/* Current Plan Card */}
         <View style={styles.planCard}>
           <LinearGradient 
-            colors={['rgba(212,175,55,0.15)', 'rgba(15,23,42,0.8)']} 
+            colors={[plan.accentSoft, 'rgba(15,23,42,0.8)']}
             style={StyleSheet.absoluteFill} 
           />
           <View style={styles.planHeader}>
@@ -134,8 +163,8 @@ export default function UsageScreen() {
               <Text style={styles.planLabel}>Current Plan</Text>
               <Text style={styles.planName}>{plan.name}</Text>
             </View>
-            <View style={[styles.planBadge, { backgroundColor: plan.color + '20', borderColor: plan.color + '40' }]}>
-              <Text style={[styles.planBadgeText, { color: plan.color }]}>ACTIVE</Text>
+            <View style={[styles.planBadge, { backgroundColor: plan.accentSoft, borderColor: planColor }]}>
+              <Text style={[styles.planBadgeText, { color: planColor }]}>ACTIVE</Text>
             </View>
           </View>
 
@@ -248,7 +277,7 @@ export default function UsageScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#020617' },
+  safeArea: { flex: 1, backgroundColor: '#050505' },
   container: { flex: 1 },
   header: { 
     paddingHorizontal: 24, 
@@ -280,7 +309,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
   planCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     marginHorizontal: 24,
     marginTop: 24,
     borderRadius: 24,

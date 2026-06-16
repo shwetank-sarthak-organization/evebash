@@ -1978,7 +1978,7 @@ headerGreeting: {
     marginBottom: 8,
     width: '100%'
   },
-  modalContent: { backgroundColor: '#0f172a', width: '100%', borderRadius: 28, padding: 24, borderWidth: 1, borderColor: 'rgba(212,175,55,0.2)' },
+  modalContent: { backgroundColor: '#101010', width: '100%', borderRadius: 28, padding: 24, borderWidth: 1, borderColor: 'rgba(212,175,55,0.2)' },
   modalTitle: { fontSize: 24, color: '#fff', fontFamily: Fonts.outfit.bold },
   templateModalSub: { color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.inter.medium, marginTop: -10, marginBottom: 18 },
   submitBtn: { backgroundColor: MidnightColors.gold, padding: 16, borderRadius: 16, alignItems: 'center', marginTop: 8 },
@@ -2049,7 +2049,7 @@ headerGreeting: {
   backBtnText: { color: MidnightColors.background, fontWeight: 'bold' },
 
   // Share Modal
-  shareModalContent: { backgroundColor: '#0f172a', width: '90%', borderRadius: 32, padding: 24, borderWidth: 1, borderColor: 'rgba(212,175,55,0.2)', alignItems: 'center' },
+  shareModalContent: { backgroundColor: '#101010', width: '90%', borderRadius: 32, padding: 24, borderWidth: 1, borderColor: 'rgba(212,175,55,0.2)', alignItems: 'center' },
   qrContainer: { backgroundColor: '#fff', padding: 20, borderRadius: 24, marginTop: 10, alignItems: 'center' },
   qrCode: { width: 180, height: 180 },
   qrLabel: { color: MidnightColors.background, fontSize: 12, fontFamily: Fonts.inter.bold, marginTop: 10, textTransform: 'uppercase' },

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Dim
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { getEventById, getEventPhotos, toggleLike, addComment, onPhotoInteractions, deletePhotoComment, logGuestLogin, onGuestStatusChange, Event as FirestoreEvent, Photo } from '@/lib/firestore';
+import { getEventById, getEventPhotos, toggleLike, addComment, onPhotoInteractions, deletePhotoComment, logGuestLogin, onGuestStatusChange, Event as DatabaseEvent, Photo } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
 
 
@@ -19,7 +19,7 @@ export default function SubEventPhotosScreen() {
   const { user } = useAuth();
   const isShared = shared === 'true';
   
-  const [subEvent, setSubEvent] = useState<FirestoreEvent | null>(null);
+  const [subEvent, setSubEvent] = useState<DatabaseEvent | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [guestName, setGuestName] = useState('');
@@ -371,11 +371,11 @@ function PhotoViewer({ photos, initialIndex, onClose, user }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f1f5f9',
   },
   commentsTitle: {
-    color: '#0f172a',
+    color: '#101010',
     fontSize: 24,
     fontWeight: 'bold',
     fontStyle: 'italic',
@@ -562,7 +562,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   commentAvatarText: {
-    color: '#0f172a',
+    color: '#101010',
     fontSize: 14,
     fontWeight: 'bold',
   },
@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   commentName: {
-    color: '#0f172a',
+    color: '#101010',
     fontSize: 13,
     fontWeight: 'bold',
   },
@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   emptyComments: {
-    color: '#0f172a',
+    color: '#101010',
     fontSize: 16,
     fontStyle: 'italic',
     marginTop: 16,
@@ -706,7 +706,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    color: '#0f172a',
+    color: '#101010',
     marginRight: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
@@ -715,7 +715,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -743,7 +743,7 @@ const styles = StyleSheet.create({
   guestModalTitle: {
     fontSize: 24,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#101010',
     textAlign: 'center',
     marginBottom: 8,
   },
@@ -762,12 +762,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    color: '#0f172a',
+    color: '#101010',
     marginBottom: 12,
   },
   guestSubmitBtn: {
     width: '100%',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     borderRadius: 16,
     paddingVertical: 15,
     alignItems: 'center',

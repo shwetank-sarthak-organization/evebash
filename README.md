@@ -16,15 +16,15 @@ A sophisticated, private wedding gallery management system designed for a premiu
 - **Framework**: [Next.js](https://nextjs.org/) (App Router)
 - **Styling**: Tailwind CSS
 - **Animations**: Framer Motion
-- **Database & Auth**: [Firebase](https://firebase.google.com/) (Firestore & Authentication)
-- **Media Storage**: [Cloudinary](https://cloudinary.com/) (Server-side secure uploads)
+- **Database & Auth**: [Supabase](https://supabase.com/) (Postgres tables & Supabase Auth)
+- **Media Storage**: Secure media upload APIs
 - **Icons**: Lucide React
 
 ## 🚀 Getting Started
 
 ### 1. Prerequisites
 
-You'll need a **Firebase** project and a **Cloudinary** account.
+You'll need a **Supabase** project and configured media storage.
 
 ### 2. Environment Setup
 
@@ -33,8 +33,8 @@ You'll need a **Firebase** project and a **Cloudinary** account.
    cp .env.example .env.local
    ```
 2. Fill in your credentials in `.env.local`:
-   - **Firebase**: Go to Project Settings > General > Your apps (SDK Setup) for the keys.
-   - **Cloudinary**: Get your Cloud Name, API Key, and Secret from the Cloudinary Dashboard.
+   - **Supabase**: Add your Supabase project URL and anon key.
+   - **Media storage**: Add the storage credentials used by your upload APIs.
 
 ### 3. Installation
 
@@ -55,7 +55,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the gallery.
 - `src/app`: Next.js pages and routing.
 - `src/components`: Reusable UI components.
 - `src/context`: Auth and State management.
-- `src/lib`: Firestore and storage utilities.
+- `src/lib`: Supabase database and storage utilities.
 - `src/app/actions`: Secure server-side Cloudinary operations.
 
 ---

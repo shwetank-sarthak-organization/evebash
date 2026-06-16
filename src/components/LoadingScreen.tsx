@@ -130,19 +130,7 @@ export default function LoadingScreen({ message = "Capturing the moment" }: Load
           letterSpacing: "0.06em",
           color: "#D4AF37",
           textShadow: "0 0 24px rgba(212,175,55,0.5)",
-        }}>Lens</span>
-        <span style={{
-          fontSize: "0.9rem",
-          color: "rgba(212,175,55,0.4)",
-          fontStyle: "italic",
-        }}>&</span>
-        <span style={{
-          fontSize: "1.5rem",
-          fontWeight: 700,
-          letterSpacing: "0.06em",
-          color: "#D4AF37",
-          textShadow: "0 0 24px rgba(212,175,55,0.5)",
-        }}>Frame</span>
+        }}>EveBash</span>
       </div>
 
       {/* Message */}

@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { requestAccess } from "@/lib/firestore";
+import { requestAccess } from "@/lib/database";
 import { Heart, Lock, Clock, Sparkles } from "lucide-react";
 
 export default function TenantLoginPage() {

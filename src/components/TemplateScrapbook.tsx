@@ -2,7 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
-import { Event } from "@/lib/firestore";
+import { Event } from "@/lib/database";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 
 interface TemplateScrapbookProps {

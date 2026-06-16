@@ -22,7 +22,7 @@ const lato = Lato({
 });
 
 export const metadata: Metadata = {
-  title: "Lens & Frame | Premium Wedding Photography",
+  title: "EveBash | Premium Wedding Photography",
   description: "Capturing life's most beautiful moments.",
 };
 
@@ -33,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
-      <body className={`${playfair.variable} ${lato.variable} antialiased bg-slate-50 text-slate-600 font-sans`}>
+      <body className={`${playfair.variable} ${lato.variable} antialiased bg-black text-slate-200 font-sans`}>
         <AuthProvider>
           <ThemeProvider>
             <Navbar />

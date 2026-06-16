@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { addAllowedUser } from "@/lib/firestore";
+import { addAllowedUser } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
 
 export default function SeedPage() {

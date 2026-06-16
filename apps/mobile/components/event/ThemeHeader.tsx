@@ -39,7 +39,7 @@ const SPORTS_HEADER_THEMES: Record<string, any> = {
   elegant_night: { background: '#07101f', text: '#f5eddc', muted: '#d4b474', accent: '#d4b474', activeText: '#07101f', tabBg: 'rgba(245,237,220,0.08)', border: 'rgba(212,180,116,0.3)' },
   polaroid: { background: '#f7efe1', text: '#3f2a1e', muted: '#806653', accent: '#b45309', activeText: '#fffaf0', tabBg: 'rgba(255,250,240,0.82)', border: 'rgba(180,83,9,0.24)' },
   editorial: { background: '#fafaf7', text: '#111827', muted: '#57534e', accent: '#111827', activeText: '#ffffff', tabBg: 'rgba(255,255,255,0.86)', border: 'rgba(17,24,39,0.14)' },
-  vibrant: { background: '#08111f', text: '#f8fafc', muted: '#cbd5e1', accent: '#f97316', activeText: '#0f172a', tabBg: 'rgba(248,250,252,0.08)', border: 'rgba(249,115,22,0.3)' },
+  vibrant: { background: '#08111f', text: '#f8fafc', muted: '#cbd5e1', accent: '#f97316', activeText: '#101010', tabBg: 'rgba(248,250,252,0.08)', border: 'rgba(249,115,22,0.3)' },
   zen: { background: '#f1eee6', text: '#44403c', muted: '#78716c', accent: '#66785f', activeText: '#fffaf2', tabBg: 'rgba(255,252,246,0.82)', border: 'rgba(102,120,95,0.22)' },
 };
 

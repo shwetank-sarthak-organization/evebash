@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
-import { logGuestLogin } from '@/lib/firestore';
+import { logGuestLogin } from '@/lib/database';
 
 export function useGuestAccess(
   id: string,

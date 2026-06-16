@@ -17,7 +17,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter } from 'expo-router';
-import { updateUserPrivacy, updateUserProfile, submitFeedback } from '@/lib/firestore';
+import { updateUserPrivacy, updateUserProfile, submitFeedback } from '@/lib/database';
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -680,7 +680,7 @@ export default function SettingsScreen() {
                 disabled={updatingPassword}
               >
                 {updatingPassword ? (
-                  <ActivityIndicator size="small" color="#020617" />
+                  <ActivityIndicator size="small" color="#050505" />
                 ) : (
                   <Text style={styles.saveBtnText}>Save Password</Text>
                 )}
@@ -791,7 +791,7 @@ export default function SettingsScreen() {
                 disabled={submittingFeedback}
               >
                 {submittingFeedback ? (
-                  <ActivityIndicator size="small" color="#020617" />
+                  <ActivityIndicator size="small" color="#050505" />
                 ) : (
                   <Text style={styles.saveBtnText}>Send Feedback</Text>
                 )}
@@ -994,7 +994,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     color: colors.slate400,
   },
   themePillTextActive: {
-    color: '#020617',
+    color: '#050505',
     fontFamily: 'Inter_700Bold',
   },
   divider: {
@@ -1025,7 +1025,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     color: colors.slate400,
   },
   segmentPillTextActive: {
-    color: '#020617',
+    color: '#050505',
     fontFamily: 'Inter_700Bold',
   },
   progressContainer: {
@@ -1219,6 +1219,6 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   saveBtnText: {
     fontSize: 14,
     fontFamily: 'Outfit_700Bold',
-    color: '#020617',
+    color: '#050505',
   },
 });

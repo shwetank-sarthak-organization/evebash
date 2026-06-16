@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Event } from "@/lib/firestore";
+import { Event } from "@/lib/database";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 
 interface TemplateClassicProps {

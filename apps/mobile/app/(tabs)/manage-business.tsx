@@ -23,7 +23,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { getBusinessById, updateBusiness, Business, addBusinessActivity, getEnquiriesForBusiness, Enquiry, getPublishedBusinesses } from '@/lib/firestore';
+import { getBusinessById, updateBusiness, Business, addBusinessActivity, getEnquiriesForBusiness, Enquiry, getPublishedBusinesses } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
 import * as Location from 'expo-location';
 
@@ -294,7 +294,7 @@ export default function ManageBusinessScreen() {
     setAbout(biz.description || '');
     setExperience(biz.experience?.toString() || '0');
     if (biz.startedDate) {
-      // Handle Firestore Timestamp or ISO string
+      // Handle Supabase database Timestamp or ISO string
       const date = biz.startedDate.toDate ? biz.startedDate.toDate() : new Date(biz.startedDate);
       setStartedDate(date);
     } else if (biz.experience) {
@@ -509,7 +509,7 @@ export default function ManageBusinessScreen() {
 
   // Sum daily view buckets for the selected time range.
   // "Overall" uses the persisted total counter; all other ranges compute
-  // client-side from viewsByDate — no extra Firestore reads required.
+  // client-side from viewsByDate — no extra Supabase database reads required.
   const getViewsForRange = (): number => {
     if (timeRange === 'Overall') {
       return business?.profileViews ?? 0;
@@ -536,7 +536,7 @@ export default function ManageBusinessScreen() {
   };
 
   // Filter the already-fetched enquiries array to the selected time window.
-  // No extra Firestore reads — enquiries are loaded on mount.
+  // No extra Supabase database reads — enquiries are loaded on mount.
   const getEnquiriesForRange = (): Enquiry[] => {
     if (!enquiries.length) return [];
     if (timeRange === 'Overall') return enquiries;
@@ -746,7 +746,7 @@ export default function ManageBusinessScreen() {
           {isEditing ? (
             <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isUpdating}>
               {isUpdating ? (
-                <ActivityIndicator size="small" color="#0f172a" />
+                <ActivityIndicator size="small" color="#101010" />
               ) : (
                 <Text style={styles.saveBtnText}>Save</Text>
               )}
@@ -755,7 +755,7 @@ export default function ManageBusinessScreen() {
             <>
               {activeTab === 'Portfolio' && (
                 <TouchableOpacity style={styles.compactEditBtn} onPress={pickImage}>
-                  <IconSymbol name="plus" size={12} color="#0f172a" />
+                  <IconSymbol name="plus" size={12} color="#101010" />
                   <Text style={styles.compactEditBtnText}>Add</Text>
                 </TouchableOpacity>
               )}
@@ -805,7 +805,7 @@ export default function ManageBusinessScreen() {
                 <Text style={styles.inputLabel}>Manage Business Profile</Text>
                 {!isEditing ? (
                   <TouchableOpacity style={styles.editBtnSmall} onPress={() => setIsEditing(true)}>
-                    <IconSymbol name="pencil" size={14} color="#0f172a" />
+                    <IconSymbol name="pencil" size={14} color="#101010" />
                     <Text style={styles.editBtnSmallText}>Edit</Text>
                   </TouchableOpacity>
                 ) : (
@@ -952,7 +952,7 @@ export default function ManageBusinessScreen() {
                               ))}
                             </ScrollView>
                             <LinearGradient
-                              colors={['transparent', 'rgba(15, 23, 42, 0.9)', '#0f172a']}
+                              colors={['transparent', 'rgba(15, 23, 42, 0.9)', '#101010']}
                               style={styles.pickerFade}
                               pointerEvents="none"
                             />
@@ -1063,7 +1063,7 @@ export default function ManageBusinessScreen() {
                     onSubmitEditing={addTag}
                   />
                   <TouchableOpacity style={styles.addTagBtn} onPress={addTag}>
-                    <IconSymbol name="plus" size={20} color="#0f172a" />
+                    <IconSymbol name="plus" size={20} color="#101010" />
                   </TouchableOpacity>
                 </View>
               )}
@@ -1094,7 +1094,7 @@ export default function ManageBusinessScreen() {
                 disabled={isUpdating}
               >
                 {isUpdating ? (
-                  <ActivityIndicator size="small" color="#0f172a" />
+                  <ActivityIndicator size="small" color="#101010" />
                 ) : (
                   <Text style={[styles.saveBtnText, { fontSize: 16 }]}>Save All Changes</Text>
                 )}
@@ -1307,7 +1307,7 @@ export default function ManageBusinessScreen() {
                     }}
                   >
                     {isUpdating ? (
-                      <ActivityIndicator size="small" color="#0f172a" />
+                      <ActivityIndicator size="small" color="#101010" />
                     ) : (
                       <Text style={styles.inlineSaveBtnText}>Save News</Text>
                     )}
@@ -1431,7 +1431,7 @@ export default function ManageBusinessScreen() {
                   }}
                 >
                   {isUpdating ? (
-                    <ActivityIndicator size="small" color="#0f172a" />
+                    <ActivityIndicator size="small" color="#101010" />
                   ) : (
                     <Text style={styles.inlineSaveBtnText}>Save FAQs</Text>
                   )}
@@ -1486,7 +1486,7 @@ export default function ManageBusinessScreen() {
               {loadingMarketRank ? (
                 <View style={[styles.rankingCard, { minHeight: 180 }]}>
                   <LinearGradient
-                    colors={['#1e293b', '#0f172a']}
+                    colors={['#1e293b', '#101010']}
                     style={[StyleSheet.absoluteFillObject, { padding: 20, justifyContent: 'center', alignItems: 'center', borderRadius: 24 }]}
                   >
                     <ActivityIndicator size="small" color={INDIGO_LIGHT} />
@@ -1580,7 +1580,7 @@ export default function ManageBusinessScreen() {
 
               <View style={styles.performanceCard}>
                 <LinearGradient
-                  colors={['#1e293b', '#0f172a']}
+                  colors={['#1e293b', '#101010']}
                   style={styles.performanceGradient}
                 >
                   {(() => {
@@ -1729,7 +1729,7 @@ export default function ManageBusinessScreen() {
             <View style={styles.analyticsSection}>
               <View style={styles.performanceCard}>
                 <LinearGradient
-                  colors={['#1e293b', '#0f172a']}
+                  colors={['#1e293b', '#101010']}
                   style={styles.performanceGradient}
                 >
                   {(() => {
@@ -1797,7 +1797,7 @@ export default function ManageBusinessScreen() {
             <View style={styles.analyticsSection}>
               <View style={styles.performanceCard}>
                 <LinearGradient
-                  colors={['#1e293b', '#0f172a']}
+                  colors={['#1e293b', '#101010']}
                   style={styles.performanceGradient}
                 >
                   {(() => {
@@ -1855,7 +1855,7 @@ export default function ManageBusinessScreen() {
             <View style={[styles.analyticsSection, { marginBottom: 40 }]}>
               <View style={styles.performanceCard}>
                 <LinearGradient
-                  colors={['#1e293b', '#0f172a']}
+                  colors={['#1e293b', '#101010']}
                   style={styles.performanceGradient}
                 >
                   {(() => {

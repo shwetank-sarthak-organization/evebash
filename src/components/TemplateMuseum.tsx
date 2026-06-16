@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Event } from "@/lib/firestore";
+import { Event } from "@/lib/database";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 
 interface TemplateMuseumProps {

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { getPendingRequests, addAllowedUser, denyRequest } from "@/lib/firestore";
+import { getPendingRequests, addAllowedUser, denyRequest } from "@/lib/database";
 import { motion } from "framer-motion";
 
 export default function AdminDashboard() {

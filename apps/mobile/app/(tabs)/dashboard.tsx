@@ -24,15 +24,16 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
+import { resolveEventCoverImage } from '@/lib/eventCovers';
 import {
   getUserEvents,
-  Event as FirestoreEvent,
+  Event as DatabaseEvent,
   getApprovedSharedEventsForUser,
   getEventByJoinId,
   logGuestLogin,
   getNotifications,
   checkGuestRequestStatus,
-} from '@/lib/firestore';
+} from '@/lib/database';
 import { subscribeToUploadQueue } from '@/lib/uploadQueue';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -88,18 +89,18 @@ export function SwipeableNotificationItem({ children, onDismiss, colors, isDark 
   return (
     <View style={{ position: 'relative', overflow: 'hidden', borderRadius: 16, marginBottom: 12 }}>
       {/* Background delete action indicator */}
-      <View style={[StyleSheet.absoluteFill, { 
-        backgroundColor: colors.gold || '#d4af37', 
-        justifyContent: 'center', 
-        alignItems: 'flex-end', 
+      <View style={[StyleSheet.absoluteFill, {
+        backgroundColor: colors.gold || '#d4af37',
+        justifyContent: 'center',
+        alignItems: 'flex-end',
         paddingRight: 24,
       }]}>
         <IconSymbol name="trash.fill" size={20} color="#ffffff" />
       </View>
 
       {/* Swipeable foreground content */}
-      <Animated.View 
-        style={{ transform: [{ translateX }] }} 
+      <Animated.View
+        style={{ transform: [{ translateX }] }}
         {...panResponder.panHandlers}
       >
         {children}
@@ -154,13 +155,13 @@ export default function DashboardScreen() {
       const list = await getNotifications(user.uid);
       const dismissed = await loadDismissedNotifs();
       const filtered = list.filter(item => !dismissed.has(item.id));
-      
+
       const { getUploadQueue } = require('@/lib/uploadQueue');
       const queueItems = getUploadQueue();
       const active = queueItems.filter((i: any) => i.status === 'uploading' || i.status === 'pending');
       const failed = queueItems.filter((i: any) => i.status === 'failed');
       const completed = queueItems.filter((i: any) => i.status === 'completed');
-      
+
       let uploadNotif: any = null;
       const total = queueItems.length;
       const completedCount = completed.length;
@@ -205,17 +206,17 @@ export default function DashboardScreen() {
       }
 
       setNotifications(finalNotifs);
-      
+
       const lastReadStr = await AsyncStorage.getItem(`EVEBASH_NOTIFS_LAST_READ_${user.uid}`);
       const lastReadTime = lastReadStr ? parseInt(lastReadStr, 10) : 0;
       setLastReadNotifs(lastReadTime);
 
       if (finalNotifs.length > 0) {
         const latestNotif = finalNotifs[0];
-        const latestTime = latestNotif.createdAt?.seconds 
-          ? latestNotif.createdAt.seconds * 1000 
+        const latestTime = latestNotif.createdAt?.seconds
+          ? latestNotif.createdAt.seconds * 1000
           : (latestNotif.createdAt instanceof Date ? latestNotif.createdAt.getTime() : 0);
-        
+
         if (latestTime > lastReadTime || (uploadNotif && (active.length > 0 || failed.length > 0 || completedCount > 0))) {
           setHasUnreadNotifications(true);
         } else {
@@ -248,7 +249,7 @@ export default function DashboardScreen() {
 
       if (user?.uid) {
         await AsyncStorage.setItem(
-          `EVEBASH_NOTIFS_DISMISSED_${user.uid}`, 
+          `EVEBASH_NOTIFS_DISMISSED_${user.uid}`,
           JSON.stringify(Array.from(updated))
         );
       }
@@ -269,7 +270,7 @@ export default function DashboardScreen() {
         Alert.alert("Error", "You must be logged in to request access.");
         return;
       }
-      
+
       const success = await logGuestLogin(
         guestName,
         guestId,
@@ -314,7 +315,7 @@ export default function DashboardScreen() {
   };
 
   const [refreshing, setRefreshing] = useState(false);
-  const [events, setEvents] = useState<FirestoreEvent[]>([]);
+  const [events, setEvents] = useState<DatabaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [infoModal, setInfoModal] = useState<{ visible: boolean; title: string; content: string }>({
     visible: false,
@@ -332,7 +333,7 @@ export default function DashboardScreen() {
   const handleJoinEvent = async (code?: string) => {
     const finalCode = (code || joinCode).trim().toUpperCase();
     if (!finalCode) return;
-    
+
     if (!user) {
       Alert.alert("Error", "You must be logged in to join an event.");
       return;
@@ -342,31 +343,31 @@ export default function DashboardScreen() {
     try {
       console.log('[Join] Looking for event with code:', finalCode);
       const event = await getEventByJoinId(finalCode);
-      
+
       if (event) {
         console.log('[Join] Event found:', event.title);
-        
+
         // Submit access request
         const guestName = user.name || 'Anonymous Guest';
         const guestId = user.phone || user.email || user.uid;
-        
+
         if (!guestId) {
           throw new Error("User identifier not found.");
         }
 
         const success = await logGuestLogin(
-          guestName, 
-          guestId, 
-          event.id, 
+          guestName,
+          guestId,
+          event.id,
           event.parentId || undefined,
-          event.title || 'Untitled Event', 
+          event.title || 'Untitled Event',
           event.createdBy || undefined,
           'pending'
         );
 
         if (success) {
           Alert.alert(
-            "Request Sent", 
+            "Request Sent",
             "Your request to join this event has been sent to the admin. You will see the event in your collections once approved.",
             [{ text: "OK", onPress: () => {
               setShowJoinModal(false);
@@ -440,7 +441,7 @@ export default function DashboardScreen() {
       const active = queueItems.filter(i => i.status === 'uploading' || i.status === 'pending');
       const failed = queueItems.filter(i => i.status === 'failed');
       const completed = queueItems.filter(i => i.status === 'completed');
-      
+
       const total = queueItems.length;
       const completedCount = completed.length;
       const progressSum = queueItems.reduce((sum, item) => {
@@ -530,7 +531,7 @@ export default function DashboardScreen() {
         const hasUnread = (rooms as any[]).some(room => {
           const lastReadTimeStr = room.last_read?.[user.uid];
           const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
-          
+
           const roomMsgs = (unreadMsgs || []).filter(m => m.room_id === room.id);
           return roomMsgs.some(msg => {
             const msgTime = new Date(msg.created_at).getTime();
@@ -582,12 +583,12 @@ export default function DashboardScreen() {
       >
         {/* ── HEADER ── */}
         <LinearGradient
-          colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]}
+          colors={isDark ? ['#101010', '#050505'] : [colors.deepSlate, colors.background]}
           style={[styles.header, { paddingTop: insets.top + 4 }]}
         >
           <View style={styles.headerLeft}>
-            <TouchableOpacity 
-              style={{ width: 24, height: 24, justifyContent: 'center', alignItems: 'center', position: 'relative' }} 
+            <TouchableOpacity
+              style={{ width: 24, height: 24, justifyContent: 'center', alignItems: 'center', position: 'relative' }}
               activeOpacity={0.7}
               onPress={handleOpenNotifications}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -601,8 +602,8 @@ export default function DashboardScreen() {
             <Text style={styles.tagline}>{"Let's capture moments ✨"}</Text>
           </View>
           <View style={styles.headerRight}>
-            <TouchableOpacity 
-              style={{ width: 24, height: 24, justifyContent: 'center', alignItems: 'center', position: 'relative' }} 
+            <TouchableOpacity
+              style={{ width: 24, height: 24, justifyContent: 'center', alignItems: 'center', position: 'relative' }}
               activeOpacity={0.7}
               onPress={() => router.push('/customer-chats')}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -625,46 +626,42 @@ export default function DashboardScreen() {
                     <Text style={styles.sectionLabel}>Events</Text>
                     <Text style={styles.sectionSub}>Memories curated for you</Text>
                   </View>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.catchyActionPill}
                     activeOpacity={0.8}
                     onPress={() => setShowJoinModal(true)}
                   >
-                    <IconSymbol name="plus.circle.fill" size={12} color={'#020617'} />
+                    <IconSymbol name="plus.circle.fill" size={12} color={'#050505'} />
                     <Text style={styles.catchyActionPillText}>Join Event</Text>
                   </TouchableOpacity>
                 </View>
 
                 <View style={styles.eventsGridContainer}>
-                  {events.slice(0, 3).map((event) => (
-                    <TouchableOpacity 
-                      key={event.id} 
-                      style={styles.aestheticEventCard}
-                      activeOpacity={0.9}
-                      onPress={() => router.push(`/events/${event.id}?mode=visitor`)}
-                    >
-                      {/* Top Part: Image Container */}
-                      <View style={styles.aestheticImageContainer}>
-                        {/* Ambient Blurred Backdrop */}
-                        <ExpoImage 
-                          source={{ uri: event.coverImage }} 
-                          style={[StyleSheet.absoluteFill, { opacity: 0.35 }]} 
-                          contentFit="cover"
-                          blurRadius={20}
-                        />
-                        {/* Sharp Contain Foreground */}
-                        <ExpoImage 
-                          source={{ uri: event.coverImage }} 
-                          style={StyleSheet.absoluteFill} 
-                          contentFit="contain"
-                          transition={400}
-                        />
-                        <LinearGradient 
-                          colors={['rgba(2,6,23,0.15)', 'transparent']} 
-                          style={StyleSheet.absoluteFill} 
-                        />
-                      </View>
-                      
+                  {events.slice(0, 3).map((event) => {
+                    const coverImage = resolveEventCoverImage(event.coverImage);
+
+                    return (
+                      <TouchableOpacity
+                        key={event.id}
+                        style={styles.aestheticEventCard}
+                        activeOpacity={0.9}
+                        onPress={() => router.push(`/events/${event.id}?mode=visitor`)}
+                      >
+                        {/* Top Part: Image Container */}
+                        <View style={styles.aestheticImageContainer}>
+                          <ExpoImage
+                            source={{ uri: coverImage }}
+                            style={StyleSheet.absoluteFill}
+                            contentFit="cover"
+                            contentPosition="center"
+                            transition={400}
+                          />
+                          <LinearGradient
+                            colors={['transparent', 'rgba(0,0,0,0.1)']}
+                            style={StyleSheet.absoluteFill}
+                          />
+                        </View>
+
                       {/* Bottom Part: Text Details */}
                       <View style={styles.aestheticTextContainer}>
                         <Text style={styles.aestheticEventTitle} numberOfLines={1}>{event.title}</Text>
@@ -673,24 +670,25 @@ export default function DashboardScreen() {
                           <Text style={styles.aestheticEventDate}>{event.date}</Text>
                         </View>
                       </View>
-                    </TouchableOpacity>
-                  ))}
-                  
-                  <TouchableOpacity 
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                  <TouchableOpacity
                     style={styles.aestheticExploreCard}
                     activeOpacity={0.8}
                     onPress={() => router.push('/(tabs)/your-events')}
                   >
                     <View style={{ width: '100%', height: '100%', position: 'relative' }}>
-                      <ExpoImage 
-                        source={require('@/assets/images/memories_bg.png')} 
-                        style={StyleSheet.absoluteFill} 
+                      <ExpoImage
+                        source={require('@/assets/images/memories_bg.png')}
+                        style={StyleSheet.absoluteFill}
                         contentFit="fill"
                         transition={400}
                       />
-                      <LinearGradient 
-                        colors={['rgba(2,6,23,0.4)', 'rgba(2,6,23,0.95)']} 
-                        style={StyleSheet.absoluteFill} 
+                      <LinearGradient
+                        colors={['rgba(2,6,23,0.4)', 'rgba(2,6,23,0.95)']}
+                        style={StyleSheet.absoluteFill}
                       />
                       <View style={styles.aestheticExploreContent}>
                          <View style={{ alignItems: 'center', gap: 4, marginBottom: 12 }}>
@@ -699,10 +697,10 @@ export default function DashboardScreen() {
                              <Text style={styles.aestheticCountText}>{events.length} Collections</Text>
                            </View>
                          </View>
-                         
+
                          <View style={styles.aestheticExploreBtn}>
                             <Text style={styles.aestheticExploreBtnText}>Explore All</Text>
-                            <IconSymbol name="arrow.right" size={12} color={'#020617'} />
+                            <IconSymbol name="arrow.right" size={12} color={'#050505'} />
                          </View>
                       </View>
                     </View>
@@ -711,8 +709,8 @@ export default function DashboardScreen() {
               </View>
 
               {/* ── SECTION 3: HOST AN EVENT ── */}
-              <TouchableOpacity 
-                activeOpacity={0.9} 
+              <TouchableOpacity
+                activeOpacity={0.9}
                 style={[styles.heroCard, { marginBottom: 16 }]}
                 onPress={() => router.push('/(tabs)/gallery')}
               >
@@ -795,14 +793,14 @@ export default function DashboardScreen() {
 
               {/* ── JOIN EVENT MODAL ── */}
               <Modal visible={showJoinModal} transparent animationType="slide">
-                <KeyboardAvoidingView 
-                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+                <KeyboardAvoidingView
+                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                   style={styles.joinModalOverlay}
                 >
-                  <TouchableOpacity 
-                    style={styles.joinModalBackdrop} 
-                    activeOpacity={1} 
-                    onPress={() => { setShowJoinModal(false); setIsScanning(false); }} 
+                  <TouchableOpacity
+                    style={styles.joinModalBackdrop}
+                    activeOpacity={1}
+                    onPress={() => { setShowJoinModal(false); setIsScanning(false); }}
                   />
                   <View style={styles.joinModalContent}>
                     <View style={styles.modalHeader}>
@@ -830,8 +828,8 @@ export default function DashboardScreen() {
                             }}
                           />
                         )}
-                        <TouchableOpacity 
-                          style={styles.scannerCloseBtn} 
+                        <TouchableOpacity
+                          style={styles.scannerCloseBtn}
                           onPress={() => setIsScanning(false)}
                         >
                           <Text style={styles.scannerCloseText}>Use Code Instead</Text>
@@ -841,23 +839,23 @@ export default function DashboardScreen() {
                       <View style={styles.form}>
                         <View style={styles.inputGroup}>
                           <Text style={styles.inputLabel}>Enter Join ID</Text>
-                          <TextInput 
-                            style={[styles.input, { letterSpacing: 4, fontSize: 20, textAlign: 'center', fontFamily: 'Outfit_700Bold' }]} 
-                            value={joinCode} 
-                            onChangeText={setJoinCode} 
-                            placeholder="E.G. A1B2C3" 
+                          <TextInput
+                            style={[styles.input, { letterSpacing: 4, fontSize: 20, textAlign: 'center', fontFamily: 'Outfit_700Bold' }]}
+                            value={joinCode}
+                            onChangeText={setJoinCode}
+                            placeholder="E.G. A1B2C3"
                             placeholderTextColor="#334155"
                             autoCapitalize="characters"
                           />
                         </View>
 
-                        <TouchableOpacity 
-                          style={[styles.submitBtn, joining && { opacity: 0.7 }]} 
+                        <TouchableOpacity
+                          style={[styles.submitBtn, joining && { opacity: 0.7 }]}
                           onPress={() => handleJoinEvent()}
                           disabled={joining}
                         >
                           {joining ? (
-                            <ActivityIndicator color="#0f172a" />
+                            <ActivityIndicator color="#101010" />
                           ) : (
                             <Text style={styles.submitBtnText}>Join with Code</Text>
                           )}
@@ -869,8 +867,8 @@ export default function DashboardScreen() {
                           <View style={styles.dividerLine} />
                         </View>
 
-                        <TouchableOpacity 
-                          style={styles.scanBtn} 
+                        <TouchableOpacity
+                          style={styles.scanBtn}
                           onPress={() => setIsScanning(true)}
                         >
                           <IconSymbol name="qrcode.viewfinder" size={20} color="#d4af37" />
@@ -885,10 +883,10 @@ export default function DashboardScreen() {
               {/* ── NOTIFICATIONS MODAL ── */}
               <Modal visible={showNotificationsModal} transparent animationType="slide">
                 <View style={styles.joinModalOverlay}>
-                  <TouchableOpacity 
-                    style={styles.joinModalBackdrop} 
-                    activeOpacity={1} 
-                    onPress={() => setShowNotificationsModal(false)} 
+                  <TouchableOpacity
+                    style={styles.joinModalBackdrop}
+                    activeOpacity={1}
+                    onPress={() => setShowNotificationsModal(false)}
                   />
                   <View style={[styles.joinModalContent, { maxHeight: height * 0.85 }]}>
                     <View style={styles.modalHeader}>
@@ -916,7 +914,7 @@ export default function DashboardScreen() {
                         </Text>
                       </View>
                     ) : (
-                      <ScrollView 
+                      <ScrollView
                         showsVerticalScrollIndicator={false}
                         contentContainerStyle={{ paddingBottom: 30 }}
                       >
@@ -942,7 +940,7 @@ export default function DashboardScreen() {
                             const diffMins = Math.floor(diffMs / 60000);
                             if (diffMins < 1) return 'Just now';
                             if (diffMins < 60) return `${diffMins}m ago`;
-                            
+
                             const diffHours = Math.floor(diffMins / 60);
                             if (diffHours < 24) return `${diffHours}h ago`;
 
@@ -954,13 +952,13 @@ export default function DashboardScreen() {
                           };
 
                           return (
-                            <SwipeableNotificationItem 
+                            <SwipeableNotificationItem
                               key={item.id}
                               onDismiss={() => handleDismissNotification(item.id)}
                               colors={colors}
                               isDark={isDark}
                             >
-                              <TouchableOpacity 
+                              <TouchableOpacity
                                 style={[styles.notificationItem, { marginBottom: 0 }]}
                                 activeOpacity={0.85}
                                 onPress={async () => {
@@ -1026,7 +1024,7 @@ export default function DashboardScreen() {
                                       return;
                                     }
 
-                                    // 2. Query Firestore check for latest guest log status
+                                    // 2. Query Supabase database check for latest guest log status
                                     const guestId = user?.phone || user?.email || user?.uid;
                                     if (guestId) {
                                       const dbStatus = await checkGuestRequestStatus(guestId, item.targetId);
@@ -1068,7 +1066,7 @@ export default function DashboardScreen() {
                                      item.type === 'followed_business' ? '💼' :
                                      item.type === 'shortlist_creation' ? '✨' :
                                      item.type === 'shortlist_faq' ? '❓' :
-                                     item.type === 'shortlist_portfolio' ? '📸' : 
+                                     item.type === 'shortlist_portfolio' ? '📸' :
                                      item.type === 'upload_progress' ? '📤' :
                                      item.type === 'upload_success' ? '✅' :
                                      item.type === 'upload_failed' ? '❌' : '📢'}
@@ -1092,9 +1090,9 @@ export default function DashboardScreen() {
               </Modal>
 
               {/* ── CUSTOM REQUEST ACCESS MODAL ── */}
-              <Modal 
-                visible={showRequestAccessModal} 
-                transparent 
+              <Modal
+                visible={showRequestAccessModal}
+                transparent
                 animationType="fade"
                 onRequestClose={() => setShowRequestAccessModal(false)}
               >
@@ -1112,11 +1110,11 @@ export default function DashboardScreen() {
                       </Text>
                     </View>
 
-                    <Text style={{ 
-                      fontSize: 14, 
-                      fontFamily: 'Inter_400Regular', 
-                      color: colors.slate400 || '#cbd5e1', 
-                      textAlign: 'center', 
+                    <Text style={{
+                      fontSize: 14,
+                      fontFamily: 'Inter_400Regular',
+                      color: colors.slate400 || '#cbd5e1',
+                      textAlign: 'center',
                       lineHeight: 22,
                       marginBottom: 24
                     }}>
@@ -1132,10 +1130,10 @@ export default function DashboardScreen() {
                         disabled={sendingRequest}
                       >
                         {sendingRequest ? (
-                          <ActivityIndicator color="#0f172a" />
+                          <ActivityIndicator color="#101010" />
                         ) : (
                           <>
-                            <IconSymbol name="paperplane.fill" size={14} color="#0f172a" />
+                            <IconSymbol name="paperplane.fill" size={14} color="#101010" />
                             <Text style={styles.modalCloseBtnText}>Send Join Request</Text>
                           </>
                         )}
@@ -1164,13 +1162,13 @@ export default function DashboardScreen() {
               >
                 <View style={styles.modalBackdrop}>
                   <View style={[
-                    styles.modalContent, 
-                    { 
-                      padding: 24, 
-                      borderRadius: 28, 
-                      borderWidth: 1.5, 
-                      backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                      borderColor: statusModalConfig.type === 'success' 
+                    styles.modalContent,
+                    {
+                      padding: 24,
+                      borderRadius: 28,
+                      borderWidth: 1.5,
+                      backgroundColor: isDark ? '#101010' : '#ffffff',
+                      borderColor: statusModalConfig.type === 'success'
                         ? (isDark ? 'rgba(34, 197, 94, 0.4)' : 'rgba(34, 197, 94, 0.2)')
                         : statusModalConfig.type === 'pending'
                         ? (isDark ? 'rgba(212, 175, 55, 0.4)' : 'rgba(212, 175, 55, 0.2)')
@@ -1184,18 +1182,18 @@ export default function DashboardScreen() {
                   ]}>
                     <View style={{ alignItems: 'center', marginBottom: 16 }}>
                       {/* Icon Ring */}
-                      <View style={{ 
-                        width: 70, 
-                        height: 70, 
-                        borderRadius: 35, 
-                        marginBottom: 16, 
-                        borderWidth: 1, 
-                        borderColor: statusModalConfig.type === 'success' 
+                      <View style={{
+                        width: 70,
+                        height: 70,
+                        borderRadius: 35,
+                        marginBottom: 16,
+                        borderWidth: 1,
+                        borderColor: statusModalConfig.type === 'success'
                           ? (isDark ? 'rgba(34, 197, 94, 0.4)' : 'rgba(34, 197, 94, 0.25)')
                           : statusModalConfig.type === 'pending'
                           ? (isDark ? 'rgba(212, 175, 55, 0.4)' : 'rgba(212, 175, 55, 0.25)')
                           : (isDark ? 'rgba(239, 68, 68, 0.4)' : 'rgba(239, 68, 68, 0.25)'),
-                        backgroundColor: statusModalConfig.type === 'success' 
+                        backgroundColor: statusModalConfig.type === 'success'
                           ? (isDark ? 'rgba(34, 197, 94, 0.12)' : 'rgba(34, 197, 94, 0.05)')
                           : statusModalConfig.type === 'pending'
                           ? (isDark ? 'rgba(212, 175, 55, 0.12)' : 'rgba(212, 175, 55, 0.05)')
@@ -1203,29 +1201,29 @@ export default function DashboardScreen() {
                         justifyContent: 'center',
                         alignItems: 'center'
                       }}>
-                        <IconSymbol 
-                          name={statusModalConfig.type === 'success' 
-                            ? "checkmark.circle.fill" 
-                            : statusModalConfig.type === 'pending' 
-                            ? "clock.fill" 
-                            : "xmark.circle.fill"} 
-                          size={32} 
-                          color={statusModalConfig.type === 'success' 
-                            ? "#22c55e" 
-                            : statusModalConfig.type === 'pending' 
-                            ? colors.gold 
-                            : "#ef4444"} 
+                        <IconSymbol
+                          name={statusModalConfig.type === 'success'
+                            ? "checkmark.circle.fill"
+                            : statusModalConfig.type === 'pending'
+                            ? "clock.fill"
+                            : "xmark.circle.fill"}
+                          size={32}
+                          color={statusModalConfig.type === 'success'
+                            ? "#22c55e"
+                            : statusModalConfig.type === 'pending'
+                            ? colors.gold
+                            : "#ef4444"}
                         />
                       </View>
 
                       <Text style={[
-                        styles.modalTitle, 
-                        { 
-                          textAlign: 'center', 
-                          fontSize: 22, 
-                          color: isDark ? '#ffffff' : '#0f172a',
+                        styles.modalTitle,
+                        {
+                          textAlign: 'center',
+                          fontSize: 22,
+                          color: isDark ? '#ffffff' : '#101010',
                           fontFamily: 'Outfit_800ExtraBold',
-                          marginBottom: 8 
+                          marginBottom: 8
                         }
                       ]}>
                         {statusModalConfig.title}
@@ -1236,10 +1234,10 @@ export default function DashboardScreen() {
                       <Text style={{
                         fontSize: 16,
                         fontFamily: 'Outfit_700Bold',
-                        color: statusModalConfig.type === 'success' 
-                          ? "#22c55e" 
-                          : statusModalConfig.type === 'pending' 
-                          ? colors.gold 
+                        color: statusModalConfig.type === 'success'
+                          ? "#22c55e"
+                          : statusModalConfig.type === 'pending'
+                          ? colors.gold
                           : "#ef4444",
                         textAlign: 'center',
                         marginBottom: 16,
@@ -1249,11 +1247,11 @@ export default function DashboardScreen() {
                       </Text>
                     ) : null}
 
-                    <Text style={{ 
-                      fontSize: 14, 
-                      fontFamily: 'Inter_400Regular', 
-                      color: isDark ? colors.slate400 : '#475569', 
-                      textAlign: 'center', 
+                    <Text style={{
+                      fontSize: 14,
+                      fontFamily: 'Inter_400Regular',
+                      color: isDark ? colors.slate400 : '#475569',
+                      textAlign: 'center',
                       lineHeight: 22,
                       marginBottom: statusModalConfig.type === 'pending' ? 28 : 20
                     }}>
@@ -1274,12 +1272,12 @@ export default function DashboardScreen() {
                         width: '100%',
                         marginBottom: 24,
                       }}>
-                        <IconSymbol 
-                          name="info.circle" 
-                          size={18} 
-                          color={statusModalConfig.type === 'success' 
-                            ? "#22c55e" 
-                            : "#ef4444"} 
+                        <IconSymbol
+                          name="info.circle"
+                          size={18}
+                          color={statusModalConfig.type === 'success'
+                            ? "#22c55e"
+                            : "#ef4444"}
                         />
                         <Text style={{
                           fontSize: 12,
@@ -1288,8 +1286,8 @@ export default function DashboardScreen() {
                           flex: 1,
                           lineHeight: 16
                         }}>
-                          {statusModalConfig.type === 'success' 
-                            ? "The creator has been notified. You can find this event in your dashboard as soon as they accept." 
+                          {statusModalConfig.type === 'success'
+                            ? "The creator has been notified. You can find this event in your dashboard as soon as they accept."
                             : "If this is an error, please reach out to the event host or organizer directly to ask for an invite."}
                         </Text>
                       </View>
@@ -1297,17 +1295,17 @@ export default function DashboardScreen() {
 
                     <TouchableOpacity
                       style={[
-                        styles.modalCloseBtn, 
-                        { 
-                          backgroundColor: statusModalConfig.type === 'success' 
-                            ? "#22c55e" 
-                            : statusModalConfig.type === 'pending' 
-                            ? colors.gold 
+                        styles.modalCloseBtn,
+                        {
+                          backgroundColor: statusModalConfig.type === 'success'
+                            ? "#22c55e"
+                            : statusModalConfig.type === 'pending'
+                            ? colors.gold
                             : "#ef4444",
-                          shadowColor: statusModalConfig.type === 'success' 
-                            ? "#22c55e" 
-                            : statusModalConfig.type === 'pending' 
-                            ? colors.gold 
+                          shadowColor: statusModalConfig.type === 'success'
+                            ? "#22c55e"
+                            : statusModalConfig.type === 'pending'
+                            ? colors.gold
                             : "#ef4444",
                           shadowOffset: { width: 0, height: 4 },
                           shadowOpacity: 0.25,
@@ -1318,9 +1316,9 @@ export default function DashboardScreen() {
                       onPress={() => setShowStatusModal(false)}
                     >
                       <Text style={[
-                        styles.modalCloseBtnText, 
-                        { 
-                          color: statusModalConfig.type === 'pending' ? '#0f172a' : '#ffffff' 
+                        styles.modalCloseBtnText,
+                        {
+                          color: statusModalConfig.type === 'pending' ? '#101010' : '#ffffff'
                         }
                       ]}>
                         Got It!
@@ -1339,24 +1337,24 @@ export default function DashboardScreen() {
               >
                 <View style={styles.modalBackdrop}>
                   <View style={[
-                    styles.modalContent, 
-                    { 
-                      padding: 24, 
-                      borderRadius: 24, 
-                      borderWidth: 1.5, 
-                      backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                    styles.modalContent,
+                    {
+                      padding: 24,
+                      borderRadius: 24,
+                      borderWidth: 1.5,
+                      backgroundColor: isDark ? '#101010' : '#ffffff',
                       borderColor: isDark ? 'rgba(212, 175, 55, 0.3)' : 'rgba(212, 175, 55, 0.15)',
                       alignItems: 'center',
                       alignSelf: 'center',
                       width: width * 0.8,
                     }
                   ]}>
-                    <View style={{ 
-                      width: 60, 
-                      height: 60, 
-                      borderRadius: 30, 
-                      backgroundColor: 'rgba(34, 197, 94, 0.1)', 
-                      justifyContent: 'center', 
+                    <View style={{
+                      width: 60,
+                      height: 60,
+                      borderRadius: 30,
+                      backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                      justifyContent: 'center',
                       alignItems: 'center',
                       marginBottom: 16,
                       borderWidth: 1,
@@ -1364,29 +1362,29 @@ export default function DashboardScreen() {
                     }}>
                       <IconSymbol name="checkmark.circle.fill" size={32} color="#22c55e" />
                     </View>
-                    
-                    <Text style={{ 
-                      fontSize: 20, 
-                      fontWeight: 'bold', 
-                      color: colors.gold || '#CCA43B', 
+
+                    <Text style={{
+                      fontSize: 20,
+                      fontWeight: 'bold',
+                      color: colors.gold || '#CCA43B',
                       marginBottom: 8,
                       fontFamily: 'Outfit_700Bold',
                       textAlign: 'center',
                     }}>
                       Upload Complete
                     </Text>
-                    
-                    <Text style={{ 
-                      fontSize: 14, 
-                      color: isDark ? '#cbd5e1' : '#64748b', 
-                      textAlign: 'center', 
+
+                    <Text style={{
+                      fontSize: 14,
+                      color: isDark ? '#cbd5e1' : '#64748b',
+                      textAlign: 'center',
                       marginBottom: 20,
                       fontFamily: 'Inter_400Regular',
                     }}>
                       Upload complete
                     </Text>
-                    
-                    <TouchableOpacity 
+
+                    <TouchableOpacity
                       style={[styles.modalCloseBtn, { width: '100%' }]}
                       onPress={async () => {
                         setShowUploadCompleteModal(false);
@@ -1521,7 +1519,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   catchyActionPillText: {
     fontSize: 10,
-    color: '#020617',
+    color: '#050505',
     fontFamily: 'Outfit_800ExtraBold',
     textTransform: 'uppercase',
     letterSpacing: 0.3,
@@ -1610,13 +1608,13 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     marginBottom: 8,
   },
   heroBadgeText: {
-    color: isDark ? '#ffffff' : '#0f172a',
+    color: isDark ? '#ffffff' : '#101010',
     fontSize: 9,
     fontFamily: 'Outfit_800ExtraBold',
     letterSpacing: 0.8,
   },
   heroTitle: {
-    color: isDark ? '#ffffff' : '#0f172a',
+    color: isDark ? '#ffffff' : '#101010',
     fontSize: 18,
     fontFamily: 'Outfit_800ExtraBold',
     marginBottom: 2,
@@ -1639,7 +1637,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     alignSelf: 'flex-start',
   },
   heroBtnText: {
-    color: isDark ? '#ffffff' : '#0f172a',
+    color: isDark ? '#ffffff' : '#101010',
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },
@@ -1669,16 +1667,16 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   modalTitle: { fontSize: 24, color: colors.white, fontFamily: 'Outfit_800ExtraBold', marginBottom: 12, letterSpacing: -0.5 },
   modalText: { fontSize: 16, color: colors.slate400, fontFamily: 'Inter_400Regular', lineHeight: 26, marginBottom: 28 },
   modalCloseBtn: { backgroundColor: colors.gold, paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
-  modalCloseBtnText: { color: '#0f172a', fontFamily: 'Outfit_800ExtraBold', fontSize: 14, textTransform: 'uppercase', letterSpacing: 0.8 },
+  modalCloseBtnText: { color: '#101010', fontFamily: 'Outfit_800ExtraBold', fontSize: 14, textTransform: 'uppercase', letterSpacing: 0.8 },
 
   // ── Join Event Modal Specific ──
   joinModalOverlay: { flex: 1, justifyContent: 'flex-end' },
   joinModalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2, 6, 23, 0.8)' },
-  joinModalContent: { 
-    backgroundColor: colors.slate900, 
-    borderTopLeftRadius: 32, 
-    borderTopRightRadius: 32, 
-    padding: 24, 
+  joinModalContent: {
+    backgroundColor: colors.slate900,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 24,
     paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     borderWidth: 1,
     borderColor: colors.border,
@@ -1687,39 +1685,39 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   form: { gap: 16 },
   inputGroup: { gap: 8 },
   inputLabel: { fontSize: 13, color: colors.gold, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 0.5 },
-  input: { 
-    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)', 
-    padding: 16, 
-    borderRadius: 16, 
-    color: colors.white, 
+  input: {
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
+    padding: 16,
+    borderRadius: 16,
+    color: colors.white,
     fontFamily: 'Inter_400Regular',
     borderWidth: 1,
     borderColor: colors.cardBorder,
   },
-  submitBtn: { 
-    backgroundColor: colors.gold, 
+  submitBtn: {
+    backgroundColor: colors.gold,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    padding: 18, 
-    borderRadius: 20, 
+    padding: 18,
+    borderRadius: 20,
     marginTop: 10,
   },
-  submitBtnText: { color: '#0f172a', fontFamily: 'Outfit_800ExtraBold', fontSize: 16, textTransform: 'uppercase', letterSpacing: 1 },
+  submitBtnText: { color: '#101010', fontFamily: 'Outfit_800ExtraBold', fontSize: 16, textTransform: 'uppercase', letterSpacing: 1 },
   modalDivider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 24 },
   dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
   dividerText: { color: '#475569', fontSize: 12, fontFamily: 'Inter_700Bold' },
-  scanBtn: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    gap: 10, 
-    paddingVertical: 16, 
-    borderRadius: 16, 
-    borderWidth: 1, 
-    borderColor: colors.gold, 
-    backgroundColor: isDark ? 'rgba(212,175,55,0.05)' : 'rgba(212,175,55,0.02)' 
+  scanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.gold,
+    backgroundColor: isDark ? 'rgba(212,175,55,0.05)' : 'rgba(212,175,55,0.02)'
   },
   scanBtnText: { color: colors.gold, fontSize: 16, fontFamily: 'Outfit_700Bold' },
   scannerContainer: { width: '100%', height: 350, borderRadius: 24, overflow: 'hidden', backgroundColor: '#000', justifyContent: 'center' },
@@ -1802,7 +1800,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     gap: 8,
   },
   cardActionBtnMainText: {
-    color: '#020617',
+    color: '#050505',
     fontSize: 14,
     fontFamily: 'Outfit_800ExtraBold',
   },
@@ -1976,7 +1974,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   miniGalleryBtnText: {
     fontSize: 12,
-    color: '#020617',
+    color: '#050505',
     fontFamily: 'Outfit_800ExtraBold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -1997,7 +1995,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+    backgroundColor: isDark ? '#101010' : '#ffffff',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: isDark ? 0.3 : 0.05,
@@ -2092,7 +2090,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   aestheticExploreBtnText: {
     fontSize: 11,
-    color: '#020617',
+    color: '#050505',
     fontFamily: 'Outfit_800ExtraBold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -2132,7 +2130,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 16,
-    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+    backgroundColor: isDark ? '#101010' : '#ffffff',
     marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.cardBorder,

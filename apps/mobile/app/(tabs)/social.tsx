@@ -37,7 +37,7 @@ import {
   getBusinessActivities,
   logGuestLogin,
   checkGuestRequestStatus,
-} from '@/lib/firestore';
+} from '@/lib/database';
 
 const { width } = Dimensions.get('window');
 
@@ -1062,7 +1062,7 @@ export default function SocialScreen() {
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         
         {/* Header */}
-        <LinearGradient colors={isDark ? ['#0f172a', '#020617'] : [colors.deepSlate, colors.background]} style={styles.header}>
+        <LinearGradient colors={isDark ? ['#101010', '#050505'] : [colors.deepSlate, colors.background]} style={styles.header}>
           <View style={styles.topRow}>
             <Text style={styles.headerTitle}>Social Hub</Text>
             <TouchableOpacity 
@@ -1179,7 +1179,7 @@ export default function SocialScreen() {
                           disabled={actionLoading === item.id}
                         >
                           {actionLoading === item.id ? (
-                            <ActivityIndicator size="small" color={isFollowing ? colors.slate400 : '#020617'} />
+                            <ActivityIndicator size="small" color={isFollowing ? colors.slate400 : '#050505'} />
                           ) : (
                             <Text style={[styles.searchFollowBtnText, isFollowing && styles.searchFollowingBtnText]}>
                               {isFollowing ? 'Following' : 'Follow'}
@@ -1244,7 +1244,7 @@ export default function SocialScreen() {
                       disabled={requestingAccess}
                     >
                       {requestingAccess ? (
-                        <ActivityIndicator size="small" color="#020617" />
+                        <ActivityIndicator size="small" color="#050505" />
                       ) : (
                         <Text style={styles.modalBtnPrimaryText}>Send Request</Text>
                       )}
@@ -1528,7 +1528,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   emptyTitle: { color: colors.white, fontSize: 20, fontFamily: 'Outfit_700Bold', marginTop: 16, textAlign: 'center' },
   emptySubtitle: { color: colors.slate400, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 8, textAlign: 'center', lineHeight: 20 },
   discoverBtn: { marginTop: 24, backgroundColor: '#d4af37', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 16 },
-  discoverBtnText: { color: '#020617', fontSize: 15, fontFamily: 'Outfit_700Bold' },
+  discoverBtnText: { color: '#050505', fontSize: 15, fontFamily: 'Outfit_700Bold' },
 
   // === User List ===
   userList: { padding: 16 },
@@ -1542,7 +1542,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   userRoleText: { color: colors.slate400, fontSize: 12, fontFamily: 'Inter_400Regular' },
   followBtn: { backgroundColor: '#d4af37', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
   followingBtn: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.slate800 },
-  followBtnText: { color: '#020617', fontSize: 13, fontFamily: 'Outfit_700Bold' },
+  followBtnText: { color: '#050505', fontSize: 13, fontFamily: 'Outfit_700Bold' },
   followingBtnText: { color: colors.slate400 },
 
   // === Business Card Feed Styles ===
@@ -1851,7 +1851,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     justifyContent: 'center',
   },
   modalBtnPrimaryText: {
-    color: '#020617',
+    color: '#050505',
     fontSize: 14,
     fontFamily: 'Outfit_700Bold',
   },
@@ -1876,7 +1876,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   // === Instagram-style Search Modal Styles ===
   searchModalOverlay: {
     flex: 1,
-    backgroundColor: isDark ? '#020617' : colors.background,
+    backgroundColor: isDark ? '#050505' : colors.background,
   },
   searchModalContainer: {
     flex: 1,
@@ -2006,7 +2006,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderColor: colors.slate800,
   },
   searchFollowBtnText: {
-    color: '#020617',
+    color: '#050505',
     fontSize: 13,
     fontFamily: 'Outfit_700Bold',
   },

@@ -49,7 +49,7 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <LinearGradient colors={['#0f172a', '#1e293b', '#334155']} style={styles.gradient}>
+    <LinearGradient colors={['#101010', '#1e293b', '#334155']} style={styles.gradient}>
       <SafeAreaView style={styles.safe}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#101010',
     marginBottom: 8,
   },
   cardSubtitle: {
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
-    color: '#0f172a',
+    color: '#101010',
   },
 
   // Error
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#101010',
     marginBottom: 8,
   },
   successText: {
@@ -301,13 +301,13 @@ const styles = StyleSheet.create({
 
   // Submit
   submitBtn: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     borderRadius: 14,
     paddingVertical: 16,
     paddingHorizontal: 24,
     alignItems: 'center',
     width: '100%',
-    shadowColor: '#0f172a',
+    shadowColor: '#101010',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
     shadowRadius: 10,

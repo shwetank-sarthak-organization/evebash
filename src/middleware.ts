@@ -34,7 +34,9 @@ export default async function middleware(req: NextRequest) {
     const knownRootDomains = [
         "wed-album-v2.netlify.app",
         "lens-and-frame-wedding-album.netlify.app",
-        "localhost"
+        "evebash.netlify.app",
+        "localhost",
+        "127.0.0.1"
     ];
 
     const isCustomDomain =

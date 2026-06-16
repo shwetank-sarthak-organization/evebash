@@ -1,59 +1,74 @@
-import { getPresignedUploadUrl } from "@/app/actions/upload";
+import { uploadToBackblaze } from "@/app/actions/upload";
+import { supabase } from "@/lib/supabase";
 
 /**
- * Uploads a file directly to Backblaze B2 from the browser using a presigned URL.
+ * Uploads a file through the app API so the browser does not need Backblaze CORS access.
  * Returns the download URL and metadata.
  */
 export async function uploadEventImage(file: File, eventId: string, userId?: string) {
     try {
-        console.log(`[Storage] Starting browser-direct upload for: ${file.name} to event: ${eventId}`);
+        console.log(`[Storage] Starting app-routed upload for: ${file.name} to event: ${eventId}`);
 
         const folder = userId ? `events/${eventId}/${userId}` : `events/${eventId}`;
         const resourceType = file.type.startsWith("video/") ? "video" : "image";
+        const { data: { session } } = await supabase.auth.getSession();
 
-        // Step 1: Server issues a presigned URL (tiny request, no file payload)
-        const presignedResult = await getPresignedUploadUrl(
-            folder,
-            file.name,
-            file.type,
-            resourceType
-        );
+        if (session?.access_token) {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("eventId", eventId);
+            formData.append("resourceType", resourceType);
 
-        if (!presignedResult.success) {
-            throw new Error(presignedResult.error || "Failed to generate presigned upload URL");
+            const uploadResponse = await fetch("/api/media/upload", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                },
+                body: formData,
+            });
+
+            const result = await uploadResponse.json().catch(() => ({}));
+            if (!uploadResponse.ok) {
+                throw new Error(result.error || `Upload failed with status: ${uploadResponse.status}`);
+            }
+
+            return {
+                url: result.url,
+                publicId: result.publicId || result.storageKey,
+                width: undefined,
+                height: undefined,
+                bytes: result.bytes || file.size,
+                format: result.format || file.name.split(".").pop() || "jpg",
+            };
         }
 
-        // Step 2: Browser uploads the raw file directly to Backblaze B2
-        const uploadResponse = await fetch(presignedResult.uploadUrl, {
-            method: "POST",
-            headers: {
-                Authorization: presignedResult.authToken,
-                "Content-Type": file.type,
-                "X-Bz-File-Name": encodeURIComponent(presignedResult.storageKey),
-                "X-Bz-Content-Sha1": "do_not_verify",
-            },
-            body: file,
+        const base64File = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () => reject(reader.error || new Error("Failed to read file"));
+            reader.readAsDataURL(file);
         });
 
-        if (!uploadResponse.ok) {
-            const err = await uploadResponse.json().catch(() => ({}));
-            throw new Error(err.message || `Upload failed with status: ${uploadResponse.status}`);
+        const fallbackResult = await uploadToBackblaze(base64File, folder, {
+            fileName: file.name,
+            contentType: file.type,
+            resourceType,
+        });
+
+        if (!fallbackResult.success) {
+            throw new Error(fallbackResult.error || "Upload failed");
         }
 
-        const result = await uploadResponse.json();
-
-        // Step 3: Return metadata matching the original signature
         return {
-            url: presignedResult.finalUrl,
-            publicId: presignedResult.storageKey,
-            width: undefined,
-            height: undefined,
-            bytes: result.contentLength || file.size,
-            format: file.name.split(".").pop() || "jpg",
+            url: fallbackResult.url,
+            publicId: fallbackResult.public_id || fallbackResult.storageKey,
+            width: fallbackResult.width,
+            height: fallbackResult.height,
+            bytes: fallbackResult.bytes || file.size,
+            format: fallbackResult.format || file.name.split(".").pop() || "jpg",
         };
     } catch (error: unknown) {
-        console.error("[Storage] Direct Upload Error:", error);
+        console.error("[Storage] Upload Error:", error);
         throw error;
     }
 }
-

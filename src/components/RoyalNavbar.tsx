@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import clsx from "clsx";
 import { Menu, X } from "lucide-react";
-import { Event } from "@/lib/firestore";
+import { Event } from "@/lib/database";
 
 interface RoyalNavbarProps {
     event: Event;

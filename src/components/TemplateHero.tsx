@@ -5,7 +5,7 @@ import Image from "next/image";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
-import { Event } from "@/lib/firestore";
+import { Event } from "@/lib/database";
 
 interface TemplateHeroProps {
   event: Event;

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { appendFileSync } from "fs";
 
 export const runtime = "nodejs";
 
@@ -261,10 +262,10 @@ export async function POST(request: NextRequest) {
       mediaType,
       resourceType,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[MediaUpload] Error:", error);
     const errStack = error instanceof Error ? error.stack : "";
-    require('fs').appendFileSync('backend_error.log', `[MediaUpload] Error: ${error}\n${errStack}\n`);
+    appendFileSync("backend_error.log", `[MediaUpload] Error: ${error}\n${errStack}\n`);
     return jsonResponse({ error: error instanceof Error ? error.message : "Upload failed" }, 500);
   }
 }

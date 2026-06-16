@@ -1,7 +1,7 @@
 "use server";
 
 import { supabase } from "@/lib/supabase";
-import { updateGuestStatus, deleteGuest } from "@/lib/firestore";
+import { updateGuestStatus, deleteGuest, updateGuestPermissions } from "@/lib/database";
 
 const SUPER_ADMIN_EMAILS = [
     "shwetank.chauhan17@gmail.com",
@@ -22,14 +22,27 @@ async function canManageGuestLog(logId: string, requester: Requester) {
 
     const { data: log, error } = await supabase
         .from('guests')
-        .select('parent_event_owner_id')
+        .select('parent_event_owner_id, event_id, parent_event_id')
         .eq('id', logId)
         .maybeSingle();
 
     if (error || !log) return false;
 
-    const ownerId = log.parent_event_owner_id;
-    if (!ownerId) return false;
+    let ownerId = log.parent_event_owner_id;
+    const linkedEventIds = [log.parent_event_id, log.event_id].filter(Boolean) as string[];
+
+    if (!ownerId && linkedEventIds.length > 0) {
+        const { data: ownerEvent } = await supabase
+            .from('events')
+            .select('created_by')
+            .in('id', linkedEventIds)
+            .limit(1)
+            .maybeSingle();
+
+        ownerId = ownerEvent?.created_by;
+    }
+
+    if (!ownerId && linkedEventIds.length === 0) return false;
 
     if (ownerId === requester.uid || ownerId === requester.email) {
         return true;
@@ -44,9 +57,21 @@ async function canManageGuestLog(logId: string, requester: Requester) {
 
         if (profile) {
             const isGlobalAdmin = profile.role === "admin" && !profile.delegated_by;
-            const isDelegatedPrimary = profile.delegated_by === ownerId && profile.role_type === "primary";
+            const isDelegatedPrimary = !!ownerId && profile.delegated_by === ownerId && profile.role_type === "primary";
 
             if (isGlobalAdmin || isDelegatedPrimary) {
+                return true;
+            }
+        }
+
+        if (linkedEventIds.length > 0) {
+            const { data: assignedEvents } = await supabase
+                .from('profile_assigned_events')
+                .select('event_id')
+                .eq('profile_id', requester.uid)
+                .in('event_id', linkedEventIds);
+
+            if ((assignedEvents || []).length > 0) {
                 return true;
             }
         }
@@ -88,5 +113,25 @@ export async function deleteGuestAction(logId: string, requester: Requester) {
     } catch (error: unknown) {
         console.error("[Permissions] Failed to delete guest:", error);
         return { success: false, error: error instanceof Error ? error.message : "Failed to remove guest." };
+    }
+}
+
+export async function updateGuestPermissionsAction(
+    logId: string,
+    permissions: Partial<{ canAdmin: boolean; canUpload: boolean; canComment: boolean }>,
+    requester: Requester
+) {
+    try {
+        const allowed = await canManageGuestLog(logId, requester);
+        if (!allowed) {
+            return { success: false, error: "You do not have permission to update this guest." };
+        }
+
+        const success = await updateGuestPermissions(logId, permissions);
+        if (!success) throw new Error("Failed to update permissions in database");
+        return { success: true };
+    } catch (error: unknown) {
+        console.error("[Permissions] Failed to update guest permissions:", error);
+        return { success: false, error: error instanceof Error ? error.message : "Failed to update permissions." };
     }
 }

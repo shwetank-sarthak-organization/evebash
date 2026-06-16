@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
@@ -8,7 +8,7 @@ import {
     getAllowedUser,
     getUserProfile,
     logGuestLogin,
-} from "@/lib/firestore";
+} from "@/lib/database";
 
 type RoleType = "primary" | "event";
 
@@ -23,17 +23,27 @@ type AppUser = {
     email?: string | null;
     delegatedBy?: string;
     username?: string;
+    isPrivate?: boolean;
+    createdAt?: any;
+    location?: string;
+    gender?: string;
+    relationshipStatus?: string;
+    persona?: string | string[];
+    discoverable?: boolean;
+    notificationPreferences?: any;
+    birthday?: string;
+    anniversaryDate?: string;
 };
 
 interface AuthContextType {
     user: AppUser | null;
-    login: (email: string, password: string) => Promise<boolean>;
-    signup: (email: string, password: string, name: string) => Promise<boolean>;
+    login: (email: string, password: string) => Promise<{success: boolean, error?: string}>;
+    signup: (email: string, password: string, name: string) => Promise<{success: boolean, error?: string}>;
     loginWithGoogle: () => Promise<boolean>;
     resetPassword: (email: string) => Promise<boolean>;
     loginWithPhoneSimple: (name: string, phone: string) => Promise<boolean>;
-    authWithPhone: (name: string, phone: string, password: string) => Promise<boolean>;
-    authWithEmail: (name: string, email: string, password: string) => Promise<boolean>;
+    authWithPhone: (name: string, phone: string, password: string) => Promise<{success: boolean, error?: string}>;
+    authWithEmail: (name: string, email: string, password: string) => Promise<{success: boolean, error?: string}>;
     logout: () => void;
     loading: boolean;
 }
@@ -44,8 +54,18 @@ function normalizeUsername(value: string) {
     return value.toLowerCase().replace(/[^a-z0-9_.]/g, "_");
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+    if (error instanceof Error && error.message) return error.message;
+    if (typeof error === "object" && error && "message" in error) {
+        const message = (error as { message?: unknown }).message;
+        if (typeof message === "string" && message) return message;
+    }
+    return fallback;
+}
+
 function buildUserData(uid: string, email: string | null, fallbackName: string, profile: Awaited<ReturnType<typeof getUserProfile>>): AppUser {
-    const name = profile?.name || fallbackName || email?.split("@")[0] || "Wedding User";
+    const profileEmail = profile?.email || email;
+    const name = profile?.name || fallbackName || profileEmail?.split("@")[0] || "Wedding User";
     return {
         uid,
         name,
@@ -54,9 +74,33 @@ function buildUserData(uid: string, email: string | null, fallbackName: string, 
         roleType: profile?.roleType || (profile?.delegatedBy ? "event" : "primary"),
         assignedEvents: profile?.assignedEvents || [],
         profileImage: profile?.profileImage,
-        email,
+        email: profileEmail,
         delegatedBy: profile?.delegatedBy,
         username: profile?.username || normalizeUsername(name),
+        isPrivate: profile?.isPrivate ?? false,
+        createdAt: profile?.createdAt,
+        location: profile?.location,
+        gender: profile?.gender,
+        relationshipStatus: profile?.relationshipStatus,
+        persona: profile?.persona,
+        discoverable: profile?.discoverable ?? true,
+        notificationPreferences: profile?.notificationPreferences,
+        birthday: profile?.birthday,
+        anniversaryDate: profile?.anniversaryDate,
+    };
+}
+
+function buildBasicUserData(uid: string, email: string | null, fallbackName: string): AppUser {
+    const name = fallbackName || email?.split("@")[0] || "Wedding User";
+    return {
+        uid,
+        name,
+        phone: "No Phone",
+        role: "user",
+        roleType: "primary",
+        assignedEvents: [],
+        email,
+        username: normalizeUsername(name),
     };
 }
 
@@ -64,17 +108,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<AppUser | null>(null);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
+    const activeHydrations = useRef(new Set<string>());
+    const currentUserId = useRef<string | null>(null);
 
-    const syncUserSession = (userData: AppUser) => {
+    const syncUserSession = useCallback((userData: AppUser) => {
+        currentUserId.current = userData.uid;
         setUser(userData);
         localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
-    };
+    }, []);
 
-    const hydrateSupabaseUser = async (uid: string, email: string | null, fallbackName: string) => {
-        await createUserProfile(uid, fallbackName, email || "");
-        const profile = await getUserProfile(uid);
+    const hydrateSupabaseUser = useCallback(async (
+        uid: string,
+        email: string | null,
+        fallbackName: string,
+        options?: { phone?: string; role?: string; shouldSync?: () => boolean }
+    ) => {
+        let profile = await getUserProfile(uid);
+        if (!profile) {
+            await createUserProfile(uid, fallbackName, email || "", options?.phone || "", options?.role || "user");
+            profile = await getUserProfile(uid);
+        }
+        if (options?.shouldSync && !options.shouldSync()) return;
         syncUserSession(buildUserData(uid, email, fallbackName, profile));
-    };
+    }, [syncUserSession]);
+
+    const hydrateSupabaseUserInBackground = useCallback((
+        uid: string,
+        email: string | null,
+        fallbackName: string,
+        options?: { phone?: string; role?: string; shouldSync?: () => boolean }
+    ) => {
+        if (activeHydrations.current.has(uid)) return;
+
+        activeHydrations.current.add(uid);
+        void hydrateSupabaseUser(uid, email, fallbackName, options)
+            .catch((error) => {
+                console.error("[Auth] Background profile hydration failed:", error);
+            })
+            .finally(() => {
+                activeHydrations.current.delete(uid);
+            });
+    }, [hydrateSupabaseUser]);
 
     useEffect(() => {
         let isMounted = true;
@@ -108,24 +182,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         session.user.user_metadata?.name ||
                         session.user.email?.split("@")[0] ||
                         "Wedding User";
-                    await hydrateSupabaseUser(session.user.id, session.user.email || null, fallbackName);
+                    syncUserSession(buildBasicUserData(session.user.id, session.user.email || null, fallbackName));
+                    setLoading(false);
+                    hydrateSupabaseUserInBackground(session.user.id, session.user.email || null, fallbackName, {
+                        shouldSync: () => isMounted && currentUserId.current === session.user.id,
+                    });
                     subscribeToProfile(session.user.id, session.user.email || null, fallbackName);
                 } else {
                     const storedUser = localStorage.getItem("wedding_guest_user");
                     if (storedUser) {
                         const parsed = JSON.parse(storedUser);
                         if (parsed?.uid?.startsWith("phone_")) {
+                            currentUserId.current = parsed.uid;
                             setUser(parsed);
                         } else {
+                            currentUserId.current = null;
                             localStorage.removeItem("wedding_guest_user");
                             setUser(null);
                         }
                     } else {
+                        currentUserId.current = null;
                         setUser(null);
                     }
                 }
             } catch (error) {
                 console.error("[Auth] Supabase session load failed:", error);
+                currentUserId.current = null;
                 setUser(null);
             } finally {
                 if (isMounted) setLoading(false);
@@ -137,23 +219,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             if (!isMounted) return;
 
-            if (session?.user) {
-                const fallbackName =
-                    session.user.user_metadata?.name ||
-                    session.user.email?.split("@")[0] ||
-                    "Wedding User";
-                await hydrateSupabaseUser(session.user.id, session.user.email || null, fallbackName);
-                subscribeToProfile(session.user.id, session.user.email || null, fallbackName);
-            } else {
-                if (profileChannel) {
-                    supabase.removeChannel(profileChannel);
-                    profileChannel = null;
+            try {
+                if (session?.user) {
+                    const fallbackName =
+                        session.user.user_metadata?.name ||
+                        session.user.email?.split("@")[0] ||
+                        "Wedding User";
+                    syncUserSession(buildBasicUserData(session.user.id, session.user.email || null, fallbackName));
+                    setLoading(false);
+                    hydrateSupabaseUserInBackground(session.user.id, session.user.email || null, fallbackName, {
+                        shouldSync: () => isMounted && currentUserId.current === session.user.id,
+                    });
+                    subscribeToProfile(session.user.id, session.user.email || null, fallbackName);
+                } else {
+                    if (profileChannel) {
+                        supabase.removeChannel(profileChannel);
+                        profileChannel = null;
+                    }
+                    currentUserId.current = null;
+                    setUser(null);
+                    localStorage.removeItem("wedding_guest_user");
                 }
-                setUser(null);
-                localStorage.removeItem("wedding_guest_user");
+            } catch (error) {
+                console.error("[Auth] onAuthStateChange error:", error);
+            } finally {
+                setLoading(false);
             }
-
-            setLoading(false);
         });
 
         return () => {
@@ -163,24 +254,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 supabase.removeChannel(profileChannel);
             }
         };
-    }, []);
+    }, [hydrateSupabaseUserInBackground, syncUserSession]);
 
-    const login = async (email: string, password: string) => {
+    const login = async (email: string, password: string): Promise<{success: boolean, error?: string}> => {
         try {
             const { data, error } = await supabase.auth.signInWithPassword({ email, password });
             if (error) throw error;
             if (data.user) {
                 const fallbackName = data.user.user_metadata?.name || email.split("@")[0] || "Wedding User";
-                await hydrateSupabaseUser(data.user.id, data.user.email || email, fallbackName);
+                syncUserSession(buildBasicUserData(data.user.id, data.user.email || email, fallbackName));
             }
-            return true;
-        } catch (error) {
+            return { success: true };
+        } catch (error: unknown) {
             console.error("Supabase login error:", error);
-            return false;
+            return { success: false, error: getErrorMessage(error, "Login failed") };
         }
     };
 
-    const signup = async (email: string, password: string, name: string) => {
+    const signup = async (email: string, password: string, name: string): Promise<{success: boolean, error?: string}> => {
         try {
             const { data, error } = await supabase.auth.signUp({
                 email,
@@ -195,10 +286,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const profile = await getUserProfile(data.user.id);
                 syncUserSession(buildUserData(data.user.id, data.user.email || email, name, profile));
             }
-            return true;
-        } catch (error) {
+            return { success: true };
+        } catch (error: unknown) {
             console.error("Supabase signup error:", error);
-            return false;
+            return { success: false, error: getErrorMessage(error, "Signup failed") };
         }
     };
 
@@ -271,13 +362,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
 
         if (!loginError && loginData.user) {
-            const existingProfile = await getUserProfile(loginData.user.id);
-            const finalName = existingProfile?.name || name || loginData.user.email?.split("@")[0] || "Wedding User";
-            const finalPhone = existingProfile?.phone || phone;
-            await createUserProfile(loginData.user.id, finalName, loginData.user.email || email, finalPhone, existingProfile?.role || "user");
-            const profile = await getUserProfile(loginData.user.id);
-            syncUserSession(buildUserData(loginData.user.id, loginData.user.email || email, finalName, profile));
-            return true;
+            const fallbackName = name || loginData.user.user_metadata?.name || loginData.user.email?.split("@")[0] || "Wedding User";
+            syncUserSession(buildBasicUserData(loginData.user.id, loginData.user.email || email, fallbackName));
+            hydrateSupabaseUserInBackground(loginData.user.id, loginData.user.email || email, fallbackName, {
+                phone,
+                role: "user",
+                shouldSync: () => currentUserId.current === loginData.user.id,
+            });
+            return { success: true };
         }
 
         const { data: signupData, error: signupError } = await supabase.auth.signUp({
@@ -290,13 +382,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (signupError || !signupData.user) {
             console.error("Supabase email auth error:", signupError || loginError);
-            return false;
+            return { success: false, error: signupError?.message || loginError?.message || "Auth failed" };
         }
 
         await createUserProfile(signupData.user.id, name, signupData.user.email || email, phone);
         const profile = await getUserProfile(signupData.user.id);
         syncUserSession(buildUserData(signupData.user.id, signupData.user.email || email, name, profile));
-        return true;
+        return { success: true };
     };
 
     const authWithEmail = async (name: string, email: string, password: string) => {
@@ -314,6 +406,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
             console.error("Supabase logout error:", error);
         }
+        currentUserId.current = null;
         setUser(null);
         localStorage.removeItem("wedding_guest_user");
         router.push("/login");

@@ -38,7 +38,7 @@ export function Hero() {
                     </div>
 
                     <h1 className="font-serif text-6xl md:text-8xl lg:text-9xl font-bold tracking-tight drop-shadow-2xl">
-                        Lens <span className="text-gold-500 italic font-light">&</span> Frame
+                        EveBash
                     </h1>
 
                     <p className="text-stone-200 tracking-[0.2em] text-lg md:text-xl font-light uppercase">

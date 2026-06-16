@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter, useLocalSearchParams, Stack, useFocusEffect } from 'expo-router';
-import { getBusinessById, getEnquiriesForBusiness, getOrCreateChatRoom, Enquiry, Business } from '@/lib/firestore';
+import { getBusinessById, getEnquiriesForBusiness, getOrCreateChatRoom, Enquiry, Business } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
 
 export default function BusinessEnquiriesScreen() {
@@ -321,7 +321,7 @@ export default function BusinessEnquiriesScreen() {
                         }
                       }}
                     >
-                      <IconSymbol name="bubble.left.fill" size={14} color="#0f172a" />
+                      <IconSymbol name="bubble.left.fill" size={14} color="#101010" />
                       <Text style={styles.leadActionBtnTextDark}>Reply via In-App Chat</Text>
                     </TouchableOpacity>
                   )
@@ -379,7 +379,7 @@ export default function BusinessEnquiriesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: '#050505',
   },
   center: {
     justifyContent: 'center',
@@ -467,13 +467,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   leadsCountText: {
-    color: '#0f172a',
+    color: '#101010',
     fontSize: 10,
     fontFamily: 'Outfit_800ExtraBold',
     letterSpacing: 0.5,
   },
   leadCardCompact: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
     borderRadius: 16,
@@ -539,7 +539,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_600SemiBold',
   },
   leadMessageContainer: {
-    backgroundColor: '#020617',
+    backgroundColor: '#050505',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
   },
   leadActionBtnTextDark: {
-    color: '#020617',
+    color: '#050505',
     fontSize: 13,
     fontFamily: 'Outfit_700Bold',
   },
@@ -615,7 +615,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 24,
@@ -691,7 +691,7 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     flexDirection: 'row',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101010',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
@@ -737,7 +737,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerLeadsCountText: {
-    color: '#0f172a',
+    color: '#101010',
     fontSize: 11,
     fontFamily: 'Outfit_800ExtraBold',
   },
