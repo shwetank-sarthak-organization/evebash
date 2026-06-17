@@ -310,7 +310,7 @@ export default function PortfolioTabScreen() {
 
     const baseSlug = createSlug(title);
     const id = `${baseSlug}-${Math.random().toString(36).slice(-5)}`;
-    const coverImage = EVENT_PLACEHOLDER_IMAGES[Math.floor(Math.random() * EVENT_PLACEHOLDER_IMAGES.length)];
+    const coverImage = EVENT_PLACEHOLDER_IMAGES[0];
     const defaultTemplate = getDefaultTemplateForEventCategory(newEventType);
 
     setCreating(true);

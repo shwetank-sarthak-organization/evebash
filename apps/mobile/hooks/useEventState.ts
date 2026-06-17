@@ -371,7 +371,7 @@ export function useEventState(id: string, user: any) {
     setUpdating(true);
     try {
       const subId = `${title.toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).slice(-4)}`;
-      await createEvent({
+      const success = await createEvent({
         id: subId,
         title,
         date: event.date,
@@ -383,8 +383,13 @@ export function useEventState(id: string, user: any) {
         templateId: event.templateId || 'hero',
         order: subEvents.length
       });
-      loadEvent();
+      if (!success) {
+        Alert.alert("Error", "Failed to create gallery. Please try again.");
+        return;
+      }
+      await loadEvent();
     } catch (err) {
+      console.error("Error creating sub-gallery:", err);
       Alert.alert("Error", "Failed to create gallery.");
     } finally {
       setUpdating(false);

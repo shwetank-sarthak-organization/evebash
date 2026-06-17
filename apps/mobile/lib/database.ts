@@ -3,6 +3,7 @@ import { sendPushNotificationDirectly } from "./notifications";
 import { DEFAULT_EVENT_COVER_IMAGE } from "./eventCovers";
 
 const COVER_USAGE_TAG = "__cover_usage__";
+let photoInteractionChannelCounter = 0;
 
 export function formatEventDate(dateStr?: string): string {
     if (!dateStr) return "";
@@ -860,7 +861,7 @@ export function safeParseDateToISO(dateInput?: string | Date): string | null {
 
 export async function createEvent(event: Event) {
     try {
-        const { error } = await supabase.from('events').upsert({
+        const payload: Record<string, any> = {
             id: event.id,
             title: event.title,
             date: event.date ? safeParseDateToISO(event.date) : null,
@@ -873,12 +874,32 @@ export async function createEvent(event: Event) {
             category: event.category || null,
             template_id: event.templateId || 'hero',
             join_id: event.joinId || null
-        });
+        };
+
+        let { error } = await supabase.from('events').upsert(payload);
+
+        if (error?.code === 'PGRST204') {
+            const match = error.message.match(/Could not find the '([^']+)' column/i);
+            const missingCol = match?.[1];
+            if (missingCol && missingCol in payload) {
+                console.warn(`[Supabase database] Column '${missingCol}' does not exist on 'events' table. Retrying event create without it...`);
+                delete payload[missingCol];
+                ({ error } = await supabase.from('events').upsert(payload));
+            }
+        }
 
         if (error) throw error;
         return true;
     } catch (error) {
-        console.error("Error creating event:", error);
+        const details = error && typeof error === "object"
+            ? {
+                code: "code" in error ? error.code : undefined,
+                message: "message" in error ? error.message : undefined,
+                details: "details" in error ? error.details : undefined,
+                hint: "hint" in error ? error.hint : undefined,
+            }
+            : error;
+        console.error("Error creating event:", details);
         return false;
     }
 }
@@ -965,19 +986,16 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
 
     fetchAndTrigger();
 
-    const likesChannel = supabase
-        .channel(`likes-${photoId}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'likes', filter: `photo_id=eq.${photoId}` }, () => fetchAndTrigger())
-        .subscribe();
+    const channelName = `photo-interactions-${photoId}-${Date.now()}-${photoInteractionChannelCounter++}`;
 
-    const commentsChannel = supabase
-        .channel(`comments-${photoId}`)
+    const interactionsChannel = supabase
+        .channel(channelName)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'likes', filter: `photo_id=eq.${photoId}` }, () => fetchAndTrigger())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'comments', filter: `photo_id=eq.${photoId}` }, () => fetchAndTrigger())
         .subscribe();
 
     return () => {
-        supabase.removeChannel(likesChannel);
-        supabase.removeChannel(commentsChannel);
+        supabase.removeChannel(interactionsChannel);
     };
 }
 

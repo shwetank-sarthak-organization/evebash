@@ -7,18 +7,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import React from "react";
 
-// Import templates
-import { TemplateBohemian } from "@/components/TemplateBohemian";
-import { TemplateBrutalist } from "@/components/TemplateBrutalist";
-import { TemplateCinematic } from "@/components/TemplateCinematic";
-import { TemplateClassic } from "@/components/TemplateClassic";
-import { TemplateEditorial } from "@/components/TemplateEditorial";
-import { TemplateHero } from "@/components/TemplateHero";
-import { TemplateMuseum } from "@/components/TemplateMuseum";
-import { TemplatePolaroid } from "@/components/TemplatePolaroid";
-import { TemplateRoyal } from "@/components/TemplateRoyal";
-import { TemplateScrapbook } from "@/components/TemplateScrapbook";
-import { TemplatePop } from "@/components/TemplatePop";
+import { getWebTemplateComponent } from "@/components/templateRegistry";
 
 export default async function SubEventPage({ params }: { params: Promise<{ slug: string; eventId: string }> }) {
     const { slug, eventId } = await params;
@@ -74,20 +63,6 @@ export default async function SubEventPage({ params }: { params: Promise<{ slug:
         </section>
     );
 
-    // Render using the selected Template Wrapper
-    switch (templateId) {
-        case 'bohemian': return <TemplateBohemian event={plainSubEvent}>{galleryBlock}</TemplateBohemian>;
-        case 'brutalist': return <TemplateBrutalist event={plainSubEvent}>{galleryBlock}</TemplateBrutalist>;
-        case 'cinematic': return <TemplateCinematic event={plainSubEvent}>{galleryBlock}</TemplateCinematic>;
-        case 'classic': return <TemplateClassic event={plainSubEvent}>{galleryBlock}</TemplateClassic>;
-        case 'editorial': return <TemplateEditorial event={plainSubEvent}>{galleryBlock}</TemplateEditorial>;
-        case 'hero': return <TemplateHero event={plainSubEvent}>{galleryBlock}</TemplateHero>;
-        case 'museum': return <TemplateMuseum event={plainSubEvent}>{galleryBlock}</TemplateMuseum>;
-        case 'polaroid': return <TemplatePolaroid event={plainSubEvent}>{galleryBlock}</TemplatePolaroid>;
-        case 'royal': return <TemplateRoyal event={plainSubEvent}>{galleryBlock}</TemplateRoyal>;
-        case 'scrapbook': return <TemplateScrapbook event={plainSubEvent}>{galleryBlock}</TemplateScrapbook>;
-        case 'pop': return <TemplatePop event={plainSubEvent}>{galleryBlock}</TemplatePop>;
-
-        default: return <TemplateHero event={plainSubEvent}>{galleryBlock}</TemplateHero>;
-    }
+    const TemplateComponent = getWebTemplateComponent(templateId);
+    return <TemplateComponent event={plainSubEvent}>{galleryBlock}</TemplateComponent>;
 }

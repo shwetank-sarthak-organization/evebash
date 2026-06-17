@@ -7,6 +7,7 @@ const eventCache: Record<string, Event> = {};
 const userCache: Record<string, any> = {};
 const COVER_USAGE_TAG = "__cover_usage__";
 const DEFAULT_EVENT_COVER_IMAGE = "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop";
+let photoInteractionChannelCounter = 0;
 
 // --- Types ---
 
@@ -1926,18 +1927,18 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
 
     fetchAndTrigger();
 
-    // Setup Postgres real-time listeners for updates
-    const likesChannel = supabase
-        .channel(`likes-${photoId}`)
+    const channelName = `photo-interactions-${photoId}-${Date.now()}-${photoInteractionChannelCounter++}`;
+
+    // Configure all callbacks before subscribe; Supabase does not allow adding
+    // postgres_changes handlers after a channel has subscribed. The unique name
+    // lets multiple components watch the same photo at the same time.
+    const interactionsChannel = supabase
+        .channel(channelName)
         .on(
             'postgres_changes',
             { event: '*', schema: 'public', table: 'likes', filter: `photo_id=eq.${photoId}` },
             () => fetchAndTrigger()
         )
-        .subscribe();
-
-    const commentsChannel = supabase
-        .channel(`comments-${photoId}`)
         .on(
             'postgres_changes',
             { event: '*', schema: 'public', table: 'comments', filter: `photo_id=eq.${photoId}` },
@@ -1946,8 +1947,7 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
         .subscribe();
 
     return () => {
-        supabase.removeChannel(likesChannel);
-        supabase.removeChannel(commentsChannel);
+        supabase.removeChannel(interactionsChannel);
     };
 }
 

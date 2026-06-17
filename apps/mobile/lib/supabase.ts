@@ -9,7 +9,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn("[Supabase] Mobile credentials missing in Expo environment.");
 }
 
-const SUPABASE_FETCH_TIMEOUT_MS = 6000;
+const SUPABASE_FETCH_TIMEOUT_MS = 20000;
 
 const supabaseFetch: typeof fetch = async (input, init) => {
   const controller = new AbortController();

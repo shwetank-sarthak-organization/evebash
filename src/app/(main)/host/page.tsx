@@ -674,6 +674,7 @@ function DashboardContent() {
     });
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isCreateSubGalleryModalOpen, setIsCreateSubGalleryModalOpen] = useState(false);
     const [showCategoryModal, setShowCategoryModal] = useState(false);
     const [showCreateSuccessModal, setShowCreateSuccessModal] = useState(false);
     const [eventType, setEventType] = useState("Wedding");
@@ -716,6 +717,7 @@ function DashboardContent() {
     const [newTitle, setNewTitle] = useState("");
     const [newDate, setNewDate] = useState("");
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+    const [showDeleteSuccessType, setShowDeleteSuccessType] = useState<"event" | "gallery" | null>(null);
     const selectedMainEventId = selectedMainEvent?.id;
     const selectedMainEventLegacyId = selectedMainEvent?.legacyId;
 
@@ -1472,7 +1474,7 @@ function DashboardContent() {
         return null;
     }
 
-    const handleCreateEventOnly = async (e: React.FormEvent): Promise<boolean> => {
+    const handleCreateEventOnly = async (e: React.FormEvent, skipSuccessModal: boolean = false): Promise<boolean> => {
         e.preventDefault();
         if (!eventName.trim()) {
             setStatus("error");
@@ -1495,7 +1497,7 @@ function DashboardContent() {
         const creatorName = user.name || authUser.user_metadata?.name || creatorEmail.split("@")[0] || "User";
 
         // --- ROLE-BASED LIMITS ---
-        const isCreatingMainEvent = manageLevel !== "galleries";
+        const isCreatingMainEvent = manageLevel !== "galleries" && !isCreateSubGalleryModalOpen;
         if (isCreatingMainEvent && user.role !== "admin" && user.role !== "premium" && user.role !== "elite" && !user.delegatedBy) {
             const eventCount = await getUserEventCount(creatorUid);
             const currentPlan = getPlanDetails(user.role);
@@ -1529,17 +1531,18 @@ function DashboardContent() {
 
             const eventId = `${createEventSlug(eventName) || "event"}-${uuidv4().slice(0, 4)}`;
 
-            // Assign a random placeholder
-            const randomPlaceholder = PLACEHOLDER_IMAGES[Math.floor(Math.random() * PLACEHOLDER_IMAGES.length)];
+            const isSubEvent = (manageLevel === "galleries" || isCreateSubGalleryModalOpen) && selectedMainEvent;
 
-            const isSubEvent = manageLevel === "galleries" && selectedMainEvent;
+            // Assign the primary placeholder for main events, or inherit parent's cover for sub-galleries
+            const defaultPlaceholder = PLACEHOLDER_IMAGES[0];
+            const initialCoverImage = isSubEvent ? (selectedMainEvent.coverImage || defaultPlaceholder) : defaultPlaceholder;
 
             const newEvent: Event = {
                 id: eventId,
                 title: eventName,
                 date: eventDate.trim() || new Date().toLocaleDateString(),
-                coverImage: randomPlaceholder,
-                description: isSubEvent ? `Gallery of ${selectedMainEvent.title}` : `Main Event: ${eventName}`,
+                coverImage: initialCoverImage,
+                description: isSubEvent ? `Welcome to the ${eventName} gallery! Share your beautiful moments and thoughts here.` : `Main Event: ${eventName}`,
                 createdBy: creatorUid,
                 type: isSubEvent ? "sub" : "main",
                 category: isSubEvent ? (selectedMainEvent.category || eventType) : eventType,
@@ -1557,7 +1560,9 @@ function DashboardContent() {
 
             setStatus("success");
             setIsCreateModalOpen(false);
-            setShowCreateSuccessModal(true);
+            if (!skipSuccessModal) {
+                setShowCreateSuccessModal(true);
+            }
             setMessage("Your event has been created! ✨");
             if (isSubEvent) {
                 setEventDetailGalleries(prev => [...prev, newEvent].sort((a, b) => (a.title || "").localeCompare(b.title || "")));
@@ -2309,11 +2314,15 @@ function DashboardContent() {
             searchParams.get("eventId") === eventId;
 
         try {
+            const eventToDelete = userEvents.find(e => e.id === eventId) || eventDetailGalleries.find(e => e.id === eventId);
+            const isGallery = eventToDelete?.type === "sub";
+            
             const success = await deleteEvent(eventId);
             if (success) {
                 setStatus("success");
-                setMessage("Event deleted.");
+                setMessage("");
                 setShowDeleteConfirm(null);
+                setShowDeleteSuccessType(isGallery ? "gallery" : "event");
                 setActiveMenu(null);
                 if (eventId === selectedEventId) {
                     setSelectedEventId("");
@@ -3260,11 +3269,11 @@ function DashboardContent() {
                                                         <p className="text-sm font-bold text-slate-400">Primary gallery and sub-galleries for this event.</p>
                                                     </div>
                                                     <button
-                                                        onClick={() => router.push(`/host?view=manage&level=galleries&mode=add-event&eventId=${selectedMainEvent.id}`)}
+                                                        onClick={() => setIsCreateSubGalleryModalOpen(true)}
                                                         className="flex items-center gap-2 rounded-full bg-amber-400 px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-950 transition-transform hover:-translate-y-0.5"
                                                     >
                                                         <Plus className="h-4 w-4" />
-                                                        <span>Add Gallery</span>
+                                                        <span>Add Sub-Gallery</span>
                                                     </button>
                                                 </div>
 
@@ -3343,13 +3352,12 @@ function DashboardContent() {
                                                                                     <ImageIcon className="h-2.5 w-2.5 text-white/90" />
                                                                                     <span className="text-[9px] font-bold tracking-wider text-white/90">SUB-GALLERY</span>
                                                                                 </div>
-                                                                                
                                                                                 <div className="flex gap-2 relative z-20">
                                                                                     <button
                                                                                         onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(gallery.id); }}
-                                                                                        className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-500/20 backdrop-blur-sm text-rose-300 hover:bg-rose-500/40 transition-colors shadow-md"
+                                                                                        className="flex h-6 w-6 items-center justify-center rounded-full bg-black/65 border border-white/15 backdrop-blur-sm transition-colors shadow-sm hover:bg-black"
                                                                                     >
-                                                                                        <Trash2 className="h-3 w-3" />
+                                                                                        <Trash2 className="h-3 w-3 text-red-500" />
                                                                                     </button>
                                                                                 </div>
                                                                             </div>
@@ -3544,7 +3552,7 @@ function DashboardContent() {
                                 </div>
                             )}
 
-                            {manageMode === "add-event" && (
+                            {manageMode === "add-event" && manageLevel === "events" && (
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.95 }}
                                     animate={{ opacity: 1, scale: 1 }}
@@ -3569,7 +3577,9 @@ function DashboardContent() {
 
                                     <form onSubmit={handleCreateEventOnly} className="space-y-8">
                                         <div>
-                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-700 mb-4 ml-1">What is the occasion?</label>
+                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-700 mb-4 ml-1">
+                                                What is the occasion?
+                                            </label>
                                             <input
                                                 type="text"
                                                 value={eventName}
@@ -3582,7 +3592,9 @@ function DashboardContent() {
                                         </div>
 
                                         <div>
-                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-700 mb-4 ml-1">Date</label>
+                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-700 mb-4 ml-1">
+                                                Date
+                                            </label>
                                             <button
                                                 type="button"
                                                 onClick={() => openDatePicker("create")}
@@ -3595,91 +3607,87 @@ function DashboardContent() {
                                             </button>
                                         </div>
 
-                                        {manageLevel === "events" && (
-                                            <div>
-                                                <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-700 mb-4 ml-1">Event Type</label>
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    {EVENT_TYPE_OPTIONS.map(({ name, icon: Icon }) => {
-                                                        const isSelected = eventType === name;
-                                                        return (
-                                                            <button
-                                                                key={name}
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    setEventType(name);
-                                                                    const newTemplates = getTemplatesForEventCategory(name);
-                                                                    if (newTemplates.length > 0) setSelectedTemplate(newTemplates[0].id);
-                                                                }}
-                                                                className={cn(
-                                                                    "flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-black transition-colors",
-                                                                    isSelected
-                                                                        ? "border-amber-400 bg-amber-400 text-slate-950"
-                                                                        : "border-slate-700 bg-slate-900/50 text-slate-300 hover:border-amber-400/60"
-                                                                )}
-                                                            >
-                                                                <Icon className="h-4 w-4" />
-                                                                <span>{name}</span>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
+                                        <div>
+                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-700 mb-4 ml-1">Event Type</label>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {EVENT_TYPE_OPTIONS.map(({ name, icon: Icon }) => {
+                                                    const isSelected = eventType === name;
+                                                    return (
+                                                        <button
+                                                            key={name}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setEventType(name);
+                                                                const newTemplates = getTemplatesForEventCategory(name);
+                                                                if (newTemplates.length > 0) setSelectedTemplate(newTemplates[0].id);
+                                                            }}
+                                                            className={cn(
+                                                                "flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-black transition-colors",
+                                                                isSelected
+                                                                    ? "border-amber-400 bg-amber-400 text-slate-950"
+                                                                    : "border-slate-700 bg-slate-900/50 text-slate-300 hover:border-amber-400/60"
+                                                            )}
+                                                        >
+                                                            <Icon className="h-4 w-4" />
+                                                            <span>{name}</span>
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
-                                        )}
+                                        </div>
 
-                                        {manageLevel === "events" && (
-                                            <div>
-                                                <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-700 mb-4 ml-1">Choose Style</label>
-                                                <div className="flex flex-col gap-3 max-h-[40vh] overflow-y-auto pr-2">
-                                                    {getTemplatesForEventCategory(eventType).map((template) => {
-                                                        const isActive = selectedTemplate === template.id;
-                                                        return (
-                                                            <div
-                                                                key={template.id}
-                                                                onClick={() => setSelectedTemplate(template.id)}
-                                                                className={cn(
-                                                                    "flex items-center justify-between p-3 rounded-2xl border-2 transition-colors cursor-pointer",
-                                                                    isActive ? "bg-slate-900 border-sky-500 shadow-md" : "bg-slate-900/50 border-slate-700 hover:border-slate-500"
-                                                                )}
-                                                                style={{ borderColor: isActive ? template.accent : undefined }}
-                                                            >
-                                                                <div className="flex items-center gap-3 flex-1">
+                                        <div>
+                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-700 mb-4 ml-1">Choose Style</label>
+                                            <div className="flex flex-col gap-3 max-h-[40vh] overflow-y-auto pr-2">
+                                                {getTemplatesForEventCategory(eventType).map((template) => {
+                                                    const isActive = selectedTemplate === template.id;
+                                                    return (
+                                                        <div
+                                                            key={template.id}
+                                                            onClick={() => setSelectedTemplate(template.id)}
+                                                            className={cn(
+                                                                "flex items-center justify-between p-3 rounded-2xl border-2 transition-colors cursor-pointer",
+                                                                isActive ? "bg-slate-900 border-sky-500 shadow-md" : "bg-slate-900/50 border-slate-700 hover:border-slate-500"
+                                                            )}
+                                                            style={{ borderColor: isActive ? template.accent : undefined }}
+                                                        >
+                                                            <div className="flex items-center gap-3 flex-1">
+                                                                <div 
+                                                                    className="w-10 h-10 rounded-full flex items-center justify-center border border-slate-700 shadow-sm"
+                                                                    style={{ backgroundColor: template.background?.light || '#fff' }}
+                                                                >
                                                                     <div 
-                                                                        className="w-10 h-10 rounded-full flex items-center justify-center border border-slate-700 shadow-sm"
-                                                                        style={{ backgroundColor: template.background?.light || '#fff' }}
+                                                                        className="w-3.5 h-3.5 rounded-full shadow-sm"
+                                                                        style={{ backgroundColor: template.accent || '#000' }}
+                                                                    />
+                                                                </div>
+                                                                
+                                                                <div className="flex-1 mr-2">
+                                                                    <div 
+                                                                        className="text-sm font-bold font-outfit"
+                                                                        style={{ color: isActive ? template.accent : '#334155' }}
                                                                     >
-                                                                        <div 
-                                                                            className="w-3.5 h-3.5 rounded-full shadow-sm"
-                                                                            style={{ backgroundColor: template.accent || '#000' }}
-                                                                        />
+                                                                        {template.label}
                                                                     </div>
-                                                                    
-                                                                    <div className="flex-1 mr-2">
-                                                                        <div 
-                                                                            className="text-sm font-bold font-outfit"
-                                                                            style={{ color: isActive ? template.accent : '#334155' }}
-                                                                        >
-                                                                            {template.label}
-                                                                        </div>
-                                                                        <div className="text-[11px] text-slate-500 font-inter mt-0.5 truncate">
-                                                                            {template.desc}
-                                                                        </div>
+                                                                    <div className="text-[11px] text-slate-500 font-inter mt-0.5 truncate">
+                                                                        {template.desc}
                                                                     </div>
                                                                 </div>
-
-                                                                {isActive && (
-                                                                    <div 
-                                                                        className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 shadow-sm"
-                                                                        style={{ backgroundColor: template.accent }}
-                                                                    >
-                                                                        <Check className="w-3 h-3 text-white" />
-                                                                    </div>
-                                                                )}
                                                             </div>
-                                                        );
-                                                    })}
-                                                </div>
+
+                                                            {isActive && (
+                                                                <div 
+                                                                    className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 shadow-sm"
+                                                                    style={{ backgroundColor: template.accent }}
+                                                                >
+                                                                    <Check className="w-3 h-3 text-white" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
-                                        )}
+                                        </div>
 
                                         <button
                                             type="submit"
@@ -3695,7 +3703,7 @@ function DashboardContent() {
                                                     <span>Creating...</span>
                                                 </>
                                             ) : (
-                                                <span>Create {manageLevel === "events" ? "Event" : "Gallery"}</span>
+                                                <span>Create Event</span>
                                             )}
                                         </button>
 
@@ -3714,6 +3722,105 @@ function DashboardContent() {
                                     </form>
                                 </motion.div>
                             )}
+
+                            <AnimatePresence>
+                                {isCreateSubGalleryModalOpen && (
+                                    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm overflow-y-auto">
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                                            className="w-full max-w-md bg-[#1a1a1a] p-8 rounded-[2rem] shadow-2xl border border-white/5 my-8 relative"
+                                        >
+                                            <div className="flex items-center justify-between mb-8">
+                                                <h3 className="text-2xl font-bold text-white tracking-tight">New Sub-Gallery</h3>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsCreateSubGalleryModalOpen(false)}
+                                                    className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors shrink-0"
+                                                >
+                                                    <X className="w-4 h-4 text-white" />
+                                                </button>
+                                            </div>
+
+                                            <form 
+                                                onSubmit={async (e) => {
+                                                    // Pass true to skip the success modal
+                                                    const success = await handleCreateEventOnly(e, true);
+                                                    if (success) {
+                                                        setIsCreateSubGalleryModalOpen(false);
+                                                    }
+                                                }} 
+                                                className="space-y-6"
+                                            >
+                                                <div>
+                                                    <input
+                                                        type="text"
+                                                        value={eventName}
+                                                        onChange={(e) => setEventName(e.target.value)}
+                                                        placeholder="Sub-gallery name"
+                                                        className="w-full px-5 py-4 bg-[#262626] border border-white/5 rounded-2xl focus:ring-1 focus:ring-amber-500 transition-all outline-none text-base text-white placeholder-slate-400"
+                                                        required
+                                                        autoFocus
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-300 mb-3 ml-1">
+                                                        SUB-GALLERY DATE
+                                                    </label>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openDatePicker("create")}
+                                                        className="flex w-full items-center justify-between px-5 py-4 bg-[#262626] border border-white/5 rounded-2xl focus:ring-1 focus:ring-amber-500 transition-all outline-none text-base text-left"
+                                                    >
+                                                        <div className="flex items-center">
+                                                            <Calendar className="w-5 h-5 text-amber-500 mr-3" />
+                                                            <span className={eventDate ? "text-white" : "text-slate-400"}>
+                                                                {eventDate || "Select event date"}
+                                                            </span>
+                                                        </div>
+                                                        <ChevronDown className="h-4 w-4 text-slate-400" />
+                                                    </button>
+                                                </div>
+
+                                                <button
+                                                    type="submit"
+                                                    disabled={status === "uploading"}
+                                                    className={cn(
+                                                        "w-full py-4 mt-2 rounded-2xl font-bold text-[15px] transition-all flex items-center justify-center space-x-3 active:scale-95",
+                                                        status === "uploading" 
+                                                            ? "bg-[#806316]/50 text-black/50 cursor-not-allowed" 
+                                                            : "bg-[#806316] text-[#2c2203] hover:bg-[#96741b]"
+                                                    )}
+                                                >
+                                                    {status === "uploading" ? (
+                                                        <>
+                                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                                            <span>Creating...</span>
+                                                        </>
+                                                    ) : (
+                                                        <span>Create Sub-Gallery</span>
+                                                    )}
+                                                </button>
+
+                                                {message && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, y: 5 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        className={cn(
+                                                            "p-4 rounded-2xl text-sm font-bold text-center",
+                                                            status === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+                                                        )}
+                                                    >
+                                                        {message}
+                                                    </motion.div>
+                                                )}
+                                            </form>
+                                        </motion.div>
+                                    </div>
+                                )}
+                            </AnimatePresence>
 
                             {manageMode === "add-image" && (manageLevel !== "event-details" || activeEventDetailTab === "galleries") && (
                                 <motion.div
@@ -5307,30 +5414,64 @@ function DashboardContent() {
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.9 }}
-                                className="bg-slate-800 rounded-[2.5rem] p-8 md:p-12 w-full max-w-md shadow-2xl"
+                                className="bg-white rounded-md p-6 w-full max-w-xs shadow-2xl"
                             >
-                                <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-6">
-                                    <Trash2 className="w-8 h-8 text-red-500" />
-                                </div>
-                                <h3 className="text-2xl font-bold mb-4 tracking-tight text-white">Delete Event?</h3>
-                                <p className="text-slate-700 mb-8 font-sans leading-relaxed">
-                                    Are you sure you want to delete this event? This will remove all photo records from the database. This action cannot be undone.
+                                {(() => {
+                                    const eventToDelete = userEvents.find(e => e.id === showDeleteConfirm) || eventDetailGalleries.find(e => e.id === showDeleteConfirm);
+                                    const itemType = eventToDelete?.type === "sub" ? "gallery" : "event";
+                                    const itemTypeTitle = eventToDelete?.type === "sub" ? "Gallery" : "Event";
+                                    return (
+                                        <>
+                                            <h3 className="text-[20px] font-medium mb-3 tracking-tight text-slate-900">Delete {itemTypeTitle}</h3>
+                                            <p className="text-slate-600 mb-8 font-inter text-[15px] leading-relaxed">
+                                                Are you sure you want to delete the {itemType} "{eventToDelete?.title}"? This will permanently remove all photos inside this {itemType}.
+                                            </p>
+                                            <div className="flex justify-end space-x-6">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowDeleteConfirm(null)}
+                                                    className="font-bold text-teal-500 hover:text-teal-400 transition-colors uppercase text-sm tracking-wide"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteEvent(showDeleteConfirm)}
+                                                    disabled={status === "uploading"}
+                                                    className="font-bold text-teal-500 hover:text-teal-400 transition-colors uppercase text-sm tracking-wide disabled:opacity-50"
+                                                >
+                                                    {status === "uploading" ? "Deleting..." : "Delete"}
+                                                </button>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
+
+                {/* Delete Success Modal */}
+                <AnimatePresence>
+                    {showDeleteSuccessType && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                className="bg-white rounded-md p-6 w-full max-w-xs shadow-2xl"
+                            >
+                                <h3 className="text-[20px] font-medium mb-3 tracking-tight text-slate-900">Success</h3>
+                                <p className="text-slate-600 mb-8 font-inter text-[15px] leading-relaxed">
+                                    {showDeleteSuccessType === "gallery" ? "Gallery" : "Event"} deleted successfully.
                                 </p>
-                                <div className="flex space-x-3">
+                                <div className="flex justify-end">
                                     <button
                                         type="button"
-                                        onClick={() => setShowDeleteConfirm(null)}
-                                        className="flex-1 py-4 px-6 border border-slate-700 rounded-2xl font-bold text-slate-400 hover:bg-slate-900/50 transition-all active:scale-95"
+                                        onClick={() => setShowDeleteSuccessType(null)}
+                                        className="font-bold text-teal-500 hover:text-teal-400 transition-colors uppercase text-sm tracking-wide"
                                     >
-                                        Keep Event
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleDeleteEvent(showDeleteConfirm)}
-                                        disabled={status === "uploading"}
-                                        className="flex-1 py-4 px-6 bg-red-600 text-white rounded-2xl font-bold hover:bg-red-700 transition-all shadow-lg active:scale-95 disabled:bg-red-300"
-                                    >
-                                        {status === "uploading" ? "Deleting..." : "Delete now"}
+                                        OK
                                     </button>
                                 </div>
                             </motion.div>

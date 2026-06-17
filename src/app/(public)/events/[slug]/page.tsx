@@ -15,30 +15,8 @@ import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { cn, formatEventDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRef } from "react";
-import { TemplateHero } from "@/components/TemplateHero";
-import { TemplateClassic } from "@/components/TemplateClassic";
-import { TemplateRoyal } from "@/components/TemplateRoyal";
-import { TemplateEditorial } from "@/components/TemplateEditorial";
-import { TemplateBohemian } from "@/components/TemplateBohemian";
-import { TemplatePolaroid } from "@/components/TemplatePolaroid";
-import { TemplateCinematic } from "@/components/TemplateCinematic";
-import { TemplateMuseum } from "@/components/TemplateMuseum";
-import { TemplateScrapbook } from "@/components/TemplateScrapbook";
-import { TemplateBrutalist } from "@/components/TemplateBrutalist";
+import { getWebTemplateComponent } from "@/components/templateRegistry";
 import { navigateWithModifierClick } from "@/lib/navigation";
-
-const TEMPLATES: Record<string, React.ComponentType<any>> = {
-    hero: TemplateHero,
-    classic: TemplateClassic,
-    royal: TemplateRoyal,
-    editorial: TemplateEditorial,
-    bohemian: TemplateBohemian,
-    polaroid: TemplatePolaroid,
-    cinematic: TemplateCinematic,
-    museum: TemplateMuseum,
-    scrapbook: TemplateScrapbook,
-    brutalist: TemplateBrutalist
-};
 
 function EventPageContent() {
     const params = useParams();
@@ -572,7 +550,7 @@ function EventPageContent() {
         </div>
     );
 
-    const TemplateComponent = TEMPLATES[event.templateId] || TemplateHero;
+    const TemplateComponent = getWebTemplateComponent(event.templateId);
 
     // Determine Navbar Props
     const navMainTitle = parentEvent ? parentEvent.title : event.title;

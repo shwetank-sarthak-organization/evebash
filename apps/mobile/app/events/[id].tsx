@@ -290,6 +290,16 @@ function normalizeEventDate(value?: string) {
   return formatEventDisplayDate(parsed);
 }
 
+function parseEventDateValue(value?: string) {
+  const trimmed = (value || '').trim();
+  if (!trimmed) return new Date();
+
+  const parsed = new Date(trimmed);
+  if (!Number.isNaN(parsed.getTime())) return parsed;
+
+  return new Date();
+}
+
 function GalleryVideoCard({
   video,
   accent = '#d4af37',
@@ -847,6 +857,9 @@ export default function EventDetailScreen() {
     };
   }, [isBohemianPlaying, showAdminView]);
   const [newSubTitle, setNewSubTitle] = useState('');
+  const [newSubDate, setNewSubDate] = useState(formatEventDisplayDate(new Date()));
+  const [newSubDateValue, setNewSubDateValue] = useState(new Date());
+  const [showSubDatePicker, setShowSubDatePicker] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
@@ -1647,8 +1660,38 @@ export default function EventDetailScreen() {
     );
   };
 
+  const openSubEventModal = () => {
+    const initialDate = parseEventDateValue(event?.date);
+    setNewSubTitle('');
+    setNewSubDateValue(initialDate);
+    setNewSubDate(formatEventDisplayDate(initialDate));
+    setShowSubDatePicker(false);
+    setShowSubEventModal(true);
+  };
+
+  const closeSubEventModal = () => {
+    setShowSubDatePicker(false);
+    setShowSubEventModal(false);
+  };
+
+  const handleSubEventDateChange = (e: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS !== 'ios') {
+      setShowSubDatePicker(false);
+    }
+
+    if (e.type === 'dismissed') return;
+    if (!selectedDate) return;
+
+    setNewSubDateValue(selectedDate);
+    setNewSubDate(formatEventDisplayDate(selectedDate));
+  };
+
   const handleCreateSubEvent = async () => {
     if (!newSubTitle.trim() || !event) return;
+    if (!newSubDate.trim()) {
+      Alert.alert("Missing Date", "Please choose a sub-gallery date.");
+      return;
+    }
     if (!user?.uid) {
       Alert.alert("Login Required", "Please log in before creating a gallery.");
       return;
@@ -1656,10 +1699,10 @@ export default function EventDetailScreen() {
     setUpdating(true);
     try {
       const subId = `${newSubTitle.toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).slice(-4)}`;
-      await createEvent({
+      const success = await createEvent({
         id: subId,
         title: newSubTitle,
-        date: normalizeEventDate(event.date) || event.date,
+        date: normalizeEventDate(newSubDate) || newSubDate,
         coverImage: resolveEventCoverImage(event.coverImage),
         description: `Welcome to the ${newSubTitle} gallery! Share your beautiful moments and thoughts here.`,
         createdBy: user.uid,
@@ -1668,10 +1711,15 @@ export default function EventDetailScreen() {
         templateId: event.templateId || 'hero',
         order: subEvents.length
       });
+      if (!success) {
+        Alert.alert("Error", "Failed to create gallery. Please try again.");
+        return;
+      }
       setNewSubTitle('');
-      setShowSubEventModal(false);
-      loadEvent();
+      closeSubEventModal();
+      await loadEvent();
     } catch (err) {
+      console.error("Error creating sub-gallery:", err);
       Alert.alert("Error", "Failed to create gallery.");
     } finally {
       setUpdating(false);
@@ -3956,9 +4004,9 @@ export default function EventDetailScreen() {
                     <>
                       <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>Galleries</Text>
-                        <TouchableOpacity style={styles.addBtn} onPress={() => setShowSubEventModal(true)}>
+                        <TouchableOpacity style={styles.addBtn} onPress={openSubEventModal}>
                           <IconSymbol name="plus" size={12} color={MidnightColors.gold} />
-                          <Text style={styles.addBtnText}>Add Gallery</Text>
+                          <Text style={styles.addBtnText}>Add Sub-Gallery</Text>
                         </TouchableOpacity>
                       </View>
 
@@ -6045,9 +6093,14 @@ export default function EventDetailScreen() {
       {/* ── CREATE SUB-EVENT MODAL ── */}
       <SubEventModal
         visible={showSubEventModal}
-        onClose={() => setShowSubEventModal(false)}
+        onClose={closeSubEventModal}
         newSubTitle={newSubTitle}
         setNewSubTitle={setNewSubTitle}
+        subDate={newSubDate}
+        subDateValue={newSubDateValue}
+        showSubDatePicker={showSubDatePicker}
+        setShowSubDatePicker={setShowSubDatePicker}
+        onSubDateChange={handleSubEventDateChange}
         onSave={handleCreateSubEvent}
         updating={updating}
         styles={styles}
