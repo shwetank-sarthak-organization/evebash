@@ -20,10 +20,12 @@ import Svg, { Path, Rect, Line } from 'react-native-svg';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
 import { createBusiness, getUserBusinesses, Business, generateShortId, getBusinessTypeColor, getUserTotalStorage } from '@/lib/database';
+import { uploadEventImage } from '@/lib/storage';
 
 const { width } = Dimensions.get('window');
 
@@ -41,6 +43,7 @@ const BUSINESS_TYPES = [
   'Trophies', 'Venue', 'Videography'
 ];
 const EVENT_TAGS = ['Wedding', 'Birthdays', 'Sports', 'Corporate', 'Cultural', 'Private'];
+const DEFAULT_BUSINESS_COVER = 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=800';
 
 const BENEFITS = [
   { id: '1', title: 'Reach Event Organizers', desc: 'Connect with professionals planning sports tournaments, corporate meets, and celebrations.', icon: 'person.2.fill' },
@@ -79,6 +82,7 @@ export default function BusinessLandingScreen() {
   const [startedDate, setStartedDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [eventsHosted, setEventsHosted] = useState('');
+  const [coverImageUri, setCoverImageUri] = useState('');
 
   useEffect(() => {
     fetchUserBusinesses();
@@ -180,6 +184,25 @@ export default function BusinessLandingScreen() {
     }
   };
 
+  const pickCoverImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Photo library permission is required to select a business cover.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.85,
+    });
+
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      setCoverImageUri(result.assets[0].uri);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!name || !ownerName || !ownerEmail || !ownerPhone || !businessType) {
       Alert.alert('Missing Info', 'Please fill in all basic fields.');
@@ -193,6 +216,17 @@ export default function BusinessLandingScreen() {
 
     setLoading(true);
     try {
+      let coverImage = DEFAULT_BUSINESS_COVER;
+      if (coverImageUri) {
+        const file = {
+          uri: coverImageUri,
+          name: `business-cover-${Date.now()}.jpg`,
+          type: 'image/jpeg',
+        };
+        const upload = await uploadEventImage(file, `business-cover-${Date.now()}`, user.uid);
+        coverImage = upload.url;
+      }
+
       const businessData: Omit<Business, 'id' | 'createdAt'> = {
         name,
         ownerName,
@@ -209,7 +243,8 @@ export default function BusinessLandingScreen() {
         experience: Math.floor((new Date().getTime() - startedDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25)),
         eventsHosted: parseInt(eventsHosted) || 0,
         rating: 0,
-        coverImage: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=800', // Default image
+        coverImage,
+        coverImages: [coverImage],
         createdBy: user.uid,
         status: 'created',
         shortId: generateShortId(),
@@ -230,6 +265,7 @@ export default function BusinessLandingScreen() {
         setExperience('');
         setStartedDate(new Date());
         setEventsHosted('');
+        setCoverImageUri('');
         // Refresh list
         fetchUserBusinesses();
       } else {
@@ -265,7 +301,7 @@ export default function BusinessLandingScreen() {
             </TouchableOpacity>
           </View>
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={styles.headerTitle}>Biz Hub</Text>
+            <Text style={styles.headerTitle}>Create Business</Text>
             <Text style={styles.headerSubtitle}>Manage & Grow your empire.</Text>
           </View>
           <View style={styles.headerRight}>
@@ -601,6 +637,57 @@ export default function BusinessLandingScreen() {
                 </TouchableOpacity>
 
 
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Business Cover Image</Text>
+                <View style={styles.coverPickerCard}>
+                  <TouchableOpacity
+                    style={styles.coverPickerPreview}
+                    onPress={pickCoverImage}
+                    activeOpacity={0.86}
+                  >
+                    {coverImageUri ? (
+                      <>
+                        <ExpoImage
+                          source={{ uri: coverImageUri }}
+                          style={StyleSheet.absoluteFill}
+                          contentFit="cover"
+                        />
+                        <View style={styles.coverPreviewOverlay} />
+                        <ExpoImage
+                          source={{ uri: coverImageUri }}
+                          style={styles.coverPreviewImage}
+                          contentFit="contain"
+                        />
+                      </>
+                    ) : (
+                      <View style={styles.coverPlaceholder}>
+                        <IconSymbol name="photo.on.rectangle.angled" size={34} color={INDIGO_LIGHT} />
+                        <Text style={styles.coverPlaceholderText}>Add a cover image for your business</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
+                  <View style={styles.coverPickerActions}>
+                    <Text style={styles.coverPickerHint} numberOfLines={1}>
+                      {coverImageUri ? 'Selected business cover' : 'Optional. Used as the business thumbnail.'}
+                    </Text>
+                    <View style={styles.coverActionRow}>
+                      {coverImageUri ? (
+                        <TouchableOpacity
+                          style={[styles.coverActionBtn, styles.coverRemoveBtn]}
+                          onPress={() => setCoverImageUri('')}
+                        >
+                          <Text style={[styles.coverActionText, styles.coverRemoveText]}>Remove</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                      <TouchableOpacity style={styles.coverActionBtn} onPress={pickCoverImage}>
+                        <Text style={styles.coverActionText}>{coverImageUri ? 'Change' : 'Add'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
               </View>
 
               <View style={styles.inputGroup}>
@@ -963,9 +1050,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     elevation: 6,
   },
   bizManageImageContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 18,
+    width: 96,
+    height: 96,
+    borderRadius: 22,
     overflow: 'hidden',
     backgroundColor: isDark ? '#050505' : '#f1f5f9',
     position: 'relative',
@@ -1052,6 +1139,76 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderColor: INDIGO_BORDER,
     fontSize: 16,
     minHeight: 56,
+  },
+  coverPickerCard: {
+    overflow: 'hidden',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: INDIGO_BORDER,
+    backgroundColor: colors.background,
+  },
+  coverPickerPreview: {
+    height: 190,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    backgroundColor: isDark ? '#050505' : '#f8fafc',
+  },
+  coverPreviewOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(2, 6, 23, 0.45)',
+  },
+  coverPreviewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  coverPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 24,
+  },
+  coverPlaceholderText: {
+    color: colors.slate400,
+    fontSize: 14,
+    fontFamily: 'Outfit_700Bold',
+    textAlign: 'center',
+  },
+  coverPickerActions: {
+    borderTopWidth: 1,
+    borderTopColor: INDIGO_BORDER,
+    padding: 12,
+    gap: 10,
+  },
+  coverPickerHint: {
+    color: colors.slate400,
+    fontSize: 12,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  coverActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  coverActionBtn: {
+    borderWidth: 1,
+    borderColor: INDIGO_BORDER,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  coverRemoveBtn: {
+    borderColor: 'rgba(244, 63, 94, 0.35)',
+  },
+  coverActionText: {
+    color: INDIGO_LIGHT,
+    fontSize: 11,
+    fontFamily: 'Outfit_800ExtraBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  coverRemoveText: {
+    color: '#fb7185',
   },
   typeGrid: {
     flexDirection: 'row',

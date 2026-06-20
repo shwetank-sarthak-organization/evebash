@@ -17,14 +17,16 @@ const guestNavLinks = [
 const authNavLinks = [
     { name: "Dashboard", href: "/dashboard" },
     { name: "Host", href: "/host" },
-    { name: "Biz Hub", href: "/biz-hub" },
-    { name: "Marketplace", href: "/marketplace" },
+    { name: "Create Business", href: "/biz-hub" },
+    { name: "EB Network", href: "/marketplace" },
 ];
 
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
     const { user, logout } = useAuth();
+
+    const isActiveLink = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 
     const getPlanLabel = (role?: string) => {
         switch (role) {
@@ -61,7 +63,7 @@ export default function Navbar() {
                                 href={link.href}
                                 className={cn(
                                     "text-sm font-medium transition-colors hover:text-white pb-1 border-b-2 border-transparent",
-                                    pathname === link.href
+                                    isActiveLink(link.href)
                                         ? "text-white border-white"
                                         : "text-slate-300 hover:border-slate-500"
                                 )}
@@ -127,7 +129,7 @@ export default function Navbar() {
                             onClick={() => setIsOpen(false)}
                             className={cn(
                                 "block px-4 py-3 rounded-lg text-lg font-medium transition-colors",
-                                pathname === link.href
+                                isActiveLink(link.href)
                                     ? "text-sky-400 bg-sky-900/30 font-semibold"
                                     : "text-slate-300 hover:bg-slate-700 hover:text-white"
                             )}

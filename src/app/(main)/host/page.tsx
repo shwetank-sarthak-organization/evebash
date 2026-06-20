@@ -85,6 +85,7 @@ import { supabase } from "@/lib/supabase";
 import { Tooltip } from "@/components/Tooltip";
 import { navigateWithModifierClick } from "@/lib/navigation";
 import { formatStorageSize, getPlanDetails, getUsagePercent } from "@/lib/planLimits";
+import { getWebLightboxTheme } from "@/lib/webTemplateTheme";
 import { v4 as uuidv4 } from "uuid";
 import { deleteGuestAction, updateGuestPermissionsAction, updateGuestStatusAction } from "@/app/actions/permissions";
 import * as faceapi from "face-api.js";
@@ -680,6 +681,14 @@ function DashboardContent() {
     const [eventType, setEventType] = useState("Wedding");
     const [coverPositionEvent, setCoverPositionEvent] = useState<Event | null>(null);
     const [coverDraft, setCoverDraft] = useState({ coverOffset: 0, coverOffsetX: 0, coverScale: 1 });
+    const coverPreviewRef = useRef<HTMLDivElement | null>(null);
+    const coverDragStartRef = useRef<{
+        pointerId: number;
+        startX: number;
+        startY: number;
+        coverOffset: number;
+        coverOffsetX: number;
+    } | null>(null);
 
     const toggleMainEvent = (eventId: string) => {
         setExpandedMainEvents(prev => {
@@ -1798,16 +1807,30 @@ function DashboardContent() {
         if (!evt) return { objectFit: "cover" };
         const coverMode = evt.coverMode || "fill";
         if (coverMode === "fit") {
-            return { objectFit: "contain", backgroundColor: "#050505" };
+            return {
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                backgroundColor: "#050505",
+            };
         }
 
-        const x = 50 + (evt.coverOffsetX || 0);
-        const y = 50 + (evt.coverOffset || 0);
-        const scale = evt.coverScale || 1;
+        const isDraftTarget = coverPositionEvent?.id === evt.id;
+        const x = isDraftTarget ? coverDraft.coverOffsetX : (evt.coverOffsetX || 0);
+        const y = isDraftTarget ? coverDraft.coverOffset : (evt.coverOffset || 0);
+        const scale = isDraftTarget ? coverDraft.coverScale : (evt.coverScale || 1);
         return {
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: -50,
+            width: "100%",
+            height: "calc(100% + 100px)",
             objectFit: "cover",
-            objectPosition: `${Math.max(0, Math.min(100, x))}% ${Math.max(0, Math.min(100, y))}%`,
-            transform: `scale(${scale})`,
+            transform: `translate3d(${x}px, ${y}px, 0) scale(${scale})`,
+            transformOrigin: "center",
         };
     };
 
@@ -1838,6 +1861,61 @@ function DashboardContent() {
             coverOffset: targetEvent.coverOffset || 0,
             coverOffsetX: targetEvent.coverOffsetX || 0,
             coverScale: targetEvent.coverScale || 1,
+        });
+    };
+
+    const getCoverDragLimits = (scale = coverDraft.coverScale) => {
+        const rect = coverPreviewRef.current?.getBoundingClientRect();
+        const width = rect?.width || 1;
+        const height = rect?.height || 1;
+        return {
+            x: Math.max(0, (width * scale - width) / 2),
+            y: 50 + Math.max(0, (height * scale - height) / 2),
+        };
+    };
+
+    const clampCoverDraft = (draft: typeof coverDraft) => {
+        const limits = getCoverDragLimits(draft.coverScale);
+        return {
+            coverScale: draft.coverScale,
+            coverOffsetX: Math.min(Math.max(draft.coverOffsetX, -limits.x), limits.x),
+            coverOffset: Math.min(Math.max(draft.coverOffset, -limits.y), limits.y),
+        };
+    };
+
+    const handleCoverPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+        if (!coverPositionEvent) return;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        coverDragStartRef.current = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            coverOffset: coverDraft.coverOffset,
+            coverOffsetX: coverDraft.coverOffsetX,
+        };
+    };
+
+    const handleCoverPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+        const start = coverDragStartRef.current;
+        if (!start || start.pointerId !== event.pointerId) return;
+        const nextDraft = {
+            ...coverDraft,
+            coverOffsetX: start.coverOffsetX + event.clientX - start.startX,
+            coverOffset: start.coverOffset + event.clientY - start.startY,
+        };
+        setCoverDraft(clampCoverDraft(nextDraft));
+    };
+
+    const handleCoverPointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+        if (coverDragStartRef.current?.pointerId === event.pointerId) {
+            coverDragStartRef.current = null;
+        }
+    };
+
+    const adjustCoverZoom = (delta: number) => {
+        setCoverDraft(prev => {
+            const nextScale = Math.min(Math.max(Number((prev.coverScale + delta).toFixed(2)), 1), 2.5);
+            return clampCoverDraft({ ...prev, coverScale: nextScale });
         });
     };
 
@@ -3084,14 +3162,35 @@ function DashboardContent() {
                             {manageLevel === "event-details" && selectedMainEvent && (
                                 <div className="space-y-8">
                                     <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-xl">
-                                        <div className="relative h-[26rem] sm:h-[30rem]">
+                                        <div
+                                            ref={(node) => {
+                                                if (activeEventDetailEvent && coverPositionEvent?.id === activeEventDetailEvent.id) {
+                                                    coverPreviewRef.current = node;
+                                                }
+                                            }}
+                                            className={cn(
+                                                "relative h-[26rem] sm:h-[30rem]",
+                                                activeEventDetailEvent && coverPositionEvent?.id === activeEventDetailEvent.id && "cursor-grab active:cursor-grabbing"
+                                            )}
+                                            onPointerDown={activeEventDetailEvent && coverPositionEvent?.id === activeEventDetailEvent.id ? handleCoverPointerDown : undefined}
+                                            onPointerMove={activeEventDetailEvent && coverPositionEvent?.id === activeEventDetailEvent.id ? handleCoverPointerMove : undefined}
+                                            onPointerUp={activeEventDetailEvent && coverPositionEvent?.id === activeEventDetailEvent.id ? handleCoverPointerEnd : undefined}
+                                            onPointerCancel={activeEventDetailEvent && coverPositionEvent?.id === activeEventDetailEvent.id ? handleCoverPointerEnd : undefined}
+                                            style={activeEventDetailEvent && coverPositionEvent?.id === activeEventDetailEvent.id ? { touchAction: "none" } : undefined}
+                                        >
                                             <img
                                                 src={activeEventDetailEvent?.coverImage || DEFAULT_EVENT_COVER_IMAGE}
                                                 alt={activeEventDetailEvent?.title || selectedMainEvent.title}
-                                                className="h-full w-full"
+                                                draggable={false}
+                                                className="h-full w-full select-none"
                                                 style={getCoverImageStyle(activeEventDetailEvent)}
                                             />
                                             <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
+                                            {activeEventDetailEvent && coverPositionEvent?.id === activeEventDetailEvent.id && (
+                                                <div className="pointer-events-none absolute inset-x-6 top-6 z-20 rounded-full border border-white/15 bg-black/60 px-4 py-2 text-center text-xs font-black uppercase tracking-[0.2em] text-white/90 backdrop-blur-md">
+                                                    Drag image
+                                                </div>
+                                            )}
                                             {isCoverUpdating && (
                                                 <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-slate-950/45 backdrop-blur-sm">
                                                     <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-slate-950/80 px-5 py-4 text-sm font-bold text-white shadow-2xl">
@@ -3100,6 +3199,7 @@ function DashboardContent() {
                                                     </div>
                                                 </div>
                                             )}
+                                            {!coverPositionEvent && (
                                             <div className="absolute right-6 top-6 z-10 flex flex-wrap justify-end gap-2">
                                                 {activeEventDetailEvent && (
                                                     <>
@@ -3142,6 +3242,7 @@ function DashboardContent() {
                                                     Remove Cover
                                                 </button>
                                             </div>
+                                            )}
                                             <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8">
                                                 <h3 className="text-3xl font-bold text-white sm:text-4xl">{activeEventDetailEvent?.title || selectedMainEvent.title}</h3>
                                                 <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -3852,15 +3953,36 @@ function DashboardContent() {
 
                                     {/* Sub-event Cover Banner */}
                                     {!isInlineEventDetailGalleryEditor && (
-                                    <div className="relative w-full h-64 md:h-80 rounded-[2rem] overflow-hidden mb-8 group/cover shadow-md border border-slate-700">
+                                    <div
+                                        ref={(node) => {
+                                            if (activeSubEvent && coverPositionEvent?.id === activeSubEvent.id) {
+                                                coverPreviewRef.current = node;
+                                            }
+                                        }}
+                                        className={cn(
+                                            "relative w-full h-64 md:h-80 rounded-[2rem] overflow-hidden mb-8 group/cover shadow-md border border-slate-700",
+                                            activeSubEvent && coverPositionEvent?.id === activeSubEvent.id && "cursor-grab active:cursor-grabbing"
+                                        )}
+                                        onPointerDown={activeSubEvent && coverPositionEvent?.id === activeSubEvent.id ? handleCoverPointerDown : undefined}
+                                        onPointerMove={activeSubEvent && coverPositionEvent?.id === activeSubEvent.id ? handleCoverPointerMove : undefined}
+                                        onPointerUp={activeSubEvent && coverPositionEvent?.id === activeSubEvent.id ? handleCoverPointerEnd : undefined}
+                                        onPointerCancel={activeSubEvent && coverPositionEvent?.id === activeSubEvent.id ? handleCoverPointerEnd : undefined}
+                                        style={activeSubEvent && coverPositionEvent?.id === activeSubEvent.id ? { touchAction: "none" } : undefined}
+                                    >
                                         <img
                                             src={coverUrl}
                                             alt={`${selectedEventName} Cover`}
-                                            className="w-full h-full transition-transform duration-700 group-hover/cover:scale-105"
+                                            draggable={false}
+                                            className="w-full h-full select-none transition-transform duration-700 group-hover/cover:scale-105"
                                             style={getCoverImageStyle(activeSubEvent)}
                                         />
                                         {/* Elegant dark overlay */}
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/40 transition-opacity duration-300" />
+                                        {activeSubEvent && coverPositionEvent?.id === activeSubEvent.id && (
+                                            <div className="pointer-events-none absolute inset-x-6 top-6 z-20 rounded-full border border-white/15 bg-black/60 px-4 py-2 text-center text-xs font-black uppercase tracking-[0.2em] text-white/90 backdrop-blur-md">
+                                                Drag image
+                                            </div>
+                                        )}
                                         {isCoverUpdating && (
                                             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-slate-950/45 backdrop-blur-sm">
                                                 <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-slate-950/80 px-5 py-4 text-sm font-bold text-white shadow-2xl">
@@ -3871,6 +3993,7 @@ function DashboardContent() {
                                         )}
 
                                         {/* Floating Glassmorphic "Change Cover" Button */}
+                                        {!coverPositionEvent && (
                                         <div className="absolute top-6 right-6 z-10">
                                             <label className="flex items-center space-x-2 px-5 py-3 bg-slate-800/20 hover:bg-slate-800/30 active:bg-slate-800/40 backdrop-blur-md text-white rounded-full text-sm font-bold cursor-pointer transition-all border border-white/30 shadow-lg active:scale-95">
                                                 <Camera className="w-4 h-4" />
@@ -3884,6 +4007,7 @@ function DashboardContent() {
                                                 />
                                             </label>
                                         </div>
+                                        )}
 
                                         {/* Information overlay */}
                                         <div className="absolute bottom-6 left-8 right-8 flex items-end justify-between">
@@ -5254,87 +5378,59 @@ function DashboardContent() {
                     )}
                 </AnimatePresence>
 
-                {/* Cover Position Modal */}
+                {/* Cover Position Toolbar */}
                 <AnimatePresence>
                     {coverPositionEvent && (
-                        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.92, y: 12 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.92, y: 12 }}
-                                className="w-full max-w-lg rounded-[2rem] border border-slate-700 bg-slate-900 p-6 text-white shadow-2xl"
-                            >
-                                <div className="mb-5 flex items-start justify-between gap-4">
-                                    <div>
-                                        <h3 className="text-xl font-black">Position Cover</h3>
-                                        <p className="mt-1 text-sm font-bold text-slate-400">{coverPositionEvent.title}</p>
-                                    </div>
+                        <motion.div
+                            initial={{ opacity: 0, y: -16 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -16 }}
+                            className="fixed left-1/2 top-24 z-[80] flex w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 flex-col gap-3 rounded-[1.5rem] border border-white/15 bg-slate-950/90 p-3 text-white shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between"
+                        >
+                            <div className="flex flex-col gap-1 px-2">
+                                <span className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">Drag image</span>
+                                <span className="truncate text-sm font-bold text-slate-300">{coverPositionEvent.title}</span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                                <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 p-1">
                                     <button
                                         type="button"
-                                        onClick={() => setCoverPositionEvent(null)}
-                                        className="rounded-full bg-slate-800 p-2 text-slate-300 hover:text-white"
+                                        onClick={() => adjustCoverZoom(-0.1)}
+                                        className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-white transition hover:bg-slate-700"
+                                        aria-label="Zoom out"
                                     >
-                                        <X className="h-5 w-5" />
+                                        -
                                     </button>
-                                </div>
-
-                                <div className="relative mb-6 h-56 overflow-hidden rounded-3xl border border-slate-700 bg-slate-950">
-                                    <img
-                                        src={coverPositionEvent.coverImage || DEFAULT_EVENT_COVER_IMAGE}
-                                        alt={coverPositionEvent.title}
-                                        className="h-full w-full object-cover"
-                                        style={{
-                                            objectPosition: `${50 + coverDraft.coverOffsetX}% ${50 + coverDraft.coverOffset}%`,
-                                            transform: `scale(${coverDraft.coverScale})`,
-                                        }}
-                                    />
-                                </div>
-
-                                <div className="space-y-5">
-                                    {[
-                                        { key: "coverOffsetX", label: "Horizontal", min: -50, max: 50, step: 1 },
-                                        { key: "coverOffset", label: "Vertical", min: -50, max: 50, step: 1 },
-                                        { key: "coverScale", label: "Zoom", min: 1, max: 2, step: 0.05 },
-                                    ].map((control) => (
-                                        <label key={control.key} className="block">
-                                            <div className="mb-2 flex items-center justify-between text-xs font-black uppercase tracking-widest text-slate-400">
-                                                <span>{control.label}</span>
-                                                <span>{Number(coverDraft[control.key as keyof typeof coverDraft]).toFixed(control.key === "coverScale" ? 2 : 0)}</span>
-                                            </div>
-                                            <input
-                                                type="range"
-                                                min={control.min}
-                                                max={control.max}
-                                                step={control.step}
-                                                value={coverDraft[control.key as keyof typeof coverDraft]}
-                                                onChange={(event) => {
-                                                    const value = Number(event.target.value);
-                                                    setCoverDraft(prev => ({ ...prev, [control.key]: value }));
-                                                }}
-                                                className="w-full accent-amber-400"
-                                            />
-                                        </label>
-                                    ))}
-                                </div>
-
-                                <div className="mt-8 flex justify-end gap-3">
+                                    <span className="min-w-14 text-center text-xs font-black text-white">{Math.round(coverDraft.coverScale * 100)}%</span>
                                     <button
                                         type="button"
-                                        onClick={() => setCoverPositionEvent(null)}
-                                        className="rounded-full border border-slate-700 px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-300"
+                                        onClick={() => adjustCoverZoom(0.1)}
+                                        className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-white transition hover:bg-slate-700"
+                                        aria-label="Zoom in"
                                     >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleSaveCoverPosition}
-                                        className="rounded-full bg-amber-400 px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-950"
-                                    >
-                                        Save Position
+                                        +
                                     </button>
                                 </div>
-                            </motion.div>
-                        </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        coverDragStartRef.current = null;
+                                        setCoverPositionEvent(null);
+                                    }}
+                                    className="rounded-full border border-white/15 px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-200 transition hover:bg-white/10"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleSaveCoverPosition}
+                                    className="rounded-full bg-amber-400 px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-950 transition hover:bg-amber-300"
+                                >
+                                    Save
+                                </button>
+                            </div>
+                        </motion.div>
                     )}
                 </AnimatePresence>
 
@@ -5483,6 +5579,7 @@ function DashboardContent() {
                     isOpen={!!viewingPhoto}
                     photo={viewingPhoto}
                     onClose={() => setViewingPhoto(null)}
+                    theme={getWebLightboxTheme(selectedMainEvent?.templateId)}
                     onNext={() => {
                         const currentIndex = activeGalleryItems.findIndex(p => p.id === viewingPhoto?.id);
                         if (currentIndex !== -1) {

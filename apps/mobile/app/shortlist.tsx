@@ -100,7 +100,7 @@ export default function ShortlistScreen() {
                 style={styles.exploreBtn}
                 onPress={() => router.push('/(tabs)/explore-business')}
               >
-                <Text style={styles.exploreBtnText}>Explore Marketplace</Text>
+                <Text style={styles.exploreBtnText}>Explore EB Network</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>

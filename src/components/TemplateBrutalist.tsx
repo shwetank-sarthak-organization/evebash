@@ -7,6 +7,7 @@ import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { useRouter } from "next/navigation";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
 import { navigateWithModifierClick } from "@/lib/navigation";
+import { getWebLightboxTheme } from "@/lib/webTemplateTheme";
 
 interface TemplateBrutalistProps {
     event: Event;
@@ -152,6 +153,7 @@ export function TemplateBrutalist({
                                 gridClassName="gap-4 md:gap-8"
                                 itemClassName="border-2 border-lime-400 bg-zinc-900 rounded-none mix-blend-luminosity hover:mix-blend-normal hover:shadow-[8px_8px_0_0_rgba(163,230,53,0.5)] transition-all duration-300"
                                 lightboxClassName="bg-zinc-950/98 backdrop-blur-none border-4 border-lime-400 font-mono text-lime-400 [&_.bg-white]:bg-zinc-900 [&_.text-slate-900]:text-lime-400 [&_.border-stone-100]:border-lime-400 [&_input]:bg-zinc-950 [&_input]:text-lime-400 [&_button]:bg-lime-400 [&_button]:text-black"
+                                lightboxTheme={getWebLightboxTheme(event.templateId)}
                             />
                         </div>
                     </div>

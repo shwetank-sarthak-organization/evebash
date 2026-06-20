@@ -3,6 +3,7 @@ import { sendPushNotificationDirectly } from "./notifications";
 import { DEFAULT_EVENT_COVER_IMAGE } from "./eventCovers";
 
 const COVER_USAGE_TAG = "__cover_usage__";
+const BUSINESS_PORTFOLIO_EVENTS_KEY = "__portfolio_events__";
 let photoInteractionChannelCounter = 0;
 
 export function formatEventDate(dateStr?: string): string {
@@ -116,6 +117,7 @@ export interface Business {
     eventsHosted?: number;
     services?: string[];
     faqs?: { q: string; a: string }[];
+    portfolioEvents?: BusinessPortfolioEvent[];
     status: 'created' | 'published';
     shortId?: string;
     vendorCode?: string;
@@ -124,6 +126,28 @@ export interface Business {
     profileViews?: number;
     viewsByDate?: Record<string, number>;
     shortlistCount?: number;
+}
+
+export interface BusinessPortfolioEvent {
+    id: string;
+    name: string;
+    type: string;
+    date: string;
+    coverImage?: string;
+    coverOffset?: number;
+    coverOffsetX?: number;
+    coverScale?: number;
+    coverMode?: 'fit' | 'fill';
+    media?: BusinessPortfolioMedia[];
+    templateId?: string;
+    createdAt?: any;
+}
+
+export interface BusinessPortfolioMedia {
+    id: string;
+    url: string;
+    type?: 'image' | 'video';
+    createdAt?: any;
 }
 
 export interface UserProfile {
@@ -365,6 +389,8 @@ function mapSqlToGuestLog(g: any): GuestLog {
 }
 
 function mapSqlToBusiness(b: any): Business {
+    const viewsByDate = sanitizeBusinessViewsByDate(b.views_by_date);
+
     return {
         id: b.id,
         name: b.name,
@@ -390,15 +416,26 @@ function mapSqlToBusiness(b: any): Business {
         eventsHosted: b.events_hosted || 0,
         services: b.services || [],
         faqs: b.faqs || [],
+        portfolioEvents: b.portfolio_events || b.views_by_date?.[BUSINESS_PORTFOLIO_EVENTS_KEY] || [],
         status: b.status || 'created',
         shortId: b.short_id,
         vendorCode: b.vendor_code,
         announcements: b.announcements || [],
         createdAt: b.created_at,
         profileViews: b.profile_views || 0,
-        viewsByDate: b.views_by_date || {},
+        viewsByDate,
         shortlistCount: b.shortlist_count || 0
     };
+}
+
+function sanitizeBusinessViewsByDate(value: any): Record<string, number> {
+    if (!value || typeof value !== 'object') return {};
+
+    return Object.entries(value).reduce<Record<string, number>>((acc, [key, count]) => {
+        if (key === BUSINESS_PORTFOLIO_EVENTS_KEY) return acc;
+        if (typeof count === 'number') acc[key] = count;
+        return acc;
+    }, {});
 }
 
 // --- Database Functions ---
@@ -1476,7 +1513,10 @@ export async function createBusiness(businessData: Omit<Business, 'id' | 'create
       short_id: businessData.shortId || null,
       vendor_code: vendorCode,
       announcements: businessData.announcements || [],
-      created_at: new Date().toISOString()
+      views_by_date: businessData.portfolioEvents !== undefined
+        ? { [BUSINESS_PORTFOLIO_EVENTS_KEY]: businessData.portfolioEvents }
+        : {},
+      created_at: new Date().toISOString(),
     });
 
     if (error) throw error;
@@ -1595,11 +1635,24 @@ export async function updateBusiness(bizId: string, data: Partial<Business>): Pr
     if (data.eventsHosted !== undefined) updateObj.events_hosted = data.eventsHosted;
     if (data.services !== undefined) updateObj.services = data.services;
     if (data.faqs !== undefined) updateObj.faqs = data.faqs;
+    if (data.portfolioEvents !== undefined) {
+      const { data: existingBusiness } = await supabase
+        .from('businesses')
+        .select('views_by_date')
+        .eq('id', bizId)
+        .maybeSingle();
+
+      updateObj.views_by_date = {
+        ...(existingBusiness?.views_by_date || {}),
+        [BUSINESS_PORTFOLIO_EVENTS_KEY]: data.portfolioEvents,
+      };
+    }
     if (data.status !== undefined) updateObj.status = data.status;
     if (data.shortId !== undefined) updateObj.short_id = data.shortId;
     if (data.vendorCode !== undefined) updateObj.vendor_code = data.vendorCode;
     if (data.announcements !== undefined) updateObj.announcements = data.announcements;
     if (data.profileViews !== undefined) updateObj.profile_views = data.profileViews;
+    if (data.viewsByDate !== undefined) updateObj.views_by_date = data.viewsByDate;
 
     const { error } = await supabase.from('businesses').update(updateObj).eq('id', bizId);
     if (error) throw error;

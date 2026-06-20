@@ -81,7 +81,6 @@ export default function MarketplacePage() {
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [detecting, setDetecting] = useState(false);
   const [shortlistedIds, setShortlistedIds] = useState<Set<string>>(new Set());
-  const [selectedVendor, setSelectedVendor] = useState<Business | null>(null);
 
   const fetchVendors = async () => {
     setLoading(true);
@@ -162,10 +161,13 @@ export default function MarketplacePage() {
   }, [vendors, selectedCategory, search, selectedLocation, userCoords, maxDistance, sortBy]);
 
   const featuredVendors = filteredVendors.slice(0, 3);
+  const openVendorPage = (vendorId: string) => {
+    router.push(`/marketplace/${vendorId}`);
+  };
 
   return (
-    <div className="min-h-screen bg-slate-950 pb-20 text-white">
-      <header className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 py-8 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#050505] pb-20 text-white">
+      <header className="bg-gradient-to-br from-[#101010] to-[#050505] px-4 py-8 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <button
             type="button"
@@ -175,7 +177,7 @@ export default function MarketplacePage() {
             <Heart className="h-5 w-5" />
           </button>
           <div className="text-center">
-            <h1 className="text-3xl font-black tracking-tight">Marketplace</h1>
+            <h1 className="text-3xl font-black tracking-tight">EB Network</h1>
             <p className="mt-1 text-sm font-bold text-slate-400">Elite Deals. Every Event.</p>
           </div>
           <button
@@ -190,8 +192,8 @@ export default function MarketplacePage() {
       </header>
 
       <main className="mx-auto max-w-7xl space-y-8 px-4 sm:px-6 lg:px-8">
-        <section className="rounded-[1.5rem] border border-slate-800 bg-slate-900/70 p-3">
-          <div className="flex items-center gap-3 rounded-[1.25rem] border border-slate-800 bg-slate-950 px-4 py-4">
+        <section className="rounded-[1.5rem] border border-[#1f2937] bg-[#101010] p-3">
+          <div className="flex items-center gap-3 rounded-[1.25rem] border border-[#1f2937] bg-[#050505] px-4 py-4">
             <Search className="h-5 w-5 text-slate-500" />
             <input
               value={search}
@@ -213,7 +215,7 @@ export default function MarketplacePage() {
                 className={`shrink-0 rounded-2xl border px-4 py-3 text-sm font-black transition-colors ${
                   active
                     ? "border-indigo-300 bg-indigo-300 text-slate-950"
-                    : "border-slate-800 bg-slate-900 text-slate-300 hover:border-indigo-400/50"
+                    : "border-[#1f2937] bg-[#101010] text-slate-400 hover:border-indigo-400/50"
                 }`}
               >
                 {category.name}
@@ -237,7 +239,7 @@ export default function MarketplacePage() {
             <p className="mt-2 max-w-lg font-semibold leading-7 text-indigo-100">
               Reach thousands of event organizers and grow your brand today.
             </p>
-            <div className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white">
+            <div className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-[#1e1b4b] px-5 py-3 text-sm font-black text-white">
               <span>Get Started</span>
               <ArrowRight className="h-4 w-4" />
             </div>
@@ -253,7 +255,7 @@ export default function MarketplacePage() {
             {featuredVendors.length > 0 && (
               <section className="space-y-5">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-black">Featured Vendors</h2>
+                  <h2 className="text-2xl font-black text-white">Featured Vendors</h2>
                   <button type="button" onClick={() => setSelectedCategory("All")} className="text-sm font-black text-indigo-300">
                     View All
                   </button>
@@ -265,7 +267,7 @@ export default function MarketplacePage() {
                       vendor={vendor}
                       shortlisted={shortlistedIds.has(vendor.id)}
                       onShortlist={() => handleShortlist(vendor.id)}
-                      onOpen={() => setSelectedVendor(vendor)}
+                      onOpen={() => openVendorPage(vendor.id)}
                       featured
                     />
                   ))}
@@ -274,9 +276,9 @@ export default function MarketplacePage() {
             )}
 
             <section className="space-y-5">
-              <h2 className="text-2xl font-black">{selectedCategory === "All" ? "Explore All" : `Best ${selectedCategory}`}</h2>
+              <h2 className="text-2xl font-black text-white">{selectedCategory === "All" ? "Explore All" : `Best ${selectedCategory}`}</h2>
               {filteredVendors.length === 0 ? (
-                <div className="rounded-[2rem] border border-dashed border-slate-800 p-12 text-center">
+                <div className="rounded-[2rem] border border-dashed border-[#1f2937] p-12 text-center">
                   <Search className="mx-auto mb-4 h-10 w-10 text-slate-600" />
                   <p className="text-lg font-black">No vendors found</p>
                   <p className="mt-2 text-sm font-semibold text-slate-400">Try changing the category, location, or search text.</p>
@@ -289,7 +291,7 @@ export default function MarketplacePage() {
                       vendor={vendor}
                       shortlisted={shortlistedIds.has(vendor.id)}
                       onShortlist={() => handleShortlist(vendor.id)}
-                      onOpen={() => setSelectedVendor(vendor)}
+                      onOpen={() => openVendorPage(vendor.id)}
                     />
                   ))}
                 </div>
@@ -301,11 +303,11 @@ export default function MarketplacePage() {
 
       <AnimatePresence>
         {showFilterModal && (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="w-full max-w-2xl rounded-[2rem] border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="w-full max-w-2xl rounded-[2rem] border border-[#1f2937] bg-[#101010] p-6 shadow-2xl">
               <div className="mb-6 flex items-center justify-between">
-                <h3 className="text-2xl font-black">Sort & Filter</h3>
-                <button type="button" onClick={() => setShowFilterModal(false)} className="rounded-full bg-slate-800 p-2 text-slate-400">
+                <h3 className="text-2xl font-black text-white">Sort & Filter</h3>
+                <button type="button" onClick={() => setShowFilterModal(false)} className="rounded-full bg-[#050505] p-2 text-slate-400">
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -313,7 +315,7 @@ export default function MarketplacePage() {
               <div className="space-y-6">
                 <div>
                   <div className="mb-3 flex items-center justify-between">
-                    <p className="text-xs font-black uppercase tracking-widest text-slate-400">Select City</p>
+                    <p className="text-xs font-black uppercase tracking-widest text-indigo-300">Select City</p>
                     <button type="button" onClick={detectLocation} className="flex items-center gap-2 rounded-full bg-indigo-400/10 px-3 py-2 text-xs font-black text-indigo-300">
                       {detecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MapPin className="h-3.5 w-3.5" />}
                       <span>{detecting ? "Detecting..." : "Near Me"}</span>
@@ -324,13 +326,13 @@ export default function MarketplacePage() {
 
                 {selectedLocation === "Near Me" && (
                   <div>
-                    <p className="mb-3 text-xs font-black uppercase tracking-widest text-slate-400">Distance Radius</p>
+                    <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-300">Distance Radius</p>
                     <ChipGroup options={DISTANCE_OPTIONS.map(item => `${item}km`)} value={`${maxDistance}km`} onChange={(value) => setMaxDistance(Number(value.replace("km", "")))} />
                   </div>
                 )}
 
                 <div>
-                  <p className="mb-3 text-xs font-black uppercase tracking-widest text-slate-400">Sort By</p>
+                  <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-300">Sort By</p>
                   <ChipGroup options={SORT_OPTIONS} value={sortBy} onChange={setSortBy} />
                 </div>
 
@@ -343,16 +345,6 @@ export default function MarketplacePage() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {selectedVendor && (
-          <VendorDetailModal
-            vendor={selectedVendor}
-            shortlisted={shortlistedIds.has(selectedVendor.id)}
-            onClose={() => setSelectedVendor(null)}
-            onShortlist={() => handleShortlist(selectedVendor.id)}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -368,7 +360,7 @@ function ChipGroup({ options, value, onChange }: { options: string[]; value: str
           className={`rounded-full border px-4 py-2 text-sm font-black ${
             value === option
               ? "border-indigo-300 bg-indigo-300 text-slate-950"
-              : "border-slate-700 bg-slate-950 text-slate-300"
+              : "border-[#1f2937] bg-[#050505] text-slate-300"
           }`}
         >
           {option}
@@ -388,11 +380,11 @@ function VendorCard({ vendor, shortlisted, onShortlist, onOpen, featured = false
   const typeColors = getBusinessTypeColor(vendor.type);
   const image = vendor.coverImage || DEFAULT_BUSINESS_COVER;
   return (
-    <article className="overflow-hidden rounded-[1.75rem] border border-slate-800 bg-slate-900 shadow-xl shadow-black/10">
-      <div className={`${featured ? "h-56" : "h-44"} relative bg-slate-950`}>
+    <article onClick={onOpen} className="cursor-pointer overflow-hidden rounded-[1.75rem] border border-[#1f2937] bg-[#101010] shadow-xl shadow-black/10">
+      <div className={`${featured ? "h-56" : "h-44"} relative bg-[#050505]`}>
         <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35 blur-xl" />
         <img src={image} alt={vendor.name} className="relative h-full w-full object-contain" />
-        <button type="button" onClick={onShortlist} className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-slate-950/70 text-white backdrop-blur">
+        <button type="button" onClick={(event) => { event.stopPropagation(); onShortlist(); }} className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-slate-950/70 text-white backdrop-blur">
           <Heart className={`h-5 w-5 ${shortlisted ? "fill-rose-500 text-rose-500" : ""}`} />
         </button>
         <div className="absolute right-4 top-4 flex items-center gap-1 rounded-full border border-white/15 bg-slate-950/70 px-3 py-1 text-sm font-black backdrop-blur">
@@ -402,7 +394,7 @@ function VendorCard({ vendor, shortlisted, onShortlist, onOpen, featured = false
       </div>
       <div className="space-y-3 p-5">
         <div className="flex min-w-0 items-center gap-2">
-          <h3 className="truncate text-lg font-black">{vendor.name}</h3>
+          <h3 className="truncate text-lg font-black text-white">{vendor.name}</h3>
           <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-400" />
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -415,8 +407,8 @@ function VendorCard({ vendor, shortlisted, onShortlist, onOpen, featured = false
           </span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-black text-slate-300">{getExperienceLabel(vendor.experience)}</span>
-          <button type="button" onClick={onOpen} className="rounded-full bg-indigo-400 px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-950">
+          <span className="rounded-full bg-[#1f2937] px-3 py-1 text-xs font-black text-slate-300">{getExperienceLabel(vendor.experience)}</span>
+          <button type="button" onClick={(event) => { event.stopPropagation(); onOpen(); }} className="rounded-full bg-indigo-400 px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-950">
             Details
           </button>
         </div>
@@ -435,8 +427,8 @@ function VendorListCard(props: {
   const typeColors = getBusinessTypeColor(vendor.type);
   const image = vendor.coverImage || DEFAULT_BUSINESS_COVER;
   return (
-    <article className="flex flex-col overflow-hidden rounded-[1.75rem] border border-slate-800 bg-slate-900 sm:flex-row">
-      <div className="relative h-48 bg-slate-950 sm:h-auto sm:w-44">
+    <article onClick={onOpen} className="flex cursor-pointer flex-col overflow-hidden rounded-[1.75rem] border border-[#1f2937] bg-[#101010] sm:flex-row">
+      <div className="relative h-48 bg-[#050505] sm:h-auto sm:w-44">
         <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35 blur-xl" />
         <img src={image} alt={vendor.name} className="relative h-full w-full object-contain" />
       </div>
@@ -444,7 +436,7 @@ function VendorListCard(props: {
         <div>
           <div className="mb-2 flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h3 className="truncate text-xl font-black">{vendor.name}</h3>
+              <h3 className="truncate text-xl font-black text-white">{vendor.name}</h3>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="rounded-full border px-3 py-1 text-xs font-black uppercase" style={{ backgroundColor: typeColors.bg, borderColor: typeColors.border, color: typeColors.text }}>
                   {vendor.type}
@@ -452,7 +444,7 @@ function VendorListCard(props: {
                 <CheckCircle2 className="h-4 w-4 text-blue-400" />
               </div>
             </div>
-            <button type="button" onClick={onShortlist} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-white">
+            <button type="button" onClick={(event) => { event.stopPropagation(); onShortlist(); }} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#1f2937] bg-[#050505] text-white">
               <Heart className={`h-5 w-5 ${shortlisted ? "fill-rose-500 text-rose-500" : ""}`} />
             </button>
           </div>
@@ -462,7 +454,7 @@ function VendorListCard(props: {
             <span className="flex items-center gap-1"><Star className="h-4 w-4 fill-amber-300 text-amber-300" />{vendor.rating || 0}</span>
           </div>
         </div>
-        <button type="button" onClick={onOpen} className="flex w-fit items-center gap-2 rounded-full border border-indigo-400/30 px-4 py-2 text-xs font-black uppercase tracking-widest text-indigo-300">
+        <button type="button" onClick={(event) => { event.stopPropagation(); onOpen(); }} className="flex w-fit items-center gap-2 rounded-full border border-indigo-400/30 px-4 py-2 text-xs font-black uppercase tracking-widest text-indigo-300">
           <span>View Details</span>
           <ArrowRight className="h-4 w-4" />
         </button>
@@ -477,12 +469,13 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
   onClose: () => void;
   onShortlist: () => void;
 }) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("About");
   const typeColors = getBusinessTypeColor(vendor.type);
   const galleryImages = vendor.coverImages && vendor.coverImages.length > 0 ? vendor.coverImages : [vendor.coverImage || DEFAULT_BUSINESS_COVER];
 
   const handleShare = async () => {
-    const text = `Check out ${vendor.name} on EveBash Marketplace`;
+    const text = `Check out ${vendor.name} on EB Network`;
     if (navigator.share) {
       await navigator.share({ title: vendor.name, text });
     } else {
@@ -491,9 +484,9 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
   };
 
   return (
-    <div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-950/80 p-4 backdrop-blur-sm">
-      <motion.div initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.96 }} className="mx-auto max-w-4xl overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-900 shadow-2xl">
-        <div className="relative h-80 bg-slate-950">
+    <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/80 p-4 backdrop-blur-sm">
+      <motion.div initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.96 }} className="mx-auto max-w-4xl overflow-hidden rounded-[2rem] border border-[#1f2937] bg-[#101010] shadow-2xl">
+        <div className="relative h-80 bg-[#050505]">
           <img src={galleryImages[0]} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35 blur-xl" />
           <img src={galleryImages[0]} alt={vendor.name} className="relative h-full w-full object-contain" />
           <div className="absolute left-5 right-5 top-5 flex justify-between">
@@ -513,7 +506,7 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
 
         <div className="space-y-6 p-6">
           <div>
-            <h2 className="text-3xl font-black">{vendor.name}</h2>
+            <h2 className="text-3xl font-black text-white">{vendor.name}</h2>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="rounded-full border px-3 py-1 text-xs font-black uppercase" style={{ backgroundColor: typeColors.bg, borderColor: typeColors.border, color: typeColors.text }}>
                 {vendor.type}
@@ -540,7 +533,7 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
             <Highlight title="Shortlists" value={`${vendor.shortlistCount || 0}`} />
           </div>
 
-          <div className="flex overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950 p-1">
+          <div className="flex overflow-x-auto rounded-2xl border border-[#1f2937] bg-[#050505] p-1">
             {["About", "Portfolio", "Announcements", "Reviews"].map((tab) => (
               <button key={tab} type="button" onClick={() => setActiveTab(tab)} className={`min-w-0 flex-1 rounded-xl px-4 py-3 text-sm font-black ${activeTab === tab ? "bg-indigo-400 text-slate-950" : "text-slate-400"}`}>
                 {tab}
@@ -551,14 +544,14 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
           {activeTab === "About" && (
             <div className="space-y-5">
               <section>
-                <h3 className="mb-2 text-xl font-black">About</h3>
+                <h3 className="mb-2 text-xl font-black text-white">About</h3>
                 <p className="leading-7 text-slate-300">
                   {vendor.description || `Experience the exceptional services of ${vendor.name}. With a focus on quality and client satisfaction, they bring your vision to life with professional expertise in ${vendor.type.toLowerCase()}.`}
                 </p>
               </section>
               {vendor.services && vendor.services.length > 0 && (
                 <section>
-                  <h3 className="mb-3 text-xl font-black">Services Offered</h3>
+                  <h3 className="mb-3 text-xl font-black text-white">Services Offered</h3>
                   <div className="flex flex-wrap gap-2">
                     {vendor.services.map((service) => (
                       <span key={service} className="rounded-full bg-indigo-400/10 px-3 py-1 text-sm font-bold text-indigo-200">{service}</span>
@@ -572,24 +565,51 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
           {activeTab === "Portfolio" && (
             <section>
               <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-xl font-black">Gallery</h3>
-                <span className="text-sm font-black text-indigo-300">{galleryImages.length} Photos</span>
+                <h3 className="text-xl font-black text-white">Portfolio</h3>
+                <span className="text-sm font-black text-indigo-300">{vendor.portfolioEvents?.length || 0} Events</span>
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {galleryImages.map((image, index) => (
-                  <img key={`${image}-${index}`} src={image} alt="" className={`h-44 w-full rounded-2xl object-cover ${index === 0 ? "sm:col-span-2 sm:h-60" : ""}`} />
-                ))}
-              </div>
+              {vendor.portfolioEvents && vendor.portfolioEvents.length > 0 ? (
+                <div className="space-y-5">
+                  {vendor.portfolioEvents.map((portfolio) => (
+                    <button
+                      key={portfolio.id}
+                      type="button"
+                      onClick={() => router.push(`/marketplace/${vendor.id}/portfolio/${portfolio.id}?returnTo=${encodeURIComponent("/marketplace")}`)}
+                      className="block w-full overflow-hidden rounded-[1.5rem] border border-[#1f2937] bg-[#050505] text-left"
+                    >
+                      <div className="relative h-56 bg-black">
+                        <img src={portfolio.coverImage || DEFAULT_BUSINESS_COVER} alt={portfolio.name} className="h-full w-full object-cover" />
+                        <div className="absolute left-4 top-4 rounded-lg border border-amber-300/30 bg-black/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-amber-300">
+                          {portfolio.type}
+                        </div>
+                        <div className="absolute bottom-0 left-0 right-0 bg-black p-4">
+                          <h4 className="truncate text-lg font-bold" style={{ color: "#ffffff" }}>{portfolio.name}</h4>
+                          <p className="mt-2 flex items-center gap-2 text-xs font-bold text-[#94a3b8]">
+                            <Calendar className="h-3.5 w-3.5 text-[#facc15]" />
+                            {new Date(portfolio.date).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between px-4 py-3 text-sm font-bold text-slate-400">
+                        <span>{portfolio.media?.length || 0} images</span>
+                        <span className="text-indigo-300">Open gallery</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <EmptyDetail title="No portfolio events yet" />
+              )}
             </section>
           )}
 
           {activeTab === "Announcements" && (
             <section>
-              <h3 className="mb-4 text-xl font-black">Announcements ({vendor.announcements?.length || 0})</h3>
+                <h3 className="mb-4 text-xl font-black text-white">Announcements ({vendor.announcements?.length || 0})</h3>
               {vendor.announcements && vendor.announcements.length > 0 ? (
                 <div className="space-y-3">
                   {vendor.announcements.map((announcement, index) => (
-                    <div key={`${announcement}-${index}`} className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+                    <div key={`${announcement}-${index}`} className="rounded-2xl border border-[#1f2937] bg-[#050505] p-4">
                       <p className="text-sm font-bold text-slate-300">{announcement}</p>
                     </div>
                   ))}
@@ -602,13 +622,13 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
 
           {activeTab === "Reviews" && (
             <section>
-              <h3 className="mb-4 text-xl font-black">What Clients Say</h3>
+              <h3 className="mb-4 text-xl font-black text-white">What Clients Say</h3>
               <EmptyDetail title="Reviews are not available on web yet" />
             </section>
           )}
 
-          <div className="sticky bottom-0 -mx-6 -mb-6 grid gap-3 border-t border-slate-800 bg-slate-900/95 p-6 sm:grid-cols-2">
-            <a href={`tel:${vendor.ownerPhone}`} className="flex items-center justify-center gap-2 rounded-2xl border border-slate-700 px-5 py-4 font-black text-white">
+          <div className="sticky bottom-0 -mx-6 -mb-6 grid gap-3 border-t border-[#1f2937] bg-[#101010]/95 p-6 sm:grid-cols-2">
+            <a href={`tel:${vendor.ownerPhone}`} className="flex items-center justify-center gap-2 rounded-2xl border border-[#1f2937] px-5 py-4 font-black text-white">
               <Phone className="h-5 w-5" />
               <span>Call Directly</span>
             </a>
@@ -625,7 +645,7 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
 
 function Highlight({ title, value }: { title: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+    <div className="rounded-2xl border border-[#1f2937] bg-[#050505] p-4">
       <p className="text-xs font-black uppercase tracking-widest text-slate-500">{title}</p>
       <p className="mt-1 text-lg font-black">{value}</p>
     </div>
@@ -634,7 +654,7 @@ function Highlight({ title, value }: { title: string; value: string }) {
 
 function EmptyDetail({ title }: { title: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-800 p-8 text-center text-slate-400">
+    <div className="rounded-2xl border border-dashed border-[#1f2937] p-8 text-center text-slate-400">
       <p className="font-black text-white">{title}</p>
     </div>
   );

@@ -8,6 +8,7 @@ import { ArrowLeft } from "lucide-react";
 import React from "react";
 
 import { getWebTemplateComponent } from "@/components/templateRegistry";
+import { getWebLightboxTheme } from "@/lib/webTemplateTheme";
 
 export default async function SubEventPage({ params }: { params: Promise<{ slug: string; eventId: string }> }) {
     const { slug, eventId } = await params;
@@ -51,7 +52,11 @@ export default async function SubEventPage({ params }: { params: Promise<{ slug:
             <SectionHeader title="Gallery" subtitle={`${photos.length} Photos`} />
 
             {photos.length > 0 ? (
-                <MasonryGrid photos={photos} eventSlug={slug} />
+                <MasonryGrid
+                    photos={photos}
+                    eventSlug={slug}
+                    lightboxTheme={getWebLightboxTheme(templateId)}
+                />
             ) : (
                 <div className="text-center py-20 bg-black/5 rounded-2xl mx-4 border border-dashed border-black/20">
                     <p className="text-stone-700 mb-2 font-serif italic text-xl">No photos found in database.</p>

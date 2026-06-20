@@ -1,6 +1,6 @@
 import { useAppTheme } from '@/context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -22,10 +22,12 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { getBusinessById, updateBusiness, Business, addBusinessActivity, getEnquiriesForBusiness, Enquiry, getPublishedBusinesses } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
 import * as Location from 'expo-location';
+import { uploadEventImage } from '@/lib/storage';
+import { DEFAULT_EVENT_COVER_IMAGE } from '@/lib/eventCovers';
 
 const { width } = Dimensions.get('window');
 
@@ -42,13 +44,28 @@ const BUSINESS_TYPES = [
   'Music & DJ', 'Photography', 'Security', 'Staff', 'Travel',
   'Trophies', 'Venue', 'Videography'
 ];
+const PORTFOLIO_EVENT_TYPE_OPTIONS = [
+  { name: 'Wedding', icon: 'heart.fill' },
+  { name: 'Birthday', icon: 'gift.fill' },
+  { name: 'Corporate', icon: 'briefcase.fill' },
+  { name: 'Sports', icon: 'figure.run' },
+  { name: 'Other', icon: 'ellipsis.circle.fill' },
+] as const;
+const PORTFOLIO_SORT_OPTIONS = [
+  { value: 'name-asc', label: 'Name A-Z' },
+  { value: 'name-desc', label: 'Name Z-A' },
+  { value: 'date-desc', label: 'Newest Date' },
+  { value: 'date-asc', label: 'Oldest Date' },
+  { value: 'type-asc', label: 'Type A-Z' },
+] as const;
+type PortfolioSortValue = typeof PORTFOLIO_SORT_OPTIONS[number]['value'];
 
 export default function ManageBusinessScreen() {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const styles = getStyles(colors, isDark, insets);
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const { id, tab } = useLocalSearchParams();
   const { user } = useAuth();
   
   const isMountedRef = React.useRef(false);
@@ -83,8 +100,17 @@ export default function ManageBusinessScreen() {
   const [newNewsItem, setNewNewsItem] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [coverImages, setCoverImages] = useState<string[]>([]);
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [timeRange, setTimeRange] = useState('1 Month');
+  const [portfolioEvents, setPortfolioEvents] = useState<Business['portfolioEvents']>([]);
+  const [showPortfolioModal, setShowPortfolioModal] = useState(false);
+  const [portfolioName, setPortfolioName] = useState('');
+  const [portfolioType, setPortfolioType] = useState<string>(PORTFOLIO_EVENT_TYPE_OPTIONS[0].name);
+  const [portfolioDate, setPortfolioDate] = useState<Date>(new Date());
+  const [portfolioCoverImage, setPortfolioCoverImage] = useState('');
+  const [showPortfolioDatePicker, setShowPortfolioDatePicker] = useState(false);
+  const [editingPortfolioId, setEditingPortfolioId] = useState<string | null>(null);
+  const [portfolioSort, setPortfolioSort] = useState<PortfolioSortValue>('date-desc');
+  const [showPortfolioSortModal, setShowPortfolioSortModal] = useState(false);
 
   // Enquiries State
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
@@ -98,6 +124,32 @@ export default function ManageBusinessScreen() {
   const [locality, setLocality] = useState<string | null>(null);
 
   const TIME_RANGES = ['1 Week', '1 Month', '3 Month', '6 Month', '1 Year', '3 Year', 'Overall'];
+  const BUSINESS_TABS = ['Profile', 'Portfolio', 'Interactions', 'Analytics'];
+  const sortedPortfolioEvents = useMemo(() => {
+    const parseDate = (value?: string) => {
+      const time = value ? new Date(value).getTime() : 0;
+      return Number.isNaN(time) ? 0 : time;
+    };
+
+    return [...(portfolioEvents || [])].sort((a, b) => {
+      if (portfolioSort === 'name-asc') return (a.name || '').localeCompare(b.name || '');
+      if (portfolioSort === 'name-desc') return (b.name || '').localeCompare(a.name || '');
+      if (portfolioSort === 'date-asc') return parseDate(a.date) - parseDate(b.date);
+      if (portfolioSort === 'type-asc') {
+        const typeSort = (a.type || '').localeCompare(b.type || '');
+        return typeSort || (a.name || '').localeCompare(b.name || '');
+      }
+      return parseDate(b.date) - parseDate(a.date);
+    });
+  }, [portfolioEvents, portfolioSort]);
+
+  const selectTab = (nextTab: string) => {
+    setActiveTab(nextTab);
+    if (id) {
+      const bizId = Array.isArray(id) ? id[0] : id;
+      router.setParams({ id: bizId, tab: nextTab } as any);
+    }
+  };
 
   useEffect(() => {
     if (id && user) {
@@ -106,6 +158,12 @@ export default function ManageBusinessScreen() {
       fetchEnquiries(bizId);
     }
   }, [id, user]);
+
+  useEffect(() => {
+    const requestedTab = Array.isArray(tab) ? tab[0] : tab;
+    const matchedTab = ['Profile', 'Portfolio', 'Interactions', 'Analytics'].find((item) => item.toLowerCase() === requestedTab?.toLowerCase());
+    if (matchedTab) setActiveTab(matchedTab);
+  }, [tab]);
 
   useEffect(() => {
     if (business && business.id) {
@@ -308,7 +366,10 @@ export default function ManageBusinessScreen() {
     setFaqs(biz.faqs || []);
     setStatus(biz.status || 'created');
     setNews(biz.announcements || []);
-    setCoverImages(biz.coverImages || (biz.coverImage ? [biz.coverImage] : []));
+    setCoverImages((biz.coverImages && biz.coverImages.length > 0 ? biz.coverImages : (biz.coverImage ? [biz.coverImage] : [])).slice(0, 1));
+    setPortfolioEvents(biz.portfolioEvents || []);
+    setEditingPortfolioId(null);
+    setShowPortfolioDatePicker(false);
   };
 
   const addNewsItem = () => {
@@ -336,22 +397,181 @@ export default function ManageBusinessScreen() {
     });
 
     if (!result.canceled) {
-      if (coverImages.length < 3) {
-        setCoverImages([...coverImages, result.assets[0].uri]);
-      } else {
-        const updated = [...coverImages];
-        updated[activeImageIndex] = result.assets[0].uri;
-        setCoverImages(updated);
-      }
+      setCoverImages([result.assets[0].uri]);
     }
   };
 
-  const removeCoverImage = (index: number) => {
-    const updated = coverImages.filter((_, i) => i !== index);
-    setCoverImages(updated);
-    if (activeImageIndex >= updated.length) {
-      setActiveImageIndex(Math.max(0, updated.length - 1));
+  const uploadLocalCoverImages = async (bizId: string) => {
+    const uploaded: string[] = [];
+    const coversToUpload = coverImages.filter(Boolean).slice(0, 1);
+
+    for (let index = 0; index < coversToUpload.length; index += 1) {
+      const uri = coversToUpload[index];
+      if (!uri || /^https?:\/\//i.test(uri)) {
+        if (uri) uploaded.push(uri);
+        continue;
+      }
+
+      const upload = await uploadEventImage(
+        {
+          uri,
+          name: `business-cover-${Date.now()}-${index}.jpg`,
+          type: 'image/jpeg',
+        },
+        `business-${bizId}`,
+        user?.uid || 'anon'
+      );
+      uploaded.push(upload.url);
     }
+
+    return uploaded;
+  };
+
+  const removeCoverImage = () => {
+    setCoverImages([]);
+  };
+
+  const resetPortfolioForm = () => {
+    setPortfolioName('');
+    setPortfolioType(PORTFOLIO_EVENT_TYPE_OPTIONS[0].name);
+    setPortfolioDate(new Date());
+    setPortfolioCoverImage('');
+    setShowPortfolioDatePicker(false);
+    setEditingPortfolioId(null);
+  };
+
+  const parsePortfolioDate = (value?: string) => {
+    if (!value) return new Date();
+    const parsed = /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? new Date(value.replace(/-/g, '/'))
+      : new Date(value);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+
+  const openCreatePortfolioModal = () => {
+    resetPortfolioForm();
+    setShowPortfolioModal(true);
+  };
+
+  const openEditPortfolioModal = (portfolio: NonNullable<Business['portfolioEvents']>[number]) => {
+    setEditingPortfolioId(portfolio.id);
+    setPortfolioName(portfolio.name || '');
+    setPortfolioType(portfolio.type || PORTFOLIO_EVENT_TYPE_OPTIONS[0].name);
+    setPortfolioDate(parsePortfolioDate(portfolio.date));
+    setPortfolioCoverImage(portfolio.coverImage || '');
+    setShowPortfolioDatePicker(false);
+    setShowPortfolioModal(true);
+  };
+
+  const closePortfolioModal = () => {
+    setShowPortfolioModal(false);
+    resetPortfolioForm();
+  };
+
+  const pickPortfolioCoverImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setPortfolioCoverImage(result.assets[0].uri);
+    }
+  };
+
+  const uploadPortfolioCoverImage = async (bizId: string, portfolioId: string) => {
+    if (!portfolioCoverImage) {
+      return DEFAULT_EVENT_COVER_IMAGE;
+    }
+
+    if (/^https?:\/\//i.test(portfolioCoverImage)) {
+      return portfolioCoverImage;
+    }
+
+    const upload = await uploadEventImage(
+      {
+        uri: portfolioCoverImage,
+        name: `portfolio-cover-${portfolioId}-${Date.now()}.jpg`,
+        type: 'image/jpeg',
+      },
+      `business-${bizId}`,
+      user?.uid || 'anon'
+    );
+
+    return upload.url;
+  };
+
+  const savePortfolio = async () => {
+    const bizId = Array.isArray(id) ? id[0] : id;
+    if (!bizId || !business) return;
+    if (!portfolioName.trim() || !portfolioType || !portfolioDate) {
+      Alert.alert('Missing Info', 'Please enter portfolio event name, type, and date.');
+      return;
+    }
+
+    setIsUpdating(true);
+    const portfolioId = editingPortfolioId || `portfolio_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    let savedPortfolioCover = portfolioCoverImage || DEFAULT_EVENT_COVER_IMAGE;
+    try {
+      savedPortfolioCover = await uploadPortfolioCoverImage(bizId, portfolioId);
+    } catch (error) {
+      setIsUpdating(false);
+      console.error('Portfolio cover upload failed:', error);
+      Alert.alert('Error', 'Could not upload portfolio cover. Please try again.');
+      return;
+    }
+
+    const portfolioPayload = editingPortfolioId
+      ? {
+          ...(portfolioEvents || []).find((portfolio) => portfolio.id === editingPortfolioId),
+          id: portfolioId,
+          name: portfolioName.trim(),
+          type: portfolioType,
+          date: portfolioDate.toISOString().slice(0, 10),
+          coverImage: savedPortfolioCover,
+          updatedAt: new Date().toISOString(),
+        }
+      : {
+        id: portfolioId,
+        name: portfolioName.trim(),
+        type: portfolioType,
+        date: portfolioDate.toISOString().slice(0, 10),
+        coverImage: savedPortfolioCover,
+        media: [],
+        templateId: 'hero',
+        createdAt: new Date().toISOString(),
+      };
+
+    const nextPortfolioEvents = editingPortfolioId
+      ? (portfolioEvents || []).map((portfolio) => portfolio.id === editingPortfolioId ? portfolioPayload : portfolio)
+      : [...(portfolioEvents || []), portfolioPayload];
+
+    const success = await updateBusiness(bizId, { portfolioEvents: nextPortfolioEvents });
+    setIsUpdating(false);
+
+    if (!success) {
+      Alert.alert('Error', `Could not ${editingPortfolioId ? 'update' : 'create'} portfolio. Please try again.`);
+      return;
+    }
+
+    setPortfolioEvents(nextPortfolioEvents);
+    setBusiness({ ...business, portfolioEvents: nextPortfolioEvents });
+    const wasEditing = Boolean(editingPortfolioId);
+    closePortfolioModal();
+    Alert.alert('Success', wasEditing ? 'Portfolio updated successfully.' : 'Portfolio created successfully.');
+  };
+
+  const handlePortfolioDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS !== 'ios') {
+      setShowPortfolioDatePicker(false);
+    }
+
+    if (event.type === 'dismissed') return;
+    if (!selectedDate) return;
+
+    setPortfolioDate(selectedDate);
   };
 
   const handleSave = async () => {
@@ -360,6 +580,7 @@ export default function ManageBusinessScreen() {
     
     setIsUpdating(true);
     try {
+      const savedCoverImages = await uploadLocalCoverImages(bizId);
       // Auto-capture any typed announcement that wasn't explicitly added using the + button
       let finalNews = [...news];
       if (newNewsItem.trim()) {
@@ -376,8 +597,9 @@ export default function ManageBusinessScreen() {
         services: services,
         faqs: faqs,
         announcements: finalNews,
-        coverImages: coverImages,
-        coverImage: coverImages[0] || '', // Fallback for single image field
+        coverImages: savedCoverImages,
+        coverImage: savedCoverImages[0] || '', // Fallback for single image field
+        portfolioEvents: portfolioEvents || [],
       };
       
       const success = await updateBusiness(bizId, updatedData);
@@ -393,7 +615,7 @@ export default function ManageBusinessScreen() {
               await addBusinessActivity({
                 businessId: bizId,
                 businessName: businessName,
-                businessCover: coverImages[0] || '',
+                businessCover: savedCoverImages[0] || '',
                 businessType: category,
                 createdBy: business.createdBy,
                 activityType: 'announcement',
@@ -409,7 +631,7 @@ export default function ManageBusinessScreen() {
               await addBusinessActivity({
                 businessId: bizId,
                 businessName: businessName,
-                businessCover: coverImages[0] || '',
+                businessCover: savedCoverImages[0] || '',
                 businessType: category,
                 createdBy: business.createdBy,
                 activityType: 'faq',
@@ -420,12 +642,12 @@ export default function ManageBusinessScreen() {
 
             // 3. Portfolio Photos
             const oldCovers = business.coverImages || [];
-            const newCoversList = coverImages.filter(img => img.trim() && !oldCovers.includes(img));
+            const newCoversList = savedCoverImages.filter(img => img.trim() && !oldCovers.includes(img));
             for (const imgUrl of newCoversList) {
               await addBusinessActivity({
                 businessId: bizId,
                 businessName: businessName,
-                businessCover: coverImages[0] || '',
+                businessCover: savedCoverImages[0] || '',
                 businessType: category,
                 createdBy: business.createdBy,
                 activityType: 'portfolio_photo',
@@ -697,9 +919,6 @@ export default function ManageBusinessScreen() {
     { id: '3', label: 'Shortlists', value: formatCount(business?.shortlistCount ?? 0),   icon: 'heart.fill',   color: '#ef4444' },
     { id: '4', label: 'Rating',     value: business?.rating?.toString() || '0',          icon: 'star.fill',    color: '#d4af37' },
   ];
-
-  const PORTFOLIO = business?.coverImage ? [business.coverImage] : [];
-
   if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -736,54 +955,41 @@ export default function ManageBusinessScreen() {
         </View>
 
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={styles.headerTitle}>Manage Hub</Text>
+          <Text style={styles.headerTitle}>Manage Business</Text>
           <Text style={styles.headerSubtitle} numberOfLines={1} ellipsizeMode="tail">
             {business?.name || "Manage Empire"}
           </Text>
         </View>
 
         <View style={styles.headerRight}>
-          {isEditing ? (
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isUpdating}>
-              {isUpdating ? (
-                <ActivityIndicator size="small" color="#101010" />
-              ) : (
-                <Text style={styles.saveBtnText}>Save</Text>
-              )}
+          {!isEditing && activeTab === 'Portfolio' ? (
+            <TouchableOpacity style={styles.compactEditBtn} onPress={pickImage}>
+              <IconSymbol name="plus" size={12} color="#101010" />
+              <Text style={styles.compactEditBtnText}>Add</Text>
             </TouchableOpacity>
-          ) : (
-            <>
-              {activeTab === 'Portfolio' && (
-                <TouchableOpacity style={styles.compactEditBtn} onPress={pickImage}>
-                  <IconSymbol name="plus" size={12} color="#101010" />
-                  <Text style={styles.compactEditBtnText}>Add</Text>
-                </TouchableOpacity>
-              )}
-              {activeTab !== 'Enquiries' && activeTab !== 'Portfolio' && (
-                <TouchableOpacity 
-                  style={styles.compactEditBtn} 
-                  onPress={() => {
-                    if (id) {
-                      const bizId = Array.isArray(id) ? id[0] : id;
-                      router.push({ pathname: '/business-enquiries', params: { id: bizId } });
-                    }
-                  }}
-                >
-                  <Text style={styles.compactEditBtnText}>Enquiries</Text>
-                </TouchableOpacity>
-              )}
-            </>
-          )}
+          ) : !isEditing && activeTab !== 'Enquiries' && activeTab !== 'Portfolio' ? (
+            <TouchableOpacity
+              style={styles.compactEditBtn}
+              onPress={() => {
+                if (id) {
+                  const bizId = Array.isArray(id) ? id[0] : id;
+                  router.push({ pathname: '/business-enquiries', params: { id: bizId } });
+                }
+              }}
+            >
+              <Text style={styles.compactEditBtnText}>Enquiries</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.tabs}>
-          {['Profile', 'Portfolio', 'Interactions', 'Analytics'].map((tab) => (
+          {BUSINESS_TABS.map((tab) => (
             <TouchableOpacity
               key={tab}
               onPress={() => {
-                setActiveTab(tab);
+                selectTab(tab);
                 if (tab === 'Enquiries' && id) {
                   const bizId = Array.isArray(id) ? id[0] : id;
                   fetchEnquiries(bizId);
@@ -799,85 +1005,61 @@ export default function ManageBusinessScreen() {
 
         {activeTab === 'Profile' && (
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.tabContent}>
-            {/* ── COVER CAROUSEL SECTION ── */}
             <View style={styles.inputGroup}>
               <View style={styles.sectionHeaderRow}>
                 <Text style={styles.inputLabel}>Manage Business Profile</Text>
-                {!isEditing ? (
-                  <TouchableOpacity style={styles.editBtnSmall} onPress={() => setIsEditing(true)}>
-                    <IconSymbol name="pencil" size={14} color="#101010" />
-                    <Text style={styles.editBtnSmallText}>Edit</Text>
-                  </TouchableOpacity>
-                ) : (
-                  coverImages.length < 3 && (
-                    <TouchableOpacity onPress={pickImage} style={styles.addSmallBtn}>
-                      <IconSymbol name="plus.circle.fill" size={20} color={INDIGO_LIGHT} />
-                      <Text style={styles.addSmallBtnText}>Add Photo</Text>
-                    </TouchableOpacity>
-                  )
-                )}
               </View>
               
               <View style={styles.coverPreviewContainer}>
-                {coverImages.length > 0 ? (
+                {coverImages[0] ? (
                   <View style={{ flex: 1 }}>
-                    <ScrollView 
-                      horizontal 
-                      pagingEnabled 
-                      showsHorizontalScrollIndicator={false}
-                      onScroll={(e) => {
-                        const contentOffset = e.nativeEvent.contentOffset.x;
-                        const viewSize = e.nativeEvent.layoutMeasurement.width;
-                        const index = Math.floor(contentOffset / viewSize);
-                        if (index !== activeImageIndex) setActiveImageIndex(index);
-                      }}
-                      scrollEventThrottle={16}
-                    >
-                      {coverImages.map((uri, idx) => (
-                        <View key={idx} style={{ width: width - 40, height: 180 }}>
-                          <ExpoImage source={{ uri }} style={styles.coverPreview} contentFit="cover" />
-                          {isEditing && (
-                            <View style={styles.imageActionOverlay}>
-                              <TouchableOpacity 
-                                style={styles.imageActionBtn} 
-                                onPress={() => removeCoverImage(idx)}
-                              >
-                                <IconSymbol name="trash.fill" size={16} color="#ef4444" />
-                              </TouchableOpacity>
-                              <TouchableOpacity 
-                                style={[styles.imageActionBtn, { backgroundColor: INDIGO }]} 
-                                onPress={pickImage}
-                              >
-                                <IconSymbol name="pencil" size={16} color="#ffffff" />
-                              </TouchableOpacity>
-                            </View>
-                          )}
-                        </View>
-                      ))}
-                    </ScrollView>
-                    
-                    {coverImages.length > 1 && (
-                      <View style={styles.paginationDots}>
-                        {coverImages.map((_, i) => (
-                          <View 
-                            key={i} 
-                            style={[
-                              styles.dot, 
-                              i === activeImageIndex && styles.activeDot
-                            ]} 
-                          />
-                        ))}
-                      </View>
-                    )}
+                    <ExpoImage source={{ uri: coverImages[0] }} style={styles.coverPreview} contentFit="cover" />
+                    <View style={styles.imageActionOverlay}>
+                      {isEditing && (
+                        <TouchableOpacity style={styles.imageActionBtn} onPress={removeCoverImage}>
+                          <IconSymbol name="trash.fill" size={16} color="#ef4444" />
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity
+                        style={[styles.imageActionBtn, { backgroundColor: INDIGO }]}
+                        onPress={() => {
+                          setIsEditing(true);
+                          pickImage();
+                        }}
+                      >
+                        <IconSymbol name="pencil" size={16} color="#ffffff" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ) : (
-                  <TouchableOpacity style={styles.emptyCoverPlaceholder} onPress={pickImage}>
+                  <TouchableOpacity
+                    style={styles.emptyCoverPlaceholder}
+                    onPress={() => {
+                      setIsEditing(true);
+                      pickImage();
+                    }}
+                  >
                     <IconSymbol name="photo.on.rectangle.angled" size={40} color="#334155" />
-                    <Text style={styles.emptyCoverText}>No cover photos added</Text>
+                    <View style={[styles.imageActionBtn, styles.emptyCoverEditBtn, { backgroundColor: INDIGO }]}>
+                      <IconSymbol name="pencil" size={16} color="#ffffff" />
+                    </View>
+                    <Text style={styles.emptyCoverText}>No cover photo added</Text>
                   </TouchableOpacity>
                 )}
               </View>
-              <Text style={styles.inputHint}>Owners can add up to 3 cover photos. Swipe to see how they look.</Text>
+              {isEditing && (
+                <TouchableOpacity
+                  style={[styles.saveBtn, { marginTop: 14, paddingVertical: 14, width: '100%' }]}
+                  onPress={handleSave}
+                  disabled={isUpdating}
+                >
+                  {isUpdating ? (
+                    <ActivityIndicator size="small" color="#101010" />
+                  ) : (
+                    <Text style={[styles.saveBtnText, { fontSize: 15 }]}>Save Changes</Text>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
 
             <View style={styles.inputGroup}>
@@ -1153,7 +1335,7 @@ export default function ManageBusinessScreen() {
                 >
                   <IconSymbol name={status === 'published' ? 'eye.slash.fill' : 'eye.fill'} size={16} color="#ffffff" />
                   <Text style={[styles.promotionBtnText, { color: '#ffffff' }]}>
-                    {isUpdating ? 'Updating...' : status === 'published' ? 'Unpublish Listing' : 'Publish to Marketplace'}
+                    {isUpdating ? 'Updating...' : status === 'published' ? 'Unpublish Listing' : 'Publish to EB Network'}
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -1166,24 +1348,71 @@ export default function ManageBusinessScreen() {
         {/* ── PORTFOLIO & ANALYTICS ── */}
         {activeTab === 'Portfolio' && (
           <View style={styles.tabContent}>
-            <View style={styles.portfolioGrid}>
-              {isEditing && (
-                <TouchableOpacity style={styles.addPhotoCard}>
-                  <IconSymbol name="plus" size={32} color={INDIGO_LIGHT} />
-                  <Text style={styles.addPhotoText}>Add Photo</Text>
-                </TouchableOpacity>
-              )}
-              {PORTFOLIO.map((img, idx) => (
-                <View key={idx} style={styles.photoCard}>
-                  <ExpoImage source={{ uri: img }} style={styles.photo} contentFit="cover" />
-                  {isEditing && (
-                    <TouchableOpacity style={styles.deletePhotoBtn}>
-                      <IconSymbol name="xmark.circle.fill" size={20} color="#ef4444" />
-                    </TouchableOpacity>
-                  )}
+            <View style={[styles.inputGroup, { marginBottom: 18 }]}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.inputLabel}>Portfolio Events ({portfolioEvents?.length || 0})</Text>
+                <View style={styles.portfolioHeaderActions}>
+                  <TouchableOpacity style={styles.manageBtn} onPress={() => setShowPortfolioSortModal(true)}>
+                    <IconSymbol name={'line.3.horizontal.decrease.circle' as any} size={14} color={INDIGO_LIGHT} />
+                    <Text style={styles.manageBtnText}>
+                      {PORTFOLIO_SORT_OPTIONS.find(option => option.value === portfolioSort)?.label || 'Sort'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.manageBtn} onPress={openCreatePortfolioModal}>
+                    <IconSymbol name="plus.circle.fill" size={14} color={INDIGO_LIGHT} />
+                    <Text style={styles.manageBtnText}>Create Portfolio</Text>
+                  </TouchableOpacity>
                 </View>
-              ))}
+              </View>
+
+              <View style={styles.portfolioEventGrid}>
+                {sortedPortfolioEvents.map((portfolio) => (
+                  <TouchableOpacity
+                    key={portfolio.id}
+                    style={styles.portfolioEventCard}
+                    activeOpacity={0.9}
+                    onPress={() => {
+                      const bizId = Array.isArray(id) ? id[0] : id;
+                      router.push({
+                        pathname: '/business-portfolio/[businessId]/[portfolioId]',
+                        params: { businessId: bizId || '', portfolioId: portfolio.id, returnTo: 'manage' },
+                      } as any);
+                    }}
+                  >
+                    <View style={styles.portfolioCardImageArea}>
+                      <ExpoImage
+                        source={{ uri: portfolio.coverImage || DEFAULT_EVENT_COVER_IMAGE }}
+                        style={StyleSheet.absoluteFill}
+                        contentFit="cover"
+                        transition={400}
+                      />
+                      <LinearGradient
+                        colors={['rgba(0,0,0,0.02)', 'rgba(0,0,0,0.35)']}
+                        style={StyleSheet.absoluteFill}
+                      />
+                      {portfolio.type && (
+                        <View style={styles.portfolioTypeBadge}>
+                          <Text style={styles.portfolioTypeBadgeText}>{portfolio.type}</Text>
+                        </View>
+                      )}
+                      <View style={styles.portfolioBottomStrip}>
+                        <Text style={styles.portfolioStripTitle} numberOfLines={1}>{portfolio.name}</Text>
+                        <View style={styles.portfolioStripMeta}>
+                          <IconSymbol name="calendar" size={12} color="#facc15" />
+                          <Text style={styles.portfolioStripDate}>
+                            {new Date(portfolio.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+                {sortedPortfolioEvents.length === 0 && (
+                  <Text style={styles.emptyText}>No portfolio events created yet.</Text>
+                )}
+              </View>
             </View>
+
           </View>
         )}
 
@@ -1911,6 +2140,177 @@ export default function ManageBusinessScreen() {
           </View>
         )}
       </ScrollView>
+
+      <Modal
+        visible={showPortfolioSortModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPortfolioSortModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.sortModalCard}>
+            <View style={styles.sortModalHeader}>
+              <Text style={styles.pickerTitle}>Sort Portfolio</Text>
+              <TouchableOpacity onPress={() => setShowPortfolioSortModal(false)}>
+                <IconSymbol name="xmark.circle.fill" size={28} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.sortOptionList}>
+              {PORTFOLIO_SORT_OPTIONS.map((option) => {
+                const selected = portfolioSort === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[styles.sortOptionRow, selected && styles.sortOptionRowActive]}
+                    onPress={() => {
+                      setPortfolioSort(option.value);
+                      setShowPortfolioSortModal(false);
+                    }}
+                  >
+                    <Text style={[styles.sortOptionText, selected && styles.sortOptionTextActive]}>{option.label}</Text>
+                    {selected && <IconSymbol name="checkmark.circle.fill" size={18} color="#101010" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showPortfolioModal}
+        transparent
+        animationType="fade"
+        onRequestClose={closePortfolioModal}
+      >
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{
+              width: '100%',
+              alignItems: 'center',
+              paddingHorizontal: 20,
+            }}
+          >
+            <View style={{
+              width: '100%',
+              maxHeight: '86%',
+              backgroundColor: colors.deepSlate,
+              borderRadius: 24,
+              borderWidth: 1,
+              borderColor: colors.cardBorder,
+              overflow: 'hidden',
+            }}>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ padding: 22, paddingBottom: 28 }}
+              >
+                <View style={styles.pickerHeader}>
+                  <Text style={styles.pickerTitle}>{editingPortfolioId ? 'Edit Portfolio' : 'Create Portfolio'}</Text>
+                  <TouchableOpacity onPress={closePortfolioModal}>
+                    <IconSymbol name="xmark" size={20} color="#94a3b8" />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Cover Image</Text>
+                  <TouchableOpacity
+                    style={{ height: 190, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: colors.cardBorder, backgroundColor: colors.background }}
+                    onPress={pickPortfolioCoverImage}
+                  >
+                    {portfolioCoverImage ? (
+                      <ExpoImage source={{ uri: portfolioCoverImage }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                    ) : (
+                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                        <IconSymbol name="photo.on.rectangle.angled" size={40} color="#334155" />
+                        <Text style={styles.emptyCoverText}>Set portfolio cover</Text>
+                      </View>
+                    )}
+                    <View style={[styles.imageActionBtn, styles.emptyCoverEditBtn, { backgroundColor: INDIGO }]}>
+                      <IconSymbol name="pencil" size={16} color="#ffffff" />
+                    </View>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Event Name</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={portfolioName}
+                    onChangeText={setPortfolioName}
+                    placeholder="Enter event name"
+                    placeholderTextColor="#475569"
+                    returnKeyType="next"
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Event Type</Text>
+                  <View style={styles.eventTypeGrid}>
+                    {PORTFOLIO_EVENT_TYPE_OPTIONS.map((option) => {
+                      const selected = portfolioType === option.name;
+                      return (
+                        <TouchableOpacity
+                          key={option.name}
+                          onPress={() => setPortfolioType(option.name)}
+                          style={[styles.eventTypeOption, selected && styles.eventTypeOptionActive]}
+                        >
+                          <IconSymbol name={option.icon as any} size={16} color={selected ? '#050505' : INDIGO_LIGHT} />
+                          <Text style={[styles.eventTypeText, selected && styles.eventTypeTextActive]}>
+                            {option.name}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Event Date</Text>
+                  <TouchableOpacity
+                    style={[styles.dropdownBtn, { justifyContent: 'flex-start', gap: 10 }]}
+                    onPress={() => setShowPortfolioDatePicker(true)}
+                  >
+                    <IconSymbol name="calendar" size={16} color={INDIGO_LIGHT} />
+                    <Text style={styles.dropdownBtnText}>
+                      {portfolioDate.toLocaleDateString('en-US', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {showPortfolioDatePicker && (
+                    <DateTimePicker
+                      value={portfolioDate}
+                      mode="date"
+                      display="spinner"
+                      themeVariant={isDark ? 'dark' : 'light'}
+                      onChange={handlePortfolioDateChange}
+                    />
+                  )}
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.saveBtn, { paddingVertical: 15, width: '100%', opacity: isUpdating ? 0.7 : 1 }]}
+                  onPress={savePortfolio}
+                  disabled={isUpdating}
+                >
+                  {isUpdating ? (
+                    <ActivityIndicator color="#ffffff" />
+                  ) : (
+                    <Text style={[styles.saveBtnText, { fontSize: 15 }]}>
+                      {editingPortfolioId ? 'Update Portfolio' : 'Create Portfolio'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -2272,6 +2672,15 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+    gap: 10,
+  },
+  portfolioHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    flexWrap: 'wrap',
+    gap: 8,
+    flexShrink: 1,
   },
   addBtn: {
     flexDirection: 'row',
@@ -2290,6 +2699,47 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     borderWidth: 1,
     borderColor: colors.cardBorder,
     marginBottom: 16,
+  },
+  sortModalCard: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 28,
+    backgroundColor: colors.deepSlate,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    padding: 18,
+  },
+  sortModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  sortOptionList: {
+    gap: 10,
+  },
+  sortOptionRow: {
+    minHeight: 50,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sortOptionRowActive: {
+    backgroundColor: INDIGO_LIGHT,
+    borderColor: INDIGO_LIGHT,
+  },
+  sortOptionText: {
+    color: colors.text,
+    fontSize: 14,
+    fontFamily: 'Outfit_800ExtraBold',
+  },
+  sortOptionTextActive: {
+    color: '#101010',
   },
   faqHeader: {
     flexDirection: 'row',
@@ -2321,44 +2771,130 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     fontSize: 16,
     fontFamily: 'Outfit_800ExtraBold',
   },
-  portfolioGrid: {
+  portfolioEventGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: 12,
   },
-  addPhotoCard: {
-    width: (width - 52) / 2,
-    height: 150,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: INDIGO_BORDER,
-    borderStyle: 'dashed',
-    backgroundColor: INDIGO_BG_SUPER_LIGHT,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
+  portfolioEventCard: {
+    width: (width - 54) / 2,
+    height: 256,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#101010',
+    marginBottom: 16,
   },
-  addPhotoText: {
-    color: INDIGO_LIGHT,
-    fontSize: 14,
-    fontFamily: 'Outfit_700Bold',
-  },
-  photoCard: {
-    width: (width - 52) / 2,
-    height: 150,
-    borderRadius: 20,
+  portfolioCardImageArea: {
+    flex: 1,
+    position: 'relative',
     overflow: 'hidden',
   },
-  photo: {
-    width: '100%',
-    height: '100%',
-  },
-  deletePhotoBtn: {
+  portfolioTypeBadge: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 12,
+    left: 12,
+    top: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  portfolioTypeBadgeText: {
+    fontSize: 10,
+    color: '#facc15',
+    fontFamily: 'Outfit_800ExtraBold',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+  },
+  portfolioBottomStrip: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#000000',
+    padding: 14,
+  },
+  portfolioStripTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
+  },
+  portfolioStripMeta: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  portfolioStripDate: {
+    fontSize: 12,
+    color: colors.slate400,
+    fontFamily: 'Inter_700Bold',
+  },
+  portfolioMediaGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  portfolioMediaThumb: {
+    width: '30%',
+    aspectRatio: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  portfolioMediaRemove: {
+    position: 'absolute',
+    right: 6,
+    top: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  portfolioMediaEmpty: {
+    minHeight: 120,
+    width: '100%',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
+  eventTypeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  eventTypeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+  },
+  eventTypeOptionActive: {
+    backgroundColor: INDIGO_LIGHT,
+    borderColor: INDIGO_LIGHT,
+  },
+  eventTypeText: {
+    color: colors.white,
+    fontSize: 12,
+    fontFamily: 'Inter_700Bold',
+  },
+  eventTypeTextActive: {
+    color: '#050505',
   },
   newsCard: {
     backgroundColor: colors.deepSlate,
@@ -3122,25 +3658,6 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     width: '100%',
     height: '100%',
   },
-  paginationDots: {
-    position: 'absolute',
-    bottom: 12,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-  },
-  activeDot: {
-    backgroundColor: INDIGO,
-    width: 14,
-  },
   emptyCoverPlaceholder: {
     flex: 1,
     backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
@@ -3182,6 +3699,11 @@ const getStyles = (colors: any, isDark: boolean, insets: any) => StyleSheet.crea
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.cardBorder,
+  },
+  emptyCoverEditBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
   },
   datePickerBtn: {
     backgroundColor: colors.background,

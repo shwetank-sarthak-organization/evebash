@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRef } from "react";
 import { getWebTemplateComponent } from "@/components/templateRegistry";
 import { navigateWithModifierClick } from "@/lib/navigation";
+import { getWebLightboxTheme } from "@/lib/webTemplateTheme";
 
 function EventPageContent() {
     const params = useParams();
@@ -507,7 +508,12 @@ function EventPageContent() {
 
                     {photos.length > 0 ? (
                         <div className="mt-12">
-                            <MasonryGrid photos={photos} eventSlug={slug} disableDownload={isShared && !user} />
+                            <MasonryGrid
+                                photos={photos}
+                                eventSlug={slug}
+                                disableDownload={isShared && !user}
+                                lightboxTheme={getWebLightboxTheme(event.templateId)}
+                            />
                         </div>
                     ) : (
                         <div className="text-center py-40 opacity-40">

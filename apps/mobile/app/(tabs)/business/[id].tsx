@@ -54,8 +54,10 @@ function getFAQsForBusiness(business: Business) {
 }
 
 export default function BusinessDetailScreen() {
-  const { id } = useLocalSearchParams();
+  const { id, tab } = useLocalSearchParams();
   const businessId = Array.isArray(id) ? id[0] : id;
+  const requestedTab = Array.isArray(tab) ? tab[0] : tab;
+  const initialTab = ['About', 'Portfolio', 'Announcements', 'Reviews'].includes(requestedTab || '') ? requestedTab as string : 'About';
   const router = useRouter();
   const { user } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
@@ -66,7 +68,7 @@ export default function BusinessDetailScreen() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showContactOptions, setShowContactOptions] = useState(false);
   const [showEnquiryForm, setShowEnquiryForm] = useState(false);
-  const [activeTab, setActiveTab] = useState('About');
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [locality, setLocality] = useState<string | null>(null);
   const [hasSeenAnnouncements, setHasSeenAnnouncements] = useState(false);
   const [eventsLikedCount, setEventsLikedCount] = useState<number>(0);
@@ -89,6 +91,12 @@ export default function BusinessDetailScreen() {
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [reviewComment, setReviewComment] = useState('');
   const [expandedFaqIndex, setExpandedFaqIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (['About', 'Portfolio', 'Announcements', 'Reviews'].includes(requestedTab || '')) {
+      setActiveTab(requestedTab as string);
+    }
+  }, [requestedTab]);
 
   const handleRatingSubmit = async () => {
     if (!business || !businessId) return;
@@ -367,7 +375,7 @@ export default function BusinessDetailScreen() {
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `Check out ${business?.name} on EveBash Marketplace!`,
+        message: `Check out ${business?.name} on EB Network!`,
         url: 'https://wedalbum.com',
       });
     } catch (error) {
@@ -690,19 +698,48 @@ export default function BusinessDetailScreen() {
           {activeTab === 'Portfolio' && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Gallery</Text>
-                <Text style={styles.viewAllText}>{galleryImages.length} Photos</Text>
+                <Text style={styles.sectionTitle}>Portfolio</Text>
+                <Text style={styles.viewAllText}>{business.portfolioEvents?.length || 0} Events</Text>
               </View>
-              <View style={styles.portfolioGrid}>
-                {galleryImages.map((img, index) => (
-                  <ExpoImage
-                    key={index}
-                    source={{ uri: img }}
-                    style={[styles.portfolioItem, index === 0 && styles.portfolioItemLarge]}
-                    contentFit="cover"
-                  />
-                ))}
-              </View>
+              {business.portfolioEvents && business.portfolioEvents.length > 0 ? (
+                <View style={styles.publicPortfolioList}>
+                  {business.portfolioEvents.map((portfolio) => (
+                    <TouchableOpacity
+                      key={portfolio.id}
+                      style={styles.publicPortfolioCard}
+                      activeOpacity={0.9}
+                      onPress={() => router.push({
+                        pathname: '/business-portfolio/[businessId]/[portfolioId]',
+                        params: { businessId: business.id, portfolioId: portfolio.id, returnTo: 'public' },
+                      } as any)}
+                    >
+                      <View style={styles.publicPortfolioCover}>
+                        <ExpoImage
+                          source={{ uri: portfolio.coverImage || galleryImages[0] }}
+                          style={StyleSheet.absoluteFill}
+                          contentFit="cover"
+                        />
+                        <View style={styles.publicPortfolioTypeBadge}>
+                          <Text style={styles.publicPortfolioTypeText}>{portfolio.type}</Text>
+                        </View>
+                        <View style={styles.publicPortfolioStrip}>
+                          <Text style={styles.publicPortfolioTitle} numberOfLines={1}>{portfolio.name}</Text>
+                          <View style={styles.publicPortfolioMeta}>
+                            <IconSymbol name="calendar" size={12} color="#facc15" />
+                            <Text style={styles.publicPortfolioDate}>
+                              {new Date(portfolio.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptyPortfolioBox}>
+                  <Text style={styles.emptyPortfolioText}>No portfolio events yet.</Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -1622,6 +1659,77 @@ const styles = StyleSheet.create({
   portfolioItemLarge: {
     width: '100%',
     height: 200,
+  },
+  publicPortfolioList: {
+    gap: 18,
+  },
+  publicPortfolioCard: {
+    overflow: 'hidden',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#101010',
+  },
+  publicPortfolioCover: {
+    height: 230,
+    backgroundColor: '#050505',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  publicPortfolioTypeBadge: {
+    position: 'absolute',
+    left: 14,
+    top: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  publicPortfolioTypeText: {
+    color: '#facc15',
+    fontSize: 10,
+    fontFamily: 'Outfit_800ExtraBold',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+  },
+  publicPortfolioStrip: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#000000',
+    padding: 16,
+  },
+  publicPortfolioTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontFamily: 'Outfit_700Bold',
+  },
+  publicPortfolioMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  publicPortfolioDate: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontFamily: 'Inter_700Bold',
+  },
+  emptyPortfolioBox: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+  },
+  emptyPortfolioText: {
+    color: '#94a3b8',
+    fontSize: 14,
+    fontFamily: 'Outfit_600SemiBold',
   },
   viewAllText: {
     fontSize: 14,

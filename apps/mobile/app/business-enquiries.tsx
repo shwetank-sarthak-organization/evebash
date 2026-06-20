@@ -164,7 +164,7 @@ export default function BusinessEnquiriesScreen() {
               </View>
               <Text style={styles.emptyStateTitle}>No Enquiries Yet</Text>
               <Text style={styles.emptyStateDesc}>
-                Once event planners or couples contact you from the Marketplace, their leads will show up here instantly!
+                Once event planners or couples contact you from the EB Network, their leads will show up here instantly!
               </Text>
             </View>
           ) : (

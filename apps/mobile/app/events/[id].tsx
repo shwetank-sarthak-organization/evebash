@@ -6385,7 +6385,7 @@ export default function EventDetailScreen() {
                   marginTop: 4,
                   lineHeight: 18
                 }}>
-                  Connect photographers, makeup artists, and venues from the Biz Hub.
+                  Connect photographers, makeup artists, and venues from Create Business.
                 </Text>
               </View>
               <TouchableOpacity onPress={() => { setLinkingVendor(false); setVendorCode(''); }}>
@@ -6506,7 +6506,7 @@ export default function EventDetailScreen() {
             <Text style={{ color: '#d4af37', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Host</Text>
           </TouchableOpacity>
 
-          {/* TAB 2: Biz Hub (Matches TabLayout Svg exactly) */}
+          {/* TAB 2: Create Business (Matches TabLayout Svg exactly) */}
           <TouchableOpacity
             style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
             onPress={() => router.replace('/(tabs)/businesses')}
@@ -6519,7 +6519,19 @@ export default function EventDetailScreen() {
               <Path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/>
               <Path d="M3 4h8"/>
             </Svg>
-            <Text style={{ color: '#94a3b8', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Biz Hub</Text>
+            <Text
+              numberOfLines={2}
+              style={{
+                color: '#94a3b8',
+                fontSize: 9,
+                lineHeight: 10,
+                fontFamily: Fonts.inter.medium,
+                marginTop: 4,
+                textAlign: 'center'
+              }}
+            >
+              Create Business
+            </Text>
           </TouchableOpacity>
 
           {/* TAB 3: Dashboard (Matches TabLayout Svg exactly) */}
@@ -6537,7 +6549,7 @@ export default function EventDetailScreen() {
             <Text style={{ color: '#94a3b8', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Dashboard</Text>
           </TouchableOpacity>
 
-          {/* TAB 4: Marketplace */}
+          {/* TAB 4: EB Network */}
           <TouchableOpacity
             style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
             onPress={() => router.replace('/(tabs)/explore-business')}
@@ -6548,7 +6560,7 @@ export default function EventDetailScreen() {
               <Path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/>
               <Path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/>
             </Svg>
-            <Text style={{ color: '#94a3b8', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Marketplace</Text>
+            <Text style={{ color: '#94a3b8', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>EB Network</Text>
           </TouchableOpacity>
 
           {/* TAB 5: Profile */}

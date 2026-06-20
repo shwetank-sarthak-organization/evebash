@@ -1,16 +1,16 @@
 import { Tabs } from 'expo-router';
+import { BottomTabBar } from '@react-navigation/bottom-tabs';
 import * as React from 'react';
-import { useEffect } from 'react';
-import { Platform } from 'react-native';
-import Svg, { Path, Rect, Circle } from 'react-native-svg';
+import Svg, { Path, Rect } from 'react-native-svg';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAppTheme } from '@/context/ThemeContext';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const CREATE_BUSINESS_SECTION_ROUTES = new Set(['manage-business']);
+const EB_NETWORK_SECTION_ROUTES = new Set(['business/[id]']);
 
 export default function TabLayout() {
   const { colors } = useAppTheme();
@@ -19,6 +19,23 @@ export default function TabLayout() {
   return (
     <Tabs
       backBehavior="none"
+      tabBar={(props) => {
+        const currentRoute = props.state.routes[props.state.index];
+        const shouldHighlightCreateBusiness = currentRoute && CREATE_BUSINESS_SECTION_ROUTES.has(currentRoute.name);
+        const shouldHighlightEbNetwork = currentRoute && EB_NETWORK_SECTION_ROUTES.has(currentRoute.name);
+
+        if (!shouldHighlightCreateBusiness && !shouldHighlightEbNetwork) {
+          return <BottomTabBar {...props} />;
+        }
+
+        const targetRouteName = shouldHighlightEbNetwork ? 'explore-business' : 'businesses';
+        const targetTabIndex = props.state.routes.findIndex((route) => route.name === targetRouteName);
+        if (targetTabIndex < 0) {
+          return <BottomTabBar {...props} />;
+        }
+
+        return <BottomTabBar {...props} state={{ ...props.state, index: targetTabIndex }} />;
+      }}
       screenOptions={{
         tabBarActiveTintColor: colors.gold,
         tabBarInactiveTintColor: colors.slate400,
@@ -45,7 +62,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="businesses"
         options={{
-          title: 'Biz Hub',
+          title: 'Create Business',
           tabBarIcon: ({ color }) => (
             <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <Path d="m11 17 2 2a1 1 0 1 0 3-3"/>
@@ -75,7 +92,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="explore-business"
         options={{
-          title: 'Marketplace',
+          title: 'EB Network',
           tabBarIcon: ({ color }) => (
             <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <Path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/>

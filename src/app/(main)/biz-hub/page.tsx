@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import {
   Business,
@@ -15,10 +15,9 @@ import { formatStorageSize } from "@/lib/planLimits";
 import {
   ArrowRight,
   BarChart3,
-  Briefcase,
-  Calendar,
   Check,
   ChevronDown,
+  ChevronRight,
   Image as ImageIcon,
   Loader2,
   LocateFixed,
@@ -30,6 +29,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { uploadEventImage } from "@/lib/storage";
 
 const BUSINESS_TYPES = [
   "Anchors", "Apparel", "Catering", "Decor", "Event Planner",
@@ -52,13 +52,6 @@ function getBusinessLimit(role?: string | null) {
   return 1;
 }
 
-function formatStartedDate(value: string) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
-}
-
 export default function BizHubPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -73,6 +66,7 @@ export default function BizHubPage() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error">("success");
   const [locating, setLocating] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
 
   const [name, setName] = useState("");
   const [ownerName, setOwnerName] = useState("");
@@ -83,6 +77,8 @@ export default function BizHubPage() {
   const [startedDate, setStartedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [eventsHosted, setEventsHosted] = useState("");
   const [location, setLocation] = useState<{ latitude: number; longitude: number; address?: string } | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -127,7 +123,33 @@ export default function BizHubPage() {
     setStartedDate(new Date().toISOString().slice(0, 10));
     setEventsHosted("");
     setLocation(null);
+    if (coverPreview) URL.revokeObjectURL(coverPreview);
+    setCoverFile(null);
+    setCoverPreview("");
     setMessage("");
+  };
+
+  const handleCoverSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setMessageType("error");
+      setMessage("Please select an image file.");
+      return;
+    }
+
+    if (coverPreview) URL.revokeObjectURL(coverPreview);
+    setCoverFile(file);
+    setCoverPreview(URL.createObjectURL(file));
+    setMessage("");
+  };
+
+  const removeCoverSelection = () => {
+    if (coverPreview) URL.revokeObjectURL(coverPreview);
+    setCoverFile(null);
+    setCoverPreview("");
   };
 
   const handleGetLocation = async () => {
@@ -182,6 +204,14 @@ export default function BizHubPage() {
       const experience = Number.isNaN(start.getTime())
         ? 0
         : Math.max(0, Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24 * 365.25)));
+      let coverImage = DEFAULT_BUSINESS_COVER;
+
+      if (coverFile) {
+        setMessageType("success");
+        setMessage("Uploading business cover...");
+        const upload = await uploadEventImage(coverFile, `business-cover-${Date.now()}`, user.uid);
+        coverImage = upload.url;
+      }
 
       const result = await createBusiness({
         name: name.trim(),
@@ -196,7 +226,8 @@ export default function BizHubPage() {
         experience,
         eventsHosted: Number.parseInt(eventsHosted, 10) || 0,
         rating: 0,
-        coverImage: DEFAULT_BUSINESS_COVER,
+        coverImage,
+        coverImages: [coverImage],
         createdBy: user.uid,
         status: "created",
         shortId: generateShortId(),
@@ -240,136 +271,105 @@ export default function BizHubPage() {
   if (loading || fetching) {
     return (
       <div className="flex min-h-[80vh] items-center justify-center bg-slate-950">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-300" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#818cf8]" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl space-y-8">
-        <header className="flex flex-col gap-5 rounded-[2rem] border border-slate-800 bg-slate-900/70 p-6 shadow-2xl shadow-black/20 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-indigo-400/30 bg-indigo-400/10 text-indigo-300">
-              <Briefcase className="h-7 w-7" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-black">Biz Hub</h1>
-              <p className="mt-1 text-sm font-semibold text-slate-400">Connect with clients and manage your business profile.</p>
-            </div>
+    <div className="min-h-screen bg-[#050505] px-4 py-6 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl space-y-8">
+        <header className="grid grid-cols-[3rem_1fr_3rem] items-center gap-4 py-2">
+          <button
+            type="button"
+            onClick={() => setShowQuotaModal(true)}
+            aria-label="Plan Details"
+            title="Plan Details"
+            className="flex h-12 w-12 items-center justify-center rounded-full border border-indigo-400/20 bg-indigo-400/10 text-[#818cf8] transition-colors hover:border-indigo-300/50 hover:bg-indigo-400/15"
+          >
+            <Server className="h-5 w-5" />
+          </button>
+
+          <div className="min-w-0 text-center">
+            <h1 className="font-playfair text-3xl font-black tracking-tight text-white sm:text-4xl">Create Business</h1>
+            <p className="mt-1 text-sm font-bold text-slate-400 sm:text-base">Manage & Grow your empire.</p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => setShowQuotaModal(true)}
-              className="flex items-center gap-3 rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-left"
-            >
-              <Server className="h-5 w-5 text-indigo-300" />
-              <span>
-                <span className="block text-[10px] font-black uppercase tracking-widest text-slate-500">Storage & Quota</span>
-                <span className="text-sm font-black">{formatStorageSize(storageUsed)}</span>
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowListingForm(true)}
-              className="flex items-center gap-2 rounded-2xl bg-indigo-400 px-5 py-3 text-sm font-black text-slate-950"
-            >
-              <Plus className="h-4 w-4" />
-              <span>List New Business</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowListingForm(true)}
+            aria-label="Create Business"
+            title="Create Business"
+            className="flex h-12 w-12 items-center justify-center rounded-full border border-indigo-400/20 bg-indigo-400/10 text-[#818cf8] transition-colors hover:border-indigo-300/50 hover:bg-indigo-400/15"
+          >
+            <Plus className="h-7 w-7" />
+          </button>
         </header>
 
         {businesses.length > 0 ? (
-          <section className="rounded-[2rem] border border-slate-800 bg-slate-900/60 p-6">
-            <div className="mb-5 flex items-end justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-indigo-300">Partner Hub</p>
-                <h2 className="mt-1 text-2xl font-black">Your Businesses</h2>
-              </div>
-            </div>
-            <div className="grid gap-4 lg:grid-cols-2">
+          <section className="space-y-5">
+            <h2 className="text-2xl font-black text-white">Your Businesses</h2>
+            <div className="space-y-4">
               {businesses.map((business) => {
                 const typeColors = getBusinessTypeColor(business.type);
                 return (
-                  <article key={business.id} className="flex flex-col overflow-hidden rounded-[1.5rem] border border-slate-800 bg-slate-950 sm:flex-row">
-                    <div className="relative h-48 bg-slate-900 sm:h-auto sm:w-48">
+                  <article
+                    key={business.id}
+                    onClick={() => router.push(`/biz-hub/${business.id}`)}
+                    className="group flex cursor-pointer items-center gap-4 rounded-[1.25rem] border border-slate-800 bg-slate-900/80 p-3 transition-colors hover:border-indigo-400/30 hover:bg-slate-900"
+                  >
+                    <div className="relative h-32 w-40 shrink-0 overflow-hidden rounded-2xl bg-slate-950 sm:h-36 sm:w-48">
                       <img src={business.coverImage || DEFAULT_BUSINESS_COVER} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35 blur-xl" />
                       <img src={business.coverImage || DEFAULT_BUSINESS_COVER} alt={business.name} className="relative h-full w-full object-contain" />
                     </div>
-                    <div className="flex min-w-0 flex-1 flex-col justify-between gap-4 p-5">
-                      <div>
-                        <div className="mb-2 flex flex-wrap items-center gap-2">
-                          <span
-                            className="rounded-full border px-3 py-1 text-xs font-black"
-                            style={{ backgroundColor: typeColors.bg, borderColor: typeColors.border, color: typeColors.text }}
-                          >
-                            {business.type}
-                          </span>
-                          <span className="flex items-center gap-2 rounded-full border border-slate-700 px-3 py-1 text-xs font-black uppercase text-slate-300">
-                            <span className={`h-2 w-2 rounded-full ${business.status === "published" ? "bg-emerald-400" : "bg-amber-400"}`} />
-                            {business.status}
-                          </span>
-                        </div>
-                        <h3 className="truncate text-xl font-black">{business.name}</h3>
-                        <p className="mt-2 line-clamp-2 text-sm font-semibold text-slate-400">
-                          {business.description || "Add business details, portfolio, services, and announcements to attract clients."}
-                        </p>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-lg font-black text-white sm:text-xl">{business.name}</h3>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span
+                          className="rounded-lg border px-3 py-1 text-[11px] font-black uppercase tracking-wider"
+                          style={{ backgroundColor: typeColors.bg, borderColor: typeColors.border, color: typeColors.text }}
+                        >
+                          {business.type}
+                        </span>
+                        <span className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[#cbd5e1]">
+                          <span className={`h-2 w-2 rounded-full ${business.status === "published" ? "bg-emerald-400" : "bg-amber-400"}`} />
+                          {business.status}
+                        </span>
                       </div>
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="rounded-2xl bg-slate-900 p-3">
-                          <p className="text-xs font-black text-slate-500">Views</p>
-                          <p className="mt-1 font-black">{business.profileViews || 0}</p>
-                        </div>
-                        <div className="rounded-2xl bg-slate-900 p-3">
-                          <p className="text-xs font-black text-slate-500">Events</p>
-                          <p className="mt-1 font-black">{business.eventsHosted || 0}</p>
-                        </div>
-                        <div className="rounded-2xl bg-slate-900 p-3">
-                          <p className="text-xs font-black text-slate-500">Rating</p>
-                          <p className="mt-1 font-black">{business.rating || 0}</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="mt-4 flex flex-wrap gap-2">
                         <button
                           type="button"
-                          onClick={() => togglePublish(business)}
-                          className="rounded-full bg-indigo-400 px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-950"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            togglePublish(business);
+                          }}
+                          className="rounded-full bg-indigo-400 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#101010]"
                         >
-                          {business.status === "published" ? "Unpublish Listing" : "Publish to Marketplace"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => router.push(`/marketplace`)}
-                          className="rounded-full border border-slate-700 px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-300"
-                        >
-                          View Marketplace
+                          {business.status === "published" ? "Unpublish Listing" : "Publish to EB Network"}
                         </button>
                       </div>
                     </div>
+                    <ChevronRight className="hidden h-5 w-5 shrink-0 text-[#475569] transition-colors group-hover:text-[#818cf8] sm:block" />
                   </article>
                 );
               })}
             </div>
           </section>
         ) : (
-          <section className="relative overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-900 p-8 shadow-2xl shadow-black/20">
-            <div className="absolute right-0 top-0 h-72 w-72 -translate-y-1/2 translate-x-1/4 rounded-full bg-indigo-500/20 blur-3xl" />
-            <div className="relative z-10 max-w-2xl">
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-indigo-400/25 bg-indigo-400/10 px-3 py-1 text-xs font-black uppercase tracking-widest text-indigo-200">
+          <section className="overflow-hidden rounded-b-[2.5rem] border border-slate-800 bg-gradient-to-br from-[#101010] to-[#050505] p-8 shadow-2xl shadow-black/20 sm:p-10">
+            <div className="max-w-2xl">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-indigo-400/25 bg-indigo-400/10 px-3 py-1 text-xs font-black uppercase tracking-widest text-[#a5b4fc]">
                 <Store className="h-4 w-4" />
                 Partner Hub
               </div>
-              <h2 className="text-4xl font-black">Grow Your Business</h2>
-              <p className="mt-3 text-base font-semibold leading-7 text-slate-300">
+              <h2 className="text-4xl font-black text-white">Grow Your Business</h2>
+              <p className="mt-3 text-base font-semibold leading-7 text-[#94a3b8]">
                 Connect with event organizers, showcase your premium portfolio, and track your growth with elite analytics.
               </p>
               <button
                 type="button"
                 onClick={() => setShowListingForm(true)}
-                className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-indigo-400 px-5 py-3 text-sm font-black text-slate-950"
+                className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-400 px-5 py-4 text-base font-black text-white shadow-lg shadow-indigo-950/30 sm:w-auto sm:px-7"
               >
                 <span>List New Business</span>
                 <Plus className="h-4 w-4" />
@@ -378,16 +378,18 @@ export default function BizHubPage() {
           </section>
         )}
 
-        <section className="rounded-[2rem] border border-slate-800 bg-slate-900/60 p-6">
-          <h2 className="text-2xl font-black">Why Partner With Us?</h2>
-          <div className="mt-5 grid gap-4 lg:grid-cols-3">
+        <section className="space-y-5">
+          <h2 className="text-2xl font-black text-white">Why Partner With Us?</h2>
+          <div className="grid gap-3">
             {BENEFITS.map(({ title, desc, icon: Icon }) => (
-              <div key={title} className="rounded-[1.5rem] border border-slate-800 bg-slate-950 p-5">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-400/10 text-indigo-300">
+              <div key={title} className="flex gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-400/10 text-[#a5b4fc]">
                   <Icon className="h-6 w-6" />
                 </div>
-                <h3 className="font-black">{title}</h3>
-                <p className="mt-2 text-sm font-semibold leading-6 text-slate-400">{desc}</p>
+                <div>
+                  <h3 className="font-black text-white">{title}</h3>
+                  <p className="mt-1 text-sm font-semibold leading-6 text-slate-400">{desc}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -400,11 +402,11 @@ export default function BizHubPage() {
             <motion.div initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.94 }} className="w-full max-w-lg rounded-[2rem] border border-slate-800 bg-slate-900 p-6 shadow-2xl">
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-400/10 text-indigo-300">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-400/10 text-[#818cf8]">
                     <Server className="h-6 w-6" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-black">Storage & Quota</h3>
+                    <h3 className="text-xl font-black text-white">Storage & Quota</h3>
                     <p className="text-sm font-semibold text-slate-400">Your current plan usage</p>
                   </div>
                 </div>
@@ -413,7 +415,7 @@ export default function BizHubPage() {
                 </button>
               </div>
               <p className="mb-5 text-sm font-bold text-slate-300">
-                Active plan: <span className="text-indigo-300">{activePlanName}</span>
+                Active plan: <span className="text-[#a5b4fc]">{activePlanName}</span>
               </p>
               <div className="space-y-5">
                 <div>
@@ -435,7 +437,7 @@ export default function BizHubPage() {
                   </div>
                 </div>
               </div>
-              <button type="button" onClick={() => router.push("/profile")} className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-400 px-5 py-3 text-sm font-black text-slate-950">
+              <button type="button" onClick={() => router.push("/profile")} className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-400 px-5 py-3 text-sm font-black text-[#101010]">
                 <span>Manage Plan</span>
                 <ArrowRight className="h-4 w-4" />
               </button>
@@ -451,7 +453,7 @@ export default function BizHubPage() {
               <form onSubmit={handleSubmit} className="space-y-5 p-6">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-2xl font-black">Business Details</h3>
+                    <h3 className="text-2xl font-black text-white">Business Details</h3>
                     <p className="mt-1 text-sm font-semibold text-slate-400">Create your partner profile.</p>
                   </div>
                   <button type="button" onClick={() => { setShowListingForm(false); resetForm(); }} className="rounded-full bg-slate-800 p-2 text-slate-400">
@@ -459,50 +461,93 @@ export default function BizHubPage() {
                   </button>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-400">Business Name *</span>
+                    <span className="mb-2 block text-xs font-black uppercase tracking-widest text-[#a5b4fc]">Business Name *</span>
                     <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Royal Photography" className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-400" />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-400">Business Type *</span>
+                    <span className="mb-2 block text-xs font-black uppercase tracking-widest text-[#a5b4fc]">Owner Name *</span>
+                    <input value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="e.g. John Doe" className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-400 placeholder:text-[#475569]" />
+                  </label>
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-black uppercase tracking-widest text-[#a5b4fc]">Email *</span>
+                    <input type="email" value={ownerEmail} onChange={(e) => setOwnerEmail(e.target.value)} placeholder="email@example.com" className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-400 placeholder:text-[#475569]" />
+                  </label>
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-black uppercase tracking-widest text-[#a5b4fc]">Phone *</span>
+                    <input value={ownerPhone} onChange={(e) => setOwnerPhone(e.target.value)} placeholder="+91..." className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-400 placeholder:text-[#475569]" />
+                  </label>
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-black uppercase tracking-widest text-[#a5b4fc]">Business Type *</span>
                     <button type="button" onClick={() => setShowCategoryPicker(true)} className="flex w-full items-center justify-between rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-left text-white">
-                      <span className={businessType ? "" : "text-slate-500"}>{businessType || "Select Category"}</span>
-                      <ChevronDown className="h-4 w-4 text-indigo-300" />
+                    <span className={businessType ? "" : "text-[#475569]"}>{businessType || "Select Category"}</span>
+                      <ChevronDown className="h-4 w-4 text-[#a5b4fc]" />
                     </button>
                   </label>
-                  <label className="block">
-                    <span className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-400">Owner Name *</span>
-                    <input value={ownerName} onChange={(e) => setOwnerName(e.target.value)} className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-400" />
-                  </label>
-                  <label className="block">
-                    <span className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-400">Email *</span>
-                    <input type="email" value={ownerEmail} onChange={(e) => setOwnerEmail(e.target.value)} className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-400" />
-                  </label>
-                  <label className="block">
-                    <span className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-400">Phone *</span>
-                    <input value={ownerPhone} onChange={(e) => setOwnerPhone(e.target.value)} className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-400" />
-                  </label>
+
+                  <div className="block">
+                    <span className="mb-2 block text-xs font-black uppercase tracking-widest text-[#a5b4fc]">Business Cover Image</span>
+                    <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverSelect} />
+                    <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950">
+                      <button
+                        type="button"
+                        onClick={() => coverInputRef.current?.click()}
+                        className="relative flex aspect-[16/9] w-full items-center justify-center overflow-hidden text-[#94a3b8]"
+                      >
+                        {coverPreview ? (
+                          <>
+                            <img src={coverPreview} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30 blur-xl" />
+                            <img src={coverPreview} alt="Selected business cover" className="relative h-full w-full object-contain" />
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center gap-3">
+                            <ImageIcon className="h-9 w-9 text-[#818cf8]" />
+                            <span className="text-sm font-black">Add a cover image for your business</span>
+                          </div>
+                        )}
+                      </button>
+                      <div className="flex items-center justify-between gap-3 border-t border-slate-800 px-4 py-3">
+                        <p className="min-w-0 truncate text-xs font-semibold text-[#94a3b8]">
+                          {coverFile ? coverFile.name : "Optional. Used as the business thumbnail."}
+                        </p>
+                        <div className="flex shrink-0 gap-2">
+                          {coverPreview && (
+                            <button type="button" onClick={removeCoverSelection} className="rounded-full border border-rose-400/30 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-rose-300">
+                              Remove
+                            </button>
+                          )}
+                          <button type="button" onClick={() => coverInputRef.current?.click()} className="rounded-full border border-indigo-400/30 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#a5b4fc]">
+                            {coverPreview ? "Change" : "Add"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="mb-2 block text-xs font-black uppercase tracking-widest text-[#a5b4fc]">Business Experience</span>
                   <div className="grid grid-cols-2 gap-3">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-400">Started</span>
+                      <span className="mb-2 block text-xs font-black uppercase tracking-widest text-[#a5b4fc]">Started</span>
                       <input type="date" value={startedDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setStartedDate(e.target.value)} className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-400" />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-400">Events Done</span>
-                      <input type="number" min="0" value={eventsHosted} onChange={(e) => setEventsHosted(e.target.value)} className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-400" />
+                      <span className="mb-2 block text-xs font-black uppercase tracking-widest text-[#a5b4fc]">Events Done</span>
+                      <input type="number" min="0" value={eventsHosted} onChange={(e) => setEventsHosted(e.target.value)} placeholder="Events Done" className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-400 placeholder:text-[#475569]" />
                     </label>
                   </div>
                 </div>
 
                 <label className="block">
-                  <span className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-400">About Business</span>
+                  <span className="mb-2 block text-xs font-black uppercase tracking-widest text-[#a5b4fc]">About Business</span>
                   <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Short description of your services..." className="min-h-28 w-full resize-none rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-indigo-400" />
                 </label>
 
                 <div>
-                  <span className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-400">Pinpoint Location</span>
-                  <button type="button" onClick={handleGetLocation} disabled={locating} className={`flex w-full items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-black ${location ? "border-indigo-400 bg-indigo-400 text-slate-950" : "border-slate-800 bg-slate-950 text-indigo-300"}`}>
+                  <span className="mb-2 block text-xs font-black uppercase tracking-widest text-[#a5b4fc]">Pinpoint Location (Optional)</span>
+                  <button type="button" onClick={handleGetLocation} disabled={locating} className={`flex w-full items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-black ${location ? "border-indigo-400 bg-indigo-400 text-[#101010]" : "border-slate-800 bg-slate-950 text-[#a5b4fc]"}`}>
                     {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : location ? <Check className="h-4 w-4" /> : <LocateFixed className="h-4 w-4" />}
                     <span>{location ? `Captured: ${location.address}` : "Use Current GPS"}</span>
                   </button>
@@ -514,7 +559,7 @@ export default function BizHubPage() {
                   </div>
                 )}
 
-                <button type="submit" disabled={saving} className="flex w-full items-center justify-center rounded-2xl bg-indigo-400 px-5 py-4 text-sm font-black text-slate-950 disabled:opacity-70">
+                <button type="submit" disabled={saving} className="flex w-full items-center justify-center rounded-2xl bg-indigo-400 px-5 py-4 text-sm font-black text-[#101010] disabled:opacity-70">
                   {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : "Create Business"}
                 </button>
               </form>
@@ -528,16 +573,16 @@ export default function BizHubPage() {
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
             <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="w-full max-w-md rounded-[2rem] border border-slate-800 bg-slate-900 p-5 shadow-2xl">
               <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-xl font-black">Select Category</h3>
+                <h3 className="text-xl font-black text-white">Select Category</h3>
                 <button type="button" onClick={() => setShowCategoryPicker(false)} className="rounded-full bg-slate-800 p-2 text-slate-400">
                   <X className="h-5 w-5" />
                 </button>
               </div>
               <div className="max-h-96 space-y-2 overflow-y-auto pr-1">
                 {BUSINESS_TYPES.map((item) => (
-                  <button key={item} type="button" onClick={() => { setBusinessType(item); setShowCategoryPicker(false); }} className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm font-black ${businessType === item ? "border-indigo-400 bg-indigo-400/10 text-indigo-200" : "border-slate-800 bg-slate-950 text-slate-300"}`}>
+                  <button key={item} type="button" onClick={() => { setBusinessType(item); setShowCategoryPicker(false); }} className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm font-black ${businessType === item ? "border-indigo-400 bg-indigo-400/10 text-[#a5b4fc]" : "border-slate-800 bg-slate-950 text-[#cbd5e1]"}`}>
                     <span>{item}</span>
-                    {businessType === item && <Check className="h-4 w-4 text-indigo-300" />}
+                    {businessType === item && <Check className="h-4 w-4 text-[#818cf8]" />}
                   </button>
                 ))}
               </div>

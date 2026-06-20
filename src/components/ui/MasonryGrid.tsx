@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { onPhotoInteractions, toggleLike } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
 import { Heart, MessageCircle, Download } from "lucide-react";
-import { Lightbox } from "./Lightbox";
+import { Lightbox, type LightboxTheme } from "./Lightbox";
 import { getGridThumbnail } from "@/lib/imageUrl";
 
 interface Photo {
@@ -17,6 +17,8 @@ interface Photo {
     height?: number;
     width?: number;
     filename?: string;
+    mediaType?: "photo" | "video";
+    resourceType?: "image" | "video" | string;
 }
 
 interface MasonryGridProps {
@@ -27,6 +29,7 @@ interface MasonryGridProps {
     gridClassName?: string;
     itemClassName?: string;
     lightboxClassName?: string;
+    lightboxTheme?: LightboxTheme;
 }
 
 interface PhotoCardProps {
@@ -71,6 +74,7 @@ function PhotoCard({
 
     const identity = getIdentity();
     const isLiked = likes.some(l => l.userId === identity.id);
+    const isVideo = photo.mediaType === "video" || photo.resourceType === "video";
 
     useEffect(() => {
         const unsubscribe = onPhotoInteractions(photo.id, (data) => {
@@ -126,12 +130,22 @@ function PhotoCard({
             )}
         >
             <div className="relative w-full overflow-hidden">
-                <img
-                    src={getGridThumbnail(photo.src)}
-                    alt={photo.alt || "Event Photo"}
-                    className="w-full h-auto object-cover transform transition-all duration-700 group-hover:scale-[1.02]"
-                    loading="lazy"
-                />
+                {isVideo ? (
+                    <video
+                        src={photo.src}
+                        className="aspect-[4/5] w-full object-cover transform transition-all duration-700 group-hover:scale-[1.02]"
+                        muted
+                        playsInline
+                        preload="metadata"
+                    />
+                ) : (
+                    <img
+                        src={getGridThumbnail(photo.src)}
+                        alt={photo.alt || "Event Photo"}
+                        className="w-full h-auto object-cover transform transition-all duration-700 group-hover:scale-[1.02]"
+                        loading="lazy"
+                    />
+                )}
             </div>
 
             {/* Bottom Instagram-style Bar */}
@@ -202,7 +216,8 @@ export function MasonryGrid({
     disableDownload = false,
     gridClassName,
     itemClassName,
-    lightboxClassName
+    lightboxClassName,
+    lightboxTheme
 }: MasonryGridProps) {
     // Track which photo is currently being viewed in the Lightbox
     const [viewingPhoto, setViewingPhoto] = useState<Photo | null>(null);
@@ -230,6 +245,7 @@ export function MasonryGrid({
                 onClose={() => setViewingPhoto(null)}
                 disableDownload={disableDownload}
                 className={lightboxClassName}
+                theme={lightboxTheme}
                 onNext={() => {
                     const currentIndex = photos.findIndex(p => p.id === viewingPhoto?.id);
                     if (currentIndex !== -1) {

@@ -105,6 +105,10 @@ export default function ExploreBusinessScreen() {
     }
   };
 
+  const openBusinessDetail = (businessId: string) => {
+    router.push(`/(tabs)/business/${encodeURIComponent(businessId)}` as any);
+  };
+
   useEffect(() => {
     setLoading(true);
     const unsubscribe = onTopRatedBusinesses(50, (businesses) => {
@@ -216,7 +220,7 @@ export default function ExploreBusinessScreen() {
             </TouchableOpacity>
           </View>
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={styles.headerTitle}>Marketplace</Text>
+            <Text style={styles.headerTitle}>EB Network</Text>
             <Text style={styles.headerSubtitle}>Elite Deals. Every Event.</Text>
           </View>
           <View style={styles.headerRight}>
@@ -318,7 +322,7 @@ export default function ExploreBusinessScreen() {
                   key={vendor.id} 
                   style={styles.featuredCard} 
                   activeOpacity={0.9}
-                  onPress={() => router.push(`/business/${vendor.id}`)}
+                  onPress={() => openBusinessDetail(vendor.id)}
                 >
                   {/* Top Part: Image Container with Ambient Blurred Backdrop */}
                   <View style={styles.featuredImageContainer}>
@@ -419,7 +423,7 @@ export default function ExploreBusinessScreen() {
                   key={vendor.id} 
                   style={styles.listCard} 
                   activeOpacity={0.9}
-                  onPress={() => router.push(`/business/${vendor.id}`)}
+                  onPress={() => openBusinessDetail(vendor.id)}
                 >
                   <View style={styles.listImageContainer}>
                     {/* Ambient Blurred Backdrop */}

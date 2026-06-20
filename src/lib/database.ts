@@ -6,6 +6,7 @@ import { sendPushNotification } from "./pushNotifications";
 const eventCache: Record<string, Event> = {};
 const userCache: Record<string, any> = {};
 const COVER_USAGE_TAG = "__cover_usage__";
+const BUSINESS_PORTFOLIO_EVENTS_KEY = "__portfolio_events__";
 const DEFAULT_EVENT_COVER_IMAGE = "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop";
 let photoInteractionChannelCounter = 0;
 
@@ -77,6 +78,7 @@ export interface Business {
     eventsHosted?: number;
     services?: string[];
     faqs?: { q: string; a: string }[];
+    portfolioEvents?: BusinessPortfolioEvent[];
     status: 'created' | 'published';
     shortId?: string;
     vendorCode?: string;
@@ -85,6 +87,28 @@ export interface Business {
     profileViews?: number;
     viewsByDate?: Record<string, number>;
     shortlistCount?: number;
+}
+
+export interface BusinessPortfolioEvent {
+    id: string;
+    name: string;
+    type: string;
+    date: string;
+    coverImage?: string;
+    coverOffset?: number;
+    coverOffsetX?: number;
+    coverScale?: number;
+    coverMode?: 'fit' | 'fill';
+    media?: BusinessPortfolioMedia[];
+    templateId?: string;
+    createdAt?: any;
+}
+
+export interface BusinessPortfolioMedia {
+    id: string;
+    url: string;
+    type?: 'image' | 'video';
+    createdAt?: any;
 }
 
 export interface FaceRecord {
@@ -319,6 +343,8 @@ function mapSqlToGuestLog(g: any): GuestLog {
 }
 
 function mapSqlToBusiness(b: any): Business {
+    const viewsByDate = sanitizeBusinessViewsByDate(b.views_by_date);
+
     return {
         id: b.id,
         name: b.name,
@@ -344,15 +370,26 @@ function mapSqlToBusiness(b: any): Business {
         eventsHosted: b.events_hosted || 0,
         services: b.services || [],
         faqs: b.faqs || [],
+        portfolioEvents: b.portfolio_events || b.views_by_date?.[BUSINESS_PORTFOLIO_EVENTS_KEY] || [],
         status: b.status || 'created',
         shortId: b.short_id,
         vendorCode: b.vendor_code,
         announcements: b.announcements || [],
         createdAt: b.created_at,
         profileViews: b.profile_views || 0,
-        viewsByDate: b.views_by_date || {},
+        viewsByDate,
         shortlistCount: b.shortlist_count || 0,
     };
+}
+
+function sanitizeBusinessViewsByDate(value: any): Record<string, number> {
+    if (!value || typeof value !== 'object') return {};
+
+    return Object.entries(value).reduce<Record<string, number>>((acc, [key, count]) => {
+        if (key === BUSINESS_PORTFOLIO_EVENTS_KEY) return acc;
+        if (typeof count === 'number') acc[key] = count;
+        return acc;
+    }, {});
 }
 
 export function safeParseDateToISO(dateInput?: string | Date): string | null {
@@ -980,6 +1017,23 @@ export async function getUserBusinesses(uid: string): Promise<Business[]> {
     }
 }
 
+export async function getBusinessById(id: string): Promise<Business | null> {
+    if (!id) return null;
+    try {
+        const { data, error } = await supabase
+            .from('businesses')
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+
+        if (error) throw error;
+        return data ? mapSqlToBusiness(data) : null;
+    } catch (error) {
+        console.error("Error fetching business by ID:", error);
+        return null;
+    }
+}
+
 export async function createBusiness(businessData: Omit<Business, 'id' | 'createdAt'>) {
     try {
         const randomCode = Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -1013,6 +1067,9 @@ export async function createBusiness(businessData: Omit<Business, 'id' | 'create
             short_id: businessData.shortId || null,
             vendor_code: vendorCode,
             announcements: businessData.announcements || [],
+            views_by_date: businessData.portfolioEvents !== undefined
+                ? { [BUSINESS_PORTFOLIO_EVENTS_KEY]: businessData.portfolioEvents }
+                : {},
             created_at: new Date().toISOString(),
         });
 
@@ -1049,11 +1106,24 @@ export async function updateBusiness(bizId: string, data: Partial<Business>): Pr
         if (data.eventsHosted !== undefined) updateObj.events_hosted = data.eventsHosted;
         if (data.services !== undefined) updateObj.services = data.services;
         if (data.faqs !== undefined) updateObj.faqs = data.faqs;
+        if (data.portfolioEvents !== undefined) {
+            const { data: existingBusiness } = await supabase
+                .from('businesses')
+                .select('views_by_date')
+                .eq('id', bizId)
+                .maybeSingle();
+
+            updateObj.views_by_date = {
+                ...(existingBusiness?.views_by_date || {}),
+                [BUSINESS_PORTFOLIO_EVENTS_KEY]: data.portfolioEvents,
+            };
+        }
         if (data.status !== undefined) updateObj.status = data.status;
         if (data.shortId !== undefined) updateObj.short_id = data.shortId;
         if (data.vendorCode !== undefined) updateObj.vendor_code = data.vendorCode;
         if (data.announcements !== undefined) updateObj.announcements = data.announcements;
         if (data.profileViews !== undefined) updateObj.profile_views = data.profileViews;
+        if (data.viewsByDate !== undefined) updateObj.views_by_date = data.viewsByDate;
 
         const { error } = await supabase.from('businesses').update(updateObj).eq('id', bizId);
         if (error) throw error;
@@ -1736,17 +1806,51 @@ export async function updateEvent(eventId: string, data: Partial<Event>): Promis
         if (data.coverMode !== undefined) updateData.cover_mode = data.coverMode;
         if (data.order !== undefined) updateData.order = data.order;
 
+        if (Object.keys(updateData).length === 0) {
+            return true;
+        }
+
         const { error } = await supabase
             .from('events')
             .update(updateData)
             .eq('id', eventId);
 
-        if (error) throw error;
+        if (error) {
+            if (error.code === 'PGRST204') {
+                const match = error.message.match(/Could not find the '([^']+)' column/i);
+                const missingCol = match?.[1];
+                const dbToPropMap: Record<string, keyof Event> = {
+                    title: 'title',
+                    date: 'date',
+                    cover_image: 'coverImage',
+                    description: 'description',
+                    category: 'category',
+                    template_id: 'templateId',
+                    join_id: 'joinId',
+                    vendors: 'vendors',
+                    cover_offset: 'coverOffset',
+                    cover_offset_x: 'coverOffsetX',
+                    cover_scale: 'coverScale',
+                    cover_mode: 'coverMode',
+                    order: 'order',
+                };
+                const prop = missingCol ? dbToPropMap[missingCol] : undefined;
+
+                if (prop && data[prop] !== undefined) {
+                    console.warn(`[Supabase database] Column '${missingCol}' does not exist on 'events' table. Pruning and retrying...`);
+                    const nextData = { ...data };
+                    delete nextData[prop];
+                    return updateEvent(eventId, nextData);
+                }
+            }
+
+            throw error;
+        }
 
         delete eventCache[eventId];
         return true;
     } catch (error) {
-        console.error("Error updating event:", error);
+        console.error("Error updating event:", formatSupabaseError(error));
         return false;
     }
 }

@@ -119,7 +119,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     const isPublicRoute =
       root === undefined ||
       root === 'login' ||
-      (root === '(tabs)' && (tab === undefined || tab === 'gallery' || tab === 'menu')) ||
+      (root === '(tabs)' && (tab === undefined || tab === 'gallery' || tab === 'menu' || tab === 'business')) ||
+      root === 'business' ||
       root === 'pricing' ||
       root === 'contact' ||
       root === 'sample-galleries' ||
