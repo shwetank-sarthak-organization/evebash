@@ -6,6 +6,16 @@ interface Props {
   stats: DashboardStats;
 }
 
+const formatSize = (bytes: number | null | undefined) => {
+  if (bytes === null || bytes === undefined || isNaN(bytes) || bytes < 0) return '0 B';
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  const sizeIndex = Math.min(Math.max(0, i), sizes.length - 1);
+  return parseFloat((bytes / Math.pow(k, sizeIndex)).toFixed(2)) + ' ' + sizes[sizeIndex];
+};
+
 export const AnalyticsOverview: React.FC<Props> = ({ stats }) => {
   // Calculations for custom SVG chart
   const timeline = stats.timeline;
@@ -38,7 +48,7 @@ export const AnalyticsOverview: React.FC<Props> = ({ stats }) => {
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
         {/* Card 1: Active Users */}
         <div className="bg-[#111827]/80 backdrop-blur-md border border-slate-800 rounded-2xl p-6 hover:border-sky-500/50 transition-all duration-300 shadow-xl group">
           <div className="flex justify-between items-start">
@@ -112,6 +122,25 @@ export const AnalyticsOverview: React.FC<Props> = ({ stats }) => {
           <div className="mt-4 flex items-center text-xs text-slate-400">
             <span className="text-amber-400 font-semibold mr-1.5">Galleries</span>
             <span>and visitor sessions</span>
+          </div>
+        </div>
+
+        {/* Card 5: Total Space Consumed */}
+        <div className="bg-[#111827]/80 backdrop-blur-md border border-slate-800 rounded-2xl p-6 hover:border-violet-500/50 transition-all duration-300 shadow-xl group bg-gradient-to-br from-[#111827]/85 to-violet-950/10">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-slate-400 text-sm font-medium">Storage Consumed</p>
+              <h3 className="text-3xl font-bold text-white mt-2 group-hover:text-violet-400 transition-colors">
+                {formatSize(stats.totalStorage)}
+              </h3>
+            </div>
+            <div className="p-3 bg-violet-500/10 rounded-xl text-violet-400">
+              <Database className="w-6 h-6" />
+            </div>
+          </div>
+          <div className="mt-4 flex items-center text-xs text-slate-400">
+            <span className="text-violet-400 font-semibold mr-1.5">Data size:</span>
+            <span>across all uploaded media</span>
           </div>
         </div>
       </div>

@@ -35,6 +35,7 @@ export interface DashboardStats {
   totalUsers: number;
   totalEvents: number;
   totalGuests: number;
+  totalStorage: number;
   dau: number;
   mau: number;
   stickiness: number; // DAU/MAU ratio
@@ -156,7 +157,8 @@ export async function fetchPhotos(): Promise<Photo[]> {
 export function computeDashboardStats(
   users: UserProfile[],
   events: Event[],
-  guests: GuestLog[]
+  guests: GuestLog[],
+  photos: Photo[]
 ): DashboardStats {
   const now = new Date();
   
@@ -378,10 +380,13 @@ export function computeDashboardStats(
     .slice(0, 5)
     .map(({ name, emailOrPhone, type, time }) => ({ name, emailOrPhone, type, time }));
 
+  const totalStorage = photos.reduce((sum, p) => sum + (Number(p.size) || 0), 0);
+
   return {
     totalUsers,
     totalEvents: events.length,
     totalGuests: guests.length,
+    totalStorage,
     dau,
     mau,
     stickiness,

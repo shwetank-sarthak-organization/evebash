@@ -9,12 +9,14 @@ interface Props {
   photos: Photo[];
 }
 
-const formatSize = (bytes: number) => {
+const formatSize = (bytes: number | null | undefined) => {
+  if (bytes === null || bytes === undefined || isNaN(bytes) || bytes < 0) return '0 B';
   if (bytes === 0) return '0 B';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  const sizeIndex = Math.min(Math.max(0, i), sizes.length - 1);
+  return parseFloat((bytes / Math.pow(k, sizeIndex)).toFixed(2)) + ' ' + sizes[sizeIndex];
 };
 
 export const EventGrid: React.FC<Props> = ({ events, users, guests, photos }) => {
@@ -43,7 +45,7 @@ export const EventGrid: React.FC<Props> = ({ events, users, guests, photos }) =>
       const eventPhotos = photos.filter(p => p.eventId === event.id);
       const totalPhotos = eventPhotos.filter(p => p.mediaType !== 'video').length;
       const totalVideos = eventPhotos.filter(p => p.mediaType === 'video').length;
-      const dataUsed = eventPhotos.reduce((sum, p) => sum + p.size, 0);
+      const dataUsed = eventPhotos.reduce((sum, p) => sum + (Number(p.size) || 0), 0);
 
       // Filter event guests
       const eventGuests = guests.filter(g => g.eventId === event.id);

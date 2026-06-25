@@ -16,7 +16,8 @@ import { AnalyticsOverview } from './components/AnalyticsOverview';
 import { UserGrid } from './components/UserGrid';
 import { EventGrid } from './components/EventGrid';
 import { PlanDetailsGrid } from './components/PlanDetailsGrid';
-import { BarChart3, Users, Folder, LogOut, Key, Mail, AlertTriangle, ShieldCheck, Layers } from 'lucide-react';
+import { InfraCostGrid } from './components/InfraCostGrid';
+import { BarChart3, Users, Folder, LogOut, Key, Mail, AlertTriangle, ShieldCheck, Layers, DollarSign } from 'lucide-react';
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
@@ -37,7 +38,7 @@ export default function App() {
   const [guests, setGuests] = useState<GuestLog[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'events' | 'plans'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'events' | 'plans' | 'infra'>('overview');
 
   useEffect(() => {
     // Get initial session
@@ -133,7 +134,7 @@ export default function App() {
       setEvents(e);
       setGuests(g);
       setPhotos(p);
-      const computed = computeDashboardStats(u, e, g);
+      const computed = computeDashboardStats(u, e, g, p);
       setStats(computed);
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
@@ -307,6 +308,18 @@ export default function App() {
               <Layers className="w-4 h-4 mr-3" />
               Plans Info
             </button>
+
+            <button
+              onClick={() => setActiveTab('infra')}
+              className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                activeTab === 'infra'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
+                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+              }`}
+            >
+              <DollarSign className="w-4 h-4 mr-3" />
+              Infra Cost
+            </button>
           </nav>
         </div>
 
@@ -339,7 +352,8 @@ export default function App() {
             {activeTab === 'overview' ? 'Overview Analytics' :
              activeTab === 'users' ? 'Registered User Accounts' :
              activeTab === 'events' ? 'Galleries Catalog' :
-             'Subscription Plans Details'}
+             activeTab === 'plans' ? 'Subscription Plans Details' :
+             'Infrastructure Cost Hub'}
           </h2>
           <div className="flex items-center space-x-3">
             <span className="text-xs text-slate-500">
@@ -362,6 +376,7 @@ export default function App() {
               {activeTab === 'users' && <UserGrid users={users} />}
               {activeTab === 'events' && <EventGrid events={events} users={users} guests={guests} photos={photos} />}
               {activeTab === 'plans' && <PlanDetailsGrid users={users} />}
+              {activeTab === 'infra' && <InfraCostGrid stats={stats} users={users} events={events} guests={guests} photos={photos} />}
             </>
           )}
         </main>
