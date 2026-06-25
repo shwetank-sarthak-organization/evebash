@@ -1,3 +1,5 @@
+"use client";
+
 import type React from "react";
 import { TemplateBohemian } from "@/components/TemplateBohemian";
 import { TemplateBrutalist } from "@/components/TemplateBrutalist";
