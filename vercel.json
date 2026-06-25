@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/media/retry-resizing",
+      "schedule": "*/10 * * * *"
+    }
+  ]
+}

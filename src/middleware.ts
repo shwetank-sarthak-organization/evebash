@@ -43,7 +43,8 @@ export default async function middleware(req: NextRequest) {
         hostnameNoPort &&
         hostnameNoPort !== rootDomain &&
         hostnameNoPort !== `www.${rootDomain}` &&
-        !knownRootDomains.includes(hostnameNoPort);
+        !knownRootDomains.includes(hostnameNoPort) &&
+        !hostnameNoPort.endsWith(".vercel.app");
 
     if (isCustomDomain && hostname) {
         // Extract the subdomain/slug
