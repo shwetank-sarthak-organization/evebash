@@ -45,3 +45,8 @@ next-env.d.ts
 # scratch scripts
 scratch/
 
+# local temp files
+next
+wedding-app@0.1.0
+supabase/.temp/
+
