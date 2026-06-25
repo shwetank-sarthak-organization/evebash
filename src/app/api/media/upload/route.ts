@@ -273,10 +273,10 @@ export async function POST(request: NextRequest) {
     const url = `https://${mediaDomain}/${storageKey}`;
 
     // Run the background resizing asynchronously via QStash queue
-    if (resourceType === "image" && allowedMimePrefixes.some((prefix) => mimeType.startsWith(prefix) && !mimeType.startsWith("video/"))) {
+    if (resourceType === "image") {
+      console.log(`[QStash] Triggering resize for: ${storageKey}, origin: ${request.nextUrl.origin}`);
       publishResizeTask({ storageKey, origin: request.nextUrl.origin }).catch((err) => {
         console.error(`[QStash Publish Fail] Error queueing resize for ${storageKey}:`, err);
-        appendFileSync("backend_error.log", `[QStash Publish Fail] Error queueing resize for ${storageKey}: ${err}\n`);
       });
     }
 
