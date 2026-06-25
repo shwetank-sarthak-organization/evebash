@@ -3,6 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 
 export const runtime = "nodejs";
+export const maxDuration = 60; // seconds — prevent Vercel timeout on large images
+
 
 type BackblazeAuth = {
   authorizationToken: string;
