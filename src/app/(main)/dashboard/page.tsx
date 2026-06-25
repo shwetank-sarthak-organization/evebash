@@ -11,6 +11,7 @@ import {
     logGuestLogin,
 } from "@/lib/database";
 import {
+    ArrowLeft,
     ArrowRight,
     Bell,
     Calendar,
@@ -19,6 +20,9 @@ import {
     Plus,
     QrCode,
     X,
+    Send,
+    Minus,
+    Search,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -68,6 +72,139 @@ export default function DashboardHub() {
     const [isJoining, setIsJoining] = useState(false);
     const [joinMessage, setJoinMessage] = useState("");
     const [joinMessageType, setJoinMessageType] = useState<"success" | "error">("success");
+    const [showChatBox, setShowChatBox] = useState(false);
+    const [chatInput, setChatInput] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [activeChatId, setActiveChatId] = useState<string | null>(null);
+
+    // Mock conversations resembling real wedding groups and direct messages
+    const [conversations, setConversations] = useState([
+        {
+            id: "wedding",
+            name: "Arjun & Priya's Wedding 💍",
+            avatar: "AP",
+            isGroup: true,
+            lastMessage: "Priya: Can you upload the portrait photos?",
+            time: "10:30 AM",
+            unread: true,
+        },
+        {
+            id: "siddharth",
+            name: "Siddharth (Host) 🤵",
+            avatar: "SH",
+            isGroup: false,
+            lastMessage: "Did you receive the join code?",
+            time: "Yesterday",
+            unread: false,
+        },
+        {
+            id: "rohan",
+            name: "Rohan (Photographer) 📸",
+            avatar: "RP",
+            isGroup: false,
+            lastMessage: "Sent you the folder link.",
+            time: "2 days ago",
+            unread: false,
+        },
+        {
+            id: "corporate",
+            name: "Corporate Bash 2026 🏢",
+            avatar: "CB",
+            isGroup: true,
+            lastMessage: "Nehal: Great event photos!",
+            time: "1 week ago",
+            unread: false,
+        }
+    ]);
+
+    const [messagesByChat, setMessagesByChat] = useState<Record<string, Array<{ id: string; text: string; sender: "user" | "other"; senderName?: string; time: string }>>>({
+        wedding: [
+            { id: "w1", text: "Hey! Welcome to the group chat for Priya and Arjun's wedding!", sender: "other", senderName: "Priya", time: "10:15 AM" },
+            { id: "w2", text: "We will share all the high-resolution event downloads here.", sender: "other", senderName: "Arjun", time: "10:20 AM" },
+            { id: "w3", text: "Can you upload the portrait photos?", sender: "other", senderName: "Priya", time: "10:30 AM" }
+        ],
+        siddharth: [
+            { id: "s1", text: "Hey! Let me know if you can see the wedding gallery dashboard.", sender: "other", time: "4:15 PM" },
+            { id: "s2", text: "Yes, I can see it perfectly!", sender: "user", time: "4:20 PM" },
+            { id: "s3", text: "Awesome! Did you receive the join code?", sender: "other", time: "Yesterday" }
+        ],
+        rohan: [
+            { id: "r1", text: "Hi! I just finished exporting the edits.", sender: "other", time: "3 days ago" },
+            { id: "r2", text: "Sent you the folder link.", sender: "other", time: "2 days ago" }
+        ],
+        corporate: [
+            { id: "c1", text: "Awesome photos from the corporate meeting yesterday!", sender: "other", senderName: "Amit", time: "1 week ago" },
+            { id: "c2", text: "Nehal: Great event photos!", sender: "other", senderName: "Nehal", time: "1 week ago" }
+        ]
+    });
+
+    const [isTyping, setIsTyping] = useState(false);
+
+    const handleSendMessage = (e: React.FormEvent) => {
+        e.preventDefault();
+        const text = chatInput.trim();
+        if (!text || !activeChatId) return;
+
+        const newMsg = {
+            id: Date.now().toString(),
+            text,
+            sender: "user" as const,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+
+        setMessagesByChat((prev) => ({
+            ...prev,
+            [activeChatId]: [...(prev[activeChatId] || []), newMsg],
+        }));
+
+        setConversations((prev) =>
+            prev.map((c) =>
+                c.id === activeChatId
+                    ? { ...c, lastMessage: `You: ${text}`, time: "Just now", unread: false }
+                    : c
+            )
+        );
+
+        setChatInput("");
+
+        setIsTyping(true);
+        setTimeout(() => {
+            setIsTyping(false);
+            
+            let replyText = "Awesome! Thanks for the message.";
+            let replySenderName = "";
+
+            if (activeChatId === "wedding") {
+                replyText = "Perfect! I will let Arjun know as well. Looking forward to the other files.";
+                replySenderName = "Priya";
+            } else if (activeChatId === "siddharth") {
+                replyText = "Great! Let's sync tomorrow about the remaining uploads.";
+            } else if (activeChatId === "rohan") {
+                replyText = "Got it. Let me check the uploads and get back to you.";
+            }
+
+            const replyMsg = {
+                id: (Date.now() + 1).toString(),
+                text: replyText,
+                sender: "other" as const,
+                senderName: replySenderName || undefined,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            };
+
+            setMessagesByChat((prev) => ({
+                ...prev,
+                [activeChatId]: [...(prev[activeChatId] || []), replyMsg],
+            }));
+
+            setConversations((prev) =>
+                prev.map((c) =>
+                    c.id === activeChatId
+                        ? { ...c, lastMessage: replySenderName ? `${replySenderName}: ${replyText}` : replyText, time: "Just now" }
+                        : c
+                )
+            );
+        }, 1500);
+    };
 
     useEffect(() => {
         if (!loading && !user) {
@@ -183,53 +320,39 @@ export default function DashboardHub() {
     if (!user) return null;
 
     return (
-        <div className="min-h-screen bg-slate-950 pb-24 font-sans text-white">
-            <header className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 pb-16 pt-8 sm:px-6 lg:px-8">
-                <div
-                    className="absolute inset-0 opacity-10"
-                    style={{ backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)", backgroundSize: "32px 32px" }}
-                />
-                <div className="relative z-10 mx-auto flex max-w-7xl items-center justify-between">
-                    <button
-                        type="button"
-                        className="relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-800 bg-slate-900 text-amber-300 transition-colors hover:bg-slate-800"
-                        aria-label="Notifications"
-                    >
-                        <Bell className="h-5 w-5" />
-                    </button>
-
-                    <div className="text-center">
-                        <h1 className="text-2xl font-black tracking-tight">EveBash</h1>
-                        <p className="mt-1 text-xs font-bold tracking-wide text-amber-300">Let's capture moments</p>
+        <div className="min-h-screen bg-slate-950 font-sans text-white">
+            {/* Dashboard Sub-Navbar */}
+            <div className="border-b border-slate-900 bg-slate-950 pt-24 pb-4">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+                    {/* Left: Greeting / Workspace */}
+                    <div className="flex items-center gap-3">
+                        <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-xs font-black tracking-wide text-white uppercase">Workspace</span>
+                        <span className="text-slate-800">|</span>
+                        <span className="text-xs font-bold text-slate-400">{user.name || user.email || "My Dashboard"}</span>
                     </div>
 
+                    {/* Right: Actions */}
                     <div className="flex items-center gap-3">
                         <button
                             type="button"
-                            onClick={() => router.push("/customer-chats")}
-                            className="hidden h-11 w-11 items-center justify-center rounded-full border border-slate-800 bg-slate-900 text-amber-300 transition-colors hover:bg-slate-800 sm:flex"
-                            aria-label="Chats"
+                            onClick={() => router.push("/notifications")}
+                            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 bg-slate-900 text-slate-300 transition-all hover:bg-slate-800 hover:text-white"
+                            aria-label="Notifications"
+                            title="Notifications"
                         >
-                            <MessageCircle className="h-5 w-5" />
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => router.push("/profile")}
-                            className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-700 bg-slate-800 text-sm font-black text-white transition-colors hover:bg-slate-700"
-                            aria-label="Profile"
-                        >
-                            {user.name?.charAt(0).toUpperCase() || "U"}
+                            <Bell className="h-4.5 w-4.5 text-amber-300" />
                         </button>
                     </div>
                 </div>
-            </header>
+            </div>
 
-            <main className="relative z-20 mx-auto -mt-8 max-w-7xl space-y-8 px-4 sm:px-6 lg:px-8">
+            <main className="relative z-20 mx-auto max-w-7xl space-y-8 px-4 pt-8 pb-24 sm:px-6 lg:px-8">
                 <section className="rounded-[2rem] border border-slate-800 bg-slate-950 p-5 shadow-2xl shadow-black/20 sm:p-8">
                     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <p className="text-[11px] font-black uppercase tracking-[0.24em] text-amber-300">Events</p>
-                            <h2 className="mt-1 text-2xl font-black">Memories curated for you</h2>
+                            <h2 className="mt-1 text-2xl font-black text-white">Memories curated for you</h2>
                         </div>
                         <button
                             type="button"
@@ -275,7 +398,7 @@ export default function DashboardHub() {
                                                 {event.category}
                                             </div>
                                         )}
-                                        <div className="absolute bottom-0 left-0 right-0 bg-black p-5 text-white">
+                                        <div className="absolute bottom-0 left-0 right-0 border-t border-slate-800 bg-slate-950/70 p-5 text-white backdrop-blur-md">
                                             <h3 className="truncate text-lg font-black leading-tight text-white">{event.title}</h3>
                                             <div className="mt-2 flex items-center gap-2 text-xs font-bold text-slate-400">
                                                 <Calendar className="h-3.5 w-3.5 text-amber-300" />
@@ -298,7 +421,7 @@ export default function DashboardHub() {
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-slate-950/20" />
                                 <div className="relative z-10 flex h-full min-h-64 flex-col items-center justify-center p-6">
-                                    <h3 className="text-xl font-black">Your memories</h3>
+                                    <h3 className="text-xl font-black text-white">Your memories</h3>
                                     <div className="mt-3 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-black">
                                         {events.length} Collections
                                     </div>
@@ -319,45 +442,47 @@ export default function DashboardHub() {
                     )}
                 </section>
 
-                <section
-                    onClick={() => router.push("/host")}
-                    className="group relative cursor-pointer overflow-hidden rounded-[2rem] bg-gradient-to-br from-amber-400 to-yellow-700 p-8 shadow-xl shadow-amber-950/20"
-                >
-                    <div className="absolute right-0 top-0 h-64 w-64 -translate-y-1/2 translate-x-1/4 rounded-full bg-white/10 blur-3xl" />
-                    <div className="relative z-10 flex flex-col justify-between gap-6 md:flex-row md:items-center">
-                        <div className="max-w-md">
-                            <div className="mb-4 inline-block rounded-lg bg-black/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-amber-950">
+                <div className="grid gap-6 md:grid-cols-2">
+                    <section
+                        onClick={() => router.push("/host")}
+                        className="group relative flex flex-col justify-between cursor-pointer overflow-hidden rounded-[2rem] bg-gradient-to-br from-amber-700 to-yellow-900 p-6 sm:p-8 shadow-xl shadow-amber-950/40 min-h-[220px]"
+                    >
+                        <div className="absolute right-0 top-0 h-48 w-48 -translate-y-1/2 translate-x-1/4 rounded-full bg-white/5 blur-2xl" />
+                        <div className="relative z-10 flex flex-col gap-4">
+                            <div className="w-fit rounded-lg border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-amber-200">
                                 For Hosts
                             </div>
-                            <h2 className="text-3xl font-black text-white">Host an Event</h2>
-                            <p className="mt-2 font-semibold text-white/80">Create a stunning private gallery for weddings, parties or corporate meets.</p>
+                            <div>
+                                <h2 className="text-2xl font-black text-white">Host an Event</h2>
+                                <p className="mt-2 text-sm font-semibold text-amber-50/85">Create a private gallery for weddings, parties or corporate meets.</p>
+                            </div>
                         </div>
-                        <div className="flex w-fit items-center rounded-xl border border-white/30 bg-white/20 px-5 py-3 font-black text-white backdrop-blur-md transition-colors group-hover:bg-white/30">
+                        <div className="relative z-10 mt-6 flex w-fit items-center rounded-xl border border-white/25 bg-white/10 px-4 py-2.5 text-xs font-black text-white backdrop-blur-md transition-colors group-hover:bg-white/20">
                             <span>Create Now</span>
-                            <ArrowRight className="ml-2 h-5 w-5" />
+                            <ArrowRight className="ml-2 h-4 w-4" />
                         </div>
-                    </div>
-                </section>
+                    </section>
 
-                <section
-                    onClick={() => window.open("https://www.youtube.com/@EveBashApp", "_blank")}
-                    className="group relative cursor-pointer overflow-hidden rounded-[2rem] bg-gradient-to-br from-indigo-900 to-indigo-950 p-8 shadow-xl shadow-indigo-950/20"
-                >
-                    <div className="absolute right-0 top-0 h-64 w-64 -translate-y-1/2 translate-x-1/4 rounded-full bg-indigo-500/20 blur-3xl" />
-                    <div className="relative z-10 flex flex-col justify-between gap-6 md:flex-row md:items-center">
-                        <div className="max-w-md">
-                            <div className="mb-4 inline-block rounded-lg bg-indigo-500/20 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-200">
+                    <section
+                        onClick={() => window.open("https://www.youtube.com/@EveBashApp", "_blank")}
+                        className="group relative flex flex-col justify-between cursor-pointer overflow-hidden rounded-[2rem] bg-gradient-to-br from-indigo-900 to-indigo-950 p-6 sm:p-8 shadow-xl shadow-indigo-950/20 min-h-[220px]"
+                    >
+                        <div className="absolute right-0 top-0 h-48 w-48 -translate-y-1/2 translate-x-1/4 rounded-full bg-indigo-500/20 blur-2xl" />
+                        <div className="relative z-10 flex flex-col gap-4">
+                            <div className="w-fit rounded-lg bg-indigo-500/20 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-200">
                                 How To Host
                             </div>
-                            <h2 className="text-3xl font-black text-white">Host Your Perfect Event</h2>
-                            <p className="mt-2 font-semibold text-indigo-200">Watch our step-by-step tutorials and host your event like a pro.</p>
+                            <div>
+                                <h2 className="text-2xl font-black text-white">Host Your Perfect Event</h2>
+                                <p className="mt-2 text-sm font-semibold text-indigo-200">Watch our step-by-step tutorials and host your event like a pro.</p>
+                            </div>
                         </div>
-                        <div className="flex w-fit items-center rounded-xl border border-indigo-300/30 bg-indigo-500/20 px-5 py-3 font-black text-white backdrop-blur-md transition-colors group-hover:bg-indigo-500/40">
-                            <Play className="mr-2 h-5 w-5 fill-current" />
+                        <div className="relative z-10 mt-6 flex w-fit items-center rounded-xl border border-indigo-300/30 bg-indigo-500/20 px-4 py-2.5 text-xs font-black text-white backdrop-blur-md transition-colors group-hover:bg-indigo-500/40">
+                            <Play className="mr-2 h-4 w-4 fill-current" />
                             <span>Watch on YouTube</span>
                         </div>
-                    </div>
-                </section>
+                    </section>
+                </div>
             </main>
 
             <AnimatePresence>
@@ -444,6 +569,205 @@ export default function DashboardHub() {
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* Floating Chat Bubble & Box (FB Style) */}
+            <div className="fixed bottom-6 right-6 z-50 font-sans">
+                <AnimatePresence>
+                    {showChatBox && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 50, scale: 0.9 }}
+                            className="absolute bottom-18 right-0 w-80 sm:w-96 h-[480px] bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-white"
+                        >
+                            {activeChatId === null ? (
+                                /* Conversations Inbox List View */
+                                <>
+                                    {/* Inbox Header */}
+                                    <div className="bg-slate-950 px-4 py-3.5 border-b border-slate-800 flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <MessageCircle className="h-5 w-5 text-amber-300" />
+                                            <h4 className="text-sm font-black text-white">EveBash Messages</h4>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowChatBox(false)}
+                                            className="p-1 rounded-full text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+                                        >
+                                            <Minus className="h-4.5 w-4.5" />
+                                        </button>
+                                    </div>
+
+                                    {/* Inbox Search */}
+                                    <div className="p-3 bg-slate-950/20 border-b border-slate-850">
+                                        <div className="relative flex items-center">
+                                            <Search className="absolute left-3.5 h-4 w-4 text-slate-500 pointer-events-none" />
+                                            <input
+                                                type="text"
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                placeholder="Search chats..."
+                                                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder:text-slate-500 outline-none focus:border-amber-400/50 transition-colors"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Inbox Conversations List */}
+                                    <div className="flex-1 overflow-y-auto bg-slate-950/10 divide-y divide-slate-850">
+                                        {conversations
+                                            .filter((convo) =>
+                                                convo.name.toLowerCase().includes(searchQuery.toLowerCase())
+                                            )
+                                            .map((convo) => (
+                                                <button
+                                                    key={convo.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setActiveChatId(convo.id);
+                                                        // Mark as read
+                                                        setConversations((prev) =>
+                                                            prev.map((c) =>
+                                                                c.id === convo.id ? { ...c, unread: false } : c
+                                                            )
+                                                        );
+                                                    }}
+                                                    className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-slate-800/40 transition-colors"
+                                                >
+                                                    <div className="relative h-10 w-10 rounded-full bg-slate-850 border border-slate-800 flex items-center justify-center font-black text-slate-200 text-xs flex-shrink-0">
+                                                        {convo.avatar}
+                                                        {convo.unread && (
+                                                            <span className="absolute top-0 right-0 h-3 w-3 rounded-full bg-amber-400 border-2 border-slate-900" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-baseline justify-between mb-0.5">
+                                                            <h5 className={`text-xs truncate ${convo.unread ? "font-black text-white" : "font-bold text-slate-200"}`}>
+                                                                {convo.name}
+                                                            </h5>
+                                                            <span className="text-[10px] text-slate-500 font-semibold">{convo.time}</span>
+                                                        </div>
+                                                        <p className={`text-[11px] truncate ${convo.unread ? "font-bold text-amber-300" : "text-slate-400"}`}>
+                                                            {convo.lastMessage}
+                                                        </p>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        {conversations.filter((c) => c.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                                            <div className="p-8 text-center text-xs text-slate-500 font-semibold">
+                                                No conversations found
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            ) : (
+                                /* Chat Thread Messages View */
+                                <>
+                                    {/* Thread Header */}
+                                    <div className="bg-slate-950 px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                            <button
+                                                type="button"
+                                                onClick={() => setActiveChatId(null)}
+                                                className="p-1 rounded-full text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+                                                aria-label="Back to inbox"
+                                            >
+                                                <ArrowLeft className="h-4.5 w-4.5" />
+                                            </button>
+                                            <div className="h-8 w-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-black text-slate-200 text-xs flex-shrink-0">
+                                                {conversations.find((c) => c.id === activeChatId)?.avatar}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h4 className="text-xs font-black text-white truncate">
+                                                    {conversations.find((c) => c.id === activeChatId)?.name}
+                                                </h4>
+                                                <p className="text-[9px] text-emerald-400 font-bold">Active Chat</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowChatBox(false)}
+                                            className="p-1 rounded-full text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+                                        >
+                                            <Minus className="h-4.5 w-4.5" />
+                                        </button>
+                                    </div>
+
+                                    {/* Thread Messages List */}
+                                    <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-950/40 flex flex-col">
+                                        {messagesByChat[activeChatId]?.map((msg) => (
+                                            <div
+                                                key={msg.id}
+                                                className={`max-w-[75%] flex flex-col ${
+                                                    msg.sender === "user" ? "self-end" : "self-start"
+                                                }`}
+                                            >
+                                                {msg.sender === "other" && msg.senderName && (
+                                                    <span className="text-[9px] font-semibold text-slate-400 mb-1 ml-1.5">
+                                                        {msg.senderName}
+                                                    </span>
+                                                )}
+                                                <div
+                                                    className={`rounded-2xl px-4 py-2.5 text-sm ${
+                                                        msg.sender === "user"
+                                                            ? "bg-amber-400 text-slate-950 rounded-br-none font-medium shadow-md shadow-amber-400/5"
+                                                            : "bg-slate-800 text-slate-200 rounded-bl-none"
+                                                    }`}
+                                                >
+                                                    <p className="leading-normal">{msg.text}</p>
+                                                    <span className={`block text-[9px] mt-1 text-right ${
+                                                        msg.sender === "user" ? "text-slate-800/70" : "text-slate-500"
+                                                    }`}>
+                                                        {msg.time}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {isTyping && (
+                                            <div className="bg-slate-800 text-slate-200 self-start rounded-2xl rounded-bl-none px-4 py-2.5 max-w-[75%] flex items-center gap-1">
+                                                <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                                                <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                                                <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Thread Message Input */}
+                                    <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-800 bg-slate-900 flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            value={chatInput}
+                                            onChange={(e) => setChatInput(e.target.value)}
+                                            placeholder="Type a message..."
+                                            className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-amber-400 transition-colors"
+                                        />
+                                        <button
+                                            type="submit"
+                                            className="h-9 w-9 flex items-center justify-center rounded-xl bg-amber-400 text-slate-950 hover:bg-amber-300 transition-colors disabled:opacity-50"
+                                            disabled={!chatInput.trim()}
+                                        >
+                                            <Send className="h-4 w-4" />
+                                        </button>
+                                    </form>
+                                </>
+                            )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Floating Chat Bubble */}
+                <button
+                    type="button"
+                    onClick={() => setShowChatBox((prev) => !prev)}
+                    className="h-14 w-14 rounded-full bg-amber-400 text-slate-950 shadow-2xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
+                    aria-label="Toggle chat"
+                >
+                    {showChatBox ? (
+                        <Minus className="h-6 w-6" />
+                    ) : (
+                        <MessageCircle className="h-6 w-6 fill-slate-950" />
+                    )}
+                </button>
+            </div>
         </div>
     );
 }

@@ -487,7 +487,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn('[Auth] Error during supabase.auth.signOut():', err);
+    }
     setUser(null);
   };
 
