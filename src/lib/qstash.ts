@@ -31,7 +31,7 @@ export async function publishResizeTask(options: QStashPublishOptions): Promise<
       headers["Upstash-Forward-Authorization"] = `Bearer ${cronSecret}`;
     }
 
-    const response = await fetch(`https://qstash-us-east-1.upstash.io/v2/publish/${encodeURIComponent(targetUrl)}`, {
+    const response = await fetch(`https://qstash-us-east-1.upstash.io/v2/publish/${targetUrl}`, {
       method: "POST",
       headers,
       body: JSON.stringify({ storageKey: options.storageKey }),
