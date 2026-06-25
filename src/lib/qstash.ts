@@ -5,6 +5,7 @@
 
 interface QStashPublishOptions {
   storageKey: string;
+  origin?: string;
 }
 
 export async function publishResizeTask(options: QStashPublishOptions): Promise<boolean> {
@@ -14,7 +15,7 @@ export async function publishResizeTask(options: QStashPublishOptions): Promise<
     return false;
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'lens-and-frame-wedding-album.netlify.app'}`;
+  const siteUrl = options.origin || process.env.NEXT_PUBLIC_SITE_URL || `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'lens-and-frame-wedding-album.netlify.app'}`;
   const targetUrl = `${siteUrl}/api/media/resize-worker`;
 
   console.log(`[QStash] Publishing resize task for ${options.storageKey} to target: ${targetUrl}`);

@@ -2,6 +2,7 @@
 
 import { randomUUID } from "crypto";
 import { publishResizeTask } from "@/lib/qstash";
+import { headers } from "next/headers";
 
 type BackblazeAuth = {
     authorizationToken: string;
@@ -157,7 +158,11 @@ export async function uploadToBackblaze(base64File: string, folder: string, opti
 
         // Run the background resizing asynchronously via QStash queue
         if (resourceType === "image" && contentType && !contentType.startsWith("video/")) {
-            publishResizeTask({ storageKey }).catch((err) => {
+            const headersList = await headers();
+            const host = headersList.get("host");
+            const protocol = host?.includes("localhost") ? "http" : "https";
+            const origin = host ? `${protocol}://${host}` : undefined;
+            publishResizeTask({ storageKey, origin }).catch((err) => {
                 console.error(`[Server Action QStash Publish Fail] Error queueing resize for ${storageKey}:`, err);
             });
         }
