@@ -44,30 +44,25 @@ export function getImageUrl(src: string | null | undefined, opts: ImageTransform
     const mediaDomainPattern = new RegExp(`^https?://${MEDIA_DOMAIN.replace('.', '\\.')}/`, 'i');
     if (!mediaDomainPattern.test(src)) return src;
 
-    // Nothing to transform
-    if (!opts.width && !opts.height && !opts.format) return src;
+    // Map to pre-generated static files on Backblaze B2 based on size requested
+    const width = opts.width || 0;
+    if (width > 0 && width <= 200) {
+        return `${src}-thumbnail.webp`;
+    } else if (width > 200 && width <= 450) {
+        return `${src}-thumbnail.webp`;
+    } else if (width > 450 && width <= 1000) {
+        return `${src}-preview.webp`;
+    }
 
-    // Build options string
-    const parts: string[] = [];
-    if (opts.width)  parts.push(`width=${opts.width}`);
-    if (opts.height) parts.push(`height=${opts.height}`);
-    if (opts.fit)    parts.push(`fit=${opts.fit}`);
-    parts.push(`quality=${opts.quality ?? 75}`);
-    parts.push(`format=${opts.format ?? 'webp'}`);
-
-    // Extract path after domain
-    const withoutProtocol = src.replace(/^https?:\/\/[^/]+/, '');
-    const imagePath = withoutProtocol.replace(/^\/+/, '');
-
-    return `https://${MEDIA_DOMAIN}/cdn-cgi/image/${parts.join(',')}/${imagePath}`;
+    return src;
 }
 
 /** Convenience preset: grid thumbnail (400px wide, webp, 75% quality) */
 export function getGridThumbnail(src: string | null | undefined): string {
-    return getImageUrl(src, { width: 400, quality: 75, format: 'webp' });
+    return getImageUrl(src, { width: 400 });
 }
 
 /** Convenience preset: small square avatar/preview (200px wide) */
 export function getSmallThumbnail(src: string | null | undefined): string {
-    return getImageUrl(src, { width: 200, quality: 70, format: 'webp' });
+    return getImageUrl(src, { width: 200 });
 }

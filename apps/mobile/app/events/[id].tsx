@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import LoadingScreen from '@/components/LoadingScreen';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Share, Keyboard, useWindowDimensions, useColorScheme, BackHandler, PanResponder, Animated as RNAnimated } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -4344,14 +4345,14 @@ export default function EventDetailScreen() {
                                     openViewer(photoIndex >= 0 ? photoIndex : 0);
                                   }}
                                 >
-                                  <Image
+                                  <ExpoImage
                                     source={{ uri: getGridThumbnail(item.url) }}
                                     style={{
                                       width: '100%',
                                       aspectRatio: 1,
                                       borderRadius: 10,
                                     }}
-                                    resizeMode="cover"
+                                    contentFit="cover"
                                   />
                                 </TouchableOpacity>
                                 <TouchableOpacity
@@ -5950,7 +5951,7 @@ export default function EventDetailScreen() {
                                       <Text style={[styles.sportsPhotoLabelText, { color: sportsTheme.accent }]}>{idx % 2 === 0 ? 'Play' : 'Frame'}</Text>
                                     </View>
                                   )}
-                                  <Image
+                                  <ExpoImage
                                     source={{ uri: getGridThumbnail(photo.url) }}
                                     style={[
                                       styles.galleryImg,
@@ -5979,7 +5980,7 @@ export default function EventDetailScreen() {
                                         borderBottomRightRadius: 0,
                                       } : {},
                                     ]}
-                                    resizeMode="cover"
+                                    contentFit="cover"
                                   />
                                   {event.templateId === 'academic_editorial' && (
                                     <View style={{

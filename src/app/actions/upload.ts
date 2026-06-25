@@ -1,6 +1,8 @@
 "use server";
 
 import { randomUUID } from "crypto";
+import sharp from "sharp";
+import { createClient } from "@supabase/supabase-js";
 
 type BackblazeAuth = {
     authorizationToken: string;
@@ -105,7 +107,25 @@ async function getUploadUrl(auth: BackblazeAuth): Promise<BackblazeUploadUrl> {
 
     return response.json();
 }
+async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string) {
+    const auth = await authorizeBackblaze();
+    const uploadUrlData = await getUploadUrl(auth);
 
+    const uploadResponse = await fetch(uploadUrlData.uploadUrl, {
+        method: "POST",
+        headers: {
+            Authorization: uploadUrlData.authorizationToken,
+            "Content-Type": contentType,
+            "X-Bz-File-Name": encodeURIComponent(key),
+            "X-Bz-Content-Sha1": "do_not_verify",
+        },
+        body: buffer as any,
+    });
+
+    if (!uploadResponse.ok) {
+        throw new Error(`B2 upload failed for key ${key} with status ${uploadResponse.status}`);
+    }
+}
 export async function uploadToBackblaze(base64File: string, folder: string, options: BackblazeUploadOptions = {}) {
     try {
         const resourceType = options.resourceType || (options.contentType?.startsWith("video/") ? "video" : "image");
@@ -135,6 +155,60 @@ export async function uploadToBackblaze(base64File: string, folder: string, opti
 
         const mediaDomain = requireEnv("MEDIA_DOMAIN").replace(/^https?:\/\//, "").replace(/\/+$/, "");
         const url = `https://${mediaDomain}/${storageKey}`;
+
+        // Run the background resizing asynchronously
+        if (resourceType === "image" && contentType && !contentType.startsWith("video/")) {
+            const supabaseAdmin = createClient(
+                requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+                requireEnv("SUPABASE_SERVICE_ROLE_KEY")
+            );
+
+            const bufferBytes = Buffer.from(bytes);
+
+            setTimeout(async () => {
+                try {
+                    console.log(`[Server Action BackgroundResize] Starting async resize for key: ${storageKey}`);
+
+                    const thumbnailBuffer = await sharp(bufferBytes)
+                        .resize({ width: 400, fit: "inside", withoutEnlargement: true })
+                        .webp({ quality: 75 })
+                        .toBuffer();
+
+                    const previewBuffer = await sharp(bufferBytes)
+                        .resize({ width: 900, fit: "inside", withoutEnlargement: true })
+                        .webp({ quality: 75 })
+                        .toBuffer();
+
+                    const thumbnailKey = `${storageKey}-thumbnail.webp`;
+                    const previewKey = `${storageKey}-preview.webp`;
+
+                    console.log(`[Server Action BackgroundResize] Uploading thumbnail to B2...`);
+                    await uploadBufferToB2(thumbnailBuffer, thumbnailKey, "image/webp");
+
+                    console.log(`[Server Action BackgroundResize] Uploading preview to B2...`);
+                    await uploadBufferToB2(previewBuffer, previewKey, "image/webp");
+
+                    const thumbnailUrl = `https://${mediaDomain}/${thumbnailKey}`;
+
+                    // Wait 3 seconds to ensure the client has finished saving the photo metadata
+                    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+                    console.log(`[Server Action BackgroundResize] Updating database record for: ${storageKey}`);
+                    const { error: dbError } = await supabaseAdmin
+                        .from("photos")
+                        .update({ thumbnail_url: thumbnailUrl })
+                        .eq("storage_key", storageKey);
+
+                    if (dbError) {
+                        console.error(`[Server Action BackgroundResize] Database update failed for key ${storageKey}:`, dbError);
+                    } else {
+                        console.log(`[Server Action BackgroundResize] Successfully completed resizing and updated database for key: ${storageKey}`);
+                    }
+                } catch (err: unknown) {
+                    console.error(`[Server Action BackgroundResize] Error processing background resize for key ${storageKey}:`, err);
+                }
+            }, 500);
+        }
 
         return {
             success: true,

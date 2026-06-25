@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { appendFileSync } from "fs";
+import sharp from "sharp";
+import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
@@ -119,6 +121,26 @@ async function getUploadUrl(auth: BackblazeAuth): Promise<BackblazeUploadUrl> {
   }
 
   return response.json();
+}
+
+async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string) {
+  const backblazeAuth = await authorizeBackblaze();
+  const uploadUrlData = await getUploadUrl(backblazeAuth);
+
+  const uploadResponse = await fetch(uploadUrlData.uploadUrl, {
+    method: "POST",
+    headers: {
+      Authorization: uploadUrlData.authorizationToken,
+      "Content-Type": contentType,
+      "X-Bz-File-Name": encodeURIComponent(key),
+      "X-Bz-Content-Sha1": "do_not_verify",
+    },
+    body: buffer as any,
+  });
+
+  if (!uploadResponse.ok) {
+    throw new Error(`B2 upload failed for key ${key} with status ${uploadResponse.status}`);
+  }
 }
 
 async function verifySupabaseUser(accessToken: string): Promise<SupabaseUser | null> {
@@ -250,6 +272,61 @@ export async function POST(request: NextRequest) {
 
     const mediaDomain = requireEnv("MEDIA_DOMAIN").replace(/^https?:\/\//, "").replace(/\/+$/, "");
     const url = `https://${mediaDomain}/${storageKey}`;
+
+    // Run the background resizing asynchronously
+    if (resourceType === "image" && allowedMimePrefixes.some((prefix) => mimeType.startsWith(prefix) && !mimeType.startsWith("video/"))) {
+      const supabaseAdmin = createClient(
+        requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+        requireEnv("SUPABASE_SERVICE_ROLE_KEY")
+      );
+
+      const bufferBytes = Buffer.from(bytes);
+
+      setTimeout(async () => {
+        try {
+          console.log(`[BackgroundResize] Starting async resize for key: ${storageKey}`);
+          
+          const thumbnailBuffer = await sharp(bufferBytes)
+            .resize({ width: 400, fit: "inside", withoutEnlargement: true })
+            .webp({ quality: 75 })
+            .toBuffer();
+
+          const previewBuffer = await sharp(bufferBytes)
+            .resize({ width: 900, fit: "inside", withoutEnlargement: true })
+            .webp({ quality: 75 })
+            .toBuffer();
+
+          const thumbnailKey = `${storageKey}-thumbnail.webp`;
+          const previewKey = `${storageKey}-preview.webp`;
+
+          console.log(`[BackgroundResize] Uploading thumbnail to B2...`);
+          await uploadBufferToB2(thumbnailBuffer, thumbnailKey, "image/webp");
+
+          console.log(`[BackgroundResize] Uploading preview to B2...`);
+          await uploadBufferToB2(previewBuffer, previewKey, "image/webp");
+
+          const thumbnailUrl = `https://${mediaDomain}/${thumbnailKey}`;
+
+          // Wait 3 seconds to ensure the client has finished saving the photo metadata
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+
+          console.log(`[BackgroundResize] Updating database record for: ${storageKey}`);
+          const { error: dbError } = await supabaseAdmin
+            .from("photos")
+            .update({ thumbnail_url: thumbnailUrl })
+            .eq("storage_key", storageKey);
+
+          if (dbError) {
+            console.error(`[BackgroundResize] Database update failed for key ${storageKey}:`, dbError);
+          } else {
+            console.log(`[BackgroundResize] Successfully completed resizing and updated database for key: ${storageKey}`);
+          }
+        } catch (err: unknown) {
+          console.error(`[BackgroundResize] Error processing background resize for key ${storageKey}:`, err);
+          appendFileSync("backend_error.log", `[BackgroundResize] Error for ${storageKey}: ${err}\n`);
+        }
+      }, 500);
+    }
 
     return jsonResponse({
       url,

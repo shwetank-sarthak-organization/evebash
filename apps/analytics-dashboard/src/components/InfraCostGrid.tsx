@@ -48,32 +48,59 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   const [liveBillingTier, setLiveBillingTier] = useState<string | null>(null);
   const [loadingBilling, setLoadingBilling] = useState<boolean>(false);
 
+  // Cloudflare Live API States
+  const [liveCfPlan, setLiveCfPlan] = useState<string | null>(null);
+  const [liveCfTransformations, setLiveCfTransformations] = useState<number | null>(null);
+  const [liveCfStoredImages, setLiveCfStoredImages] = useState<number | null>(null);
+  const [liveCfSubscriptions, setLiveCfSubscriptions] = useState<any[]>([]);
+
   useEffect(() => {
     const fetchBilling = async () => {
       setLoadingBilling(true);
       try {
         const origin = window.location.origin;
         const apiBase = origin.includes('5173') ? 'http://localhost:3000' : '';
+        
+        // Fetch Supabase
         const res = await fetch(`${apiBase}/api/admin/supabase-billing`);
-        if (!res.ok) {
-          throw new Error(`HTTP error ${res.status}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.billing_tier?.id) {
+            setLiveBillingTier(data.billing_tier.id);
+            if (data.billing_tier.id === 'pro' || data.billing_tier.id === 'free') {
+              setSupabaseTier(data.billing_tier.id);
+            }
+          }
         }
-        const data = await res.json();
-        if (data?.billing_tier?.id) {
-          setLiveBillingTier(data.billing_tier.id);
-          if (data.billing_tier.id === 'pro' || data.billing_tier.id === 'free') {
-            setSupabaseTier(data.billing_tier.id);
+
+        // Fetch Cloudflare
+        const cfRes = await fetch(`${apiBase}/api/admin/cloudflare-billing`);
+        if (cfRes.ok) {
+          const cfData = await cfRes.json();
+          if (cfData.zonePlan) {
+            setLiveCfPlan(cfData.zonePlan);
+          }
+          if (typeof cfData.uniqueTransformations === 'number') {
+            setLiveCfTransformations(cfData.uniqueTransformations);
+            setSimulatedTransformations(Math.max(cfData.uniqueTransformations, Math.ceil(photos.length * 3)));
+          }
+          if (typeof cfData.storedImages === 'number') {
+            setLiveCfStoredImages(cfData.storedImages);
+          }
+          if (Array.isArray(cfData.subscriptions)) {
+            setLiveCfSubscriptions(cfData.subscriptions);
           }
         }
       } catch (err: any) {
-        console.error('Failed to fetch live Supabase billing:', err);
+        console.error('Failed to fetch live billing data:', err);
       } finally {
         setLoadingBilling(false);
       }
     };
 
     fetchBilling();
-  }, []);
+  }, [photos.length]);
+  
   
   // Extract and default simulated storage
   const totalStorage = useMemo(() => {
@@ -186,8 +213,11 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
 
   // Actual Image Resizing/Transformations: $0.50 per 1,000 unique transformations (first 5,000 free)
   const actualTransformations = useMemo(() => {
+    if (liveCfTransformations !== null) {
+      return liveCfTransformations;
+    }
     return photos.length * 3;
-  }, [photos]);
+  }, [photos, liveCfTransformations]);
 
   const actualCfImageCostMonth = useMemo(() => {
     return Math.max(0, actualTransformations - 5000) * 0.0005;
@@ -214,7 +244,26 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
     return 5.00 + (extraMillions * 0.50);
   }, [monthlyRequests]);
 
-  const actualCloudflareCost = registrarCost + actualCfImageCostMonth;
+  // Actual subscription costs fetched live (e.g. Pro Plan, image resizing subscription bases, paid workers/KV bases)
+  const liveCfSubscriptionCost = useMemo(() => {
+    if (!liveCfSubscriptions || liveCfSubscriptions.length === 0) {
+      // If we got zonePlan = 'pro' live but no explicit subscription payload details, default to pro plan pricing ($20 or $25 base)
+      if (liveCfPlan === 'pro' || liveCfPlan === 'business') {
+        return liveCfPlan === 'pro' ? 20.00 : 200.00;
+      }
+      return 0.00;
+    }
+    return liveCfSubscriptions.reduce((sum, sub) => {
+      // Calculate active monthly cost from actual subscriptions
+      if (sub.state === 'active' || sub.state === 'paid') {
+        const freqMultiplier = sub.frequency === 'yearly' ? 1 / 12 : 1;
+        return sum + ((sub.price || 0) * freqMultiplier);
+      }
+      return sum;
+    }, 0);
+  }, [liveCfSubscriptions, liveCfPlan]);
+
+  const actualCloudflareCost = registrarCost + actualCfImageCostMonth + liveCfSubscriptionCost;
   const simulatedCloudflareCost = registrarCost + workersCost + simCfImageCostMonth;
 
   // 4. Combined Totals
@@ -466,6 +515,74 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
             )}
           </div>
 
+          {/* Individual & Total Infra Cost Ledger Table */}
+          <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl">
+            <h4 className="text-md font-bold text-white mb-1.5 flex items-center">
+              <DollarSign className="w-5 h-5 mr-2 text-indigo-400" />
+              Infrastructure Ledger & Billing Breakdown
+            </h4>
+            <p className="text-slate-400 text-xs mb-6">
+              Individual and consolidated platform costing comparison between actual usage and simulated limits.
+            </p>
+
+            <div className="overflow-x-auto border border-slate-800/60 rounded-2xl">
+              <table className="w-full text-left text-xs text-slate-400">
+                <thead className="text-[10px] text-slate-500 uppercase bg-slate-900/30 border-b border-slate-800">
+                  <tr>
+                    <th className="py-3 px-4">Cloud Provider</th>
+                    <th className="py-3 px-4">Included Usage & Baseline</th>
+                    <th className="py-3 px-4">Actual Cost (Month)</th>
+                    <th className="py-3 px-4">Simulated Cost (Month)</th>
+                    <th className="py-3 px-4">Cost Trend (Projected Year)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/40 text-slate-350">
+                  {/* Supabase Row */}
+                  <tr className="hover:bg-slate-800/10 transition-colors">
+                    <td className="py-4 px-4 font-semibold text-white">Supabase (Postgres & Auth)</td>
+                    <td className="py-4 px-4">
+                      {liveBillingTier ? `Live: ${liveBillingTier.toUpperCase()}` : `Config: ${supabaseTier.toUpperCase()}`} Plan (DB, Auth MAUs)
+                    </td>
+                    <td className="py-4 px-4 font-mono font-bold text-emerald-450">${supabaseTierCost.toFixed(2)}</td>
+                    <td className="py-4 px-4 font-mono text-slate-450">${supabaseTierCost.toFixed(2)}</td>
+                    <td className="py-4 px-4 font-mono text-slate-400">${(supabaseTierCost * 12).toFixed(2)} / yr</td>
+                  </tr>
+
+                  {/* Backblaze B2 Row */}
+                  <tr className="hover:bg-slate-800/10 transition-colors">
+                    <td className="py-4 px-4 font-semibold text-white">Backblaze B2 (Object Storage)</td>
+                    <td className="py-4 px-4">
+                      10 GB Free baseline storage & Class B/C APIs
+                    </td>
+                    <td className="py-4 px-4 font-mono font-bold text-sky-400">${actualB2Cost.toFixed(4)}</td>
+                    <td className="py-4 px-4 font-mono text-slate-400">${simulatedB2Cost.toFixed(4)}</td>
+                    <td className="py-4 px-4 font-mono text-slate-400">${(actualB2Cost * 12).toFixed(4)} / yr</td>
+                  </tr>
+
+                  {/* Cloudflare Edge Row */}
+                  <tr className="hover:bg-slate-800/10 transition-colors">
+                    <td className="py-4 px-4 font-semibold text-white">Cloudflare (CDN, DNS & Workers)</td>
+                    <td className="py-4 px-4">
+                      Domain Registry wholesale, 5k Image Resizing free/mo
+                    </td>
+                    <td className="py-4 px-4 font-mono font-bold text-amber-400">${actualCloudflareCost.toFixed(2)}</td>
+                    <td className="py-4 px-4 font-mono text-slate-400">${simulatedCloudflareCost.toFixed(2)}</td>
+                    <td className="py-4 px-4 font-mono text-slate-400">${(actualCloudflareCost * 12).toFixed(2)} / yr</td>
+                  </tr>
+
+                  {/* Consolidated Total Row */}
+                  <tr className="bg-slate-900/40 font-black border-t-2 border-slate-800">
+                    <td className="py-4 px-4 text-white uppercase tracking-wider text-[10px]">Consolidated Upkeep</td>
+                    <td className="py-4 px-4 text-indigo-400">Total Infrastructure Footprint</td>
+                    <td className="py-4 px-4 font-mono font-black text-indigo-400 text-sm">${actualTotalCost.toFixed(4)}</td>
+                    <td className="py-4 px-4 font-mono font-black text-slate-200 text-sm">${simulatedTotalCost.toFixed(4)}</td>
+                    <td className="py-4 px-4 font-mono text-indigo-400">${(actualTotalCost * 12).toFixed(4)} / yr</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           {/* Integration Status Table */}
           <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl">
             <h4 className="text-md font-bold text-white mb-1">Service Cost API Integration Status</h4>
@@ -491,9 +608,15 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                     </td>
                     <td className="py-4 px-4 text-indigo-400 font-mono">SUPABASE_MGMT_KEY</td>
                     <td className="py-4 px-4">
-                      <span className="px-2 py-0.5 text-[9px] font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full">
-                        Keys Pending
-                      </span>
+                      {liveBillingTier ? (
+                        <span className="px-2 py-0.5 text-[9px] font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 rounded-full flex items-center w-fit">
+                          <ShieldCheck className="w-3 h-3 mr-1" /> Live Sync Active ({liveBillingTier.toUpperCase()})
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 text-[9px] font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full">
+                          Offline / Simulated
+                        </span>
+                      )}
                     </td>
                   </tr>
 
@@ -504,7 +627,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                     </td>
                     <td className="py-4 px-4 text-indigo-400 font-mono">Database Metadata (Photos Table)</td>
                     <td className="py-4 px-4">
-                      <span className="px-2 py-0.5 text-[9px] font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full flex items-center w-fit">
+                      <span className="px-2 py-0.5 text-[9px] font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 rounded-full flex items-center w-fit">
                         <ShieldCheck className="w-3 h-3 mr-1" /> Dynamic Estimator Active
                       </span>
                     </td>
@@ -515,11 +638,17 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                     <td className="py-4 px-4">
                       Workers request counters and monthly invoice limits can sync via Accounts Billing API.
                     </td>
-                    <td className="py-4 px-4 text-indigo-400 font-mono">CLOUDFLARE_BILLING_TOKEN</td>
+                    <td className="py-4 px-4 text-indigo-400 font-mono">CLOUDFLARE_API_TOKEN</td>
                     <td className="py-4 px-4">
-                      <span className="px-2 py-0.5 text-[9px] font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full">
-                        Keys Pending
-                      </span>
+                      {liveCfPlan ? (
+                        <span className="px-2 py-0.5 text-[9px] font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 rounded-full flex items-center w-fit">
+                          <ShieldCheck className="w-3 h-3 mr-1" /> Live Sync Active ({liveCfPlan.toUpperCase()})
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 text-[9px] font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full">
+                          Offline / Simulated
+                        </span>
+                      )}
                     </td>
                   </tr>
 
@@ -1045,16 +1174,31 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
           {/* Cloudflare metrics block */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Egress savings banner */}
-            <div className="bg-[#111827]/80 border border-emerald-950 rounded-2xl p-5 shadow-lg flex items-center justify-between col-span-1 md:col-span-2 bg-gradient-to-br from-[#111827]/90 to-emerald-950/15">
+            <div className="bg-[#111827]/80 border border-emerald-950 rounded-2xl p-5 shadow-lg flex items-center justify-between col-span-1 md:col-span-1 bg-gradient-to-br from-[#111827]/90 to-emerald-950/15">
               <div className="space-y-1">
-                <p className="text-emerald-400 text-xs font-black uppercase tracking-wider">Bandwidth Alliance Egress Savings</p>
-                <h4 className="text-lg font-bold text-white mt-1">Egress fees: $0.00 / GB</h4>
-                <p className="text-[10px] text-slate-400 leading-relaxed mt-1 max-w-lg">
-                  Media file downloads routed from Backblaze B2 storage through Cloudflare edge network nodes incur no data transfer egress fees. Standard cloud setups charge $0.01 to $0.09/GB for outgoing server traffic.
+                <p className="text-emerald-400 text-xs font-black uppercase tracking-wider">Bandwidth Alliance</p>
+                <h4 className="text-lg font-bold text-white mt-1">Egress: $0.00 / GB</h4>
+                <p className="text-[10px] text-slate-400 leading-relaxed mt-1">
+                  B2 downloads via Cloudflare edge incur zero egress.
                 </p>
               </div>
               <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl shrink-0 hidden sm:block">
-                <ShieldCheck className="w-7 h-7" />
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+            </div>
+
+            {/* Live API sync status */}
+            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg bg-gradient-to-br from-[#111827]/90 to-amber-950/10">
+              <p className="text-amber-400 text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${liveCfPlan ? 'bg-emerald-500 animate-pulse' : 'bg-slate-650'}`}></span>
+                Live API Connection
+              </p>
+              <h4 className="text-md font-bold text-white mt-1">
+                {liveCfPlan ? `${liveCfPlan.toUpperCase()} Plan` : 'Offline / Simulated'}
+              </h4>
+              <div className="text-[10px] text-slate-400 mt-2 space-y-1">
+                <div>Transformations (30d): <span className="text-slate-200 font-semibold">{liveCfTransformations !== null ? formatNumber(liveCfTransformations) : 'N/A'}</span></div>
+                <div>Stored Images (Live): <span className="text-slate-200 font-semibold">{liveCfStoredImages !== null ? formatNumber(liveCfStoredImages) : 'N/A'}</span></div>
               </div>
             </div>
 
@@ -1321,6 +1465,22 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                     <td className="py-4 px-4 font-mono font-bold text-amber-400">$0.83</td>
                     <td className="py-4 px-4 font-mono text-slate-400">$10.00</td>
                   </tr>
+
+                  {/* Row 1b: Live Cloudflare Plan Subscriptions */}
+                  {liveCfSubscriptionCost > 0 && (
+                    <tr className="hover:bg-slate-800/10 transition-colors bg-amber-500/5">
+                      <td className="py-4 px-4 font-semibold text-white flex items-center gap-1.5">
+                        Cloudflare Premium Subscriptions
+                        <span className="text-[9px] bg-amber-500/20 text-amber-350 px-1.5 py-0.5 rounded font-black uppercase">Live</span>
+                      </td>
+                      <td className="py-4 px-4">Active Plan upgrades / Paid add-ons</td>
+                      <td className="py-4 px-4">
+                        {liveCfPlan ? `${liveCfPlan.toUpperCase()} Zone Plan` : 'Subscriptions Active'}
+                      </td>
+                      <td className="py-4 px-4 font-mono font-bold text-amber-400">${liveCfSubscriptionCost.toFixed(2)}</td>
+                      <td className="py-4 px-4 font-mono text-slate-400">${(liveCfSubscriptionCost * 12).toFixed(2)}</td>
+                    </tr>
+                  )}
 
                   {/* Row 2: Workers Serverless API requests */}
                   <tr className="hover:bg-slate-800/10 transition-colors">

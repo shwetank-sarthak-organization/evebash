@@ -49,6 +49,7 @@ export default function YourEventsScreen() {
     try {
       const ownIdentifiers = [user.uid];
       if (user.email) ownIdentifiers.push(user.email);
+      if (user.phone) ownIdentifiers.push(user.phone);
       
       const [fetchedMy, fetchedShared] = await Promise.all([
         getUserEvents(ownIdentifiers, 'main'),

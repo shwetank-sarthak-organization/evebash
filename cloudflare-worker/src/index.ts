@@ -82,8 +82,25 @@ export default {
 
       const signedRequest = await aws.sign(new Request(b2Url, fetchOptions));
       response = await fetch(signedRequest);
+
+      // Fail-Safe: If the thumbnail or preview file does not exist yet (returns 404),
+      // fall back to fetching and serving the original file.
+      if (response.status === 404 && (cleanPath.endsWith('-thumbnail.webp') || cleanPath.endsWith('-preview.webp'))) {
+        const originalPath = cleanPath.replace(/-thumbnail\.webp$/, '').replace(/-preview\.webp$/, '');
+        const originalB2Url = `https://${bucketName}.${b2Endpoint}/${originalPath}`;
+        const signedOriginalRequest = await aws.sign(new Request(originalB2Url, { method: 'GET' }));
+        response = await fetch(signedOriginalRequest);
+      }
     } else {
       response = await fetch(b2Url, fetchOptions);
+
+      // Fail-Safe: If the thumbnail or preview file does not exist yet (returns 404),
+      // fall back to fetching and serving the original file.
+      if (response.status === 404 && (cleanPath.endsWith('-thumbnail.webp') || cleanPath.endsWith('-preview.webp'))) {
+        const originalPath = cleanPath.replace(/-thumbnail\.webp$/, '').replace(/-preview\.webp$/, '');
+        const originalB2Url = `https://${bucketName}.${b2Endpoint}/${originalPath}`;
+        response = await fetch(originalB2Url);
+      }
     }
 
     // Fallback to original image if resizing is not enabled on this Cloudflare plan

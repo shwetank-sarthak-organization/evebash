@@ -39,7 +39,7 @@ export interface ImageTransformOptions {
 export function getImageUrl(src: string | null | undefined, opts: ImageTransformOptions = {}): string {
     if (!src) return '';
 
-    // Don't transform videos — CF Image Resizing only supports images
+    // Don't transform videos
     const isVideo = /\.(mp4|mov|avi|webm|mkv|m4v)(\?.*)?$/i.test(src);
     if (isVideo) return src;
 
@@ -47,22 +47,17 @@ export function getImageUrl(src: string | null | undefined, opts: ImageTransform
     const mediaDomainPattern = new RegExp(`^https?://${MEDIA_DOMAIN.replace('.', '\\.')}/`, 'i');
     if (!mediaDomainPattern.test(src)) return src;
 
-    // Nothing to transform
-    if (!opts.width && !opts.height && !opts.format) return src;
+    // Map to pre-generated static files on Backblaze B2 based on size requested
+    const width = opts.width || 0;
+    if (width > 0 && width <= 200) {
+        return `${src}-thumbnail.webp`;
+    } else if (width > 200 && width <= 500) {
+        return `${src}-thumbnail.webp`;
+    } else if (width > 500 && width <= 1600) {
+        return `${src}-preview.webp`;
+    }
 
-    // Build the options string: "width=500,quality=75,format=webp"
-    const parts: string[] = [];
-    if (opts.width)   parts.push(`width=${opts.width}`);
-    if (opts.height)  parts.push(`height=${opts.height}`);
-    if (opts.fit)     parts.push(`fit=${opts.fit}`);
-    parts.push(`quality=${opts.quality ?? 75}`);
-    parts.push(`format=${opts.format ?? 'webp'}`);
-
-    // Extract the path after the domain: "events/abc/photo.jpg"
-    const url = new URL(src);
-    const imagePath = url.pathname.replace(/^\/+/, '');
-
-    return `https://${MEDIA_DOMAIN}/cdn-cgi/image/${parts.join(',')}/${imagePath}`;
+    return src;
 }
 
 /** Convenience preset: grid thumbnail (500px wide, webp, 75% quality) */

@@ -1752,8 +1752,25 @@ export async function getEventByJoinId(joinId: string): Promise<Event | null> {
  */
 export async function deletePhoto(photoId: string): Promise<boolean> {
     try {
-        const { error } = await supabase.from('photos').delete().eq('id', photoId);
-        if (error) throw error;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+            throw new Error("Authentication required");
+        }
+
+        const response = await fetch("/api/media/delete", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ photoId }),
+        });
+
+        if (!response.ok) {
+            const errResult = await response.json().catch(() => ({}));
+            throw new Error(errResult.error || `Failed with status: ${response.status}`);
+        }
+
         return true;
     } catch (error) {
         console.error("Error deleting photo:", error);

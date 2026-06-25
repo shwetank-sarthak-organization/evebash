@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, Share, TextInput, Keyboard, Modal } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, Share, TextInput, Keyboard, Modal, ActivityIndicator, StyleSheet } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
+import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -116,6 +118,7 @@ export default function PhotoViewer({
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
   const [isLiking, setIsLiking] = useState(false);
   const [isCommenting, setIsCommenting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // Sync index when initialIndex changes
   useEffect(() => {
@@ -248,6 +251,35 @@ export default function PhotoViewer({
     }
   };
 
+  const handleDownloadPhoto = async () => {
+    if (!currentPhoto?.url) return;
+    setIsDownloading(true);
+    try {
+      const extension = currentPhoto.url.split('.').pop() || 'jpg';
+      const localUri = `${FileSystem.cacheDirectory}${Date.now()}-download.${extension}`;
+      
+      const downloadResult = await FileSystem.downloadAsync(
+        currentPhoto.url,
+        localUri
+      );
+      
+      if (downloadResult.status === 200) {
+        await Share.share(
+          Platform.OS === 'ios'
+            ? { url: downloadResult.uri }
+            : { message: `Event memory: ${event?.title || 'our event'}`, url: downloadResult.uri }
+        );
+      } else {
+        throw new Error(`Download failed with status ${downloadResult.status}`);
+      }
+    } catch (error) {
+      console.error('[PhotoViewer] Photo download/share failed:', error);
+      Alert.alert('Download Failed', 'Could not download the original media. Please try again.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   return (
     <Modal
       visible={visible}
@@ -300,11 +332,17 @@ export default function PhotoViewer({
             {isVideoMedia ? (
               <ViewerVideo key={photos[currentPhotoIndex].id || photos[currentPhotoIndex].url} uri={photos[currentPhotoIndex].url} frameBg={viewerTheme.tileBg} />
             ) : (
-              <Image
-                source={{ uri: getImageUrl(photos[currentPhotoIndex].url, { width: 1600, quality: 80, format: 'webp' }) }}
+              <ExpoImage
+                source={{ uri: getImageUrl(photos[currentPhotoIndex].url, { width: 900, quality: 75, format: 'webp' }) }}
                 style={{ width: '100%', height: '100%' }}
-                resizeMode="contain"
+                contentFit="contain"
               />
+            )}
+            {isDownloading && (
+              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#fff" />
+                <Text style={{ color: '#fff', marginTop: 12, fontSize: 14, fontWeight: '600' }}>Downloading original...</Text>
+              </View>
             )}
           </View>
         )}
@@ -328,6 +366,10 @@ export default function PhotoViewer({
               <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }, isNeonTemplate && styles.neonViewerActionCount, isPopTemplate && styles.popViewerActionCount]}>Share</Text>
             </TouchableOpacity>
           )}
+          <TouchableOpacity style={styles.viewerAction} onPress={handleDownloadPhoto} disabled={isDownloading}>
+            <IconSymbol name="arrow.down.to.line.compact" size={30} color={viewerTheme.controlText} />
+            <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Download</Text>
+          </TouchableOpacity>
         </View>
 
         {!showComments && (

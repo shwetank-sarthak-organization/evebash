@@ -1283,10 +1283,80 @@ export async function removeGuestChatPermission(logId: string) {
     }
 }
 
+function getDeleteEndpoints() {
+    const explicitEndpoint = process.env.EXPO_PUBLIC_MEDIA_UPLOAD_URL?.trim();
+    if (explicitEndpoint) {
+        return [explicitEndpoint.replace(/\/upload$/, '/delete')];
+    }
+
+    const endpoints: string[] = [];
+    const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+    if (apiBaseUrl) {
+        endpoints.push(`${apiBaseUrl.replace(/\/+$/, '')}/api/media/delete`);
+    }
+
+    try {
+        const Constants = require('expo-constants').default;
+        const hostUri = Constants?.expoConfig?.hostUri || Constants?.manifest2?.extra?.expoGo?.developer?.hostUri;
+        const devHost = typeof hostUri === 'string' ? hostUri.split(':')[0] : '';
+        if (devHost) {
+            endpoints.push(`http://${devHost}:3000/api/media/delete`);
+        }
+    } catch (e) {}
+
+    try {
+        const { Platform } = require('react-native');
+        if (Platform.OS === 'android') {
+            endpoints.push('http://10.0.2.2:3000/api/media/delete');
+        }
+    } catch (e) {}
+
+    endpoints.push('http://localhost:3000/api/media/delete');
+
+    return Array.from(new Set(endpoints));
+}
+
 export async function deletePhoto(photoId: string) {
     try {
-        const { error } = await supabase.from('photos').delete().eq('id', photoId);
-        if (error) throw error;
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+        if (!accessToken) {
+            throw new Error('Please log in before deleting media.');
+        }
+
+        const endpoints = getDeleteEndpoints();
+        let success = false;
+        let lastError: any = null;
+
+        for (const deleteUrl of endpoints) {
+            try {
+                console.log(`[Database] Trying delete: ${photoId} via ${deleteUrl}`);
+                const response = await fetch(deleteUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                    body: JSON.stringify({ photoId }),
+                });
+
+                if (response.ok) {
+                    success = true;
+                    break;
+                } else {
+                    const errRes = await response.json().catch(() => ({}));
+                    lastError = new Error(errRes.error || `Failed with status: ${response.status}`);
+                }
+            } catch (err) {
+                lastError = err;
+                console.warn(`[Database] Delete endpoint failed: ${deleteUrl}`, err);
+            }
+        }
+
+        if (!success) {
+            throw lastError || new Error('Failed to reach any delete endpoint.');
+        }
+
         return true;
     } catch (error) {
         console.error("Error deleting photo:", error);

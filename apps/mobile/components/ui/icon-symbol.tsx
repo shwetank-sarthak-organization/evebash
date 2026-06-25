@@ -83,6 +83,7 @@ const MAPPING = {
   'plus.circle.fill': 'add-circle',
   'arrow.up.right': 'arrow-outward',
   'arrow.down.right': 'south-east',
+  'arrow.down.to.line.compact': 'file-download',
   'minus': 'remove',
   'heart.circle.fill': 'favorite',
   'mappin.and.ellipse': 'location-on',
