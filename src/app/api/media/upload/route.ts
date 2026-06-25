@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { appendFileSync } from "fs";
-import { publishResizeTask } from "@/lib/qstash";
+import sharp from "sharp";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 type BackblazeAuth = {
   authorizationToken: string;
@@ -272,12 +272,32 @@ export async function POST(request: NextRequest) {
     const mediaDomain = requireEnv("MEDIA_DOMAIN").replace(/^https?:\/\//, "").replace(/\/+$/, "");
     const url = `https://${mediaDomain}/${storageKey}`;
 
-    // Run the background resizing asynchronously via QStash queue
+    // Inline resizing — generate thumbnail and preview immediately after upload
     if (resourceType === "image") {
-      console.log(`[QStash] Triggering resize for: ${storageKey}, origin: ${request.nextUrl.origin}`);
-      publishResizeTask({ storageKey, origin: request.nextUrl.origin }).catch((err) => {
-        console.error(`[QStash Publish Fail] Error queueing resize for ${storageKey}:`, err);
-      });
+      try {
+        console.log(`[Upload] Generating thumbnail and preview for: ${storageKey}`);
+        const bufferBytes = Buffer.from(bytes);
+
+        const thumbnailBuffer = await sharp(bufferBytes)
+          .resize({ width: 400, fit: "inside", withoutEnlargement: true })
+          .webp({ quality: 75 })
+          .toBuffer();
+
+        const previewBuffer = await sharp(bufferBytes)
+          .resize({ width: 900, fit: "inside", withoutEnlargement: true })
+          .webp({ quality: 75 })
+          .toBuffer();
+
+        const thumbnailKey = `${storageKey}-thumbnail.webp`;
+        const previewKey = `${storageKey}-preview.webp`;
+
+        await uploadBufferToB2(thumbnailBuffer, thumbnailKey, "image/webp");
+        await uploadBufferToB2(previewBuffer, previewKey, "image/webp");
+        console.log(`[Upload] Thumbnail and preview uploaded successfully for: ${storageKey}`);
+      } catch (resizeErr) {
+        // Non-fatal — original is uploaded, resizing failed
+        console.error(`[Upload] Resizing failed for ${storageKey}:`, resizeErr);
+      }
     }
 
     return jsonResponse({

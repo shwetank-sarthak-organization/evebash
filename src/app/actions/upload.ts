@@ -1,8 +1,7 @@
 "use server";
 
 import { randomUUID } from "crypto";
-import { publishResizeTask } from "@/lib/qstash";
-import { headers } from "next/headers";
+import sharp from "sharp";
 
 type BackblazeAuth = {
     authorizationToken: string;
@@ -156,15 +155,27 @@ export async function uploadToBackblaze(base64File: string, folder: string, opti
         const mediaDomain = requireEnv("MEDIA_DOMAIN").replace(/^https?:\/\//, "").replace(/\/+$/, "");
         const url = `https://${mediaDomain}/${storageKey}`;
 
-        // Run the background resizing asynchronously via QStash queue
+        // Inline resizing — generate thumbnail and preview immediately
         if (resourceType === "image" && contentType && !contentType.startsWith("video/")) {
-            const headersList = await headers();
-            const host = headersList.get("host");
-            const protocol = host?.includes("localhost") ? "http" : "https";
-            const origin = host ? `${protocol}://${host}` : undefined;
-            publishResizeTask({ storageKey, origin }).catch((err) => {
-                console.error(`[Server Action QStash Publish Fail] Error queueing resize for ${storageKey}:`, err);
-            });
+            try {
+                console.log(`[Server Action] Generating thumbnail and preview for: ${storageKey}`);
+
+                const thumbnailBuffer = await sharp(bytes)
+                    .resize({ width: 400, fit: "inside", withoutEnlargement: true })
+                    .webp({ quality: 75 })
+                    .toBuffer();
+
+                const previewBuffer = await sharp(bytes)
+                    .resize({ width: 900, fit: "inside", withoutEnlargement: true })
+                    .webp({ quality: 75 })
+                    .toBuffer();
+
+                await uploadBufferToB2(thumbnailBuffer, `${storageKey}-thumbnail.webp`, "image/webp");
+                await uploadBufferToB2(previewBuffer, `${storageKey}-preview.webp`, "image/webp");
+                console.log(`[Server Action] Thumbnail and preview uploaded for: ${storageKey}`);
+            } catch (resizeErr) {
+                console.error(`[Server Action] Resizing failed for ${storageKey}:`, resizeErr);
+            }
         }
 
         return {
