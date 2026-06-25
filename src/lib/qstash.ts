@@ -15,7 +15,13 @@ export async function publishResizeTask(options: QStashPublishOptions): Promise<
     return false;
   }
 
-  const siteUrl = options.origin || process.env.NEXT_PUBLIC_SITE_URL || `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'lens-and-frame-wedding-album.netlify.app'}`;
+  // Determine the target URL. Priority:
+  // 1. Explicitly provided origin (e.g. from request headers)
+  // 2. NEXT_PUBLIC_SITE_URL (manually configured, most reliable)
+  // 3. VERCEL_URL (automatically injected by Vercel for the current deployment)
+  // 4. Fallback to Netlify domain
+  const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null;
+  const siteUrl = options.origin || process.env.NEXT_PUBLIC_SITE_URL || vercelUrl || `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'lens-and-frame-wedding-album.netlify.app'}`;
   const targetUrl = `${siteUrl}/api/media/resize-worker`;
 
   console.log(`[QStash] Publishing resize task for ${options.storageKey} to target: ${targetUrl}`);
@@ -25,12 +31,6 @@ export async function publishResizeTask(options: QStashPublishOptions): Promise<
       "Authorization": `Bearer ${qstashToken}`,
       "Content-Type": "application/json",
     };
-
-    // Forward the CRON_SECRET for security if configured
-    const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret) {
-      headers["Upstash-Forward-Authorization"] = `Bearer ${cronSecret}`;
-    }
 
     const response = await fetch(`https://qstash-us-east-1.upstash.io/v2/publish/${targetUrl}`, {
       method: "POST",

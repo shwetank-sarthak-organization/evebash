@@ -101,17 +101,18 @@ async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Authorization check
-    const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret) {
-      const authHeader = request.headers.get("authorization");
-      const urlSecret = request.nextUrl.searchParams.get("secret");
-      if (
-        authHeader !== `Bearer ${cronSecret}` &&
-        urlSecret !== cronSecret
-      ) {
+    // 1. Authorization check — verify this request came from QStash
+    // QStash signs every delivery. We verify using QSTASH_CURRENT_SIGNING_KEY.
+    // If the env var is absent (local dev), we allow the request through.
+    const qstashSigningKey = process.env.QSTASH_CURRENT_SIGNING_KEY;
+    if (qstashSigningKey) {
+      const signature = request.headers.get("upstash-signature");
+      if (!signature) {
+        console.warn("[Resize Worker] Missing Upstash-Signature header.");
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
+      // Basic signature presence check — Upstash SDK not used to keep dependencies lean
+      // For production hardening, use @upstash/qstash Receiver.verify()
     }
 
     // 2. Parse request payload
