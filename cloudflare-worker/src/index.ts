@@ -23,51 +23,17 @@ export default {
     const b2Endpoint = env.B2_ENDPOINT || 's3.ca-east-006.backblazeb2.com';
     const b2Region = env.B2_REGION || 'ca-east-006';
 
-    let imagePath = url.pathname;
-    let resizeOptions: any = null;
-
-    // Parse /cdn-cgi/image/ prefix if present
-    const cdnCgiPrefix = '/cdn-cgi/image/';
-    if (url.pathname.startsWith(cdnCgiPrefix)) {
-      const rest = url.pathname.slice(cdnCgiPrefix.length);
-      const firstSlashIdx = rest.indexOf('/');
-      if (firstSlashIdx !== -1) {
-        const optionsStr = rest.slice(0, firstSlashIdx);
-        imagePath = '/' + rest.slice(firstSlashIdx + 1);
-
-        resizeOptions = {};
-        const optionsParts = optionsStr.split(',');
-        for (const part of optionsParts) {
-          const [key, val] = part.split('=');
-          if (key === 'width') resizeOptions.width = parseInt(val, 10);
-          if (key === 'height') resizeOptions.height = parseInt(val, 10);
-          if (key === 'quality') resizeOptions.quality = parseInt(val, 10);
-          if (key === 'format') resizeOptions.format = val;
-          if (key === 'fit') resizeOptions.fit = val;
-        }
-      }
-    }
-
-    const cleanPath = imagePath.replace(/^\/+/, '');
+    const cleanPath = url.pathname.replace(/^\/+/, '');
     const b2Url = `https://${bucketName}.${b2Endpoint}/${cleanPath}`;
 
     const headers = new Headers(request.headers);
     headers.delete('host');
     headers.delete('cookie');
 
-    const fetchOptions: RequestInit & { cf?: any } = {
+    const fetchOptions: RequestInit = {
       method: 'GET',
       headers: headers,
     };
-
-    if (resizeOptions) {
-      fetchOptions.cf = {
-        image: {
-          ...resizeOptions,
-          fit: resizeOptions.fit || 'cover',
-        }
-      };
-    }
 
     let response: Response;
 
@@ -100,23 +66,6 @@ export default {
         const originalPath = cleanPath.replace(/-thumbnail\.webp$/, '').replace(/-preview\.webp$/, '');
         const originalB2Url = `https://${bucketName}.${b2Endpoint}/${originalPath}`;
         response = await fetch(originalB2Url);
-      }
-    }
-
-    // Fallback to original image if resizing is not enabled on this Cloudflare plan
-    if (resizeOptions && (response.status === 400 || response.status === 403 || response.status === 9524)) {
-      console.warn('Cloudflare Image Resizing failed or not enabled. Falling back to original.');
-      if (env.B2_KEY_ID && env.B2_APPLICATION_KEY) {
-        const aws = new AwsClient({
-          accessKeyId: env.B2_KEY_ID,
-          secretAccessKey: env.B2_APPLICATION_KEY,
-          region: b2Region,
-          service: 's3',
-        });
-        const signedRequest = await aws.sign(new Request(b2Url, { method: 'GET' }));
-        response = await fetch(signedRequest);
-      } else {
-        response = await fetch(b2Url);
       }
     }
 

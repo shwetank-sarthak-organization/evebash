@@ -1,8 +1,7 @@
 "use server";
 
 import { randomUUID } from "crypto";
-import sharp from "sharp";
-import { createClient } from "@supabase/supabase-js";
+import { publishResizeTask } from "@/lib/qstash";
 
 type BackblazeAuth = {
     authorizationToken: string;
@@ -156,58 +155,11 @@ export async function uploadToBackblaze(base64File: string, folder: string, opti
         const mediaDomain = requireEnv("MEDIA_DOMAIN").replace(/^https?:\/\//, "").replace(/\/+$/, "");
         const url = `https://${mediaDomain}/${storageKey}`;
 
-        // Run the background resizing asynchronously
+        // Run the background resizing asynchronously via QStash queue
         if (resourceType === "image" && contentType && !contentType.startsWith("video/")) {
-            const supabaseAdmin = createClient(
-                requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
-                requireEnv("SUPABASE_SERVICE_ROLE_KEY")
-            );
-
-            const bufferBytes = Buffer.from(bytes);
-
-            setTimeout(async () => {
-                try {
-                    console.log(`[Server Action BackgroundResize] Starting async resize for key: ${storageKey}`);
-
-                    const thumbnailBuffer = await sharp(bufferBytes)
-                        .resize({ width: 400, fit: "inside", withoutEnlargement: true })
-                        .webp({ quality: 75 })
-                        .toBuffer();
-
-                    const previewBuffer = await sharp(bufferBytes)
-                        .resize({ width: 900, fit: "inside", withoutEnlargement: true })
-                        .webp({ quality: 75 })
-                        .toBuffer();
-
-                    const thumbnailKey = `${storageKey}-thumbnail.webp`;
-                    const previewKey = `${storageKey}-preview.webp`;
-
-                    console.log(`[Server Action BackgroundResize] Uploading thumbnail to B2...`);
-                    await uploadBufferToB2(thumbnailBuffer, thumbnailKey, "image/webp");
-
-                    console.log(`[Server Action BackgroundResize] Uploading preview to B2...`);
-                    await uploadBufferToB2(previewBuffer, previewKey, "image/webp");
-
-                    const thumbnailUrl = `https://${mediaDomain}/${thumbnailKey}`;
-
-                    // Wait 3 seconds to ensure the client has finished saving the photo metadata
-                    await new Promise((resolve) => setTimeout(resolve, 3000));
-
-                    console.log(`[Server Action BackgroundResize] Updating database record for: ${storageKey}`);
-                    const { error: dbError } = await supabaseAdmin
-                        .from("photos")
-                        .update({ thumbnail_url: thumbnailUrl })
-                        .eq("storage_key", storageKey);
-
-                    if (dbError) {
-                        console.error(`[Server Action BackgroundResize] Database update failed for key ${storageKey}:`, dbError);
-                    } else {
-                        console.log(`[Server Action BackgroundResize] Successfully completed resizing and updated database for key: ${storageKey}`);
-                    }
-                } catch (err: unknown) {
-                    console.error(`[Server Action BackgroundResize] Error processing background resize for key ${storageKey}:`, err);
-                }
-            }, 500);
+            publishResizeTask({ storageKey }).catch((err) => {
+                console.error(`[Server Action QStash Publish Fail] Error queueing resize for ${storageKey}:`, err);
+            });
         }
 
         return {

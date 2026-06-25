@@ -211,24 +211,11 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   const registrarCost = 0.83; // Wholesale pricing ~ $10/year flat registrar rate
   const monthlyRequests = simulatedDailyRequests * 30;
 
-  // Actual Image Resizing/Transformations: $0.50 per 1,000 unique transformations (first 5,000 free)
-  const actualTransformations = useMemo(() => {
-    if (liveCfTransformations !== null) {
-      return liveCfTransformations;
-    }
-    return photos.length * 3;
-  }, [photos, liveCfTransformations]);
+  // Actual Image Resizing/Transformations: Set to $0.00 as transformations are pre-generated on B2 via backend
+  const actualCfImageCostMonth = 0;
 
-  const actualCfImageCostMonth = useMemo(() => {
-    return Math.max(0, actualTransformations - 5000) * 0.0005;
-  }, [actualTransformations]);
-
-  const actualCfImageCostYear = actualCfImageCostMonth * 12;
-
-  // Simulated Image Resizing/Transformations
-  const simCfImageCostMonth = useMemo(() => {
-    return Math.max(0, simulatedTransformations - 5000) * 0.0005;
-  }, [simulatedTransformations]);
+  // Simulated Image Resizing/Transformations: Set to $0.00 as transformations are pre-generated on B2 via backend
+  const simCfImageCostMonth = 0;
   
   // Workers Paid Tier starts at $5/mo (first 10M requests free, then $0.50/M requests)
   // Free tier allows up to 100k requests/day (3M requests/mo)
@@ -1339,7 +1326,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                   Cloudflare Remote Image Resizing Simulator
                 </h4>
                 <p className="text-slate-400 text-xs mt-1">
-                  Simulate unique image transformations per month to calculate Cloudflare Images usage costs.
+                  Simulate unique image transformations per month to calculate Cloudflare Images usage costs. <span className="text-amber-400 font-bold">(Currently deactivated: image transformation is handled on the backend)</span>
                 </p>
               </div>
 
@@ -1492,12 +1479,15 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                   </tr>
 
                   {/* Row 3: Remote Image Resizing */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Remote Image Resizing (Transformations)</td>
-                    <td className="py-4 px-4">5,000 / mo Free, then $0.50 / 1,000</td>
-                    <td className="py-4 px-4">{formatNumber(actualTransformations)} transformations/mo <span className="text-[10px] text-slate-500">(est. 3 variants/photo)</span></td>
-                    <td className="py-4 px-4 font-mono font-bold text-amber-400">${actualCfImageCostMonth.toFixed(2)}</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">${actualCfImageCostYear.toFixed(2)}</td>
+                  <tr className="hover:bg-slate-800/10 transition-colors opacity-60">
+                    <td className="py-4 px-4 font-semibold text-slate-400 flex items-center gap-1.5">
+                      Remote Image Resizing (Cloudflare)
+                      <span className="text-[9px] bg-slate-850 text-slate-500 px-1.5 py-0.5 rounded font-bold uppercase">Bypassed</span>
+                    </td>
+                    <td className="py-4 px-4 text-slate-500">Deactivated (Shifted to backend)</td>
+                    <td className="py-4 px-4 text-slate-500">0 transformations/mo <span className="text-[10px] text-slate-650">(pre-generated on B2)</span></td>
+                    <td className="py-4 px-4 font-mono font-bold text-slate-500">$0.00</td>
+                    <td className="py-4 px-4 font-mono text-slate-500">$0.00</td>
                   </tr>
 
                   {/* Row 4: CDN Bandwidth / Egress */}

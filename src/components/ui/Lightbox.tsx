@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
 import { getImageUrl } from "@/lib/imageUrl";
-import { Heart, MessageCircle, Send, X, Download, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { Heart, MessageCircle, Send, X, Download, ChevronLeft, ChevronRight, Trash2, Loader2, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface LightboxTheme {
@@ -56,6 +56,16 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
     const [replyingTo, setReplyingTo] = useState<any | null>(null);
     const [isLiking, setIsLiking] = useState(false);
     const [isCommenting, setIsCommenting] = useState(false);
+    const [imageLoading, setImageLoading] = useState(true);
+    const [imageError, setImageError] = useState(false);
+
+    useEffect(() => {
+        if (photo?.id) {
+            setImageLoading(true);
+            setImageError(false);
+        }
+    }, [photo?.id]);
+
     const commentsEndRef = useRef<HTMLDivElement>(null);
     const commentInputRef = useRef<HTMLInputElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -223,7 +233,7 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                     >
                         <div className="flex items-center space-x-2 pointer-events-auto">
                             <span className="text-sm font-medium tracking-wide drop-shadow-md" style={{ color: viewerTheme.muted }}>
-                                {photo.filename || "Photo"}
+                                {imageLoading ? "Loading..." : (photo.filename || "Photo")}
                             </span>
                         </div>
 
@@ -291,12 +301,39 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                         autoPlay
                                     />
                                 ) : (
-                                    <img
-                                        src={getImageUrl(photo.src, { width: 1600, quality: 80, format: 'webp' })}
-                                        alt={photo.alt || "Event Photo"}
-                                        className="max-w-[95vw] md:max-w-full max-h-[60vh] md:max-h-[85vh] w-auto h-auto object-contain shadow-2xl pointer-events-auto"
-                                        style={{ borderRadius: viewerTheme.radius, backgroundColor: viewerTheme.tile }}
-                                    />
+                                    <div className="relative flex items-center justify-center min-h-[300px] w-full max-w-5xl">
+                                        {imageLoading && (
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4 pointer-events-none">
+                                                <Loader2 className="w-10 h-10 animate-spin" style={{ color: viewerTheme.accent }} />
+                                                <span className="text-xs font-bold uppercase tracking-widest animate-pulse" style={{ color: viewerTheme.muted }}>Loading memory...</span>
+                                            </div>
+                                        )}
+                                        {imageError && (
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center pointer-events-auto">
+                                                <div className="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center mb-4 text-rose-500">
+                                                    <ImageIcon size={32} />
+                                                </div>
+                                                <h3 className="text-lg font-bold mb-1" style={{ color: viewerTheme.text }}>Failed to load image</h3>
+                                                <p className="text-xs max-w-xs leading-relaxed" style={{ color: viewerTheme.muted }}>
+                                                    This file might still be processing or was removed from storage.
+                                                </p>
+                                            </div>
+                                        )}
+                                        <img
+                                            src={getImageUrl(photo.src, { width: 900, quality: 75, format: 'webp' })}
+                                            alt={photo.alt || "Event Photo"}
+                                            onLoad={() => setImageLoading(false)}
+                                            onError={() => {
+                                                setImageLoading(false);
+                                                setImageError(true);
+                                            }}
+                                            className={cn(
+                                                "max-w-[95vw] md:max-w-full max-h-[60vh] md:max-h-[85vh] w-auto h-auto object-contain shadow-2xl pointer-events-auto transition-all duration-300",
+                                                imageLoading || imageError ? "opacity-0 scale-95" : "opacity-100 scale-100"
+                                            )}
+                                            style={{ borderRadius: viewerTheme.radius, backgroundColor: viewerTheme.tile }}
+                                        />
+                                    </div>
                                 )}
                             </motion.div>
                         </div>

@@ -1,14 +1,9 @@
 /**
- * Cloudflare Image Resizing utility (Mobile)
+ * Image URL Resolution utility (Mobile)
  *
  * Mirrors src/lib/imageUrl.ts for use in the Expo mobile app.
- * Transforms media URLs into Cloudflare Image Resizing URLs for fast,
- * cached grid thumbnails while keeping full-res URLs for the viewer.
- *
- * CF Image Resizing URL format:
- *   https://<domain>/cdn-cgi/image/<options>/<original-path>
- *
- * Docs: https://developers.cloudflare.com/images/transform-images/
+ * Maps media URLs to pre-generated thumbnail or preview webp files
+ * stored on Backblaze B2 and delivered via Cloudflare CDN caching.
  */
 
 const MEDIA_DOMAIN = process.env.EXPO_PUBLIC_MEDIA_DOMAIN || 'media.evebash.com';

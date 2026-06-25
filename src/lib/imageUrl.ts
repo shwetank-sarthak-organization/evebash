@@ -1,13 +1,8 @@
 /**
- * Cloudflare Image Resizing utility
+ * Image URL Resolution utility
  *
- * Transforms a media URL into a Cloudflare Image Resizing URL so that images
- * are automatically resized at the edge for free (5,000 unique transforms/month).
- *
- * CF Image Resizing URL format:
- *   https://<domain>/cdn-cgi/image/<options>/<original-path>
- *
- * Docs: https://developers.cloudflare.com/images/transform-images/
+ * Maps media URLs to pre-generated thumbnail or preview webp files
+ * stored on Backblaze B2 and delivered via Cloudflare CDN caching.
  */
 
 const MEDIA_DOMAIN = process.env.NEXT_PUBLIC_MEDIA_DOMAIN || 'media.evebash.com';

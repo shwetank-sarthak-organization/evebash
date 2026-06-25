@@ -1622,7 +1622,7 @@ function DashboardContent() {
             const photoPromises = selectedFiles.map(async (file, index) => {
                 console.log(`[Dashboard] Processing file ${index + 1}/${selectedFiles.length}: ${file.name}`);
 
-                // Upload the original file — Cloudflare Image Resizing handles thumbnails on the fly
+                // Upload the original file — thumbnails and previews are pre-generated asynchronously on the backend
                 const uploadResult = await uploadEventImage(file, selectedEventId, user.uid || "anonymous");
 
                 if (index === 0) firstUploadedUrl = uploadResult.url;

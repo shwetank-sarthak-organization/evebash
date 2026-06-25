@@ -84,6 +84,19 @@ async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string
 
 export async function GET(request: NextRequest) {
   try {
+    // 0. Optional CRON_SECRET authorization check
+    const cronSecret = process.env.CRON_SECRET;
+    if (cronSecret) {
+      const authHeader = request.headers.get("authorization");
+      const urlSecret = request.nextUrl.searchParams.get("secret");
+      if (
+        authHeader !== `Bearer ${cronSecret}` &&
+        urlSecret !== cronSecret
+      ) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
+
     // 1. Initialize Supabase Admin Client
     const supabaseAdmin = createClient(
       requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
@@ -93,15 +106,32 @@ export async function GET(request: NextRequest) {
     const mediaDomain = requireEnv("MEDIA_DOMAIN").replace(/^https?:\/\//, "").replace(/\/+$/, "");
 
     // 2. Query photos that are missing thumbnail_url
-    // Ignore extremely recent uploads (less than 1 minute old) to prevent race conditions during upload
-    const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+    const key = request.nextUrl.searchParams.get("key");
+    let photos;
+    let fetchError;
 
-    const { data: photos, error: fetchError } = await supabaseAdmin
-      .from("photos")
-      .select("id, url, storage_key, uploaded_at")
-      .is("thumbnail_url", null)
-      .lt("uploaded_at", oneMinuteAgo)
-      .limit(20);
+    if (key) {
+      // If a specific storage key is requested, fetch only that photo (skip age filter)
+      const { data, error } = await supabaseAdmin
+        .from("photos")
+        .select("id, url, storage_key, uploaded_at")
+        .eq("storage_key", key)
+        .limit(1);
+      photos = data;
+      fetchError = error;
+    } else {
+      // Otherwise, sweep photos missing thumbnail_url
+      // Ignore extremely recent uploads (less than 1 minute old) to prevent race conditions during upload
+      const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+      const { data, error } = await supabaseAdmin
+        .from("photos")
+        .select("id, url, storage_key, uploaded_at")
+        .is("thumbnail_url", null)
+        .lt("uploaded_at", oneMinuteAgo)
+        .limit(20);
+      photos = data;
+      fetchError = error;
+    }
 
     if (fetchError) throw fetchError;
 

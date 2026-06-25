@@ -589,7 +589,7 @@ export async function saveFaceToIndex(face: FaceRecord) {
  */
 export async function savePhoto(photo: Photo) {
     try {
-        const { error } = await supabase.from('photos').upsert({
+        const upsertData: any = {
             id: photo.id,
             event_id: photo.eventId,
             storage_key: photo.storageKey,
@@ -602,11 +602,16 @@ export async function savePhoto(photo: Photo) {
             user_id: photo.userId || null,
             size: photo.size || null,
             format: photo.format || null,
-            thumbnail_url: photo.thumbnailUrl || null,
             media_type: photo.mediaType || 'photo',
             resource_type: photo.resourceType || (photo.mediaType === 'video' ? 'video' : 'image'),
             order: photo.order ?? null
-        });
+        };
+
+        if (photo.thumbnailUrl) {
+            upsertData.thumbnail_url = photo.thumbnailUrl;
+        }
+
+        const { error } = await supabase.from('photos').upsert(upsertData);
         if (error) throw error;
         return true;
     } catch (error) {
