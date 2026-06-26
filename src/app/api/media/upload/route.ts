@@ -315,8 +315,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: unknown) {
     console.error("[MediaUpload] Error:", error);
-    const errStack = error instanceof Error ? error.stack : "";
-    appendFileSync("backend_error.log", `[MediaUpload] Error: ${error}\n${errStack}\n`);
     return jsonResponse({ error: error instanceof Error ? error.message : "Upload failed" }, 500);
   }
 }
