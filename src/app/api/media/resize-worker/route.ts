@@ -157,17 +157,13 @@ export async function POST(request: NextRequest) {
     await uploadBufferToB2(thumbnailBuffer, thumbnailKey, "image/webp");
     await uploadBufferToB2(previewBuffer, previewKey, "image/webp");
 
-    // 7. Update database record (upsert to handle race condition)
-    const photoId = storageKey.replace(/\//g, "_");
-    console.log(`[Resize Worker] Updating database record for photo: ${photoId}`);
+    // 7. Update database record — match by storage_key, not a derived ID
+    console.log(`[Resize Worker] Updating database record for storage_key: ${storageKey}`);
 
     const { error: dbError } = await supabaseAdmin
       .from("photos")
-      .upsert({
-        id: photoId,
-        storage_key: storageKey,
-        thumbnail_url: thumbnailUrl,
-      }, { onConflict: "id" });
+      .update({ thumbnail_url: thumbnailUrl })
+      .eq("storage_key", storageKey);
 
     if (dbError) {
       throw dbError;

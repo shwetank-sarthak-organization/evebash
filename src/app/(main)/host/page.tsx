@@ -4196,6 +4196,7 @@ function DashboardContent() {
                                             {activeGalleryItems.map((photo, index) => {
                                                 const isCover = userEvents.find(ev => ev.id === selectedEventId)?.coverImage === photo.url;
                                                 const isVideo = photo.mediaType === "video" || photo.resourceType === "video";
+                                                const gridSrc = !isVideo ? (photo.thumbnailUrl || `${photo.url}-thumbnail.webp`) : photo.url;
                                                 return (
                                                     <motion.div
                                                         key={photo.id}
@@ -4233,7 +4234,7 @@ function DashboardContent() {
                                                                 </>
                                                             ) : (
                                                                 <img
-                                                                    src={photo.url}
+                                                                    src={gridSrc}
                                                                     alt="Gallery item"
                                                                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                                                                 />
@@ -4392,6 +4393,7 @@ function DashboardContent() {
                                                             {activeGalleryItems.map((photo, index) => {
                                                                 const isVideo = photo.mediaType === "video" || photo.resourceType === "video";
                                                                 const isCover = userEvents.find(ev => ev.id === selectedEventId)?.coverImage === photo.url;
+                                                                const gridSrc = !isVideo ? (photo.thumbnailUrl || `${photo.url}-thumbnail.webp`) : photo.url;
                                                                 const dateAdded = (
                                                                     photo.uploadedAt && typeof photo.uploadedAt === 'number'
                                                                         ? new Date(photo.uploadedAt)
@@ -4447,7 +4449,7 @@ function DashboardContent() {
                                                                                         </div>
                                                                                     </div>
                                                                                 ) : (
-                                                                                    <img src={photo.url} alt="" className="w-full h-full object-cover" />
+                                                                                    <img src={gridSrc} alt="" className="w-full h-full object-cover" />
                                                                                 )}
                                                                             </div>
                                                                         </td>
