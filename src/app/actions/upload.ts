@@ -4,16 +4,7 @@ import { randomUUID } from "crypto";
 import { waitUntil } from "@vercel/functions";
 import { publishResizeTask } from "@/lib/qstash";
 import sharp from "sharp";
-
-type BackblazeAuth = {
-    authorizationToken: string;
-    apiUrl: string;
-};
-
-type BackblazeUploadUrl = {
-    uploadUrl: string;
-    authorizationToken: string;
-};
+import { getCachedBackblazeAuth, getUploadUrl } from "@/lib/backblaze";
 
 type BackblazeUploadOptions = {
     fileName?: string;
@@ -69,47 +60,8 @@ function buildStorageKey(folder: string, options: Required<Pick<BackblazeUploadO
     return `${cleanFolder || "uploads"}/${mediaFolder}/${Date.now()}-${randomUUID()}-${finalName}`;
 }
 
-async function authorizeBackblaze(): Promise<BackblazeAuth> {
-    const keyId = requireEnv("B2_KEY_ID");
-    const applicationKey = requireEnv("B2_APPLICATION_KEY");
-    const credentials = Buffer.from(`${keyId}:${applicationKey}`).toString("base64");
-
-    const response = await fetch("https://api.backblazeb2.com/b2api/v3/b2_authorize_account", {
-        headers: {
-            Authorization: `Basic ${credentials}`,
-        },
-    });
-
-    if (!response.ok) {
-        throw new Error(`Backblaze authorization failed with ${response.status}`);
-    }
-
-    const data = await response.json();
-    return {
-        authorizationToken: data.authorizationToken,
-        apiUrl: data.apiInfo.storageApi.apiUrl,
-    };
-}
-
-async function getUploadUrl(auth: BackblazeAuth): Promise<BackblazeUploadUrl> {
-    const bucketId = requireEnv("B2_BUCKET_ID");
-    const response = await fetch(`${auth.apiUrl}/b2api/v3/b2_get_upload_url`, {
-        method: "POST",
-        headers: {
-            Authorization: auth.authorizationToken,
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ bucketId }),
-    });
-
-    if (!response.ok) {
-        throw new Error(`Backblaze upload URL request failed with ${response.status}`);
-    }
-
-    return response.json();
-}
 async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string) {
-    const auth = await authorizeBackblaze();
+    const auth = await getCachedBackblazeAuth();
     const uploadUrlData = await getUploadUrl(auth);
 
     const uploadResponse = await fetch(uploadUrlData.uploadUrl, {
@@ -120,7 +72,7 @@ async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string
             "X-Bz-File-Name": encodeURIComponent(key),
             "X-Bz-Content-Sha1": "do_not_verify",
         },
-        body: buffer as any,
+        body: buffer as unknown as BodyInit,
     });
 
     if (!uploadResponse.ok) {
@@ -135,7 +87,7 @@ export async function uploadToBackblaze(base64File: string, folder: string, opti
 
         console.log(`[Server Action] Uploading media to Backblaze. Size: ${Math.round(bytes.length / 1024 / 1024 * 100) / 100} MB`);
 
-        const auth = await authorizeBackblaze();
+        const auth = await getCachedBackblazeAuth();
         const uploadUrl = await getUploadUrl(auth);
 
         const uploadResponse = await fetch(uploadUrl.uploadUrl, {
@@ -160,7 +112,10 @@ export async function uploadToBackblaze(base64File: string, folder: string, opti
         // Inline resizing — generate thumbnail and preview immediately
         if (resourceType === "image" && contentType && !contentType.startsWith("video/")) {
             const qstashToken = process.env.QSTASH_TOKEN;
-            if (qstashToken) {
+            if (process.env.NODE_ENV === "development") {
+                console.log(`[Server Action] Local development environment detected. Processing resizing locally in background for: ${storageKey}`);
+                localDevResizeAndUpload(bytes, storageKey, mediaDomain);
+            } else if (qstashToken) {
                 // QStash path: waitUntil keeps the function alive until publish completes
                 console.log(`[Server Action] Queuing resize via QStash for: ${storageKey}`);
                 waitUntil(publishResizeTask({ storageKey }));
@@ -212,7 +167,7 @@ export async function getPresignedUploadUrl(
     resourceType: "image" | "video" = "image"
 ) {
     try {
-        const auth = await authorizeBackblaze();
+        const auth = await getCachedBackblazeAuth();
         const uploadUrlData = await getUploadUrl(auth);
         
         const storageKey = buildStorageKey(
@@ -239,5 +194,67 @@ export async function getPresignedUploadUrl(
             error: error instanceof Error ? error.message : "Failed to generate upload URL",
         };
     }
+}
+
+async function localDevResizeAndUpload(bytes: Buffer, storageKey: string, mediaDomain: string) {
+  try {
+    console.log(`[Local Dev Background Action] Starting image resizing for: ${storageKey}`);
+    
+    const thumbnailBuffer = await sharp(bytes)
+      .resize({ width: 400, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 75 })
+      .toBuffer();
+
+    const previewBuffer = await sharp(bytes)
+      .resize({ width: 900, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 75 })
+      .toBuffer();
+
+    const thumbnailKey = `${storageKey}-thumbnail.webp`;
+    const previewKey = `${storageKey}-preview.webp`;
+    const thumbnailUrl = `https://${mediaDomain}/${thumbnailKey}`;
+
+    console.log(`[Local Dev Background Action] Uploading WebP assets for: ${storageKey}`);
+    await uploadBufferToB2(thumbnailBuffer, thumbnailKey, "image/webp");
+    await uploadBufferToB2(previewBuffer, previewKey, "image/webp");
+
+    console.log(`[Local Dev Background Action] Updating DB record for storage_key: ${storageKey}`);
+    const { createClient } = await import("@supabase/supabase-js");
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // Wait a bit to ensure client has inserted the row
+    let updated = false;
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      const { data: updatedData, error: dbError } = await supabaseAdmin
+        .from("photos")
+        .update({ thumbnail_url: thumbnailUrl })
+        .eq("storage_key", storageKey)
+        .select();
+
+      if (dbError) {
+        console.error(`[Local Dev Background Action] DB update error:`, dbError);
+        break;
+      }
+
+      if (updatedData && updatedData.length > 0) {
+        console.log(`[Local Dev Background Action] Successfully updated database record in attempt ${attempt}`);
+        updated = true;
+        break;
+      }
+
+      if (attempt < 4) {
+        console.log(`[Local Dev Background Action] Row not found yet, sleeping 2 seconds before retry...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+    if (!updated) {
+      console.warn(`[Local Dev Background Action] Warning: No database row found matching storage_key "${storageKey}" after 4 attempts.`);
+    }
+  } catch (err) {
+    console.error(`[Local Dev Background Action] Failed:`, err);
+  }
 }
 

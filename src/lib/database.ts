@@ -1796,7 +1796,14 @@ export async function deleteEvent(eventId: string): Promise<boolean> {
             }
         }
 
-        // 2. Delete the parent event (Cascading foreign key triggers automatically delete associated photos, likes, & comments!)
+        // 2. Fetch and delete B2 assets for all photos associated with this event
+        const { data: photos } = await supabase.from('photos').select('id').eq('event_id', eventId);
+        if (photos && photos.length > 0) {
+            console.log(`[deleteEvent] Cleaning up B2 files for ${photos.length} photos under event ${eventId}`);
+            await Promise.all(photos.map(photo => deletePhoto(photo.id)));
+        }
+
+        // 3. Delete the parent event (Cascading foreign key triggers automatically delete associated photos, likes, & comments!)
         const { error } = await supabase.from('events').delete().eq('id', eventId);
         if (error) throw error;
 

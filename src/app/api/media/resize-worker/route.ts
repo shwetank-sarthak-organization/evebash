@@ -1,20 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
+import { getCachedBackblazeAuth, getUploadUrl } from "@/lib/backblaze";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // seconds — prevent Vercel timeout on large images
-
-
-type BackblazeAuth = {
-  authorizationToken: string;
-  apiUrl: string;
-};
-
-type BackblazeUploadUrl = {
-  uploadUrl: string;
-  authorizationToken: string;
-};
 
 function requireEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -22,63 +12,6 @@ function requireEnv(name: string) {
     throw new Error(`${name} is not configured`);
   }
   return value;
-}
-
-// Memory cache for Backblaze authorization token
-let cachedAuth: { token: string; apiUrl: string; expiresAt: number } | null = null;
-
-async function getCachedBackblazeAuth(): Promise<BackblazeAuth> {
-  // Check cache (tokens are valid for 24 hours, cache for 23 hours)
-  if (cachedAuth && Date.now() < cachedAuth.expiresAt) {
-    return {
-      authorizationToken: cachedAuth.token,
-      apiUrl: cachedAuth.apiUrl,
-    };
-  }
-
-  const keyId = requireEnv("B2_KEY_ID");
-  const applicationKey = requireEnv("B2_APPLICATION_KEY");
-  const credentials = Buffer.from(`${keyId}:${applicationKey}`).toString("base64");
-
-  const response = await fetch("https://api.backblazeb2.com/b2api/v3/b2_authorize_account", {
-    headers: {
-      Authorization: `Basic ${credentials}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Backblaze authorization failed with ${response.status}`);
-  }
-
-  const data = await response.json();
-  cachedAuth = {
-    token: data.authorizationToken,
-    apiUrl: data.apiInfo.storageApi.apiUrl,
-    expiresAt: Date.now() + 23 * 60 * 60 * 1000,
-  };
-
-  return {
-    authorizationToken: data.authorizationToken,
-    apiUrl: data.apiInfo.storageApi.apiUrl,
-  };
-}
-
-async function getUploadUrl(auth: BackblazeAuth): Promise<BackblazeUploadUrl> {
-  const bucketId = requireEnv("B2_BUCKET_ID");
-  const response = await fetch(`${auth.apiUrl}/b2api/v3/b2_get_upload_url`, {
-    method: "POST",
-    headers: {
-      Authorization: auth.authorizationToken,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ bucketId }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Backblaze upload URL request failed with ${response.status}`);
-  }
-
-  return response.json();
 }
 
 async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string) {
@@ -93,11 +26,64 @@ async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string
       "X-Bz-File-Name": encodeURIComponent(key),
       "X-Bz-Content-Sha1": "do_not_verify",
     },
-    body: buffer as any,
+    body: buffer as unknown as BodyInit,
   });
 
   if (!uploadResponse.ok) {
     throw new Error(`B2 upload failed for key ${key} with status ${uploadResponse.status}`);
+  }
+}
+
+async function deleteB2File(auth: any, bucketId: string, key: string) {
+  try {
+    const listResponse = await fetch(`${auth.apiUrl}/b2api/v3/b2_list_file_names`, {
+      method: "POST",
+      headers: {
+        Authorization: auth.authorizationToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        bucketId,
+        startFileName: key,
+        maxFileCount: 1,
+        prefix: key
+      }),
+    });
+
+    if (!listResponse.ok) {
+      console.error(`[B2Delete] Failed to list file ${key}: ${listResponse.status}`);
+      return false;
+    }
+
+    const listData = await listResponse.json();
+    const file = listData.files?.find((f: { fileName: string; fileId?: string }) => f.fileName === key);
+    if (!file || !file.fileId) {
+      console.log(`[B2Delete] File ${key} not found or already deleted.`);
+      return true;
+    }
+
+    const deleteResponse = await fetch(`${auth.apiUrl}/b2api/v3/b2_delete_file_version`, {
+      method: "POST",
+      headers: {
+        Authorization: auth.authorizationToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fileName: key,
+        fileId: file.fileId
+      }),
+    });
+
+    if (!deleteResponse.ok) {
+      console.error(`[B2Delete] Failed to delete file version for ${key}: ${deleteResponse.status}`);
+      return false;
+    }
+
+    console.log(`[B2Delete] Successfully deleted file ${key} from B2.`);
+    return true;
+  } catch (err) {
+    console.error(`[B2Delete] Error deleting file ${key}:`, err);
+    return false;
   }
 }
 
@@ -184,13 +170,20 @@ export async function POST(request: NextRequest) {
     }
 
     if (!updated) {
-      console.warn(`[Resize Worker] Warning: No database row found matching storage_key "${storageKey}" after 4 attempts.`);
+      console.warn(`[Resize Worker] Warning: No database row found matching storage_key "${storageKey}" after 4 attempts. Deleting stranded B2 thumbnail and preview...`);
+      const auth = await getCachedBackblazeAuth();
+      const bucketId = requireEnv("B2_BUCKET_ID");
+      await Promise.all([
+        deleteB2File(auth, bucketId, thumbnailKey),
+        deleteB2File(auth, bucketId, previewKey)
+      ]);
     }
 
     console.log(`[Resize Worker] Successfully finished resizing for key: ${storageKey}`);
     return NextResponse.json({ success: true, message: "Image resized successfully", thumbnailUrl });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[Resize Worker] Resizing process failed:", error);
-    return NextResponse.json({ error: error.message || "Resizing failed" }, { status: 500 });
+    const errMessage = error instanceof Error ? error.message : "Resizing failed";
+    return NextResponse.json({ error: errMessage }, { status: 500 });
   }
 }

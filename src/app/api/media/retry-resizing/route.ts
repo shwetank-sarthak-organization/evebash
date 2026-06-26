@@ -1,18 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
+import { getCachedBackblazeAuth, getUploadUrl } from "@/lib/backblaze";
 
 export const runtime = "nodejs";
-
-type BackblazeAuth = {
-  authorizationToken: string;
-  apiUrl: string;
-};
-
-type BackblazeUploadUrl = {
-  uploadUrl: string;
-  authorizationToken: string;
-};
 
 function requireEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -22,48 +13,8 @@ function requireEnv(name: string) {
   return value;
 }
 
-async function authorizeBackblaze(): Promise<BackblazeAuth> {
-  const keyId = requireEnv("B2_KEY_ID");
-  const applicationKey = requireEnv("B2_APPLICATION_KEY");
-  const credentials = Buffer.from(`${keyId}:${applicationKey}`).toString("base64");
-
-  const response = await fetch("https://api.backblazeb2.com/b2api/v3/b2_authorize_account", {
-    headers: {
-      Authorization: `Basic ${credentials}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Backblaze authorization failed with ${response.status}`);
-  }
-
-  const data = await response.json();
-  return {
-    authorizationToken: data.authorizationToken,
-    apiUrl: data.apiInfo.storageApi.apiUrl,
-  };
-}
-
-async function getUploadUrl(auth: BackblazeAuth): Promise<BackblazeUploadUrl> {
-  const bucketId = requireEnv("B2_BUCKET_ID");
-  const response = await fetch(`${auth.apiUrl}/b2api/v3/b2_get_upload_url`, {
-    method: "POST",
-    headers: {
-      Authorization: auth.authorizationToken,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ bucketId }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Backblaze upload URL request failed with ${response.status}`);
-  }
-
-  return response.json();
-}
-
 async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string) {
-  const backblazeAuth = await authorizeBackblaze();
+  const backblazeAuth = await getCachedBackblazeAuth();
   const uploadUrlData = await getUploadUrl(backblazeAuth);
 
   const uploadResponse = await fetch(uploadUrlData.uploadUrl, {
@@ -74,7 +25,7 @@ async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string
       "X-Bz-File-Name": encodeURIComponent(key),
       "X-Bz-Content-Sha1": "do_not_verify",
     },
-    body: buffer as any,
+    body: buffer as unknown as BodyInit,
   });
 
   if (!uploadResponse.ok) {
@@ -142,7 +93,7 @@ export async function GET(request: NextRequest) {
     console.log(`[Sweeper] Found ${photos.length} photos requiring thumbnail repair.`);
 
     let processedCount = 0;
-    const errors: any[] = [];
+    const errors: { id: string; error: string }[] = [];
 
     for (const photo of photos) {
       const storageKey = photo.storage_key;
@@ -200,9 +151,10 @@ export async function GET(request: NextRequest) {
         if (dbError) throw dbError;
         processedCount++;
         console.log(`[Sweeper] Successfully repaired photo id: ${photo.id}`);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(`[Sweeper] Failed to repair photo id ${photo.id}:`, err);
-        errors.push({ id: photo.id, error: err.message || String(err) });
+        const errMsg = err instanceof Error ? err.message : String(err);
+        errors.push({ id: photo.id, error: errMsg });
       }
     }
 
@@ -211,8 +163,9 @@ export async function GET(request: NextRequest) {
       processed: processedCount,
       errors: errors.length > 0 ? errors : undefined,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[Sweeper] Global sweeper error:", error);
-    return NextResponse.json({ error: error.message || "Sweeper failed" }, { status: 500 });
+    const errMessage = error instanceof Error ? error.message : "Sweeper failed";
+    return NextResponse.json({ error: errMessage }, { status: 500 });
   }
 }

@@ -603,6 +603,19 @@ function DashboardContent() {
     const [isNavigating, setIsNavigating] = useState(false);
     const [, startTransition] = useTransition();
 
+    // Upload Manager State (Google Drive style bottom-right widget)
+    interface UploadQueueItem {
+        id: string;
+        fileName: string;
+        status: "uploading" | "processing" | "success" | "error";
+        progress: number; // 0 to 100
+        error?: string;
+        previewUrl?: string;
+    }
+    const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
+    const [isUploadPanelOpen, setIsUploadPanelOpen] = useState(false);
+    const [isUploadPanelMinimized, setIsUploadPanelMinimized] = useState(false);
+
     // Helper: show loading screen briefly, then navigate
     const navigateTo = (url: string, message?: string) => {
         setIsNavigating(true);
@@ -1588,9 +1601,7 @@ function DashboardContent() {
             setMessage(err instanceof Error ? err.message : "Failed to create event.");
             return false;
         }
-    };
-
-    const uploadFiles = async (files: FileList | File[]) => {
+    };    const uploadFiles = async (files: FileList | File[]) => {
         const expectedPrefix = galleryMediaTab === "videos" ? "video/" : "image/";
         const selectedFiles = Array.from(files).filter(file => file.type.startsWith(expectedPrefix));
         if (selectedFiles.length === 0 || !selectedEventId) return;
@@ -1611,6 +1622,21 @@ function DashboardContent() {
             }
         }
 
+        // Initialize queue items in state
+        const newQueueItems = selectedFiles.map((file, idx) => {
+            const isImage = file.type.startsWith("image/");
+            return {
+                id: `${Date.now()}-${idx}-${Math.random()}`,
+                fileName: file.name,
+                status: "uploading" as const,
+                progress: 0,
+                previewUrl: isImage ? URL.createObjectURL(file) : undefined,
+            };
+        });
+        setUploadQueue(prev => [...prev, ...newQueueItems]);
+        setIsUploadPanelOpen(true);
+        setIsUploadPanelMinimized(false);
+
         setStatus("uploading");
         setMessage(`Uploading ${selectedFiles.length} ${galleryMediaTab === "videos" ? "videos" : "images"}...`);
         console.log(`[Dashboard] Starting auto-upload for ${selectedFiles.length} files to event ${selectedEventId}`);
@@ -1620,91 +1646,129 @@ function DashboardContent() {
             const uploadResults: { file: File, photo: Photo }[] = [];
 
             const photoPromises = selectedFiles.map(async (file, index) => {
+                const queueItemId = newQueueItems[index].id;
                 console.log(`[Dashboard] Processing file ${index + 1}/${selectedFiles.length}: ${file.name}`);
 
-                // Upload the original file — thumbnails and previews are pre-generated asynchronously on the backend
-                const uploadResult = await uploadEventImage(file, selectedEventId, user.uid || "anonymous");
+                // Smoothly animate upload progress to 85% over 1.5 seconds
+                let currentProgress = 0;
+                const progressInterval = setInterval(() => {
+                    currentProgress = Math.min(85, currentProgress + Math.floor(Math.random() * 15) + 5);
+                    setUploadQueue(prev => prev.map(item => item.id === queueItemId && item.status === "uploading" ? { ...item, progress: currentProgress } : item));
+                }, 200);
 
-                if (index === 0) firstUploadedUrl = uploadResult.url;
+                try {
+                    // Upload the original file — thumbnails and previews are pre-generated asynchronously on the backend
+                    const uploadResult = await uploadEventImage(file, selectedEventId, user.uid || "anonymous");
+                    clearInterval(progressInterval);
 
-                const uniqueId = uploadResult.publicId.replace(/\//g, '_');
-                const photo: Photo = {
-                    id: uniqueId,
-                    eventId: selectedEventId,
-                    storageKey: uploadResult.publicId,
-                    url: uploadResult.url,
-                    uploadedAt: new Date().toISOString(),
-                    userId: user.uid || "anonymous",
-                    width: uploadResult.width,
-                    height: uploadResult.height,
-                    size: uploadResult.bytes || file.size,
-                    format: uploadResult.format || file.name.split('.').pop() || (galleryMediaTab === "videos" ? "mp4" : "jpg"),
-                    mediaType: galleryMediaTab === "videos" ? "video" : "photo",
-                    resourceType: galleryMediaTab === "videos" ? "video" : "image"
-                };
+                    if (index === 0) firstUploadedUrl = uploadResult.url;
 
-                await savePhoto(photo);
-                uploadResults.push({ file, photo }); // Store for background indexing
+                    const uniqueId = uploadResult.publicId.replace(/\//g, '_');
+                    const photo: Photo = {
+                        id: uniqueId,
+                        eventId: selectedEventId,
+                        storageKey: uploadResult.publicId,
+                        url: uploadResult.url,
+                        uploadedAt: new Date().toISOString(),
+                        userId: user.uid || "anonymous",
+                        width: uploadResult.width,
+                        height: uploadResult.height,
+                        size: uploadResult.bytes || file.size,
+                        format: uploadResult.format || file.name.split('.').pop() || (galleryMediaTab === "videos" ? "mp4" : "jpg"),
+                        mediaType: galleryMediaTab === "videos" ? "video" : "photo",
+                        resourceType: galleryMediaTab === "videos" ? "video" : "image"
+                    };
+
+                    // Mark as processing (generating thumbnails)
+                    setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "processing", progress: 90 } : item));
+
+                    await savePhoto(photo);
+                    uploadResults.push({ file, photo }); // Store for background indexing
+
+                    if (photo.mediaType === "photo" && photo.resourceType === "image") {
+                        // Poll Supabase until thumbnail_url is populated (indicating resizing is finished)
+                        let thumbnailGenerated = false;
+                        for (let poll = 0; poll < 40; poll++) {
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                            const { data: checkData } = await supabase
+                                .from('photos')
+                                .select('thumbnail_url')
+                                .eq('storage_key', uploadResult.publicId)
+                                .maybeSingle();
+
+                            if (checkData && checkData.thumbnail_url) {
+                                thumbnailGenerated = true;
+                                photo.thumbnailUrl = checkData.thumbnail_url;
+                                break;
+                            }
+                        }
+                        if (thumbnailGenerated) {
+                            fetchEventPhotos();
+                        }
+                    } else {
+                        // Videos don't require resizing/thumbnail generation
+                        fetchEventPhotos();
+                    }
+
+                    // Complete item
+                    setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "success", progress: 100 } : item));
+                } catch (fileErr: any) {
+                    clearInterval(progressInterval);
+                    console.error(`[Dashboard] File upload error for ${file.name}:`, fileErr);
+                    setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "error", progress: 100, error: fileErr.message || "Failed" } : item));
+                    throw fileErr;
+                }
             });
 
-            await Promise.all(photoPromises);
+            // Wait for all uploads to complete (and backgrounds to finish/fail)
+            await Promise.allSettled(photoPromises);
 
             // --- Auto Face Indexing (Background) ---
-            // After successful upload to cloud & database, we process the images locally in the background.
-            // We use setTimeout to defer this so the UI can quickly show "Upload Success" and update standard galleries.
-            setTimeout(async () => {
-                try {
-                    const photoUploads = uploadResults.filter(({ photo }) => photo.mediaType !== "video");
-                    if (photoUploads.length === 0) {
-                        return;
-                    }
-                    console.log(`[Dashboard] Starting background face indexing for ${uploadResults.length} new uploads...`);
+            const successUploads = uploadResults.filter(({ photo }) => photo.mediaType !== "video");
+            if (successUploads.length > 0) {
+                setTimeout(async () => {
+                    try {
+                        console.log(`[Dashboard] Starting background face indexing for ${successUploads.length} new uploads...`);
+                        const MODEL_URL = "/models";
+                        await Promise.all([
+                            faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+                            faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                            faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+                        ]);
+                        console.log("[Dashboard] Face-API Models loaded.");
 
-                    // 1. Load models if needed (we load them here to save memory up until an upload actually happens)
-                    const MODEL_URL = "/models";
-                    await Promise.all([
-                        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-                        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-                        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-                    ]);
-                    console.log("[Dashboard] Face-API Models loaded.");
+                        for (const { file, photo } of successUploads) {
+                            try {
+                                const imageUrl = URL.createObjectURL(file);
+                                const img = await faceapi.fetchImage(imageUrl);
+                                const detections = await faceapi.detectAllFaces(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+                                    .withFaceLandmarks()
+                                    .withFaceDescriptors();
 
-                    // 2. Scan each uploaded file using the exact matched DB record
-                    for (const { file, photo } of photoUploads) {
-                        try {
-                            // Create a temporary object URL for face-api to read
-                            const imageUrl = URL.createObjectURL(file);
-                            const img = await faceapi.fetchImage(imageUrl);
-
-                            // Detect all faces
-                            const detections = await faceapi.detectAllFaces(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-                                .withFaceLandmarks()
-                                .withFaceDescriptors();
-
-                            if (detections.length > 0) {
-                                console.log(`[Dashboard] Found ${detections.length} faces in ${file.name}. Saving to index...`);
-
-                                for (const detection of detections) {
-                                    await saveFaceToIndex({
-                                        imageId: photo.id,
-                                        descriptor: Array.from(detection.descriptor),
-                                        eventId: photo.eventId,
-                                        imageUrl: photo.url,
-                                        width: photo.width || 0,
-                                        height: photo.height || 0
-                                    });
+                                if (detections.length > 0) {
+                                    console.log(`[Dashboard] Found ${detections.length} faces in ${file.name}. Saving to index...`);
+                                    for (const detection of detections) {
+                                        await saveFaceToIndex({
+                                            imageId: photo.id,
+                                            descriptor: Array.from(detection.descriptor),
+                                            eventId: photo.eventId,
+                                            imageUrl: photo.url,
+                                            width: photo.width || 0,
+                                            height: photo.height || 0
+                                        });
+                                    }
                                 }
+                                URL.revokeObjectURL(imageUrl);
+                            } catch (e) {
+                                console.error("[Dashboard] Error indexing face in file", file.name, e);
                             }
-                            URL.revokeObjectURL(imageUrl); // clean up memory
-                        } catch (e) {
-                            console.error("[Dashboard] Error indexing face in file", file.name, e);
                         }
+                        console.log("[Dashboard] Background face indexing complete.");
+                    } catch (e) {
+                        console.error("[Dashboard] Background indexing failed:", e);
                     }
-                    console.log("[Dashboard] Background face indexing complete.");
-                } catch (e) {
-                    console.error("[Dashboard] Background indexing failed:", e);
-                }
-            }, 100);
+                }, 100);
+            }
 
             await fetchStorageStats();
 
@@ -2457,7 +2521,7 @@ function DashboardContent() {
     const activeEventDetailEvent = isInlineEventDetailGalleryEditor ? (activeSubEvent || selectedMainEvent) : selectedMainEvent;
     const activeGalleryOriginalMessage = activeEventDetailEvent?.description || "";
     const hasGalleryMessageChanges = galleryMessageText !== activeGalleryOriginalMessage;
-    const photoItems = currentEventPhotos.filter(photo => photo.mediaType !== "video" && photo.resourceType !== "video");
+    const photoItems = currentEventPhotos.filter(photo => photo.mediaType !== "video" && photo.resourceType !== "video" && !!photo.thumbnailUrl);
     const videoItems = currentEventPhotos.filter(photo => photo.mediaType === "video" || photo.resourceType === "video");
     const activeGalleryItems = galleryMediaTab === "videos" ? videoItems : photoItems;
     const createdEvents = userEvents.filter(evt => evt.createdBy && ownEventIdentifiers.has(evt.createdBy));
@@ -2828,6 +2892,22 @@ function DashboardContent() {
     };
 
 
+
+    const totalItems = uploadQueue.length;
+    const completedItems = uploadQueue.filter(item => item.status === "success" || item.status === "error").length;
+    const processingItems = uploadQueue.filter(item => item.status === "processing").length;
+    const uploadingItems = uploadQueue.filter(item => item.status === "uploading").length;
+
+    let overallStatusText = "";
+    if (uploadingItems > 0) {
+        overallStatusText = `Uploading ${uploadingItems} of ${totalItems} ${uploadingItems === 1 ? 'file' : 'files'}...`;
+    } else if (processingItems > 0) {
+        overallStatusText = `Processing ${processingItems} ${processingItems === 1 ? 'file' : 'files'}...`;
+    } else if (completedItems === totalItems) {
+        overallStatusText = `${totalItems} ${totalItems === 1 ? 'upload' : 'uploads'} complete`;
+    } else {
+        overallStatusText = "Upload status";
+    }
 
     const shareModalUrl = shareModalEvent ? getEventShareUrl(shareModalEvent.id) : "";
     const shareModalJoinId = shareModalEvent?.joinId || shareModalEvent?.id.slice(0, 6).toUpperCase() || "";
@@ -5963,6 +6043,171 @@ function DashboardContent() {
                             )}>
                                 {message}
                             </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Floating Upload Queue Panel (Google Drive style) */}
+                <AnimatePresence>
+                    {isUploadPanelOpen && uploadQueue.length > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 50, scale: 0.95 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                            className="fixed bottom-6 right-6 z-[100] w-96 bg-slate-950/95 border border-slate-800 backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden font-sans"
+                        >
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    {(uploadingItems > 0 || processingItems > 0) ? (
+                                        <Loader2 className="w-4 h-4 animate-spin text-amber-400 shrink-0" />
+                                    ) : (
+                                        <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                                    )}
+                                    <span className="text-xs font-bold text-slate-200 truncate">
+                                        {overallStatusText}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                    {completedItems === totalItems && (
+                                        <button
+                                            onClick={() => setUploadQueue([])}
+                                            className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white px-2 py-1 rounded hover:bg-slate-800 transition-colors"
+                                        >
+                                            Clear
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => setIsUploadPanelMinimized(!isUploadPanelMinimized)}
+                                        className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors"
+                                        title={isUploadPanelMinimized ? "Expand" : "Minimize"}
+                                    >
+                                        {isUploadPanelMinimized ? (
+                                            <ChevronUp className="w-4 h-4" />
+                                        ) : (
+                                            <ChevronDown className="w-4 h-4" />
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => setIsUploadPanelOpen(false)}
+                                        className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors"
+                                        title="Close"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Overall progress bar at the very bottom of minimized header */}
+                            {isUploadPanelMinimized && (uploadingItems > 0 || processingItems > 0) && (
+                                <div className="w-full h-1 bg-slate-900 overflow-hidden relative">
+                                    <div 
+                                        className="h-full bg-gradient-to-r from-amber-500 to-sky-500 transition-all duration-300"
+                                        style={{ 
+                                            width: `${
+                                                (uploadQueue.reduce((acc, curr) => acc + curr.progress, 0) / (totalItems * 100)) * 100
+                                            }%` 
+                                        }}
+                                    ></div>
+                                </div>
+                            )}
+
+                            {/* Body (List of items) */}
+                            <AnimatePresence initial={false}>
+                                {!isUploadPanelMinimized && (
+                                    <motion.div
+                                        initial={{ height: 0 }}
+                                        animate={{ height: "auto" }}
+                                        exit={{ height: 0 }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="max-h-72 overflow-y-auto divide-y divide-slate-900">
+                                            {uploadQueue.map((item) => (
+                                                <div
+                                                    key={item.id}
+                                                    className="flex items-center justify-between gap-3 p-3 hover:bg-slate-900/50 transition-colors"
+                                                >
+                                                    {/* File Preview */}
+                                                    {item.previewUrl ? (
+                                                        <img
+                                                            src={item.previewUrl}
+                                                            alt={item.fileName}
+                                                            className="w-10 h-10 object-cover rounded-lg border border-slate-800/85 bg-slate-900 shrink-0"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded-lg border border-slate-800 bg-slate-900 flex items-center justify-center shrink-0">
+                                                            <ImageIcon className="w-5 h-5 text-slate-500" />
+                                                        </div>
+                                                    )}
+
+                                                    {/* File Details & Progress */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center justify-between gap-2 mb-1">
+                                                            <p className="text-xs font-bold text-slate-300 truncate" title={item.fileName}>
+                                                                {item.fileName}
+                                                            </p>
+                                                            {item.status === "uploading" && (
+                                                                <span className="text-[10px] font-bold text-amber-400 shrink-0">
+                                                                    {item.progress}%
+                                                                </span>
+                                                            )}
+                                                            {item.status === "processing" && (
+                                                                <span className="text-[10px] font-bold text-sky-400 shrink-0">
+                                                                    Processing...
+                                                                </span>
+                                                            )}
+                                                            {item.status === "success" && (
+                                                                <span className="text-[10px] font-bold text-emerald-400 shrink-0">
+                                                                    Done
+                                                                </span>
+                                                            )}
+                                                            {item.status === "error" && (
+                                                                <span className="text-[10px] font-bold text-rose-400 shrink-0 truncate max-w-[80px]">
+                                                                    Error
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Progress bar */}
+                                                        <div className="w-full bg-slate-900 h-1 rounded-full overflow-hidden">
+                                                            <div
+                                                                className={cn(
+                                                                    "h-full rounded-full transition-all duration-300",
+                                                                    item.status === "uploading" ? "bg-amber-400" :
+                                                                    item.status === "processing" ? "bg-sky-400 animate-pulse" :
+                                                                    item.status === "success" ? "bg-emerald-400" : "bg-rose-400"
+                                                                )}
+                                                                style={{ 
+                                                                    width: item.status === "processing" ? "90%" : `${item.progress}%` 
+                                                                }}
+                                                            ></div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Status Icon */}
+                                                    <div className="shrink-0">
+                                                        {item.status === "uploading" && (
+                                                            <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                                                        )}
+                                                        {item.status === "processing" && (
+                                                            <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
+                                                        )}
+                                                        {item.status === "success" && (
+                                                            <Check className="w-4 h-4 text-emerald-400" />
+                                                        )}
+                                                        {item.status === "error" && (
+                                                            <div title={item.error}>
+                                                                <X className="w-4 h-4 text-rose-400" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </motion.div>
                     )}
                 </AnimatePresence>

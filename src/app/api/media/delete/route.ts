@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getCachedBackblazeAuth, BackblazeAuth } from "@/lib/backblaze";
 
 export const runtime = "nodejs";
-
-type BackblazeAuth = {
-  authorizationToken: string;
-  apiUrl: string;
-};
 
 function requireEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -44,28 +40,6 @@ async function verifySupabaseUser(accessToken: string) {
   return user?.id ? { id: user.id } : null;
 }
 
-async function authorizeBackblaze(): Promise<BackblazeAuth> {
-  const keyId = requireEnv("B2_KEY_ID");
-  const applicationKey = requireEnv("B2_APPLICATION_KEY");
-  const credentials = Buffer.from(`${keyId}:${applicationKey}`).toString("base64");
-
-  const response = await fetch("https://api.backblazeb2.com/b2api/v3/b2_authorize_account", {
-    headers: {
-      Authorization: `Basic ${credentials}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Backblaze authorization failed with ${response.status}`);
-  }
-
-  const data = await response.json();
-  return {
-    authorizationToken: data.authorizationToken,
-    apiUrl: data.apiInfo.storageApi.apiUrl,
-  };
-}
-
 async function deleteB2File(auth: BackblazeAuth, bucketId: string, key: string) {
   try {
     // 1. Get file ID by listing
@@ -89,7 +63,7 @@ async function deleteB2File(auth: BackblazeAuth, bucketId: string, key: string) 
     }
 
     const listData = await listResponse.json();
-    const file = listData.files?.find((f: any) => f.fileName === key);
+    const file = listData.files?.find((f: { fileName: string; fileId?: string }) => f.fileName === key);
     if (!file || !file.fileId) {
       console.log(`[B2Delete] File ${key} not found or already deleted.`);
       return true;
@@ -201,7 +175,7 @@ export async function POST(request: NextRequest) {
     // 3. Delete files from B2 if storage key exists
     const storageKey = photo.storage_key;
     if (storageKey) {
-      const auth = await authorizeBackblaze();
+      const auth = await getCachedBackblazeAuth();
       const bucketId = requireEnv("B2_BUCKET_ID");
 
       const originalKey = storageKey;
