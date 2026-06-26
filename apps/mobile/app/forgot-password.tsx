@@ -79,7 +79,7 @@ export default function ForgotPasswordScreen() {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Reset Password</Text>
               <Text style={styles.cardSubtitle}>
-                Enter your email address and we'll send you a secure link to reset your password.
+                Enter your email address and we&apos;ll send you a secure link to reset your password.
               </Text>
 
               {success ? (
@@ -87,7 +87,7 @@ export default function ForgotPasswordScreen() {
                   <Text style={styles.successEmoji}>📬</Text>
                   <Text style={styles.successTitle}>Check your email!</Text>
                   <Text style={styles.successText}>
-                    We've sent a password reset link to {email}. Click the link to choose a new password.
+                    We&apos;ve sent a password reset link to {email}. Click the link to choose a new password.
                   </Text>
                   
                   <TouchableOpacity

@@ -20,6 +20,8 @@ import { getEventById, getEventPhotos, deletePhoto, addPhoto, Event as DatabaseE
 import { useAuth } from '@/context/AuthContext';
 import { uploadEventImage } from '@/lib/storage';
 import { useAppTheme } from '@/context/ThemeContext';
+import { getGridThumbnail } from '@/lib/imageUrl';
+
 
 const { width } = Dimensions.get('window');
 const COLUMN_COUNT = 3;
@@ -188,7 +190,7 @@ export default function EditPhotosScreen() {
         contentContainerStyle={styles.grid}
         renderItem={({ item }) => (
           <View style={styles.imageWrapper}>
-            <Image source={{ uri: item.url }} style={styles.image} />
+            <Image source={{ uri: getGridThumbnail(item.url) }} style={styles.image} />
             <TouchableOpacity 
               style={styles.deleteBtn} 
               onPress={() => handleDeletePhoto(item.id)}

@@ -21,7 +21,19 @@ export async function publishResizeTask(options: QStashPublishOptions): Promise<
   // 3. VERCEL_URL (automatically injected by Vercel for the current deployment)
   // 4. Fallback to Netlify domain
   const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null;
-  const siteUrl = options.origin || process.env.NEXT_PUBLIC_SITE_URL || vercelUrl || `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'lens-and-frame-wedding-album.netlify.app'}`;
+  
+  // Local/private origins cannot be accessed by QStash, so fall back to NEXT_PUBLIC_SITE_URL (e.g. ngrok tunnel)
+  const isLocalOrigin = options.origin && (
+    options.origin.includes('localhost') || 
+    options.origin.includes('127.0.0.1') || 
+    options.origin.includes('192.168.') || 
+    options.origin.startsWith('http://10.')
+  );
+  
+  const siteUrl = (!options.origin || isLocalOrigin)
+    ? (process.env.NEXT_PUBLIC_SITE_URL || vercelUrl || `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'lens-and-frame-wedding-album.netlify.app'}`)
+    : options.origin;
+    
   const targetUrl = `${siteUrl}/api/media/resize-worker`;
 
   console.log(`[QStash] Publishing resize task for ${options.storageKey} to target: ${targetUrl}`);

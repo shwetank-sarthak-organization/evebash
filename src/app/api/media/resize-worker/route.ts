@@ -157,16 +157,34 @@ export async function POST(request: NextRequest) {
     await uploadBufferToB2(thumbnailBuffer, thumbnailKey, "image/webp");
     await uploadBufferToB2(previewBuffer, previewKey, "image/webp");
 
-    // 7. Update database record — match by storage_key, not a derived ID
-    console.log(`[Resize Worker] Updating database record for storage_key: ${storageKey}`);
+    // 7. Update database record — match by storage_key, with a retry loop to prevent race conditions
+    let updated = false;
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      console.log(`[Resize Worker] Database update attempt ${attempt} for storage_key: ${storageKey}`);
+      const { data: updatedData, error: dbError } = await supabaseAdmin
+        .from("photos")
+        .update({ thumbnail_url: thumbnailUrl })
+        .eq("storage_key", storageKey)
+        .select();
 
-    const { error: dbError } = await supabaseAdmin
-      .from("photos")
-      .update({ thumbnail_url: thumbnailUrl })
-      .eq("storage_key", storageKey);
+      if (dbError) {
+        throw dbError;
+      }
 
-    if (dbError) {
-      throw dbError;
+      if (updatedData && updatedData.length > 0) {
+        console.log(`[Resize Worker] Successfully updated database record in attempt ${attempt}`);
+        updated = true;
+        break;
+      }
+
+      if (attempt < 4) {
+        console.log(`[Resize Worker] Row not found yet, sleeping 2 seconds before retry...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+
+    if (!updated) {
+      console.warn(`[Resize Worker] Warning: No database row found matching storage_key "${storageKey}" after 4 attempts.`);
     }
 
     console.log(`[Resize Worker] Successfully finished resizing for key: ${storageKey}`);

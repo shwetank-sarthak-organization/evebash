@@ -5,6 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { getEventById, getEventPhotos, toggleLike, addComment, onPhotoInteractions, deletePhotoComment, logGuestLogin, onGuestStatusChange, Event as DatabaseEvent, Photo } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
+import { getGridThumbnail, getImageUrl } from '@/lib/imageUrl';
+
 
 
 
@@ -222,7 +224,7 @@ export default function SubEventPhotosScreen() {
             renderItem={({ item, index }) => (
               <TouchableOpacity activeOpacity={0.8} onPress={() => openViewer(index)}>
                 <Image 
-                  source={{ uri: item.url }} 
+                  source={{ uri: getGridThumbnail(item.url) }} 
                   style={styles.gridImage} 
                 />
               </TouchableOpacity>
@@ -350,7 +352,7 @@ function PhotoViewer({ photos, initialIndex, onClose, user }: any) {
       
       {photos[currentIndex] && (
         <Image 
-          source={{ uri: photos[currentIndex].url }} 
+          source={{ uri: getImageUrl(photos[currentIndex].url, { width: 900 }) }} 
           style={styles.fullImage} 
           resizeMode="contain" 
         />
