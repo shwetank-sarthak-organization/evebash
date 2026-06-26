@@ -15,10 +15,11 @@ interface EventNavbarProps {
     subEvents: Event[];
     isShared?: boolean;
     basePath: string;
+    activeGalleryId?: string;
+    onSelectGallery?: (gallery: Event | null) => void;
 }
 
-export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, basePath }: EventNavbarProps) {
-    const [scrolled, setScrolled] = useState(false);
+export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, basePath, activeGalleryId, onSelectGallery }: EventNavbarProps) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [guestDetails, setGuestDetails] = useState<{name: string, phone: string} | null>(null);
     const pathname = usePathname();
@@ -31,14 +32,9 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, 
                 try {
                     // eslint-disable-next-line react-hooks/set-state-in-effect
                     setGuestDetails(JSON.parse(saved));
-                } catch(e){}
+                } catch {}
             }
         }
-        const handleScroll = () => {
-            setScrolled(window.scrollY > 50);
-        };
-        window.addEventListener("scroll", handleScroll);
-        return () => window.removeEventListener("scroll", handleScroll);
     }, []);
 
     const activeName = user ? (user.name || user.email) : guestDetails?.name;
@@ -58,18 +54,28 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, 
     const sharedQuery = isShared ? "?shared=true" : "";
 
     // Generate core links
-    const navLinks = [
-        { name: "Home", href: `${basePath}${sharedQuery}` },
+    const navLinks: Array<{ name: string; href: string; gallery: Event | null; isGallery: boolean }> = [
+        { name: "Home", href: `${basePath}${sharedQuery}`, gallery: null, isGallery: true },
         ...subEvents.map(sub => ({
             name: sub.title || sub.id,
-            href: `${basePath}/events/${sub.id}${sharedQuery}`
+            href: onSelectGallery ? `/events/${sub.id}${sharedQuery}` : `${basePath}/events/${sub.id}${sharedQuery}`,
+            gallery: sub,
+            isGallery: true
         })),
-        { name: "Find You", href: `${basePath}/find-you` }
+        { name: "Event Partners", href: `${basePath}/event-partners${sharedQuery}`, gallery: null, isGallery: false }
     ];
 
     if (user?.role === "admin") {
-        navLinks.push({ name: "Admin", href: `${basePath}/admin` });
+        navLinks.push({ name: "Admin", href: `${basePath}/admin`, gallery: null, isGallery: false });
     }
+
+    const isLinkActive = (href: string) => {
+        const cleanPathname = pathname.split('?')[0];
+        const linkPath = href.split('?')[0];
+        return cleanPathname === linkPath;
+    };
+
+    const isGalleryActive = (gallery: Event | null) => (activeGalleryId || mainEventId) === (gallery?.id || mainEventId);
 
     return (
         <>
@@ -82,6 +88,12 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, 
                     {/* Left: Main Event Title */}
                     <Link
                         href={`${basePath}${sharedQuery}`}
+                        onClick={(e) => {
+                            if (onSelectGallery) {
+                                e.preventDefault();
+                                onSelectGallery(null);
+                            }
+                        }}
                         className="text-2xl font-serif font-bold italic tracking-tight transition-colors z-50 relative text-slate-900"
                     >
                         {mainEventTitle}
@@ -90,21 +102,32 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, 
                     {/* Right: Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-2">
                         {navLinks.map((link) => {
-                            // Strip query params for active check
-                            const cleanPathname = pathname.split('?')[0];
-                            const linkPath = link.href.split('?')[0];
-                            const isActive = cleanPathname === linkPath;
+                            const isActive = link.isGallery && onSelectGallery ? isGalleryActive(link.gallery) : isLinkActive(link.href);
+                            const className = cn(
+                                "px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all",
+                                isActive
+                                    ? "bg-slate-900 text-white shadow-md"
+                                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                            );
+
+                            if (link.isGallery && onSelectGallery) {
+                                return (
+                                    <button
+                                        key={link.name}
+                                        type="button"
+                                        onClick={() => onSelectGallery(link.gallery)}
+                                        className={className}
+                                    >
+                                        {link.name}
+                                    </button>
+                                );
+                            }
 
                             return (
                                 <Link
                                     key={link.name}
                                     href={link.href}
-                                    className={cn(
-                                        "px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all",
-                                        isActive
-                                            ? "bg-slate-900 text-white shadow-md"
-                                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                                    )}
+                                    className={className}
                                 >
                                     {link.name}
                                 </Link>
@@ -169,7 +192,13 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, 
                                 <p className="text-xs font-bold text-stone-600 uppercase tracking-widest mb-4">Main Event</p>
                                 <Link
                                     href={`${basePath}${sharedQuery}`}
-                                    onClick={() => setMobileMenuOpen(false)}
+                                    onClick={(e) => {
+                                        if (onSelectGallery) {
+                                            e.preventDefault();
+                                            onSelectGallery(null);
+                                        }
+                                        setMobileMenuOpen(false);
+                                    }}
                                     className="text-3xl font-serif font-bold italic text-slate-900 flex items-center justify-between group"
                                 >
                                     <span>{mainEventTitle}</span>
@@ -181,21 +210,36 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, 
                                 <p className="text-xs font-bold text-stone-600 uppercase tracking-widest mb-6">Menu</p>
                                 <div className="space-y-4">
                                     {navLinks.map((link) => {
-                                        const cleanPathname = pathname.split('?')[0];
-                                        const linkPath = link.href.split('?')[0];
-                                        const isActive = cleanPathname === linkPath;
+                                        const isActive = link.isGallery && onSelectGallery ? isGalleryActive(link.gallery) : isLinkActive(link.href);
+                                        const className = cn(
+                                            "block w-full p-4 rounded-2xl text-left text-lg font-bold transition-all border border-transparent",
+                                            isActive
+                                                ? "bg-slate-900 text-white shadow-sm"
+                                                : "hover:bg-stone-50 text-slate-600"
+                                        );
+
+                                        if (link.isGallery && onSelectGallery) {
+                                            return (
+                                                <button
+                                                    key={link.name}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        onSelectGallery(link.gallery);
+                                                        setMobileMenuOpen(false);
+                                                    }}
+                                                    className={className}
+                                                >
+                                                    {link.name}
+                                                </button>
+                                            );
+                                        }
 
                                         return (
                                             <Link
                                                 key={link.name}
                                                 href={link.href}
                                                 onClick={() => setMobileMenuOpen(false)}
-                                                className={cn(
-                                                    "block p-4 rounded-2xl text-lg font-bold transition-all border border-transparent",
-                                                    isActive
-                                                        ? "bg-slate-900 text-white shadow-sm"
-                                                        : "hover:bg-stone-50 text-slate-600"
-                                                )}
+                                                className={className}
                                             >
                                                 {link.name}
                                             </Link>

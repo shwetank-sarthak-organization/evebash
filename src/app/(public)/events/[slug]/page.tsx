@@ -6,17 +6,14 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { notFound, useParams, useRouter, useSearchParams } from "next/navigation";
 import LoadingScreen from "@/components/LoadingScreen";
 import { getEvent } from "@/lib/events"; // Static Data
-import { getEventPhotos, getEventPhotosPaginated, getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event, Photo as DatabasePhoto } from "@/lib/database"; // Live Data
+import { getEventPhotosPaginated, getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event, Photo as DatabasePhoto } from "@/lib/database"; // Live Data
 import { EventNavbar } from "@/components/EventNavbar";
-import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
-import { Loader2, Image as ImageIcon, ChevronLeft, ChevronDown, Share2, Check, Pencil } from "lucide-react";
-import { ScrollReveal } from "@/components/ui/ScrollReveal";
-import { cn, formatEventDate } from "@/lib/utils";
+import { Loader2, Image as ImageIcon, ChevronLeft, ChevronDown, Share2, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRef } from "react";
 import { getWebTemplateComponent } from "@/components/templateRegistry";
-import { navigateWithModifierClick } from "@/lib/navigation";
 import { getWebLightboxTheme } from "@/lib/webTemplateTheme";
 
 function EventPageContent() {
@@ -30,6 +27,8 @@ function EventPageContent() {
     const [event, setEvent] = useState<Event | any | null>(null);
     const [subEvents, setSubEvents] = useState<Event[]>([]);
     const [photos, setPhotos] = useState<any[]>([]);
+    const [activeGallery, setActiveGallery] = useState<Event | null>(null);
+    const [galleryMediaTab, setGalleryMediaTab] = useState<"photos" | "videos">("photos");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
@@ -249,6 +248,43 @@ function EventPageContent() {
 
     // ... (keep existing state)
 
+    const transformPhotos = (databasePhotos: DatabasePhoto[]) => databasePhotos.map(p => ({
+        id: p.id,
+        src: p.url || "",
+        storageKey: p.storageKey || "",
+        width: p.width || 800,
+        height: p.height || 600,
+        filename: p.storageKey ? p.storageKey.split('/').pop() : 'photo',
+        mediaType: p.mediaType,
+        resourceType: p.resourceType
+    }));
+
+    const loadGalleryPhotos = async (gallery: Event, page = 0, append = false) => {
+        const { photos: databasePhotos, hasMore } = await getEventPhotosPaginated(gallery.id, gallery.legacyId, page, 20);
+        const transformedPhotos = transformPhotos(databasePhotos as DatabasePhoto[]);
+
+        setPhotos(prev => append ? [...prev, ...transformedPhotos] : transformedPhotos);
+        setPhotoPage(page);
+        setHasMorePhotos(hasMore);
+    };
+
+    const selectGallery = async (gallery: Event | null) => {
+        const targetGallery = gallery || event;
+        if (!targetGallery) return;
+
+        setActiveGallery(gallery);
+        setGalleryMediaTab("photos");
+        setLoadingMorePhotos(false);
+
+        try {
+            await loadGalleryPhotos(targetGallery, 0, false);
+        } catch (err) {
+            console.error("Error loading gallery photos:", err);
+            setPhotos([]);
+            setHasMorePhotos(false);
+        }
+    };
+
     const loadEventData = async () => {
         setLoading(true);
         console.log(`[EventPage] Loading event for slug: ${slug}, isShared: ${isShared}`);
@@ -281,10 +317,14 @@ function EventPageContent() {
 
             // 2. Branch logic based on Event Type
             if (eventData.type === 'main') {
-                // Fetch Sub-events (Categories)
-                console.log(`[EventPage] Main event detected. Fetching sub-events for: ${eventData.id}`);
+                // Fetch Home gallery media and sub-galleries so web follows the same structure as mobile.
+                console.log(`[EventPage] Main event detected. Fetching home gallery and sub-events for: ${eventData.id}`);
                 const data = await getSubEvents(eventData.id, eventData.legacyId);
                 setSubEvents(data);
+                setParentEvent(null);
+                setActiveGallery(null);
+                setGalleryMediaTab("photos");
+                await loadGalleryPhotos(eventData, 0, false);
             } else {
                 // Fetch Photos (Sub-event or single gallery)
                 console.log(`[EventPage] Sub-view detected. Fetching photos for: ${eventData.id}`);
@@ -303,21 +343,9 @@ function EventPageContent() {
                     }
                 }
 
-
-                // 1. Fetch from Supabase database CLIENT-SIDE (Authenticated / Rules-friendly)
-                const { photos: databasePhotos, hasMore } = await getEventPhotosPaginated(eventData.id, eventData.legacyId, 0, 20);
-
-                const transformedPhotos = (databasePhotos as DatabasePhoto[]).map(p => ({
-                    id: p.id,
-                    src: p.url || "",
-                    storageKey: p.storageKey || "",
-                    width: p.width || 800,
-                    height: p.height || 600,
-                    filename: p.storageKey ? p.storageKey.split('/').pop() : 'photo'
-                }));
-                setPhotos(transformedPhotos);
-                setPhotoPage(0);
-                setHasMorePhotos(hasMore);
+                setActiveGallery(eventData);
+                setGalleryMediaTab("photos");
+                await loadGalleryPhotos(eventData, 0, false);
             }
         } catch (err: any) {
             console.error("[EventPage] Critical error:", err);
@@ -328,24 +356,13 @@ function EventPageContent() {
     };
 
     const loadMorePhotos = async () => {
-        if (!event || loadingMorePhotos || !hasMorePhotos) return;
+        const currentGallery = activeGallery || event;
+        if (!currentGallery || loadingMorePhotos || !hasMorePhotos) return;
+
         setLoadingMorePhotos(true);
         try {
             const nextPage = photoPage + 1;
-            const { photos: databasePhotos, hasMore } = await getEventPhotosPaginated(event.id, event.legacyId, nextPage, 20);
-
-            const transformedPhotos = (databasePhotos as DatabasePhoto[]).map(p => ({
-                id: p.id,
-                src: p.url || "",
-                storageKey: p.storageKey || "",
-                width: p.width || 800,
-                height: p.height || 600,
-                filename: p.storageKey ? p.storageKey.split('/').pop() : 'photo'
-            }));
-
-            setPhotos(prev => [...prev, ...transformedPhotos]);
-            setPhotoPage(nextPage);
-            setHasMorePhotos(hasMore);
+            await loadGalleryPhotos(currentGallery, nextPage, true);
         } catch (error) {
             console.error("Error loading more photos:", error);
         } finally {
@@ -389,9 +406,15 @@ function EventPageContent() {
         );
     }
 
+    const photoItems = photos.filter(photo => photo.mediaType !== "video" && photo.resourceType !== "video");
+    const videoItems = photos.filter(photo => photo.mediaType === "video" || photo.resourceType === "video");
+    const activeGalleryItems = galleryMediaTab === "videos" ? videoItems : photoItems;
+    const activeGalleryTitle = activeGallery?.title || event.title || "Home";
+    const activeGalleryId = activeGallery?.id || event.id;
+
     const renderContent = () => (
         <div className="contents">
-            <div className="mb-12 flex items-center justify-between">
+            <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <button
                     onClick={() => {
                         const backUrl = event?.parentId ? `/events/${event.parentId}` : "/gallery";
@@ -403,17 +426,7 @@ function EventPageContent() {
                     {event?.parentId ? "Back to Event" : "Back to Gallery"}
                 </button>
 
-                <div className="flex items-center space-x-4">
-                    {(user?.uid === event?.createdBy || user?.role === 'admin') && (
-                        <button
-                            onClick={() => router.push(`/dashboard?view=manage&eventId=${event.id}`)}
-                            className="flex items-center space-x-2 px-6 py-3 bg-slate-900 text-white border border-slate-900 rounded-full text-sm font-bold hover:bg-slate-800 transition-all shadow-md active:scale-95 group"
-                        >
-                            <Pencil className="w-4 h-4" />
-                            <span>Manage Event</span>
-                        </button>
-                    )}
-
+                <div className="flex flex-wrap items-center gap-3">
                     <button
                         onClick={handleShare}
                         className="flex items-center space-x-2 px-6 py-3 bg-white border border-stone-200 text-stone-600 rounded-full text-sm font-bold hover:bg-stone-50 transition-all shadow-sm hover:shadow-md group active:scale-95"
@@ -447,112 +460,81 @@ function EventPageContent() {
                 </div>
             </div>
 
-            {event.type === 'main' ? (
-                <div className="mt-12">
-                    <SectionHeader title="Event Highlights" subtitle={`${subEvents.length} Unique Galleries`} />
+            <div className="mt-12">
+                <SectionHeader
+                    title={activeGallery ? activeGalleryTitle : "Home Gallery"}
+                    subtitle={`${photoItems.length} Photos · ${videoItems.length} Videos`}
+                />
 
-                    {subEvents.length === 0 ? (
-                        <div className="py-40 text-center opacity-40">
-                            <ImageIcon className="w-16 h-16 mx-auto mb-6 text-stone-600" />
-                            {error === "permissions" ? (
-                                <>
-                                    <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Access restricted...</h2>
-                                    <p className="font-sans text-stone-600">If you are the owner, please ensure your Supabase database Security Rules allow public reads for events and photos.</p>
-                                </>
-                            ) : (
-                                <>
-                                    <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Glimpses are being curated...</h2>
-                                    <p className="font-sans text-stone-600">Galleries for this event will appear here soon.</p>
-                                </>
+                <div className="mt-10 inline-flex rounded-2xl border border-stone-200 bg-white p-1 shadow-sm">
+                    {([
+                        { id: "photos", label: `Photos (${photoItems.length})` },
+                        { id: "videos", label: `Videos (${videoItems.length})` },
+                    ] as const).map((item) => (
+                        <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => setGalleryMediaTab(item.id)}
+                            className={cn(
+                                "rounded-xl px-5 py-3 text-xs font-black uppercase tracking-widest transition-all",
+                                galleryMediaTab === item.id
+                                    ? "bg-slate-900 text-white shadow-sm"
+                                    : "text-stone-500 hover:text-stone-900"
                             )}
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
-                            {subEvents.map((sub, index) => (
-                                <ScrollReveal
-                                    key={sub.id}
-                                    delay={index * 0.1}
-                                    className="w-full"
-                                >
-                                    <div
-                                        onClick={(e) => navigateWithModifierClick(e, `/events/${sub.id}${isShared ? "?shared=true" : ""}`, router.push)}
-                                        className="group relative block w-full aspect-[3/4] overflow-hidden rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all duration-500 cursor-pointer bg-stone-100"
-                                    >
-                                        <Image
-                                            src={sub.coverImage || 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2000&auto=format&fit=crop'}
-                                            alt={sub.title}
-                                            fill
-                                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                                            className="object-cover transition-transform duration-700 group-hover:scale-110"
-                                            priority={index < 3}
-                                        />
-
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-300"></div>
-
-                                        <div className="absolute bottom-0 left-0 p-8 w-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                                            <p className="text-royal-gold text-[10px] font-bold uppercase tracking-[0.2em] mb-2">
-                                                {formatEventDate(sub.date) || "Gallery"}
-                                            </p>
-                                            <h3 className="text-3xl font-serif text-white mb-2 italic tracking-tight">{sub.title}</h3>
-                                            <div className="h-[1px] w-0 bg-white/50 group-hover:w-full transition-all duration-700 ease-in-out"></div>
-                                        </div>
-                                    </div>
-                                </ScrollReveal>
-                            ))}
-                        </div>
-                    )}
+                        >
+                            {item.label}
+                        </button>
+                    ))}
                 </div>
-            ) : (
-                <div className="contents">
-                    <SectionHeader title="Gallery Collection" subtitle={`${photos.length} Precious Moments`} />
 
-                    {photos.length > 0 ? (
-                        <div className="mt-12">
-                            <MasonryGrid
-                                photos={photos}
-                                eventSlug={slug}
-                                disableDownload={isShared && !user}
-                                lightboxTheme={getWebLightboxTheme(event.templateId)}
-                            />
-                        </div>
-                    ) : (
-                        <div className="text-center py-40 opacity-40">
-                            <ImageIcon className="w-16 h-16 mx-auto mb-6 text-stone-600" />
-                            {error === "permissions" ? (
-                                <>
-                                    <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Moments restricted...</h2>
-                                    <p className="font-sans text-stone-600 text-sm">Owner: Check Supabase database rules to enable shared access.</p>
-                                </>
+                {activeGalleryItems.length > 0 ? (
+                    <div className="mt-8">
+                        <MasonryGrid
+                            photos={activeGalleryItems}
+                            eventSlug={slug}
+                            disableDownload={isShared && !user}
+                            lightboxTheme={getWebLightboxTheme((activeGallery || event).templateId || event.templateId)}
+                        />
+                    </div>
+                ) : (
+                    <div className="text-center py-32 opacity-50">
+                        <ImageIcon className="w-16 h-16 mx-auto mb-6 text-stone-600" />
+                        {error === "permissions" ? (
+                            <>
+                                <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Moments restricted...</h2>
+                                <p className="font-sans text-stone-600 text-sm">Owner: Check Supabase database rules to enable shared access.</p>
+                            </>
+                        ) : (
+                            <>
+                                <h2 className="text-2xl font-serif italic text-stone-600 mb-2">
+                                    {galleryMediaTab === "videos" ? "No videos yet." : "No photos yet."}
+                                </h2>
+                                <p className="font-sans text-stone-600 text-sm">Check back soon to see the captured memories.</p>
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {/* LOAD MORE BUTTON */}
+                {hasMorePhotos && photos.length > 0 && (
+                    <div className="flex justify-center mt-16 mb-8 w-full">
+                        <button
+                            onClick={loadMorePhotos}
+                            disabled={loadingMorePhotos}
+                            className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-full font-bold shadow-xl flex items-center space-x-3 transition-all hover:scale-105 active:scale-95"
+                        >
+                            {loadingMorePhotos ? (
+                                <Loader2 className="w-5 h-5 animate-spin text-white/70" />
                             ) : (
-                                <>
-                                    <h2 className="text-2xl font-serif italic text-stone-600 mb-2">Moments are being developed...</h2>
-                                    <p className="font-sans text-stone-600 text-sm">Check back soon to see the captured memories.</p>
-                                </>
+                                <ChevronDown className="w-5 h-5 text-white/70" />
                             )}
-                        </div>
-                    )}
-
-                    {/* LOAD MORE BUTTON */}
-                    {hasMorePhotos && photos.length > 0 && (
-                        <div className="flex justify-center mt-16 mb-8 w-full">
-                            <button
-                                onClick={loadMorePhotos}
-                                disabled={loadingMorePhotos}
-                                className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-full font-bold shadow-xl flex items-center space-x-3 transition-all hover:scale-105 active:scale-95"
-                            >
-                                {loadingMorePhotos ? (
-                                    <Loader2 className="w-5 h-5 animate-spin text-white/70" />
-                                ) : (
-                                    <ChevronDown className="w-5 h-5 text-white/70" />
-                                )}
-                                <span className="tracking-widest uppercase text-sm">
-                                    {loadingMorePhotos ? "Loading..." : "Load More Photos"}
-                                </span>
-                            </button>
-                        </div>
-                    )}
-                </div>
-            )}
+                            <span className="tracking-widest uppercase text-sm">
+                                {loadingMorePhotos ? "Loading..." : "Load More Media"}
+                            </span>
+                        </button>
+                    </div>
+                )}
+            </div>
         </div>
     );
 
@@ -570,11 +552,13 @@ function EventPageContent() {
                 subEvents={subEvents}
                 isShared={isShared}
                 basePath={`/events/${navMainId}`}
+                activeGalleryId={activeGalleryId}
+                onSelectGallery={(gallery) => selectGallery(gallery || parentEvent || null)}
             />
             <TemplateComponent
                 event={event}
-                subEvents={subEvents}
-                photos={photos}
+                subEvents={[]}
+                photos={[]}
                 isShared={isShared}
                 user={user}
                 onBack={() => {
@@ -582,8 +566,7 @@ function EventPageContent() {
                     router.push(`${backUrl}${isShared ? "?shared=true" : ""}`);
                 }}
                 onShare={handleShare}
-                canManage={user?.uid === event?.createdBy || user?.role === 'admin'}
-                onManage={() => router.push(`/dashboard?view=manage&eventId=${event.id}`)}
+                canManage={false}
                 hasParent={!!event?.parentId}
                 copied={copied}
                 error={error}

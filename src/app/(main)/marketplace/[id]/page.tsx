@@ -13,8 +13,9 @@ import {
   Share2,
   Star,
   Store,
+  UserRound,
 } from "lucide-react";
-import { Business, getBusinessById, getBusinessTypeColor } from "@/lib/database";
+import { Business, getBusinessById, getBusinessTypeColor, getUserById, UserProfile } from "@/lib/database";
 
 const DEFAULT_BUSINESS_COVER = "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=1200";
 
@@ -30,6 +31,7 @@ export default function MarketplaceBusinessDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [business, setBusiness] = useState<Business | null>(null);
+  const [creatorProfile, setCreatorProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("About");
 
@@ -38,8 +40,10 @@ export default function MarketplaceBusinessDetailPage() {
     async function loadBusiness() {
       setLoading(true);
       const data = await getBusinessById(params.id);
+      const creator = data?.createdBy ? await getUserById(data.createdBy) : null;
       if (!cancelled) {
         setBusiness(data);
+        setCreatorProfile(creator);
         setLoading(false);
       }
     }
@@ -80,6 +84,9 @@ export default function MarketplaceBusinessDetailPage() {
   }
 
   const typeColors = getBusinessTypeColor(business.type);
+  const creatorProfileId = creatorProfile?.id || business.createdBy;
+  const creatorName = creatorProfile?.name || business.ownerName || "Owner name not set";
+  const creatorUsername = creatorProfile?.username ? `@${creatorProfile.username}` : "Username not set";
   const galleryImages = business.coverImages && business.coverImages.length > 0
     ? business.coverImages
     : [business.coverImage || DEFAULT_BUSINESS_COVER];
@@ -133,6 +140,26 @@ export default function MarketplaceBusinessDetailPage() {
           <Highlight title="Events" value={`${business.eventsHosted || 0}`} />
           <Highlight title="Shortlists" value={`${business.shortlistCount || 0}`} />
         </div>
+
+        <section className="rounded-[1.5rem] border border-[#1f2937] bg-[#101010] p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-indigo-400/20 bg-indigo-400/10 text-indigo-300">
+              <UserRound className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Created by</p>
+              <p className="mt-1 truncate text-base font-black text-white">{creatorName}</p>
+              <button
+                type="button"
+                disabled={!creatorProfileId || !creatorProfile?.username}
+                onClick={() => creatorProfileId && router.push(`/profile/${encodeURIComponent(creatorProfileId)}`)}
+                className="mt-0.5 max-w-full truncate text-left text-sm font-bold text-indigo-300 transition hover:text-indigo-200 disabled:cursor-default disabled:text-indigo-300"
+              >
+                {creatorUsername}
+              </button>
+            </div>
+          </div>
+        </section>
 
         <div className="flex overflow-x-auto rounded-2xl border border-[#1f2937] bg-[#101010] p-1">
           {["About", "Portfolio", "Announcements", "Reviews"].map((tab) => (

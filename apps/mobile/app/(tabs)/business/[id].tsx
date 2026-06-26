@@ -22,7 +22,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image as ExpoImage } from 'expo-image';
 import * as Location from 'expo-location';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { getBusinessById, updateBusiness, getEventsCountForVendor, Business, addEnquiry, getAnnouncementsForBusiness, getUserRatingForBusiness, saveUserRating, getReviewsForBusiness, getBusinessTypeColor, incrementBusinessViewCount, getBusinessShortlistStatus, toggleBusinessShortlist } from '@/lib/database';
+import { getBusinessById, updateBusiness, getEventsCountForVendor, Business, addEnquiry, getAnnouncementsForBusiness, getUserRatingForBusiness, saveUserRating, getReviewsForBusiness, getBusinessTypeColor, incrementBusinessViewCount, getBusinessShortlistStatus, toggleBusinessShortlist, getUserById, UserProfile } from '@/lib/database';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/context/AuthContext';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
@@ -61,6 +61,7 @@ export default function BusinessDetailScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
+  const [creatorProfile, setCreatorProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [announcementsList, setAnnouncementsList] = useState<any[]>([]);
   const [isFavorited, setIsFavorited] = useState(false);
@@ -184,6 +185,13 @@ export default function BusinessDetailScreen() {
             }
             
             setBusiness(data);
+            if (data.createdBy) {
+              getUserById(data.createdBy)
+                .then(profile => setCreatorProfile(profile))
+                .catch(() => setCreatorProfile(null));
+            } else {
+              setCreatorProfile(null);
+            }
             
             // Track profile view — fire-and-forget, non-blocking, skip for the business owner
             if (user?.uid !== data.createdBy) {
@@ -405,6 +413,9 @@ export default function BusinessDetailScreen() {
   const galleryImages = business.coverImages && business.coverImages.length > 0 
     ? business.coverImages 
     : [business.coverImage || 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop'];
+  const creatorProfileId = creatorProfile?.id || business.createdBy;
+  const creatorName = creatorProfile?.name || business.ownerName || 'Owner name not set';
+  const creatorUsername = creatorProfile?.username ? `@${creatorProfile.username}` : 'Username not set';
 
   const getExperienceYears = () => {
     if (!business) return 0;
@@ -576,6 +587,23 @@ export default function BusinessDetailScreen() {
               <IconSymbol name="star.fill" size={10} color="#d4af37" />
               <Text style={styles.ratingText}>{business.rating}</Text>
             </TouchableOpacity>
+          </View>
+
+          <View style={styles.creatorCard}>
+            <View style={styles.creatorIcon}>
+              <IconSymbol name="person.fill" size={18} color={INDIGO_LIGHT} />
+            </View>
+            <View style={styles.creatorInfo}>
+              <Text style={styles.creatorLabel}>Created by</Text>
+              <Text style={styles.creatorName} numberOfLines={1} ellipsizeMode="tail">{creatorName}</Text>
+              <TouchableOpacity
+                disabled={!creatorProfileId || !creatorProfile?.username}
+                onPress={() => creatorProfileId && router.push(`/profile/${encodeURIComponent(creatorProfileId)}` as any)}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.creatorUsername} numberOfLines={1} ellipsizeMode="tail">{creatorUsername}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           
 
@@ -1362,6 +1390,50 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(212, 175, 55, 0.25)',
     flexShrink: 0,
+  },
+  creatorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#101010',
+    borderWidth: 1,
+    borderColor: '#1f2937',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 16,
+  },
+  creatorIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: INDIGO_BG_LIGHT,
+    borderWidth: 1,
+    borderColor: INDIGO_BORDER,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  creatorInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  creatorLabel: {
+    fontSize: 10,
+    color: '#64748b',
+    fontFamily: 'Outfit_800ExtraBold',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  creatorName: {
+    marginTop: 3,
+    fontSize: 15,
+    color: '#ffffff',
+    fontFamily: 'Outfit_800ExtraBold',
+  },
+  creatorUsername: {
+    marginTop: 2,
+    fontSize: 13,
+    color: INDIGO_LIGHT,
+    fontFamily: 'Inter_700Bold',
   },
   ratingText: {
     fontSize: 11,

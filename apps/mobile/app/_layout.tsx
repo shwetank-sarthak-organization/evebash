@@ -121,6 +121,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       root === 'login' ||
       (root === '(tabs)' && (tab === undefined || tab === 'gallery' || tab === 'menu' || tab === 'business')) ||
       root === 'business' ||
+      root === 'profile' ||
       root === 'pricing' ||
       root === 'contact' ||
       root === 'sample-galleries' ||
