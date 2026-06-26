@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
+    "@vercel/functions": "^3.7.3",
     "clsx": "^2.1.1",
     "expo": "^55.0.23",
     "face-api.js": "^0.22.2",

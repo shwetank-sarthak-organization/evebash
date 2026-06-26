@@ -1,0 +1,24 @@
+[MediaUpload] Error: TypeError: fetch failed
+TypeError: fetch failed
+    at node:internal/deps/undici/undici:16416:13
+    at async authorizeBackblaze (/Users/sarthak/EveBash/.next/dev/server/chunks/[root-of-the-server]__dba596cf._.js:167:22)
+    at async POST (/Users/sarthak/EveBash/.next/dev/server/chunks/[root-of-the-server]__dba596cf._.js:318:31)
+    at async AppRouteRouteModule.do (/Users/sarthak/EveBash/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:37866)
+    at async AppRouteRouteModule.handle (/Users/sarthak/EveBash/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:45156)
+    at async responseGenerator (/Users/sarthak/EveBash/.next/dev/server/chunks/node_modules_next_03a8d08d._.js:14843:38)
+    at async AppRouteRouteModule.handleResponse (/Users/sarthak/EveBash/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:1:187713)
+    at async handleResponse (/Users/sarthak/EveBash/.next/dev/server/chunks/node_modules_next_03a8d08d._.js:14906:32)
+    at async Module.handler (/Users/sarthak/EveBash/.next/dev/server/chunks/node_modules_next_03a8d08d._.js:14959:13)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/sarthak/EveBash/node_modules/next/dist/server/base-server.js:1422:9)
+    at async DevServer.renderPageComponent (/Users/sarthak/EveBash/node_modules/next/dist/server/base-server.js:1474:24)
+    at async DevServer.renderToResponseImpl (/Users/sarthak/EveBash/node_modules/next/dist/server/base-server.js:1524:32)
+    at async DevServer.pipeImpl (/Users/sarthak/EveBash/node_modules/next/dist/server/base-server.js:1018:25)
+    at async NextNodeServer.handleCatchallRenderRequest (/Users/sarthak/EveBash/node_modules/next/dist/server/next-server.js:395:17)
+    at async DevServer.handleRequestImpl (/Users/sarthak/EveBash/node_modules/next/dist/server/base-server.js:909:17)
+    at async /Users/sarthak/EveBash/node_modules/next/dist/server/dev/next-dev-server.js:387:20
+    at async Span.traceAsyncFn (/Users/sarthak/EveBash/node_modules/next/dist/trace/trace.js:157:20)
+    at async DevServer.handleRequest (/Users/sarthak/EveBash/node_modules/next/dist/server/dev/next-dev-server.js:383:24)
+    at async invokeRender (/Users/sarthak/EveBash/node_modules/next/dist/server/lib/router-server.js:248:21)
+    at async handleRequest (/Users/sarthak/EveBash/node_modules/next/dist/server/lib/router-server.js:447:24)
+    at async requestHandlerImpl (/Users/sarthak/EveBash/node_modules/next/dist/server/lib/router-server.js:496:13)
+    at async Server.requestListener (/Users/sarthak/EveBash/node_modules/next/dist/server/lib/start-server.js:226:13)

@@ -1,6 +1,8 @@
 "use server";
 
 import { randomUUID } from "crypto";
+import { waitUntil } from "@vercel/functions";
+import { publishResizeTask } from "@/lib/qstash";
 import sharp from "sharp";
 
 type BackblazeAuth = {
@@ -157,24 +159,28 @@ export async function uploadToBackblaze(base64File: string, folder: string, opti
 
         // Inline resizing — generate thumbnail and preview immediately
         if (resourceType === "image" && contentType && !contentType.startsWith("video/")) {
-            try {
-                console.log(`[Server Action] Generating thumbnail and preview for: ${storageKey}`);
-
-                const thumbnailBuffer = await sharp(bytes)
-                    .resize({ width: 400, fit: "inside", withoutEnlargement: true })
-                    .webp({ quality: 75 })
-                    .toBuffer();
-
-                const previewBuffer = await sharp(bytes)
-                    .resize({ width: 900, fit: "inside", withoutEnlargement: true })
-                    .webp({ quality: 75 })
-                    .toBuffer();
-
-                await uploadBufferToB2(thumbnailBuffer, `${storageKey}-thumbnail.webp`, "image/webp");
-                await uploadBufferToB2(previewBuffer, `${storageKey}-preview.webp`, "image/webp");
-                console.log(`[Server Action] Thumbnail and preview uploaded for: ${storageKey}`);
-            } catch (resizeErr) {
-                console.error(`[Server Action] Resizing failed for ${storageKey}:`, resizeErr);
+            const qstashToken = process.env.QSTASH_TOKEN;
+            if (qstashToken) {
+                // QStash path: waitUntil keeps the function alive until publish completes
+                console.log(`[Server Action] Queuing resize via QStash for: ${storageKey}`);
+                waitUntil(publishResizeTask({ storageKey }));
+            } else {
+                // Fallback: inline resizing
+                console.log(`[Server Action] No QStash token — resizing inline for: ${storageKey}`);
+                try {
+                    const thumbnailBuffer = await sharp(bytes)
+                        .resize({ width: 400, fit: "inside", withoutEnlargement: true })
+                        .webp({ quality: 75 })
+                        .toBuffer();
+                    const previewBuffer = await sharp(bytes)
+                        .resize({ width: 900, fit: "inside", withoutEnlargement: true })
+                        .webp({ quality: 75 })
+                        .toBuffer();
+                    await uploadBufferToB2(thumbnailBuffer, `${storageKey}-thumbnail.webp`, "image/webp");
+                    await uploadBufferToB2(previewBuffer, `${storageKey}-preview.webp`, "image/webp");
+                } catch (resizeErr) {
+                    console.error(`[Server Action] Resizing failed for ${storageKey}:`, resizeErr);
+                }
             }
         }
 

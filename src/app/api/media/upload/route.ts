@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
+import { publishResizeTask } from "@/lib/qstash";
 import sharp from "sharp";
 
 export const runtime = "nodejs";
@@ -272,31 +274,31 @@ export async function POST(request: NextRequest) {
     const mediaDomain = requireEnv("MEDIA_DOMAIN").replace(/^https?:\/\//, "").replace(/\/+$/, "");
     const url = `https://${mediaDomain}/${storageKey}`;
 
-    // Inline resizing — generate thumbnail and preview immediately after upload
     if (resourceType === "image") {
-      try {
-        console.log(`[Upload] Generating thumbnail and preview for: ${storageKey}`);
-        const bufferBytes = Buffer.from(bytes);
-
-        const thumbnailBuffer = await sharp(bufferBytes)
-          .resize({ width: 400, fit: "inside", withoutEnlargement: true })
-          .webp({ quality: 75 })
-          .toBuffer();
-
-        const previewBuffer = await sharp(bufferBytes)
-          .resize({ width: 900, fit: "inside", withoutEnlargement: true })
-          .webp({ quality: 75 })
-          .toBuffer();
-
-        const thumbnailKey = `${storageKey}-thumbnail.webp`;
-        const previewKey = `${storageKey}-preview.webp`;
-
-        await uploadBufferToB2(thumbnailBuffer, thumbnailKey, "image/webp");
-        await uploadBufferToB2(previewBuffer, previewKey, "image/webp");
-        console.log(`[Upload] Thumbnail and preview uploaded successfully for: ${storageKey}`);
-      } catch (resizeErr) {
-        // Non-fatal — original is uploaded, resizing failed
-        console.error(`[Upload] Resizing failed for ${storageKey}:`, resizeErr);
+      const qstashToken = process.env.QSTASH_TOKEN;
+      if (qstashToken) {
+        // QStash path: return response immediately, publish resize job in background
+        // waitUntil keeps the Vercel function alive until publish completes
+        console.log(`[Upload] Queuing resize via QStash for: ${storageKey}`);
+        waitUntil(publishResizeTask({ storageKey, origin: request.nextUrl.origin }));
+      } else {
+        // Fallback: inline resizing if QStash is not configured
+        console.log(`[Upload] No QStash token — resizing inline for: ${storageKey}`);
+        try {
+          const bufferBytes = Buffer.from(bytes);
+          const thumbnailBuffer = await sharp(bufferBytes)
+            .resize({ width: 400, fit: "inside", withoutEnlargement: true })
+            .webp({ quality: 75 })
+            .toBuffer();
+          const previewBuffer = await sharp(bufferBytes)
+            .resize({ width: 900, fit: "inside", withoutEnlargement: true })
+            .webp({ quality: 75 })
+            .toBuffer();
+          await uploadBufferToB2(thumbnailBuffer, `${storageKey}-thumbnail.webp`, "image/webp");
+          await uploadBufferToB2(previewBuffer, `${storageKey}-preview.webp`, "image/webp");
+        } catch (resizeErr) {
+          console.error(`[Upload] Inline resizing failed for ${storageKey}:`, resizeErr);
+        }
       }
     }
 
