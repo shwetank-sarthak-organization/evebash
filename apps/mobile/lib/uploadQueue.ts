@@ -1,8 +1,7 @@
 import { Platform, Alert } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
-import { FileSystemUploadType, FileSystemSessionType } from 'expo-file-system';
+import { createUploadTask, FileSystemUploadType, FileSystemSessionType } from 'expo-file-system/legacy';
 import { supabase } from './supabase';
 import { addPhoto } from './database';
 
@@ -397,7 +396,7 @@ async function uploadWorker(item: UploadQueueItem) {
       try {
         console.log(`[UploadQueue] Trying: ${item.fileName} via ${uploadUrl}`);
 
-        const uploadTask = FileSystem.createUploadTask(
+        const uploadTask = createUploadTask(
           uploadUrl,
           item.fileUri,
           {
