@@ -7,7 +7,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { getEventById, getSubEvents, logGuestLogin, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getUsers, UserProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto } from '@/lib/database';
+import { getEventById, getSubEvents, logGuestLogin, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getUsers, UserProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { styles, FunkyFonts } from '../../components/eventStyles';
@@ -25,6 +25,7 @@ import { supabase } from '@/lib/supabase';
 import { getGridThumbnail } from '@/lib/imageUrl';
 import { resolveEventCoverImage } from '@/lib/eventCovers';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getPlanDetails, getUsagePercent } from '@/lib/planLimits';
 
 // ── Extracted modular components ──
 import { ThemeHeader } from '../../components/event/ThemeHeader';
@@ -873,6 +874,31 @@ export default function EventDetailScreen() {
 
   const [activeSubEvent, setActiveSubEvent] = useState<DatabaseEvent | null>(null);
   const [photos, setPhotos] = useState<any[]>([]);
+  const [storageStats, setStorageStats] = useState<{ used: number; limit: number; label: string; percent: number } | null>(null);
+
+  const fetchStorage = useCallback(async () => {
+    if (!user?.uid || !showAdminView) return;
+    try {
+      const identifiers = [user.uid];
+      if (user.email) identifiers.push(user.email);
+      if (user.phone) identifiers.push(user.phone);
+      const usage = await getUserTotalStorage(identifiers);
+      const plan = getPlanDetails(user.role);
+      const percent = getUsagePercent(usage, plan.storageBytes);
+      setStorageStats({
+        used: usage,
+        limit: plan.storageBytes,
+        label: plan.storageLabel,
+        percent: percent / 100,
+      });
+    } catch (err) {
+      console.error('[EventDetails] Error fetching storage stats:', err);
+    }
+  }, [user?.uid, user?.role, showAdminView]);
+
+  useEffect(() => {
+    fetchStorage();
+  }, [fetchStorage, photos.length]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [galleryMediaTab, setGalleryMediaTab] = useState<'photos' | 'videos'>('photos');
   const photoItems = React.useMemo(() => photos.filter(isPhotoMedia), [photos]);
@@ -4259,6 +4285,44 @@ export default function EventDetailScreen() {
                           </View>
                         </View>
                       </View>
+
+                      {/* Storage Quota Card (Admin View Only) */}
+                      {showAdminView && storageStats && (
+                        <View style={{
+                          backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                          borderRadius: 16,
+                          padding: 16,
+                          marginBottom: 16,
+                          borderWidth: 1,
+                          borderColor: 'rgba(255, 255, 255, 0.06)',
+                          gap: 8
+                        }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <IconSymbol name="cloud.fill" size={14} color="#94a3b8" />
+                              <Text style={{ color: '#94a3b8', fontSize: 13, fontFamily: Fonts.inter.bold }}>Storage Usage</Text>
+                            </View>
+                            <Text style={{ color: '#f1f5f9', fontSize: 13, fontFamily: Fonts.inter.bold }}>
+                              {(() => {
+                                const bytes = storageStats.used;
+                                if (bytes === 0) return '0 GB';
+                                const gb = bytes / (1024 * 1024 * 1024);
+                                if (gb < 0.1) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+                                return `${gb.toFixed(2)} GB`;
+                              })()}
+                              <Text style={{ color: '#475569', fontSize: 11 }}> / {storageStats.label}</Text>
+                            </Text>
+                          </View>
+                          <View style={{ height: 6, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 3, overflow: 'hidden' }}>
+                            <LinearGradient
+                              colors={storageStats.percent >= 1 ? ['#ef4444', '#b91c1c'] : ['#d4af37', '#b49430']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 0 }}
+                              style={{ height: '100%', borderRadius: 3, width: `${Math.min(100, storageStats.percent * 100)}%` }}
+                            />
+                          </View>
+                        </View>
+                      )}
 
                       {/* Media Grid Header */}
                       <View style={{ marginBottom: 12, gap: 12 }}>
