@@ -2,6 +2,7 @@ import { Platform, Alert } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
+import { FileSystemUploadType, FileSystemSessionType } from 'expo-file-system';
 import { supabase } from './supabase';
 import { addPhoto } from './database';
 
@@ -400,7 +401,7 @@ async function uploadWorker(item: UploadQueueItem) {
           uploadUrl,
           item.fileUri,
           {
-            uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+            uploadType: FileSystemUploadType.MULTIPART,
             fieldName: 'file',
             mimeType: item.fileType,
             parameters: {
@@ -410,7 +411,7 @@ async function uploadWorker(item: UploadQueueItem) {
             headers: {
               Authorization: `Bearer ${accessToken}`,
             },
-            sessionType: FileSystem.FileSystemSessionType.BACKGROUND,
+            sessionType: FileSystemSessionType.BACKGROUND,
           },
           (progress) => {
             const percent = Math.min(

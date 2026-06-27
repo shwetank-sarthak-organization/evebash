@@ -2017,9 +2017,16 @@ export default function EventDetailScreen() {
               </Text>
             )}
             {failed.length > 0 && (
-              <Text style={[localStyles.progressCardSubtitle, { color: '#f87171' }]}>
-                {failed.length} upload(s) failed.
-              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  const errors = failed.map(item => `${item.fileName}: ${item.error || 'Unknown error'}`).join('\n\n');
+                  Alert.alert('Upload Details', errors);
+                }}
+              >
+                <Text style={[localStyles.progressCardSubtitle, { color: '#f87171', textDecorationLine: 'underline' }]}>
+                  {failed.length} upload(s) failed. (Tap to view details)
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
