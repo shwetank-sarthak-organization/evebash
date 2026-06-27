@@ -1462,9 +1462,15 @@ export async function getUserBusinesses(uid: string): Promise<Business[]> {
 
 export async function addPhoto(data: Omit<Photo, 'id'>) {
     try {
-        const generatedId = Math.random().toString(36).substring(2, 15);
-        const { error } = await supabase.from('photos').insert({
-            id: generatedId,
+        // Derive a deterministic ID from storage_key — same approach as web savePhoto.
+        // This prevents duplicate DB rows on retry (if the upload task is retried after a
+        // partial failure where B2 got the file but the DB write failed).
+        const derivedId = data.storageKey
+            ? data.storageKey.replace(/\//g, '_')
+            : Math.random().toString(36).substring(2, 15);
+
+        const { error } = await supabase.from('photos').upsert({
+            id: derivedId,
             event_id: data.eventId,
             storage_key: data.storageKey,
             url: data.url,
@@ -1504,7 +1510,7 @@ export async function addPhoto(data: Omit<Photo, 'id'>) {
             })().catch(() => {});
         }
 
-        return generatedId;
+        return derivedId;
     } catch (error) {
         console.error("Error adding photo:", error);
         return null;

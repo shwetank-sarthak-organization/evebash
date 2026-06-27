@@ -263,6 +263,10 @@ export async function POST(request: NextRequest) {
     const backblazeAuth = await getCachedBackblazeAuth();
     const uploadUrl = await getUploadUrl(backblazeAuth);
 
+    // Convert ArrayBuffer to Buffer — raw ArrayBuffer as fetch body is unreliable
+    // in some Node.js/Vercel runtime versions and can cause B2 upload failures.
+    const bodyBuffer = Buffer.from(bytes);
+
     const uploadResponse = await fetch(uploadUrl.uploadUrl, {
       method: "POST",
       headers: {
@@ -270,9 +274,9 @@ export async function POST(request: NextRequest) {
         "Content-Type": mimeType,
         "X-Bz-File-Name": encodeURIComponent(storageKey),
         "X-Bz-Content-Sha1": "do_not_verify",
-        "Content-Length": String(bytes.byteLength),
+        "Content-Length": String(bodyBuffer.length),
       },
-      body: bytes,
+      body: bodyBuffer,
     });
 
     const uploadResult = await uploadResponse.json().catch(() => ({}));
