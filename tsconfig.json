@@ -42,6 +42,5 @@
     "apps/analytics-dashboard",
     "src/components/templates",
     "cloudflare-worker"
-  ],
-  "extends": "expo/tsconfig.base"
+  ]
 }

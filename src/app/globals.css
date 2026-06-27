@@ -1,6 +1,9 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Lato:wght@100;300;400;700;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
 
 :root {
+  --font-playfair: 'Playfair Display', Georgia, serif;
+  --font-lato: 'Lato', Helvetica, Arial, sans-serif;
   --color-royal-maroon: #5D001E;
   --color-royal-gold: #D4AF37;
   --color-royal-cream: #FFFDD0;
