@@ -875,7 +875,7 @@ export default function EventDetailScreen() {
   const [photos, setPhotos] = useState<any[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [galleryMediaTab, setGalleryMediaTab] = useState<'photos' | 'videos'>('photos');
-  const photoItems = React.useMemo(() => photos.filter(isPhotoMedia).filter(p => !!p.thumbnailUrl), [photos]);
+  const photoItems = React.useMemo(() => photos.filter(isPhotoMedia), [photos]);
   const videoItems = React.useMemo(() => photos.filter(isVideoMedia), [photos]);
   const activeGalleryItems = galleryMediaTab === 'photos' ? photoItems : videoItems;
 

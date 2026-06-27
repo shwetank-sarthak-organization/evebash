@@ -71,7 +71,7 @@ export default function SubEventPhotosScreen() {
         const eventData = await getEventById(id);
         const photosData = eventData ? await getEventPhotos(id, eventData.legacyId) : [];
         setSubEvent(eventData);
-        setPhotos(photosData.filter(p => !!p.thumbnailUrl));
+        setPhotos(photosData);
       } catch (err) {
         console.error("Error fetching photos:", err);
       } finally {
@@ -98,7 +98,7 @@ export default function SubEventPhotosScreen() {
           try {
             const eventData = await getEventById(id);
             const photosData = eventData ? await getEventPhotos(id, eventData.legacyId) : [];
-            setPhotos(photosData.filter(p => !!p.thumbnailUrl));
+            setPhotos(photosData);
           } catch (e) {
             console.error("[SubEventPhotosScreen] Error refreshing photos:", e);
           }

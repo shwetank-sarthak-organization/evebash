@@ -290,14 +290,14 @@ export async function POST(request: NextRequest) {
 
     if (resourceType === "image") {
       const qstashToken = process.env.QSTASH_TOKEN;
-      if (process.env.NODE_ENV === "development") {
-        console.log(`[Upload] Local development environment detected. Processing resizing locally in background for: ${storageKey}`);
-        localDevResizeAndUpload(bytes, storageKey, mediaDomain);
-      } else if (qstashToken) {
+      if (qstashToken) {
         // QStash path: return response immediately, publish resize job in background
         // waitUntil keeps the Vercel function alive until publish completes
         console.log(`[Upload] Queuing resize via QStash for: ${storageKey}`);
         waitUntil(publishResizeTask({ storageKey, origin: request.nextUrl.origin }));
+      } else if (process.env.NODE_ENV === "development") {
+        console.log(`[Upload] Local development environment detected (and QStash token not configured). Processing resizing locally in background for: ${storageKey}`);
+        localDevResizeAndUpload(bytes, storageKey, mediaDomain);
       } else {
         // Fallback: inline resizing if QStash is not configured
         console.log(`[Upload] No QStash token — resizing inline for: ${storageKey}`);

@@ -81,7 +81,7 @@ export default function EditPhotosScreen() {
         getEventPhotos(id!)
       ]);
       setSubEvent(eventData);
-      setPhotos(photosData.filter(photo => photo.mediaType !== 'video' && photo.resourceType !== 'video' && !!photo.thumbnailUrl));
+      setPhotos(photosData.filter(photo => photo.mediaType !== 'video' && photo.resourceType !== 'video'));
     } catch (err) {
       console.error("Error fetching data:", err);
     } finally {
