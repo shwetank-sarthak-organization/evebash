@@ -2,7 +2,7 @@
   "expo": {
     "name": "EveBash",
     "slug": "evebash",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "evebash",
@@ -20,6 +20,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.wed_albummobile",
+      "versionCode": 2,
       "usesCleartextTraffic": true
     },
     "web": {

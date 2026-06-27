@@ -584,6 +584,7 @@ export default function EventDetailScreen() {
   const [showUploadCompleteModal, setShowUploadCompleteModal] = useState(false);
   const [showUploadFailedModal, setShowUploadFailedModal] = useState(false);
   const prevActiveCountRef = React.useRef(0);
+  const completedIdsRef = React.useRef<string[]>([]);
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -874,7 +875,7 @@ export default function EventDetailScreen() {
   const [photos, setPhotos] = useState<any[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [galleryMediaTab, setGalleryMediaTab] = useState<'photos' | 'videos'>('photos');
-  const photoItems = React.useMemo(() => photos.filter(isPhotoMedia), [photos]);
+  const photoItems = React.useMemo(() => photos.filter(isPhotoMedia).filter(p => !!p.thumbnailUrl), [photos]);
   const videoItems = React.useMemo(() => photos.filter(isVideoMedia), [photos]);
   const activeGalleryItems = galleryMediaTab === 'photos' ? photoItems : videoItems;
 
@@ -1297,11 +1298,13 @@ export default function EventDetailScreen() {
           setShowUploadCompleteModal(true);
         }
         clearFinishedUploads();
+        completedIdsRef.current = [];
       }
 
-      // Reload photos if any upload just finished successfully
-      const hasCompleted = items.some(item => item.status === 'completed' && item.eventId === currentActiveId);
-      if (hasCompleted) {
+      // Reload photos if any upload just finished successfully (one-by-one check)
+      const newlyCompleted = completedItems.filter(item => !completedIdsRef.current.includes(item.id));
+      if (newlyCompleted.length > 0) {
+        completedIdsRef.current = [...completedIdsRef.current, ...newlyCompleted.map(item => item.id)];
         const activeLegacyId = selectedAdminGallery !== undefined
           ? (selectedAdminGallery ? selectedAdminGallery.legacyId : event?.legacyId)
           : (activeSubEvent ? activeSubEvent.legacyId : event?.legacyId);
@@ -2008,7 +2011,9 @@ export default function EventDetailScreen() {
             </Text>
             {currentUploading && (
               <Text style={localStyles.progressCardSubtitle} numberOfLines={1}>
-                {currentUploading.fileName} ({Math.round(currentUploading.progress)}%)
+                {currentUploading.progress >= 90
+                  ? `Processing ${currentUploading.fileName}...`
+                  : `${currentUploading.fileName} (${Math.round(currentUploading.progress)}%)`}
               </Text>
             )}
             {failed.length > 0 && (
@@ -4346,7 +4351,7 @@ export default function EventDetailScreen() {
                                   }}
                                 >
                                   <ExpoImage
-                                    source={{ uri: getGridThumbnail(item.url) }}
+                                    source={{ uri: getGridThumbnail(item.url, item.thumbnailUrl) }}
                                     style={{
                                       width: '100%',
                                       aspectRatio: 1,
@@ -5952,7 +5957,7 @@ export default function EventDetailScreen() {
                                     </View>
                                   )}
                                   <ExpoImage
-                                    source={{ uri: getGridThumbnail(photo.url) }}
+                                    source={{ uri: getGridThumbnail(photo.url, photo.thumbnailUrl) }}
                                     style={[
                                       styles.galleryImg,
                                       isScrapbookTemplate && styles.scrapbookGalleryImg,

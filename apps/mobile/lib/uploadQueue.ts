@@ -454,6 +454,25 @@ async function processQueue() {
             throw new Error('Failed to record photo meta in DB.');
           }
 
+          // Poll for thumbnail URL to confirm processing is complete (mimicking Web behavior)
+          nextItem.progress = 90;
+          notifyListeners();
+          await updateProgressNotification();
+
+          let isProcessed = false;
+          for (let poll = 0; poll < 30; poll++) {
+            const { data: checkData, error: checkError } = await supabase
+              .from('photos')
+              .select('thumbnail_url')
+              .eq('id', savedPhotoId)
+              .single();
+            if (checkData?.thumbnail_url) {
+              isProcessed = true;
+              break;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+          }
+
           nextItem.status = 'completed';
           nextItem.progress = 100;
           uploadSuccess = true;

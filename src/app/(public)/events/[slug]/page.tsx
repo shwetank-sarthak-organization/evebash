@@ -256,7 +256,8 @@ function EventPageContent() {
         height: p.height || 600,
         filename: p.storageKey ? p.storageKey.split('/').pop() : 'photo',
         mediaType: p.mediaType,
-        resourceType: p.resourceType
+        resourceType: p.resourceType,
+        thumbnailUrl: p.thumbnailUrl
     }));
 
     const loadGalleryPhotos = async (gallery: Event, page = 0, append = false) => {
@@ -406,7 +407,7 @@ function EventPageContent() {
         );
     }
 
-    const photoItems = photos.filter(photo => photo.mediaType !== "video" && photo.resourceType !== "video");
+    const photoItems = photos.filter(photo => photo.mediaType !== "video" && photo.resourceType !== "video" && !!photo.thumbnailUrl);
     const videoItems = photos.filter(photo => photo.mediaType === "video" || photo.resourceType === "video");
     const activeGalleryItems = galleryMediaTab === "videos" ? videoItems : photoItems;
     const activeGalleryTitle = activeGallery?.title || event.title || "Home";

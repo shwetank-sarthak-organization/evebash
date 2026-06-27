@@ -28,12 +28,22 @@ export interface ImageTransformOptions {
  *  - URL is not on our media domain
  *  - URL points to a video file
  */
-export function getImageUrl(src: string | null | undefined, opts: ImageTransformOptions = {}): string {
+export function getImageUrl(
+    src: string | null | undefined, 
+    opts: ImageTransformOptions = {}, 
+    thumbnailUrl?: string | null
+): string {
     if (!src) return '';
 
     // Don't transform videos
     const isVideo = /\.(mp4|mov|avi|webm|mkv|m4v)(\?.*)?$/i.test(src);
     if (isVideo) return src;
+
+    // If thumbnailUrl is explicitly null or empty, it means the thumbnail is NOT generated yet.
+    // In this case, we MUST fall back to the original source url to prevent broken images.
+    if (thumbnailUrl === null || thumbnailUrl === '') {
+        return src;
+    }
 
     // Only transform URLs on our own media domain
     const mediaDomainPattern = new RegExp(`^https?://${MEDIA_DOMAIN.replace('.', '\\.')}/`, 'i');
@@ -42,9 +52,9 @@ export function getImageUrl(src: string | null | undefined, opts: ImageTransform
     // Map to pre-generated static files on Backblaze B2 based on size requested
     const width = opts.width || 0;
     if (width > 0 && width <= 200) {
-        return `${src}-thumbnail.webp`;
+        return thumbnailUrl || `${src}-thumbnail.webp`;
     } else if (width > 200 && width <= 450) {
-        return `${src}-thumbnail.webp`;
+        return thumbnailUrl || `${src}-thumbnail.webp`;
     } else if (width > 450 && width <= 1000) {
         return `${src}-preview.webp`;
     }
@@ -53,11 +63,11 @@ export function getImageUrl(src: string | null | undefined, opts: ImageTransform
 }
 
 /** Convenience preset: grid thumbnail (400px wide, webp, 75% quality) */
-export function getGridThumbnail(src: string | null | undefined): string {
-    return getImageUrl(src, { width: 400 });
+export function getGridThumbnail(src: string | null | undefined, thumbnailUrl?: string | null): string {
+    return getImageUrl(src, { width: 400 }, thumbnailUrl);
 }
 
 /** Convenience preset: small square avatar/preview (200px wide) */
-export function getSmallThumbnail(src: string | null | undefined): string {
-    return getImageUrl(src, { width: 200 });
+export function getSmallThumbnail(src: string | null | undefined, thumbnailUrl?: string | null): string {
+    return getImageUrl(src, { width: 200 }, thumbnailUrl);
 }

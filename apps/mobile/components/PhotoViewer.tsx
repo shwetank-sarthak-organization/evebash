@@ -333,7 +333,7 @@ export default function PhotoViewer({
               <ViewerVideo key={photos[currentPhotoIndex].id || photos[currentPhotoIndex].url} uri={photos[currentPhotoIndex].url} frameBg={viewerTheme.tileBg} />
             ) : (
               <ExpoImage
-                source={{ uri: getImageUrl(photos[currentPhotoIndex].url, { width: 900, quality: 75, format: 'webp' }) }}
+                source={{ uri: getImageUrl(photos[currentPhotoIndex].url, { width: 900, quality: 75, format: 'webp' }, photos[currentPhotoIndex].thumbnailUrl) }}
                 style={{ width: '100%', height: '100%' }}
                 contentFit="contain"
               />

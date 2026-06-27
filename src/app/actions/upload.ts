@@ -71,6 +71,7 @@ async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string
             "Content-Type": contentType,
             "X-Bz-File-Name": encodeURIComponent(key),
             "X-Bz-Content-Sha1": "do_not_verify",
+            "Content-Length": String(buffer.length),
         },
         body: buffer as unknown as BodyInit,
     });
@@ -97,6 +98,7 @@ export async function uploadToBackblaze(base64File: string, folder: string, opti
                 "Content-Type": contentType,
                 "X-Bz-File-Name": encodeURIComponent(storageKey),
                 "X-Bz-Content-Sha1": "do_not_verify",
+                "Content-Length": String(bytes.length),
             },
             body: bytes,
         });

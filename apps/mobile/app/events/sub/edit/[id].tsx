@@ -21,6 +21,7 @@ import { useAuth } from '@/context/AuthContext';
 import { uploadEventImage } from '@/lib/storage';
 import { useAppTheme } from '@/context/ThemeContext';
 import { getGridThumbnail } from '@/lib/imageUrl';
+import { subscribeToUploadQueue, clearFinishedUploads } from '@/lib/uploadQueue';
 
 
 const { width } = Dimensions.get('window');
@@ -40,11 +41,36 @@ export default function EditPhotosScreen() {
   const [uploading, setUploading] = useState(false);
   const [showUploadCompleteModal, setShowUploadCompleteModal] = useState(false);
   const [showUploadFailedModal, setShowUploadFailedModal] = useState(false);
+  const completedIdsRef = React.useRef<string[]>([]);
 
   useEffect(() => {
     if (id) {
       fetchData();
     }
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+
+    const unsubscribe = subscribeToUploadQueue((items) => {
+      const filtered = items.filter(item => item.eventId === id);
+      const activeItems = filtered.filter(item => item.status === 'uploading' || item.status === 'pending');
+      const completedItems = filtered.filter(item => item.status === 'completed');
+
+      // Reload photos if any upload just finished successfully (one-by-one check)
+      const newlyCompleted = completedItems.filter(item => !completedIdsRef.current.includes(item.id));
+      if (newlyCompleted.length > 0) {
+        completedIdsRef.current = [...completedIdsRef.current, ...newlyCompleted.map(item => item.id)];
+        fetchData();
+      }
+
+      if (activeItems.length === 0 && completedItems.length > 0) {
+        clearFinishedUploads();
+        completedIdsRef.current = [];
+      }
+    });
+
+    return unsubscribe;
   }, [id]);
 
   const fetchData = async () => {
@@ -55,7 +81,7 @@ export default function EditPhotosScreen() {
         getEventPhotos(id!)
       ]);
       setSubEvent(eventData);
-      setPhotos(photosData.filter(photo => photo.mediaType !== 'video' && photo.resourceType !== 'video'));
+      setPhotos(photosData.filter(photo => photo.mediaType !== 'video' && photo.resourceType !== 'video' && !!photo.thumbnailUrl));
     } catch (err) {
       console.error("Error fetching data:", err);
     } finally {
@@ -190,7 +216,7 @@ export default function EditPhotosScreen() {
         contentContainerStyle={styles.grid}
         renderItem={({ item }) => (
           <View style={styles.imageWrapper}>
-            <Image source={{ uri: getGridThumbnail(item.url) }} style={styles.image} />
+            <Image source={{ uri: getGridThumbnail(item.url, item.thumbnailUrl) }} style={styles.image} />
             <TouchableOpacity 
               style={styles.deleteBtn} 
               onPress={() => handleDeletePhoto(item.id)}

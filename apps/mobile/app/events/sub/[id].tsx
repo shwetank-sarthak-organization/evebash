@@ -6,6 +6,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { getEventById, getEventPhotos, toggleLike, addComment, onPhotoInteractions, deletePhotoComment, logGuestLogin, onGuestStatusChange, Event as DatabaseEvent, Photo } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
 import { getGridThumbnail, getImageUrl } from '@/lib/imageUrl';
+import { subscribeToUploadQueue, clearFinishedUploads } from '@/lib/uploadQueue';
 
 
 
@@ -28,6 +29,7 @@ export default function SubEventPhotosScreen() {
   const [guestPhone, setGuestPhone] = useState('');
   const [guestStatus, setGuestStatus] = useState<'idle' | 'pending' | 'approved' | 'rejected'>('idle');
   const [submittingGuest, setSubmittingGuest] = useState(false);
+  const completedIdsRef = useRef<string[]>([]);
   const loggedInGuestIdentifier = user ? (user.email || user.phone || user.uid) : '';
   const parentEventId = subEvent?.parentId || subEvent?.id;
   const isPrivilegedViewer = !!user && !!subEvent && (
@@ -69,7 +71,7 @@ export default function SubEventPhotosScreen() {
         const eventData = await getEventById(id);
         const photosData = eventData ? await getEventPhotos(id, eventData.legacyId) : [];
         setSubEvent(eventData);
-        setPhotos(photosData);
+        setPhotos(photosData.filter(p => !!p.thumbnailUrl));
       } catch (err) {
         console.error("Error fetching photos:", err);
       } finally {
@@ -78,6 +80,39 @@ export default function SubEventPhotosScreen() {
     };
     
     fetchData();
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+
+    const unsubscribe = subscribeToUploadQueue((items) => {
+      const filtered = items.filter(item => item.eventId === id);
+      const activeItems = filtered.filter(item => item.status === 'uploading' || item.status === 'pending');
+      const completedItems = filtered.filter(item => item.status === 'completed');
+
+      // Reload photos if any upload just finished successfully (one-by-one check)
+      const newlyCompleted = completedItems.filter(item => !completedIdsRef.current.includes(item.id));
+      if (newlyCompleted.length > 0) {
+        completedIdsRef.current = [...completedIdsRef.current, ...newlyCompleted.map(item => item.id)];
+        const loadFresh = async () => {
+          try {
+            const eventData = await getEventById(id);
+            const photosData = eventData ? await getEventPhotos(id, eventData.legacyId) : [];
+            setPhotos(photosData.filter(p => !!p.thumbnailUrl));
+          } catch (e) {
+            console.error("[SubEventPhotosScreen] Error refreshing photos:", e);
+          }
+        };
+        loadFresh();
+      }
+
+      if (activeItems.length === 0 && completedItems.length > 0) {
+        clearFinishedUploads();
+        completedIdsRef.current = [];
+      }
+    });
+
+    return unsubscribe;
   }, [id]);
 
   useEffect(() => {
@@ -224,7 +259,7 @@ export default function SubEventPhotosScreen() {
             renderItem={({ item, index }) => (
               <TouchableOpacity activeOpacity={0.8} onPress={() => openViewer(index)}>
                 <Image 
-                  source={{ uri: getGridThumbnail(item.url) }} 
+                  source={{ uri: getGridThumbnail(item.url, item.thumbnailUrl) }} 
                   style={styles.gridImage} 
                 />
               </TouchableOpacity>
@@ -352,7 +387,7 @@ function PhotoViewer({ photos, initialIndex, onClose, user }: any) {
       
       {photos[currentIndex] && (
         <Image 
-          source={{ uri: getImageUrl(photos[currentIndex].url, { width: 900 }) }} 
+          source={{ uri: getImageUrl(photos[currentIndex].url, { width: 900 }, photos[currentIndex].thumbnailUrl) }} 
           style={styles.fullImage} 
           resizeMode="contain" 
         />

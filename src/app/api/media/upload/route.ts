@@ -84,6 +84,7 @@ async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string
       "Content-Type": contentType,
       "X-Bz-File-Name": encodeURIComponent(key),
       "X-Bz-Content-Sha1": "do_not_verify",
+      "Content-Length": String(buffer.length),
     },
     body: buffer as unknown as BodyInit,
   });
@@ -269,6 +270,7 @@ export async function POST(request: NextRequest) {
         "Content-Type": mimeType,
         "X-Bz-File-Name": encodeURIComponent(storageKey),
         "X-Bz-Content-Sha1": "do_not_verify",
+        "Content-Length": String(bytes.byteLength),
       },
       body: bytes,
     });
