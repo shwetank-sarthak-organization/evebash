@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, X, Camera, User as UserIcon } from "lucide-react";
+import { Menu, X, Camera, User as UserIcon, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 
@@ -25,16 +25,23 @@ export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
     const { user, logout } = useAuth();
+    const isSuperAdmin = user?.role === "admin" && !user.delegatedBy;
+    const visibleAuthNavLinks = isSuperAdmin
+        ? [...authNavLinks, { name: "Super Admin", href: "/admin/dashboard" }]
+        : authNavLinks;
 
     const isActiveLink = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 
     const getPlanLabel = (role?: string) => {
         switch (role) {
             case "admin": return "Super Admin";
+            case "ultimate": return "1 TB Plan";
             case "elite": return "Elite Plan";
+            case "pro": return "200 GB Plan";
             case "premium": return "Premium Plan";
             case "standard": return "Standard Plan";
             case "basic": return "Basic Plan";
+            case "starter": return "10 GB Plan";
             default: return "Free Plan";
         }
     };
@@ -57,17 +64,18 @@ export default function Navbar() {
 
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-8">
-                        {(user ? authNavLinks : guestNavLinks).map((link) => (
+                        {(user ? visibleAuthNavLinks : guestNavLinks).map((link) => (
                             <Link
                                 key={link.name}
                                 href={link.href}
                                 className={cn(
-                                    "text-sm font-medium transition-colors hover:text-white pb-1 border-b-2 border-transparent",
+                                    "inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-white pb-1 border-b-2 border-transparent",
                                     isActiveLink(link.href)
                                         ? "text-white border-white"
                                         : "text-slate-300 hover:border-slate-500"
                                 )}
                             >
+                                {link.href === "/admin/dashboard" && <ShieldCheck className="h-4 w-4 text-amber-300" />}
                                 {link.name}
                             </Link>
                         ))}
@@ -122,18 +130,19 @@ export default function Navbar() {
                 )}
             >
                 <div className="px-4 pt-4 pb-6 space-y-2 flex flex-col">
-                    {(user ? authNavLinks : guestNavLinks).map((link) => (
+                    {(user ? visibleAuthNavLinks : guestNavLinks).map((link) => (
                         <Link
                             key={link.name}
                             href={link.href}
                             onClick={() => setIsOpen(false)}
                             className={cn(
-                                "block px-4 py-3 rounded-lg text-lg font-medium transition-colors",
+                                "flex items-center gap-2 px-4 py-3 rounded-lg text-lg font-medium transition-colors",
                                 isActiveLink(link.href)
                                     ? "text-sky-400 bg-sky-900/30 font-semibold"
                                     : "text-slate-300 hover:bg-slate-700 hover:text-white"
                             )}
                         >
+                            {link.href === "/admin/dashboard" && <ShieldCheck className="h-5 w-5 text-amber-300" />}
                             {link.name}
                         </Link>
                     ))}

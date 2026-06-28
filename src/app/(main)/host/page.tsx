@@ -85,6 +85,7 @@ import { supabase } from "@/lib/supabase";
 import { Tooltip } from "@/components/Tooltip";
 import { navigateWithModifierClick } from "@/lib/navigation";
 import { formatStorageSize, getPlanDetails, getUsagePercent } from "@/lib/planLimits";
+import { getSubscriptionStatus } from "@/lib/subscriptionStatus";
 import { getWebLightboxTheme } from "@/lib/webTemplateTheme";
 import { v4 as uuidv4 } from "uuid";
 import { deleteGuestAction, updateGuestPermissionsAction, updateGuestStatusAction } from "@/app/actions/permissions";
@@ -100,6 +101,7 @@ const PLACEHOLDER_IMAGES = [
     "https://images.unsplash.com/photo-1549413187-0521e7cebcba?q=80&w=2070&auto=format&fit=crop"
 ];
 const DEFAULT_EVENT_COVER_IMAGE = PLACEHOLDER_IMAGES[0];
+const FREE_PLAN_VIDEO_LIMIT_BYTES = 200 * 1024 * 1024;
 const EVENT_TYPE_OPTIONS = [
     { name: "Wedding", icon: Heart },
     { name: "Birthday", icon: Gift },
@@ -643,6 +645,8 @@ function DashboardContent() {
     const [activeTab, setActiveTab] = useState<'hosted' | 'shared' | 'request'>('hosted');
     const [sharedEvents, setSharedEvents] = useState<Event[]>([]);
     const [currentEventPhotos, setCurrentEventPhotos] = useState<Photo[]>([]);
+    const [currentEventMediaCounts, setCurrentEventMediaCounts] = useState({ photos: 0, videos: 0 });
+    const [currentEventRetainedMediaIds, setCurrentEventRetainedMediaIds] = useState<Set<string>>(new Set());
     const [loadingPhotos, setLoadingPhotos] = useState(false);
     const [photoPage, setPhotoPage] = useState(0);
     const [hasMorePhotos, setHasMorePhotos] = useState(false);
@@ -1094,9 +1098,11 @@ function DashboardContent() {
             // 1. Fetch from Supabase database CLIENT-SIDE (Respects permissions)
             // Use legacyId if available, fallback to selectedEventId
             const legacyId = currentEvent?.legacyId;
-            const { photos, hasMore } = await getEventPhotosPaginated(selectedEventId, legacyId, 0, 20);
+            const { photos, hasMore, totalPhotos, totalVideos, retainedMediaIds } = await getEventPhotosPaginated(selectedEventId, legacyId, 0, 20);
 
             setCurrentEventPhotos(photos as Photo[]);
+            setCurrentEventMediaCounts({ photos: totalPhotos, videos: totalVideos });
+            setCurrentEventRetainedMediaIds(new Set(retainedMediaIds));
             setPhotoPage(0);
             setHasMorePhotos(hasMore);
         } catch (error) {
@@ -1121,8 +1127,10 @@ function DashboardContent() {
             }
             const legacyId = currentEvent?.legacyId;
             const nextPage = photoPage + 1;
-            const { photos, hasMore } = await getEventPhotosPaginated(selectedEventId, legacyId, nextPage, 20);
+            const { photos, hasMore, totalPhotos, totalVideos, retainedMediaIds } = await getEventPhotosPaginated(selectedEventId, legacyId, nextPage, 20);
             setCurrentEventPhotos(prev => [...prev, ...photos as Photo[]]);
+            setCurrentEventMediaCounts({ photos: totalPhotos, videos: totalVideos });
+            setCurrentEventRetainedMediaIds(new Set(retainedMediaIds));
             setPhotoPage(nextPage);
             setHasMorePhotos(hasMore);
         } catch (error) {
@@ -1520,7 +1528,7 @@ function DashboardContent() {
 
         // --- ROLE-BASED LIMITS ---
         const isCreatingMainEvent = manageLevel !== "galleries" && !isCreateSubGalleryModalOpen;
-        if (isCreatingMainEvent && user.role !== "admin" && user.role !== "premium" && user.role !== "elite" && !user.delegatedBy) {
+        if (isCreatingMainEvent && user.role !== "admin" && !user.delegatedBy) {
             const eventCount = await getUserEventCount(creatorUid);
             const currentPlan = getPlanDetails(user.role);
             const maxEvents = currentPlan.eventLimit;
@@ -1606,6 +1614,17 @@ function DashboardContent() {
         const selectedFiles = Array.from(files).filter(file => file.type.startsWith(expectedPrefix));
         if (selectedFiles.length === 0 || !selectedEventId) return;
 
+        const isFreeUploadUser = !user.delegatedBy && (!user.role || user.role === "user" || user.role === "free" || user.role === "freemium");
+        if (galleryMediaTab === "videos" && isFreeUploadUser) {
+            const oversizedVideo = selectedFiles.find(file => file.size > FREE_PLAN_VIDEO_LIMIT_BYTES);
+            if (oversizedVideo) {
+                setMessage("Free plan videos can be up to 200 MB. Upgrade to upload larger videos.");
+                setStatus("error");
+                setTimeout(() => setStatus("idle"), 5000);
+                return;
+            }
+        }
+
         // --- ROLE-BASED LIMITS: Storage Cap ---
         if (user.role !== "admin" && !user.delegatedBy) {
             const currentPlan = getPlanDetails(user.role);
@@ -1613,11 +1632,22 @@ function DashboardContent() {
             if (user.email) identifiers.push(user.email);
             if (user.phone) identifiers.push(user.phone);
             const currentUsage = await getUserTotalStorage(identifiers);
+            const selectedUploadSize = selectedFiles.reduce((total, file) => total + file.size, 0);
             
             if (currentUsage >= currentPlan.storageBytes) {
                 setMessage(`You've reached your ${currentPlan.storageLabel} storage limit. Upgrade your plan for more storage.`);
                 setStatus("error");
                 setTimeout(() => setStatus("idle"), 5000);
+                return;
+            }
+
+            if (currentUsage + selectedUploadSize > currentPlan.storageBytes) {
+                const remainingStorage = Math.max(currentPlan.storageBytes - currentUsage, 0);
+                setMessage(
+                    `Upload exceeds your ${currentPlan.storageLabel} storage limit. You have ${formatStorageSize(remainingStorage)} remaining, but selected files are ${formatStorageSize(selectedUploadSize)}.`
+                );
+                setStatus("error");
+                setTimeout(() => setStatus("idle"), 7000);
                 return;
             }
         }
@@ -2521,7 +2551,7 @@ function DashboardContent() {
     const activeEventDetailEvent = isInlineEventDetailGalleryEditor ? (activeSubEvent || selectedMainEvent) : selectedMainEvent;
     const activeGalleryOriginalMessage = activeEventDetailEvent?.description || "";
     const hasGalleryMessageChanges = galleryMessageText !== activeGalleryOriginalMessage;
-    const photoItems = currentEventPhotos.filter(photo => photo.mediaType !== "video" && photo.resourceType !== "video" && !!photo.thumbnailUrl);
+    const photoItems = currentEventPhotos.filter(photo => photo.mediaType !== "video" && photo.resourceType !== "video");
     const videoItems = currentEventPhotos.filter(photo => photo.mediaType === "video" || photo.resourceType === "video");
     const activeGalleryItems = galleryMediaTab === "videos" ? videoItems : photoItems;
     const createdEvents = userEvents.filter(evt => evt.createdBy && ownEventIdentifiers.has(evt.createdBy));
@@ -2544,9 +2574,19 @@ function DashboardContent() {
     const eventDetailMemberLogs = eventDetailLogs.filter(log => log.status === "approved" && !log.canAdmin);
     const eventDetailVisibleLogsCount = eventDetailPendingLogs.length + eventDetailAdminLogs.length + eventDetailMemberLogs.length;
     const planDetails = getPlanDetails(user.role);
+    const subscriptionStatus = getSubscriptionStatus({
+        role: user.role,
+        planStartDate: user.planStartDate,
+        planEndDate: user.planEndDate,
+    });
+    const shouldWarnExpiredPlanMedia = subscriptionStatus.status === "grace";
     const storagePercent = getUsagePercent(totalStorage, planDetails.storageBytes);
     const eventPercent = getUsagePercent(totalMainEvents, planDetails.eventLimit);
     const isImmersiveHostEventView = view === "manage" && manageLevel === "event-details";
+    const mediaTabs = [
+        { id: "photos", label: `Photos (${currentEventMediaCounts.photos})`, icon: ImageIcon },
+        { id: "videos", label: `Videos (${currentEventMediaCounts.videos})`, icon: Video },
+    ] as const;
 
     const getEventOwnerEmail = (evt: Event) => {
         if (!evt.createdBy) return "Unknown owner";
@@ -4235,10 +4275,7 @@ function DashboardContent() {
                                     )}
 
                                     <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-900/60 p-1">
-                                        {([
-                                            { id: "photos", label: `Photos (${photoItems.length})`, icon: ImageIcon },
-                                            { id: "videos", label: `Videos (${videoItems.length})`, icon: Video },
-                                        ] as const).map(({ id, label, icon: Icon }) => {
+                                        {mediaTabs.map(({ id, label, icon: Icon }) => {
                                             const active = galleryMediaTab === id;
                                             return (
                                                 <button
@@ -4277,6 +4314,7 @@ function DashboardContent() {
                                                 const isCover = userEvents.find(ev => ev.id === selectedEventId)?.coverImage === photo.url;
                                                 const isVideo = photo.mediaType === "video" || photo.resourceType === "video";
                                                 const gridSrc = !isVideo ? (photo.thumbnailUrl || `${photo.url}-thumbnail.webp`) : photo.url;
+                                                const shouldBlurMediaForPlan = shouldWarnExpiredPlanMedia && !currentEventRetainedMediaIds.has(photo.id);
                                                 return (
                                                     <motion.div
                                                         key={photo.id}
@@ -4301,7 +4339,10 @@ function DashboardContent() {
                                                                 <>
                                                                     <video
                                                                         src={photo.url}
-                                                                        className="h-full w-full object-cover"
+                                                                        className={cn(
+                                                                            "h-full w-full object-cover transition-all duration-300",
+                                                                            shouldBlurMediaForPlan && "blur-[1.5px] scale-[1.02]"
+                                                                        )}
                                                                         muted
                                                                         playsInline
                                                                         preload="metadata"
@@ -4316,10 +4357,24 @@ function DashboardContent() {
                                                                 <img
                                                                     src={gridSrc}
                                                                     alt="Gallery item"
-                                                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                                                    onError={(event) => {
+                                                                        if (event.currentTarget.src !== photo.url) {
+                                                                            event.currentTarget.src = photo.url;
+                                                                        }
+                                                                    }}
+                                                                    className={cn(
+                                                                        "w-full h-full object-cover transition-all duration-500 group-hover:scale-105",
+                                                                        shouldBlurMediaForPlan && "blur-[1.5px] scale-[1.02]"
+                                                                    )}
                                                                 />
                                                             )}
                                                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                            {shouldBlurMediaForPlan && (
+                                                                <div className="pointer-events-none absolute left-1/2 top-14 z-20 w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-2xl border border-amber-300/50 bg-slate-950/95 px-3 py-2 text-center text-[10px] font-black uppercase leading-4 tracking-[0.08em] text-amber-100 shadow-2xl shadow-black/50 backdrop-blur-md">
+                                                                    Plan expired<br />
+                                                                    <span className="text-[9px] text-amber-200/90">May be deleted after grace period</span>
+                                                                </div>
+                                                            )}
                                                         </div>
 
                                                         {!isVideo && (
@@ -4474,6 +4529,7 @@ function DashboardContent() {
                                                                 const isVideo = photo.mediaType === "video" || photo.resourceType === "video";
                                                                 const isCover = userEvents.find(ev => ev.id === selectedEventId)?.coverImage === photo.url;
                                                                 const gridSrc = !isVideo ? (photo.thumbnailUrl || `${photo.url}-thumbnail.webp`) : photo.url;
+                                                                const shouldBlurMediaForPlan = shouldWarnExpiredPlanMedia && !currentEventRetainedMediaIds.has(photo.id);
                                                                 const dateAdded = (
                                                                     photo.uploadedAt && typeof photo.uploadedAt === 'number'
                                                                         ? new Date(photo.uploadedAt)
@@ -4521,7 +4577,16 @@ function DashboardContent() {
                                                                             >
                                                                                 {isVideo ? (
                                                                                     <div className="relative h-full w-full bg-slate-950">
-                                                                                        <video src={photo.url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+                                                                                        <video
+                                                                                            src={photo.url}
+                                                                                            className={cn(
+                                                                                                "h-full w-full object-cover transition-all duration-300",
+                                                                                                shouldBlurMediaForPlan && "blur-[1.5px] scale-[1.02]"
+                                                                                            )}
+                                                                                            muted
+                                                                                            playsInline
+                                                                                            preload="metadata"
+                                                                                        />
                                                                                         <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20">
                                                                                             <div className="flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/70 bg-slate-950/80 text-amber-300 shadow-xl">
                                                                                                 <Play className="h-5 w-5 fill-current" />
@@ -4529,7 +4594,25 @@ function DashboardContent() {
                                                                                         </div>
                                                                                     </div>
                                                                                 ) : (
-                                                                                    <img src={gridSrc} alt="" className="w-full h-full object-cover" />
+                                                                                    <img
+                                                                                        src={gridSrc}
+                                                                                        alt=""
+                                                                                        onError={(event) => {
+                                                                                            if (event.currentTarget.src !== photo.url) {
+                                                                                                event.currentTarget.src = photo.url;
+                                                                                            }
+                                                                                        }}
+                                                                                        className={cn(
+                                                                                            "w-full h-full object-cover transition-all duration-300",
+                                                                                            shouldBlurMediaForPlan && "blur-[1.5px] scale-[1.02]"
+                                                                                        )}
+                                                                                    />
+                                                                                )}
+                                                                                {shouldBlurMediaForPlan && (
+                                                                                    <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 w-[calc(100%-1rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-amber-300/50 bg-slate-950/95 px-2 py-2 text-center text-[9px] font-black uppercase leading-4 tracking-[0.08em] text-amber-100 shadow-2xl shadow-black/50 backdrop-blur-md">
+                                                                                        Plan expired<br />
+                                                                                        <span className="text-[8px] text-amber-200/90">May be deleted after grace period</span>
+                                                                                    </div>
                                                                                 )}
                                                                             </div>
                                                                         </td>
@@ -5334,6 +5417,21 @@ function DashboardContent() {
                                     <p className="mt-6 text-sm font-semibold text-slate-300">
                                         Active plan: <span className="font-black" style={{ color: planDetails.accent }}>{planDetails.name}</span>
                                     </p>
+                                    {subscriptionStatus.message && (
+                                        <div
+                                            className={cn(
+                                                "mt-5 rounded-2xl border p-4 text-sm font-semibold leading-6",
+                                                subscriptionStatus.tone === "danger"
+                                                    ? "border-rose-400/25 bg-rose-400/10 text-rose-100"
+                                                    : "border-amber-400/25 bg-amber-400/10 text-amber-100"
+                                            )}
+                                        >
+                                            <div className="mb-1 text-[10px] font-black uppercase tracking-[0.16em]">
+                                                {subscriptionStatus.label}
+                                            </div>
+                                            {subscriptionStatus.message}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="space-y-5 px-7 py-6">

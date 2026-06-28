@@ -12,6 +12,7 @@ import { getGridThumbnail } from "@/lib/imageUrl";
 interface Photo {
     id: string;
     src: string;
+    thumbnailUrl?: string;
     storageKey?: string;
     alt?: string;
     height?: number;
@@ -75,6 +76,11 @@ function PhotoCard({
     const identity = getIdentity();
     const isLiked = likes.some(l => l.userId === identity.id);
     const isVideo = photo.mediaType === "video" || photo.resourceType === "video";
+    const [imageSrc, setImageSrc] = useState(photo.thumbnailUrl || (photo.src ? getGridThumbnail(photo.src) : ""));
+
+    useEffect(() => {
+        setImageSrc(photo.thumbnailUrl || (photo.src ? getGridThumbnail(photo.src) : ""));
+    }, [photo.src, photo.thumbnailUrl]);
 
     useEffect(() => {
         const unsubscribe = onPhotoInteractions(photo.id, (data) => {
@@ -138,13 +144,22 @@ function PhotoCard({
                         playsInline
                         preload="metadata"
                     />
-                ) : (
+                ) : imageSrc ? (
                     <img
-                        src={getGridThumbnail(photo.src)}
+                        src={imageSrc}
                         alt={photo.alt || "Event Photo"}
+                        onError={() => {
+                            if (photo.src && imageSrc !== photo.src) {
+                                setImageSrc(photo.src);
+                            }
+                        }}
                         className="w-full h-auto object-cover transform transition-all duration-700 group-hover:scale-[1.02]"
                         loading="lazy"
                     />
+                ) : (
+                    <div className="flex aspect-[4/5] w-full items-center justify-center bg-stone-100 text-xs font-bold uppercase tracking-widest text-stone-400">
+                        Image unavailable
+                    </div>
                 )}
             </div>
 

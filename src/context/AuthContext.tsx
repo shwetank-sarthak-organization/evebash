@@ -33,6 +33,9 @@ type AppUser = {
     notificationPreferences?: any;
     birthday?: string;
     anniversaryDate?: string;
+    subscriptionDuration?: string;
+    planStartDate?: string;
+    planEndDate?: string;
 };
 
 interface AuthContextType {
@@ -87,6 +90,9 @@ function buildUserData(uid: string, email: string | null, fallbackName: string, 
         notificationPreferences: profile?.notificationPreferences,
         birthday: profile?.birthday,
         anniversaryDate: profile?.anniversaryDate,
+        subscriptionDuration: profile?.subscriptionDuration,
+        planStartDate: profile?.planStartDate,
+        planEndDate: profile?.planEndDate,
     };
 }
 
@@ -110,9 +116,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const activeHydrations = useRef(new Set<string>());
     const currentUserId = useRef<string | null>(null);
+    const currentUserData = useRef<AppUser | null>(null);
 
     const syncUserSession = useCallback((userData: AppUser) => {
         currentUserId.current = userData.uid;
+        currentUserData.current = userData;
         setUser(userData);
         localStorage.setItem("wedding_guest_user", JSON.stringify(userData));
     }, []);
@@ -182,7 +190,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         session.user.user_metadata?.name ||
                         session.user.email?.split("@")[0] ||
                         "Wedding User";
-                    syncUserSession(buildBasicUserData(session.user.id, session.user.email || null, fallbackName));
+                    if (currentUserData.current?.uid !== session.user.id) {
+                        syncUserSession(buildBasicUserData(session.user.id, session.user.email || null, fallbackName));
+                    }
                     setLoading(false);
                     hydrateSupabaseUserInBackground(session.user.id, session.user.email || null, fallbackName, {
                         shouldSync: () => isMounted && currentUserId.current === session.user.id,
@@ -194,20 +204,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         const parsed = JSON.parse(storedUser);
                         if (parsed?.uid?.startsWith("phone_")) {
                             currentUserId.current = parsed.uid;
+                            currentUserData.current = parsed;
                             setUser(parsed);
                         } else {
                             currentUserId.current = null;
+                            currentUserData.current = null;
                             localStorage.removeItem("wedding_guest_user");
                             setUser(null);
                         }
                     } else {
                         currentUserId.current = null;
+                        currentUserData.current = null;
                         setUser(null);
                     }
                 }
             } catch (error) {
                 console.error("[Auth] Supabase session load failed:", error);
                 currentUserId.current = null;
+                currentUserData.current = null;
                 setUser(null);
             } finally {
                 if (isMounted) setLoading(false);
@@ -225,7 +239,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         session.user.user_metadata?.name ||
                         session.user.email?.split("@")[0] ||
                         "Wedding User";
-                    syncUserSession(buildBasicUserData(session.user.id, session.user.email || null, fallbackName));
+                    if (currentUserData.current?.uid !== session.user.id) {
+                        syncUserSession(buildBasicUserData(session.user.id, session.user.email || null, fallbackName));
+                    }
                     setLoading(false);
                     hydrateSupabaseUserInBackground(session.user.id, session.user.email || null, fallbackName, {
                         shouldSync: () => isMounted && currentUserId.current === session.user.id,
@@ -237,6 +253,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         profileChannel = null;
                     }
                     currentUserId.current = null;
+                    currentUserData.current = null;
                     setUser(null);
                     localStorage.removeItem("wedding_guest_user");
                 }

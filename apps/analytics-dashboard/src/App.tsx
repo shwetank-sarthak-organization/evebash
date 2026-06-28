@@ -17,6 +17,8 @@ import { UserGrid } from './components/UserGrid';
 import { EventGrid } from './components/EventGrid';
 import { PlanDetailsGrid } from './components/PlanDetailsGrid';
 import { InfraCostGrid } from './components/InfraCostGrid';
+import { SuperAdminPanel } from './components/SuperAdminPanel';
+import { runAdminAction, type AdminAction } from './lib/adminApi';
 import { BarChart3, Users, Folder, LogOut, Key, Mail, AlertTriangle, ShieldCheck, Layers, DollarSign } from 'lucide-react';
 
 export default function App() {
@@ -38,7 +40,7 @@ export default function App() {
   const [guests, setGuests] = useState<GuestLog[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'events' | 'plans' | 'infra'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'events' | 'plans' | 'infra' | 'superadmin'>('overview');
 
   useEffect(() => {
     // Get initial session
@@ -78,12 +80,14 @@ export default function App() {
 
       if (error) throw error;
       
-      if (data && data.role === 'admin') {
+      if (data && data.role === 'admin' && !data.delegated_by) {
         setProfile({
           id: data.id,
           name: data.name || 'Admin',
           email: data.email || '',
           role: data.role,
+          roleType: data.role_type || '',
+          delegatedBy: data.delegated_by || '',
           createdAt: data.created_at,
           lastLogin: data.last_login
         });
@@ -138,6 +142,34 @@ export default function App() {
       setStats(computed);
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const handleAdminAction = async (
+    action: AdminAction,
+    payload: Record<string, unknown> = {},
+    successMessage = 'Admin action completed.'
+  ) => {
+    setLoadingData(true);
+    try {
+      const result = await runAdminAction(action, payload);
+      if (!result.success) {
+        alert(result.error || 'Admin action failed.');
+        return;
+      }
+
+      await loadDashboardData();
+
+      if (action === 'syncUsers') {
+        alert(`Sync completed. ${result.synced || 0} missing profiles added from ${result.count || 0} auth users.`);
+      } else if (successMessage) {
+        alert(successMessage);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Admin action failed.';
+      alert(message);
     } finally {
       setLoadingData(false);
     }
@@ -228,7 +260,7 @@ export default function App() {
           </div>
           <h2 className="text-xl font-bold text-white tracking-tight">Access Unauthorized</h2>
           <p className="text-slate-400 text-sm mt-3 leading-relaxed">
-            Your account ({session.user?.email}) is not registered as an administrator in the database profiles.
+            Your account ({session.user?.email}) is not registered as a global super administrator in the database profiles.
           </p>
           
           <button
@@ -320,6 +352,18 @@ export default function App() {
               <DollarSign className="w-4 h-4 mr-3" />
               Infra Cost
             </button>
+
+            <button
+              onClick={() => setActiveTab('superadmin')}
+              className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                activeTab === 'superadmin'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
+                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4 mr-3" />
+              Super Admin
+            </button>
           </nav>
         </div>
 
@@ -353,7 +397,8 @@ export default function App() {
              activeTab === 'users' ? 'Registered User Accounts' :
              activeTab === 'events' ? 'Galleries Catalog' :
              activeTab === 'plans' ? 'Subscription Plans Details' :
-             'Infrastructure Cost Hub'}
+             activeTab === 'infra' ? 'Infrastructure Cost Hub' :
+             'Super Admin Control'}
           </h2>
           <div className="flex items-center space-x-3">
             <span className="text-xs text-slate-500">
@@ -373,10 +418,63 @@ export default function App() {
           ) : (
             <>
               {activeTab === 'overview' && <AnalyticsOverview stats={stats} />}
-              {activeTab === 'users' && <UserGrid users={users} />}
+              {activeTab === 'users' && (
+                <UserGrid
+                  users={users}
+                  events={events}
+                  photos={photos}
+                  onPlanChange={(userId, role) =>
+                    handleAdminAction(
+                      'updateUserRole',
+                      { uid: userId, role },
+                      'User plan updated.'
+                    )
+                  }
+                  onDurationChange={(userId, duration) =>
+                    handleAdminAction(
+                      'updateUserDuration',
+                      { uid: userId, duration },
+                      'User duration updated.'
+                    )
+                  }
+                  onPlanDatesChange={(userId, planStartDate, planEndDate) =>
+                    handleAdminAction(
+                      'updateUserPlanDates',
+                      { uid: userId, planStartDate, planEndDate },
+                      ''
+                    )
+                  }
+                />
+              )}
               {activeTab === 'events' && <EventGrid events={events} users={users} guests={guests} photos={photos} />}
               {activeTab === 'plans' && <PlanDetailsGrid users={users} />}
               {activeTab === 'infra' && <InfraCostGrid stats={stats} users={users} events={events} guests={guests} photos={photos} />}
+              {activeTab === 'superadmin' && (
+                <SuperAdminPanel
+                  users={users}
+                  events={events}
+                  guests={guests}
+                  loading={loadingData}
+                  onRefresh={loadDashboardData}
+                  onSyncUsers={() => handleAdminAction('syncUsers')}
+                  onUpdateUserRole={(userId, role, delegatedBy, roleType) =>
+                    handleAdminAction(
+                      'updateUserRole',
+                      { uid: userId, role, delegatedBy, roleType },
+                      'User role updated.'
+                    )
+                  }
+                  onDeleteUser={userId =>
+                    handleAdminAction('deleteUser', { uid: userId }, 'User deleted.')
+                  }
+                  onDeleteEvent={eventId =>
+                    handleAdminAction('deleteEvent', { eventId }, 'Event deleted.')
+                  }
+                  onDeleteGuest={guestId =>
+                    handleAdminAction('deleteGuest', { guestId }, 'Guest deleted.')
+                  }
+                />
+              )}
             </>
           )}
         </main>

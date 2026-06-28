@@ -6,6 +6,12 @@ export interface UserProfile {
   email: string;
   phone?: string;
   role?: string;
+  roleType?: string;
+  delegatedBy?: string;
+  subscriptionDuration?: string;
+  planStartDate?: string;
+  planEndDate?: string;
+  assignedEvents?: string[];
   createdAt?: string;
   lastLogin?: string;
   profileImage?: string;
@@ -21,6 +27,10 @@ export interface GuestLog {
   loginAt?: string;
   status?: string;
   canAdmin?: boolean;
+  canUpload?: boolean;
+  canComment?: boolean;
+  parentEventId?: string;
+  parentEventOwnerId?: string;
 }
 
 export interface Event {
@@ -28,6 +38,9 @@ export interface Event {
   title: string;
   createdAt?: string;
   createdById?: string;
+  createdBy?: string;
+  parentId?: string;
+  type?: string;
   vendors?: string[];
 }
 
@@ -51,19 +64,41 @@ export async function fetchUsers(): Promise<UserProfile[]> {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, name, email, phone, role, created_at, last_login, profile_image')
+      .select('id, name, email, phone, role, role_type, delegated_by, subscription_duration, plan_start_date, plan_end_date, created_at, last_login, profile_image')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return (data || []).map(d => ({
+    const users = (data || []).map(d => ({
       id: d.id,
       name: d.name || 'Anonymous',
       email: d.email || '',
       phone: d.phone || '',
       role: d.role || 'free',
+      roleType: d.role_type || '',
+      delegatedBy: d.delegated_by || '',
+      subscriptionDuration: d.subscription_duration || '',
+      planStartDate: d.plan_start_date || '',
+      planEndDate: d.plan_end_date || '',
       createdAt: d.created_at,
       lastLogin: d.last_login,
       profileImage: d.profile_image || ''
+    }));
+
+    const { data: assignments } = await supabase
+      .from('profile_assigned_events')
+      .select('profile_id, event_id');
+
+    const assignedByUser = new Map<string, string[]>();
+    (assignments || []).forEach(row => {
+      if (!row.profile_id || !row.event_id) return;
+      const existing = assignedByUser.get(row.profile_id) || [];
+      existing.push(row.event_id);
+      assignedByUser.set(row.profile_id, existing);
+    });
+
+    return users.map(user => ({
+      ...user,
+      assignedEvents: assignedByUser.get(user.id) || []
     }));
   } catch (err) {
     console.error("Error fetching users:", err);
@@ -75,8 +110,7 @@ export async function fetchEvents(): Promise<Event[]> {
   try {
     const { data, error } = await supabase
       .from('events')
-      .select('id, title, date, created_by, vendors')
-      .is('parent_id', null)
+      .select('id, title, date, created_by, parent_id, type, vendors')
       .order('date', { ascending: false });
 
     if (error) throw error;
@@ -85,6 +119,9 @@ export async function fetchEvents(): Promise<Event[]> {
       title: d.title || 'Untitled Event',
       createdAt: d.date,
       createdById: d.created_by || '',
+      createdBy: d.created_by || '',
+      parentId: d.parent_id || '',
+      type: d.type || (d.parent_id ? 'sub' : 'main'),
       vendors: d.vendors || []
     }));
   } catch (err) {
@@ -97,7 +134,7 @@ export async function fetchGuests(): Promise<GuestLog[]> {
   try {
     const { data, error } = await supabase
       .from('guests')
-      .select('id, name, phone, event_id, event_title, login_at, status, can_admin')
+      .select('id, name, phone, event_id, parent_event_id, parent_event_owner_id, event_title, login_at, status, can_admin, can_upload, can_comment')
       .order('login_at', { ascending: false });
 
     if (error) throw error;
@@ -116,10 +153,14 @@ export async function fetchGuests(): Promise<GuestLog[]> {
         phone: d.phone || '',
         email: email,
         eventId: d.event_id,
+        parentEventId: d.parent_event_id,
+        parentEventOwnerId: d.parent_event_owner_id,
         eventTitle: d.event_title || '',
         loginAt: d.login_at,
         status: d.status,
-        canAdmin: d.can_admin || false
+        canAdmin: d.can_admin || false,
+        canUpload: d.can_upload || false,
+        canComment: d.can_comment || false
       };
     });
   } catch (err) {
@@ -133,20 +174,24 @@ export interface Photo {
   eventId: string;
   size: number;
   mediaType: string;
+  resourceType?: string;
+  userId?: string;
 }
 
 export async function fetchPhotos(): Promise<Photo[]> {
   try {
     const { data, error } = await supabase
       .from('photos')
-      .select('id, event_id, size, media_type');
+      .select('id, event_id, size, media_type, resource_type, user_id');
 
     if (error) throw error;
     return (data || []).map(d => ({
       id: d.id,
       eventId: d.event_id || '',
       size: Number(d.size) || 0,
-      mediaType: d.media_type || 'photo'
+      mediaType: d.media_type || 'photo',
+      resourceType: d.resource_type || '',
+      userId: d.user_id || ''
     }));
   } catch (err) {
     console.error("Error fetching photos:", err);
@@ -208,10 +253,13 @@ export function computeDashboardStats(
   // Plans Breakdown
   const totalUsers = users.length;
   const plansMap = {
+    ultimate: { name: 'Ultimate Plan', count: 0, color: 'bg-orange-500' },
     elite: { name: 'Elite Plan', count: 0, color: 'bg-amber-500' },
+    pro: { name: 'Pro Plan', count: 0, color: 'bg-purple-500' },
     premium: { name: 'Premium Plan', count: 0, color: 'bg-indigo-500' },
     standard: { name: 'Standard Plan', count: 0, color: 'bg-sky-500' },
     basic: { name: 'Basic Plan', count: 0, color: 'bg-emerald-500' },
+    starter: { name: 'Starter Plan', count: 0, color: 'bg-teal-500' },
     free: { name: 'Free Plan', count: 0, color: 'bg-slate-400' }
   };
 
@@ -226,23 +274,22 @@ export function computeDashboardStats(
   // Storage Breakdown
   const storageMap = {
     "Free Plan": { name: "Free Plan (1 GB)", count: 0, color: "bg-slate-500" },
-    "10 GB": { name: "10 GB Plan", count: 0, color: "bg-slate-400" },
-    "50 GB": { name: "50 GB Plan", count: 0, color: "bg-emerald-500" },
-    "100 GB": { name: "100 GB Plan", count: 0, color: "bg-sky-500" },
-    "200 GB": { name: "200 GB Plan", count: 0, color: "bg-indigo-500" },
+    "10 GB": { name: "10 GB Plan", count: 0, color: "bg-teal-500" },
+    "25 GB": { name: "25 GB Plan", count: 0, color: "bg-emerald-500" },
+    "50 GB": { name: "50 GB Plan", count: 0, color: "bg-sky-500" },
+    "100 GB": { name: "100 GB Plan", count: 0, color: "bg-indigo-500" },
+    "200 GB": { name: "200 GB Plan", count: 0, color: "bg-purple-500" },
     "500 GB": { name: "500 GB Plan", count: 0, color: "bg-purple-500" },
-    "1 TB": { name: "1 TB Plan", count: 0, color: "bg-amber-500" }
+    "1 TB": { name: "1 TB Plan", count: 0, color: "bg-orange-500" }
   };
 
-  // Helper deterministic duration mapper
-  const getDeterministicDuration = (id: string) => {
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) {
-      hash = id.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const index = Math.abs(hash) % 4;
-    const options = ["1 Month", "3 Month", "6 Month", "Yearly"];
-    return options[index];
+  const normalizeDuration = (value?: string) => {
+    const normalized = String(value || '').toLowerCase().replace(/[\s-]+/g, '_');
+    if (normalized === 'monthly' || normalized === '1_month') return '1 Month';
+    if (normalized === 'quarterly' || normalized === '3_month' || normalized === '3_months') return '3 Month';
+    if (normalized === 'half_yearly' || normalized === '6_month' || normalized === '6_months') return '6 Month';
+    if (normalized === 'yearly' || normalized === 'annual') return 'Yearly';
+    return '1 Month';
   };
 
   users.forEach(u => {
@@ -259,27 +306,25 @@ export function computeDashboardStats(
 
     // Duration breakdown (only for paid users, excluding free and admin)
     if (role !== 'admin' && role !== 'free' && role !== 'user' && role !== 'freemium') {
-      const duration = getDeterministicDuration(u.id);
+      const duration = normalizeDuration(u.subscriptionDuration);
       durationMap[duration as keyof typeof durationMap].count++;
     }
 
     // Storage breakdown
-    if (role === 'admin') {
+    if (role === 'admin' || role === 'ultimate') {
       storageMap["1 TB"].count++;
     } else if (role === 'elite') {
       storageMap["500 GB"].count++;
+    } else if (role === 'pro') {
+      storageMap["200 GB"].count++;
     } else if (role === 'premium') {
-      const val = u.id.charCodeAt(0) % 10;
-      const bucket = val < 6 ? "200 GB" : "100 GB";
-      storageMap[bucket].count++;
+      storageMap["100 GB"].count++;
     } else if (role === 'standard') {
-      const val = u.id.charCodeAt(0) % 2;
-      const bucket = val === 0 ? "100 GB" : "50 GB";
-      storageMap[bucket].count++;
+      storageMap["50 GB"].count++;
     } else if (role === 'basic') {
-      const val = u.id.charCodeAt(0) % 2;
-      const bucket = val === 0 ? "50 GB" : "10 GB";
-      storageMap[bucket].count++;
+      storageMap["25 GB"].count++;
+    } else if (role === 'starter') {
+      storageMap["10 GB"].count++;
     } else {
       storageMap["Free Plan"].count++;
     }

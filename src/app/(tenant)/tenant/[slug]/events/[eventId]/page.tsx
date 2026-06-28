@@ -30,7 +30,10 @@ export default async function SubEventPage({ params }: { params: Promise<{ slug:
             storageKey: p.storageKey,
             width: p.width || 800,
             height: p.height || 600,
-            filename: p.storageKey.split('/').pop()
+            filename: p.storageKey.split('/').pop(),
+            thumbnailUrl: p.thumbnailUrl,
+            mediaType: p.mediaType,
+            resourceType: p.resourceType
         };
     });
 

@@ -3,6 +3,8 @@ import { waitUntil } from "@vercel/functions";
 import { publishResizeTask } from "@/lib/qstash";
 import sharp from "sharp";
 import { getCachedBackblazeAuth, getUploadUrl } from "@/lib/backblaze";
+import { createClient } from "@supabase/supabase-js";
+import { formatStorageSize, getPlanDetails } from "@/lib/planLimits";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -12,6 +14,9 @@ type SupabaseUser = {
 };
 
 const allowedMimePrefixes = ["image/", "video/"];
+const FREE_PLAN_VIDEO_LIMIT_BYTES = 200 * 1024 * 1024;
+const PLAN_EXPIRY_GRACE_DAYS = 7;
+const FREE_PLAN_STORAGE_BYTES = 1024 * 1024 * 1024;
 
 function jsonResponse(body: unknown, status = 200) {
   return NextResponse.json(body, {
@@ -174,6 +179,81 @@ async function verifySupabaseUser(accessToken: string): Promise<SupabaseUser | n
   return user?.id ? { id: user.id } : null;
 }
 
+async function getUploaderRole(userId: string) {
+  const supabaseAdmin = createClient(
+    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("role, delegated_by, email, plan_end_date")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("[Upload] Failed to load uploader profile:", error.message);
+  }
+
+  return {
+    role: String(data?.role || "user").toLowerCase(),
+    delegatedBy: data?.delegated_by || null,
+    email: String(data?.email || ""),
+    planEndDate: data?.plan_end_date ? String(data.plan_end_date) : "",
+  };
+}
+
+function isFreePlanRole(role: string) {
+  return !role || role === "user" || role === "free" || role === "freemium";
+}
+
+function isPaidPlanRole(role: string) {
+  return !isFreePlanRole(role) && role !== "admin";
+}
+
+function isBeyondPlanGracePeriod(role: string, planEndDate: string) {
+  if (!isPaidPlanRole(role) || !planEndDate) return false;
+  const endDate = new Date(`${planEndDate}T23:59:59.999Z`);
+  if (Number.isNaN(endDate.getTime())) return false;
+  const graceEndsAt = new Date(endDate);
+  graceEndsAt.setUTCDate(graceEndsAt.getUTCDate() + PLAN_EXPIRY_GRACE_DAYS);
+  return Date.now() > graceEndsAt.getTime();
+}
+
+async function getUserUploadedBytes(userId: string, email?: string) {
+  const supabaseAdmin = createClient(
+    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+
+  const identifiers = [userId, email].filter(Boolean);
+  if (identifiers.length === 0) return 0;
+
+  const { data, error } = await supabaseAdmin
+    .from("photos")
+    .select("size")
+    .in("user_id", identifiers);
+
+  if (error) {
+    console.warn("[Upload] Failed to calculate uploader storage:", error.message);
+    return 0;
+  }
+
+  return (data || []).reduce((sum, row) => sum + (Number(row.size) || 0), 0);
+}
+
 export async function OPTIONS() {
   return new Response(null, {
     status: 204,
@@ -252,6 +332,40 @@ export async function POST(request: NextRequest) {
 
     const resourceType = requestedResourceType === "video" || mimeType.startsWith("video/") ? "video" : "image";
     const mediaType = resourceType === "video" ? "video" : "photo";
+    const uploader = await getUploaderRole(user.id);
+
+    if (resourceType === "video") {
+      if (!uploader.delegatedBy && isFreePlanRole(uploader.role) && fileSize > FREE_PLAN_VIDEO_LIMIT_BYTES) {
+        return jsonResponse({ error: "Free plan videos can be up to 200 MB. Upgrade to upload larger videos." }, 403);
+      }
+    }
+
+    if (!uploader.delegatedBy && isBeyondPlanGracePeriod(uploader.role, uploader.planEndDate)) {
+      const currentUsage = await getUserUploadedBytes(user.id, uploader.email);
+      if (currentUsage + fileSize > FREE_PLAN_STORAGE_BYTES) {
+        return jsonResponse(
+          { error: "Your plan grace period has ended and your account is over the free 1 GB limit. Renew your plan to upload more." },
+          403
+        );
+      }
+    }
+
+    if (scope === "event" && !uploader.delegatedBy) {
+      const plan = getPlanDetails(uploader.role);
+      if (plan.storageBytes !== Infinity) {
+        const currentUsage = await getUserUploadedBytes(user.id, uploader.email);
+        if (currentUsage + fileSize > plan.storageBytes) {
+          const remainingStorage = Math.max(plan.storageBytes - currentUsage, 0);
+          return jsonResponse(
+            {
+              error: `Upload exceeds your ${plan.storageLabel} storage limit. You have ${formatStorageSize(remainingStorage)} remaining, but this file is ${formatStorageSize(fileSize)}.`,
+            },
+            403
+          );
+        }
+      }
+    }
+
     const storageKey = buildStorageKey({
       eventId,
       userId: user.id,

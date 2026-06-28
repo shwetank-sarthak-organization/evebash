@@ -27,18 +27,38 @@ export function getPlanDetails(role?: string): PlanDetails {
                 name: "Elite Plan",
                 storageBytes: 500 * GB,
                 storageLabel: "500 GB",
-                eventLimit: 100,
-                eventLabel: "100",
+                eventLimit: 500,
+                eventLabel: "500",
                 accent: "#d4af37",
                 accentSoft: "rgba(212, 175, 55, 0.16)",
+            };
+        case "pro":
+            return {
+                name: "200 GB Plan",
+                storageBytes: 200 * GB,
+                storageLabel: "200 GB",
+                eventLimit: 200,
+                eventLabel: "200",
+                accent: "#a855f7",
+                accentSoft: "rgba(168, 85, 247, 0.16)",
+            };
+        case "ultimate":
+            return {
+                name: "1 TB Plan",
+                storageBytes: 1024 * GB,
+                storageLabel: "1 TB",
+                eventLimit: 1000,
+                eventLabel: "1000",
+                accent: "#f97316",
+                accentSoft: "rgba(249, 115, 22, 0.16)",
             };
         case "premium":
             return {
                 name: "Premium Plan",
                 storageBytes: 100 * GB,
                 storageLabel: "100 GB",
-                eventLimit: 25,
-                eventLabel: "25",
+                eventLimit: 100,
+                eventLabel: "100",
                 accent: "#818cf8",
                 accentSoft: "rgba(129, 140, 248, 0.16)",
             };
@@ -47,8 +67,8 @@ export function getPlanDetails(role?: string): PlanDetails {
                 name: "Standard Plan",
                 storageBytes: 50 * GB,
                 storageLabel: "50 GB",
-                eventLimit: 10,
-                eventLabel: "10",
+                eventLimit: 50,
+                eventLabel: "50",
                 accent: "#38bdf8",
                 accentSoft: "rgba(56, 189, 248, 0.16)",
             };
@@ -57,20 +77,30 @@ export function getPlanDetails(role?: string): PlanDetails {
                 name: "Basic Plan",
                 storageBytes: 25 * GB,
                 storageLabel: "25 GB",
-                eventLimit: 5,
-                eventLabel: "5",
+                eventLimit: 25,
+                eventLabel: "25",
                 accent: "#22c55e",
                 accentSoft: "rgba(34, 197, 94, 0.16)",
+            };
+        case "starter":
+            return {
+                name: "10 GB Plan",
+                storageBytes: 10 * GB,
+                storageLabel: "10 GB",
+                eventLimit: 10,
+                eventLabel: "10",
+                accent: "#14b8a6",
+                accentSoft: "rgba(20, 184, 166, 0.16)",
             };
         case "free":
         case "freemium":
         default:
             return {
                 name: "Free Plan",
-                storageBytes: 5 * GB,
-                storageLabel: "5 GB",
-                eventLimit: 2,
-                eventLabel: "2",
+                storageBytes: 1 * GB,
+                storageLabel: "1 GB",
+                eventLimit: 1,
+                eventLabel: "1",
                 accent: "#94a3b8",
                 accentSoft: "rgba(148, 163, 184, 0.16)",
             };

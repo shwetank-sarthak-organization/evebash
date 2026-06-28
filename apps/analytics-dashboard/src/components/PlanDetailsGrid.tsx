@@ -19,36 +19,30 @@ interface SubscriptionUnitStats {
   lastYear: number;
 }
 
-const getDeterministicDuration = (role: string, id: string) => {
+const getSubscriptionDuration = (user: UserProfile) => {
+  const role = user.role || 'free';
   const cleanRole = (role || 'free').toLowerCase();
   if (cleanRole === 'user' || cleanRole === 'free' || cleanRole === 'admin') {
     return '-';
   }
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const index = Math.abs(hash) % 4;
-  const options = ["1 Month", "3 Month", "6 Month", "Yearly"];
-  return options[index];
+
+  const normalized = String(user.subscriptionDuration || '').toLowerCase().replace(/[\s-]+/g, '_');
+  if (normalized === 'quarterly' || normalized === '3_month' || normalized === '3_months') return '3 Month';
+  if (normalized === 'half_yearly' || normalized === '6_month' || normalized === '6_months') return '6 Month';
+  if (normalized === 'yearly' || normalized === 'annual') return 'Yearly';
+  return '1 Month';
 };
 
-const getStoragePlan = (role: string, id: string) => {
+const getStoragePlan = (role: string) => {
   const cleanRole = (role || 'free').toLowerCase();
   if (cleanRole === 'admin') return "1 TB";
+  if (cleanRole === 'ultimate') return "1 TB";
   if (cleanRole === 'elite') return "500 GB";
-  if (cleanRole === 'premium') {
-    const val = id.charCodeAt(0) % 10;
-    return val < 6 ? "200 GB" : "100 GB";
-  }
-  if (cleanRole === 'standard') {
-    const val = id.charCodeAt(0) % 2;
-    return val === 0 ? "100 GB" : "50 GB";
-  }
-  if (cleanRole === 'basic') {
-    const val = id.charCodeAt(0) % 2;
-    return val === 0 ? "50 GB" : "10 GB";
-  }
+  if (cleanRole === 'pro') return "200 GB";
+  if (cleanRole === 'premium') return "100 GB";
+  if (cleanRole === 'standard') return "50 GB";
+  if (cleanRole === 'basic') return "25 GB";
+  if (cleanRole === 'starter') return "10 GB";
   return "Free Plan";
 };
 
@@ -57,7 +51,7 @@ export const PlanDetailsGrid: React.FC<Props> = ({ users }) => {
   const [storageFilter, setStorageFilter] = useState('all');
   const [durationFilter, setDurationFilter] = useState('all');
 
-  const storageTiers = ["Free Plan", "10 GB", "50 GB", "100 GB", "200 GB", "500 GB", "1 TB"];
+  const storageTiers = ["Free Plan", "10 GB", "25 GB", "50 GB", "100 GB", "200 GB", "500 GB", "1 TB"];
   const durationTiers = ["1 Month", "3 Month", "6 Month", "Yearly"];
 
   const unitsData = useMemo(() => {
@@ -77,7 +71,7 @@ export const PlanDetailsGrid: React.FC<Props> = ({ users }) => {
 
     // 1. Add the single Free Plan unit (no duration associated with it)
     const freeUsers = users.filter(user => {
-      const uStorage = getStoragePlan(user.role || 'free', user.id);
+      const uStorage = getStoragePlan(user.role || 'free');
       return uStorage === "Free Plan";
     });
 
@@ -110,13 +104,13 @@ export const PlanDetailsGrid: React.FC<Props> = ({ users }) => {
     });
 
     // 2. Add the paid plans (6 storage tiers * 4 durations = 24 units)
-    const paidStorageTiers = ["10 GB", "50 GB", "100 GB", "200 GB", "500 GB", "1 TB"];
+    const paidStorageTiers = ["10 GB", "25 GB", "50 GB", "100 GB", "200 GB", "500 GB", "1 TB"];
     
     paidStorageTiers.forEach(st => {
       durationTiers.forEach(dt => {
         const unitUsers = users.filter(user => {
-          const uStorage = getStoragePlan(user.role || 'free', user.id);
-          const uDuration = getDeterministicDuration(user.role || 'free', user.id);
+          const uStorage = getStoragePlan(user.role || 'free');
+          const uDuration = getSubscriptionDuration(user);
           return uStorage === st && uDuration === dt;
         });
 

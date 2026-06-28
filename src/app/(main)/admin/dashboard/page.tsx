@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { getGuestLogs, deleteGuest, getEvents, getUsers, updateUserRole, deleteUser, deleteEvent } from "@/lib/database";
+import { getGuestLogs, deleteGuest, getEvents, getUsers, updateUserRole, deleteUser, deleteEvent, getUserProfile } from "@/lib/database";
 import { deleteUserCompletely, syncAllAuthUsers } from "@/app/actions/userActions";
 import { LogOut, Users, ShieldCheck, Calendar, Trash2, ChevronRight, ChevronDown, Folder, User, RefreshCw, Crown, UserCog, UserMinus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,7 @@ export default function Dashboard() {
     const [events, setEvents] = useState<any[]>([]);
     const [guests, setGuests] = useState<any[]>([]);
     const [loadingData, setLoadingData] = useState(false);
+    const [verifyingAdmin, setVerifyingAdmin] = useState(true);
 
     // Accordion State
     const [expandedCreators, setExpandedCreators] = useState<Set<string>>(new Set());
@@ -26,14 +27,42 @@ export default function Dashboard() {
     const [expandedEventGuests, setExpandedEventGuests] = useState<Set<string>>(new Set());
 
     useEffect(() => {
-        if (!loading) {
-            // Only allow true global admins (not delegated ones)
-            if (!user || user.role !== "admin" || user.delegatedBy) {
+        let cancelled = false;
+
+        const verifyAndLoad = async () => {
+            if (loading) return;
+
+            if (!user) {
                 router.push("/login");
-            } else {
-                fetchInitialData();
+                return;
             }
-        }
+
+            setVerifyingAdmin(true);
+
+            try {
+                const profile = await getUserProfile(user.uid);
+                const isGlobalAdmin = profile?.role === "admin" && !profile.delegatedBy;
+
+                if (!isGlobalAdmin) {
+                    router.push("/login");
+                    return;
+                }
+
+                if (!cancelled) {
+                    await fetchInitialData();
+                }
+            } finally {
+                if (!cancelled) {
+                    setVerifyingAdmin(false);
+                }
+            }
+        };
+
+        verifyAndLoad();
+
+        return () => {
+            cancelled = true;
+        };
     }, [user, loading, router]);
 
     const fetchInitialData = async () => {
@@ -179,7 +208,7 @@ export default function Dashboard() {
         });
     };
 
-    if (loading || !user || user.role !== "admin" || user.delegatedBy) {
+    if (loading || verifyingAdmin || !user) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-50">
                 <div className="animate-pulse flex flex-col items-center">
@@ -346,20 +375,26 @@ export default function Dashboard() {
                                                                         className={cn(
                                                                             "bg-transparent border-none text-[10px] font-bold uppercase tracking-wider focus:ring-0 cursor-pointer transition-colors outline-none p-0",
                                                                             u.role === "admin" ? "text-rose-600" :
+                                                                            u.role === "ultimate" ? "text-orange-600" :
                                                                             u.role === "elite" ? "text-purple-600" :
+                                                                            u.role === "pro" ? "text-violet-600" :
                                                                             u.role === "premium" ? "text-amber-600" :
                                                                             u.role === "standard" ? "text-sky-600" :
                                                                             u.role === "basic" ? "text-teal-600" :
+                                                                            u.role === "starter" ? "text-emerald-600" :
                                                                             "text-slate-700"
                                                                         )}
                                                                         title="Change user role"
                                                                         disabled={u.email === user?.email}
                                                                     >
                                                                         <option value="user">Free Plan User</option>
+                                                                        <option value="starter">10 GB Plan User</option>
                                                                         <option value="basic">Basic Plan User</option>
                                                                         <option value="standard">Standard Plan User</option>
                                                                         <option value="premium">Premium Plan User</option>
+                                                                        <option value="pro">200 GB Plan User</option>
                                                                         <option value="elite">Elite Plan User</option>
+                                                                        <option value="ultimate">1 TB Plan User</option>
                                                                         <option value="admin">Admin</option>
                                                                     </select>
                                                                 )}

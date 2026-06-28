@@ -255,9 +255,9 @@ function EventPageContent() {
         width: p.width || 800,
         height: p.height || 600,
         filename: p.storageKey ? p.storageKey.split('/').pop() : 'photo',
+        thumbnailUrl: p.thumbnailUrl,
         mediaType: p.mediaType,
-        resourceType: p.resourceType,
-        thumbnailUrl: p.thumbnailUrl
+        resourceType: p.resourceType
     }));
 
     const loadGalleryPhotos = async (gallery: Event, page = 0, append = false) => {

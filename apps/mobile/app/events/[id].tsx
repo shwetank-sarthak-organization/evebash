@@ -7,7 +7,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { getEventById, getSubEvents, logGuestLogin, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getUsers, UserProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage } from '@/lib/database';
+import { getEventById, getSubEvents, logGuestLogin, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getRetainedMediaIdsForEventGrace, getUsers, UserProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { styles, FunkyFonts } from '../../components/eventStyles';
@@ -26,6 +26,7 @@ import { getGridThumbnail } from '@/lib/imageUrl';
 import { resolveEventCoverImage } from '@/lib/eventCovers';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getPlanDetails, getUsagePercent } from '@/lib/planLimits';
+import { getSubscriptionStatus } from '@/lib/subscriptionStatus';
 
 // ── Extracted modular components ──
 import { ThemeHeader } from '../../components/event/ThemeHeader';
@@ -40,6 +41,7 @@ import { useGuestAccess } from '../../hooks/useGuestAccess';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_GRID_GAP = 3;
+const FREE_PLAN_VIDEO_LIMIT_BYTES = 200 * 1024 * 1024;
 const SPORTS_TEMPLATE_IDS = [
   'bohemian',
   'diamond',
@@ -266,6 +268,10 @@ const getSportsTemplateTheme = (templateId?: string) => SPORTS_TEMPLATE_THEMES[t
 
 const isVideoMedia = (item: any) => item?.mediaType === 'video' || item?.resourceType === 'video';
 const isPhotoMedia = (item: any) => !isVideoMedia(item);
+const isFreePlanRole = (role?: string | null) => {
+  const normalizedRole = String(role || 'user').toLowerCase();
+  return normalizedRole === 'user' || normalizedRole === 'free' || normalizedRole === 'freemium';
+};
 
 function formatEventDisplayDate(date: Date) {
   return date.toLocaleDateString('en-US', {
@@ -302,16 +308,64 @@ function parseEventDateValue(value?: string) {
   return new Date();
 }
 
+function ExpiredMediaThumbnailNotice() {
+  return (
+    <View pointerEvents="none" style={localStyles.expiredMediaThumbnailNotice}>
+      <Text style={localStyles.expiredMediaThumbnailTitle}>Plan expired</Text>
+      <Text style={localStyles.expiredMediaThumbnailSubtitle}>May be deleted after grace period</Text>
+    </View>
+  );
+}
+
+function GalleryThumbnailImage({
+  url,
+  thumbnailUrl,
+  style,
+  blurRadius = 0,
+}: {
+  url?: string;
+  thumbnailUrl?: string | null;
+  style: any;
+  blurRadius?: number;
+}) {
+  const resolvedThumbnailUrl = React.useMemo(() => getGridThumbnail(url, thumbnailUrl), [url, thumbnailUrl]);
+  const [sourceUri, setSourceUri] = useState(resolvedThumbnailUrl || url || '');
+
+  useEffect(() => {
+    setSourceUri(resolvedThumbnailUrl || url || '');
+  }, [resolvedThumbnailUrl, url]);
+
+  if (!sourceUri) {
+    return <View style={[style, { backgroundColor: 'rgba(15,23,42,0.9)' }]} />;
+  }
+
+  return (
+    <ExpoImage
+      source={{ uri: sourceUri }}
+      style={style}
+      contentFit="cover"
+      blurRadius={blurRadius}
+      onError={() => {
+        if (url && sourceUri !== url) {
+          setSourceUri(url);
+        }
+      }}
+    />
+  );
+}
+
 function GalleryVideoCard({
   video,
   accent = '#d4af37',
   onOpen,
   compact = false,
+  blurred = false,
 }: {
   video: any;
   accent?: string;
   onOpen?: () => void;
   compact?: boolean;
+  blurred?: boolean;
 }) {
   const player = useVideoPlayer(video.url, (player) => {
     player.loop = false;
@@ -334,7 +388,10 @@ function GalleryVideoCard({
           nativeControls={!compact}
           contentFit={compact ? "cover" : "contain"}
           surfaceType="textureView"
-          style={compact ? { width: '100%', height: '100%', backgroundColor: '#050505' } : { width: '100%', aspectRatio: 16 / 9, backgroundColor: '#050505' }}
+          style={[
+            compact ? { width: '100%', height: '100%', backgroundColor: '#050505' } : { width: '100%', aspectRatio: 16 / 9, backgroundColor: '#050505' },
+            blurred && { opacity: 0.42 },
+          ]}
         />
         {onOpen && (
           <TouchableOpacity
@@ -381,6 +438,7 @@ function GalleryVideoCard({
             )}
           </TouchableOpacity>
         )}
+        {blurred && <ExpiredMediaThumbnailNotice />}
       </View>
       {!compact && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10 }}>
@@ -413,6 +471,11 @@ export default function EventDetailScreen() {
   const { id, shared, guestView, tab, share, mode } = useLocalSearchParams<{ id: string; shared?: string; guestView?: string; tab?: string; share?: string; mode?: 'admin' | 'visitor' }>();
   const router = useRouter();
   const { user } = useAuth();
+  const subscriptionStatus = React.useMemo(() => getSubscriptionStatus({
+    role: user?.role,
+    planStartDate: user?.planStartDate,
+    planEndDate: user?.planEndDate,
+  }), [user?.role, user?.planStartDate, user?.planEndDate]);
 
   const [scrollY, setScrollY] = useState(0);
   const scrollViewRef = React.useRef<ScrollView>(null);
@@ -573,6 +636,7 @@ export default function EventDetailScreen() {
   }, [normalizeEmailValue, normalizePhoneValue, selectedRequest]);
 
   const canViewContent = isOwner || isPrivilegedViewer || guestStatus === 'approved';
+  const isFreePlanUser = !user?.delegatedBy && isFreePlanRole(user?.role);
 
   const [activeTab, setActiveTab] = useState<'galleries' | 'permissions' | 'design' | 'partners'>((tab as any) || 'galleries');
   const [linkingVendor, setLinkingVendor] = useState(false);
@@ -875,6 +939,7 @@ export default function EventDetailScreen() {
   const [activeSubEvent, setActiveSubEvent] = useState<DatabaseEvent | null>(null);
   const [photos, setPhotos] = useState<any[]>([]);
   const [storageStats, setStorageStats] = useState<{ used: number; limit: number; label: string; percent: number } | null>(null);
+  const [retainedMediaIds, setRetainedMediaIds] = useState<Set<string>>(new Set());
 
   const fetchStorage = useCallback(async () => {
     if (!user?.uid || !showAdminView) return;
@@ -903,7 +968,17 @@ export default function EventDetailScreen() {
   const [galleryMediaTab, setGalleryMediaTab] = useState<'photos' | 'videos'>('photos');
   const photoItems = React.useMemo(() => photos.filter(isPhotoMedia), [photos]);
   const videoItems = React.useMemo(() => photos.filter(isVideoMedia), [photos]);
+  const mediaTabs = React.useMemo<{ id: 'photos' | 'videos'; label: string }[]>(() => {
+    return [
+      { id: 'photos', label: `Photos (${photoItems.length})` },
+      { id: 'videos', label: `Videos (${videoItems.length})` },
+    ];
+  }, [photoItems.length, videoItems.length]);
   const activeGalleryItems = galleryMediaTab === 'photos' ? photoItems : videoItems;
+  const shouldWarnExpiredPlanMedia = subscriptionStatus.status === 'grace' && retainedMediaIds.size > 0;
+  const shouldBlurMediaForPlan = useCallback((media: any) => {
+    return shouldWarnExpiredPlanMedia && !!media?.id && !retainedMediaIds.has(media.id);
+  }, [retainedMediaIds, shouldWarnExpiredPlanMedia]);
 
   // Gallery Welcome Text Settings State
   const [galleryDescModalVisible, setGalleryDescModalVisible] = useState(false);
@@ -988,7 +1063,7 @@ export default function EventDetailScreen() {
         setIsOwner(ownerAccess);
 
         // Fetch sub-events, vendors, guest logs, and photos concurrently
-        const [subs, vendorsData, logs, eventPhotos] = await Promise.all([
+        const [subs, vendorsData, logs, eventPhotos, retainedIds] = await Promise.all([
           getSubEvents(id, eventData.legacyId),
           eventData.vendors && eventData.vendors.length > 0
             ? Promise.all(eventData.vendors.map((vid: string) => getBusinessById(vid)))
@@ -996,7 +1071,8 @@ export default function EventDetailScreen() {
           user
             ? getEventLogs(id)
             : Promise.resolve([]),
-          getEventPhotos(eventData.id, eventData.legacyId)
+          getEventPhotos(eventData.id, eventData.legacyId),
+          getRetainedMediaIdsForEventGrace(eventData.id, eventData.legacyId),
         ]);
 
         const eventLogs = logs.filter(l => l.eventId === id || l.parentEventId === id);
@@ -1022,6 +1098,7 @@ export default function EventDetailScreen() {
         setSubEvents(normalizedSubs);
         setLinkedVendors(vendorsData.filter(v => v !== null) as Business[]);
         setPhotos(eventPhotos);
+        setRetainedMediaIds(new Set(retainedIds));
 
         if (ownerAccess || hasSharedAdminAccess) {
           eventLogs
@@ -1050,8 +1127,12 @@ export default function EventDetailScreen() {
     setLoadingPhotos(true);
     const perfPhotosStart = Date.now();
     try {
-      const eventPhotos = await getEventPhotos(eventId, legacyId);
+      const [eventPhotos, retainedIds] = await Promise.all([
+        getEventPhotos(eventId, legacyId),
+        getRetainedMediaIdsForEventGrace(eventId, legacyId),
+      ]);
       setPhotos(eventPhotos);
+      setRetainedMediaIds(new Set(retainedIds));
       console.log(`[PERF] loadPhotos completed in ${Date.now() - perfPhotosStart}ms`);
     } catch (err) {
       console.error('[EventDetail] Photos load error:', err);
@@ -1157,6 +1238,14 @@ export default function EventDetailScreen() {
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
       try {
+        if (mediaType === 'video' && isFreePlanUser) {
+          const oversizedVideo = result.assets.find(asset => (asset.fileSize || 0) > FREE_PLAN_VIDEO_LIMIT_BYTES);
+          if (oversizedVideo) {
+            Alert.alert("Upgrade Required", "Free plan videos can be up to 200 MB. Upgrade to upload larger videos.");
+            return;
+          }
+        }
+
         const files = result.assets.map(asset => {
           const fallbackType = mediaType === 'video' ? 'video/mp4' : 'image/jpeg';
           const fallbackName = mediaType === 'video' ? 'video.mp4' : 'photo.jpg';
@@ -4341,10 +4430,7 @@ export default function EventDetailScreen() {
                           </TouchableOpacity>
                         </View>
                         <View style={{ flexDirection: 'row', backgroundColor: 'rgba(15,23,42,0.9)', borderRadius: 16, padding: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
-                          {([
-                            { id: 'photos', label: `Photos (${photoItems.length})` },
-                            { id: 'videos', label: `Videos (${videoItems.length})` },
-                          ] as const).map((item) => {
+                          {mediaTabs.map((item) => {
                             const active = galleryMediaTab === item.id;
                             return (
                               <TouchableOpacity
@@ -4373,12 +4459,15 @@ export default function EventDetailScreen() {
                         </View>
                       ) : galleryMediaTab === 'videos' ? (
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                          {videoItems.map((video, idx) => (
+                          {videoItems.map((video, idx) => {
+                            const shouldBlurVideo = shouldBlurMediaForPlan(video);
+                            return (
                             <View key={video.id} style={{ position: 'relative', width: '31.5%', aspectRatio: 1 }}>
                               <GalleryVideoCard
                                 video={video}
                                 accent={MidnightColors.gold}
                                 compact
+                                blurred={shouldBlurVideo}
                                 onOpen={() => openViewer(idx)}
                               />
                               <TouchableOpacity
@@ -4398,7 +4487,8 @@ export default function EventDetailScreen() {
                                 <IconSymbol name="trash.fill" size={10} color="#fff" />
                               </TouchableOpacity>
                             </View>
-                          ))}
+                          );
+                          })}
                         </View>
                       ) : (
                         <View>
@@ -4412,7 +4502,9 @@ export default function EventDetailScreen() {
                             columnGap={8}
                             rowGap={8}
                             onDragEnd={({ data: newData }: { data: any[] }) => handleReorderPhotos(newData)}
-                            renderItem={({ item }: { item: any }) => (
+                            renderItem={({ item }: { item: any }) => {
+                              const shouldBlurPhoto = shouldBlurMediaForPlan(item);
+                              return (
                               <View style={{ position: 'relative', borderRadius: 10, overflow: 'hidden' }}>
                                 <TouchableOpacity
                                   activeOpacity={0.9}
@@ -4421,16 +4513,18 @@ export default function EventDetailScreen() {
                                     openViewer(photoIndex >= 0 ? photoIndex : 0);
                                   }}
                                 >
-                                  <ExpoImage
-                                    source={{ uri: getGridThumbnail(item.url, item.thumbnailUrl) }}
+                                  <GalleryThumbnailImage
+                                    url={item.url}
+                                    thumbnailUrl={item.thumbnailUrl}
                                     style={{
                                       width: '100%',
                                       aspectRatio: 1,
                                       borderRadius: 10,
                                     }}
-                                    contentFit="cover"
+                                    blurRadius={shouldBlurPhoto ? 6 : 0}
                                   />
                                 </TouchableOpacity>
+                                {shouldBlurPhoto && <ExpiredMediaThumbnailNotice />}
                                 <TouchableOpacity
                                   style={{
                                     position: 'absolute',
@@ -4464,7 +4558,8 @@ export default function EventDetailScreen() {
                                   <IconSymbol name="trash.fill" size={10} color="#fff" />
                                 </TouchableOpacity>
                               </View>
-                            )}
+                            );
+                            }}
                           />
                         </View>
                       )}
@@ -5705,10 +5800,7 @@ export default function EventDetailScreen() {
                   borderWidth: 1,
                   borderColor: isSportsTemplate ? `${sportsTheme.accent}35` : 'rgba(148,163,184,0.18)',
                 }}>
-                  {([
-                    { id: 'photos', label: `Photos (${photoItems.length})` },
-                    { id: 'videos', label: `Videos (${videoItems.length})` },
-                  ] as const).map((item) => {
+                  {mediaTabs.map((item) => {
                     const active = galleryMediaTab === item.id;
                     const activeBg = isSportsTemplate ? sportsTheme.accent : selectedTemplate.accent;
                     return (
@@ -5755,6 +5847,7 @@ export default function EventDetailScreen() {
                             key={video.id}
                             video={video}
                             accent={isSportsTemplate ? sportsTheme.accent : selectedTemplate.accent}
+                            blurred={shouldBlurMediaForPlan(video)}
                             onOpen={() => openViewer(idx)}
                           />
                         ))}
@@ -5785,6 +5878,7 @@ export default function EventDetailScreen() {
                           const ratio = photo.width && photo.height
                             ? photo.height / photo.width
                             : (idx % 3 === 0 ? 1.25 : (idx % 3 === 1 ? 0.95 : 1.45));
+                          const shouldBlurPhoto = shouldBlurMediaForPlan(photo);
 
                           return (
                             <Animated.View
@@ -6027,8 +6121,9 @@ export default function EventDetailScreen() {
                                       <Text style={[styles.sportsPhotoLabelText, { color: sportsTheme.accent }]}>{idx % 2 === 0 ? 'Play' : 'Frame'}</Text>
                                     </View>
                                   )}
-                                  <ExpoImage
-                                    source={{ uri: getGridThumbnail(photo.url, photo.thumbnailUrl) }}
+                                  <GalleryThumbnailImage
+                                    url={photo.url}
+                                    thumbnailUrl={photo.thumbnailUrl}
                                     style={[
                                       styles.galleryImg,
                                       isScrapbookTemplate && styles.scrapbookGalleryImg,
@@ -6056,8 +6151,9 @@ export default function EventDetailScreen() {
                                         borderBottomRightRadius: 0,
                                       } : {},
                                     ]}
-                                    contentFit="cover"
+                                    blurRadius={shouldBlurPhoto ? 6 : 0}
                                   />
+                                  {shouldBlurPhoto && <ExpiredMediaThumbnailNotice />}
                                   {event.templateId === 'academic_editorial' && (
                                     <View style={{
                                       paddingTop: 6,
@@ -6901,6 +6997,36 @@ export default function EventDetailScreen() {
 }
 
 const localStyles = StyleSheet.create({
+  expiredMediaThumbnailNotice: {
+    position: 'absolute',
+    left: 8,
+    right: 8,
+    top: '50%',
+    transform: [{ translateY: -24 }],
+    zIndex: 40,
+    elevation: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(2, 6, 23, 0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.75)',
+  },
+  expiredMediaThumbnailTitle: {
+    color: '#f8d86a',
+    fontSize: 11,
+    fontFamily: Fonts.inter.bold,
+    textAlign: 'center',
+  },
+  expiredMediaThumbnailSubtitle: {
+    color: '#f8fafc',
+    fontSize: 9,
+    marginTop: 2,
+    fontFamily: Fonts.inter.semiBold,
+    textAlign: 'center',
+  },
   coverUploadOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 1200,

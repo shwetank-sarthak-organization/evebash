@@ -84,6 +84,9 @@ interface AppUser {
   notificationPreferences?: any;
   birthday?: string;
   anniversaryDate?: string;
+  subscriptionDuration?: string;
+  planStartDate?: string;
+  planEndDate?: string;
   displayName?: string;
   phoneNumber?: string;
 }
@@ -255,6 +258,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 notificationPreferences: profile.notification_preferences || null,
                 birthday: profile.birthday || undefined,
                 anniversaryDate: profile.anniversary_date || undefined,
+                subscriptionDuration: profile.subscription_duration || undefined,
+                planStartDate: profile.plan_start_date || undefined,
+                planEndDate: profile.plan_end_date || undefined,
               });
             }
             finishAuthLoading();

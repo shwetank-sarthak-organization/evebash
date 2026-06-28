@@ -8,6 +8,8 @@ const userCache: Record<string, any> = {};
 const COVER_USAGE_TAG = "__cover_usage__";
 const BUSINESS_PORTFOLIO_EVENTS_KEY = "__portfolio_events__";
 const DEFAULT_EVENT_COVER_IMAGE = "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop";
+const PLAN_EXPIRY_GRACE_DAYS = 7;
+const FREE_PLAN_STORAGE_BYTES = 1024 * 1024 * 1024;
 let photoInteractionChannelCounter = 0;
 
 // --- Types ---
@@ -143,6 +145,9 @@ export interface UserProfile {
     discoverable?: boolean;
     birthday?: string;
     anniversaryDate?: string;
+    subscriptionDuration?: string;
+    planStartDate?: string;
+    planEndDate?: string;
     pushToken?: string;
     notificationPreferences?: any;
 }
@@ -168,6 +173,9 @@ const USER_PROFILE_COLUMN_MAP: Record<keyof Partial<UserProfile>, string> = {
     discoverable: "discoverable",
     birthday: "birthday",
     anniversaryDate: "anniversary_date",
+    subscriptionDuration: "subscription_duration",
+    planStartDate: "plan_start_date",
+    planEndDate: "plan_end_date",
     pushToken: "push_token",
     notificationPreferences: "notification_preferences",
 };
@@ -270,6 +278,136 @@ function isCoverUsagePhoto(photo: Photo): boolean {
     return Boolean(photo.tags?.includes(COVER_USAGE_TAG));
 }
 
+function getMediaCounts(photos: Photo[]) {
+    return photos.reduce(
+        (counts, photo) => {
+            if (photo.mediaType === "video" || photo.resourceType === "video") {
+                counts.videos += 1;
+            } else {
+                counts.photos += 1;
+            }
+            return counts;
+        },
+        { photos: 0, videos: 0 }
+    );
+}
+
+function isPaidPlanRole(role?: string | null): boolean {
+    const cleanRole = String(role || "free").toLowerCase();
+    return cleanRole !== "admin" && cleanRole !== "free" && cleanRole !== "user" && cleanRole !== "freemium";
+}
+
+function isBeyondPlanGracePeriod(profile?: { role?: string | null; plan_end_date?: string | null } | null): boolean {
+    if (!profile || !isPaidPlanRole(profile.role) || !profile.plan_end_date) return false;
+
+    const endDate = new Date(`${profile.plan_end_date}T23:59:59.999Z`);
+    if (Number.isNaN(endDate.getTime())) return false;
+
+    const graceEndsAt = new Date(endDate);
+    graceEndsAt.setUTCDate(graceEndsAt.getUTCDate() + PLAN_EXPIRY_GRACE_DAYS);
+    return Date.now() > graceEndsAt.getTime();
+}
+
+function isPastPlanEndDate(profile?: { role?: string | null; plan_end_date?: string | null } | null): boolean {
+    if (!profile || !isPaidPlanRole(profile.role) || !profile.plan_end_date) return false;
+    const endDate = new Date(`${profile.plan_end_date}T23:59:59.999Z`);
+    if (Number.isNaN(endDate.getTime())) return false;
+    return Date.now() > endDate.getTime();
+}
+
+async function getEventOwnerExpiryProfile(eventIds: string[]) {
+    const ids = eventIds.filter(Boolean);
+    if (ids.length === 0) return null;
+
+    const { data: eventRows, error: eventError } = await supabase
+        .from("events")
+        .select("created_by")
+        .in("id", ids);
+
+    if (eventError) throw eventError;
+
+    const ownerIdentifier = String(eventRows?.find(row => row.created_by)?.created_by || "").trim();
+    if (!ownerIdentifier) return null;
+
+    let profileQuery = supabase
+        .from("profiles")
+        .select("id, email, role, plan_end_date")
+        .limit(1);
+
+    profileQuery = ownerIdentifier.includes("@")
+        ? profileQuery.eq("email", ownerIdentifier)
+        : profileQuery.eq("id", ownerIdentifier);
+
+    const { data: profiles, error: profileError } = await profileQuery;
+    if (profileError) throw profileError;
+
+    return profiles?.[0] || null;
+}
+
+async function getVisiblePhotoIdsForExpiredOwner(ownerProfile: { id?: string; email?: string }) {
+    const ownerIdentifiers = [ownerProfile.id, ownerProfile.email].filter(Boolean) as string[];
+    if (ownerIdentifiers.length === 0) return new Set<string>();
+
+    const { data: ownerEvents, error: eventsError } = await supabase
+        .from("events")
+        .select("id")
+        .in("created_by", ownerIdentifiers);
+
+    if (eventsError) throw eventsError;
+
+    const ownerEventIds = (ownerEvents || []).map(event => event.id).filter(Boolean);
+    if (ownerEventIds.length === 0) return new Set<string>();
+
+    const { data: mediaRows, error: mediaError } = await supabase
+        .from("photos")
+        .select("id, size, uploaded_at, tags")
+        .in("event_id", ownerEventIds);
+
+    if (mediaError) throw mediaError;
+
+    const visibleIds = new Set<string>();
+    let visibleBytes = 0;
+
+    (mediaRows || [])
+        .filter(row => !Array.isArray(row.tags) || !row.tags.includes(COVER_USAGE_TAG))
+        .sort((a, b) => {
+            const aTime = a.uploaded_at ? new Date(a.uploaded_at).getTime() : 0;
+            const bTime = b.uploaded_at ? new Date(b.uploaded_at).getTime() : 0;
+            return aTime - bTime;
+        })
+        .forEach(row => {
+            const size = Number(row.size) || 0;
+            if (visibleBytes + size > FREE_PLAN_STORAGE_BYTES) return;
+            visibleBytes += size;
+            visibleIds.add(row.id);
+        });
+
+    return visibleIds;
+}
+
+async function filterPhotosForPlanExpiry(photos: Photo[], eventIds: string[]): Promise<Photo[]> {
+    if (photos.length === 0) return photos;
+
+    let ownerProfile = null;
+    try {
+        ownerProfile = await getEventOwnerExpiryProfile(eventIds);
+    } catch (error) {
+        console.warn("[PlanExpiry] Skipping media visibility filter:", error);
+        return photos;
+    }
+
+    if (!isBeyondPlanGracePeriod(ownerProfile)) return photos;
+    if (!ownerProfile) return photos;
+
+    try {
+        const visibleIds = await getVisiblePhotoIdsForExpiredOwner(ownerProfile);
+        return photos.filter(photo => visibleIds.has(photo.id));
+    } catch (error) {
+        console.warn("[PlanExpiry] Skipping expired-owner visibility filter:", error);
+        return photos;
+    }
+}
+
 function getCoverUsagePhotoId(eventId: string, storageKey: string, url: string): string {
     const source = storageKey || url;
     const safeSource = source.replace(/[^a-zA-Z0-9_-]/g, "_").slice(-120);
@@ -297,6 +435,9 @@ function mapSqlToProfile(u: any): UserProfile {
         discoverable: u.discoverable ?? true,
         birthday: u.birthday,
         anniversaryDate: u.anniversary_date,
+        subscriptionDuration: u.subscription_duration,
+        planStartDate: u.plan_start_date,
+        planEndDate: u.plan_end_date,
         assignedEvents: [], // Will be populated when querying assignments
         pushToken: u.push_token,
         notificationPreferences: u.notification_preferences
@@ -510,7 +651,8 @@ export async function getEventPhotos(eventId: string, legacyId?: string): Promis
 
         if (error) throw error;
         const photos = (data || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo));
-        return photos.sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999));
+        const visiblePhotos = await filterPhotosForPlanExpiry(photos, ids);
+        return visiblePhotos.sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999));
     } catch (error) {
         console.error("Error fetching photos:", error);
         return [];
@@ -530,13 +672,72 @@ export async function getEventPhotosPaginated(
     legacyId?: string,
     page: number = 0,
     limit: number = 20
-): Promise<{ photos: Photo[], hasMore: boolean }> {
+): Promise<{ photos: Photo[], hasMore: boolean, totalPhotos: number, totalVideos: number, retainedMediaIds: string[] }> {
     if (!eventId) {
         console.warn("[Supabase] getEventPhotosPaginated: eventId is missing.");
-        return { photos: [], hasMore: false };
+        return { photos: [], hasMore: false, totalPhotos: 0, totalVideos: 0, retainedMediaIds: [] };
     }
     try {
         const ids = legacyId && legacyId !== eventId ? [eventId, legacyId] : [eventId];
+
+        let ownerProfile = null;
+        try {
+            ownerProfile = await getEventOwnerExpiryProfile(ids);
+        } catch (error) {
+            console.warn("[PlanExpiry] Skipping paginated media visibility filter:", error);
+        }
+        const shouldApplyExpiryVisibility = isBeyondPlanGracePeriod(ownerProfile);
+
+        if (shouldApplyExpiryVisibility) {
+            const { data, error } = await supabase
+                .from('photos')
+                .select('*')
+                .in('event_id', ids)
+                .order('order', { ascending: true, nullsFirst: false })
+                .order('uploaded_at', { ascending: false });
+
+            if (error) throw error;
+
+            const rawPhotos = (data || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo));
+            let visibleIds = new Set<string>();
+            try {
+                visibleIds = ownerProfile ? await getVisiblePhotoIdsForExpiredOwner(ownerProfile) : new Set<string>();
+            } catch (error) {
+                console.warn("[PlanExpiry] Skipping paginated expired-owner visibility filter:", error);
+                visibleIds = new Set(rawPhotos.map(photo => photo.id));
+            }
+            const visiblePhotos = rawPhotos.filter(photo => visibleIds.has(photo.id));
+            const start = page * limit;
+            const photosToReturn = visiblePhotos.slice(start, start + limit);
+            const mediaCounts = getMediaCounts(visiblePhotos);
+
+            return {
+                photos: photosToReturn,
+                hasMore: visiblePhotos.length > start + limit,
+                totalPhotos: mediaCounts.photos,
+                totalVideos: mediaCounts.videos,
+                retainedMediaIds: Array.from(visibleIds)
+            };
+        }
+
+        const { data: countData, error: countError } = await supabase
+            .from('photos')
+            .select('id,event_id,storage_key,url,uploaded_at,tags,media_type,resource_type')
+            .in('event_id', ids);
+
+        if (countError) throw countError;
+
+        const countedPhotos = (countData || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo));
+        const mediaCounts = getMediaCounts(countedPhotos);
+        let retainedMediaIds = countedPhotos.map(photo => photo.id);
+
+        if (isPastPlanEndDate(ownerProfile) && ownerProfile) {
+            try {
+                retainedMediaIds = Array.from(await getVisiblePhotoIdsForExpiredOwner(ownerProfile));
+            } catch (error) {
+                console.warn("[PlanExpiry] Skipping grace-period retained media marker:", error);
+            }
+        }
 
         // Fetch one extra item to quickly determine if there are more items to load
         const { data, error } = await supabase
@@ -555,11 +756,14 @@ export async function getEventPhotosPaginated(
 
         return {
             photos: photosToReturn,
-            hasMore
+            hasMore,
+            totalPhotos: mediaCounts.photos,
+            totalVideos: mediaCounts.videos,
+            retainedMediaIds
         };
     } catch (error) {
         console.error("Error fetching paginated photos:", error);
-        return { photos: [], hasMore: false };
+        return { photos: [], hasMore: false, totalPhotos: 0, totalVideos: 0, retainedMediaIds: [] };
     }
 }
 

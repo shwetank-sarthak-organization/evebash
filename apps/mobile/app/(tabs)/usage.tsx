@@ -7,6 +7,7 @@ import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { getUserEventCount, getUserTotalStorage, getUserBusinesses } from '@/lib/database';
 import { getPlanDetails, getUsagePercent } from '@/lib/planLimits';
+import { getSubscriptionStatus } from '@/lib/subscriptionStatus';
 import { supabase } from '@/lib/supabase';
 
 const { width } = Dimensions.get('window');
@@ -19,6 +20,21 @@ export default function UsageScreen() {
 
   const plan = getPlanDetails(user?.role);
   const planColor = plan.accent;
+  const subscriptionStatus = getSubscriptionStatus({
+    role: user?.role,
+    planStartDate: user?.planStartDate,
+    planEndDate: user?.planEndDate,
+  });
+  const statusColor = subscriptionStatus.tone === 'danger'
+    ? '#f87171'
+    : subscriptionStatus.tone === 'warning'
+      ? '#fbbf24'
+      : planColor;
+  const statusBackground = subscriptionStatus.tone === 'danger'
+    ? 'rgba(248, 113, 113, 0.12)'
+    : subscriptionStatus.tone === 'warning'
+      ? 'rgba(251, 191, 36, 0.12)'
+      : plan.accentSoft;
 
   const fetchStats = React.useCallback(async (silent = false) => {
       if (!user) return;
@@ -163,10 +179,28 @@ export default function UsageScreen() {
               <Text style={styles.planLabel}>Current Plan</Text>
               <Text style={styles.planName}>{plan.name}</Text>
             </View>
-            <View style={[styles.planBadge, { backgroundColor: plan.accentSoft, borderColor: planColor }]}>
-              <Text style={[styles.planBadgeText, { color: planColor }]}>ACTIVE</Text>
+            <View style={[styles.planBadge, { backgroundColor: statusBackground, borderColor: statusColor }]}>
+              <Text style={[styles.planBadgeText, { color: statusColor }]}>{subscriptionStatus.label}</Text>
             </View>
           </View>
+
+          {subscriptionStatus.message ? (
+            <View style={[
+              styles.planStatusBox,
+              {
+                borderColor: subscriptionStatus.tone === 'danger' ? 'rgba(248, 113, 113, 0.35)' : 'rgba(251, 191, 36, 0.35)',
+                backgroundColor: subscriptionStatus.tone === 'danger' ? 'rgba(248, 113, 113, 0.1)' : 'rgba(251, 191, 36, 0.1)',
+              }
+            ]}>
+              <Text style={[
+                styles.planStatusTitle,
+                { color: subscriptionStatus.tone === 'danger' ? '#fca5a5' : '#fde68a' }
+              ]}>
+                {subscriptionStatus.label}
+              </Text>
+              <Text style={styles.planStatusText}>{subscriptionStatus.message}</Text>
+            </View>
+          ) : null}
 
           {loading ? (
             <View style={{ height: 200, justifyContent: 'center' }}>
@@ -346,6 +380,25 @@ const styles = StyleSheet.create({
   planBadgeText: {
     fontSize: 10,
     fontFamily: 'Outfit_800ExtraBold',
+  },
+  planStatusBox: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 22,
+  },
+  planStatusTitle: {
+    fontSize: 10,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  planStatusText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#e2e8f0',
+    fontFamily: 'Inter_500Medium',
   },
   usageContainer: {
     gap: 20,

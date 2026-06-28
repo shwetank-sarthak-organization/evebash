@@ -39,6 +39,7 @@ import {
     updateUserProfileImage,
 } from "@/lib/database";
 import { supabase } from "@/lib/supabase";
+import { getSubscriptionStatus } from "@/lib/subscriptionStatus";
 import { cn } from "@/lib/utils";
 
 const personaOptions = ["Guest", "Host / Organizer", "Vendor / Business"];
@@ -48,10 +49,13 @@ const relationshipOptions = ["Single", "Engaged", "Married", "Prefer not to say"
 function getPlanLabel(role?: string) {
     switch (role) {
         case "admin": return "Super Admin";
+        case "ultimate": return "1 TB Plan";
         case "elite": return "Elite Plan";
+        case "pro": return "200 GB Plan";
         case "premium": return "Premium Plan";
         case "standard": return "Standard Plan";
         case "basic": return "Basic Plan";
+        case "starter": return "10 GB Plan";
         default: return "Free Plan";
     }
 }
@@ -176,6 +180,13 @@ export default function ProfilePage() {
         anniversaryDate: "",
         persona: ["Guest"],
     });
+    const subscriptionStatus = user
+        ? getSubscriptionStatus({
+            role: user.role,
+            planStartDate: user.planStartDate,
+            planEndDate: user.planEndDate,
+        })
+        : null;
 
     useEffect(() => {
         if (!authLoading && !user) router.push("/login");
@@ -499,6 +510,21 @@ export default function ProfilePage() {
                                         <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Active Plan</p>
                                         <p className="mt-1 text-xl font-black text-yellow-300">{getPlanLabel(user.role)}</p>
                                     </div>
+                                    {subscriptionStatus?.message && (
+                                        <div className={cn(
+                                            "rounded-2xl border p-4",
+                                            subscriptionStatus.tone === "danger"
+                                                ? "border-rose-400/25 bg-rose-400/10 text-rose-100"
+                                                : "border-amber-400/25 bg-amber-400/10 text-amber-100"
+                                        )}>
+                                            <p className="text-[11px] font-black uppercase tracking-[0.16em]">
+                                                {subscriptionStatus.label}
+                                            </p>
+                                            <p className="mt-1 text-sm font-semibold leading-6">
+                                                {subscriptionStatus.message}
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                                 <button type="button" onClick={() => router.push("/pricing")} className="mt-5 w-full rounded-2xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-3 text-sm font-black text-yellow-300">
                                     Upgrade Plan

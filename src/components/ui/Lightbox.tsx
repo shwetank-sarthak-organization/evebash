@@ -32,6 +32,7 @@ interface LightboxProps {
         width?: number;
         height?: number;
         filename?: string;
+        thumbnailUrl?: string;
         mediaType?: "photo" | "video";
         resourceType?: "image" | "video" | string;
     } | null;
@@ -58,13 +59,20 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
     const [isCommenting, setIsCommenting] = useState(false);
     const [imageLoading, setImageLoading] = useState(true);
     const [imageError, setImageError] = useState(false);
+    const [imageSrc, setImageSrc] = useState("");
 
     useEffect(() => {
         if (photo?.id) {
             setImageLoading(true);
             setImageError(false);
+            const nextSrc = photo.src ? getImageUrl(photo.src, { width: 900, quality: 75, format: 'webp' }) : "";
+            setImageSrc(nextSrc);
+            if (!nextSrc) {
+                setImageLoading(false);
+                setImageError(true);
+            }
         }
-    }, [photo?.id]);
+    }, [photo?.id, photo?.src]);
 
     const commentsEndRef = useRef<HTMLDivElement>(null);
     const commentInputRef = useRef<HTMLInputElement>(null);
@@ -319,20 +327,26 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                                 </p>
                                             </div>
                                         )}
-                                        <img
-                                            src={getImageUrl(photo.src, { width: 900, quality: 75, format: 'webp' })}
-                                            alt={photo.alt || "Event Photo"}
-                                            onLoad={() => setImageLoading(false)}
-                                            onError={() => {
-                                                setImageLoading(false);
-                                                setImageError(true);
-                                            }}
-                                            className={cn(
-                                                "max-w-[95vw] md:max-w-full max-h-[60vh] md:max-h-[85vh] w-auto h-auto object-contain shadow-2xl pointer-events-auto transition-all duration-300",
-                                                imageLoading || imageError ? "opacity-0 scale-95" : "opacity-100 scale-100"
-                                            )}
-                                            style={{ borderRadius: viewerTheme.radius, backgroundColor: viewerTheme.tile }}
-                                        />
+                                        {imageSrc && (
+                                            <img
+                                                src={imageSrc}
+                                                alt={photo.alt || "Event Photo"}
+                                                onLoad={() => setImageLoading(false)}
+                                                onError={() => {
+                                                    if (photo.src && imageSrc !== photo.src) {
+                                                        setImageSrc(photo.src);
+                                                        return;
+                                                    }
+                                                    setImageLoading(false);
+                                                    setImageError(true);
+                                                }}
+                                                className={cn(
+                                                    "max-w-[95vw] md:max-w-full max-h-[60vh] md:max-h-[85vh] w-auto h-auto object-contain shadow-2xl pointer-events-auto transition-all duration-300",
+                                                    imageLoading || imageError ? "opacity-0 scale-95" : "opacity-100 scale-100"
+                                                )}
+                                                style={{ borderRadius: viewerTheme.radius, backgroundColor: viewerTheme.tile }}
+                                            />
+                                        )}
                                     </div>
                                 )}
                             </motion.div>

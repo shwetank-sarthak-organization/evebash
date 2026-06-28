@@ -317,7 +317,7 @@ export default function PortfolioTabScreen() {
 
     // --- ROLE-BASED LIMITS ---
     const isCreatingMainEvent = true; // Mobile tab creates main events by default
-    if (isCreatingMainEvent && user.role !== "admin" && user.role !== "premium" && user.role !== "elite" && !user.delegatedBy) {
+    if (isCreatingMainEvent && user.role !== "admin" && !user.delegatedBy) {
         try {
             const currentPlan = getPlanDetails(user.role);
             const maxEvents = currentPlan.eventLimit;

@@ -444,10 +444,13 @@ export const AnalyticsOverview: React.FC<Props> = ({ stats }) => {
                       </td>
                       <td className="py-3.5 px-2">
                         <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full border ${
+                          user.role === 'ultimate' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
                           user.role === 'elite' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                          user.role === 'pro' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
                           user.role === 'premium' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' :
                           user.role === 'standard' ? 'bg-sky-500/10 text-sky-400 border-sky-500/20' :
                           user.role === 'basic' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                          user.role === 'starter' ? 'bg-teal-500/10 text-teal-400 border-teal-500/20' :
                           'bg-slate-500/10 text-slate-400 border-slate-500/20'
                         }`}>
                           {user.role ? user.role.toUpperCase() : 'FREE'}
