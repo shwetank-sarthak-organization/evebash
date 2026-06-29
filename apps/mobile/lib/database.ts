@@ -930,6 +930,41 @@ export async function getEventPhotos(eventId: string, legacyId?: string): Promis
     }
 }
 
+export async function getEventPhotosPaginated(
+    eventId: string,
+    legacyId?: string,
+    page: number = 0,
+    limit: number = 20
+): Promise<{ photos: Photo[], hasMore: boolean }> {
+    if (!eventId) return { photos: [], hasMore: false };
+    try {
+        const ids = legacyId && legacyId !== eventId ? [eventId, legacyId] : [eventId];
+
+        // Fetch limit + 1 to determine if hasMore is true
+        const { data, error } = await supabase
+            .from('photos')
+            .select('*')
+            .in('event_id', ids)
+            .order('order', { ascending: true, nullsFirst: false })
+            .order('uploaded_at', { ascending: false })
+            .range(page * limit, (page + 1) * limit);
+
+        if (error) throw error;
+
+        const rawPhotos = (data || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo));
+        const hasMore = rawPhotos.length > limit;
+        const photosToReturn = hasMore ? rawPhotos.slice(0, limit) : rawPhotos;
+
+        return {
+            photos: photosToReturn,
+            hasMore
+        };
+    } catch (error) {
+        console.error("Error fetching paginated photos:", error);
+        return { photos: [], hasMore: false };
+    }
+}
+
 export async function updatePhotosOrder(orderedIds: string[]): Promise<boolean> {
     try {
         const promises = orderedIds.map((id, index) =>

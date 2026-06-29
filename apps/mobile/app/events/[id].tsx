@@ -7,7 +7,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { getEventById, getSubEvents, logGuestLogin, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getRetainedMediaIdsForEventGrace, getUsers, UserProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage } from '@/lib/database';
+import { getEventById, getSubEvents, logGuestLogin, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getUsers, UserProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { styles, FunkyFonts } from '../../components/eventStyles';
@@ -965,6 +965,9 @@ export default function EventDetailScreen() {
     fetchStorage();
   }, [fetchStorage, photos.length]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [photoPage, setPhotoPage] = useState(0);
+  const [hasMorePhotos, setHasMorePhotos] = useState(false);
+  const [loadingMorePhotos, setLoadingMorePhotos] = useState(false);
   const [galleryMediaTab, setGalleryMediaTab] = useState<'photos' | 'videos'>('photos');
   const photoItems = React.useMemo(() => photos.filter(isPhotoMedia), [photos]);
   const videoItems = React.useMemo(() => photos.filter(isVideoMedia), [photos]);
@@ -1063,7 +1066,7 @@ export default function EventDetailScreen() {
         setIsOwner(ownerAccess);
 
         // Fetch sub-events, vendors, guest logs, and photos concurrently
-        const [subs, vendorsData, logs, eventPhotos, retainedIds] = await Promise.all([
+        const [subs, vendorsData, logs, photoDataResult, retainedIds] = await Promise.all([
           getSubEvents(id, eventData.legacyId),
           eventData.vendors && eventData.vendors.length > 0
             ? Promise.all(eventData.vendors.map((vid: string) => getBusinessById(vid)))
@@ -1071,7 +1074,7 @@ export default function EventDetailScreen() {
           user
             ? getEventLogs(id)
             : Promise.resolve([]),
-          getEventPhotos(eventData.id, eventData.legacyId),
+          getEventPhotosPaginated(eventData.id, eventData.legacyId, 0, 24),
           getRetainedMediaIdsForEventGrace(eventData.id, eventData.legacyId),
         ]);
 
@@ -1097,7 +1100,9 @@ export default function EventDetailScreen() {
 
         setSubEvents(normalizedSubs);
         setLinkedVendors(vendorsData.filter(v => v !== null) as Business[]);
-        setPhotos(eventPhotos);
+        setPhotos(photoDataResult.photos);
+        setPhotoPage(0);
+        setHasMorePhotos(photoDataResult.hasMore);
         setRetainedMediaIds(new Set(retainedIds));
 
         if (ownerAccess || hasSharedAdminAccess) {
@@ -1127,17 +1132,42 @@ export default function EventDetailScreen() {
     setLoadingPhotos(true);
     const perfPhotosStart = Date.now();
     try {
-      const [eventPhotos, retainedIds] = await Promise.all([
-        getEventPhotos(eventId, legacyId),
+      const [photoDataResult, retainedIds] = await Promise.all([
+        getEventPhotosPaginated(eventId, legacyId, 0, 24),
         getRetainedMediaIdsForEventGrace(eventId, legacyId),
       ]);
-      setPhotos(eventPhotos);
+      setPhotos(photoDataResult.photos);
+      setPhotoPage(0);
+      setHasMorePhotos(photoDataResult.hasMore);
       setRetainedMediaIds(new Set(retainedIds));
       console.log(`[PERF] loadPhotos completed in ${Date.now() - perfPhotosStart}ms`);
     } catch (err) {
       console.error('[EventDetail] Photos load error:', err);
     } finally {
       setLoadingPhotos(false);
+    }
+  };
+
+  const handleLoadMorePhotos = async () => {
+    if (loadingMorePhotos || !hasMorePhotos || !event) return;
+    setLoadingMorePhotos(true);
+    const nextPage = photoPage + 1;
+    const activeId = selectedAdminGallery !== undefined
+      ? (selectedAdminGallery ? selectedAdminGallery.id : event.id)
+      : (activeSubEvent ? activeSubEvent.id : event.id);
+    const legacyId = selectedAdminGallery !== undefined
+      ? (selectedAdminGallery ? selectedAdminGallery.legacyId : event.legacyId)
+      : (activeSubEvent ? activeSubEvent.legacyId : event.legacyId);
+
+    try {
+      const { photos: nextPhotos, hasMore } = await getEventPhotosPaginated(activeId, legacyId, nextPage, 24);
+      setPhotos(prev => [...prev, ...nextPhotos]);
+      setPhotoPage(nextPage);
+      setHasMorePhotos(hasMore);
+    } catch (err) {
+      console.error('[EventDetail] Load more photos error:', err);
+    } finally {
+      setLoadingMorePhotos(false);
     }
   };
 
@@ -6223,6 +6253,45 @@ export default function EventDetailScreen() {
                         );
                       })()
                     )}
+
+                    {hasMorePhotos && activeGalleryItems.length > 0 && (
+                      <TouchableOpacity
+                        style={[
+                          localStyles.loadMoreButton,
+                          {
+                            backgroundColor: selectedTemplate.accentBg || 'transparent',
+                            borderColor: selectedTemplate.accent || '#CCA43B',
+                            borderRadius: selectedTemplate.radius || 24,
+                          },
+                          isSportsTemplate && {
+                            backgroundColor: sportsTheme.accent + '20',
+                            borderColor: sportsTheme.accent,
+                          }
+                        ]}
+                        onPress={handleLoadMorePhotos}
+                        disabled={loadingMorePhotos}
+                        activeOpacity={0.8}
+                      >
+                        {loadingMorePhotos ? (
+                          <ActivityIndicator color={isSportsTemplate ? sportsTheme.accent : (selectedTemplate.accent || '#CCA43B')} />
+                        ) : (
+                          <Text
+                            style={[
+                              localStyles.loadMoreText,
+                              {
+                                color: selectedTemplate.text || '#cbd5e1',
+                                fontFamily: selectedTemplate.bodyBold,
+                              },
+                              isSportsTemplate && {
+                                color: sportsTheme.accent,
+                              }
+                            ]}
+                          >
+                            Load More
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
                 </>
@@ -7101,5 +7170,26 @@ const localStyles = StyleSheet.create({
   progressBarFill: {
     height: '100%',
     borderRadius: 3,
+  },
+  loadMoreButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 24,
+    marginBottom: 16,
+    alignSelf: 'center',
+    minWidth: 180,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  loadMoreText: {
+    fontSize: 13,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
 });
