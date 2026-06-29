@@ -5,6 +5,7 @@ export type AdminAction =
   | 'updateUserRole'
   | 'updateUserDuration'
   | 'updateUserPlanDates'
+  | 'resetUserData'
   | 'deleteUser'
   | 'deleteEvent'
   | 'deleteGuest';
@@ -14,6 +15,9 @@ export interface AdminActionResult {
   error?: string;
   count?: number;
   synced?: number;
+  eventsDeleted?: number;
+  mediaDeleted?: number;
+  guestsDeleted?: number;
 }
 
 function getApiBaseUrl() {

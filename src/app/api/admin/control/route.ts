@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getCachedBackblazeAuth, BackblazeAuth } from "@/lib/backblaze";
 
 export const runtime = "nodejs";
 
@@ -77,6 +78,59 @@ function addDurationToDate(startDate: string, duration: string) {
   const end = new Date(start);
   end.setUTCMonth(end.getUTCMonth() + (monthsByDuration[duration] || 1));
   return toDateOnly(end);
+}
+
+function uniqueValues(values: Array<string | null | undefined>) {
+  return Array.from(new Set(values.map(value => String(value || "").trim()).filter(Boolean)));
+}
+
+function chunkArray<T>(items: T[], size = 100) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
+async function deleteB2File(auth: BackblazeAuth, bucketId: string, key: string) {
+  try {
+    const listResponse = await fetch(`${auth.apiUrl}/b2api/v3/b2_list_file_names`, {
+      method: "POST",
+      headers: {
+        Authorization: auth.authorizationToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        bucketId,
+        startFileName: key,
+        maxFileCount: 1,
+        prefix: key,
+      }),
+    });
+
+    if (!listResponse.ok) return false;
+
+    const listData = await listResponse.json();
+    const file = listData.files?.find((item: { fileName: string; fileId?: string }) => item.fileName === key);
+    if (!file?.fileId) return true;
+
+    const deleteResponse = await fetch(`${auth.apiUrl}/b2api/v3/b2_delete_file_version`, {
+      method: "POST",
+      headers: {
+        Authorization: auth.authorizationToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fileName: key,
+        fileId: file.fileId,
+      }),
+    });
+
+    return deleteResponse.ok;
+  } catch (error) {
+    console.warn(`[admin/control] Could not delete B2 file ${key}:`, error);
+    return false;
+  }
 }
 
 async function verifySuperAdmin(request: NextRequest) {
@@ -325,6 +379,198 @@ async function deleteUser(
   if (profileError) throw profileError;
 }
 
+async function collectEventTreeIds(
+  supabaseAdmin: ReturnType<typeof getAdminClient>,
+  rootIds: string[]
+) {
+  const collected = new Set(rootIds.filter(Boolean));
+  let frontier = Array.from(collected);
+
+  while (frontier.length > 0) {
+    const nextFrontier: string[] = [];
+    for (const chunk of chunkArray(frontier, 100)) {
+      const { data: children, error } = await supabaseAdmin
+        .from("events")
+        .select("id")
+        .in("parent_id", chunk);
+
+      if (error) throw error;
+
+      for (const child of children || []) {
+        if (child.id && !collected.has(child.id)) {
+          collected.add(child.id);
+          nextFrontier.push(child.id);
+        }
+      }
+    }
+    frontier = nextFrontier;
+  }
+
+  return Array.from(collected);
+}
+
+async function resetUserData(
+  supabaseAdmin: ReturnType<typeof getAdminClient>,
+  payload: Record<string, unknown>
+) {
+  const uid = String(payload.uid || "");
+  if (!uid) {
+    throw new Error("User id is required");
+  }
+
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from("profiles")
+    .select("id, email, phone, role, delegated_by")
+    .eq("id", uid)
+    .maybeSingle();
+
+  if (profileError) throw profileError;
+  if (!profile) throw new Error("User profile was not found");
+  if (profile.role === "admin" && !profile.delegated_by) {
+    throw new Error("Super admin data reset is disabled");
+  }
+
+  const ownerIdentifiers = uniqueValues([profile.id, profile.email, profile.phone]);
+  const ownerIdentifierLower = ownerIdentifiers.map(value => value.toLowerCase());
+
+  const directEventIds = new Set<string>();
+  for (const chunk of chunkArray(ownerIdentifiers, 100)) {
+    const { data: ownedEvents, error: ownedEventsError } = await supabaseAdmin
+      .from("events")
+      .select("id")
+      .in("created_by", chunk);
+
+    if (ownedEventsError) throw ownedEventsError;
+    (ownedEvents || []).forEach(event => {
+      if (event.id) directEventIds.add(event.id);
+    });
+  }
+
+  const eventIds = await collectEventTreeIds(supabaseAdmin, Array.from(directEventIds));
+  const photoRowsById = new Map<string, { id: string; storage_key?: string | null }>();
+
+  for (const chunk of chunkArray(eventIds, 100)) {
+    if (chunk.length === 0) continue;
+    const { data: eventPhotos, error: eventPhotosError } = await supabaseAdmin
+      .from("photos")
+      .select("id, storage_key")
+      .in("event_id", chunk);
+
+    if (eventPhotosError) throw eventPhotosError;
+    (eventPhotos || []).forEach(photo => photoRowsById.set(photo.id, photo));
+  }
+
+  for (const chunk of chunkArray(ownerIdentifiers, 100)) {
+    const { data: uploadedPhotos, error: uploadedPhotosError } = await supabaseAdmin
+      .from("photos")
+      .select("id, storage_key")
+      .in("user_id", chunk);
+
+    if (uploadedPhotosError) throw uploadedPhotosError;
+    (uploadedPhotos || []).forEach(photo => photoRowsById.set(photo.id, photo));
+  }
+
+  const photoRows = Array.from(photoRowsById.values());
+  const photoIds = photoRows.map(photo => photo.id).filter(Boolean);
+
+  if (photoRows.length > 0) {
+    const auth = await getCachedBackblazeAuth();
+    const bucketId = requireEnv("B2_BUCKET_ID");
+    for (const photo of photoRows) {
+      if (!photo.storage_key) continue;
+      await Promise.all([
+        deleteB2File(auth, bucketId, photo.storage_key),
+        deleteB2File(auth, bucketId, `${photo.storage_key}-thumbnail.webp`),
+        deleteB2File(auth, bucketId, `${photo.storage_key}-preview.webp`),
+      ]);
+    }
+  }
+
+  for (const chunk of chunkArray(photoIds, 100)) {
+    if (chunk.length === 0) continue;
+    const { error: likesError } = await supabaseAdmin.from("likes").delete().in("photo_id", chunk);
+    if (likesError) throw likesError;
+
+    const { error: commentsError } = await supabaseAdmin.from("comments").delete().in("photo_id", chunk);
+    if (commentsError) throw commentsError;
+
+    const { error: photosError } = await supabaseAdmin.from("photos").delete().in("id", chunk);
+    if (photosError) throw photosError;
+  }
+
+  let guestsDeleted = 0;
+  for (const chunk of chunkArray(eventIds, 100)) {
+    if (chunk.length === 0) continue;
+    const { count, error: guestsError } = await supabaseAdmin
+      .from("guests")
+      .delete({ count: "exact" })
+      .or(`event_id.in.(${chunk.join(",")}),parent_event_id.in.(${chunk.join(",")})`);
+
+    if (guestsError) throw guestsError;
+    guestsDeleted += count || 0;
+  }
+
+  for (const chunk of chunkArray(ownerIdentifiers, 100)) {
+    const { count, error } = await supabaseAdmin
+      .from("guests")
+      .delete({ count: "exact" })
+      .in("parent_event_owner_id", chunk);
+
+    if (error) throw error;
+    guestsDeleted += count || 0;
+  }
+
+  const { data: candidateGuests, error: candidateGuestsError } = await supabaseAdmin
+    .from("guests")
+    .select("id, phone");
+
+  if (candidateGuestsError) throw candidateGuestsError;
+
+  const directGuestIds = (candidateGuests || [])
+    .filter(guest => {
+      const idPrefix = String(guest.id || "").split("_")[0].toLowerCase();
+      const phone = String(guest.phone || "").toLowerCase();
+      return ownerIdentifierLower.includes(idPrefix) || ownerIdentifierLower.includes(phone);
+    })
+    .map(guest => guest.id)
+    .filter(Boolean);
+
+  for (const chunk of chunkArray(directGuestIds, 100)) {
+    const { count, error } = await supabaseAdmin.from("guests").delete({ count: "exact" }).in("id", chunk);
+    if (error) throw error;
+    guestsDeleted += count || 0;
+  }
+
+  for (const chunk of chunkArray(eventIds, 100)) {
+    if (chunk.length === 0) continue;
+    const { error: assignmentsByEventError } = await supabaseAdmin
+      .from("profile_assigned_events")
+      .delete()
+      .in("event_id", chunk);
+    if (assignmentsByEventError) throw assignmentsByEventError;
+  }
+
+  const { error: assignmentsByProfileError } = await supabaseAdmin
+    .from("profile_assigned_events")
+    .delete()
+    .eq("profile_id", uid);
+
+  if (assignmentsByProfileError) throw assignmentsByProfileError;
+
+  const sortedEventIds = [...eventIds].reverse();
+
+  for (const eventId of sortedEventIds) {
+    const { error } = await supabaseAdmin.from("events").delete().eq("id", eventId);
+    if (error) throw error;
+  }
+
+  return {
+    eventsDeleted: eventIds.length,
+    mediaDeleted: photoRows.length,
+    guestsDeleted,
+  };
+}
+
 async function deleteEventTree(
   supabaseAdmin: ReturnType<typeof getAdminClient>,
   eventId: string
@@ -338,6 +584,38 @@ async function deleteEventTree(
 
   for (const child of children || []) {
     await deleteEventTree(supabaseAdmin, child.id);
+  }
+
+  const { data: photos, error: photosSelectError } = await supabaseAdmin
+    .from("photos")
+    .select("id, storage_key")
+    .eq("event_id", eventId);
+
+  if (photosSelectError) throw photosSelectError;
+
+  const photoRows = photos || [];
+  const photoIds = photoRows.map(photo => photo.id).filter(Boolean);
+
+  if (photoRows.length > 0) {
+    const auth = await getCachedBackblazeAuth();
+    const bucketId = requireEnv("B2_BUCKET_ID");
+    for (const photo of photoRows) {
+      if (!photo.storage_key) continue;
+      await Promise.all([
+        deleteB2File(auth, bucketId, photo.storage_key),
+        deleteB2File(auth, bucketId, `${photo.storage_key}-thumbnail.webp`),
+        deleteB2File(auth, bucketId, `${photo.storage_key}-preview.webp`),
+      ]);
+    }
+  }
+
+  for (const chunk of chunkArray(photoIds, 100)) {
+    if (chunk.length === 0) continue;
+    const { error: likesError } = await supabaseAdmin.from("likes").delete().in("photo_id", chunk);
+    if (likesError) throw likesError;
+
+    const { error: commentsError } = await supabaseAdmin.from("comments").delete().in("photo_id", chunk);
+    if (commentsError) throw commentsError;
   }
 
   const { error: photosError } = await supabaseAdmin
@@ -407,6 +685,10 @@ export async function POST(request: NextRequest) {
       case "updateUserPlanDates": {
         await updateUserPlanDates(supabaseAdmin, payload);
         return jsonResponse({ success: true });
+      }
+      case "resetUserData": {
+        const result = await resetUserData(supabaseAdmin, payload);
+        return jsonResponse({ success: true, ...result });
       }
       case "deleteUser": {
         await deleteUser(supabaseAdmin, payload);

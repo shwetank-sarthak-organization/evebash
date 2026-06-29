@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { Event, Photo, UserProfile } from '../lib/analytics';
-import { Search, Mail, Phone, Calendar, Clock, Filter, Users, ShieldCheck, CreditCard, Activity, ChevronDown } from 'lucide-react';
+import { Search, Mail, Phone, Calendar, Clock, Filter, Users, ShieldCheck, CreditCard, Activity, ChevronDown, RotateCcw, Trash2 } from 'lucide-react';
 
 interface Props {
   users: UserProfile[];
@@ -9,6 +9,8 @@ interface Props {
   onPlanChange?: (userId: string, role: string) => Promise<void> | void;
   onDurationChange?: (userId: string, duration: string) => Promise<void> | void;
   onPlanDatesChange?: (userId: string, startDate: string, endDate: string) => Promise<void> | void;
+  onResetUserData?: (userId: string) => Promise<void> | void;
+  onDeleteEvent?: (eventId: string) => Promise<void> | void;
 }
 
 const planOptions = [
@@ -60,6 +62,15 @@ const formatGb = (bytes: number) => {
   return gb.toFixed(2);
 };
 
+const formatMediaSize = (bytes: number) => {
+  if (!bytes) return '0 MB';
+  const gb = bytesToGb(bytes);
+  if (gb >= 1) return `${gb.toFixed(2)} GB`;
+  const mb = bytes / (1024 ** 2);
+  if (mb >= 1) return `${mb.toFixed(1)} MB`;
+  return '<1 MB';
+};
+
 const formatDateInputValue = (value?: string) => {
   if (!value) return '';
   const parsed = new Date(value);
@@ -99,13 +110,16 @@ const openDatePicker = (event: React.MouseEvent<HTMLInputElement>) => {
   }
 };
 
-export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onPlanChange, onDurationChange, onPlanDatesChange }) => {
+export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onPlanChange, onDurationChange, onPlanDatesChange, onResetUserData, onDeleteEvent }) => {
   const [search, setSearch] = useState('');
   const [planFilter, setPlanFilter] = useState('all');
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [savingDurationUserId, setSavingDurationUserId] = useState<string | null>(null);
   const [savingDatesUserId, setSavingDatesUserId] = useState<string | null>(null);
+  const [resettingUserId, setResettingUserId] = useState<string | null>(null);
+  const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
   const [expandedEventsUserId, setExpandedEventsUserId] = useState<string | null>(null);
+  const [expandedSubGalleriesEventId, setExpandedSubGalleriesEventId] = useState<string | null>(null);
 
   const handlePlanChange = async (userId: string, role: string) => {
     if (!onPlanChange) return;
@@ -145,6 +159,48 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
       await onPlanDatesChange(userId, nextStartDate, nextEndDate);
     } finally {
       setSavingDatesUserId(null);
+    }
+  };
+
+  const handleResetUserData = async (user: UserProfile) => {
+    if (!onResetUserData || resettingUserId) return;
+    const label = user.email || user.name || user.id;
+    const confirmed = window.confirm(
+      `Reset all uploaded/created data for ${label}?\n\nThis will delete this user's galleries, media, guest access records, and uploaded files. The user account itself will remain.`
+    );
+    if (!confirmed) return;
+
+    const typed = window.prompt(`Type RESET to confirm data reset for ${label}.`);
+    if (typed !== 'RESET') return;
+
+    setResettingUserId(user.id);
+    try {
+      await onResetUserData(user.id);
+    } finally {
+      setResettingUserId(null);
+    }
+  };
+
+  const handleDeleteEvent = async (event: Event & { subGalleries?: Event[] }) => {
+    if (!onDeleteEvent || deletingEventId) return;
+    const title = event.title || 'Untitled Event';
+    const subGalleryCount = event.subGalleries?.length || 0;
+    const cascadeNote = subGalleryCount > 0
+      ? `\n\nThis will also delete ${subGalleryCount} sub-gallery${subGalleryCount === 1 ? '' : 'ies'} inside this event.`
+      : '';
+    const confirmed = window.confirm(
+      `Delete "${title}"?\n\nThis will delete the event, its media, guest records, and uploaded files.${cascadeNote}`
+    );
+    if (!confirmed) return;
+
+    const typed = window.prompt(`Type DELETE to confirm deletion of "${title}".`);
+    if (typed !== 'DELETE') return;
+
+    setDeletingEventId(event.id);
+    try {
+      await onDeleteEvent(event.id);
+    } finally {
+      setDeletingEventId(null);
     }
   };
 
@@ -188,16 +244,29 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
   }, [users, search, planFilter]);
 
   const userUsageMetrics = useMemo(() => {
-    const metrics = new Map<string, { eventCount: number; imageBytes: number; videoBytes: number; events: Event[] }>();
+    const metrics = new Map<string, {
+      mainEventCount: number;
+      subGalleryCount: number;
+      imageBytes: number;
+      videoBytes: number;
+      mainEvents: Array<Event & { mediaBytes: number; totalMediaBytes: number; subGalleries: Array<Event & { mediaBytes: number }> }>;
+    }>();
     const userKeyByIdentifier = new Map<string, string>();
+    const eventMediaBytes = new Map<string, number>();
+
+    photos.forEach(photo => {
+      if (!photo.eventId) return;
+      eventMediaBytes.set(photo.eventId, (eventMediaBytes.get(photo.eventId) || 0) + (Number(photo.size) || 0));
+    });
 
     users.forEach(user => {
-      metrics.set(user.id, { eventCount: 0, imageBytes: 0, videoBytes: 0, events: [] });
+      metrics.set(user.id, { mainEventCount: 0, subGalleryCount: 0, imageBytes: 0, videoBytes: 0, mainEvents: [] });
       if (user.id) userKeyByIdentifier.set(user.id.toLowerCase(), user.id);
       if (user.email) userKeyByIdentifier.set(user.email.toLowerCase(), user.id);
     });
 
     const eventOwnerById = new Map<string, string>();
+    const allEventsByUser = new Map<string, Event[]>();
 
     events.forEach(event => {
       const ownerId = (event.createdBy || event.createdById || '').toLowerCase();
@@ -208,11 +277,62 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
       }
 
       if (!userId) return;
-      const current = metrics.get(userId);
-      if (current) {
-        current.eventCount += 1;
-        current.events.push(event);
-      }
+      const currentEvents = allEventsByUser.get(userId) || [];
+      currentEvents.push(event);
+      allEventsByUser.set(userId, currentEvents);
+    });
+
+    allEventsByUser.forEach((userEvents, userId) => {
+      const metric = metrics.get(userId);
+      if (!metric) return;
+
+      const subGalleriesByParent = new Map<string, Event[]>();
+      const orphanSubGalleries: Event[] = [];
+      const mainEvents: Event[] = [];
+
+      userEvents.forEach(event => {
+        const isSubGallery = Boolean(event.parentId) || event.type === 'sub';
+        if (isSubGallery) {
+          const parentId = event.parentId || '';
+          if (parentId) {
+            const current = subGalleriesByParent.get(parentId) || [];
+            current.push(event);
+            subGalleriesByParent.set(parentId, current);
+          } else {
+            orphanSubGalleries.push(event);
+          }
+        } else {
+          mainEvents.push(event);
+        }
+      });
+
+      const sortByDateDesc = (a: Event, b: Event) => {
+        const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bDate - aDate;
+      };
+
+      metric.mainEvents = mainEvents
+        .sort(sortByDateDesc)
+        .map(event => {
+          const homeMediaBytes = eventMediaBytes.get(event.id) || 0;
+          const subGalleries = (subGalleriesByParent.get(event.id) || [])
+            .sort(sortByDateDesc)
+            .map(subGallery => ({
+              ...subGallery,
+              mediaBytes: eventMediaBytes.get(subGallery.id) || 0,
+            }));
+          const totalMediaBytes = subGalleries.reduce((sum, subGallery) => sum + subGallery.mediaBytes, homeMediaBytes);
+
+          return {
+            ...event,
+            mediaBytes: homeMediaBytes,
+            totalMediaBytes,
+            subGalleries,
+          };
+        });
+      metric.mainEventCount = metric.mainEvents.length;
+      metric.subGalleryCount = Array.from(subGalleriesByParent.values()).reduce((sum, list) => sum + list.length, 0) + orphanSubGalleries.length;
     });
 
     photos.forEach(photo => {
@@ -234,14 +354,6 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
       } else {
         current.imageBytes += size;
       }
-    });
-
-    metrics.forEach(metric => {
-      metric.events.sort((a, b) => {
-        const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return bDate - aDate;
-      });
     });
 
     return metrics;
@@ -362,7 +474,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
 
       {/* Users Table */}
       <div className="overflow-x-auto border border-slate-800/60 rounded-2xl">
-        <table className="w-full min-w-[1900px] text-left text-sm text-slate-400">
+        <table className="w-full min-w-[2050px] text-left text-sm text-slate-400">
           <thead className="text-xs text-slate-500 uppercase bg-slate-900/30 border-b border-slate-800">
             <tr>
               <th scope="col" className="py-3.5 px-4 whitespace-nowrap">User Details</th>
@@ -375,6 +487,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
               <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Duration</th>
               <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Plan Start Date</th>
               <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Plan End Date</th>
+              <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Reset Data</th>
               <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Joined Date</th>
               <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Last Active</th>
             </tr>
@@ -397,7 +510,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
               const paidPlan = isPaidPlan(user.role);
               const planStartDate = formatDateInputValue(user.planStartDate);
               const planEndDate = formatDateInputValue(user.planEndDate);
-              const usage = userUsageMetrics.get(user.id) || { eventCount: 0, imageBytes: 0, videoBytes: 0, events: [] };
+              const usage = userUsageMetrics.get(user.id) || { mainEventCount: 0, subGalleryCount: 0, imageBytes: 0, videoBytes: 0, mainEvents: [] };
               const totalBytes = usage.imageBytes + usage.videoBytes;
               const isEventsExpanded = expandedEventsUserId === user.id;
 
@@ -469,11 +582,19 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
                   {/* Events Created */}
                     <td className="py-3.5 px-4 min-w-36 whitespace-nowrap text-xs font-semibold text-slate-300">
                       <div className="flex items-center gap-2">
-                        <span>{usage.eventCount}</span>
-                        {usage.eventCount > 0 && (
+                        <div className="flex flex-col">
+                          <span>{usage.mainEventCount}</span>
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                            {usage.subGalleryCount} sub galleries
+                          </span>
+                        </div>
+                        {usage.mainEventCount > 0 && (
                           <button
                             type="button"
-                            onClick={() => setExpandedEventsUserId(isEventsExpanded ? null : user.id)}
+                            onClick={() => {
+                              setExpandedEventsUserId(isEventsExpanded ? null : user.id);
+                              setExpandedSubGalleriesEventId(null);
+                            }}
                             className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-700 bg-slate-950 text-slate-300 transition-colors hover:border-indigo-500/60 hover:text-white"
                             aria-label={isEventsExpanded ? 'Hide created events' : 'Show created events'}
                           >
@@ -564,6 +685,20 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
                       <span className="text-xs font-semibold text-slate-600">-</span>
                     )}
                   </td>
+
+                  {/* Reset Data */}
+                  <td className="py-3.5 px-4 min-w-36">
+                    <button
+                      type="button"
+                      disabled={!onResetUserData || resettingUserId === user.id || user.role === 'admin'}
+                      onClick={() => handleResetUserData(user)}
+                      className="inline-flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-300 transition-colors hover:border-rose-400 hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-45"
+                      title={user.role === 'admin' ? 'Super admin data reset is disabled' : 'Reset all uploaded and created data for this user'}
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      {resettingUserId === user.id ? 'Resetting...' : 'Reset'}
+                    </button>
+                  </td>
                   
                   {/* Date Joined */}
                   <td className="py-3.5 px-4 min-w-40 text-xs whitespace-nowrap">
@@ -584,44 +719,143 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
                   </tr>
                   {isEventsExpanded && (
                     <tr className="bg-slate-950/70">
-                      <td colSpan={12} className="px-4 py-4">
+                      <td colSpan={13} className="px-4 py-4">
                         <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
                           <div className="mb-3 flex items-center justify-between">
                             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
                               Events created by {user.name || user.email}
                             </p>
                             <span className="rounded-full border border-indigo-500/20 bg-indigo-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-300">
-                              {usage.eventCount} total
+                              {usage.mainEventCount} main · {usage.subGalleryCount} sub
                             </span>
                           </div>
-                          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
-                            {usage.events.map(event => (
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                            {usage.mainEvents.map(event => {
+                              const subExpandedKey = `${user.id}:${event.id}`;
+                              const subGalleriesOpen = expandedSubGalleriesEventId === subExpandedKey;
+                              return (
                               <div
                                 key={event.id}
                                 className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-3"
                               >
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="min-w-0">
-                                    <p className="truncate text-sm font-bold text-white">
-                                      {event.title || 'Untitled Event'}
-                                    </p>
+                                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                      <p className="truncate text-sm font-bold text-white">
+                                        {event.title || 'Untitled Event'}
+                                      </p>
+                                      <span className="shrink-0 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-300">
+                                        {formatMediaSize(event.totalMediaBytes)}
+                                      </span>
+                                    </div>
                                     <p className="mt-1 text-xs text-slate-500">
                                       {formatDisplayDate(event.createdAt)}
                                     </p>
                                   </div>
                                   <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                                    event.type === 'sub'
-                                      ? 'border-sky-500/20 bg-sky-500/10 text-sky-300'
-                                      : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+                                    'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
                                   }`}>
-                                    {event.type === 'sub' ? 'Sub' : 'Main'}
+                                    Main
                                   </span>
                                 </div>
-                                <p className="mt-2 truncate text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                                  ID: {event.id}
-                                </p>
+                                <div className="mt-3 flex items-center justify-between gap-3">
+                                  <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                                    ID: {event.id}
+                                  </p>
+                                  <div className="flex shrink-0 items-center gap-2">
+                                    {event.subGalleries.length > 0 ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => setExpandedSubGalleriesEventId(subGalleriesOpen ? null : subExpandedKey)}
+                                        className="inline-flex items-center gap-1 rounded-lg border border-sky-500/20 bg-sky-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-sky-300 transition-colors hover:border-sky-400/50 hover:text-sky-100"
+                                      >
+                                        {event.subGalleries.length} sub
+                                        <ChevronDown className={`h-3 w-3 transition-transform ${subGalleriesOpen ? 'rotate-180' : ''}`} />
+                                      </button>
+                                    ) : (
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
+                                        No sub
+                                      </span>
+                                    )}
+                                    <button
+                                      type="button"
+                                      disabled={!onDeleteEvent || deletingEventId === event.id}
+                                      onClick={() => handleDeleteEvent(event)}
+                                      className="inline-flex items-center gap-1 rounded-lg border border-rose-500/25 bg-rose-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-rose-300 transition-colors hover:border-rose-400/60 hover:bg-rose-500/20 disabled:cursor-wait disabled:opacity-50"
+                                      title="Delete this event and its uploaded data"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                      {deletingEventId === event.id ? 'Deleting' : 'Delete'}
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="mt-3 rounded-lg border border-emerald-500/10 bg-emerald-500/[0.04] px-3 py-2">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                        <p className="truncate text-xs font-bold text-emerald-100">
+                                          Home Section
+                                        </p>
+                                        <span className="shrink-0 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300">
+                                          {formatMediaSize(event.mediaBytes)}
+                                        </span>
+                                      </div>
+                                      <p className="mt-1 text-[10px] text-slate-500">
+                                        Primary gallery media
+                                      </p>
+                                    </div>
+                                    <span className="shrink-0 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300">
+                                      Home
+                                    </span>
+                                  </div>
+                                </div>
+                                {subGalleriesOpen && (
+                                  <div className="mt-3 space-y-2 border-t border-slate-800 pt-3">
+                                    {event.subGalleries.map(subGallery => (
+                                      <div
+                                        key={subGallery.id}
+                                        className="rounded-lg border border-sky-500/10 bg-sky-500/[0.04] px-3 py-2"
+                                      >
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="min-w-0">
+                                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                              <p className="truncate text-xs font-bold text-sky-100">
+                                                {subGallery.title || 'Untitled Sub-gallery'}
+                                              </p>
+                                              <span className="shrink-0 rounded-full border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-300">
+                                                {formatMediaSize(subGallery.mediaBytes)}
+                                              </span>
+                                            </div>
+                                            <p className="mt-1 text-[10px] text-slate-500">
+                                              {formatDisplayDate(subGallery.createdAt)}
+                                            </p>
+                                          </div>
+                                          <span className="shrink-0 rounded-full border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-300">
+                                            Sub
+                                          </span>
+                                        </div>
+                                        <div className="mt-2 flex items-center justify-between gap-3">
+                                          <p className="truncate text-[9px] font-semibold uppercase tracking-wider text-slate-600">
+                                            ID: {subGallery.id}
+                                          </p>
+                                          <button
+                                            type="button"
+                                            disabled={!onDeleteEvent || deletingEventId === subGallery.id}
+                                            onClick={() => handleDeleteEvent(subGallery)}
+                                            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-rose-500/20 bg-rose-500/10 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-rose-300 transition-colors hover:border-rose-400/60 hover:bg-rose-500/20 disabled:cursor-wait disabled:opacity-50"
+                                            title="Delete this sub-gallery and its uploaded data"
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                            {deletingEventId === subGallery.id ? 'Deleting' : 'Delete'}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                            ))}
+                            );
+                            })}
                           </div>
                         </div>
                       </td>
@@ -633,7 +867,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
             
             {filteredUsers.length === 0 && (
               <tr>
-                <td colSpan={12} className="py-12 text-center text-slate-500 bg-slate-900/10">
+                <td colSpan={13} className="py-12 text-center text-slate-500 bg-slate-900/10">
                   <p className="text-base font-semibold">No accounts found</p>
                   <p className="text-xs text-slate-600 mt-1">Try adjusting your filters or search query.</p>
                 </td>

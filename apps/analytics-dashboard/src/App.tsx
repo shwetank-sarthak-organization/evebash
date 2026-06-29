@@ -277,9 +277,9 @@ export default function App() {
 
   // Admin Dashboard Workspace
   return (
-    <div className="min-h-screen flex bg-[#0b0f19] text-slate-200 font-sans">
+    <div className="h-screen overflow-hidden flex bg-[#0b0f19] text-slate-200 font-sans">
       {/* Sidebar Navigation */}
-      <aside className="w-64 border-r border-slate-800 bg-[#0f1422] flex flex-col justify-between shrink-0">
+      <aside className="h-screen w-64 border-r border-slate-800 bg-[#0f1422] flex flex-col justify-between shrink-0">
         <div>
           {/* Logo Brand */}
           <div className="h-16 border-b border-slate-800 flex items-center px-6">
@@ -389,7 +389,7 @@ export default function App() {
       </aside>
 
       {/* Main Panel Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      <div className="h-screen flex-1 flex flex-col min-w-0 overflow-y-auto">
         {/* Header Block */}
         <header className="h-16 border-b border-slate-800 bg-[#0f1422] flex items-center justify-between px-8">
           <h2 className="text-sm font-bold text-white uppercase tracking-wider">
@@ -443,6 +443,16 @@ export default function App() {
                       { uid: userId, planStartDate, planEndDate },
                       ''
                     )
+                  }
+                  onResetUserData={userId =>
+                    handleAdminAction(
+                      'resetUserData',
+                      { uid: userId },
+                      'User data reset completed.'
+                    )
+                  }
+                  onDeleteEvent={eventId =>
+                    handleAdminAction('deleteEvent', { eventId }, 'Event deleted.')
                   }
                 />
               )}
