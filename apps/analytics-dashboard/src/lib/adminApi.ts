@@ -8,7 +8,9 @@ export type AdminAction =
   | 'resetUserData'
   | 'deleteUser'
   | 'deleteEvent'
-  | 'deleteGuest';
+  | 'deleteGuest'
+  | 'scanBackblazeOrphans'
+  | 'deleteBackblazeOrphans';
 
 export interface AdminActionResult {
   success: boolean;
@@ -18,6 +20,12 @@ export interface AdminActionResult {
   eventsDeleted?: number;
   mediaDeleted?: number;
   guestsDeleted?: number;
+  orphanFiles?: number;
+  orphanBytes?: number;
+  referencedFiles?: number;
+  totalFiles?: number;
+  deletedFiles?: number;
+  deletedBytes?: number;
 }
 
 function getApiBaseUrl() {

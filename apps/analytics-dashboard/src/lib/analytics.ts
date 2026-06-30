@@ -180,12 +180,22 @@ export interface Photo {
 
 export async function fetchPhotos(): Promise<Photo[]> {
   try {
-    const { data, error } = await supabase
-      .from('photos')
-      .select('id, event_id, size, media_type, resource_type, user_id');
+    const pageSize = 1000;
+    const rows: any[] = [];
 
-    if (error) throw error;
-    return (data || []).map(d => ({
+    for (let from = 0; ; from += pageSize) {
+      const { data, error } = await supabase
+        .from('photos')
+        .select('id, event_id, size, media_type, resource_type, user_id')
+        .range(from, from + pageSize - 1);
+
+      if (error) throw error;
+
+      rows.push(...(data || []));
+      if (!data || data.length < pageSize) break;
+    }
+
+    return rows.map(d => ({
       id: d.id,
       eventId: d.event_id || '',
       size: Number(d.size) || 0,

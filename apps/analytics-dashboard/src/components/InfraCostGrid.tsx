@@ -13,8 +13,11 @@ import {
   Globe,
   Info,
   Server,
-  Sparkles
+  Sparkles,
+  Search,
+  Trash2
 } from 'lucide-react';
+import { runAdminAction, type AdminActionResult } from '../lib/adminApi';
 
 interface Props {
   stats: DashboardStats | null;
@@ -24,10 +27,35 @@ interface Props {
   photos: Photo[];
 }
 
+type BackblazeUsage = {
+  bucketName?: string;
+  fileCount?: number;
+  totalBytes?: number;
+  totalGb?: number;
+  timestamp?: string;
+  error?: string;
+  code?: string;
+};
+
+type BackblazeOrphanScan = Pick<
+  AdminActionResult,
+  'totalFiles' | 'orphanFiles' | 'orphanBytes' | 'referencedFiles' | 'deletedFiles' | 'deletedBytes'
+>;
+
 const formatSize = (bytes: number | null | undefined) => {
   if (bytes === null || bytes === undefined || isNaN(bytes) || bytes < 0) return '0 B';
   if (bytes === 0) return '0 B';
   const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  const sizeIndex = Math.min(Math.max(0, i), sizes.length - 1);
+  return parseFloat((bytes / Math.pow(k, sizeIndex)).toFixed(2)) + ' ' + sizes[sizeIndex];
+};
+
+const formatDecimalSize = (bytes: number | null | undefined) => {
+  if (bytes === null || bytes === undefined || isNaN(bytes) || bytes < 0) return '0 B';
+  if (bytes === 0) return '0 B';
+  const k = 1000;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   const sizeIndex = Math.min(Math.max(0, i), sizes.length - 1);
@@ -53,6 +81,11 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   const [liveCfTransformations, setLiveCfTransformations] = useState<number | null>(null);
   const [liveCfStoredImages, setLiveCfStoredImages] = useState<number | null>(null);
   const [liveCfSubscriptions, setLiveCfSubscriptions] = useState<any[]>([]);
+  const [liveB2Usage, setLiveB2Usage] = useState<BackblazeUsage | null>(null);
+  const [orphanScan, setOrphanScan] = useState<BackblazeOrphanScan | null>(null);
+  const [orphanActionLoading, setOrphanActionLoading] = useState<'scan' | 'delete' | null>(null);
+  const [orphanActionError, setOrphanActionError] = useState('');
+  const [billingRefreshKey, setBillingRefreshKey] = useState(0);
 
   useEffect(() => {
     const fetchBilling = async () => {
@@ -91,6 +124,22 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
             setLiveCfSubscriptions(cfData.subscriptions);
           }
         }
+
+        // Fetch Backblaze B2 bucket usage
+        const b2Res = await fetch(`${apiBase}/api/admin/backblaze-usage`);
+        const b2Data = await b2Res.json().catch(() => null);
+        if (b2Res.ok && b2Data) {
+          setLiveB2Usage(b2Data);
+          if (typeof b2Data.totalGb === 'number') {
+            setSimulatedStorageGB(Math.max(50, Math.ceil(b2Data.totalGb)));
+          }
+        } else {
+          setLiveB2Usage({
+            bucketName: b2Data?.bucketName || 'EveBash',
+            error: b2Data?.error || `Backblaze usage API returned status ${b2Res.status}`,
+            code: b2Data?.code,
+          });
+        }
       } catch (err: any) {
         console.error('Failed to fetch live billing data:', err);
       } finally {
@@ -99,7 +148,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
     };
 
     fetchBilling();
-  }, [photos.length]);
+  }, [photos.length, billingRefreshKey]);
   
   
   // Extract and default simulated storage
@@ -107,6 +156,11 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
     return photos.reduce((sum, p) => sum + (Number(p.size) || 0), 0);
   }, [photos]);
   const totalStorageGB = totalStorage / (1024 * 1024 * 1024);
+  const liveB2Bytes = typeof liveB2Usage?.totalBytes === 'number' ? liveB2Usage.totalBytes : null;
+  const actualB2StorageBytes = liveB2Bytes ?? totalStorage;
+  const actualB2StorageGB = actualB2StorageBytes / (1024 * 1024 * 1024);
+  const actualB2StorageDecimalGB = actualB2StorageBytes / 1000000000;
+  const b2StorageSource = liveB2Bytes !== null ? 'Backblaze live bucket' : 'Database media fallback';
   const defaultSimStorage = Math.max(50, Math.ceil(totalStorageGB));
   const [simulatedStorageGB, setSimulatedStorageGB] = useState<number>(defaultSimStorage);
   
@@ -168,7 +222,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   // 2. Backblaze B2 Costs (Storage, Class B, Class C, Egress)
   
   // Storage Cost: $0.006/GB (First 10GB Free)
-  const b2StorageCostMonth = Math.max(0, totalStorageGB - 10) * 0.006;
+  const b2StorageCostMonth = Math.max(0, actualB2StorageDecimalGB - 10) * 0.006;
   const b2StorageCostYear = b2StorageCostMonth * 12;
 
   // Class B (downloads/metadata): 2,500/day = 75,000/month Free. Overage is $0.004 per 10k requests.
@@ -195,7 +249,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   const simStorageCostMonth = Math.max(0, simulatedStorageGB - 10) * 0.006;
   
   // Scale media count proportionally to simulated storage size
-  const simMediaCount = Math.ceil(photos.length * (simulatedStorageGB / Math.max(1, totalStorageGB || 1)));
+  const simMediaCount = Math.ceil(photos.length * (simulatedStorageGB / Math.max(1, actualB2StorageGB || 1)));
   
   const simClassBCallsMonth = simMediaCount * 20;
   const simClassBOverage = Math.max(0, simClassBCallsMonth - 75000);
@@ -276,6 +330,46 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
 
     return { photoCount, photoSize, videoCount, videoSize };
   }, [photos]);
+
+  const handleScanBackblazeOrphans = async () => {
+    setOrphanActionLoading('scan');
+    setOrphanActionError('');
+    try {
+      const result = await runAdminAction('scanBackblazeOrphans');
+      if (!result.success) {
+        setOrphanActionError(result.error || 'Could not scan Backblaze orphan files.');
+        return;
+      }
+      setOrphanScan(result);
+    } catch (error: any) {
+      setOrphanActionError(error?.message || 'Could not scan Backblaze orphan files.');
+    } finally {
+      setOrphanActionLoading(null);
+    }
+  };
+
+  const handleDeleteBackblazeOrphans = async () => {
+    const typed = window.prompt('This deletes Backblaze files not referenced by the database. Type DELETE to continue.');
+    if (typed !== 'DELETE') return;
+
+    setOrphanActionLoading('delete');
+    setOrphanActionError('');
+    try {
+      const result = await runAdminAction('deleteBackblazeOrphans', {
+        confirm: 'DELETE_ORPHAN_B2_FILES',
+      });
+      if (!result.success) {
+        setOrphanActionError(result.error || 'Could not delete Backblaze orphan files.');
+        return;
+      }
+      setOrphanScan(result);
+      setBillingRefreshKey(key => key + 1);
+    } catch (error: any) {
+      setOrphanActionError(error?.message || 'Could not delete Backblaze orphan files.');
+    } finally {
+      setOrphanActionLoading(null);
+    }
+  };
 
   // Navigation Subtabs
   const tabs = [
@@ -610,13 +704,19 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                   <tr className="hover:bg-slate-800/10 transition-colors">
                     <td className="py-4 px-4 font-semibold text-white">Backblaze B2</td>
                     <td className="py-4 px-4">
-                      Live file sizes aggregate dynamically from database metadata.
+                      Live bucket usage is read from Backblaze B2 and falls back to database media metadata if the API is unavailable.
                     </td>
-                    <td className="py-4 px-4 text-indigo-400 font-mono">Database Metadata (Photos Table)</td>
+                    <td className="py-4 px-4 text-indigo-400 font-mono">B2_KEY_ID / B2_APPLICATION_KEY</td>
                     <td className="py-4 px-4">
-                      <span className="px-2 py-0.5 text-[9px] font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 rounded-full flex items-center w-fit">
-                        <ShieldCheck className="w-3 h-3 mr-1" /> Dynamic Estimator Active
-                      </span>
+                      {liveB2Bytes !== null ? (
+                        <span className="px-2 py-0.5 text-[9px] font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 rounded-full flex items-center w-fit">
+                          <ShieldCheck className="w-3 h-3 mr-1" /> Live Sync Active ({liveB2Usage?.bucketName || 'EveBash'})
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 text-[9px] font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full">
+                          Fallback / Database Metadata
+                        </span>
+                      )}
                     </td>
                   </tr>
 
@@ -661,7 +761,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
               <div>
                 <p className="font-semibold text-slate-200">Dynamic Estimations vs API Keys:</p>
                 <p className="mt-1 leading-relaxed">
-                  Instead of exposing production API credentials directly on client-side analytics dashboards, this page calculates cost models dynamically using live database metrics (like photo counts, media storage size, and registered profile rows). This provides exact values without compromising security.
+                  Instead of exposing production API credentials directly on client-side analytics dashboards, this page calls server-side admin APIs for live service data and uses database metrics as fallback. This provides useful values without compromising security.
                 </p>
               </div>
             </div>
@@ -957,9 +1057,9 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
             <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg group bg-gradient-to-br from-[#111827]/90 to-sky-950/15">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-sky-400 text-xs font-black uppercase tracking-wider">Total Combined Media</p>
+                  <p className="text-sky-400 text-xs font-black uppercase tracking-wider">EveBash Bucket Size</p>
                   <h3 className="text-2xl font-black text-white mt-1 group-hover:text-sky-400 transition-colors">
-                    {formatNumber(photos.length)}
+                    {formatDecimalSize(actualB2StorageBytes)}
                   </h3>
                 </div>
                 <div className="p-2.5 bg-sky-500/10 rounded-xl text-sky-400">
@@ -967,9 +1067,83 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                 </div>
               </div>
               <p className="text-[10px] text-slate-500 mt-2.5">
-                Total Media Size: <span className="text-slate-350 font-bold">{formatSize(totalStorage)}</span>
+                Source: <span className="text-slate-350 font-bold">{b2StorageSource}</span>
+                {typeof liveB2Usage?.fileCount === 'number' ? (
+                  <span> | Files: <span className="text-slate-350 font-bold">{formatNumber(liveB2Usage.fileCount)}</span></span>
+                ) : null}
               </p>
+              {liveB2Usage?.error ? (
+                <p className="text-[10px] text-amber-400 mt-2 leading-relaxed">
+                  Live Backblaze usage unavailable{liveB2Usage.code ? ` (${liveB2Usage.code})` : ''}: {liveB2Usage.error}. Showing database media total.
+                </p>
+              ) : null}
             </div>
+          </div>
+
+          {/* Backblaze orphan cleanup */}
+          <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+              <div>
+                <h4 className="text-md font-bold text-white flex items-center">
+                  <Search className="w-5 h-5 mr-2 text-sky-400" />
+                  Backblaze Orphan File Cleanup
+                </h4>
+                <p className="text-slate-400 text-xs mt-1 max-w-3xl leading-relaxed">
+                  Scan the EveBash bucket for files under <span className="font-mono text-slate-300">events/</span> and <span className="font-mono text-slate-300">profiles/</span> that are no longer referenced by current database media records.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleScanBackblazeOrphans}
+                  disabled={orphanActionLoading !== null}
+                  className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/15 disabled:opacity-60 disabled:cursor-not-allowed text-xs font-bold transition-colors"
+                >
+                  <Search className="w-4 h-4 mr-2" />
+                  {orphanActionLoading === 'scan' ? 'Scanning...' : 'Scan Orphans'}
+                </button>
+                <button
+                  onClick={handleDeleteBackblazeOrphans}
+                  disabled={orphanActionLoading !== null || !orphanScan?.orphanFiles}
+                  className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/15 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold transition-colors"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {orphanActionLoading === 'delete' ? 'Deleting...' : 'Delete Orphans'}
+                </button>
+              </div>
+            </div>
+
+            {orphanActionError ? (
+              <div className="mt-4 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs text-rose-300">
+                {orphanActionError}
+              </div>
+            ) : null}
+
+            {orphanScan ? (
+              <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Managed B2 Files</p>
+                  <p className="mt-1 text-xl font-black text-white">{formatNumber(orphanScan.totalFiles || 0)}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Referenced Files</p>
+                  <p className="mt-1 text-xl font-black text-emerald-400">{formatNumber(orphanScan.referencedFiles || 0)}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Orphan Files</p>
+                  <p className="mt-1 text-xl font-black text-amber-400">{formatNumber(orphanScan.orphanFiles || 0)}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Orphan Size</p>
+                  <p className="mt-1 text-xl font-black text-sky-400">{formatDecimalSize(orphanScan.orphanBytes || 0)}</p>
+                  {typeof orphanScan.deletedFiles === 'number' ? (
+                    <p className="mt-1 text-[10px] text-emerald-400">
+                      Deleted {formatNumber(orphanScan.deletedFiles)} files ({formatDecimalSize(orphanScan.deletedBytes || 0)})
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           {/* Interactive B2 storage slider & comparison */}
@@ -1041,6 +1215,16 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
 
                 <div className="space-y-4 text-xs">
                   <div className="flex justify-between py-2 border-b border-slate-800/40">
+                    <span className="text-slate-400">Bucket</span>
+                    <span className="text-white font-semibold">{liveB2Usage?.bucketName || 'EveBash'}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-slate-800/40">
+                    <span className="text-slate-400">Live Bucket Files</span>
+                    <span className="text-white font-semibold">
+                      {typeof liveB2Usage?.fileCount === 'number' ? formatNumber(liveB2Usage.fileCount) : 'Unavailable'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-slate-800/40">
                     <span className="text-slate-400">Free Tier Limit</span>
                     <span className="text-white font-semibold">10 GB / month</span>
                   </div>
@@ -1099,7 +1283,10 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                   <tr className="hover:bg-slate-800/10 transition-colors">
                     <td className="py-4 px-4 font-semibold text-white">Object Storage Size (GB)</td>
                     <td className="py-4 px-4">10 GB Free</td>
-                    <td className="py-4 px-4">{totalStorageGB.toFixed(3)} GB ({formatSize(totalStorage)})</td>
+                    <td className="py-4 px-4">
+                      {actualB2StorageDecimalGB.toFixed(3)} GB ({formatDecimalSize(actualB2StorageBytes)})
+                      <span className="block text-[10px] text-slate-500 mt-1">{b2StorageSource}</span>
+                    </td>
                     <td className="py-4 px-4 font-mono font-bold text-sky-400">${b2StorageCostMonth.toFixed(4)}</td>
                     <td className="py-4 px-4 font-mono text-slate-400">${b2StorageCostYear.toFixed(4)}</td>
                   </tr>

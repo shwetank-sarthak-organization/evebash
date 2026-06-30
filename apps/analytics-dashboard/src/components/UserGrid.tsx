@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { Event, Photo, UserProfile } from '../lib/analytics';
-import { Search, Mail, Phone, Calendar, Clock, Filter, Users, ShieldCheck, CreditCard, Activity, ChevronDown, RotateCcw, Trash2 } from 'lucide-react';
+import { Search, Mail, Phone, Calendar, Clock, Filter, Users, ShieldCheck, CreditCard, Activity, ChevronDown, RotateCcw, Trash2, UserX } from 'lucide-react';
 
 interface Props {
   users: UserProfile[];
@@ -10,6 +10,7 @@ interface Props {
   onDurationChange?: (userId: string, duration: string) => Promise<void> | void;
   onPlanDatesChange?: (userId: string, startDate: string, endDate: string) => Promise<void> | void;
   onResetUserData?: (userId: string) => Promise<void> | void;
+  onDeleteUser?: (userId: string) => Promise<void> | void;
   onDeleteEvent?: (eventId: string) => Promise<void> | void;
 }
 
@@ -110,13 +111,14 @@ const openDatePicker = (event: React.MouseEvent<HTMLInputElement>) => {
   }
 };
 
-export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onPlanChange, onDurationChange, onPlanDatesChange, onResetUserData, onDeleteEvent }) => {
+export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onPlanChange, onDurationChange, onPlanDatesChange, onResetUserData, onDeleteUser, onDeleteEvent }) => {
   const [search, setSearch] = useState('');
   const [planFilter, setPlanFilter] = useState('all');
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [savingDurationUserId, setSavingDurationUserId] = useState<string | null>(null);
   const [savingDatesUserId, setSavingDatesUserId] = useState<string | null>(null);
   const [resettingUserId, setResettingUserId] = useState<string | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
   const [expandedEventsUserId, setExpandedEventsUserId] = useState<string | null>(null);
   const [expandedSubGalleriesEventId, setExpandedSubGalleriesEventId] = useState<string | null>(null);
@@ -166,11 +168,11 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
     if (!onResetUserData || resettingUserId) return;
     const label = user.email || user.name || user.id;
     const confirmed = window.confirm(
-      `Reset all uploaded/created data for ${label}?\n\nThis will delete this user's galleries, media, guest access records, and uploaded files. The user account itself will remain.`
+      `Clear uploaded data for ${label}?\n\nThis will delete this user's galleries, media, guest access records, face-search data, and uploaded files. The user account itself will remain.`
     );
     if (!confirmed) return;
 
-    const typed = window.prompt(`Type RESET to confirm data reset for ${label}.`);
+    const typed = window.prompt(`Type RESET to confirm clearing uploaded data for ${label}.`);
     if (typed !== 'RESET') return;
 
     setResettingUserId(user.id);
@@ -178,6 +180,25 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
       await onResetUserData(user.id);
     } finally {
       setResettingUserId(null);
+    }
+  };
+
+  const handleDeleteUser = async (user: UserProfile) => {
+    if (!onDeleteUser || deletingUserId) return;
+    const label = user.email || user.name || user.id;
+    const confirmed = window.confirm(
+      `Permanently delete ${label}?\n\nThis will first clear uploaded data, then delete the login account and profile. This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    const typed = window.prompt(`Type DELETE USER to permanently delete ${label}.`);
+    if (typed !== 'DELETE USER') return;
+
+    setDeletingUserId(user.id);
+    try {
+      await onDeleteUser(user.id);
+    } finally {
+      setDeletingUserId(null);
     }
   };
 
@@ -474,7 +495,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
 
       {/* Users Table */}
       <div className="overflow-x-auto border border-slate-800/60 rounded-2xl">
-        <table className="w-full min-w-[2050px] text-left text-sm text-slate-400">
+        <table className="w-full min-w-[2180px] text-left text-sm text-slate-400">
           <thead className="text-xs text-slate-500 uppercase bg-slate-900/30 border-b border-slate-800">
             <tr>
               <th scope="col" className="py-3.5 px-4 whitespace-nowrap">User Details</th>
@@ -487,7 +508,8 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
               <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Duration</th>
               <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Plan Start Date</th>
               <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Plan End Date</th>
-              <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Reset Data</th>
+              <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Clear Data</th>
+              <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Delete User</th>
               <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Joined Date</th>
               <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Last Active</th>
             </tr>
@@ -686,17 +708,31 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
                     )}
                   </td>
 
-                  {/* Reset Data */}
+                  {/* Clear Data */}
                   <td className="py-3.5 px-4 min-w-36">
                     <button
                       type="button"
-                      disabled={!onResetUserData || resettingUserId === user.id || user.role === 'admin'}
+                      disabled={!onResetUserData || resettingUserId === user.id}
                       onClick={() => handleResetUserData(user)}
-                      className="inline-flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-300 transition-colors hover:border-rose-400 hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-45"
-                      title={user.role === 'admin' ? 'Super admin data reset is disabled' : 'Reset all uploaded and created data for this user'}
+                      className="inline-flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-300 transition-colors hover:border-amber-400 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-45"
+                      title="Clear uploaded and created data for this user"
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
-                      {resettingUserId === user.id ? 'Resetting...' : 'Reset'}
+                      {resettingUserId === user.id ? 'Clearing Data...' : 'Clear Data'}
+                    </button>
+                  </td>
+
+                  {/* Delete User */}
+                  <td className="py-3.5 px-4 min-w-36">
+                    <button
+                      type="button"
+                      disabled={!onDeleteUser || deletingUserId === user.id || user.role === 'admin'}
+                      onClick={() => handleDeleteUser(user)}
+                      className="inline-flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-300 transition-colors hover:border-rose-400 hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-45"
+                      title={user.role === 'admin' ? 'Super admin deletion is disabled' : 'Delete this user account permanently'}
+                    >
+                      <UserX className="h-3.5 w-3.5" />
+                      {deletingUserId === user.id ? 'Deleting User...' : 'Delete User'}
                     </button>
                   </td>
                   
@@ -719,7 +755,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
                   </tr>
                   {isEventsExpanded && (
                     <tr className="bg-slate-950/70">
-                      <td colSpan={13} className="px-4 py-4">
+                      <td colSpan={14} className="px-4 py-4">
                         <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
                           <div className="mb-3 flex items-center justify-between">
                             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -867,7 +903,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
             
             {filteredUsers.length === 0 && (
               <tr>
-                <td colSpan={13} className="py-12 text-center text-slate-500 bg-slate-900/10">
+                <td colSpan={14} className="py-12 text-center text-slate-500 bg-slate-900/10">
                   <p className="text-base font-semibold">No accounts found</p>
                   <p className="text-xs text-slate-600 mt-1">Try adjusting your filters or search query.</p>
                 </td>

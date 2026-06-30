@@ -448,8 +448,11 @@ export default function App() {
                     handleAdminAction(
                       'resetUserData',
                       { uid: userId },
-                      'User data reset completed.'
+                      'User uploaded data cleared.'
                     )
+                  }
+                  onDeleteUser={userId =>
+                    handleAdminAction('deleteUser', { uid: userId }, 'User deleted.')
                   }
                   onDeleteEvent={eventId =>
                     handleAdminAction('deleteEvent', { eventId }, 'Event deleted.')

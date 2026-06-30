@@ -92,6 +92,146 @@ function chunkArray<T>(items: T[], size = 100) {
   return chunks;
 }
 
+type B2ListedFile = {
+  fileName: string;
+  fileId?: string;
+  contentLength?: number;
+  size?: number;
+};
+
+function keyFromMediaUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  try {
+    const parsed = new URL(trimmed);
+    return decodeURIComponent(parsed.pathname.replace(/^\/+/, ""));
+  } catch {
+    return trimmed.replace(/^\/+/, "");
+  }
+}
+
+function addMediaKeyVariants(target: Set<string>, key: string) {
+  const cleanKey = key.trim().replace(/^\/+/, "");
+  if (!cleanKey) return;
+  target.add(cleanKey);
+  target.add(`${cleanKey}-thumbnail.webp`);
+  target.add(`${cleanKey}-preview.webp`);
+}
+
+function isManagedB2MediaFile(fileName: string) {
+  return fileName.startsWith("events/") || fileName.startsWith("profiles/");
+}
+
+async function listAllB2Files(auth: BackblazeAuth, bucketId: string) {
+  const files: B2ListedFile[] = [];
+  let startFileName: string | undefined;
+
+  do {
+    const response = await fetch(`${auth.apiUrl}/b2api/v3/b2_list_file_names`, {
+      method: "POST",
+      headers: {
+        Authorization: auth.authorizationToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        bucketId,
+        maxFileCount: 10000,
+        ...(startFileName ? { startFileName } : {}),
+      }),
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      throw new Error(payload?.message || `Backblaze file listing failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    files.push(...((data.files || []) as B2ListedFile[]));
+    startFileName = data.nextFileName || undefined;
+  } while (startFileName);
+
+  return files;
+}
+
+async function deleteB2FileVersion(auth: BackblazeAuth, file: B2ListedFile) {
+  if (!file.fileName || !file.fileId) return false;
+  const response = await fetch(`${auth.apiUrl}/b2api/v3/b2_delete_file_version`, {
+    method: "POST",
+    headers: {
+      Authorization: auth.authorizationToken,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      fileName: file.fileName,
+      fileId: file.fileId,
+    }),
+  });
+
+  return response.ok;
+}
+
+async function getReferencedB2Keys(supabaseAdmin: ReturnType<typeof getAdminClient>) {
+  const referencedKeys = new Set<string>();
+  const pageSize = 1000;
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabaseAdmin
+      .from("photos")
+      .select("storage_key")
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+
+    for (const row of data || []) {
+      if (row.storage_key) addMediaKeyVariants(referencedKeys, String(row.storage_key));
+    }
+
+    if (!data || data.length < pageSize) break;
+  }
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .select("profile_image")
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+
+    for (const row of data || []) {
+      if (row.profile_image) addMediaKeyVariants(referencedKeys, keyFromMediaUrl(String(row.profile_image)));
+    }
+
+    if (!data || data.length < pageSize) break;
+  }
+
+  return referencedKeys;
+}
+
+async function inspectBackblazeOrphans(supabaseAdmin: ReturnType<typeof getAdminClient>) {
+  const auth = await getCachedBackblazeAuth();
+  const bucketId = requireEnv("B2_BUCKET_ID");
+  const [files, referencedKeys] = await Promise.all([
+    listAllB2Files(auth, bucketId),
+    getReferencedB2Keys(supabaseAdmin),
+  ]);
+
+  const managedFiles = files.filter(file => file.fileName && isManagedB2MediaFile(file.fileName));
+  const orphanFiles = managedFiles.filter(file => !referencedKeys.has(file.fileName));
+  const orphanBytes = orphanFiles.reduce((sum, file) => sum + (Number(file.contentLength ?? file.size ?? 0) || 0), 0);
+  const totalBytes = managedFiles.reduce((sum, file) => sum + (Number(file.contentLength ?? file.size ?? 0) || 0), 0);
+
+  return {
+    auth,
+    bucketId,
+    managedFiles,
+    orphanFiles,
+    orphanBytes,
+    totalBytes,
+    referencedFiles: managedFiles.length - orphanFiles.length,
+  };
+}
+
 async function deleteB2File(auth: BackblazeAuth, bucketId: string, key: string) {
   try {
     const listResponse = await fetch(`${auth.apiUrl}/b2api/v3/b2_list_file_names`, {
@@ -359,6 +499,8 @@ async function deleteUser(
     throw new Error("User id is required");
   }
 
+  await resetUserData(supabaseAdmin, { uid });
+
   const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(uid);
   if (authError) {
     console.warn("[admin/control] Auth deletion warning:", authError.message);
@@ -426,9 +568,7 @@ async function resetUserData(
 
   if (profileError) throw profileError;
   if (!profile) throw new Error("User profile was not found");
-  if (profile.role === "admin" && !profile.delegated_by) {
-    throw new Error("Super admin data reset is disabled");
-  }
+  const isGlobalSuperAdmin = profile.role === "admin" && !profile.delegated_by;
 
   const ownerIdentifiers = uniqueValues([profile.id, profile.email, profile.phone]);
   const ownerIdentifierLower = ownerIdentifiers.map(value => value.toLowerCase());
@@ -488,6 +628,9 @@ async function resetUserData(
 
   for (const chunk of chunkArray(photoIds, 100)) {
     if (chunk.length === 0) continue;
+    const { error: facesByPhotoError } = await supabaseAdmin.from("faces").delete().in("image_id", chunk);
+    if (facesByPhotoError) throw facesByPhotoError;
+
     const { error: likesError } = await supabaseAdmin.from("likes").delete().in("photo_id", chunk);
     if (likesError) throw likesError;
 
@@ -501,6 +644,9 @@ async function resetUserData(
   let guestsDeleted = 0;
   for (const chunk of chunkArray(eventIds, 100)) {
     if (chunk.length === 0) continue;
+    const { error: facesByEventError } = await supabaseAdmin.from("faces").delete().in("event_id", chunk);
+    if (facesByEventError) throw facesByEventError;
+
     const { count, error: guestsError } = await supabaseAdmin
       .from("guests")
       .delete({ count: "exact" })
@@ -564,6 +710,20 @@ async function resetUserData(
     if (error) throw error;
   }
 
+  if (!isGlobalSuperAdmin) {
+    const { error: resetPlanError } = await supabaseAdmin
+      .from("profiles")
+      .update({
+        role: "free",
+        subscription_duration: "monthly",
+        plan_start_date: null,
+        plan_end_date: null,
+      })
+      .eq("id", uid);
+
+    if (resetPlanError) throw resetPlanError;
+  }
+
   return {
     eventsDeleted: eventIds.length,
     mediaDeleted: photoRows.length,
@@ -611,6 +771,9 @@ async function deleteEventTree(
 
   for (const chunk of chunkArray(photoIds, 100)) {
     if (chunk.length === 0) continue;
+    const { error: facesByPhotoError } = await supabaseAdmin.from("faces").delete().in("image_id", chunk);
+    if (facesByPhotoError) throw facesByPhotoError;
+
     const { error: likesError } = await supabaseAdmin.from("likes").delete().in("photo_id", chunk);
     if (likesError) throw likesError;
 
@@ -624,6 +787,13 @@ async function deleteEventTree(
     .eq("event_id", eventId);
 
   if (photosError) throw photosError;
+
+  const { error: facesByEventError } = await supabaseAdmin
+    .from("faces")
+    .delete()
+    .eq("event_id", eventId);
+
+  if (facesByEventError) throw facesByEventError;
 
   const { error: assignmentsError } = await supabaseAdmin
     .from("profile_assigned_events")
@@ -645,6 +815,45 @@ async function deleteEventTree(
     .eq("id", eventId);
 
   if (eventError) throw eventError;
+}
+
+async function scanBackblazeOrphans(supabaseAdmin: ReturnType<typeof getAdminClient>) {
+  const scan = await inspectBackblazeOrphans(supabaseAdmin);
+  return {
+    totalFiles: scan.managedFiles.length,
+    totalBytes: scan.totalBytes,
+    referencedFiles: scan.referencedFiles,
+    orphanFiles: scan.orphanFiles.length,
+    orphanBytes: scan.orphanBytes,
+  };
+}
+
+async function deleteBackblazeOrphans(supabaseAdmin: ReturnType<typeof getAdminClient>) {
+  const scan = await inspectBackblazeOrphans(supabaseAdmin);
+  let deletedFiles = 0;
+  let deletedBytes = 0;
+  const failedFiles: string[] = [];
+
+  for (const file of scan.orphanFiles) {
+    const deleted = await deleteB2FileVersion(scan.auth, file);
+    if (deleted) {
+      deletedFiles += 1;
+      deletedBytes += Number(file.contentLength ?? file.size ?? 0) || 0;
+    } else {
+      failedFiles.push(file.fileName);
+    }
+  }
+
+  return {
+    totalFiles: scan.managedFiles.length,
+    referencedFiles: scan.referencedFiles,
+    orphanFiles: scan.orphanFiles.length,
+    orphanBytes: scan.orphanBytes,
+    deletedFiles,
+    deletedBytes,
+    failedFiles: failedFiles.slice(0, 20),
+    failedCount: failedFiles.length,
+  };
 }
 
 export async function OPTIONS() {
@@ -706,6 +915,17 @@ export async function POST(request: NextRequest) {
         const { error } = await supabaseAdmin.from("guests").delete().eq("id", guestId);
         if (error) throw error;
         return jsonResponse({ success: true });
+      }
+      case "scanBackblazeOrphans": {
+        const result = await scanBackblazeOrphans(supabaseAdmin);
+        return jsonResponse({ success: true, ...result });
+      }
+      case "deleteBackblazeOrphans": {
+        if (payload.confirm !== "DELETE_ORPHAN_B2_FILES") {
+          throw new Error("Deletion confirmation is required");
+        }
+        const result = await deleteBackblazeOrphans(supabaseAdmin);
+        return jsonResponse({ success: true, ...result });
       }
       default:
         return jsonResponse({ success: false, error: "Unsupported admin action" }, 400);
