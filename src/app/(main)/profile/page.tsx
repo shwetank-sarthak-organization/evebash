@@ -30,9 +30,12 @@ import { useTheme } from "@/context/ThemeContext";
 import { uploadProfileImageToBackblaze } from "@/app/actions/userActions";
 import {
     getApprovedSharedEventsForUser,
+    getFollowersCount,
+    getFollowingCount,
     getUserEventCount,
     getUserPhotosCount,
     getUserTotalStorage,
+    isValidUsername,
     isUsernameUnique,
     updateUserPrivacy,
     updateUserProfile,
@@ -156,9 +159,12 @@ export default function ProfilePage() {
     const [photosCount, setPhotosCount] = useState(0);
     const [eventCount, setEventCount] = useState(0);
     const [joinedCount, setJoinedCount] = useState(0);
+    const [followersCount, setFollowersCount] = useState(0);
+    const [followingCount, setFollowingCount] = useState(0);
     const [loadingStats, setLoadingStats] = useState(true);
     const [profileImage, setProfileImage] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
+    const [removingImage, setRemovingImage] = useState(false);
     const [isPrivate, setIsPrivate] = useState(false);
     const [updatingPrivacy, setUpdatingPrivacy] = useState(false);
 
@@ -234,16 +240,20 @@ export default function ProfilePage() {
             setLoadingStats(true);
             try {
                 const identifiers = [user.uid, user.email, user.phone].filter(Boolean) as string[];
-                const [storage, photos, hosted, joined] = await Promise.all([
+                const [storage, photos, hosted, joined, followers, following] = await Promise.all([
                     getUserTotalStorage(identifiers),
                     getUserPhotosCount(user.uid),
                     getUserEventCount(user.uid),
                     getApprovedSharedEventsForUser(identifiers),
+                    getFollowersCount(user.uid),
+                    getFollowingCount(user.uid),
                 ]);
                 setStorageUsed(storage);
                 setPhotosCount(photos);
                 setEventCount(hosted);
                 setJoinedCount(joined.length);
+                setFollowersCount(followers);
+                setFollowingCount(following);
             } finally {
                 setLoadingStats(false);
             }
@@ -260,7 +270,7 @@ export default function ProfilePage() {
             setUsernameStatus("idle");
             return;
         }
-        if (!/^[a-z0-9_.]{3,30}$/.test(normalized)) {
+        if (!isValidUsername(normalized)) {
             setUsernameStatus(normalized ? "invalid" : "idle");
             return;
         }
@@ -315,6 +325,46 @@ export default function ProfilePage() {
         }
     };
 
+    const handleRemoveProfileImage = async () => {
+        if (!user?.uid || !profileImage || removingImage) return;
+        if (!window.confirm("Remove your profile photo?")) return;
+
+        setRemovingImage(true);
+        setSaveError("");
+        setSaveMessage("");
+
+        try {
+            const { data } = await supabase.auth.getSession();
+            const accessToken = data.session?.access_token;
+            if (!accessToken) {
+                setSaveError("Please sign in again before removing your profile photo.");
+                return;
+            }
+
+            const response = await fetch("/api/media/profile-image", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    "Content-Type": "application/json",
+                },
+            });
+
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                setSaveError(result.error || "Failed to remove profile photo.");
+                return;
+            }
+
+            setProfileImage(null);
+            setSaveMessage("Profile photo removed.");
+            window.setTimeout(() => setSaveMessage(""), 2500);
+        } catch {
+            setSaveError("Failed to remove profile photo.");
+        } finally {
+            setRemovingImage(false);
+        }
+    };
+
     const handleSave = async (event: FormEvent) => {
         event.preventDefault();
         if (!user) return;
@@ -329,7 +379,7 @@ export default function ProfilePage() {
             setSaveError("Please enter a valid email address.");
             return;
         }
-        if (!/^[a-z0-9_.]{3,30}$/.test(username) || usernameStatus === "taken" || usernameStatus === "checking") {
+        if (!isValidUsername(username) || usernameStatus === "taken" || usernameStatus === "checking") {
             setSaveError("Please choose a valid and available username.");
             return;
         }
@@ -391,11 +441,9 @@ export default function ProfilePage() {
                     <div className="bg-gradient-to-b from-slate-800 to-slate-950 px-6 py-8 sm:px-8">
                         <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-5">
-                                <button
-                                    type="button"
-                                    onClick={() => !uploading && fileInputRef.current?.click()}
-                                    className="group relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.5rem] border border-slate-700 bg-slate-950 text-slate-500 ring-4 ring-slate-900"
-                                    aria-label="Change profile photo"
+                                <div
+                                    className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.5rem] border border-slate-700 bg-slate-950 text-slate-500 ring-4 ring-slate-900"
+                                    aria-label="Profile photo"
                                 >
                                     {profileImage ? (
                                         // eslint-disable-next-line @next/next/no-img-element
@@ -403,16 +451,13 @@ export default function ProfilePage() {
                                     ) : (
                                         <User className="h-9 w-9" />
                                     )}
-                                    <span className="absolute inset-0 flex items-center justify-center bg-black/55 opacity-0 transition-opacity group-hover:opacity-100">
-                                        {uploading ? <Loader2 className="h-5 w-5 animate-spin text-white" /> : <Camera className="h-5 w-5 text-white" />}
-                                    </span>
-                                </button>
+                                </div>
                                 <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleImageUpload} />
                                 <div>
                                     <p className="text-sm font-black text-yellow-300">@{user.username || "set_username"}</p>
                                     <h1 className="mt-1 text-3xl font-black tracking-tight text-white">{user.name}</h1>
                                     <div className="mt-3 flex flex-wrap gap-2">
-                                        <span className="rounded-full border border-yellow-400/30 bg-yellow-400/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-yellow-300">
+                                        <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-emerald-300">
                                             {getPlanLabel(user.role)}
                                         </span>
                                         {getPersonasArray(user.persona).map((persona) => (
@@ -420,6 +465,15 @@ export default function ProfilePage() {
                                                 {persona}
                                             </span>
                                         ))}
+                                    </div>
+                                    <div className="mt-3 flex items-center gap-3 text-xs font-bold text-slate-400">
+                                        <span>
+                                            <span className="font-black text-white">{followersCount}</span> Followers
+                                        </span>
+                                        <span className="h-1 w-1 rounded-full bg-slate-700" />
+                                        <span>
+                                            <span className="font-black text-white">{followingCount}</span> Following
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -508,7 +562,7 @@ export default function ProfilePage() {
                                     </div>
                                     <div className="rounded-2xl bg-slate-900 p-4">
                                         <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Active Plan</p>
-                                        <p className="mt-1 text-xl font-black text-yellow-300">{getPlanLabel(user.role)}</p>
+                                        <p className="mt-1 text-xl font-black text-emerald-300">{getPlanLabel(user.role)}</p>
                                     </div>
                                     {subscriptionStatus?.message && (
                                         <div className={cn(
@@ -600,9 +654,42 @@ export default function ProfilePage() {
                     >
                         <div className="mb-6 flex items-center justify-between gap-4">
                             <h2 className="text-2xl font-black text-white">Edit Profile</h2>
-                            <button type="button" onClick={() => !saving && setIsEditing(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-slate-300">
+                            <button type="button" onClick={() => !saving && !removingImage && setIsEditing(false)} className="flex h-10 w-10 items-center justify-center self-end rounded-full bg-slate-900 text-slate-300 sm:self-auto">
                                 <X className="h-5 w-5" />
                             </button>
+                        </div>
+
+                        <div className="mb-8 flex flex-col items-center rounded-3xl border border-slate-800 bg-slate-900/50 p-5">
+                            <div className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-2 border-slate-700 bg-slate-950 text-slate-500">
+                                {profileImage ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={profileImage} alt="" className="h-full w-full object-cover" />
+                                ) : (
+                                    <User className="h-10 w-10" />
+                                )}
+                            </div>
+                            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => !uploading && fileInputRef.current?.click()}
+                                    disabled={uploading || removingImage || saving}
+                                    className="inline-flex items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-xs font-black text-sky-300 transition hover:bg-sky-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                                    Change Profile Photo
+                                </button>
+                                {profileImage ? (
+                                    <button
+                                        type="button"
+                                        onClick={handleRemoveProfileImage}
+                                        disabled={removingImage || uploading || saving}
+                                        className="inline-flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-xs font-black text-rose-300 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {removingImage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
+                                        Remove Profile Photo
+                                    </button>
+                                ) : null}
+                            </div>
                         </div>
 
                         <div className="grid gap-5 sm:grid-cols-2">
@@ -636,7 +723,7 @@ export default function ProfilePage() {
                                             {usernameStatus === "checking" && "Checking availability..."}
                                             {usernameStatus === "available" && "Username is available"}
                                             {usernameStatus === "taken" && "Username is already taken"}
-                                            {usernameStatus === "invalid" && "Use 3-30 lowercase letters, numbers, underscores, or dots"}
+                                            {usernameStatus === "invalid" && "Use 3-30 lowercase letters/numbers. Dots/underscores allowed only inside, not repeated."}
                                         </span>
                                     )}
                                 </label>

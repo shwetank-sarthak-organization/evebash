@@ -1450,12 +1450,21 @@ export async function denyRequest(phone: string) {
 /**
  * Checks if a username is unique.
  */
+const USERNAME_PATTERN = /^(?!.*[._]{2})[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])$/;
+
+export function isValidUsername(username: string): boolean {
+    return USERNAME_PATTERN.test(username.trim().toLowerCase());
+}
+
 export async function isUsernameUnique(username: string, excludeUid?: string): Promise<boolean> {
     try {
+        const normalizedUsername = username.trim().toLowerCase();
+        if (!isValidUsername(normalizedUsername)) return false;
+
         let queryBuilder = supabase
             .from('profiles')
             .select('id')
-            .eq('username', username.toLowerCase());
+            .eq('username', normalizedUsername);
 
         if (excludeUid) {
             queryBuilder = queryBuilder.neq('id', excludeUid);
@@ -1479,10 +1488,11 @@ export async function generateUniqueUsername(base: string): Promise<string> {
     username = username.replace(/^[_.]+|[_.]+$/g, "");
     
     if (username.length < 3) {
-        username = "user_" + username;
+        username = username ? `user_${username}` : "user";
     }
     if (username.length > 30) {
         username = username.substring(0, 30);
+        username = username.replace(/[_.]+$/g, "");
     }
     
     let candidate = username;
@@ -1537,6 +1547,14 @@ export async function updateUserProfile(uid: string, updateData: Partial<UserPro
 
         if (Object.keys(updateObj).length === 0) {
             return true;
+        }
+
+        if (typeof updateObj.username === "string") {
+            const username = updateObj.username.trim().toLowerCase();
+            if (!isValidUsername(username)) {
+                throw new Error("Invalid username format");
+            }
+            updateObj.username = username;
         }
 
         const { error } = await supabase

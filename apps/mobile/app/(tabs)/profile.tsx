@@ -22,6 +22,7 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { 
   updateUserPrivacy, 
+  isValidUsername,
   isUsernameUnique, 
   updateUserProfile,
   getUsers,
@@ -32,8 +33,9 @@ import {
   getApprovedSharedEventsForUser
 } from '@/lib/database';
 
-import { uploadProfileImage } from '@/lib/storage';
+import { removeProfileImage, uploadProfileImage } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
+import { getPlanDetails } from '@/lib/planLimits';
 
 const { width } = Dimensions.get('window');
 
@@ -61,7 +63,7 @@ const formatJoinedDate = (createdAt: any) => {
 };
 
 const getPersonasArray = (personaVal: any): string[] => {
-  if (!personaVal) return [];
+  if (!personaVal) return ['Guest'];
   
   let rawList: string[] = [];
   
@@ -165,6 +167,7 @@ export default function ProfileScreen() {
   const [editPersona, setEditPersona] = useState<string[]>([]);
   const [editImage, setEditImage] = useState<string | null>(null);
   const [editImageBase64, setEditImageBase64] = useState<string | null>(null);
+  const [editImageRemoved, setEditImageRemoved] = useState(false);
   const [editBirthday, setEditBirthday] = useState('');
   const [editAnniversaryDate, setEditAnniversaryDate] = useState('');
 
@@ -201,9 +204,8 @@ export default function ProfileScreen() {
       return;
     }
 
-    // Check syntax format (3-30 chars, lowercase alphanumeric, dot, underscore)
-    const regex = /^[a-z0-9_.]+$/;
-    if (normalized.length < 3 || normalized.length > 30 || !regex.test(normalized)) {
+    // Check syntax format (3-30 chars; lowercase letters/numbers with internal dot/underscore)
+    if (!isValidUsername(normalized)) {
       setUsernameStatus('invalid');
       setIsUsernameValid(false);
       return;
@@ -258,6 +260,7 @@ export default function ProfileScreen() {
     setEditPersona(getPersonasArray(user?.persona));
     setEditImage(user?.profileImage || null);
     setEditImageBase64(null);
+    setEditImageRemoved(false);
     setEditBirthday(user?.birthday || '');
     setEditAnniversaryDate(user?.anniversaryDate || '');
     setUsernameStatus('idle');
@@ -285,11 +288,42 @@ export default function ProfileScreen() {
         const asset = result.assets[0];
         setEditImage(asset.uri);
         setEditImageBase64(`data:image/jpeg;base64,${asset.base64}`);
+        setEditImageRemoved(false);
       }
     } catch (error) {
       console.error('Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image.');
     }
+  };
+
+  const handleRemoveProfileImage = () => {
+    if (!user?.profileImage || saving) return;
+
+    Alert.alert(
+      'Remove Profile Photo',
+      'Remove your current profile photo?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setSaving(true);
+            try {
+              await removeProfileImage();
+              setEditImage(null);
+              setEditImageBase64(null);
+              setEditImageRemoved(true);
+              Alert.alert('Success', 'Profile photo removed.');
+            } catch (error: any) {
+              Alert.alert('Error', error?.message || 'Failed to remove profile photo.');
+            } finally {
+              setSaving(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleSaveChanges = async () => {
@@ -310,7 +344,7 @@ export default function ProfileScreen() {
 
     setSaving(true);
     try {
-      let finalImageUrl = user.profileImage || '';
+      let finalImageUrl = editImageRemoved ? '' : (user.profileImage || '');
 
       if (editImageBase64) {
         const uploadResult = await uploadProfileImage(editImageBase64, user.uid);
@@ -496,6 +530,9 @@ export default function ProfileScreen() {
 
   if (!user) return null;
 
+  const planDetails = getPlanDetails(user.role);
+  const personas = getPersonasArray(user.persona);
+
   return (
     <View style={styles.safeArea}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -516,7 +553,29 @@ export default function ProfileScreen() {
               )}
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.userName}>{user.username || user.name}</Text>
+              <Text style={styles.userHandle}>@{user.username || 'set_username'}</Text>
+              <Text style={styles.userName} numberOfLines={1}>{user.name || user.username || 'EveBash User'}</Text>
+              <View style={styles.profileBadgeRow}>
+                <View
+                  style={[
+                    styles.profileBadge,
+                    styles.planBadge,
+                    {
+                      backgroundColor: planDetails.accentSoft,
+                      borderColor: planDetails.accent,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.planBadgeText, { color: planDetails.accent }]} numberOfLines={1}>
+                    {planDetails.name}
+                  </Text>
+                </View>
+                {personas.map((item) => (
+                  <View key={item} style={[styles.profileBadge, styles.personaBadge]}>
+                    <Text style={styles.personaBadgeText} numberOfLines={1}>{item}</Text>
+                  </View>
+                ))}
+              </View>
               <View style={styles.headerBadgeRow}>
                 <View style={styles.socialStatsRow}>
                   <TouchableOpacity 
@@ -827,6 +886,15 @@ export default function ProfileScreen() {
                 >
                   <Text style={styles.changePhotoText}>Change Profile Photo</Text>
                 </TouchableOpacity>
+                {user.profileImage ? (
+                  <TouchableOpacity
+                    onPress={handleRemoveProfileImage}
+                    disabled={saving}
+                    style={styles.removePhotoTextBtn}
+                  >
+                    <Text style={styles.removePhotoText}>Remove Profile Photo</Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
 
               {/* Edit Form */}
@@ -902,7 +970,7 @@ export default function ProfileScreen() {
                       )}
                       {usernameStatus === 'invalid' && (
                         <Text style={[styles.feedbackText, styles.feedbackInvalid]}>
-                          ⚠ 3-30 chars, lowercase, letters, numbers, underscores, or dots
+                          ⚠ 3-30 lowercase letters/numbers. Dots/underscores only inside, not repeated.
                         </Text>
                       )}
                     </View>
@@ -1263,17 +1331,53 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderColor: colors.cardBorder 
   },
   userName: { 
-    fontSize: 26, 
+    fontSize: 22,
     fontFamily: 'Outfit_800ExtraBold', 
-    color: colors.gold, 
-    letterSpacing: -0.5 
+    color: colors.white,
+    letterSpacing: 0,
+    marginTop: 1,
   },
   userHandle: {
-    fontSize: 14,
-    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 13,
+    fontFamily: 'Outfit_800ExtraBold',
     color: colors.gold,
-    marginTop: 2,
     textTransform: 'lowercase',
+  },
+  profileBadgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  profileBadge: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    maxWidth: '100%',
+  },
+  planBadge: {
+    backgroundColor: 'rgba(212, 175, 55, 0.12)',
+  },
+  planBadgeText: {
+    fontSize: 9,
+    fontFamily: 'Inter_800ExtraBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  personaBadge: {
+    backgroundColor: '#1e293b',
+    borderColor: '#334155',
+  },
+  personaBadgeText: {
+    fontSize: 9,
+    fontFamily: 'Inter_800ExtraBold',
+    color: '#cbd5e1',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   headerBadgeRow: {
     flexDirection: 'column',
@@ -1608,6 +1712,22 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     color: '#60a5fa',
     fontSize: 14,
     fontFamily: 'Outfit_600SemiBold',
+  },
+  removePhotoTextBtn: {
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(248, 113, 113, 0.28)',
+    backgroundColor: 'rgba(248, 113, 113, 0.08)',
+  },
+  removePhotoText: {
+    color: '#fb7185',
+    fontSize: 12,
+    fontFamily: 'Outfit_700Bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   formContainer: {
     gap: 20,

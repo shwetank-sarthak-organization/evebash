@@ -40,6 +40,13 @@ function getUploadEndpoints() {
     return Array.from(new Set(endpoints));
 }
 
+function getProfileImageDeleteEndpoints() {
+    return getUploadEndpoints().map((endpoint) => {
+        const replaced = endpoint.replace(/\/api\/media\/upload\/?$/, '/api/media/profile-image');
+        return replaced === endpoint ? joinUrl(endpoint, '/api/media/profile-image') : replaced;
+    });
+}
+
 async function fetchWithEndpointFallback(
     requestFactory: (endpoint: string) => Promise<Response>,
     context: string
@@ -177,6 +184,48 @@ export async function uploadProfileImage(base64: string, userId: string) {
         };
     } catch (error) {
         console.error('[Storage] Error in uploadProfileImage:', error);
+        throw error;
+    }
+}
+
+export async function removeProfileImage() {
+    try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+
+        if (!accessToken) {
+            throw new Error('Please log in before removing your profile image.');
+        }
+
+        const endpoints = getProfileImageDeleteEndpoints();
+        let lastError: unknown;
+
+        for (const endpoint of endpoints) {
+            try {
+                console.log(`[Storage] Trying profile image delete endpoint: ${endpoint}`);
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to remove profile image');
+                }
+
+                return result;
+            } catch (error) {
+                lastError = error;
+                console.warn(`[Storage] Profile image delete endpoint failed: ${endpoint}`, error);
+            }
+        }
+
+        throw new Error(lastError instanceof Error ? lastError.message : 'Failed to remove profile image');
+    } catch (error) {
+        console.error('[Storage] Error in removeProfileImage:', error);
         throw error;
     }
 }
