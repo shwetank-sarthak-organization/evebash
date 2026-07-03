@@ -171,13 +171,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!updated) {
-      console.warn(`[Resize Worker] Warning: No database row found matching storage_key "${storageKey}" after 4 attempts. Deleting stranded B2 thumbnail and preview...`);
-      const auth = await getCachedBackblazeAuth();
-      const bucketId = requireEnv("B2_BUCKET_ID");
-      await Promise.all([
-        deleteB2File(auth, bucketId, thumbnailKey),
-        deleteB2File(auth, bucketId, previewKey)
-      ]);
+      console.warn(`[Resize Worker] Warning: No database row found matching storage_key "${storageKey}" after 4 attempts. Leaving generated assets in B2.`);
     }
 
     console.log(`[Resize Worker] Successfully finished resizing for key: ${storageKey}`);

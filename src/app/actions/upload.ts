@@ -114,13 +114,13 @@ export async function uploadToBackblaze(base64File: string, folder: string, opti
         // Inline resizing — generate thumbnail and preview immediately
         if (resourceType === "image" && contentType && !contentType.startsWith("video/")) {
             const qstashToken = process.env.QSTASH_TOKEN;
-            if (qstashToken) {
+            if (process.env.NODE_ENV === "development") {
+                console.log(`[Server Action] Local development environment detected. Processing resizing locally in background for: ${storageKey}`);
+                localDevResizeAndUpload(bytes, storageKey, mediaDomain);
+            } else if (qstashToken) {
                 // QStash path: waitUntil keeps the function alive until publish completes
                 console.log(`[Server Action] Queuing resize via QStash for: ${storageKey}`);
                 waitUntil(publishResizeTask({ storageKey }));
-            } else if (process.env.NODE_ENV === "development") {
-                console.log(`[Server Action] Local development environment detected (and QStash token not configured). Processing resizing locally in background for: ${storageKey}`);
-                localDevResizeAndUpload(bytes, storageKey, mediaDomain);
             } else {
                 // Fallback: inline resizing
                 console.log(`[Server Action] No QStash token — resizing inline for: ${storageKey}`);
