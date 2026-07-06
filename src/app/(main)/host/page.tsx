@@ -55,7 +55,6 @@ import {
     createEvent,
     createUserProfile,
     getUserEvents,
-    savePhoto,
     Event,
     Photo,
     deleteEvent,
@@ -609,7 +608,7 @@ function DashboardContent() {
     interface UploadQueueItem {
         id: string;
         fileName: string;
-        status: "uploading" | "processing" | "success" | "error";
+        status: "pending" | "uploading" | "processing" | "success" | "error";
         progress: number; // 0 to 100
         error?: string;
         previewUrl?: string;
@@ -1675,9 +1674,20 @@ function DashboardContent() {
             let firstUploadedUrl = "";
             const uploadResults: { file: File, photo: Photo }[] = [];
 
-            const photoPromises = selectedFiles.map(async (file, index) => {
+            const concurrencyLimit = 3;
+            let activeCount = 0;
+            let currentIndex = 0;
+
+            const runNext = async (): Promise<void> => {
+                if (currentIndex >= selectedFiles.length) return;
+
+                const index = currentIndex++;
+                const file = selectedFiles[index];
                 const queueItemId = newQueueItems[index].id;
-                console.log(`[Dashboard] Processing file ${index + 1}/${selectedFiles.length}: ${file.name}`);
+
+                activeCount++;
+                // Update status to uploading in UI when task actually starts
+                setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "uploading" } : item));
 
                 // Smoothly animate upload progress to 85% over 1.5 seconds
                 let currentProgress = 0;
@@ -1687,6 +1697,7 @@ function DashboardContent() {
                 }, 200);
 
                 try {
+                    console.log(`[Dashboard] Uploading file ${index + 1}/${selectedFiles.length}: ${file.name}`);
                     // Upload the original file — thumbnails and previews are pre-generated asynchronously on the backend
                     const uploadResult = await uploadEventImage(file, selectedEventId, user.uid || "anonymous");
                     clearInterval(progressInterval);
@@ -1712,7 +1723,7 @@ function DashboardContent() {
                     // Mark as processing (generating thumbnails)
                     setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "processing", progress: 90 } : item));
 
-                    await savePhoto(photo);
+                    // Server now writes directly to DB so client-side savePhoto is bypassed.
                     uploadResults.push({ file, photo }); // Store for background indexing
 
                     if (photo.mediaType === "photo" && photo.resourceType === "image") {
@@ -1746,12 +1757,21 @@ function DashboardContent() {
                     clearInterval(progressInterval);
                     console.error(`[Dashboard] File upload error for ${file.name}:`, fileErr);
                     setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "error", progress: 100, error: fileErr.message || "Failed" } : item));
-                    throw fileErr;
+                } finally {
+                    activeCount--;
+                    // Process next file in the queue
+                    await runNext();
                 }
-            });
+            };
 
-            // Wait for all uploads to complete (and backgrounds to finish/fail)
-            await Promise.allSettled(photoPromises);
+            // Launch initial set of workers
+            const workers: Promise<void>[] = [];
+            for (let i = 0; i < Math.min(concurrencyLimit, selectedFiles.length); i++) {
+                workers.push(runNext());
+            }
+
+            // Wait for all workers to finish execution
+            await Promise.allSettled(workers);
 
             // --- Auto Face Indexing (Background) ---
             const successUploads = uploadResults.filter(({ photo }) => photo.mediaType !== "video");
@@ -6245,6 +6265,11 @@ function DashboardContent() {
                                                             <p className="text-xs font-bold text-slate-300 truncate" title={item.fileName}>
                                                                 {item.fileName}
                                                             </p>
+                                                            {item.status === "pending" && (
+                                                                <span className="text-[10px] font-bold text-slate-500 shrink-0">
+                                                                    Queued...
+                                                                </span>
+                                                            )}
                                                             {item.status === "uploading" && (
                                                                 <span className="text-[10px] font-bold text-amber-400 shrink-0">
                                                                     {item.progress}%
@@ -6272,12 +6297,13 @@ function DashboardContent() {
                                                             <div
                                                                 className={cn(
                                                                     "h-full rounded-full transition-all duration-300",
+                                                                    item.status === "pending" ? "bg-slate-700" :
                                                                     item.status === "uploading" ? "bg-amber-400" :
                                                                     item.status === "processing" ? "bg-sky-400 animate-pulse" :
                                                                     item.status === "success" ? "bg-emerald-400" : "bg-rose-400"
                                                                 )}
                                                                 style={{ 
-                                                                    width: item.status === "processing" ? "90%" : `${item.progress}%` 
+                                                                    width: item.status === "pending" ? "0%" : item.status === "processing" ? "90%" : `${item.progress}%` 
                                                                 }}
                                                             ></div>
                                                         </div>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { publishResizeTask } from "@/lib/qstash";
 import sharp from "sharp";
-import { getCachedBackblazeAuth, getUploadUrl } from "@/lib/backblaze";
+import { getCachedBackblazeAuth, getUploadUrl, BackblazeAuth } from "@/lib/backblaze";
 import { createClient } from "@supabase/supabase-js";
 import { formatStorageSize, getPlanDetails } from "@/lib/planLimits";
 
@@ -95,6 +95,71 @@ async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string
 
   if (!uploadResponse.ok) {
     throw new Error(`B2 upload failed for key ${key} with status ${uploadResponse.status}`);
+  }
+}
+
+async function deleteB2File(auth: BackblazeAuth, bucketId: string, key: string) {
+  try {
+    const listResponse = await fetch(`${auth.apiUrl}/b2api/v3/b2_list_file_names`, {
+      method: "POST",
+      headers: {
+        Authorization: auth.authorizationToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        bucketId,
+        startFileName: key,
+        maxFileCount: 1,
+        prefix: key,
+      }),
+    });
+
+    if (!listResponse.ok) return false;
+
+    const listData = await listResponse.json();
+    const file = listData.files?.find((item: { fileName: string; fileId?: string }) => item.fileName === key);
+    if (!file?.fileId) return true;
+
+    const deleteResponse = await fetch(`${auth.apiUrl}/b2api/v3/b2_delete_file_version`, {
+      method: "POST",
+      headers: {
+        Authorization: auth.authorizationToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fileName: key,
+        fileId: file.fileId,
+      }),
+    });
+
+    return deleteResponse.ok;
+  } catch (error) {
+    console.warn(`[Upload] Could not delete B2 file ${key}:`, error);
+    return false;
+  }
+}
+
+async function rollbackB2Upload(storageKey: string, resourceType: string) {
+  try {
+    const backblazeAuth = await getCachedBackblazeAuth();
+    const bucketId = requireEnv("B2_BUCKET_ID");
+    const originalKey = storageKey;
+    
+    if (resourceType === "image") {
+      const thumbnailKey = `${storageKey}-thumbnail.webp`;
+      const previewKey = `${storageKey}-preview.webp`;
+      console.log(`[Upload Rollback] Deleting B2 assets for storage key: ${storageKey}`);
+      await Promise.all([
+        deleteB2File(backblazeAuth, bucketId, originalKey),
+        deleteB2File(backblazeAuth, bucketId, thumbnailKey),
+        deleteB2File(backblazeAuth, bucketId, previewKey)
+      ]);
+    } else {
+      console.log(`[Upload Rollback] Deleting B2 original file: ${storageKey}`);
+      await deleteB2File(backblazeAuth, bucketId, originalKey);
+    }
+  } catch (err) {
+    console.error("[Upload Rollback] Failed to rollback B2 files:", err);
   }
 }
 
@@ -405,6 +470,80 @@ export async function POST(request: NextRequest) {
     const mediaDomain = requireEnv("MEDIA_DOMAIN").replace(/^https?:\/\//, "").replace(/\/+$/, "");
     const url = `https://${mediaDomain}/${storageKey}`;
 
+    // Write database record if event scope
+    let savedPhotoId: string | undefined = undefined;
+    if (scope === "event") {
+      const photoId = storageKey.replace(/\//g, "_");
+      const upsertData = {
+        id: photoId,
+        event_id: eventId,
+        storage_key: storageKey,
+        url: url,
+        height: null,
+        width: null,
+        uploaded_at: new Date().toISOString(),
+        tags: [],
+        user_id: user.id,
+        size: fileSize,
+        format: fileName.split(".").pop()?.toLowerCase() || "jpg",
+        media_type: mediaType,
+        resource_type: resourceType,
+      };
+
+      const supabaseAdmin = createClient(
+        requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+        requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        }
+      );
+
+      console.log(`[Upload] Writing DB record for photo: ${photoId}`);
+      const { error: dbError } = await supabaseAdmin.from("photos").upsert(upsertData);
+
+      if (dbError) {
+        console.error(`[Upload] Database save failed for ${photoId}. Rolling back B2 upload...`, dbError);
+        await rollbackB2Upload(storageKey, resourceType);
+        return jsonResponse({ error: `Upload succeeded to storage but failed to save database record: ${dbError.message}` }, 500);
+      }
+
+      savedPhotoId = photoId;
+
+      // Notify event owner when a guest uploads media
+      if (eventId && user.id) {
+        after(() => {
+          (async () => {
+            const { data: event, error: eventErr } = await supabaseAdmin
+              .from('events')
+              .select('created_by, title')
+              .eq('id', eventId)
+              .maybeSingle();
+
+            if (eventErr) {
+              console.error("[Upload] Error fetching event details for notification:", eventErr);
+              return;
+            }
+
+            if (event?.created_by && event.created_by !== user.id) {
+              const isVideo = resourceType === "video";
+              const { sendPushNotification } = await import("@/lib/pushNotifications");
+              await sendPushNotification(
+                event.created_by,
+                isVideo ? '🎥 New video uploaded' : '📸 New photo uploaded',
+                `Someone added a ${isVideo ? 'video' : 'photo'} to "${event.title}"`,
+                { eventId }
+              );
+            }
+          })().catch((err) => {
+            console.error("[Upload] Push notification background error:", err);
+          });
+        });
+      }
+    }
+
     if (resourceType === "image") {
       const qstashToken = process.env.QSTASH_TOKEN;
       if (process.env.NODE_ENV === "development") {
@@ -449,6 +588,7 @@ export async function POST(request: NextRequest) {
       format: fileName.split(".").pop()?.toLowerCase() || undefined,
       mediaType,
       resourceType,
+      savedPhotoId,
     });
   } catch (error: unknown) {
     console.error("[MediaUpload] Error:", error);

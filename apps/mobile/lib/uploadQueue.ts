@@ -434,23 +434,28 @@ async function uploadWorker(item: UploadQueueItem) {
           }
           console.log(`[UploadQueue] Upload succeeded for ${item.fileName}. Writing DB record...`);
 
-          // Write to Supabase database
-          const savedPhotoId = await addPhoto({
-            eventId: item.eventId,
-            url: result.url,
-            storageKey: result.publicId || '',
-            mediaType: item.mediaType,
-            resourceType: result.resourceType,
-            uploadedAt: new Date(),
-            userId: item.userId,
-            width: result.width,
-            height: result.height,
-            size: result.bytes,
-            format: result.format,
-          });
-
+          // Write to Supabase database (only if the server hasn't already written it)
+          let savedPhotoId = result.savedPhotoId;
           if (!savedPhotoId) {
-            throw new Error('Failed to record photo meta in DB.');
+            console.log(`[UploadQueue] Server did not write to DB. Writing client-side DB record...`);
+            savedPhotoId = await addPhoto({
+              eventId: item.eventId,
+              url: result.url,
+              storageKey: result.publicId || '',
+              mediaType: item.mediaType,
+              resourceType: result.resourceType,
+              uploadedAt: new Date(),
+              userId: item.userId,
+              width: result.width,
+              height: result.height,
+              size: result.bytes,
+              format: result.format,
+            });
+            if (!savedPhotoId) {
+              throw new Error('Failed to record photo meta in DB.');
+            }
+          } else {
+            console.log(`[UploadQueue] Server successfully recorded photo meta in DB: ${savedPhotoId}`);
           }
 
           // Poll for thumbnail URL to confirm processing is complete (matches web flow)
