@@ -39,11 +39,7 @@ export function getImageUrl(
     const isVideo = /\.(mp4|mov|avi|webm|mkv|m4v)(\?.*)?$/i.test(src);
     if (isVideo) return src;
 
-    // If thumbnailUrl is explicitly null or empty, it means the thumbnail is NOT generated yet.
-    // In this case, we MUST fall back to the original source url to prevent broken images.
-    if (thumbnailUrl === null || thumbnailUrl === '') {
-        return src;
-    }
+
 
     // Only transform URLs on our own media domain
     const mediaDomainPattern = new RegExp(`^https?://${MEDIA_DOMAIN.replace('.', '\\.')}/`, 'i');

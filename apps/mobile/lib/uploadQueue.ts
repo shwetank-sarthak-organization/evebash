@@ -3,7 +3,7 @@ import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createUploadTask, FileSystemUploadType, FileSystemSessionType } from 'expo-file-system/legacy';
 import { supabase } from './supabase';
-import { addPhoto } from './database';
+import { addPhoto, deletePhoto } from './database';
 
 let Notifications: any = null;
 try {
@@ -463,19 +463,29 @@ async function uploadWorker(item: UploadQueueItem) {
           notifyListeners();
           await updateProgressNotification();
 
+          let thumbnailGenerated = false;
           for (let poll = 0; poll < 30; poll++) {
             const { data: checkData } = await supabase
               .from('photos')
               .select('thumbnail_url')
               .eq('storage_key', result.storageKey || result.publicId)
               .maybeSingle();
-            if (checkData?.thumbnail_url) break;
+            if (checkData?.thumbnail_url) {
+              thumbnailGenerated = true;
+              break;
+            }
             await new Promise((resolve) => setTimeout(resolve, 1500));
           }
 
-          item.status = 'completed';
-          item.progress = 100;
-          uploadSuccess = true;
+          if (thumbnailGenerated) {
+            item.status = 'completed';
+            item.progress = 100;
+            uploadSuccess = true;
+          } else {
+            console.warn(`[UploadQueue] Thumbnail generation timed out for ${item.fileName}. Rolling back upload...`);
+            await deletePhoto(savedPhotoId);
+            throw new Error('Failed to generate optimized thumbnails (Timeout).');
+          }
           break; // Exit endpoints loop
         } else {
           const errBody = response ? response.body : 'No response body';

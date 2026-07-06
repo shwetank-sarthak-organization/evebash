@@ -1764,14 +1764,18 @@ function DashboardContent() {
                         }
                         if (thumbnailGenerated) {
                             fetchEventPhotos();
+                            // Complete item as successful only when thumbnail exists
+                            setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "success", progress: 100 } : item));
+                        } else {
+                            console.warn(`[Dashboard] Thumbnail generation timed out for ${file.name}. Rolling back upload...`);
+                            await deletePhoto(photo.id);
+                            throw new Error("Failed to generate optimized thumbnails (Timeout).");
                         }
                     } else {
                         // Videos don't require resizing/thumbnail generation
                         fetchEventPhotos();
+                        setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "success", progress: 100 } : item));
                     }
-
-                    // Complete item
-                    setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "success", progress: 100 } : item));
                 } catch (fileErr: any) {
                     clearInterval(progressInterval);
                     console.error(`[Dashboard] File upload error for ${file.name}:`, fileErr);
