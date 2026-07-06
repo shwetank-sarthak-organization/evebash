@@ -1,7 +1,7 @@
 "use server";
 
 import { randomUUID } from "crypto";
-import { waitUntil } from "@vercel/functions";
+import { after } from "next/server";
 import { publishResizeTask } from "@/lib/qstash";
 import sharp from "sharp";
 import { getCachedBackblazeAuth, getUploadUrl } from "@/lib/backblaze";
@@ -118,9 +118,13 @@ export async function uploadToBackblaze(base64File: string, folder: string, opti
                 console.log(`[Server Action] Local development environment detected. Processing resizing locally in background for: ${storageKey}`);
                 localDevResizeAndUpload(bytes, storageKey, mediaDomain);
             } else if (qstashToken) {
-                // QStash path: waitUntil keeps the function alive until publish completes
+                // QStash path: run in next/server after() to publish in background
                 console.log(`[Server Action] Queuing resize via QStash for: ${storageKey}`);
-                waitUntil(publishResizeTask({ storageKey }));
+                after(() => {
+                    publishResizeTask({ storageKey }).catch((err) => {
+                        console.error("[Server Action] Error publishing resize task via QStash:", err);
+                    });
+                });
             } else {
                 // Fallback: inline resizing
                 console.log(`[Server Action] No QStash token — resizing inline for: ${storageKey}`);

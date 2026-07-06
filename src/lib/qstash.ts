@@ -18,9 +18,8 @@ export async function publishResizeTask(options: QStashPublishOptions): Promise<
   // Determine the target URL. Priority:
   // 1. Explicitly provided origin (e.g. from request headers)
   // 2. NEXT_PUBLIC_SITE_URL (manually configured, most reliable)
-  // 3. VERCEL_URL (automatically injected by Vercel for the current deployment)
-  // 4. Fallback to Netlify domain
-  const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null;
+  // 3. RAILWAY_STATIC_URL (automatically injected by Railway)
+  const railwayUrl = process.env.RAILWAY_STATIC_URL ? `https://${process.env.RAILWAY_STATIC_URL}` : null;
   
   // Local/private origins cannot be accessed by QStash, so fall back to NEXT_PUBLIC_SITE_URL (e.g. ngrok tunnel)
   const isLocalOrigin = options.origin && (
@@ -31,7 +30,7 @@ export async function publishResizeTask(options: QStashPublishOptions): Promise<
   );
   
   const siteUrl = (!options.origin || isLocalOrigin)
-    ? (process.env.NEXT_PUBLIC_SITE_URL || vercelUrl || `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'lens-and-frame-wedding-album.netlify.app'}`)
+    ? (process.env.NEXT_PUBLIC_SITE_URL || railwayUrl || `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost:3000'}`)
     : options.origin;
     
   const targetUrl = `${siteUrl}/api/media/resize-worker`;

@@ -32,9 +32,6 @@ export default async function middleware(req: NextRequest) {
     // logic: if hostname is NOT the rootDomain (and not www.rootDomain)
     // AND it's not one of our other known root domains
     const knownRootDomains = [
-        "wed-album-v2.netlify.app",
-        "lens-and-frame-wedding-album.netlify.app",
-        "evebash.netlify.app",
         "localhost",
         "127.0.0.1"
     ];
@@ -44,7 +41,6 @@ export default async function middleware(req: NextRequest) {
         hostnameNoPort !== rootDomain &&
         hostnameNoPort !== `www.${rootDomain}` &&
         !knownRootDomains.includes(hostnameNoPort) &&
-        !hostnameNoPort.endsWith(".vercel.app") &&
         !hostnameNoPort.endsWith(".up.railway.app");
 
     if (isCustomDomain && hostname) {

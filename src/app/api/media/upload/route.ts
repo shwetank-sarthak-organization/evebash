@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
-import { waitUntil } from "@vercel/functions";
+import { NextRequest, NextResponse, after } from "next/server";
 import { publishResizeTask } from "@/lib/qstash";
 import sharp from "sharp";
 import { getCachedBackblazeAuth, getUploadUrl } from "@/lib/backblaze";
@@ -413,9 +412,12 @@ export async function POST(request: NextRequest) {
         localDevResizeAndUpload(bytes, storageKey, mediaDomain);
       } else if (qstashToken) {
         // QStash path: return response immediately, publish resize job in background
-        // waitUntil keeps the Vercel function alive until publish completes
         console.log(`[Upload] Queuing resize via QStash for: ${storageKey}`);
-        waitUntil(publishResizeTask({ storageKey, origin: request.nextUrl.origin }));
+        after(() => {
+          publishResizeTask({ storageKey, origin: request.nextUrl.origin }).catch((err) => {
+            console.error("[Upload] Error publishing resize task via QStash:", err);
+          });
+        });
       } else {
         // Fallback: inline resizing if QStash is not configured
         console.log(`[Upload] No QStash token — resizing inline for: ${storageKey}`);
