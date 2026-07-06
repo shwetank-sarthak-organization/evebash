@@ -135,13 +135,41 @@ export async function POST(request: NextRequest) {
       .webp({ quality: 75 })
       .toBuffer();
 
-    // 6. Upload generated buffers to B2
+    // Helper to verify if the photo record still exists in Supabase
+    const checkDbRecordExists = async (): Promise<boolean> => {
+      const { data, error } = await supabaseAdmin
+        .from("photos")
+        .select("id")
+        .eq("storage_key", storageKey)
+        .maybeSingle();
+      if (error) {
+        console.error(`[Resize Worker] Error checking photo record existence:`, error);
+        return false;
+      }
+      return !!data;
+    };
+
+    // 6. Upload generated buffers to B2 (verifying DB state to prevent orphans)
     const thumbnailKey = `${storageKey}-thumbnail.webp`;
     const previewKey = `${storageKey}-preview.webp`;
     const thumbnailUrl = `https://${mediaDomain}/${thumbnailKey}`;
 
+    if (!(await checkDbRecordExists())) {
+      console.warn(`[Resize Worker] Aborting: photo record for "${storageKey}" was deleted/rolled back. Skipping thumbnail upload.`);
+      return NextResponse.json({ success: true, message: "Upload aborted: photo record was deleted/rolled back" });
+    }
+
     console.log(`[Resize Worker] Uploading generated assets to B2...`);
     await uploadBufferToB2(thumbnailBuffer, thumbnailKey, "image/webp");
+
+    if (!(await checkDbRecordExists())) {
+      console.warn(`[Resize Worker] Aborting: photo record for "${storageKey}" was deleted/rolled back after thumbnail upload. Cleaning up thumbnail...`);
+      const auth = await getCachedBackblazeAuth();
+      const bucketId = requireEnv("B2_BUCKET_ID");
+      await deleteB2File(auth, bucketId, thumbnailKey);
+      return NextResponse.json({ success: true, message: "Upload aborted and rolled back: photo record was deleted" });
+    }
+
     await uploadBufferToB2(previewBuffer, previewKey, "image/webp");
 
     // 7. Update database record — match by storage_key, with a retry loop to prevent race conditions
@@ -171,7 +199,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (!updated) {
-      console.warn(`[Resize Worker] Warning: No database row found matching storage_key "${storageKey}" after 4 attempts. Leaving generated assets in B2.`);
+      console.warn(`[Resize Worker] Warning: No database row found matching storage_key "${storageKey}" after 4 attempts. Cleaning up generated B2 assets to prevent orphans.`);
+      const auth = await getCachedBackblazeAuth();
+      const bucketId = requireEnv("B2_BUCKET_ID");
+      await Promise.all([
+        deleteB2File(auth, bucketId, thumbnailKey),
+        deleteB2File(auth, bucketId, previewKey)
+      ]);
+      return NextResponse.json({ error: "Database row not found. Rolled back B2 assets." }, { status: 404 });
     }
 
     console.log(`[Resize Worker] Successfully finished resizing for key: ${storageKey}`);
