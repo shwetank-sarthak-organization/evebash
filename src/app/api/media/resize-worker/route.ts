@@ -14,7 +14,7 @@ function requireEnv(name: string) {
   return value;
 }
 
-async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string) {
+async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string): Promise<string> {
   const auth = await getCachedBackblazeAuth();
   const uploadUrlData = await getUploadUrl(auth);
 
@@ -33,36 +33,16 @@ async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string
   if (!uploadResponse.ok) {
     throw new Error(`B2 upload failed for key ${key} with status ${uploadResponse.status}`);
   }
+
+  const data = await uploadResponse.json();
+  if (!data.fileId) {
+    throw new Error(`B2 upload failed to return fileId for key ${key}`);
+  }
+  return data.fileId;
 }
 
-async function deleteB2File(auth: any, bucketId: string, key: string) {
+async function deleteB2FileById(auth: any, fileName: string, fileId: string) {
   try {
-    const listResponse = await fetch(`${auth.apiUrl}/b2api/v3/b2_list_file_names`, {
-      method: "POST",
-      headers: {
-        Authorization: auth.authorizationToken,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        bucketId,
-        startFileName: key,
-        maxFileCount: 1,
-        prefix: key
-      }),
-    });
-
-    if (!listResponse.ok) {
-      console.error(`[B2Delete] Failed to list file ${key}: ${listResponse.status}`);
-      return false;
-    }
-
-    const listData = await listResponse.json();
-    const file = listData.files?.find((f: { fileName: string; fileId?: string }) => f.fileName === key);
-    if (!file || !file.fileId) {
-      console.log(`[B2Delete] File ${key} not found or already deleted.`);
-      return true;
-    }
-
     const deleteResponse = await fetch(`${auth.apiUrl}/b2api/v3/b2_delete_file_version`, {
       method: "POST",
       headers: {
@@ -70,23 +50,25 @@ async function deleteB2File(auth: any, bucketId: string, key: string) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        fileName: key,
-        fileId: file.fileId
+        fileName,
+        fileId
       }),
     });
 
     if (!deleteResponse.ok) {
-      console.error(`[B2Delete] Failed to delete file version for ${key}: ${deleteResponse.status}`);
+      console.error(`[B2Delete] Failed to delete file version for ${fileName} (${fileId}): ${deleteResponse.status}`);
       return false;
     }
 
-    console.log(`[B2Delete] Successfully deleted file ${key} from B2.`);
+    console.log(`[B2Delete] Successfully deleted file ${fileName} by ID.`);
     return true;
   } catch (err) {
-    console.error(`[B2Delete] Error deleting file ${key}:`, err);
+    console.error(`[B2Delete] Error deleting file by ID ${fileName}:`, err);
     return false;
   }
 }
+
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -160,17 +142,18 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[Resize Worker] Uploading generated assets to B2...`);
-    await uploadBufferToB2(thumbnailBuffer, thumbnailKey, "image/webp");
+    const thumbnailFileId = await uploadBufferToB2(thumbnailBuffer, thumbnailKey, "image/webp");
 
     if (!(await checkDbRecordExists())) {
       console.warn(`[Resize Worker] Aborting: photo record for "${storageKey}" was deleted/rolled back after thumbnail upload. Cleaning up thumbnail...`);
       const auth = await getCachedBackblazeAuth();
-      const bucketId = requireEnv("B2_BUCKET_ID");
-      await deleteB2File(auth, bucketId, thumbnailKey);
+      if (thumbnailFileId) {
+        await deleteB2FileById(auth, thumbnailKey, thumbnailFileId);
+      }
       return NextResponse.json({ success: true, message: "Upload aborted and rolled back: photo record was deleted" });
     }
 
-    await uploadBufferToB2(previewBuffer, previewKey, "image/webp");
+    const previewFileId = await uploadBufferToB2(previewBuffer, previewKey, "image/webp");
 
     // 7. Update database record — match by storage_key, with a retry loop to prevent race conditions
     let updated = false;
@@ -201,10 +184,9 @@ export async function POST(request: NextRequest) {
     if (!updated) {
       console.warn(`[Resize Worker] Warning: No database row found matching storage_key "${storageKey}" after 4 attempts. Cleaning up generated B2 assets to prevent orphans.`);
       const auth = await getCachedBackblazeAuth();
-      const bucketId = requireEnv("B2_BUCKET_ID");
       await Promise.all([
-        deleteB2File(auth, bucketId, thumbnailKey),
-        deleteB2File(auth, bucketId, previewKey)
+        thumbnailFileId ? deleteB2FileById(auth, thumbnailKey, thumbnailFileId) : Promise.resolve(),
+        previewFileId ? deleteB2FileById(auth, previewKey, previewFileId) : Promise.resolve()
       ]);
       return NextResponse.json({ error: "Database row not found. Rolled back B2 assets." }, { status: 404 });
     }

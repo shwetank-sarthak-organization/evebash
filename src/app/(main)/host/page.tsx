@@ -611,7 +611,7 @@ function DashboardContent() {
         status: "pending" | "uploading" | "processing" | "success" | "error";
         progress: number; // 0 to 100
         error?: string;
-        previewUrl?: string;
+        mediaType?: "photo" | "video";
     }
     const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
     const [isUploadPanelOpen, setIsUploadPanelOpen] = useState(false);
@@ -1672,13 +1672,13 @@ function DashboardContent() {
 
         // Initialize queue items in state
         const newQueueItems = selectedFiles.map((file, idx) => {
-            const isImage = file.type.startsWith("image/");
+            const isVideo = file.type.startsWith("video/");
             return {
                 id: `${Date.now()}-${idx}-${Math.random()}`,
                 fileName: file.name,
                 status: "uploading" as const,
                 progress: 0,
-                previewUrl: isImage ? URL.createObjectURL(file) : undefined,
+                mediaType: isVideo ? ("video" as const) : ("photo" as const),
             };
         });
         setUploadQueue(prev => [...prev, ...newQueueItems]);
@@ -6269,18 +6269,14 @@ function DashboardContent() {
                                                     key={item.id}
                                                     className="flex items-center justify-between gap-3 p-3 hover:bg-slate-900/50 transition-colors"
                                                 >
-                                                    {/* File Preview */}
-                                                    {item.previewUrl ? (
-                                                        <img
-                                                            src={item.previewUrl}
-                                                            alt={item.fileName}
-                                                            className="w-10 h-10 object-cover rounded-lg border border-slate-800/85 bg-slate-900 shrink-0"
-                                                        />
-                                                    ) : (
-                                                        <div className="w-10 h-10 rounded-lg border border-slate-800 bg-slate-900 flex items-center justify-center shrink-0">
-                                                            <ImageIcon className="w-5 h-5 text-slate-500" />
-                                                        </div>
-                                                    )}
+                                                    {/* File Preview Icon */}
+                                                    <div className="w-10 h-10 rounded-lg border border-slate-800 bg-slate-900 flex items-center justify-center shrink-0">
+                                                        {item.mediaType === "video" ? (
+                                                            <Video className="w-5 h-5 text-sky-400" />
+                                                        ) : (
+                                                            <ImageIcon className="w-5 h-5 text-amber-500" />
+                                                        )}
+                                                    </div>
 
                                                     {/* File Details & Progress */}
                                                     <div className="flex-1 min-w-0">
