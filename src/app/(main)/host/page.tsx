@@ -761,6 +761,25 @@ function DashboardContent() {
         }
     }, [user, loading, router]);
 
+    // Warn user before closing/refreshing tab during active uploads
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            const hasActiveUploads = uploadQueue.some(
+                item => item.status === "uploading" || item.status === "pending" || item.status === "processing"
+            );
+            if (hasActiveUploads) {
+                e.preventDefault();
+                e.returnValue = "You have active uploads in progress. If you leave or reload now, these uploads will be cancelled.";
+                return e.returnValue;
+            }
+        };
+
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+        };
+    }, [uploadQueue]);
+
     // URL State Synchronization
     useEffect(() => {
         const viewParam = searchParams.get("view");
