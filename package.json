@@ -15,7 +15,10 @@
     "mobile:ios": "cd apps/mobile && npm run ios",
     "mobile:web": "cd apps/mobile && npm run web",
     "mobile:lint": "cd apps/mobile && npm run lint",
-    "mobile:install": "npm install --prefix apps/mobile"
+    "mobile:install": "npm install --prefix apps/mobile",
+    "dashboard": "npm --prefix apps/analytics-dashboard run dev",
+    "dashboard:build": "npm --prefix apps/analytics-dashboard run build",
+    "dashboard:preview": "npm --prefix apps/analytics-dashboard run preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",

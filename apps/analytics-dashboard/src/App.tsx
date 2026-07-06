@@ -244,6 +244,28 @@ export default function App() {
             >
               {authLoading ? 'Signing In...' : 'Sign In'}
             </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsAdmin(true);
+                setSession({ user: { email: 'dev-bypass@example.com' } });
+                setProfile({
+                  id: 'dev-bypass',
+                  name: 'Dev Admin Bypass',
+                  email: 'dev-bypass@example.com',
+                  role: 'admin',
+                  roleType: 'admin',
+                  delegatedBy: '',
+                  createdAt: new Date().toISOString(),
+                  lastLogin: new Date().toISOString()
+                });
+                loadDashboardData();
+              }}
+              className="w-full mt-3 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-slate-900/20 active:scale-[0.98] cursor-pointer"
+            >
+              Developer Admin Bypass (No Auth)
+            </button>
           </form>
         </div>
       </div>
