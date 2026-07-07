@@ -1694,7 +1694,7 @@ function DashboardContent() {
             let firstUploadedUrl = "";
             const uploadResults: { file: File, photo: Photo }[] = [];
 
-            const concurrencyLimit = 3;
+            const concurrencyLimit = 1;
             let activeCount = 0;
             let currentIndex = 0;
 

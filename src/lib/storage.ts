@@ -42,7 +42,7 @@ export async function uploadEventImage(file: File, eventId: string, userId?: str
         // 2. Upload file binary directly to Backblaze B2 URL
         console.log(`[Storage] Uploading file binary directly to B2...`);
         let uploadResponse: Response | undefined;
-        let uploadResult: any;
+        let uploadResult: { message?: string } | undefined;
         let currentUploadUrl = uploadUrl;
         let currentAuthToken = authorizationToken;
 
