@@ -14,6 +14,39 @@ function requireEnv(name: string) {
   return value;
 }
 
+// In-memory queue to limit CPU/RAM usage of sharp operations in a single container
+class ResizeQueue {
+  private activeCount = 0;
+  private maxConcurrency = Number(process.env.MAX_CONCURRENT_RESIZES || "2");
+  private waiting: (() => void)[] = [];
+
+  async acquire() {
+    if (this.activeCount < this.maxConcurrency) {
+      this.activeCount++;
+      return;
+    }
+    await new Promise<void>(resolve => {
+      this.waiting.push(resolve);
+    });
+    this.activeCount++;
+  }
+
+  release() {
+    this.activeCount--;
+    const next = this.waiting.shift();
+    if (next) {
+      next();
+    }
+  }
+}
+
+const globalRef = global as typeof globalThis & { resizeQueue?: ResizeQueue };
+if (!globalRef.resizeQueue) {
+  globalRef.resizeQueue = new ResizeQueue();
+}
+const resizeQueue = globalRef.resizeQueue;
+
+
 async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string): Promise<string> {
   const auth = await getCachedBackblazeAuth();
   const uploadUrlData = await getUploadUrl(auth);
@@ -41,7 +74,7 @@ async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string
   return data.fileId;
 }
 
-async function deleteB2FileById(auth: any, fileName: string, fileId: string) {
+async function deleteB2FileById(auth: { apiUrl: string; authorizationToken: string }, fileName: string, fileId: string) {
   try {
     const deleteResponse = await fetch(`${auth.apiUrl}/b2api/v3/b2_delete_file_version`, {
       method: "POST",
@@ -105,17 +138,28 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await downloadResponse.arrayBuffer();
     const bufferBytes = Buffer.from(arrayBuffer);
 
-    // 5. Generate resized WebP buffers
-    console.log(`[Resize Worker] Resizing and converting to WebP...`);
-    const thumbnailBuffer = await sharp(bufferBytes)
-      .resize({ width: 400, fit: "inside", withoutEnlargement: true })
-      .webp({ quality: 75 })
-      .toBuffer();
+    // 5. Generate resized WebP buffers with concurrency throttling to prevent OOM crashes
+    console.log(`[Resize Worker] Waiting for queue slot for: ${storageKey}`);
+    await resizeQueue.acquire();
+    console.log(`[Resize Worker] Slot acquired. Running image resizing for: ${storageKey}`);
 
-    const previewBuffer = await sharp(bufferBytes)
-      .resize({ width: 900, fit: "inside", withoutEnlargement: true })
-      .webp({ quality: 75 })
-      .toBuffer();
+    let thumbnailBuffer: Buffer;
+    let previewBuffer: Buffer;
+
+    try {
+      thumbnailBuffer = await sharp(bufferBytes)
+        .resize({ width: 400, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 75 })
+        .toBuffer();
+
+      previewBuffer = await sharp(bufferBytes)
+        .resize({ width: 900, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 75 })
+        .toBuffer();
+    } finally {
+      resizeQueue.release();
+      console.log(`[Resize Worker] Queue slot released for: ${storageKey}`);
+    }
 
     // Helper to verify if the photo record still exists in Supabase
     const checkDbRecordExists = async (): Promise<boolean> => {
