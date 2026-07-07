@@ -1,74 +1,92 @@
-import { uploadToBackblaze } from "@/app/actions/upload";
 import { supabase } from "@/lib/supabase";
 
 /**
- * Uploads a file through the app API so the browser does not need Backblaze CORS access.
- * Returns the download URL and metadata.
+ * Uploads a file directly to Backblaze B2, bypassing the server body size limit.
+ * 1. Obtains direct upload token/url from Railway.
+ * 2. Uploads binary directly to Backblaze B2.
+ * 3. Saves photo metadata to Supabase via Railway save-photo endpoint.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function uploadEventImage(file: File, eventId: string, userId?: string) {
     try {
-        console.log(`[Storage] Starting app-routed upload for: ${file.name} to event: ${eventId}`);
+        console.log(`[Storage] Starting direct B2 upload for: ${file.name} to event: ${eventId}`);
 
-        const folder = userId ? `events/${eventId}/${userId}` : `events/${eventId}`;
         const resourceType = file.type.startsWith("video/") ? "video" : "image";
         const { data: { session } } = await supabase.auth.getSession();
 
+        const headers: Record<string, string> = {
+            "Content-Type": "application/json",
+        };
         if (session?.access_token) {
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append("eventId", eventId);
-            formData.append("resourceType", resourceType);
-
-            const uploadResponse = await fetch("/api/media/upload", {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${session.access_token}`,
-                },
-                body: formData,
-            });
-
-            const result = await uploadResponse.json().catch(() => ({}));
-            if (!uploadResponse.ok) {
-                throw new Error(result.error || `Upload failed with status: ${uploadResponse.status}`);
-            }
-
-            return {
-                url: result.url,
-                publicId: result.publicId || result.storageKey,
-                width: undefined,
-                height: undefined,
-                bytes: result.bytes || file.size,
-                format: result.format || file.name.split(".").pop() || "jpg",
-            };
+            headers["Authorization"] = `Bearer ${session.access_token}`;
         }
 
-        const base64File = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(String(reader.result));
-            reader.onerror = () => reject(reader.error || new Error("Failed to read file"));
-            reader.readAsDataURL(file);
+        // 1. Get B2 upload URL and token from Railway
+        const getUrlResponse = await fetch("/api/media/get-upload-url", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+                eventId,
+                fileName: file.name,
+                resourceType,
+            }),
         });
 
-        const fallbackResult = await uploadToBackblaze(base64File, folder, {
-            fileName: file.name,
-            contentType: file.type,
-            resourceType,
+        const getUrlResult = await getUrlResponse.json().catch(() => ({}));
+        if (!getUrlResponse.ok) {
+            throw new Error(getUrlResult.error || `Failed to get B2 upload URL (status: ${getUrlResponse.status})`);
+        }
+
+        const { uploadUrl, authorizationToken, storageKey } = getUrlResult;
+
+        // 2. Upload file binary directly to Backblaze B2 URL
+        console.log(`[Storage] Uploading file binary directly to B2...`);
+        const uploadResponse = await fetch(uploadUrl, {
+            method: "POST",
+            headers: {
+                Authorization: authorizationToken,
+                "Content-Type": file.type || "application/octet-stream",
+                "X-Bz-File-Name": encodeURIComponent(storageKey),
+                "X-Bz-Content-Sha1": "do_not_verify",
+                "Content-Length": String(file.size),
+            },
+            body: file,
         });
 
-        if (!fallbackResult.success) {
-            throw new Error(fallbackResult.error || "Upload failed");
+        const uploadResult = await uploadResponse.json().catch(() => ({}));
+        if (!uploadResponse.ok) {
+            throw new Error(uploadResult.message || `Direct B2 upload failed with status: ${uploadResponse.status}`);
+        }
+
+        // 3. Save database record and trigger background worker on Railway
+        console.log(`[Storage] Saving metadata to database...`);
+        const saveResponse = await fetch("/api/media/save-photo", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+                storageKey,
+                eventId,
+                fileName: file.name,
+                fileSize: file.size,
+                resourceType,
+            }),
+        });
+
+        const saveResult = await saveResponse.json().catch(() => ({}));
+        if (!saveResponse.ok) {
+            throw new Error(saveResult.error || `Failed to save photo metadata (status: ${saveResponse.status})`);
         }
 
         return {
-            url: fallbackResult.url,
-            publicId: fallbackResult.public_id || fallbackResult.storageKey,
-            width: fallbackResult.width,
-            height: fallbackResult.height,
-            bytes: fallbackResult.bytes || file.size,
-            format: fallbackResult.format || file.name.split(".").pop() || "jpg",
+            url: saveResult.url,
+            publicId: storageKey,
+            width: undefined,
+            height: undefined,
+            bytes: file.size,
+            format: file.name.split(".").pop() || "jpg",
         };
     } catch (error: unknown) {
-        console.error("[Storage] Upload Error:", error);
+        console.error("[Storage] Direct upload flow error:", error);
         throw error;
     }
 }

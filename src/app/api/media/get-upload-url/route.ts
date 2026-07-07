@@ -1,0 +1,154 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getCachedBackblazeAuth, getUploadUrl } from "@/lib/backblaze";
+import { createClient } from "@supabase/supabase-js";
+
+export const runtime = "nodejs";
+
+function requireEnv(name: string) {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`${name} is not configured`);
+  }
+  return value;
+}
+
+function jsonResponse(body: unknown, status = 200) {
+  return NextResponse.json(body, {
+    status,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Authorization, Content-Type",
+    },
+  });
+}
+
+function sanitizeSegment(value: string) {
+  return value
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 100);
+}
+
+function buildStorageKey(params: {
+  eventId?: string;
+  userId: string;
+  resourceType: string;
+  fileName: string;
+  scope?: "event" | "profile";
+}) {
+  const userId = sanitizeSegment(params.userId) || "user";
+  const folder = params.resourceType === "video" ? "videos" : "photos";
+  const cleanName = sanitizeSegment(params.fileName) || `${folder.slice(0, -1)}.bin`;
+  const uniquePrefix = `${Date.now()}-${crypto.randomUUID()}`;
+
+  if (params.scope === "profile") {
+    return `profiles/${userId}/${uniquePrefix}-${cleanName}`;
+  }
+
+  const eventId = sanitizeSegment(params.eventId || "") || "event";
+  return `events/${eventId}/${folder}/${userId}-${uniquePrefix}-${cleanName}`;
+}
+
+async function verifySupabaseUser(accessToken: string) {
+  const supabaseUrl = requireEnv("NEXT_PUBLIC_SUPABASE_URL").replace(/\/+$/, "");
+  const supabaseAnonKey = requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      apikey: supabaseAnonKey,
+    },
+  });
+
+  if (!response.ok) return null;
+
+  const user = await response.json().catch(() => null);
+  return user?.id ? { id: user.id } : null;
+}
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Authorization, Content-Type",
+    },
+  });
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json().catch(() => ({}));
+    const scope = body.scope === "profile" ? "profile" : "event";
+    const eventId = String(body.eventId || "");
+    const requestedResourceType = String(body.resourceType || "image");
+    const fileName = String(body.fileName || (scope === "profile" ? "profile.jpg" : "upload.jpg"));
+
+    if (scope === "event" && !eventId.trim()) {
+      return jsonResponse({ error: "Missing eventId" }, 400);
+    }
+
+    const authHeader = request.headers.get("authorization") || "";
+    const accessToken = authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : "";
+
+    let userId = "anonymous";
+    if (accessToken) {
+      const user = await verifySupabaseUser(accessToken);
+      if (user) {
+        userId = user.id;
+      }
+    }
+
+    // Guest uploads fallback: check if event exists in the database
+    if (userId === "anonymous" && scope === "event") {
+      const supabaseAdmin = createClient(
+        requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+        requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        }
+      );
+
+      const { data: event, error: eventErr } = await supabaseAdmin
+        .from("events")
+        .select("id")
+        .eq("id", eventId)
+        .maybeSingle();
+
+      if (eventErr || !event) {
+        return jsonResponse({ error: "Invalid event or unauthorized access" }, 401);
+      }
+    }
+
+    const resourceType = requestedResourceType === "video" ? "video" : "image";
+    const storageKey = buildStorageKey({
+      eventId,
+      userId,
+      resourceType,
+      fileName,
+      scope,
+    });
+
+    const backblazeAuth = await getCachedBackblazeAuth();
+    const b2UploadData = await getUploadUrl(backblazeAuth);
+
+    const mediaDomain = requireEnv("MEDIA_DOMAIN").replace(/^https?:\/\//, "").replace(/\/+$/, "");
+
+    return jsonResponse({
+      uploadUrl: b2UploadData.uploadUrl,
+      authorizationToken: b2UploadData.authorizationToken,
+      storageKey,
+      mediaDomain,
+    });
+  } catch (error: unknown) {
+    console.error("[GetUploadUrl] Error:", error);
+    return jsonResponse({ error: error instanceof Error ? error.message : "Failed to get upload URL" }, 500);
+  }
+}
