@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { resolveEventCoverImage } from "@/lib/eventCovers";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import {
@@ -384,7 +385,7 @@ export default function DashboardHub() {
                     ) : (
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             {visibleEvents.map((event) => {
-                                const coverImage = event.coverImage || DEFAULT_EVENT_COVER_IMAGE;
+                                const coverImage = resolveEventCoverImage(event.coverImage, 'thumbnail');
                                 return (
                                     <button
                                         key={event.id}

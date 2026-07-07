@@ -92,6 +92,7 @@ import * as faceapi from "face-api.js";
 import { saveFaceToIndex } from "@/lib/database";
 
 import { Lightbox } from "@/components/ui/Lightbox";
+import { resolveEventCoverImage } from "@/lib/eventCovers";
 
 const PLACEHOLDER_IMAGES = [
     "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop",
@@ -2589,7 +2590,7 @@ function DashboardContent() {
     const activeSubEvent = userEvents.find(e => e.id === selectedEventId)
         || eventDetailGalleries.find(e => e.id === selectedEventId)
         || (selectedMainEvent?.id === selectedEventId ? selectedMainEvent : undefined);
-    const coverUrl = activeSubEvent?.coverImage || DEFAULT_EVENT_COVER_IMAGE;
+    const coverUrl = resolveEventCoverImage(activeSubEvent?.coverImage, 'preview');
     const isInlineEventDetailGalleryEditor = manageLevel === "event-details" && activeEventDetailTab === "galleries" && manageMode === "add-image";
     const activeEventDetailEvent = isInlineEventDetailGalleryEditor ? (activeSubEvent || selectedMainEvent) : selectedMainEvent;
     const activeGalleryOriginalMessage = activeEventDetailEvent?.description || "";
@@ -2780,7 +2781,7 @@ function DashboardContent() {
         >
             <div className="absolute inset-0 overflow-hidden rounded-[2.5rem]">
                 <img
-                    src={evt.coverImage || DEFAULT_EVENT_COVER_IMAGE}
+                    src={resolveEventCoverImage(evt.coverImage, 'thumbnail')}
                     alt={evt.title}
                     className="absolute inset-0 w-full h-full transition-transform duration-700 group-hover:scale-110"
                     style={getCoverImageStyle(evt)}
@@ -3162,7 +3163,7 @@ function DashboardContent() {
                                                 >
                                                     <div className={cn("relative overflow-hidden", activeTab === "shared" ? "h-64" : "h-full")}>
                                                         <img 
-                                                            src={event.coverImage || DEFAULT_EVENT_COVER_IMAGE}
+                                                            src={resolveEventCoverImage(event.coverImage, 'thumbnail')}
                                                             alt={event.title}
                                                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                                                         />
@@ -3342,7 +3343,7 @@ function DashboardContent() {
                                             style={activeEventDetailEvent && coverPositionEvent?.id === activeEventDetailEvent.id ? { touchAction: "none" } : undefined}
                                         >
                                             <img
-                                                src={activeEventDetailEvent?.coverImage || DEFAULT_EVENT_COVER_IMAGE}
+                                                src={resolveEventCoverImage(activeEventDetailEvent?.coverImage, 'preview')}
                                                 alt={activeEventDetailEvent?.title || selectedMainEvent.title}
                                                 draggable={false}
                                                 className="h-full w-full select-none"
@@ -3554,7 +3555,7 @@ function DashboardContent() {
                                                             onClick={() => openUploadForEvent(selectedMainEvent.id, selectedMainEvent.title)}
                                                         >
                                                             <img
-                                                                src={selectedMainEvent.coverImage || DEFAULT_EVENT_COVER_IMAGE}
+                                                                src={resolveEventCoverImage(selectedMainEvent.coverImage, 'thumbnail')}
                                                                 alt={selectedMainEvent.title}
                                                                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                                                             />
@@ -3604,7 +3605,7 @@ function DashboardContent() {
                                                                         onClick={() => openUploadForEvent(gallery.id, gallery.title)}
                                                                     >
                                                                         <img
-                                                                            src={gallery.coverImage || selectedMainEvent.coverImage || DEFAULT_EVENT_COVER_IMAGE}
+                                                                            src={resolveEventCoverImage(gallery.coverImage || selectedMainEvent.coverImage, 'thumbnail')}
                                                                             alt={gallery.title}
                                                                             className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                                                                         />

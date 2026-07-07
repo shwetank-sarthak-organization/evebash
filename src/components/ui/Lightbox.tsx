@@ -333,10 +333,6 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                                                 alt={photo.alt || "Event Photo"}
                                                 onLoad={() => setImageLoading(false)}
                                                 onError={() => {
-                                                    if (photo.src && imageSrc !== photo.src) {
-                                                        setImageSrc(photo.src);
-                                                        return;
-                                                    }
                                                     setImageLoading(false);
                                                     setImageError(true);
                                                 }}

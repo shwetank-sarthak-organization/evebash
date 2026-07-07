@@ -346,9 +346,7 @@ function GalleryThumbnailImage({
       contentFit="cover"
       blurRadius={blurRadius}
       onError={() => {
-        if (url && sourceUri !== url) {
-          setSourceUri(url);
-        }
+        // Do not fall back to original url
       }}
     />
   );
@@ -994,7 +992,7 @@ export default function EventDetailScreen() {
   const currentActiveEvent = selectedAdminGallery !== undefined
     ? (selectedAdminGallery || event)
     : (activeSubEvent || event);
-  const resolvedActiveCoverImage = resolveEventCoverImage(currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl);
+  const resolvedActiveCoverImage = resolveEventCoverImage(currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl, 'preview');
 
   const activeCoverMode = currentActiveEvent ? currentActiveEvent.coverMode : event?.coverMode;
   const activeCoverOffset = currentActiveEvent ? currentActiveEvent.coverOffset : event?.coverOffset;
@@ -4195,7 +4193,7 @@ export default function EventDetailScreen() {
 	                            }}
                             activeOpacity={0.85}
                           >
-                            <Image source={{ uri: resolveEventCoverImage(event.coverImage) }} style={styles.subImageFull} />
+                            <Image source={{ uri: resolveEventCoverImage(event.coverImage, 'thumbnail') }} style={styles.subImageFull} />
                             <LinearGradient
                               colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0.85)']}
                               style={StyleSheet.absoluteFillObject}
@@ -4271,7 +4269,7 @@ export default function EventDetailScreen() {
 	                                }}
                                 activeOpacity={0.85}
                               >
-                                <Image source={{ uri: resolveEventCoverImage(sub.coverImage) }} style={styles.subImageFull} />
+                                <Image source={{ uri: resolveEventCoverImage(sub.coverImage, 'thumbnail') }} style={styles.subImageFull} />
                                 <LinearGradient
                                   colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0.85)']}
                                   style={StyleSheet.absoluteFillObject}

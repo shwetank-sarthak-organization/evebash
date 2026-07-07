@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, Suspense } from "react";
+import { resolveEventCoverImage } from "@/lib/eventCovers";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { notFound, useParams, useRouter, useSearchParams } from "next/navigation";
@@ -314,6 +315,9 @@ function EventPageContent() {
                 return;
             }
 
+            // Resolve event cover image to preview format
+            eventData.coverImage = resolveEventCoverImage(eventData.coverImage, 'preview');
+
             setEvent(eventData);
 
             // 2. Branch logic based on Event Type
@@ -321,7 +325,11 @@ function EventPageContent() {
                 // Fetch Home gallery media and sub-galleries so web follows the same structure as mobile.
                 console.log(`[EventPage] Main event detected. Fetching home gallery and sub-events for: ${eventData.id}`);
                 const data = await getSubEvents(eventData.id, eventData.legacyId);
-                setSubEvents(data);
+                const resolvedSubEvents = data.map(sub => ({
+                    ...sub,
+                    coverImage: resolveEventCoverImage(sub.coverImage, 'thumbnail')
+                }));
+                setSubEvents(resolvedSubEvents);
                 setParentEvent(null);
                 setActiveGallery(null);
                 setGalleryMediaTab("photos");
@@ -335,9 +343,14 @@ function EventPageContent() {
                     try {
                         const pEvent = await getEventById(eventData.parentId);
                         if (pEvent) {
+                            pEvent.coverImage = resolveEventCoverImage(pEvent.coverImage, 'preview');
                             setParentEvent(pEvent);
                             const siblings = await getSubEvents(pEvent.id, pEvent.legacyId);
-                            setSubEvents(siblings);
+                            const resolvedSiblings = siblings.map(sub => ({
+                                ...sub,
+                                coverImage: resolveEventCoverImage(sub.coverImage, 'thumbnail')
+                            }));
+                            setSubEvents(resolvedSiblings);
                         }
                     } catch (err) {
                         console.error("Error fetching parent event context:", err);

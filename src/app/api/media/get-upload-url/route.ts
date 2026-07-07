@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCachedBackblazeAuth, getUploadUrl } from "@/lib/backblaze";
+import { getCachedBackblazeAuth } from "@/lib/backblaze";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -136,8 +136,10 @@ export async function POST(request: NextRequest) {
       scope,
     });
 
+    const forceRefresh = body.forceRefresh === true;
     const backblazeAuth = await getCachedBackblazeAuth();
-    const b2UploadData = await getUploadUrl(backblazeAuth);
+    const { getCachedUploadUrl } = await import("@/lib/backblaze");
+    const b2UploadData = await getCachedUploadUrl(backblazeAuth, forceRefresh);
 
     const mediaDomain = requireEnv("MEDIA_DOMAIN").replace(/^https?:\/\//, "").replace(/\/+$/, "");
 

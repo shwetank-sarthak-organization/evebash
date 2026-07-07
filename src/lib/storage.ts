@@ -41,21 +41,66 @@ export async function uploadEventImage(file: File, eventId: string, userId?: str
 
         // 2. Upload file binary directly to Backblaze B2 URL
         console.log(`[Storage] Uploading file binary directly to B2...`);
-        const uploadResponse = await fetch(uploadUrl, {
-            method: "POST",
-            headers: {
-                Authorization: authorizationToken,
-                "Content-Type": file.type || "application/octet-stream",
-                "X-Bz-File-Name": encodeURIComponent(storageKey),
-                "X-Bz-Content-Sha1": "do_not_verify",
-                "Content-Length": String(file.size),
-            },
-            body: file,
-        });
+        let uploadResponse: Response | undefined;
+        let uploadResult: any;
+        let currentUploadUrl = uploadUrl;
+        let currentAuthToken = authorizationToken;
 
-        const uploadResult = await uploadResponse.json().catch(() => ({}));
-        if (!uploadResponse.ok) {
-            throw new Error(uploadResult.message || `Direct B2 upload failed with status: ${uploadResponse.status}`);
+        try {
+            uploadResponse = await fetch(currentUploadUrl, {
+                method: "POST",
+                headers: {
+                    Authorization: currentAuthToken,
+                    "Content-Type": file.type || "application/octet-stream",
+                    "X-Bz-File-Name": encodeURIComponent(storageKey),
+                    "X-Bz-Content-Sha1": "do_not_verify",
+                    "Content-Length": String(file.size),
+                },
+                body: file,
+            });
+            uploadResult = await uploadResponse.json().catch(() => ({}));
+            if (!uploadResponse.ok) {
+                throw new Error(uploadResult.message || `Upload failed with status: ${uploadResponse.status}`);
+            }
+        } catch (fetchErr) {
+            console.warn(`[Storage] Direct B2 upload failed for ${file.name}. Requesting fresh upload URL and retrying...`, fetchErr);
+            
+            const retryUrlResponse = await fetch("/api/media/get-upload-url", {
+                method: "POST",
+                headers,
+                body: JSON.stringify({
+                    eventId,
+                    fileName: file.name,
+                    resourceType,
+                    forceRefresh: true,
+                }),
+            });
+
+            const retryUrlResult = await retryUrlResponse.json().catch(() => ({}));
+            if (!retryUrlResponse.ok) {
+                throw new Error(retryUrlResult.error || `Failed to refresh B2 upload URL during retry (status: ${retryUrlResponse.status})`);
+            }
+
+            currentUploadUrl = retryUrlResult.uploadUrl;
+            currentAuthToken = retryUrlResult.authorizationToken;
+
+            // Retry the upload one more time with a fresh URL
+            uploadResponse = await fetch(currentUploadUrl, {
+                method: "POST",
+                headers: {
+                    Authorization: currentAuthToken,
+                    "Content-Type": file.type || "application/octet-stream",
+                    "X-Bz-File-Name": encodeURIComponent(storageKey),
+                    "X-Bz-Content-Sha1": "do_not_verify",
+                    "Content-Length": String(file.size),
+                },
+                body: file,
+            });
+            uploadResult = await uploadResponse.json().catch(() => ({}));
+        }
+
+        if (!uploadResponse || !uploadResponse.ok) {
+            throw new Error((uploadResult && uploadResult.message) || `Direct B2 upload failed with status: ${uploadResponse ? uploadResponse.status : "unknown"}`);
         }
 
         // 3. Save database record and trigger background worker on Railway

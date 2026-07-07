@@ -65,6 +65,9 @@ export async function getCachedBackblazeAuth(): Promise<BackblazeAuth> {
   return authPromise;
 }
 
+let cachedUploadUrlPromise: Promise<BackblazeUploadUrl> | null = null;
+let uploadUrlExpiresAt = 0;
+
 export async function getUploadUrl(auth: BackblazeAuth): Promise<BackblazeUploadUrl> {
   const bucketId = requireEnv("B2_BUCKET_ID");
   const response = await fetch(`${auth.apiUrl}/b2api/v3/b2_get_upload_url`, {
@@ -81,4 +84,30 @@ export async function getUploadUrl(auth: BackblazeAuth): Promise<BackblazeUpload
   }
 
   return response.json();
+}
+
+export async function getCachedUploadUrl(auth: BackblazeAuth, forceRefresh = false): Promise<BackblazeUploadUrl> {
+  if (forceRefresh) {
+    cachedUploadUrlPromise = null;
+    uploadUrlExpiresAt = 0;
+  }
+
+  if (cachedUploadUrlPromise && Date.now() < uploadUrlExpiresAt) {
+    return cachedUploadUrlPromise;
+  }
+
+  // Cache for 10 minutes (standard batch duration)
+  uploadUrlExpiresAt = Date.now() + 10 * 60 * 1000;
+
+  cachedUploadUrlPromise = (async () => {
+    try {
+      return await getUploadUrl(auth);
+    } catch (err) {
+      cachedUploadUrlPromise = null;
+      uploadUrlExpiresAt = 0;
+      throw err;
+    }
+  })();
+
+  return cachedUploadUrlPromise;
 }

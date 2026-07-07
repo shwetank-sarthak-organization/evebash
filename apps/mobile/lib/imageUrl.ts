@@ -47,15 +47,10 @@ export function getImageUrl(
 
     // Map to pre-generated static files on Backblaze B2 based on size requested
     const width = opts.width || 0;
-    if (width > 0 && width <= 200) {
+    if (width > 0 && width <= 450) {
         return thumbnailUrl || `${src}-thumbnail.webp`;
-    } else if (width > 200 && width <= 450) {
-        return thumbnailUrl || `${src}-thumbnail.webp`;
-    } else if (width > 450 && width <= 1000) {
-        return `${src}-preview.webp`;
     }
-
-    return src;
+    return `${src}-preview.webp`;
 }
 
 /** Convenience preset: grid thumbnail (400px wide, webp, 75% quality) */

@@ -149,9 +149,7 @@ function PhotoCard({
                         src={imageSrc}
                         alt={photo.alt || "Event Photo"}
                         onError={() => {
-                            if (photo.src && imageSrc !== photo.src) {
-                                setImageSrc(photo.src);
-                            }
+                            setImageSrc("");
                         }}
                         className="w-full h-auto object-cover transform transition-all duration-700 group-hover:scale-[1.02]"
                         loading="lazy"
