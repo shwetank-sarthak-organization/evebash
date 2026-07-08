@@ -1747,31 +1747,33 @@ function DashboardContent() {
                     uploadResults.push({ file, photo }); // Store for background indexing
 
                     if (photo.mediaType === "photo" && photo.resourceType === "image") {
-                        // Poll Supabase until thumbnail_url is populated (indicating resizing is finished)
-                        let thumbnailGenerated = false;
-                        for (let poll = 0; poll < 40; poll++) {
-                            await new Promise(resolve => setTimeout(resolve, 2000));
-                            const { data: checkData } = await supabase
-                                .from('photos')
-                                .select('thumbnail_url')
-                                .eq('storage_key', uploadResult.publicId)
-                                .maybeSingle();
+                        // Poll Supabase in background (asynchronously) so queue worker continues immediately
+                        void (async () => {
+                            let thumbnailGenerated = false;
+                            for (let poll = 0; poll < 40; poll++) {
+                                await new Promise(resolve => setTimeout(resolve, 2000));
+                                const { data: checkData } = await supabase
+                                    .from('photos')
+                                    .select('thumbnail_url')
+                                    .eq('storage_key', uploadResult.publicId)
+                                    .maybeSingle();
 
-                            if (checkData && checkData.thumbnail_url) {
-                                thumbnailGenerated = true;
-                                photo.thumbnailUrl = checkData.thumbnail_url;
-                                break;
+                                if (checkData && checkData.thumbnail_url) {
+                                    thumbnailGenerated = true;
+                                    photo.thumbnailUrl = checkData.thumbnail_url;
+                                    break;
+                                }
                             }
-                        }
-                        if (thumbnailGenerated) {
-                            fetchEventPhotos();
-                            // Complete item as successful only when thumbnail exists
-                            setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "success", progress: 100 } : item));
-                        } else {
-                            console.warn(`[Dashboard] Thumbnail generation timed out for ${file.name}. Rolling back upload...`);
-                            await deletePhoto(photo.id);
-                            throw new Error("Failed to generate optimized thumbnails (Timeout).");
-                        }
+                            if (thumbnailGenerated) {
+                                fetchEventPhotos();
+                                // Complete item as successful only when thumbnail exists
+                                setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "success", progress: 100 } : item));
+                            } else {
+                                console.warn(`[Dashboard] Thumbnail generation timed out for ${file.name}. Rolling back upload...`);
+                                await deletePhoto(photo.id);
+                                setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "error", progress: 100, error: "Failed to generate optimized thumbnails (Timeout)." } : item));
+                            }
+                        })();
                     } else {
                         // Videos don't require resizing/thumbnail generation
                         fetchEventPhotos();
