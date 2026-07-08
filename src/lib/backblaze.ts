@@ -65,8 +65,17 @@ export async function getCachedBackblazeAuth(): Promise<BackblazeAuth> {
   return authPromise;
 }
 
-let cachedUploadUrlPromise: Promise<BackblazeUploadUrl> | null = null;
-let uploadUrlExpiresAt = 0;
+const POOL_SIZE = 5;
+
+interface PooledToken {
+  promise: Promise<BackblazeUploadUrl> | null;
+  expiresAt: number;
+}
+
+const tokenPool: PooledToken[] = Array.from({ length: POOL_SIZE }, () => ({
+  promise: null,
+  expiresAt: 0
+}));
 
 export async function getUploadUrl(auth: BackblazeAuth): Promise<BackblazeUploadUrl> {
   const bucketId = requireEnv("B2_BUCKET_ID");
@@ -86,28 +95,35 @@ export async function getUploadUrl(auth: BackblazeAuth): Promise<BackblazeUpload
   return response.json();
 }
 
-export async function getCachedUploadUrl(auth: BackblazeAuth, forceRefresh = false): Promise<BackblazeUploadUrl> {
+export async function getCachedUploadUrl(
+  auth: BackblazeAuth,
+  forceRefresh = false,
+  laneIndex = 0
+): Promise<BackblazeUploadUrl> {
+  const index = Math.min(Math.max(0, laneIndex), POOL_SIZE - 1);
+  const slot = tokenPool[index];
+
   if (forceRefresh) {
-    cachedUploadUrlPromise = null;
-    uploadUrlExpiresAt = 0;
+    slot.promise = null;
+    slot.expiresAt = 0;
   }
 
-  if (cachedUploadUrlPromise && Date.now() < uploadUrlExpiresAt) {
-    return cachedUploadUrlPromise;
+  if (slot.promise && Date.now() < slot.expiresAt) {
+    return slot.promise;
   }
 
   // Cache for 10 minutes (standard batch duration)
-  uploadUrlExpiresAt = Date.now() + 10 * 60 * 1000;
+  slot.expiresAt = Date.now() + 10 * 60 * 1000;
 
-  cachedUploadUrlPromise = (async () => {
+  slot.promise = (async () => {
     try {
       return await getUploadUrl(auth);
     } catch (err) {
-      cachedUploadUrlPromise = null;
-      uploadUrlExpiresAt = 0;
+      slot.promise = null;
+      slot.expiresAt = 0;
       throw err;
     }
   })();
 
-  return cachedUploadUrlPromise;
+  return slot.promise;
 }

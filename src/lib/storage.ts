@@ -6,10 +6,9 @@ import { supabase } from "@/lib/supabase";
  * 2. Uploads binary directly to Backblaze B2.
  * 3. Saves photo metadata to Supabase via Railway save-photo endpoint.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function uploadEventImage(file: File, eventId: string, userId?: string) {
+export async function uploadEventImage(file: File, eventId: string, userId?: string, laneIndex = 0) {
     try {
-        console.log(`[Storage] Starting direct B2 upload for: ${file.name} to event: ${eventId}`);
+        console.log(`[Storage] Starting direct B2 upload for: ${file.name} to event: ${eventId} (lane: ${laneIndex})`);
 
         const resourceType = file.type.startsWith("video/") ? "video" : "image";
         const { data: { session } } = await supabase.auth.getSession();
@@ -29,6 +28,7 @@ export async function uploadEventImage(file: File, eventId: string, userId?: str
                 eventId,
                 fileName: file.name,
                 resourceType,
+                laneIndex,
             }),
         });
 
@@ -72,6 +72,7 @@ export async function uploadEventImage(file: File, eventId: string, userId?: str
                     eventId,
                     fileName: file.name,
                     resourceType,
+                    laneIndex,
                     forceRefresh: true,
                 }),
             });

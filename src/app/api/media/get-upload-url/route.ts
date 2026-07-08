@@ -137,9 +137,10 @@ export async function POST(request: NextRequest) {
     });
 
     const forceRefresh = body.forceRefresh === true;
+    const laneIndex = typeof body.laneIndex === "number" ? body.laneIndex : 0;
     const backblazeAuth = await getCachedBackblazeAuth();
     const { getCachedUploadUrl } = await import("@/lib/backblaze");
-    const b2UploadData = await getCachedUploadUrl(backblazeAuth, forceRefresh);
+    const b2UploadData = await getCachedUploadUrl(backblazeAuth, forceRefresh, laneIndex);
 
     const mediaDomain = requireEnv("MEDIA_DOMAIN").replace(/^https?:\/\//, "").replace(/\/+$/, "");
 

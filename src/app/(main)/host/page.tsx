@@ -1694,11 +1694,11 @@ function DashboardContent() {
             let firstUploadedUrl = "";
             const uploadResults: { file: File, photo: Photo }[] = [];
 
-            const concurrencyLimit = 1;
+            const concurrencyLimit = 3;
             let activeCount = 0;
             let currentIndex = 0;
 
-            const runNext = async (): Promise<void> => {
+            const runNext = async (workerId: number): Promise<void> => {
                 if (currentIndex >= selectedFiles.length) return;
 
                 const index = currentIndex++;
@@ -1717,9 +1717,9 @@ function DashboardContent() {
                 }, 200);
 
                 try {
-                    console.log(`[Dashboard] Uploading file ${index + 1}/${selectedFiles.length}: ${file.name}`);
+                    console.log(`[Dashboard] Uploading file ${index + 1}/${selectedFiles.length}: ${file.name} (lane: ${workerId})`);
                     // Upload the original file — thumbnails and previews are pre-generated asynchronously on the backend
-                    const uploadResult = await uploadEventImage(file, selectedEventId, user.uid || "anonymous");
+                    const uploadResult = await uploadEventImage(file, selectedEventId, user.uid || "anonymous", workerId);
                     clearInterval(progressInterval);
 
                     if (index === 0) firstUploadedUrl = uploadResult.url;
@@ -1786,14 +1786,14 @@ function DashboardContent() {
                 } finally {
                     activeCount--;
                     // Process next file in the queue
-                    await runNext();
+                    await runNext(workerId);
                 }
             };
 
             // Launch initial set of workers
             const workers: Promise<void>[] = [];
             for (let i = 0; i < Math.min(concurrencyLimit, selectedFiles.length); i++) {
-                workers.push(runNext());
+                workers.push(runNext(i));
             }
 
             // Wait for all workers to finish execution
