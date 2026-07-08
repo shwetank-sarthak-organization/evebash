@@ -264,6 +264,7 @@ export function ThemeHeader({
   };
 
   const isPartnersActive = activeSubEvent?.id === 'event-partners';
+  const isFindYouActive = activeSubEvent?.id === 'find-you';
 
   return (
     <View style={[
@@ -396,6 +397,73 @@ export function ThemeHeader({
             </Text>
           )}
           {renderUnderline(isPartnersActive)}
+        </TouchableOpacity>
+
+        {/* Find You Tab */}
+        <TouchableOpacity
+          style={[
+            styles.visitorTab,
+            isThemeHeader ? themeHeaderTab(isFindYouActive) : [...birthdayTabStyles, isFindYouActive && resolvedActiveTab],
+            isAcademicEditorial && academicTabStyle,
+            isBohemian && [styles.bohemianVisitorTab, isFindYouActive && styles.bohemianVisitorTabActive],
+          ]}
+          onPress={() => handleSubEventChange({ id: 'find-you', title: 'Find You' } as any)}
+        >
+          {isBohemian ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {isFindYouActive && <BohemianEqualizer accentColor={selectedTemplate.accent} styles={styles} />}
+              <Text style={[
+                styles.visitorTabText,
+                {
+                  fontFamily: selectedTemplate.serifFont,
+                  fontSize: 13,
+                  color: isFindYouActive ? '#431407' : 'rgba(67, 20, 7, 0.65)',
+                  fontWeight: 'bold' as any,
+                  textTransform: 'uppercase' as const,
+                  letterSpacing: 1.2,
+                }
+              ]}>FIND YOU 📸</Text>
+            </View>
+          ) : (
+            <Text style={[
+              styles.visitorTabText,
+              { color: isThemeHeader ? themeTextColor(isFindYouActive) : birthdayTextColor },
+              isScrapbook && styles.scrapbookVisitorTabText,
+              isNeon && styles.neonVisitorTabText,
+              isPastel && styles.pastelVisitorTabText,
+              isPop && styles.popVisitorTabText,
+              isGoldenYears && styles.goldenVisitorTabText,
+              isVintageNoir && styles.vintageVisitorTabText,
+              isRoseGarden && styles.roseVisitorTabText,
+              isMinimalLove && styles.minimalVisitorTabText,
+              isCyberTech && styles.cyberVisitorTabText,
+              isNeonCarnival && styles.neonCarnivalVisitorTabText,
+              isRetroArcade && styles.retroArcadeVisitorTabText,
+              isMuseum && styles.museumVisitorTabText,
+              isBrutalist && styles.brutalistVisitorTabText,
+              isTechSleek && styles.techSleekVisitorTabText,
+              isExecutive && styles.executiveVisitorTabText,
+              isSportsTemplate && [styles.sportsVisitorTabText, { color: sportsHeaderTheme.text }],
+              !isSportsTemplate && selectedTemplate.useSerif && { fontFamily: selectedTemplate.bodyMedium, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 13 },
+              isAcademicEditorial && {
+                fontFamily: selectedTemplate.serifBold,
+                fontSize: 13,
+                textTransform: 'uppercase' as const,
+                letterSpacing: 1.5,
+                color: isFindYouActive ? selectedTemplate.accent : selectedTemplate.muted,
+              },
+              isFindYouActive && !isThemeHeader && !isAcademicEditorial && resolvedActiveText,
+            ]}>
+              {(isCyberTech || isNeonCarnival) ? (isFindYouActive ? '[ FIND YOU ]' : '  FIND YOU  ') : (
+                isRetroArcade ? 'FIND YOU 📸' : (
+                  isAcademicEditorial ? `${String(subEvents.length + 3).padStart(2, '0')} / FIND YOU` : (
+                    (isSportsTemplate || isMuseum || isBrutalist || isTechSleek || isExecutive) ? 'Find You' : <>Find You <Text style={{ fontSize: 10 }}>📸</Text></>
+                  )
+                )
+              )}
+            </Text>
+          )}
+          {renderUnderline(isFindYouActive)}
         </TouchableOpacity>
       </ScrollView>
 

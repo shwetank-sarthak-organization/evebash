@@ -37,6 +37,7 @@ import { SubEventModal } from '../../components/event/modals/SubEventModal';
 import { TemplateSelectionModal } from '../../components/event/modals/TemplateSelectionModal';
 import { GalleryDescriptionModal } from '../../components/event/modals/GalleryDescriptionModal';
 import { useGuestAccess } from '../../hooks/useGuestAccess';
+import { FindYouPanel } from '../../components/event/FindYouPanel';
 
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -5125,7 +5126,7 @@ export default function EventDetailScreen() {
                 <>
                   {/* ── VISITOR IMMERSIVE CONTENT ── */}
                   <View style={[styles.visitorContent, { backgroundColor: pageBackground }]}>
-                {(event as any).showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && (
+                {(event as any).showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you' && (
                   <View style={[
                     styles.mainInfoBox,
                     {
@@ -5446,7 +5447,15 @@ export default function EventDetailScreen() {
 
                 <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />
 
-                {activeSubEvent?.id === 'event-partners' ? (
+                {activeSubEvent?.id === 'find-you' ? (
+                  <FindYouPanel
+                    eventId={event.id}
+                    legacyId={event.legacyId}
+                    parentId={event.parentId}
+                    selectedTemplate={selectedTemplate}
+                    styles={styles}
+                  />
+                ) : activeSubEvent?.id === 'event-partners' ? (
                   <View style={{ paddingTop: (isPopTemplate || isRetroArcadeTemplate) ? 10 : isGardenTemplate ? 12 : 40, paddingBottom: 24, paddingHorizontal: 20 }}>
                     <View style={{ alignItems: 'center', marginBottom: 32 }}>
                       <Text style={[

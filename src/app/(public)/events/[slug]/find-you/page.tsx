@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import * as faceapi from "face-api.js";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
-import { getAllFaceEncodings, FaceRecord } from "@/lib/database";
+import { getEventFaceEncodings, getEventById, FaceRecord } from "@/lib/database";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -47,6 +47,7 @@ export default function FindYouPage({ params }: { params: Promise<{ slug: string
 
         const file = event.target.files[0];
         setUploading(true);
+        setMatchedPhotos([]);
         setStatusMessage("Analyzing your selfie...");
 
         // Create a local URL for the selfie
@@ -65,20 +66,26 @@ export default function FindYouPage({ params }: { params: Promise<{ slug: string
             }
 
             setProcessing(true);
-            setStatusMessage("Searching database for matches...");
+            setStatusMessage("Searching this event's photos for matches...");
 
-            // 2. Fetch all indexed faces from Supabase database
-            const indexedFaces = await getAllFaceEncodings();
+            // 2. Fetch face encodings ONLY for this specific event
+            const eventData = await getEventById(slug);
+            const eventIds = [slug];
+            const legacyIds = eventData?.legacyId ? [eventData.legacyId] : [];
+            // Also include parentId so guests see photos from all sub-events of the same wedding
+            if (eventData?.parentId) eventIds.push(eventData.parentId);
+
+            const indexedFaces = await getEventFaceEncodings(eventIds, legacyIds);
 
             if (indexedFaces.length === 0) {
-                setStatusMessage("No photos found in database. Please ask Admin to run the Indexer.");
+                setStatusMessage("No indexed photos found for this event. Please ask the organizer to run the Face Indexer.");
                 setProcessing(false);
                 return;
             }
 
             // 3. Match faces
             const matches: FaceRecord[] = [];
-            const threshold = 0.5; // Stricter threshold
+            const threshold = 0.5;
 
             for (const face of indexedFaces) {
                 const storedDescriptor = new Float32Array(face.descriptor);
@@ -89,7 +96,7 @@ export default function FindYouPage({ params }: { params: Promise<{ slug: string
                 }
             }
 
-            // Deduplicate matches
+            // Deduplicate by imageId
             const uniqueMatches = Array.from(new Map(matches.map(item => [item.imageId, item])).values());
 
             setMatchedPhotos(uniqueMatches.map(p => ({
@@ -100,7 +107,11 @@ export default function FindYouPage({ params }: { params: Promise<{ slug: string
                 alt: `Found in ${p.eventId}`
             })));
 
-            setStatusMessage(`Found ${uniqueMatches.length} photos of you!`);
+            if (uniqueMatches.length === 0) {
+                setStatusMessage("No matching photos found in this event. Try a clearer selfie!");
+            } else {
+                setStatusMessage(`Found ${uniqueMatches.length} photo${uniqueMatches.length === 1 ? "" : "s"} of you!`);
+            }
 
         } catch (error) {
             console.error("Matching error:", error);
@@ -126,20 +137,32 @@ export default function FindYouPage({ params }: { params: Promise<{ slug: string
 
                 <div className="max-w-2xl mx-auto text-center mb-12">
                     <p className="text-stone-600 mb-8">
-                        Upload a clear selfie, and our AI will magically find all your photos from the event.
+                        Upload a clear selfie, and our AI will magically find all your photos from this event.
                     </p>
 
                     <div className="bg-white p-8 rounded-2xl shadow-xl border border-stone-100">
+                        {/* Selfie preview */}
+                        {selfieUrl && (
+                            <div className="mb-6 flex justify-center">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={selfieUrl}
+                                    alt="Your selfie"
+                                    className="w-24 h-24 rounded-full object-cover border-4 border-royal-gold shadow-lg"
+                                />
+                            </div>
+                        )}
+
                         <div className="flex flex-col md:flex-row gap-4 justify-center">
                             {/* Option 1: Gallery Upload */}
                             <button
                                 onClick={() => modelsLoaded && fileInputRef.current?.click()}
-                                disabled={!modelsLoaded}
+                                disabled={!modelsLoaded || uploading || processing}
                                 className={`
                                     flex-1 flex flex-col items-center justify-center p-8 rounded-xl border-2 border-dashed transition-all
-                                    ${modelsLoaded
-                                        ? 'border-royal-gold/50 bg-royal-gold/5 hover:bg-royal-gold/10 hover:border-royal-gold text-royal-maroon'
-                                        : 'border-stone-200 bg-stone-50 text-stone-600 cursor-not-allowed'}
+                                    ${modelsLoaded && !uploading && !processing
+                                        ? 'border-royal-gold/50 bg-royal-gold/5 hover:bg-royal-gold/10 hover:border-royal-gold text-royal-maroon cursor-pointer'
+                                        : 'border-stone-200 bg-stone-50 text-stone-400 cursor-not-allowed'}
                                 `}
                             >
                                 <span className="text-4xl mb-3">📁</span>
@@ -150,12 +173,12 @@ export default function FindYouPage({ params }: { params: Promise<{ slug: string
                             {/* Option 2: Camera Capture */}
                             <button
                                 onClick={() => modelsLoaded && cameraInputRef.current?.click()}
-                                disabled={!modelsLoaded}
+                                disabled={!modelsLoaded || uploading || processing}
                                 className={`
                                     flex-1 flex flex-col items-center justify-center p-8 rounded-xl border-2 border-dashed transition-all
-                                    ${modelsLoaded
-                                        ? 'border-royal-gold/50 bg-royal-gold/5 hover:bg-royal-gold/10 hover:border-royal-gold text-royal-maroon'
-                                        : 'border-stone-200 bg-stone-50 text-stone-600 cursor-not-allowed'}
+                                    ${modelsLoaded && !uploading && !processing
+                                        ? 'border-royal-gold/50 bg-royal-gold/5 hover:bg-royal-gold/10 hover:border-royal-gold text-royal-maroon cursor-pointer'
+                                        : 'border-stone-200 bg-stone-50 text-stone-400 cursor-not-allowed'}
                                 `}
                             >
                                 <span className="text-4xl mb-3">📸</span>
@@ -164,7 +187,7 @@ export default function FindYouPage({ params }: { params: Promise<{ slug: string
                             </button>
                         </div>
 
-                        {/* Status Message Area */}
+                        {/* Status Message */}
                         {!modelsLoaded && (
                             <p className="text-center text-stone-700 mt-4 animate-pulse">
                                 Loading AI Models...
@@ -189,9 +212,9 @@ export default function FindYouPage({ params }: { params: Promise<{ slug: string
                         />
 
                         {/* Status / Progress */}
-                        {(uploading || processing || statusMessage !== "AI Models Loaded. Ready.") && (
+                        {(uploading || processing || (statusMessage !== "AI Models Loaded. Ready." && modelsLoaded)) && (
                             <div className="mt-6">
-                                <p className="text-royal-maroon font-medium animate-pulse">
+                                <p className={`font-medium ${uploading || processing ? "animate-pulse" : ""} ${matchedPhotos.length > 0 ? "text-green-700" : "text-royal-maroon"}`}>
                                     {statusMessage}
                                 </p>
                             </div>
@@ -202,7 +225,7 @@ export default function FindYouPage({ params }: { params: Promise<{ slug: string
                 {/* Results */}
                 {matchedPhotos.length > 0 && (
                     <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
-                        <SectionHeader title="Your Photos" subtitle={`We found ${matchedPhotos.length} matches`} />
+                        <SectionHeader title="Your Photos" subtitle={`We found ${matchedPhotos.length} match${matchedPhotos.length === 1 ? "" : "es"} in this event`} />
                         <MasonryGrid photos={matchedPhotos} />
                     </div>
                 )}

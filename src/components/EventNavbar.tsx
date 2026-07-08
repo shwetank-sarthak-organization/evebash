@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, ChevronRight, User, LogOut, Camera } from "lucide-react";
+import { Menu, X, ChevronRight, User, LogOut, Camera, ScanFace } from "lucide-react";
 import { Event } from "@/lib/database";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -16,10 +16,12 @@ interface EventNavbarProps {
     isShared?: boolean;
     basePath: string;
     activeGalleryId?: string;
+    activePage?: "gallery" | "find-you";
     onSelectGallery?: (gallery: Event | null) => void;
+    onFindYou?: () => void;
 }
 
-export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, basePath, activeGalleryId, onSelectGallery }: EventNavbarProps) {
+export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, basePath, activeGalleryId, activePage, onSelectGallery, onFindYou }: EventNavbarProps) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [guestDetails, setGuestDetails] = useState<{name: string, phone: string} | null>(null);
     const pathname = usePathname();
@@ -54,7 +56,7 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, 
     const sharedQuery = isShared ? "?shared=true" : "";
 
     // Generate core links
-    const navLinks: Array<{ name: string; href: string; gallery: Event | null; isGallery: boolean }> = [
+    const navLinks: Array<{ name: string; href: string; gallery: Event | null; isGallery: boolean; isFindYou?: boolean }> = [
         { name: "Home", href: `${basePath}${sharedQuery}`, gallery: null, isGallery: true },
         ...subEvents.map(sub => ({
             name: sub.title || sub.id,
@@ -62,14 +64,17 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, 
             gallery: sub,
             isGallery: true
         })),
-        { name: "Event Partners", href: `${basePath}/event-partners${sharedQuery}`, gallery: null, isGallery: false }
+        { name: "Event Partners", href: `${basePath}/event-partners${sharedQuery}`, gallery: null, isGallery: false },
+        { name: "Find You", href: `${basePath}/find-you`, gallery: null, isGallery: false, isFindYou: true },
     ];
 
     if (user?.role === "admin") {
         navLinks.push({ name: "Admin", href: `${basePath}/admin`, gallery: null, isGallery: false });
     }
 
-    const isLinkActive = (href: string) => {
+    const isLinkActive = (href: string, isFindYou?: boolean) => {
+        if (isFindYou) return activePage === "find-you";
+        if (activePage === "find-you") return false;
         const cleanPathname = pathname.split('?')[0];
         const linkPath = href.split('?')[0];
         return cleanPathname === linkPath;
@@ -102,13 +107,30 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, 
                     {/* Right: Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-2">
                         {navLinks.map((link) => {
-                            const isActive = link.isGallery && onSelectGallery ? isGalleryActive(link.gallery) : isLinkActive(link.href);
+                            const isActive = link.isGallery && onSelectGallery
+                                ? isGalleryActive(link.gallery)
+                                : isLinkActive(link.href, link.isFindYou);
                             const className = cn(
-                                "px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all",
+                                "px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5",
                                 isActive
                                     ? "bg-slate-900 text-white shadow-md"
                                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                             );
+
+                            // Find You tab — calls onFindYou callback if provided, else navigates to URL
+                            if (link.isFindYou && onFindYou) {
+                                return (
+                                    <button
+                                        key={link.name}
+                                        type="button"
+                                        onClick={onFindYou}
+                                        className={className}
+                                    >
+                                        <ScanFace className="w-3.5 h-3.5" />
+                                        {link.name}
+                                    </button>
+                                );
+                            }
 
                             if (link.isGallery && onSelectGallery) {
                                 return (
@@ -210,13 +232,30 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, 
                                 <p className="text-xs font-bold text-stone-600 uppercase tracking-widest mb-6">Menu</p>
                                 <div className="space-y-4">
                                     {navLinks.map((link) => {
-                                        const isActive = link.isGallery && onSelectGallery ? isGalleryActive(link.gallery) : isLinkActive(link.href);
+                                        const isActive = link.isGallery && onSelectGallery
+                                            ? isGalleryActive(link.gallery)
+                                            : isLinkActive(link.href, link.isFindYou);
                                         const className = cn(
-                                            "block w-full p-4 rounded-2xl text-left text-lg font-bold transition-all border border-transparent",
+                                            "flex items-center gap-3 w-full p-4 rounded-2xl text-left text-lg font-bold transition-all border border-transparent",
                                             isActive
                                                 ? "bg-slate-900 text-white shadow-sm"
                                                 : "hover:bg-stone-50 text-slate-600"
                                         );
+
+                                        // Find You — inline callback or link
+                                        if (link.isFindYou && onFindYou) {
+                                            return (
+                                                <button
+                                                    key={link.name}
+                                                    type="button"
+                                                    onClick={() => { onFindYou(); setMobileMenuOpen(false); }}
+                                                    className={className}
+                                                >
+                                                    <ScanFace className="w-5 h-5" />
+                                                    {link.name}
+                                                </button>
+                                            );
+                                        }
 
                                         if (link.isGallery && onSelectGallery) {
                                             return (

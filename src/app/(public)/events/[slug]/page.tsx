@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRef } from "react";
 import { getWebTemplateComponent } from "@/components/templateRegistry";
 import { getWebLightboxTheme } from "@/lib/webTemplateTheme";
+import { FindYouSection } from "@/components/FindYouSection";
 
 function EventPageContent() {
     const params = useParams();
@@ -30,6 +31,7 @@ function EventPageContent() {
     const [photos, setPhotos] = useState<any[]>([]);
     const [activeGallery, setActiveGallery] = useState<Event | null>(null);
     const [galleryMediaTab, setGalleryMediaTab] = useState<"photos" | "videos">("photos");
+    const [activePage, setActivePage] = useState<"gallery" | "find-you">("gallery");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
@@ -558,6 +560,10 @@ function EventPageContent() {
     const navMainTitle = parentEvent ? parentEvent.title : event.title;
     const navMainId = event.parentId || event.id;
 
+    // Build Find You event IDs (current event + parent if sub-event)
+    const findYouEventIds = [event.id];
+    if (event.parentId) findYouEventIds.push(event.parentId);
+
     return (
         <main className="min-h-screen relative" ref={containerRef}>
             <EventNavbar
@@ -567,7 +573,12 @@ function EventPageContent() {
                 isShared={isShared}
                 basePath={`/events/${navMainId}`}
                 activeGalleryId={activeGalleryId}
-                onSelectGallery={(gallery) => selectGallery(gallery || parentEvent || null)}
+                activePage={activePage}
+                onSelectGallery={(gallery) => {
+                    setActivePage("gallery");
+                    selectGallery(gallery || parentEvent || null);
+                }}
+                onFindYou={() => setActivePage("find-you")}
             />
             <TemplateComponent
                 event={event}
@@ -585,7 +596,24 @@ function EventPageContent() {
                 copied={copied}
                 error={error}
             >
-                {renderContent()}
+                {activePage === "find-you" ? (
+                    <div className="py-12 px-4">
+                        <div className="text-center mb-10">
+                            <p className="text-xs font-black uppercase tracking-widest text-stone-500 mb-2">AI Photo Search</p>
+                            <h2 className="text-3xl md:text-4xl font-serif italic text-stone-900 mb-3">Find You</h2>
+                            <p className="text-stone-500 text-sm">Upload a selfie to find all your photos from this event</p>
+                        </div>
+                        <FindYouSection
+                            eventId={event.id}
+                            legacyId={event.legacyId}
+                            parentId={event.parentId}
+                            eventSlug={slug}
+                            lightboxTheme={getWebLightboxTheme(event.templateId)}
+                        />
+                    </div>
+                ) : (
+                    renderContent()
+                )}
             </TemplateComponent>
             {/* Guest Entry Modal */}
             <AnimatePresence>
