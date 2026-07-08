@@ -4399,15 +4399,15 @@ function DashboardContent() {
                                                                         </div>
                                                                     </div>
                                                                 </>
+                                                            ) : !photo.thumbnailUrl ? (
+                                                                <div className="h-full w-full animate-pulse bg-slate-800/80 flex flex-col items-center justify-center space-y-2">
+                                                                    <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
+                                                                    <span className="text-[9px] uppercase font-bold tracking-widest text-slate-500">Processing</span>
+                                                                </div>
                                                             ) : (
                                                                 <img
                                                                     src={gridSrc}
                                                                     alt="Gallery item"
-                                                                    onError={(event) => {
-                                                                        if (event.currentTarget.src !== photo.url) {
-                                                                            event.currentTarget.src = photo.url;
-                                                                        }
-                                                                    }}
                                                                     className={cn(
                                                                         "w-full h-full object-cover transition-all duration-500 group-hover:scale-105",
                                                                         shouldBlurMediaForPlan && "blur-[1.5px] scale-[1.02]"
@@ -4639,15 +4639,15 @@ function DashboardContent() {
                                                                                             </div>
                                                                                         </div>
                                                                                     </div>
+                                                                                ) : !photo.thumbnailUrl ? (
+                                                                                    <div className="h-full w-full animate-pulse bg-slate-800/80 flex flex-col items-center justify-center space-y-1">
+                                                                                        <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+                                                                                        <span className="text-[8px] uppercase font-bold tracking-widest text-slate-500">Processing</span>
+                                                                                    </div>
                                                                                 ) : (
                                                                                     <img
                                                                                         src={gridSrc}
                                                                                         alt=""
-                                                                                        onError={(event) => {
-                                                                                            if (event.currentTarget.src !== photo.url) {
-                                                                                                event.currentTarget.src = photo.url;
-                                                                                            }
-                                                                                        }}
                                                                                         className={cn(
                                                                                             "w-full h-full object-cover transition-all duration-300",
                                                                                             shouldBlurMediaForPlan && "blur-[1.5px] scale-[1.02]"
