@@ -38,6 +38,16 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Force environment detection to recognize Node.js
+        if (typeof process !== 'undefined') {
+            if (!process.versions) {
+                (process as any).versions = {};
+            }
+            if (typeof process.versions.node !== 'string') {
+                (process as any).versions.node = '18.0.0';
+            }
+        }
+
         // Polyfill face-api.js with canvas for Node.js
         faceapi.env.monkeyPatch({
             Canvas: canvasModule.Canvas,
