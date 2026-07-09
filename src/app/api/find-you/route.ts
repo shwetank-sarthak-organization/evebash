@@ -25,6 +25,14 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Missing selfie source (selfieUrl or selfieBase64) or eventIds" }, { status: 400 });
         }
 
+        // Force environment detection to recognize Browser/Node by mocking global browser variables
+        if (typeof global !== 'undefined') {
+            (global as any).window = (global as any).window || {};
+            (global as any).document = (global as any).document || {};
+            (global as any).HTMLImageElement = (global as any).HTMLImageElement || class {};
+            (global as any).HTMLCanvasElement = (global as any).HTMLCanvasElement || class {};
+        }
+
         // Dynamically import optional packages
         let canvasModule: any;
         let faceapi: any;
