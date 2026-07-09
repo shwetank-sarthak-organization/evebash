@@ -138,6 +138,20 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await downloadResponse.arrayBuffer();
     const bufferBytes = Buffer.from(arrayBuffer);
 
+    // Read original image dimensions using sharp
+    let originalWidth: number | null = null;
+    let originalHeight: number | null = null;
+    try {
+      const metadata = await sharp(bufferBytes).metadata();
+      // Handle potential EXIF orientation (swapping width/height if rotated 90 or 270 deg)
+      const isRotated = metadata.orientation && [5, 6, 7, 8].includes(metadata.orientation);
+      originalWidth = isRotated ? (metadata.height || null) : (metadata.width || null);
+      originalHeight = isRotated ? (metadata.width || null) : (metadata.height || null);
+      console.log(`[Resize Worker] Original image metadata: size=${originalWidth}x${originalHeight}, orientation=${metadata.orientation}`);
+    } catch (metaErr) {
+      console.error("[Resize Worker] Failed to extract metadata:", metaErr);
+    }
+
     // 5. Generate resized WebP buffers with concurrency throttling to prevent OOM crashes
     console.log(`[Resize Worker] Waiting for queue slot for: ${storageKey}`);
     await resizeQueue.acquire();
@@ -203,11 +217,16 @@ export async function POST(request: NextRequest) {
 
     // 7. Update database record — match by storage_key, with a retry loop to prevent race conditions
     let updated = false;
+    let updatedData: any = null;
     for (let attempt = 1; attempt <= 4; attempt++) {
       console.log(`[Resize Worker] Database update attempt ${attempt} for storage_key: ${storageKey}`);
-      const { data: updatedData, error: dbError } = await supabaseAdmin
+      const { data, error: dbError } = await supabaseAdmin
         .from("photos")
-        .update({ thumbnail_url: thumbnailUrl })
+        .update({ 
+          thumbnail_url: thumbnailUrl,
+          width: originalWidth,
+          height: originalHeight
+        })
         .eq("storage_key", storageKey)
         .select();
 
@@ -215,9 +234,10 @@ export async function POST(request: NextRequest) {
         throw dbError;
       }
 
-      if (updatedData && updatedData.length > 0) {
+      if (data && data.length > 0) {
         console.log(`[Resize Worker] Successfully updated database record in attempt ${attempt}`);
         updated = true;
+        updatedData = data;
         break;
       }
 
@@ -237,8 +257,86 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Database row not found. Rolled back B2 assets." }, { status: 404 });
     }
 
-    console.log(`[Resize Worker] Successfully finished resizing for key: ${storageKey}`);
-    return NextResponse.json({ success: true, message: "Image resized successfully", thumbnailUrl });
+    // 8. Run Server-Side Face Indexing
+    if (updated && updatedData && updatedData.length > 0) {
+      const photoRecord = updatedData[0];
+      try {
+        console.log(`[Resize Worker] Starting background face indexing for photo: ${photoRecord.id}`);
+        // Setup face-api environment
+        const hasCanvas = typeof (global as any).Canvas !== 'undefined';
+        const hasImage = typeof (global as any).Image !== 'undefined';
+        const hasImageData = typeof (global as any).ImageData !== 'undefined';
+        const hasCanvas2D = typeof (global as any).CanvasRenderingContext2D !== 'undefined';
+
+        let canvasModule: any;
+        let faceapi: any;
+
+        try {
+          canvasModule = await import("canvas" as any);
+          faceapi = await import("face-api.js");
+
+          if (typeof global !== 'undefined') {
+            if (!hasCanvas) (global as any).Canvas = canvasModule.Canvas;
+            if (!hasImage) (global as any).Image = canvasModule.Image;
+            if (!hasImageData) (global as any).ImageData = canvasModule.ImageData;
+            if (!hasCanvas2D) (global as any).CanvasRenderingContext2D = canvasModule.CanvasRenderingContext2D;
+          }
+
+          const nodeEnv = faceapi.env.createNodejsEnv();
+          nodeEnv.createCanvasElement = () => canvasModule.createCanvas(100, 100);
+          nodeEnv.createImageElement = () => new canvasModule.Image();
+          faceapi.env.setEnv(nodeEnv);
+
+          const MODEL_PATH = `${process.cwd()}/public/models`;
+          await Promise.all([
+            faceapi.nets.ssdMobilenetv1.loadFromDisk(MODEL_PATH),
+            faceapi.nets.faceLandmark68Net.loadFromDisk(MODEL_PATH),
+            faceapi.nets.faceRecognitionNet.loadFromDisk(MODEL_PATH),
+          ]);
+
+          const img = await canvasModule.loadImage(bufferBytes);
+          const detections = await faceapi.detectAllFaces(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+            .withFaceLandmarks()
+            .withFaceDescriptors();
+
+          if (detections.length > 0) {
+            console.log(`[Resize Worker] Found ${detections.length} faces in ${photoRecord.id}. Saving to index...`);
+            const faceRecords = detections.map((det: any) => ({
+              image_id: photoRecord.id,
+              descriptor: Array.from(det.descriptor),
+              event_id: photoRecord.event_id,
+              image_url: photoRecord.url,
+              width: photoRecord.width || 0,
+              height: photoRecord.height || 0
+            }));
+
+            const { error: facesErr } = await supabaseAdmin
+              .from('faces')
+              .insert(faceRecords);
+
+            if (facesErr) {
+              console.error(`[Resize Worker] Error saving faces to index:`, facesErr);
+            } else {
+              console.log(`[Resize Worker] Successfully indexed ${detections.length} faces for photo: ${photoRecord.id}`);
+            }
+          } else {
+            console.log(`[Resize Worker] No faces detected in photo: ${photoRecord.id}`);
+          }
+        } finally {
+          if (typeof global !== 'undefined') {
+            if (!hasCanvas) delete (global as any).Canvas;
+            if (!hasImage) delete (global as any).Image;
+            if (!hasImageData) delete (global as any).ImageData;
+            if (!hasCanvas2D) delete (global as any).CanvasRenderingContext2D;
+          }
+        }
+      } catch (err: any) {
+        console.error(`[Resize Worker] Face indexing failed for photo ${photoRecord.id}:`, err);
+      }
+    }
+
+    console.log(`[Resize Worker] Successfully finished resizing and indexing for key: ${storageKey}`);
+    return NextResponse.json({ success: true, message: "Image resized and indexed successfully", thumbnailUrl });
   } catch (error: unknown) {
     console.error("[Resize Worker] Resizing process failed:", error);
     const errMessage = error instanceof Error ? error.message : "Resizing failed";

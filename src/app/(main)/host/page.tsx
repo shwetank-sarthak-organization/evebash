@@ -92,8 +92,7 @@ import { getSubscriptionStatus } from "@/lib/subscriptionStatus";
 import { getWebLightboxTheme } from "@/lib/webTemplateTheme";
 import { v4 as uuidv4 } from "uuid";
 import { deleteGuestAction, updateGuestPermissionsAction, updateGuestStatusAction } from "@/app/actions/permissions";
-import * as faceapi from "face-api.js";
-import { saveFaceToIndex } from "@/lib/database";
+
 
 import { Lightbox } from "@/components/ui/Lightbox";
 import { resolveEventCoverImage } from "@/lib/eventCovers";
@@ -1843,52 +1842,7 @@ function DashboardContent() {
             // Wait for all workers to finish execution
             await Promise.allSettled(workers);
 
-            // --- Auto Face Indexing (Background) ---
-            const successUploads = uploadResults.filter(({ photo }) => photo.mediaType !== "video");
-            if (successUploads.length > 0) {
-                setTimeout(async () => {
-                    try {
-                        console.log(`[Dashboard] Starting background face indexing for ${successUploads.length} new uploads...`);
-                        const MODEL_URL = "/models";
-                        await Promise.all([
-                            faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-                            faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-                            faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-                        ]);
-                        console.log("[Dashboard] Face-API Models loaded.");
 
-                        for (const { file, photo } of successUploads) {
-                            try {
-                                const imageUrl = URL.createObjectURL(file);
-                                const img = await faceapi.fetchImage(imageUrl);
-                                const detections = await faceapi.detectAllFaces(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-                                    .withFaceLandmarks()
-                                    .withFaceDescriptors();
-
-                                if (detections.length > 0) {
-                                    console.log(`[Dashboard] Found ${detections.length} faces in ${file.name}. Saving to index...`);
-                                    for (const detection of detections) {
-                                        await saveFaceToIndex({
-                                            imageId: photo.id,
-                                            descriptor: Array.from(detection.descriptor),
-                                            eventId: photo.eventId,
-                                            imageUrl: photo.url,
-                                            width: photo.width || 0,
-                                            height: photo.height || 0
-                                        });
-                                    }
-                                }
-                                URL.revokeObjectURL(imageUrl);
-                            } catch (e) {
-                                console.error("[Dashboard] Error indexing face in file", file.name, e);
-                            }
-                        }
-                        console.log("[Dashboard] Background face indexing complete.");
-                    } catch (e) {
-                        console.error("[Dashboard] Background indexing failed:", e);
-                    }
-                }, 100);
-            }
 
             await fetchStorageStats();
 
