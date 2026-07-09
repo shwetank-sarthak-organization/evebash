@@ -24,7 +24,14 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+const tokenCache = new Map<string, { userId: string; expiresAt: number }>();
+
 async function verifySupabaseUser(accessToken: string) {
+  const cached = tokenCache.get(accessToken);
+  if (cached && Date.now() < cached.expiresAt) {
+    return { id: cached.userId };
+  }
+
   const supabaseUrl = requireEnv("NEXT_PUBLIC_SUPABASE_URL").replace(/\/+$/, "");
   const supabaseAnonKey = requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
@@ -38,7 +45,11 @@ async function verifySupabaseUser(accessToken: string) {
   if (!response.ok) return null;
 
   const user = await response.json().catch(() => null);
-  return user?.id ? { id: user.id } : null;
+  if (user?.id) {
+    tokenCache.set(accessToken, { userId: user.id, expiresAt: Date.now() + 5 * 60 * 1000 });
+    return { id: user.id };
+  }
+  return null;
 }
 
 async function deleteB2File(auth: BackblazeAuth, bucketId: string, key: string) {
