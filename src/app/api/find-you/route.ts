@@ -26,11 +26,16 @@ export async function POST(request: NextRequest) {
         }
 
         // Force environment detection to recognize Browser/Node by mocking global browser variables
+        const hasWindow = typeof (global as any).window !== 'undefined';
+        const hasDocument = typeof (global as any).document !== 'undefined';
+        const hasHTMLImage = typeof (global as any).HTMLImageElement !== 'undefined';
+        const hasHTMLCanvas = typeof (global as any).HTMLCanvasElement !== 'undefined';
+
         if (typeof global !== 'undefined') {
-            (global as any).window = (global as any).window || {};
-            (global as any).document = (global as any).document || {};
-            (global as any).HTMLImageElement = (global as any).HTMLImageElement || class {};
-            (global as any).HTMLCanvasElement = (global as any).HTMLCanvasElement || class {};
+            if (!hasWindow) (global as any).window = {};
+            if (!hasDocument) (global as any).document = {};
+            if (!hasHTMLImage) (global as any).HTMLImageElement = class {};
+            if (!hasHTMLCanvas) (global as any).HTMLCanvasElement = class {};
         }
 
         // Dynamically import optional packages
@@ -39,11 +44,20 @@ export async function POST(request: NextRequest) {
         try {
             canvasModule = await import("canvas" as any);
             faceapi = await import("face-api.js");
-        } catch {
+        } catch (err: any) {
+            console.error("[FindYou] Import error:", err);
             return NextResponse.json(
-                { error: "Server face recognition not available. Install `canvas` package." },
+                { error: `Server face recognition not available: ${err.message}` },
                 { status: 503 }
             );
+        } finally {
+            // Clean up global mocks immediately so they don't break Next.js server runtime
+            if (typeof global !== 'undefined') {
+                if (!hasWindow) delete (global as any).window;
+                if (!hasDocument) delete (global as any).document;
+                if (!hasHTMLImage) delete (global as any).HTMLImageElement;
+                if (!hasHTMLCanvas) delete (global as any).HTMLCanvasElement;
+            }
         }
 
         // Force environment detection to recognize Node.js
