@@ -77,6 +77,21 @@ export async function POST(request: NextRequest) {
             faceapi.nets.faceRecognitionNet.loadFromDisk(MODEL_PATH),
         ]);
 
+        // Fetch face encodings scoped to this event only
+        const indexedFaces = await getEventFaceEncodings(eventIds);
+
+        if (indexedFaces.length === 0) {
+            return NextResponse.json({ 
+                matches: [], 
+                message: "No indexed faces for this event",
+                debug: {
+                    indexedFacesCount: 0,
+                    selfieDetected: null,
+                    matchesCount: 0
+                }
+            }, { status: 200 });
+        }
+
         // Load and detect face in selfie
         const selfieImage = await canvasModule.loadImage(selfieSrc);
         const selfieDetection = await faceapi
@@ -85,14 +100,15 @@ export async function POST(request: NextRequest) {
             .withFaceDescriptor();
 
         if (!selfieDetection) {
-            return NextResponse.json({ matches: [], error: "No face detected in selfie" }, { status: 200 });
-        }
-
-        // Fetch face encodings scoped to this event only
-        const indexedFaces = await getEventFaceEncodings(eventIds);
-
-        if (indexedFaces.length === 0) {
-            return NextResponse.json({ matches: [], message: "No indexed faces for this event" }, { status: 200 });
+            return NextResponse.json({ 
+                matches: [], 
+                error: "No face detected in selfie",
+                debug: {
+                    indexedFacesCount: indexedFaces.length,
+                    selfieDetected: false,
+                    matchesCount: 0
+                }
+            }, { status: 200 });
         }
 
         // Compare descriptors
@@ -110,25 +126,44 @@ export async function POST(request: NextRequest) {
 
         console.log(`[FindYou] Comparing selfie against ${indexedFaces.length} stored faces...`);
         for (const face of indexedFaces) {
-            const storedDescriptor = new Float32Array(face.descriptor);
-            const distance = faceapi.euclideanDistance(selfieDetection.descriptor, storedDescriptor);
-            console.log(`[FindYou] Distance for face in image ${face.imageId}: ${distance.toFixed(4)} (threshold: ${THRESHOLD})`);
-            if (distance < THRESHOLD && !matchMap.has(face.imageId)) {
-                matchMap.set(face.imageId, {
-                    id: face.imageId,
-                    imageId: face.imageId,
-                    url: face.imageUrl,
-                    imageUrl: face.imageUrl,
-                    thumbnailUrl: getImageUrl(face.imageUrl, { width: 400 }),
-                    previewUrl: getImageUrl(face.imageUrl, { width: 900 }),
-                    width: face.width,
-                    height: face.height,
-                });
+            try {
+                const descriptorArray = typeof face.descriptor === 'string'
+                    ? JSON.parse(face.descriptor)
+                    : face.descriptor;
+                if (!Array.isArray(descriptorArray) || descriptorArray.length !== 128) {
+                    console.warn(`[FindYou] Skipping invalid descriptor for face in image ${face.imageId}: length=${descriptorArray?.length}`);
+                    continue;
+                }
+                const storedDescriptor = new Float32Array(descriptorArray);
+                const distance = faceapi.euclideanDistance(selfieDetection.descriptor, storedDescriptor);
+                console.log(`[FindYou] Distance for face in image ${face.imageId}: ${distance.toFixed(4)} (threshold: ${THRESHOLD})`);
+                if (distance < THRESHOLD && !matchMap.has(face.imageId)) {
+                    matchMap.set(face.imageId, {
+                        id: face.imageId,
+                        imageId: face.imageId,
+                        url: face.imageUrl,
+                        imageUrl: face.imageUrl,
+                        thumbnailUrl: getImageUrl(face.imageUrl, { width: 400 }),
+                        previewUrl: getImageUrl(face.imageUrl, { width: 900 }),
+                        width: face.width,
+                        height: face.height,
+                    });
+                }
+            } catch (err: any) {
+                console.error(`[FindYou] Error matching face descriptor for image ${face.imageId}:`, err);
             }
         }
 
         const matches = Array.from(matchMap.values());
-        return NextResponse.json({ matches, total: matches.length }, { status: 200 });
+        return NextResponse.json({ 
+            matches, 
+            total: matches.length,
+            debug: {
+                indexedFacesCount: indexedFaces.length,
+                selfieDetected: true,
+                matchesCount: matches.length
+            }
+        }, { status: 200 });
 
     } catch (error: any) {
         console.error("[API /find-you] Error:", error);

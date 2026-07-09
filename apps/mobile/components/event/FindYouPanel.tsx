@@ -161,11 +161,17 @@ export function FindYouPanel({
       const result = await response.json();
       const photos: MatchedPhoto[] = result.matches || [];
 
+      console.log('[FindYouPanel] Search debug details:', result.debug);
+
       setMatchedPhotos(photos);
       setStatus('done');
 
       if (photos.length === 0) {
-        setStatusMessage('No matching photos found. Try a clearer selfie!');
+        if (result.error) {
+          setStatusMessage(result.error);
+        } else {
+          setStatusMessage('No matching photos found. Try a clearer selfie!');
+        }
       } else {
         setStatusMessage(`Found ${photos.length} photo${photos.length === 1 ? '' : 's'} of you! 🎉`);
       }
