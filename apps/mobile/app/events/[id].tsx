@@ -5454,6 +5454,8 @@ export default function EventDetailScreen() {
                     parentId={event.parentId}
                     selectedTemplate={selectedTemplate}
                     styles={styles}
+                    event={event}
+                    viewerIdentity={viewerIdentity}
                   />
                 ) : activeSubEvent?.id === 'event-partners' ? (
                   <View style={{ paddingTop: (isPopTemplate || isRetroArcadeTemplate) ? 10 : isGardenTemplate ? 12 : 40, paddingBottom: 24, paddingHorizontal: 20 }}>

@@ -107,7 +107,6 @@ export function FindYouSection({ eventId, legacyId, parentId, eventSlug, lightbo
             setMatchedPhotos(uniqueMatches.map(p => ({
                 id: p.imageId,
                 src: p.imageUrl,
-                thumbnailUrl: p.imageUrl,
                 width: p.width,
                 height: p.height,
                 alt: "Your photo",

@@ -18,12 +18,17 @@ const PHOTO_GAP = 3;
 const PHOTO_COLS = 3;
 const PHOTO_SIZE = (SCREEN_WIDTH - PHOTO_GAP * (PHOTO_COLS + 1)) / PHOTO_COLS;
 
+import PhotoViewer from '../PhotoViewer';
+import { getGridThumbnail } from '@/lib/imageUrl';
+
 interface FindYouPanelProps {
   eventId: string;
   legacyId?: string;
   parentId?: string;
   selectedTemplate: any;
   styles: any;
+  event?: any;
+  viewerIdentity?: any;
 }
 
 interface MatchedPhoto {
@@ -33,11 +38,19 @@ interface MatchedPhoto {
   height?: number;
 }
 
-export function FindYouPanel({ eventId, legacyId, parentId, selectedTemplate, styles: themeStyles }: FindYouPanelProps) {
+export function FindYouPanel({
+  eventId,
+  legacyId,
+  parentId,
+  selectedTemplate,
+  styles: themeStyles,
+  event = null,
+  viewerIdentity = { id: 'anonymous', name: 'Guest' },
+}: FindYouPanelProps) {
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'uploading' | 'searching' | 'done' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('Upload a selfie to find your photos');
-  const [matchedPhotos, setMatchedPhotos] = useState<MatchedPhoto[]>([]);
+  const [matchedPhotos, setMatchedPhotos] = useState<any[]>([]);
 
   const isBusy = status === 'uploading' || status === 'searching';
 
@@ -165,125 +178,155 @@ export function FindYouPanel({ eventId, legacyId, parentId, selectedTemplate, st
   };
 
   return (
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={panelStyles.scrollContent}
-    >
-      {/* Header */}
-      <View style={panelStyles.header}>
-        <Text style={[
-          panelStyles.title,
-          selectedTemplate?.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' },
-          { color: selectedTemplate?.text || '#111' },
-        ]}>
-          Find You
-        </Text>
-        <Text style={[panelStyles.subtitle, { color: selectedTemplate?.muted || '#666' }]}>
-          AI-Powered Photo Search
-        </Text>
-      </View>
-
-      {/* Selfie Preview */}
-      {selfieUri && (
-        <View style={panelStyles.selfieContainer}>
-          <ExpoImage
-            source={{ uri: selfieUri }}
-            style={[panelStyles.selfieImage, { borderColor: selectedTemplate?.accent || '#cca43b' }]}
-            contentFit="cover"
-          />
-          {isBusy && (
-            <View style={panelStyles.selfieOverlay}>
-              <ActivityIndicator color="#fff" size="large" />
-            </View>
-          )}
-        </View>
-      )}
-
-      {/* Description (shown when no selfie yet) */}
-      {!selfieUri && (
-        <View style={panelStyles.descContainer}>
-          <Text style={[panelStyles.descIcon]}>🔍</Text>
-          <Text style={[panelStyles.descText, { color: selectedTemplate?.muted || '#666' }]}>
-            Upload a clear selfie and our AI will find all your photos from this event instantly.
-          </Text>
-        </View>
-      )}
-
-      {/* Buttons */}
-      <View style={panelStyles.buttonRow}>
-        <TouchableOpacity
-          style={[
-            panelStyles.button,
-            { backgroundColor: selectedTemplate?.accent ? `${selectedTemplate.accent}22` : '#fff7e6', borderColor: selectedTemplate?.accent || '#cca43b' },
-            isBusy && panelStyles.buttonDisabled,
-          ]}
-          onPress={() => !isBusy && pickImage(false)}
-          disabled={isBusy}
-        >
-          <Text style={panelStyles.buttonEmoji}>📁</Text>
-          <Text style={[panelStyles.buttonLabel, { color: selectedTemplate?.text || '#333' }]}>
-            Upload Photo
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            panelStyles.button,
-            { backgroundColor: selectedTemplate?.accent ? `${selectedTemplate.accent}22` : '#fff7e6', borderColor: selectedTemplate?.accent || '#cca43b' },
-            isBusy && panelStyles.buttonDisabled,
-          ]}
-          onPress={() => !isBusy && pickImage(true)}
-          disabled={isBusy}
-        >
-          <Text style={panelStyles.buttonEmoji}>📸</Text>
-          <Text style={[panelStyles.buttonLabel, { color: selectedTemplate?.text || '#333' }]}>
-            Take Selfie
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Status Message */}
-      {(isBusy || status === 'done' || status === 'error') && (
-        <View style={panelStyles.statusContainer}>
-          {isBusy && <ActivityIndicator size="small" color={selectedTemplate?.accent || '#cca43b'} style={{ marginRight: 8 }} />}
+    <>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={panelStyles.scrollContent}
+      >
+        {/* Header */}
+        <View style={panelStyles.header}>
           <Text style={[
-            panelStyles.statusText,
-            { color: status === 'error' ? '#ef4444' : (matchedPhotos.length > 0 ? '#16a34a' : (selectedTemplate?.accent || '#cca43b')) },
-          ]}>
-            {statusMessage}
-          </Text>
-        </View>
-      )}
-
-      {/* Results Grid */}
-      {matchedPhotos.length > 0 && (
-        <View style={panelStyles.resultsContainer}>
-          <Text style={[
-            panelStyles.resultsTitle,
+            panelStyles.title,
             selectedTemplate?.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' },
             { color: selectedTemplate?.text || '#111' },
           ]}>
-            Your Photos
+            Find You
           </Text>
-          <Text style={[panelStyles.resultsSubtitle, { color: selectedTemplate?.muted || '#666' }]}>
-            {matchedPhotos.length} match{matchedPhotos.length === 1 ? '' : 'es'} found in this event
+          <Text style={[panelStyles.subtitle, { color: selectedTemplate?.muted || '#666' }]}>
+            AI-Powered Photo Search
           </Text>
-
-          <View style={panelStyles.photoGrid}>
-            {matchedPhotos.map((photo, index) => (
-              <View key={photo.imageId || index} style={panelStyles.photoItem}>
-                <ExpoImage
-                  source={{ uri: photo.imageUrl }}
-                  style={panelStyles.photoImage}
-                  contentFit="cover"
-                  transition={300}
-                />
-              </View>
-            ))}
-          </View>
         </View>
-      )}
-    </ScrollView>
+
+        {/* Selfie Preview */}
+        {selfieUri && (
+          <View style={panelStyles.selfieContainer}>
+            <ExpoImage
+              source={{ uri: selfieUri }}
+              style={[panelStyles.selfieImage, { borderColor: selectedTemplate?.accent || '#cca43b' }]}
+              contentFit="cover"
+            />
+            {isBusy && (
+              <View style={panelStyles.selfieOverlay}>
+                <ActivityIndicator color="#fff" size="large" />
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Description / Instructions */}
+        {!selfieUri && (
+          <View style={panelStyles.descContainer}>
+            <Text style={panelStyles.descIcon}>🔍</Text>
+            <Text style={[panelStyles.descText, { color: selectedTemplate?.muted || '#555' }]}>
+              Upload a clear selfie and our AI will find all your photos from this event instantly.
+            </Text>
+          </View>
+        )}
+
+        {/* Buttons */}
+        <View style={panelStyles.buttonRow}>
+          <TouchableOpacity
+            style={[
+              panelStyles.button,
+              {
+                borderColor: selectedTemplate?.accent ? `${selectedTemplate.accent}66` : '#cca43b66',
+                backgroundColor: selectedTemplate?.background || '#fff',
+              },
+              isBusy && { opacity: 0.5 },
+            ]}
+            onPress={() => !isBusy && pickImage(false)}
+            disabled={isBusy}
+          >
+            <Text style={[panelStyles.buttonText, { color: selectedTemplate?.accent || '#cca43b' }]}>
+              📂 Upload Photo
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              panelStyles.button,
+              {
+                borderColor: selectedTemplate?.accent ? `${selectedTemplate.accent}66` : '#cca43b66',
+                backgroundColor: selectedTemplate?.background || '#fff',
+              },
+              isBusy && { opacity: 0.5 },
+            ]}
+            onPress={() => !isBusy && pickImage(true)}
+            disabled={isBusy}
+          >
+            <Text style={[panelStyles.buttonText, { color: selectedTemplate?.accent || '#cca43b' }]}>
+              📷 Take Selfie
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Status Message */}
+        {status !== 'idle' && (
+          <View style={panelStyles.statusRow}>
+            {isBusy && (
+              <ActivityIndicator
+                size="small"
+                color={selectedTemplate?.accent || '#cca43b'}
+                style={{ marginRight: 8 }}
+              />
+            )}
+            <Text style={[
+              panelStyles.statusText,
+              { color: status === 'error' ? '#ef4444' : (matchedPhotos.length > 0 ? '#16a34a' : (selectedTemplate?.accent || '#cca43b')) },
+            ]}>
+              {statusMessage}
+            </Text>
+          </View>
+        )}
+
+        {/* Results Grid */}
+        {matchedPhotos.length > 0 && (
+          <View style={panelStyles.resultsContainer}>
+            <Text style={[
+              panelStyles.resultsTitle,
+              selectedTemplate?.useSerif && { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' },
+              { color: selectedTemplate?.text || '#111' },
+            ]}>
+              Your Photos
+            </Text>
+            <Text style={[panelStyles.resultsSubtitle, { color: selectedTemplate?.muted || '#666' }]}>
+              {matchedPhotos.length} match{matchedPhotos.length === 1 ? '' : 'es'} found in this event
+            </Text>
+
+            <View style={panelStyles.photoGrid}>
+              {matchedPhotos.map((photo, index) => (
+                <TouchableOpacity
+                  key={photo.id || photo.imageId || index}
+                  style={panelStyles.photoItem}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    setCurrentPhotoIndex(index);
+                    setViewerVisible(true);
+                  }}
+                >
+                  <ExpoImage
+                    source={{ uri: getGridThumbnail(photo.url || photo.imageUrl, photo.thumbnailUrl) }}
+                    style={panelStyles.photoImage}
+                    contentFit="cover"
+                    transition={300}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+      </ScrollView>
+
+      <PhotoViewer
+        visible={viewerVisible}
+        onClose={() => setViewerVisible(false)}
+        photos={matchedPhotos}
+        initialIndex={currentPhotoIndex}
+        viewerIdentity={viewerIdentity}
+        event={event}
+        selectedTemplate={selectedTemplate}
+      />
+    </>
   );
 }
 

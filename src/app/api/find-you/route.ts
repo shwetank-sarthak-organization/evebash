@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEventFaceEncodings } from "@/lib/database";
+import { getImageUrl } from "@/lib/imageUrl";
 
 /**
  * POST /api/find-you
@@ -101,15 +102,28 @@ export async function POST(request: NextRequest) {
 
         // Compare descriptors
         const THRESHOLD = 0.5;
-        const matchMap = new Map<string, { imageId: string; imageUrl: string; width?: number; height?: number }>();
+        const matchMap = new Map<string, {
+            id: string;
+            imageId: string;
+            url: string;
+            imageUrl: string;
+            thumbnailUrl: string;
+            previewUrl: string;
+            width?: number;
+            height?: number;
+        }>();
 
         for (const face of indexedFaces) {
             const storedDescriptor = new Float32Array(face.descriptor);
             const distance = faceapi.euclideanDistance(selfieDetection.descriptor, storedDescriptor);
             if (distance < THRESHOLD && !matchMap.has(face.imageId)) {
                 matchMap.set(face.imageId, {
+                    id: face.imageId,
                     imageId: face.imageId,
+                    url: face.imageUrl,
                     imageUrl: face.imageUrl,
+                    thumbnailUrl: getImageUrl(face.imageUrl, { width: 400 }),
+                    previewUrl: getImageUrl(face.imageUrl, { width: 900 }),
                     width: face.width,
                     height: face.height,
                 });
