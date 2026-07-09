@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Compare descriptors
-        const THRESHOLD = 0.5;
+        const THRESHOLD = 0.6; // face-api.js default matcher threshold is 0.6
         const matchMap = new Map<string, {
             id: string;
             imageId: string;
@@ -108,9 +108,11 @@ export async function POST(request: NextRequest) {
             height?: number;
         }>();
 
+        console.log(`[FindYou] Comparing selfie against ${indexedFaces.length} stored faces...`);
         for (const face of indexedFaces) {
             const storedDescriptor = new Float32Array(face.descriptor);
             const distance = faceapi.euclideanDistance(selfieDetection.descriptor, storedDescriptor);
+            console.log(`[FindYou] Distance for face in image ${face.imageId}: ${distance.toFixed(4)} (threshold: ${THRESHOLD})`);
             if (distance < THRESHOLD && !matchMap.has(face.imageId)) {
                 matchMap.set(face.imageId, {
                     id: face.imageId,
