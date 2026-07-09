@@ -31,12 +31,24 @@ export async function POST(request: NextRequest) {
         const hasDocument = typeof (global as any).document !== 'undefined';
         const hasHTMLImage = typeof (global as any).HTMLImageElement !== 'undefined';
         const hasHTMLCanvas = typeof (global as any).HTMLCanvasElement !== 'undefined';
+        const hasHTMLVideo = typeof (global as any).HTMLVideoElement !== 'undefined';
+        const hasImageData = typeof (global as any).ImageData !== 'undefined';
+
+        const originalNodeVersion = typeof process !== 'undefined' && process.versions ? process.versions.node : undefined;
+        const originalVersions = typeof process !== 'undefined' ? process.versions : undefined;
 
         if (typeof global !== 'undefined') {
             if (!hasWindow) (global as any).window = {};
             if (!hasDocument) (global as any).document = {};
             if (!hasHTMLImage) (global as any).HTMLImageElement = class {};
             if (!hasHTMLCanvas) (global as any).HTMLCanvasElement = class {};
+            if (!hasHTMLVideo) (global as any).HTMLVideoElement = class {};
+            if (!hasImageData) (global as any).ImageData = class {};
+        }
+
+        if (typeof process !== 'undefined') {
+            if (!process.versions) (process as any).versions = {};
+            if (!process.versions.node) (process as any).versions.node = "18.0.0";
         }
 
         // Dynamically import optional packages
@@ -67,6 +79,15 @@ export async function POST(request: NextRequest) {
                 if (!hasDocument) delete (global as any).document;
                 if (!hasHTMLImage) delete (global as any).HTMLImageElement;
                 if (!hasHTMLCanvas) delete (global as any).HTMLCanvasElement;
+                if (!hasHTMLVideo) delete (global as any).HTMLVideoElement;
+                if (!hasImageData) delete (global as any).ImageData;
+            }
+            if (typeof process !== 'undefined') {
+                if (!originalVersions) {
+                    delete (process as any).versions;
+                } else if (!originalNodeVersion) {
+                    delete (process as any).versions.node;
+                }
             }
         }
 
