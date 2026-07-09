@@ -26,46 +26,33 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Missing selfie source (selfieUrl or selfieBase64) or eventIds" }, { status: 400 });
         }
 
-        // Force environment detection to recognize Browser/Node by mocking global browser variables
-        const hasWindow = typeof (global as any).window !== 'undefined';
-        const hasDocument = typeof (global as any).document !== 'undefined';
-        const hasHTMLImage = typeof (global as any).HTMLImageElement !== 'undefined';
-        const hasHTMLCanvas = typeof (global as any).HTMLCanvasElement !== 'undefined';
-        const hasHTMLVideo = typeof (global as any).HTMLVideoElement !== 'undefined';
-        const hasImageData = typeof (global as any).ImageData !== 'undefined';
-
-        const originalNodeVersion = typeof process !== 'undefined' && process.versions ? process.versions.node : undefined;
-        const originalVersions = typeof process !== 'undefined' ? process.versions : undefined;
-
-        if (typeof global !== 'undefined') {
-            if (!hasWindow) (global as any).window = {};
-            if (!hasDocument) (global as any).document = {};
-            if (!hasHTMLImage) (global as any).HTMLImageElement = class {};
-            if (!hasHTMLCanvas) (global as any).HTMLCanvasElement = class {};
-            if (!hasHTMLVideo) (global as any).HTMLVideoElement = class {};
-            if (!hasImageData) (global as any).ImageData = class {};
-        }
-
-        if (typeof process !== 'undefined') {
-            if (!process.versions) (process as any).versions = {};
-            if (!process.versions.node) (process as any).versions.node = "18.0.0";
-        }
-
         // Dynamically import optional packages
         let canvasModule: any;
         let faceapi: any;
+        
+        // Mock globals specifically for faceapi.env.createNodejsEnv()
+        const hasCanvas = typeof (global as any).Canvas !== 'undefined';
+        const hasImage = typeof (global as any).Image !== 'undefined';
+        const hasImageData = typeof (global as any).ImageData !== 'undefined';
+        const hasCanvas2D = typeof (global as any).CanvasRenderingContext2D !== 'undefined';
+
         try {
             canvasModule = await import("canvas" as any);
             faceapi = await import("face-api.js");
 
-            // Polyfill face-api.js with canvas for Node.js
-            faceapi.env.monkeyPatch({
-                Canvas: canvasModule.Canvas,
-                Image: canvasModule.Image,
-                ImageData: canvasModule.ImageData,
-                createCanvasElement: () => canvasModule.createCanvas(100, 100),
-                createImageElement: () => new canvasModule.Image(),
-            });
+            if (typeof global !== 'undefined') {
+                if (!hasCanvas) (global as any).Canvas = canvasModule.Canvas;
+                if (!hasImage) (global as any).Image = canvasModule.Image;
+                if (!hasImageData) (global as any).ImageData = canvasModule.ImageData;
+                if (!hasCanvas2D) (global as any).CanvasRenderingContext2D = canvasModule.CanvasRenderingContext2D;
+            }
+
+            // Directly initialize a Node.js environment on face-api, bypassing isNodejs/isBrowser checks completely!
+            const nodeEnv = faceapi.env.createNodejsEnv();
+            nodeEnv.createCanvasElement = () => canvasModule.createCanvas(100, 100);
+            nodeEnv.createImageElement = () => new canvasModule.Image();
+
+            faceapi.env.setEnv(nodeEnv);
         } catch (err: any) {
             console.error("[FindYou] Import/Patch error:", err);
             return NextResponse.json(
@@ -73,21 +60,12 @@ export async function POST(request: NextRequest) {
                 { status: 503 }
             );
         } finally {
-            // Clean up global mocks immediately so they don't break Next.js server runtime
+            // Clean up global variables
             if (typeof global !== 'undefined') {
-                if (!hasWindow) delete (global as any).window;
-                if (!hasDocument) delete (global as any).document;
-                if (!hasHTMLImage) delete (global as any).HTMLImageElement;
-                if (!hasHTMLCanvas) delete (global as any).HTMLCanvasElement;
-                if (!hasHTMLVideo) delete (global as any).HTMLVideoElement;
+                if (!hasCanvas) delete (global as any).Canvas;
+                if (!hasImage) delete (global as any).Image;
                 if (!hasImageData) delete (global as any).ImageData;
-            }
-            if (typeof process !== 'undefined') {
-                if (!originalVersions) {
-                    delete (process as any).versions;
-                } else if (!originalNodeVersion) {
-                    delete (process as any).versions.node;
-                }
+                if (!hasCanvas2D) delete (global as any).CanvasRenderingContext2D;
             }
         }
 
