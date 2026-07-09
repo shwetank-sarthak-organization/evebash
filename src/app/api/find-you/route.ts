@@ -45,8 +45,17 @@ export async function POST(request: NextRequest) {
         try {
             canvasModule = await import("canvas" as any);
             faceapi = await import("face-api.js");
+
+            // Polyfill face-api.js with canvas for Node.js
+            faceapi.env.monkeyPatch({
+                Canvas: canvasModule.Canvas,
+                Image: canvasModule.Image,
+                ImageData: canvasModule.ImageData,
+                createCanvasElement: () => canvasModule.createCanvas(100, 100),
+                createImageElement: () => new canvasModule.Image(),
+            });
         } catch (err: any) {
-            console.error("[FindYou] Import error:", err);
+            console.error("[FindYou] Import/Patch error:", err);
             return NextResponse.json(
                 { error: `Server face recognition not available: ${err.message}` },
                 { status: 503 }
@@ -60,19 +69,6 @@ export async function POST(request: NextRequest) {
                 if (!hasHTMLCanvas) delete (global as any).HTMLCanvasElement;
             }
         }
-
-        // Force environment detection to recognize Node.js
-        (faceapi.env as any).isNodejs = () => true;
-        (faceapi.env as any).isBrowser = () => false;
-
-        // Polyfill face-api.js with canvas for Node.js
-        faceapi.env.monkeyPatch({
-            Canvas: canvasModule.Canvas,
-            Image: canvasModule.Image,
-            ImageData: canvasModule.ImageData,
-            createCanvasElement: () => canvasModule.createCanvas(100, 100),
-            createImageElement: () => new canvasModule.Image(),
-        });
 
         // Load models from public/models directory
         const MODEL_PATH = `${process.cwd()}/public/models`;
