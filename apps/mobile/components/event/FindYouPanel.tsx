@@ -317,15 +317,17 @@ export function FindYouPanel({
         )}
       </ScrollView>
 
-      <PhotoViewer
-        visible={viewerVisible}
-        onClose={() => setViewerVisible(false)}
-        photos={matchedPhotos}
-        initialIndex={currentPhotoIndex}
-        viewerIdentity={viewerIdentity}
-        event={event}
-        selectedTemplate={selectedTemplate}
-      />
+      {matchedPhotos.length > 0 && (
+        <PhotoViewer
+          visible={viewerVisible}
+          onClose={() => setViewerVisible(false)}
+          photos={matchedPhotos}
+          initialIndex={currentPhotoIndex}
+          viewerIdentity={viewerIdentity}
+          event={event}
+          selectedTemplate={selectedTemplate}
+        />
+      )}
     </>
   );
 }
