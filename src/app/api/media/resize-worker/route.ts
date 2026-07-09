@@ -272,6 +272,12 @@ export async function POST(request: NextRequest) {
 
         try {
           canvasModule = await import("canvas" as any);
+          try {
+            await import("@tensorflow/tfjs-node" as any);
+            console.log("[Resize Worker] Successfully loaded @tensorflow/tfjs-node native bindings");
+          } catch (tfErr) {
+            console.warn("[Resize Worker] Failed to load @tensorflow/tfjs-node, falling back to pure JS backend", tfErr);
+          }
           faceapi = await import("face-api.js");
 
           if (typeof global !== 'undefined') {

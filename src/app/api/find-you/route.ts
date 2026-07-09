@@ -39,6 +39,11 @@ export async function POST(request: NextRequest) {
 
         try {
             canvasModule = await import("canvas" as any);
+            try {
+              await import("@tensorflow/tfjs-node" as any);
+            } catch (e) {
+              // Fallback to pure JS if tfjs-node fails to load
+            }
             faceapi = await import("face-api.js");
 
             if (typeof global !== 'undefined') {
