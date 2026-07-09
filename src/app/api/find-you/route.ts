@@ -17,10 +17,12 @@ import { getEventFaceEncodings } from "@/lib/database";
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { selfieUrl, eventIds } = body;
+        const { selfieUrl, selfieBase64, eventIds } = body;
 
-        if (!selfieUrl || !Array.isArray(eventIds) || eventIds.length === 0) {
-            return NextResponse.json({ error: "Missing selfieUrl or eventIds" }, { status: 400 });
+        const selfieSrc = selfieUrl || selfieBase64;
+
+        if (!selfieSrc || !Array.isArray(eventIds) || eventIds.length === 0) {
+            return NextResponse.json({ error: "Missing selfie source (selfieUrl or selfieBase64) or eventIds" }, { status: 400 });
         }
 
         // Dynamically import optional packages
@@ -54,7 +56,7 @@ export async function POST(request: NextRequest) {
         ]);
 
         // Load and detect face in selfie
-        const selfieImage = await canvasModule.loadImage(selfieUrl);
+        const selfieImage = await canvasModule.loadImage(selfieSrc);
         const selfieDetection = await faceapi
             .detectSingleFace(selfieImage, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
             .withFaceLandmarks()

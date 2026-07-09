@@ -56,6 +56,7 @@ export function FindYouPanel({ eventId, legacyId, parentId, selectedTemplate, st
           aspect: [1, 1],
           quality: 0.8,
           cameraType: ImagePicker.CameraType.front,
+          base64: true,
         });
       } else {
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -68,53 +69,35 @@ export function FindYouPanel({ eventId, legacyId, parentId, selectedTemplate, st
           allowsEditing: true,
           aspect: [1, 1],
           quality: 0.8,
+          base64: true,
         });
       }
 
       if (result.canceled || !result.assets?.[0]) return;
 
-      const uri = result.assets[0].uri;
-      setSelfieUri(uri);
+      const asset = result.assets[0];
+      setSelfieUri(asset.uri);
       setMatchedPhotos([]);
-      await runFaceSearch(uri);
-    } catch (err) {
+
+      if (!asset.base64) {
+        throw new Error('Could not read photo data. Please try again.');
+      }
+
+      // Prepend data URL prefix if not present
+      const base64Data = asset.base64.startsWith('data:') 
+        ? asset.base64 
+        : `data:image/jpeg;base64,${asset.base64}`;
+
+      await runFaceSearch(base64Data);
+    } catch (err: any) {
       console.error('[FindYouPanel] Image picker error:', err);
       setStatus('error');
-      setStatusMessage('Could not open image picker. Please try again.');
+      setStatusMessage(err.message || 'Could not open image picker. Please try again.');
     }
   };
 
-  const runFaceSearch = async (uri: string) => {
+  const runFaceSearch = async (selfieBase64: string) => {
     try {
-      setStatus('uploading');
-      setStatusMessage('Uploading your selfie...');
-
-      // Upload selfie to a temp Supabase storage path
-      const fileName = `find-you-selfie-${Date.now()}.jpg`;
-      const formData = new FormData();
-      formData.append('file', {
-        uri,
-        name: fileName,
-        type: 'image/jpeg',
-      } as any);
-
-      // Upload to Supabase storage (temp bucket)
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('photos')
-        .upload(`find-you-temp/${fileName}`, formData, {
-          contentType: 'image/jpeg',
-          upsert: true,
-        });
-
-      if (uploadError) throw uploadError;
-
-      // Get a signed URL for the uploaded selfie
-      const { data: signedUrlData } = await supabase.storage
-        .from('photos')
-        .createSignedUrl(`find-you-temp/${fileName}`, 300); // 5 min expiry
-
-      if (!signedUrlData?.signedUrl) throw new Error('Could not get selfie URL');
-
       setStatus('searching');
       setStatusMessage('Searching this event\'s photos...');
 
@@ -123,14 +106,36 @@ export function FindYouPanel({ eventId, legacyId, parentId, selectedTemplate, st
       if (parentId) eventIds.push(parentId);
       if (legacyId) eventIds.push(legacyId);
 
-      // Call Next.js API route for face matching
-      // This allows us to use face-api.js server-side
-      const appUrl = process.env.EXPO_PUBLIC_APP_URL || 'https://your-app.vercel.app';
+      // Resolve API Base URL dynamically (supports production configuration and local Expo dev server)
+      const getApiBaseUrl = () => {
+        const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+        if (apiBase) return apiBase.replace(/\/+$/, '');
+        
+        try {
+          const Constants = require('expo-constants').default;
+          const hostUri = Constants?.expoConfig?.hostUri || Constants?.manifest2?.extra?.expoGo?.developer?.hostUri;
+          const devHost = typeof hostUri === 'string' ? hostUri.split(':')[0] : '';
+          if (devHost) {
+            return `http://${devHost}:3000`;
+          }
+        } catch (e) {}
+
+        try {
+          const { Platform } = require('react-native');
+          if (Platform.OS === 'android') {
+            return 'http://10.0.2.2:3000';
+          }
+        } catch (e) {}
+
+        return 'http://localhost:3000';
+      };
+
+      const appUrl = getApiBaseUrl();
       const response = await fetch(`${appUrl}/api/find-you`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          selfieUrl: signedUrlData.signedUrl,
+          selfieBase64,
           eventIds,
         }),
       });
@@ -151,9 +156,6 @@ export function FindYouPanel({ eventId, legacyId, parentId, selectedTemplate, st
       } else {
         setStatusMessage(`Found ${photos.length} photo${photos.length === 1 ? '' : 's'} of you! 🎉`);
       }
-
-      // Clean up temp selfie
-      await supabase.storage.from('photos').remove([`find-you-temp/${fileName}`]);
 
     } catch (err: any) {
       console.error('[FindYouPanel] Face search error:', err);

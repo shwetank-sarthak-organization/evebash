@@ -2210,7 +2210,10 @@ export async function deleteEvent(eventId: string): Promise<boolean> {
             await Promise.all(photos.map(photo => deletePhoto(photo.id)));
         }
 
-        // 3. Delete the parent event (Cascading foreign key triggers automatically delete associated photos, likes, & comments!)
+        // 3. Explicitly delete facial indexes associated with this event (for guest privacy)
+        await supabase.from('faces').delete().eq('event_id', eventId);
+
+        // 4. Delete the parent event (Cascading foreign key triggers automatically delete associated photos, likes, & comments!)
         const { error } = await supabase.from('events').delete().eq('id', eventId);
         if (error) throw error;
 
