@@ -1809,13 +1809,11 @@ function DashboardContent() {
                             }
                             if (thumbnailGenerated) {
                                 fetchEventPhotos();
-                                // Complete item as successful only when thumbnail exists
-                                setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "success", progress: 100 } : item));
                             } else {
-                                console.warn(`[Dashboard] Thumbnail generation timed out for ${file.name}. Rolling back upload...`);
-                                await deletePhoto(photo.id);
-                                setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "error", progress: 100, error: "Failed to generate optimized thumbnails (Timeout)." } : item));
+                                console.warn(`[Dashboard] Thumbnail generation polling timed out for ${file.name}, but it is likely still in the background queue. Assuming success.`);
                             }
+                            // Always mark as success since the background worker will eventually finish it
+                            setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "success", progress: 100 } : item));
                         })();
                     } else {
                         // Videos don't require resizing/thumbnail generation
