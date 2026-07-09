@@ -104,6 +104,8 @@ async function deleteB2FileById(auth: { apiUrl: string; authorizationToken: stri
 
 
 export async function POST(request: NextRequest) {
+  let queueAcquired = false;
+  let storageKeyContext = "unknown";
   try {
     // No auth check needed — this endpoint is only reachable via QStash.
     // QStash requires your secret QSTASH_TOKEN to publish messages, so
@@ -154,28 +156,25 @@ export async function POST(request: NextRequest) {
 
     // 5. Generate resized WebP buffers with concurrency throttling to prevent OOM crashes
     console.log(`[Resize Worker] Waiting for queue slot for: ${storageKey}`);
+    storageKeyContext = storageKey;
     await resizeQueue.acquire();
+    queueAcquired = true;
     console.log(`[Resize Worker] Slot acquired. Running image resizing for: ${storageKey}`);
 
     let thumbnailBuffer: Buffer;
     let previewBuffer: Buffer;
 
-    try {
-      thumbnailBuffer = await sharp(bufferBytes)
-        .rotate()
-        .resize({ width: 400, fit: "inside", withoutEnlargement: true })
-        .webp({ quality: 75 })
-        .toBuffer();
+    thumbnailBuffer = await sharp(bufferBytes)
+      .rotate()
+      .resize({ width: 400, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 75 })
+      .toBuffer();
 
-      previewBuffer = await sharp(bufferBytes)
-        .rotate()
-        .resize({ width: 900, fit: "inside", withoutEnlargement: true })
-        .webp({ quality: 75 })
-        .toBuffer();
-    } finally {
-      resizeQueue.release();
-      console.log(`[Resize Worker] Queue slot released for: ${storageKey}`);
-    }
+    previewBuffer = await sharp(bufferBytes)
+      .rotate()
+      .resize({ width: 900, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 75 })
+      .toBuffer();
 
     // Helper to verify if the photo record still exists in Supabase
     const checkDbRecordExists = async (): Promise<boolean> => {
@@ -349,5 +348,10 @@ export async function POST(request: NextRequest) {
     console.error("[Resize Worker] Resizing process failed:", error);
     const errMessage = error instanceof Error ? error.message : "Resizing failed";
     return NextResponse.json({ error: errMessage }, { status: 500 });
+  } finally {
+    if (queueAcquired) {
+      resizeQueue.release();
+      console.log(`[Resize Worker] Queue slot released for: ${storageKeyContext}`);
+    }
   }
 }
