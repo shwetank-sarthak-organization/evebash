@@ -19,9 +19,25 @@ interface EventNavbarProps {
     activePage?: "gallery" | "find-you";
     onSelectGallery?: (gallery: Event | null) => void;
     onFindYou?: () => void;
+    showFavouriteGallery?: boolean;
+    favouriteGalleryActive?: boolean;
+    onSelectFavouriteGallery?: () => void;
 }
 
-export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, basePath, activeGalleryId, activePage, onSelectGallery, onFindYou }: EventNavbarProps) {
+export function EventNavbar({
+    mainEventTitle,
+    mainEventId,
+    subEvents,
+    isShared,
+    basePath,
+    activeGalleryId,
+    activePage,
+    onSelectGallery,
+    onFindYou,
+    showFavouriteGallery,
+    favouriteGalleryActive,
+    onSelectFavouriteGallery
+}: EventNavbarProps) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [guestDetails, setGuestDetails] = useState<{name: string, phone: string} | null>(null);
     const pathname = usePathname();
@@ -56,8 +72,15 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, 
     const sharedQuery = isShared ? "?shared=true" : "";
 
     // Generate core links
-    const navLinks: Array<{ name: string; href: string; gallery: Event | null; isGallery: boolean; isFindYou?: boolean }> = [
+    const navLinks: Array<{ name: string; href: string; gallery: Event | null; isGallery: boolean; isFindYou?: boolean; isFavourite?: boolean }> = [
         { name: "Home", href: `${basePath}${sharedQuery}`, gallery: null, isGallery: true },
+        ...(showFavouriteGallery ? [{
+            name: "Favourite",
+            href: `${basePath}${sharedQuery}#favourite`,
+            gallery: null,
+            isGallery: true,
+            isFavourite: true
+        }] : []),
         ...subEvents.map(sub => ({
             name: sub.title || sub.id,
             href: onSelectGallery ? `/events/${sub.id}${sharedQuery}` : `${basePath}/events/${sub.id}${sharedQuery}`,
@@ -107,9 +130,11 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, 
                     {/* Right: Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-2">
                         {navLinks.map((link) => {
-                            const isActive = link.isGallery && onSelectGallery
-                                ? isGalleryActive(link.gallery)
-                                : isLinkActive(link.href, link.isFindYou);
+                            const isActive = link.isFavourite
+                                ? !!favouriteGalleryActive
+                                : link.isGallery && onSelectGallery
+                                    ? isGalleryActive(link.gallery)
+                                    : isLinkActive(link.href, link.isFindYou);
                             const className = cn(
                                 "px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5",
                                 isActive
@@ -117,7 +142,19 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, 
                                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                             );
 
-                            // Find You tab — calls onFindYou callback if provided, else navigates to URL
+                            if (link.isFavourite && onSelectFavouriteGallery) {
+                                return (
+                                    <button
+                                        key={link.name}
+                                        type="button"
+                                        onClick={onSelectFavouriteGallery}
+                                        className={className}
+                                    >
+                                        {link.name}
+                                    </button>
+                                );
+                            }
+
                             if (link.isFindYou && onFindYou) {
                                 return (
                                     <button
@@ -232,9 +269,11 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, 
                                 <p className="text-xs font-bold text-stone-600 uppercase tracking-widest mb-6">Menu</p>
                                 <div className="space-y-4">
                                     {navLinks.map((link) => {
-                                        const isActive = link.isGallery && onSelectGallery
-                                            ? isGalleryActive(link.gallery)
-                                            : isLinkActive(link.href, link.isFindYou);
+                                        const isActive = link.isFavourite
+                                            ? !!favouriteGalleryActive
+                                            : link.isGallery && onSelectGallery
+                                                ? isGalleryActive(link.gallery)
+                                                : isLinkActive(link.href, link.isFindYou);
                                         const className = cn(
                                             "flex items-center gap-3 w-full p-4 rounded-2xl text-left text-lg font-bold transition-all border border-transparent",
                                             isActive
@@ -242,7 +281,22 @@ export function EventNavbar({ mainEventTitle, mainEventId, subEvents, isShared, 
                                                 : "hover:bg-stone-50 text-slate-600"
                                         );
 
-                                        // Find You — inline callback or link
+                                        if (link.isFavourite && onSelectFavouriteGallery) {
+                                            return (
+                                                <button
+                                                    key={link.name}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        onSelectFavouriteGallery();
+                                                        setMobileMenuOpen(false);
+                                                    }}
+                                                    className={className}
+                                                >
+                                                    {link.name}
+                                                </button>
+                                            );
+                                        }
+
                                         if (link.isFindYou && onFindYou) {
                                             return (
                                                 <button

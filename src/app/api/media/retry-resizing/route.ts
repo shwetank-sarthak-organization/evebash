@@ -129,11 +129,13 @@ export async function GET(request: NextRequest) {
         // Resize
         console.log(`[Sweeper] Resizing image: ${storageKey}`);
         const thumbnailBuffer = await sharp(bufferBytes)
+          .rotate()
           .resize({ width: 400, fit: "inside", withoutEnlargement: true })
           .webp({ quality: 75 })
           .toBuffer();
 
         const previewBuffer = await sharp(bufferBytes)
+          .rotate()
           .resize({ width: 900, fit: "inside", withoutEnlargement: true })
           .webp({ quality: 75 })
           .toBuffer();

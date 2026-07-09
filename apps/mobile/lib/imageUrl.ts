@@ -46,11 +46,17 @@ export function getImageUrl(
     if (!mediaDomainPattern.test(src)) return src;
 
     // Map to pre-generated static files on Backblaze B2 based on size requested
+    const [baseSrc, queryString] = src.split("?");
+    const query = queryString ? `?${queryString}` : "";
     const width = opts.width || 0;
-    if (width > 0 && width <= 450) {
-        return thumbnailUrl || `${src}-thumbnail.webp`;
+    if (width > 0 && width <= 200) {
+        return thumbnailUrl || `${baseSrc}-thumbnail.webp${query}`;
+    } else if (width > 200 && width <= 450) {
+        return thumbnailUrl || `${baseSrc}-thumbnail.webp${query}`;
+    } else if (width > 450 && width <= 1000) {
+        return `${baseSrc}-preview.webp${query}`;
     }
-    return `${src}-preview.webp`;
+    return `${baseSrc}-preview.webp${query}`;
 }
 
 /** Convenience preset: grid thumbnail (400px wide, webp, 75% quality) */

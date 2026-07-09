@@ -62,6 +62,7 @@ import {
     getEventPhotos,
     getEventPhotosPaginated,
     deletePhoto,
+    rotatePhoto,
     getUsers,
     updateUserRole,
     deleteUser,
@@ -78,6 +79,9 @@ import {
     deleteCoverUsagePhoto,
     updatePhotosOrder,
     updateSubEventsOrder,
+    getEventFavouritePhotos,
+    toggleEventFavouritePhoto,
+    getFavouritePhotosForEvents,
 } from "@/lib/database";
 import { uploadEventImage } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
@@ -647,6 +651,9 @@ function DashboardContent() {
     const [currentEventPhotos, setCurrentEventPhotos] = useState<Photo[]>([]);
     const [currentEventMediaCounts, setCurrentEventMediaCounts] = useState({ photos: 0, videos: 0 });
     const [currentEventRetainedMediaIds, setCurrentEventRetainedMediaIds] = useState<Set<string>>(new Set());
+    const [eventFavouritePhotoIds, setEventFavouritePhotoIds] = useState<Set<string>>(new Set());
+    const [eventFavouritePreview, setEventFavouritePreview] = useState<Photo | null>(null);
+    const [eventFavouriteCount, setEventFavouriteCount] = useState(0);
     const [loadingPhotos, setLoadingPhotos] = useState(false);
     const [photoPage, setPhotoPage] = useState(0);
     const [hasMorePhotos, setHasMorePhotos] = useState(false);
@@ -930,6 +937,16 @@ function DashboardContent() {
     }, [selectedEventId, manageMode, manageLevel, activeEventDetailTab]);
 
     useEffect(() => {
+        if (selectedMainEventId) {
+            void refreshEventFavourites(selectedMainEventId);
+        } else {
+            setEventFavouritePhotoIds(new Set());
+            setEventFavouritePreview(null);
+            setEventFavouriteCount(0);
+        }
+    }, [selectedMainEventId]);
+
+    useEffect(() => {
         if (!selectedMainEventId || manageLevel !== "event-details") return;
 
         let isMounted = true;
@@ -1130,6 +1147,33 @@ function DashboardContent() {
             setMessage("Failed to load photos.");
         } finally {
             setLoadingPhotos(false);
+        }
+    };
+
+    const refreshEventFavourites = async (eventId = selectedMainEventId) => {
+        if (!eventId) {
+            setEventFavouritePhotoIds(new Set());
+            setEventFavouritePreview(null);
+            setEventFavouriteCount(0);
+            return;
+        }
+
+        try {
+            const favouriteRows = await getEventFavouritePhotos(eventId);
+            setEventFavouritePhotoIds(new Set(favouriteRows.map(row => row.photoId)));
+            setEventFavouriteCount(favouriteRows.length);
+
+            if (favouriteRows.length > 0) {
+                const favouritePhotos = await getFavouritePhotosForEvents([eventId]);
+                setEventFavouritePreview(favouritePhotos[0] || null);
+            } else {
+                setEventFavouritePreview(null);
+            }
+        } catch (error) {
+            console.error("Error refreshing event favourites:", error);
+            setEventFavouritePhotoIds(new Set());
+            setEventFavouritePreview(null);
+            setEventFavouriteCount(0);
         }
     };
 
@@ -2581,10 +2625,83 @@ function DashboardContent() {
                 setMessage("Failed to delete photo.");
             }
             await fetchStorageStats();
+            await refreshEventFavourites(selectedMainEventId);
         } catch (error) {
             console.error("Error deleting photo:", error);
             setStatus("error");
             setMessage("Error removing photo.");
+        }
+    };
+
+    const handleToggleEventFavourite = async (photoId: string) => {
+        if (!selectedMainEventId || !user?.uid) return;
+
+        try {
+            const result = await toggleEventFavouritePhoto(selectedMainEventId, photoId, user.uid);
+            if (result.error) {
+                setStatus("error");
+                setMessage(result.error);
+                return;
+            }
+
+            setEventFavouritePhotoIds(prev => {
+                const next = new Set(prev);
+                if (result.favourited) next.add(photoId);
+                else next.delete(photoId);
+                return next;
+            });
+            setStatus("success");
+            setMessage(result.favourited ? "Added to Favourite gallery." : "Removed from Favourite gallery.");
+            await refreshEventFavourites(selectedMainEventId);
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 2000);
+        } catch (error) {
+            console.warn("Error updating favourite photo:", error);
+            setStatus("error");
+            setMessage("Failed to update Favourite gallery.");
+        }
+    };
+
+    const handleRotatePhoto = async (photoId: string, direction: "left" | "right") => {
+        try {
+            setStatus("uploading");
+            setMessage(direction === "left" ? "Rotating photo left..." : "Rotating photo right...");
+
+            const result = await rotatePhoto(photoId, direction);
+            if (!result.success || !result.url || !result.thumbnailUrl) {
+                throw new Error(result.error || "Failed to rotate photo.");
+            }
+
+            const cacheBuster = result.cacheBuster || Date.now();
+            const displayUrl = `${result.url}?v=${cacheBuster}`;
+            const displayThumbnailUrl = `${result.thumbnailUrl}?v=${cacheBuster}`;
+
+            setCurrentEventPhotos(prev => prev.map(photo => (
+                photo.id === photoId
+                    ? {
+                        ...photo,
+                        url: displayUrl,
+                        thumbnailUrl: displayThumbnailUrl,
+                        width: result.width ?? photo.width,
+                        height: result.height ?? photo.height,
+                        size: result.size ?? photo.size,
+                    }
+                    : photo
+            )));
+
+            setViewingPhoto((prev: any | null) => prev?.id === photoId ? {
+                ...prev,
+                src: displayUrl,
+                width: result.width ?? prev.width,
+                height: result.height ?? prev.height,
+            } : prev);
+
+            setStatus("success");
+            setMessage("Photo rotation saved.");
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 2000);
+        } catch (error) {
+            console.error("Error rotating photo:", error);
+            setStatus("error");
+            setMessage(error instanceof Error ? error.message : "Error rotating photo.");
         }
     };
 
@@ -2600,6 +2717,7 @@ function DashboardContent() {
     const photoItems = currentEventPhotos.filter(photo => photo.mediaType !== "video" && photo.resourceType !== "video");
     const videoItems = currentEventPhotos.filter(photo => photo.mediaType === "video" || photo.resourceType === "video");
     const activeGalleryItems = galleryMediaTab === "videos" ? videoItems : photoItems;
+    const stripUrlQuery = (value?: string | null) => (value || "").split("?")[0];
     const createdEvents = userEvents.filter(evt => evt.createdBy && ownEventIdentifiers.has(evt.createdBy));
     const legacySharedEvents = userEvents.filter(evt => !evt.createdBy || !ownEventIdentifiers.has(evt.createdBy));
     const permissionMainEvents = userEvents.filter(e => e.type === 'main' || (!e.type && !e.parentId));
@@ -3581,6 +3699,38 @@ function DashboardContent() {
                                                                 </div>
                                                             </div>
                                                         </div>
+                                                        {eventFavouriteCount > 0 && (
+                                                            <div
+                                                                className="group relative overflow-hidden rounded-[1.5rem] border border-amber-400/60 shadow-lg shadow-amber-950/20 transition-all cursor-pointer hover:border-amber-300 w-full sm:w-[280px] aspect-square flex-shrink-0"
+                                                                onClick={() => window.open(`/events/${selectedMainEvent.id}#favourite`, "_blank")}
+                                                            >
+                                                                <img
+                                                                    src={eventFavouritePreview?.thumbnailUrl || eventFavouritePreview?.url || selectedMainEvent.coverImage || DEFAULT_EVENT_COVER_IMAGE}
+                                                                    alt="Favourite photos"
+                                                                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                                                />
+                                                                <div className="absolute inset-0 bg-gradient-to-t from-amber-950/95 via-black/40 to-transparent pointer-events-none" />
+
+                                                                <div className="absolute inset-0 p-3 flex flex-col justify-between">
+                                                                    <div className="flex">
+                                                                        <div className="flex items-center gap-1 rounded-lg bg-amber-400 text-slate-950 border border-amber-200 px-2 py-1">
+                                                                            <Star className="h-2.5 w-2.5 fill-current" />
+                                                                            <span className="text-[9px] font-black tracking-wider">FAVOURITE</span>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="flex items-end justify-between gap-2">
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <h5 className="text-[13px] font-bold text-white drop-shadow-md line-clamp-2 leading-tight">Favourite</h5>
+                                                                            <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-amber-100">{eventFavouriteCount} photos selected</p>
+                                                                        </div>
+                                                                        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20 border border-white/30 backdrop-blur-sm transition-colors group-hover:bg-white/30">
+                                                                            <ChevronRight className="h-3 w-3 text-white" />
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </section>
 
                                                     <section className="space-y-3">
@@ -4357,10 +4507,11 @@ function DashboardContent() {
                                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                                             {/* Existing Photos Grid */}
                                             {activeGalleryItems.map((photo, index) => {
-                                                const isCover = userEvents.find(ev => ev.id === selectedEventId)?.coverImage === photo.url;
+                                                const isCover = stripUrlQuery(userEvents.find(ev => ev.id === selectedEventId)?.coverImage) === stripUrlQuery(photo.url);
                                                 const isVideo = photo.mediaType === "video" || photo.resourceType === "video";
                                                 const gridSrc = !isVideo ? (photo.thumbnailUrl || `${photo.url}-thumbnail.webp`) : photo.url;
                                                 const shouldBlurMediaForPlan = shouldWarnExpiredPlanMedia && !currentEventRetainedMediaIds.has(photo.id);
+                                                const isFavourite = eventFavouritePhotoIds.has(photo.id);
                                                 return (
                                                     <motion.div
                                                         key={photo.id}
@@ -4437,6 +4588,26 @@ function DashboardContent() {
                                                                 </button>
                                                             </Tooltip>
                                                         </div>
+                                                        )}
+                                                        {!isVideo && (
+                                                            <div className="absolute top-3 right-14 z-10">
+                                                                <Tooltip text={isFavourite ? "Remove from Favourite" : "Add to Favourite"}>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            handleToggleEventFavourite(photo.id);
+                                                                        }}
+                                                                        className={cn(
+                                                                            "p-2.5 backdrop-blur-md rounded-xl shadow-lg transition-all active:scale-95",
+                                                                            isFavourite
+                                                                                ? "bg-amber-400 text-slate-950 opacity-100"
+                                                                                : "bg-slate-800/90 text-white opacity-0 group-hover:opacity-100 hover:bg-amber-400 hover:text-slate-950"
+                                                                        )}
+                                                                    >
+                                                                        <Star className={cn("w-4 h-4", isFavourite && "fill-current")} />
+                                                                    </button>
+                                                                </Tooltip>
+                                                            </div>
                                                         )}
                                                         <div className="absolute top-3 right-3 z-10">
                                                             <Tooltip text={isVideo ? "Delete Video" : "Delete Image"}>
@@ -4573,9 +4744,10 @@ function DashboardContent() {
                                                         <tbody className="divide-y divide-stone-50">
                                                             {activeGalleryItems.map((photo, index) => {
                                                                 const isVideo = photo.mediaType === "video" || photo.resourceType === "video";
-                                                                const isCover = userEvents.find(ev => ev.id === selectedEventId)?.coverImage === photo.url;
+                                                                const isCover = stripUrlQuery(userEvents.find(ev => ev.id === selectedEventId)?.coverImage) === stripUrlQuery(photo.url);
                                                                 const gridSrc = !isVideo ? (photo.thumbnailUrl || `${photo.url}-thumbnail.webp`) : photo.url;
                                                                 const shouldBlurMediaForPlan = shouldWarnExpiredPlanMedia && !currentEventRetainedMediaIds.has(photo.id);
+                                                                const isFavourite = eventFavouritePhotoIds.has(photo.id);
                                                                 const dateAdded = (
                                                                     photo.uploadedAt && typeof photo.uploadedAt === 'number'
                                                                         ? new Date(photo.uploadedAt)
@@ -4692,7 +4864,7 @@ function DashboardContent() {
                                                                                             Gallery Thumb
                                                                                         </span>
                                                                                     )}
-                                                                                    {!isVideo && selectedMainEvent?.coverImage === photo.url && (
+                                                                                    {!isVideo && stripUrlQuery(selectedMainEvent?.coverImage) === stripUrlQuery(photo.url) && (
                                                                                         <span className="px-2 py-0.5 bg-slate-900/10 text-white text-[9px] font-bold uppercase rounded-md border border-slate-900/20">
                                                                                             Event Thumb
                                                                                         </span>
@@ -4733,6 +4905,21 @@ function DashboardContent() {
                                                                                         <MoreHorizontal className="w-4 h-4" />
                                                                                     </button>
                                                                                 </Tooltip>
+                                                                                )}
+                                                                                {!isVideo && (
+                                                                                    <Tooltip text={isFavourite ? "Remove from Favourite" : "Add to Favourite"}>
+                                                                                        <button
+                                                                                            onClick={() => handleToggleEventFavourite(photo.id)}
+                                                                                            className={cn(
+                                                                                                "p-2.5 rounded-xl border transition-all active:scale-95",
+                                                                                                isFavourite
+                                                                                                    ? "border-amber-400 bg-amber-400 text-slate-950"
+                                                                                                    : "border-slate-700 bg-slate-800 text-slate-300 hover:bg-amber-400 hover:text-slate-950"
+                                                                                            )}
+                                                                                        >
+                                                                                            <Star className={cn("w-4 h-4", isFavourite && "fill-current")} />
+                                                                                        </button>
+                                                                                    </Tooltip>
                                                                                 )}
                                                                                 <Tooltip text="Delete Image">
                                                                                     <button
@@ -5806,6 +5993,7 @@ function DashboardContent() {
                     photo={viewingPhoto}
                     onClose={() => setViewingPhoto(null)}
                     theme={getWebLightboxTheme(selectedMainEvent?.templateId)}
+                    onRotate={(direction) => viewingPhoto?.id ? handleRotatePhoto(viewingPhoto.id, direction) : undefined}
                     onNext={() => {
                         const currentIndex = activeGalleryItems.findIndex(p => p.id === viewingPhoto?.id);
                         if (currentIndex !== -1) {

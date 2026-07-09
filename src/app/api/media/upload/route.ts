@@ -98,6 +98,15 @@ async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string
   }
 }
 
+async function normalizeImageOrientation(buffer: Buffer<ArrayBufferLike>): Promise<Buffer<ArrayBufferLike>> {
+  return sharp(buffer).rotate().toBuffer();
+}
+
+function shouldNormalizeImage(contentType: string) {
+  const normalized = contentType.toLowerCase();
+  return ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/tiff"].some((type) => normalized.startsWith(type));
+}
+
 async function deleteB2File(auth: BackblazeAuth, bucketId: string, key: string) {
   try {
     const listResponse = await fetch(`${auth.apiUrl}/b2api/v3/b2_list_file_names`, {
@@ -169,11 +178,13 @@ async function localDevResizeAndUpload(bytes: ArrayBuffer, storageKey: string, m
     const bufferBytes = Buffer.from(bytes);
     
     const thumbnailBuffer = await sharp(bufferBytes)
+      .rotate()
       .resize({ width: 400, fit: "inside", withoutEnlargement: true })
       .webp({ quality: 75 })
       .toBuffer();
 
     const previewBuffer = await sharp(bufferBytes)
+      .rotate()
       .resize({ width: 900, fit: "inside", withoutEnlargement: true })
       .webp({ quality: 75 })
       .toBuffer();
@@ -443,7 +454,12 @@ export async function POST(request: NextRequest) {
 
     // Convert ArrayBuffer to Buffer — raw ArrayBuffer as fetch body is unreliable
     // in some Node.js/Vercel runtime versions and can cause B2 upload failures.
-    const bodyBuffer = Buffer.from(bytes);
+    let bodyBuffer: Buffer<ArrayBufferLike> = Buffer.from(bytes);
+    if (resourceType === "image" && shouldNormalizeImage(mimeType)) {
+      bodyBuffer = await normalizeImageOrientation(bodyBuffer);
+      bytes = bodyBuffer.buffer.slice(bodyBuffer.byteOffset, bodyBuffer.byteOffset + bodyBuffer.byteLength) as ArrayBuffer;
+      fileSize = bodyBuffer.length;
+    }
 
     const uploadResponse = await fetch(uploadUrl.uploadUrl, {
       method: "POST",
@@ -454,7 +470,7 @@ export async function POST(request: NextRequest) {
         "X-Bz-Content-Sha1": "do_not_verify",
         "Content-Length": String(bodyBuffer.length),
       },
-      body: bodyBuffer,
+      body: bodyBuffer as unknown as BodyInit,
     });
 
     const uploadResult = await uploadResponse.json().catch(() => ({}));
@@ -563,10 +579,12 @@ export async function POST(request: NextRequest) {
         try {
           const bufferBytes = Buffer.from(bytes);
           const thumbnailBuffer = await sharp(bufferBytes)
+            .rotate()
             .resize({ width: 400, fit: "inside", withoutEnlargement: true })
             .webp({ quality: 75 })
             .toBuffer();
           const previewBuffer = await sharp(bufferBytes)
+            .rotate()
             .resize({ width: 900, fit: "inside", withoutEnlargement: true })
             .webp({ quality: 75 })
             .toBuffer();

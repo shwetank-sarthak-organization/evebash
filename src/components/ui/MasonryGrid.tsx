@@ -31,6 +31,7 @@ interface MasonryGridProps {
     itemClassName?: string;
     lightboxClassName?: string;
     lightboxTheme?: LightboxTheme;
+    onLikeChange?: () => void;
 }
 
 interface PhotoCardProps {
@@ -40,6 +41,7 @@ interface PhotoCardProps {
     disableDownload?: boolean;
     itemClassName?: string;
     onViewPhoto: (photo: Photo) => void;
+    onLikeChange?: () => void;
 }
 
 function PhotoCard({
@@ -48,7 +50,8 @@ function PhotoCard({
     eventSlug,
     disableDownload = false,
     itemClassName,
-    onViewPhoto
+    onViewPhoto,
+    onLikeChange
 }: PhotoCardProps) {
     const { user } = useAuth();
     const [likes, setLikes] = useState<any[]>([]);
@@ -96,6 +99,7 @@ function PhotoCard({
         setIsLiking(true);
         try {
             await toggleLike(photo.id, identity.id, identity.name);
+            onLikeChange?.();
         } catch (err) {
             console.error("Like failed", err);
         } finally {
@@ -230,7 +234,8 @@ export function MasonryGrid({
     gridClassName,
     itemClassName,
     lightboxClassName,
-    lightboxTheme
+    lightboxTheme,
+    onLikeChange
 }: MasonryGridProps) {
     // Track which photo is currently being viewed in the Lightbox
     const [viewingPhoto, setViewingPhoto] = useState<Photo | null>(null);
@@ -247,6 +252,7 @@ export function MasonryGrid({
                         disableDownload={disableDownload}
                         itemClassName={itemClassName}
                         onViewPhoto={setViewingPhoto}
+                        onLikeChange={onLikeChange}
                     />
                 ))}
             </div>
@@ -259,6 +265,7 @@ export function MasonryGrid({
                 disableDownload={disableDownload}
                 className={lightboxClassName}
                 theme={lightboxTheme}
+                onLikeChange={onLikeChange}
                 onNext={() => {
                     const currentIndex = photos.findIndex(p => p.id === viewingPhoto?.id);
                     if (currentIndex !== -1) {

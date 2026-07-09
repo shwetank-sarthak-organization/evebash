@@ -217,6 +217,14 @@ export interface Like {
     createdAt: any;
 }
 
+export interface EventFavouritePhoto {
+    id: string;
+    eventId: string;
+    photoId: string;
+    markedBy?: string;
+    createdAt: any;
+}
+
 export interface Comment {
     id: string;
     photoId: string;
@@ -764,6 +772,140 @@ export async function getEventPhotosPaginated(
     } catch (error) {
         console.error("Error fetching paginated photos:", error);
         return { photos: [], hasMore: false, totalPhotos: 0, totalVideos: 0, retainedMediaIds: [] };
+    }
+}
+
+function mapSqlToEventFavouritePhoto(row: any): EventFavouritePhoto {
+    return {
+        id: row.id,
+        eventId: row.event_id,
+        photoId: row.photo_id,
+        markedBy: row.marked_by,
+        createdAt: row.created_at
+    };
+}
+
+function isEventFavouriteTableUnavailable(error: unknown) {
+    const formatted = formatSupabaseError(error);
+    if (!formatted || typeof formatted !== "object") return false;
+    const code = (formatted as any).code;
+    const message = String((formatted as any).message || "").toLowerCase();
+    return code === "42P01" || code === "PGRST205" || message.includes("event_favourite_photos");
+}
+
+/**
+ * Fetches host-curated favourite photos for an event group.
+ * These are event-level favourites, not personal viewer likes.
+ */
+export async function getFavouritePhotosForEvents(eventIds: string[]): Promise<Photo[]> {
+    const cleanEventIds = Array.from(new Set(eventIds.filter(Boolean)));
+    if (cleanEventIds.length === 0) return [];
+
+    try {
+        const { data: favouriteRows, error: favouritesError } = await supabase
+            .from('event_favourite_photos')
+            .select('photo_id, created_at')
+            .in('event_id', cleanEventIds)
+            .order('created_at', { ascending: false });
+
+        if (favouritesError) throw favouritesError;
+
+        const favouritePhotoIds = Array.from(new Set((favouriteRows || []).map((row: any) => row.photo_id).filter(Boolean)));
+        if (favouritePhotoIds.length === 0) return [];
+
+        const { data, error } = await supabase
+            .from('photos')
+            .select('*')
+            .in('id', favouritePhotoIds);
+
+        if (error) throw error;
+
+        const favouriteOrder = new Map(favouritePhotoIds.map((id, index) => [id, index]));
+        return (data || [])
+            .map(mapSqlToPhoto)
+            .filter(photo => !isCoverUsagePhoto(photo))
+            .sort((a, b) => (favouriteOrder.get(a.id) ?? 0) - (favouriteOrder.get(b.id) ?? 0));
+    } catch (error) {
+        if (isEventFavouriteTableUnavailable(error)) {
+            console.warn("Favourite gallery table is not available yet. Apply the Supabase migration for event_favourite_photos.");
+            return [];
+        }
+        console.warn("Error fetching favourite photos:", formatSupabaseError(error));
+        return [];
+    }
+}
+
+export async function getEventFavouritePhotos(eventId: string): Promise<EventFavouritePhoto[]> {
+    if (!eventId) return [];
+
+    try {
+        const { data, error } = await supabase
+            .from('event_favourite_photos')
+            .select('*')
+            .eq('event_id', eventId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return (data || []).map(mapSqlToEventFavouritePhoto);
+    } catch (error) {
+        if (isEventFavouriteTableUnavailable(error)) {
+            console.warn("Favourite gallery table is not available yet. Apply the Supabase migration for event_favourite_photos.");
+            return [];
+        }
+        console.warn("Error fetching event favourite photos:", formatSupabaseError(error));
+        return [];
+    }
+}
+
+export async function toggleEventFavouritePhoto(eventId: string, photoId: string, markedBy?: string) {
+    if (!eventId || !photoId) return { favourited: false, error: "Missing event or photo." };
+
+    try {
+        const { data: existing, error: selectError } = await supabase
+            .from('event_favourite_photos')
+            .select('id')
+            .eq('event_id', eventId)
+            .eq('photo_id', photoId)
+            .maybeSingle();
+
+        if (selectError) throw selectError;
+
+        if (existing) {
+            const { error: deleteError } = await supabase
+                .from('event_favourite_photos')
+                .delete()
+                .eq('id', existing.id);
+            if (deleteError) throw deleteError;
+            return { favourited: false };
+        }
+
+        const { error: insertError } = await supabase
+            .from('event_favourite_photos')
+            .insert({
+                event_id: eventId,
+                photo_id: photoId,
+                marked_by: markedBy || null
+            });
+
+        if (insertError) throw insertError;
+        return { favourited: true };
+    } catch (error) {
+        if (isEventFavouriteTableUnavailable(error)) {
+            return {
+                favourited: false,
+                error: "Favourite gallery is not ready yet. Apply the Supabase migration for event_favourite_photos."
+            };
+        }
+
+        const formattedError = formatSupabaseError(error);
+        console.warn("Error toggling event favourite photo:", formattedError);
+        const message = formattedError && typeof formattedError === "object" && "message" in formattedError
+            ? String(formattedError.message || "")
+            : "";
+        return {
+            favourited: false,
+            error: message || "Failed to update Favourite gallery."
+        };
     }
 }
 
@@ -2002,6 +2144,49 @@ export async function deletePhoto(photoId: string): Promise<boolean> {
     } catch (error) {
         console.error("Error deleting photo:", error);
         return false;
+    }
+}
+
+export async function rotatePhoto(
+    photoId: string,
+    direction: "left" | "right"
+): Promise<{
+    success: boolean;
+    url?: string;
+    thumbnailUrl?: string;
+    width?: number | null;
+    height?: number | null;
+    size?: number;
+    cacheBuster?: number;
+    error?: string;
+}> {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+            throw new Error("Authentication required");
+        }
+
+        const response = await fetch("/api/media/rotate", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ photoId, direction }),
+        });
+
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(result.error || `Failed with status: ${response.status}`);
+        }
+
+        return { success: true, ...result };
+    } catch (error) {
+        console.error("Error rotating photo:", error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Failed to rotate photo",
+        };
     }
 }
 

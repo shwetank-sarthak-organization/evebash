@@ -148,11 +148,13 @@ export async function POST(request: NextRequest) {
 
     try {
       thumbnailBuffer = await sharp(bufferBytes)
+        .rotate()
         .resize({ width: 400, fit: "inside", withoutEnlargement: true })
         .webp({ quality: 75 })
         .toBuffer();
 
       previewBuffer = await sharp(bufferBytes)
+        .rotate()
         .resize({ width: 900, fit: "inside", withoutEnlargement: true })
         .webp({ quality: 75 })
         .toBuffer();

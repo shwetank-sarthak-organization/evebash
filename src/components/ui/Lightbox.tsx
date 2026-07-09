@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
 import { getImageUrl } from "@/lib/imageUrl";
-import { Heart, MessageCircle, Send, X, Download, ChevronLeft, ChevronRight, Trash2, Loader2, Image as ImageIcon } from "lucide-react";
+import { Heart, MessageCircle, Send, X, Download, ChevronLeft, ChevronRight, Trash2, Loader2, Image as ImageIcon, RotateCcw, RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface LightboxTheme {
@@ -38,9 +38,11 @@ interface LightboxProps {
     } | null;
     onNext?: () => void;
     onPrev?: () => void;
+    onRotate?: (direction: "left" | "right") => Promise<void> | void;
     disableDownload?: boolean;
     className?: string;
     theme?: LightboxTheme;
+    onLikeChange?: () => void;
 }
 
 function addAlpha(color: string, alpha: string) {
@@ -48,7 +50,7 @@ function addAlpha(color: string, alpha: string) {
     return color;
 }
 
-export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownload = false, className, theme }: LightboxProps) {
+export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, onRotate, disableDownload = false, className, theme, onLikeChange }: LightboxProps) {
     const { user } = useAuth();
     const [likes, setLikes] = useState<any[]>([]);
     const [comments, setComments] = useState<any[]>([]);
@@ -60,6 +62,7 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
     const [imageLoading, setImageLoading] = useState(true);
     const [imageError, setImageError] = useState(false);
     const [imageSrc, setImageSrc] = useState("");
+    const [isRotating, setIsRotating] = useState(false);
 
     useEffect(() => {
         if (photo?.id) {
@@ -135,6 +138,7 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
         setIsLiking(true);
         try {
             await toggleLike(photo.id, identity.id, identity.name);
+            onLikeChange?.();
         } catch (err) {
             console.error("Like failed", err);
         } finally {
@@ -185,6 +189,21 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
             document.body.removeChild(link);
         } catch (error) {
             console.error("Download failed", error);
+        }
+    };
+
+    const handleRotate = async (e: React.MouseEvent, direction: "left" | "right") => {
+        e.stopPropagation();
+        if (!onRotate || isRotating || isVideo) return;
+        setIsRotating(true);
+        try {
+            await onRotate(direction);
+            setImageLoading(true);
+            setImageError(false);
+        } catch (error) {
+            console.error("Rotate failed", error);
+        } finally {
+            setIsRotating(false);
         }
     };
 
@@ -246,6 +265,28 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, disableDownlo
                         </div>
 
                         <div className="flex items-center space-x-1 pointer-events-auto">
+                            {onRotate && !isVideo && (
+                                <>
+                                    <button
+                                        onClick={(event) => handleRotate(event, "left")}
+                                        disabled={isRotating}
+                                        className="p-2.5 rounded-full transition-all disabled:opacity-40"
+                                        style={{ color: viewerTheme.muted }}
+                                        title="Rotate left"
+                                    >
+                                        {isRotating ? <Loader2 size={20} className="animate-spin" /> : <RotateCcw size={20} />}
+                                    </button>
+                                    <button
+                                        onClick={(event) => handleRotate(event, "right")}
+                                        disabled={isRotating}
+                                        className="p-2.5 rounded-full transition-all disabled:opacity-40"
+                                        style={{ color: viewerTheme.muted }}
+                                        title="Rotate right"
+                                    >
+                                        {isRotating ? <Loader2 size={20} className="animate-spin" /> : <RotateCw size={20} />}
+                                    </button>
+                                </>
+                            )}
                             {!disableDownload && (
                                 <button
                                     onClick={handleDownload}

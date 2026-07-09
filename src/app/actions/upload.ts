@@ -80,10 +80,21 @@ async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string
         throw new Error(`B2 upload failed for key ${key} with status ${uploadResponse.status}`);
     }
 }
+
+async function normalizeImageOrientation(buffer: Buffer) {
+    return sharp(buffer).rotate().toBuffer();
+}
+
+function shouldNormalizeImage(contentType: string) {
+    const normalized = contentType.toLowerCase();
+    return ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/tiff"].some((type) => normalized.startsWith(type));
+}
+
 export async function uploadToBackblaze(base64File: string, folder: string, options: BackblazeUploadOptions = {}) {
     try {
         const resourceType = options.resourceType || (options.contentType?.startsWith("video/") ? "video" : "image");
-        const { contentType, bytes } = parseBase64DataUrl(base64File, options.contentType);
+        const { contentType, bytes: parsedBytes } = parseBase64DataUrl(base64File, options.contentType);
+        const bytes = resourceType === "image" && shouldNormalizeImage(contentType) ? await normalizeImageOrientation(parsedBytes) : parsedBytes;
         const storageKey = buildStorageKey(folder, { ...options, resourceType }, contentType);
 
         console.log(`[Server Action] Uploading media to Backblaze. Size: ${Math.round(bytes.length / 1024 / 1024 * 100) / 100} MB`);
@@ -100,7 +111,7 @@ export async function uploadToBackblaze(base64File: string, folder: string, opti
                 "X-Bz-Content-Sha1": "do_not_verify",
                 "Content-Length": String(bytes.length),
             },
-            body: bytes,
+            body: bytes as unknown as BodyInit,
         });
 
         const uploadResult = await uploadResponse.json().catch(() => ({}));
@@ -130,10 +141,12 @@ export async function uploadToBackblaze(base64File: string, folder: string, opti
                 console.log(`[Server Action] No QStash token — resizing inline for: ${storageKey}`);
                 try {
                     const thumbnailBuffer = await sharp(bytes)
+                        .rotate()
                         .resize({ width: 400, fit: "inside", withoutEnlargement: true })
                         .webp({ quality: 75 })
                         .toBuffer();
                     const previewBuffer = await sharp(bytes)
+                        .rotate()
                         .resize({ width: 900, fit: "inside", withoutEnlargement: true })
                         .webp({ quality: 75 })
                         .toBuffer();
@@ -207,11 +220,13 @@ async function localDevResizeAndUpload(bytes: Buffer, storageKey: string, mediaD
     console.log(`[Local Dev Background Action] Starting image resizing for: ${storageKey}`);
     
     const thumbnailBuffer = await sharp(bytes)
+      .rotate()
       .resize({ width: 400, fit: "inside", withoutEnlargement: true })
       .webp({ quality: 75 })
       .toBuffer();
 
     const previewBuffer = await sharp(bytes)
+      .rotate()
       .resize({ width: 900, fit: "inside", withoutEnlargement: true })
       .webp({ quality: 75 })
       .toBuffer();
@@ -263,4 +278,3 @@ async function localDevResizeAndUpload(bytes: Buffer, storageKey: string, mediaD
     console.error(`[Local Dev Background Action] Failed:`, err);
   }
 }
-

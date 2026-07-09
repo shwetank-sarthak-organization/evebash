@@ -7,7 +7,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { notFound, useParams, useRouter, useSearchParams } from "next/navigation";
 import LoadingScreen from "@/components/LoadingScreen";
 import { getEvent } from "@/lib/events"; // Static Data
-import { getEventPhotosPaginated, getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event, Photo as DatabasePhoto } from "@/lib/database"; // Live Data
+import { getEventPhotosPaginated, getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event, Photo as DatabasePhoto, getFavouritePhotosForEvents } from "@/lib/database"; // Live Data
 import { EventNavbar } from "@/components/EventNavbar";
 import { useAuth } from "@/context/AuthContext";
 import { Loader2, Image as ImageIcon, ChevronLeft, ChevronDown, Share2, Check } from "lucide-react";
@@ -30,6 +30,7 @@ function EventPageContent() {
     const [subEvents, setSubEvents] = useState<Event[]>([]);
     const [photos, setPhotos] = useState<any[]>([]);
     const [activeGallery, setActiveGallery] = useState<Event | null>(null);
+    const [activeVirtualGallery, setActiveVirtualGallery] = useState<"favourite" | null>(null);
     const [galleryMediaTab, setGalleryMediaTab] = useState<"photos" | "videos">("photos");
     const [activePage, setActivePage] = useState<"gallery" | "find-you">("gallery");
     const [loading, setLoading] = useState(true);
@@ -49,6 +50,7 @@ function EventPageContent() {
     const [isLogging, setIsLogging] = useState(false);
     const [hasCheckedSession, setHasCheckedSession] = useState(false);
     const [stableIdentifier, setStableIdentifier] = useState<string | null>(null);
+    const [hasHandledInitialHash, setHasHandledInitialHash] = useState(false);
     const [entryMode, setEntryMode] = useState<'phone' | 'email'>('phone');
     const [isSignUp, setIsSignUp] = useState(false);
     const [email, setEmail] = useState("");
@@ -65,6 +67,16 @@ function EventPageContent() {
             loadEventData();
         }
     }, [authLoading, slug]);
+
+    useEffect(() => {
+        if (loading || !event || hasHandledInitialHash || typeof window === "undefined") return;
+        if (window.location.hash === "#favourite") {
+            setHasHandledInitialHash(true);
+            void selectFavouriteGallery();
+            return;
+        }
+        setHasHandledInitialHash(true);
+    }, [loading, event?.id, hasHandledInitialHash]);
 
     // Initial session check
     useEffect(() => {
@@ -272,10 +284,38 @@ function EventPageContent() {
         setHasMorePhotos(hasMore);
     };
 
+    const getFavouriteEventIds = () => {
+        const ids = [
+            parentEvent?.id,
+            event?.parentId,
+            event?.id,
+            ...subEvents.map(sub => sub.id),
+        ].filter(Boolean) as string[];
+
+        return Array.from(new Set(ids));
+    };
+
+    const loadFavouritePhotos = async () => {
+        const eventIds = getFavouriteEventIds();
+
+        if (eventIds.length === 0) {
+            setPhotos([]);
+            setPhotoPage(0);
+            setHasMorePhotos(false);
+            return;
+        }
+
+        const databasePhotos = await getFavouritePhotosForEvents(eventIds);
+        setPhotos(transformPhotos(databasePhotos));
+        setPhotoPage(0);
+        setHasMorePhotos(false);
+    };
+
     const selectGallery = async (gallery: Event | null) => {
         const targetGallery = gallery || event;
         if (!targetGallery) return;
 
+        setActiveVirtualGallery(null);
         setActiveGallery(gallery);
         setGalleryMediaTab("photos");
         setLoadingMorePhotos(false);
@@ -284,6 +324,22 @@ function EventPageContent() {
             await loadGalleryPhotos(targetGallery, 0, false);
         } catch (err) {
             console.error("Error loading gallery photos:", err);
+            setPhotos([]);
+            setHasMorePhotos(false);
+        }
+    };
+
+    const selectFavouriteGallery = async () => {
+        setActivePage("gallery");
+        setActiveVirtualGallery("favourite");
+        setActiveGallery(null);
+        setGalleryMediaTab("photos");
+        setLoadingMorePhotos(false);
+
+        try {
+            await loadFavouritePhotos();
+        } catch (err) {
+            console.error("Error loading favourite photos:", err);
             setPhotos([]);
             setHasMorePhotos(false);
         }
@@ -334,6 +390,7 @@ function EventPageContent() {
                 setSubEvents(resolvedSubEvents);
                 setParentEvent(null);
                 setActiveGallery(null);
+                setActiveVirtualGallery(null);
                 setGalleryMediaTab("photos");
                 await loadGalleryPhotos(eventData, 0, false);
             } else {
@@ -360,6 +417,7 @@ function EventPageContent() {
                 }
 
                 setActiveGallery(eventData);
+                setActiveVirtualGallery(null);
                 setGalleryMediaTab("photos");
                 await loadGalleryPhotos(eventData, 0, false);
             }
@@ -372,6 +430,8 @@ function EventPageContent() {
     };
 
     const loadMorePhotos = async () => {
+        if (activeVirtualGallery) return;
+
         const currentGallery = activeGallery || event;
         if (!currentGallery || loadingMorePhotos || !hasMorePhotos) return;
 
@@ -425,8 +485,25 @@ function EventPageContent() {
     const photoItems = photos.filter(photo => photo.mediaType !== "video" && photo.resourceType !== "video" && !!photo.thumbnailUrl);
     const videoItems = photos.filter(photo => photo.mediaType === "video" || photo.resourceType === "video");
     const activeGalleryItems = galleryMediaTab === "videos" ? videoItems : photoItems;
-    const activeGalleryTitle = activeGallery?.title || event.title || "Home";
-    const activeGalleryId = activeGallery?.id || event.id;
+    const activeGalleryTitle = activeVirtualGallery === "favourite" ? "Favourite" : activeGallery?.title || event.title || "Home";
+    const activeGalleryId = activeVirtualGallery === "favourite" ? "__favourite__" : activeGallery?.id || event.id;
+    const displayEvent = activeVirtualGallery === "favourite"
+        ? {
+            ...event,
+            title: "Favourite",
+            description: `Your favourite photos from ${event.title || "this event"}.`,
+        }
+        : activeGallery
+        ? {
+            ...event,
+            title: activeGallery.title || event.title,
+            date: activeGallery.date || event.date,
+            description: activeGallery.description || "",
+            coverImage: activeGallery.coverImage || event.coverImage,
+            templateId: activeGallery.templateId || event.templateId,
+        }
+        : event;
+    const activeGalleryMessage = activeVirtualGallery === "favourite" ? displayEvent.description : activeGallery ? activeGallery.description : event.description;
 
     const renderContent = () => (
         <div className="contents">
@@ -478,9 +555,15 @@ function EventPageContent() {
 
             <div className="mt-12">
                 <SectionHeader
-                    title={activeGallery ? activeGalleryTitle : "Home Gallery"}
+                    title={activeVirtualGallery === "favourite" ? activeGalleryTitle : activeGallery ? activeGalleryTitle : "Home Gallery"}
                     subtitle={`${photoItems.length} Photos · ${videoItems.length} Videos`}
                 />
+
+                {activeGalleryMessage && (
+                    <p className="mx-auto mt-5 max-w-3xl text-center font-sans text-sm font-semibold leading-7 text-stone-600 md:text-base">
+                        {activeGalleryMessage}
+                    </p>
+                )}
 
                 <div className="mt-10 inline-flex rounded-2xl border border-stone-200 bg-white p-1 shadow-sm">
                     {([
@@ -523,7 +606,11 @@ function EventPageContent() {
                         ) : (
                             <>
                                 <h2 className="text-2xl font-serif italic text-stone-600 mb-2">
-                                    {galleryMediaTab === "videos" ? "No videos yet." : "No photos yet."}
+                                    {activeVirtualGallery === "favourite"
+                                        ? "No favourite photos yet."
+                                        : galleryMediaTab === "videos"
+                                            ? "No videos yet."
+                                            : "No photos yet."}
                                 </h2>
                                 <p className="font-sans text-stone-600 text-sm">Check back soon to see the captured memories.</p>
                             </>
@@ -554,7 +641,7 @@ function EventPageContent() {
         </div>
     );
 
-    const TemplateComponent = getWebTemplateComponent(event.templateId);
+    const TemplateComponent = getWebTemplateComponent(displayEvent.templateId);
 
     // Determine Navbar Props
     const navMainTitle = parentEvent ? parentEvent.title : event.title;
@@ -579,9 +666,12 @@ function EventPageContent() {
                     selectGallery(gallery || parentEvent || null);
                 }}
                 onFindYou={() => setActivePage("find-you")}
+                showFavouriteGallery
+                favouriteGalleryActive={activeVirtualGallery === "favourite"}
+                onSelectFavouriteGallery={selectFavouriteGallery}
             />
             <TemplateComponent
-                event={event}
+                event={displayEvent}
                 subEvents={[]}
                 photos={[]}
                 isShared={isShared}
