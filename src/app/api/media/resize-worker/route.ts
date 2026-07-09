@@ -294,7 +294,15 @@ export async function POST(request: NextRequest) {
             faceapi.nets.faceRecognitionNet.loadFromDisk(MODEL_PATH),
           ]);
 
-          const img = await canvasModule.loadImage(bufferBytes);
+          // Resize original buffer to max 1000px JPEG to avoid memory OOM crashes on large DSLR images
+          console.log(`[Resize Worker] Resizing buffer to 1000px JPEG for face indexing...`);
+          const detectionBuffer = await sharp(bufferBytes)
+            .rotate()
+            .resize({ width: 1000, fit: "inside", withoutEnlargement: true })
+            .jpeg({ quality: 80 })
+            .toBuffer();
+
+          const img = await canvasModule.loadImage(detectionBuffer);
           const detections = await faceapi.detectAllFaces(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
             .withFaceLandmarks()
             .withFaceDescriptors();

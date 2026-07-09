@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEventFaceEncodings } from "@/lib/database";
 import { getImageUrl } from "@/lib/imageUrl";
+import sharp from "sharp";
 
 /**
  * POST /api/find-you
@@ -93,7 +94,22 @@ export async function POST(request: NextRequest) {
         }
 
         // Load and detect face in selfie
-        const selfieImage = await canvasModule.loadImage(selfieSrc);
+        let selfieBuffer: Buffer;
+        if (selfieSrc.startsWith("data:") || !selfieSrc.startsWith("http")) {
+            const base64Data = selfieSrc.includes("base64,") ? selfieSrc.split("base64,")[1] : selfieSrc;
+            selfieBuffer = Buffer.from(base64Data, "base64");
+        } else {
+            const downloadRes = await fetch(selfieSrc);
+            selfieBuffer = Buffer.from(await downloadRes.arrayBuffer());
+        }
+
+        const optimizedSelfieBuffer = await sharp(selfieBuffer)
+            .rotate()
+            .resize({ width: 1000, fit: "inside", withoutEnlargement: true })
+            .jpeg({ quality: 80 })
+            .toBuffer();
+
+        const selfieImage = await canvasModule.loadImage(optimizedSelfieBuffer);
         const selfieDetection = await faceapi
             .detectSingleFace(selfieImage, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
             .withFaceLandmarks()
