@@ -121,6 +121,12 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Resize Worker] Processing image resizing for: ${storageKey}`);
 
+    console.log(`[Resize Worker] Waiting for queue slot for: ${storageKey}`);
+    storageKeyContext = storageKey;
+    await resizeQueue.acquire();
+    queueAcquired = true;
+    console.log(`[Resize Worker] Slot acquired. Starting process for: ${storageKey}`);
+
     // 3. Initialize Supabase Admin Client
     const supabaseAdmin = createClient(
       requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
@@ -154,13 +160,7 @@ export async function POST(request: NextRequest) {
       console.error("[Resize Worker] Failed to extract metadata:", metaErr);
     }
 
-    // 5. Generate resized WebP buffers with concurrency throttling to prevent OOM crashes
-    console.log(`[Resize Worker] Waiting for queue slot for: ${storageKey}`);
-    storageKeyContext = storageKey;
-    await resizeQueue.acquire();
-    queueAcquired = true;
-    console.log(`[Resize Worker] Slot acquired. Running image resizing for: ${storageKey}`);
-
+    // 5. Generate resized WebP buffers
     let thumbnailBuffer: Buffer;
     let previewBuffer: Buffer;
 

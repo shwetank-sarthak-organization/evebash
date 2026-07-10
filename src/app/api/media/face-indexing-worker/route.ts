@@ -50,42 +50,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing storageKey in payload" }, { status: 400 });
     }
 
-    console.log(`[Face Indexing Worker] Processing photo: ${storageKey}`);
-
-    const supabaseAdmin = createClient(
-      requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
-      requireEnv("SUPABASE_SERVICE_ROLE_KEY")
-    );
-
-    // Get the photo record from the database
-    const { data: photoData, error: dbError } = await supabaseAdmin
-      .from("photos")
-      .select("*")
-      .eq("storage_key", storageKey)
-      .maybeSingle();
-
-    if (dbError || !photoData) {
-      console.warn(`[Face Indexing Worker] Photo record not found for ${storageKey}. Aborting.`);
-      return NextResponse.json({ error: "Database row not found." }, { status: 404 });
-    }
-
-    // Download original file from B2 via the media domain
-    const mediaDomain = requireEnv("MEDIA_DOMAIN").replace(/^https?:\/\//, "").replace(/\/+$/, "");
-    const originalUrl = `https://${mediaDomain}/${storageKey}`;
-    
-    console.log(`[Face Indexing Worker] Downloading file: ${originalUrl}`);
-    const downloadResponse = await fetch(originalUrl);
-    if (!downloadResponse.ok) {
-      throw new Error(`Failed to download original image from ${originalUrl} (status: ${downloadResponse.status})`);
-    }
-
-    const arrayBuffer = await downloadResponse.arrayBuffer();
-    const bufferBytes = Buffer.from(arrayBuffer);
-
     console.log(`[Face Indexing Worker] Waiting for AI queue slot for: ${storageKey}`);
     await indexingQueue.acquire();
 
     try {
+      const supabaseAdmin = createClient(
+        requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+        requireEnv("SUPABASE_SERVICE_ROLE_KEY")
+      );
+
+      // Get the photo record from the database
+      const { data: photoData, error: dbError } = await supabaseAdmin
+        .from("photos")
+        .select("*")
+        .eq("storage_key", storageKey)
+        .maybeSingle();
+
+      if (dbError || !photoData) {
+        console.warn(`[Face Indexing Worker] Photo record not found for ${storageKey}. Aborting.`);
+        return NextResponse.json({ error: "Database row not found." }, { status: 404 });
+      }
+
+      // Download original file from B2 via the media domain
+      const mediaDomain = requireEnv("MEDIA_DOMAIN").replace(/^https?:\/\//, "").replace(/\/+$/, "");
+      const originalUrl = `https://${mediaDomain}/${storageKey}`;
+      
+      console.log(`[Face Indexing Worker] Downloading file: ${originalUrl}`);
+      const downloadResponse = await fetch(originalUrl);
+      if (!downloadResponse.ok) {
+        throw new Error(`Failed to download original image from ${originalUrl} (status: ${downloadResponse.status})`);
+      }
+
+      const arrayBuffer = await downloadResponse.arrayBuffer();
+      const bufferBytes = Buffer.from(arrayBuffer);
+
       console.log(`[Face Indexing Worker] Starting background face indexing for photo: ${photoData.id}`);
       
       // Setup face-api environment
