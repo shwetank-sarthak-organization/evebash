@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "NODE_OPTIONS=\"--max-http-header-size=65536\" next start",
     "android": "npm --prefix apps/mobile run android",
     "ios": "npm --prefix apps/mobile run ios",
     "web": "npm --prefix apps/mobile run web",
