@@ -62,3 +62,52 @@ export async function publishResizeTask(options: QStashPublishOptions): Promise<
     return false;
   }
 }
+
+export async function publishFaceIndexingTask(options: QStashPublishOptions): Promise<boolean> {
+  const qstashToken = process.env.QSTASH_TOKEN;
+  if (!qstashToken) {
+    console.warn("[QStash] QSTASH_TOKEN is not configured. Background face indexing will not run.");
+    return false;
+  }
+
+  const railwayUrl = process.env.RAILWAY_STATIC_URL ? `https://${process.env.RAILWAY_STATIC_URL}` : null;
+  const isLocalOrigin = options.origin && (
+    options.origin.includes('localhost') || 
+    options.origin.includes('127.0.0.1') || 
+    options.origin.includes('192.168.') || 
+    options.origin.startsWith('http://10.')
+  );
+  
+  const siteUrl = (!options.origin || isLocalOrigin)
+    ? (process.env.NEXT_PUBLIC_SITE_URL || railwayUrl || `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost:3000'}`)
+    : options.origin;
+    
+  const targetUrl = `${siteUrl}/api/media/face-indexing-worker`;
+
+  console.log(`[QStash] Publishing face indexing task for ${options.storageKey} to target: ${targetUrl}`);
+
+  try {
+    const headers: Record<string, string> = {
+      "Authorization": `Bearer ${qstashToken}`,
+      "Content-Type": "application/json",
+    };
+
+    const response = await fetch(`https://qstash-us-east-1.upstash.io/v2/publish/${targetUrl}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ storageKey: options.storageKey }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`QStash publish failed with status ${response.status}: ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log(`[QStash] Successfully published face indexing task. Message ID: ${result.messageId}`);
+    return true;
+  } catch (error) {
+    console.error("[QStash] Error publishing face indexing task:", error);
+    return false;
+  }
+}
