@@ -17,7 +17,7 @@ function requireEnv(name: string) {
 // In-memory queue to limit CPU/RAM usage of sharp operations in a single container
 class ResizeQueue {
   private activeCount = 0;
-  private maxConcurrency = Number(process.env.MAX_CONCURRENT_RESIZES || "4");
+  private maxConcurrency = Number(process.env.MAX_CONCURRENT_RESIZES || "2");
   private waiting: (() => void)[] = [];
 
   async acquire() {
