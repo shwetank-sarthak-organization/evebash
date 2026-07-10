@@ -97,8 +97,9 @@ export async function POST(request: NextRequest) {
 
       try {
         canvasModule = await import("canvas" as any);
+        let tf: any;
         try {
-          await import("@tensorflow/tfjs-node" as any);
+          tf = await import("@tensorflow/tfjs-node" as any);
           console.log("[Face Indexing Worker] Successfully loaded @tensorflow/tfjs-node native bindings");
         } catch (tfErr) {
           console.warn("[Face Indexing Worker] Failed to load @tensorflow/tfjs-node, falling back to pure JS backend", tfErr);
@@ -118,11 +119,19 @@ export async function POST(request: NextRequest) {
         faceapi.env.setEnv(nodeEnv);
 
         const MODEL_PATH = `${process.cwd()}/public/models`;
-        await Promise.all([
-          faceapi.nets.ssdMobilenetv1.loadFromDisk(MODEL_PATH),
-          faceapi.nets.faceLandmark68Net.loadFromDisk(MODEL_PATH),
-          faceapi.nets.faceRecognitionNet.loadFromDisk(MODEL_PATH),
-        ]);
+        const loadPromises = [];
+        if (!faceapi.nets.ssdMobilenetv1.isLoaded) loadPromises.push(faceapi.nets.ssdMobilenetv1.loadFromDisk(MODEL_PATH));
+        if (!faceapi.nets.faceLandmark68Net.isLoaded) loadPromises.push(faceapi.nets.faceLandmark68Net.loadFromDisk(MODEL_PATH));
+        if (!faceapi.nets.faceRecognitionNet.isLoaded) loadPromises.push(faceapi.nets.faceRecognitionNet.loadFromDisk(MODEL_PATH));
+        
+        if (loadPromises.length > 0) {
+          console.log(`[Face Indexing Worker] Loading models from disk...`);
+          await Promise.all(loadPromises);
+        }
+
+        if (tf) {
+           console.log(`[Face Indexing Worker] TF Memory Pre-Detection:`, tf.memory());
+        }
 
         // Resize original buffer to max 1000px JPEG to avoid memory OOM crashes on large DSLR images
         console.log(`[Face Indexing Worker] Resizing buffer to 1000px JPEG for face indexing...`);
@@ -136,6 +145,10 @@ export async function POST(request: NextRequest) {
         const detections = await faceapi.detectAllFaces(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
           .withFaceLandmarks()
           .withFaceDescriptors();
+
+        if (tf) {
+           console.log(`[Face Indexing Worker] TF Memory Post-Detection:`, tf.memory());
+        }
 
         if (detections.length > 0) {
           console.log(`[Face Indexing Worker] Found ${detections.length} faces in ${photoData.id}. Saving to index...`);
