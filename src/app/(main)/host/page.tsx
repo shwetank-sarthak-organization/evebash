@@ -1740,6 +1740,36 @@ function DashboardContent() {
             const concurrencyLimit = 3;
             let activeCount = 0;
             let currentIndex = 0;
+            let chunkBuffer: Photo[] = [];
+
+            const flushChunkBuffer = async () => {
+                if (chunkBuffer.length === 0) return;
+                const photosToFlush = [...chunkBuffer];
+                chunkBuffer = [];
+                console.log(`[Dashboard] Flushing chunk of ${photosToFlush.length} photos to batch API...`);
+                try {
+                    const session = await supabase.auth.getSession();
+                    const headers: Record<string, string> = { "Content-Type": "application/json" };
+                    if (session.data.session?.access_token) {
+                        headers["Authorization"] = `Bearer ${session.data.session.access_token}`;
+                    }
+                    await fetch("/api/media/save-photo-batch", {
+                        method: "POST",
+                        headers,
+                        body: JSON.stringify({
+                            photos: photosToFlush.map(p => ({
+                                storageKey: p.storageKey,
+                                eventId: p.eventId,
+                                fileName: p.storageKey.split('/').pop() || 'image.jpg',
+                                fileSize: p.size,
+                                resourceType: p.resourceType
+                            }))
+                        })
+                    });
+                } catch (e) {
+                    console.error("[Dashboard] Batch flush error:", e);
+                }
+            };
 
             const runNext = async (workerId: number): Promise<void> => {
                 if (currentIndex >= selectedFiles.length) return;
@@ -1761,8 +1791,8 @@ function DashboardContent() {
 
                 try {
                     console.log(`[Dashboard] Uploading file ${index + 1}/${selectedFiles.length}: ${file.name} (lane: ${workerId})`);
-                    // Upload the original file — thumbnails and previews are pre-generated asynchronously on the backend
-                    const uploadResult = await uploadEventImage(file, selectedEventId, user.uid || "anonymous", workerId);
+                    // Upload the original file — skip single-save so we can chunk it
+                    const uploadResult = await uploadEventImage(file, selectedEventId, user.uid || "anonymous", workerId, true);
                     clearInterval(progressInterval);
 
                     if (index === 0) firstUploadedUrl = uploadResult.url;
@@ -1782,6 +1812,12 @@ function DashboardContent() {
                         mediaType: galleryMediaTab === "videos" ? "video" : "photo",
                         resourceType: galleryMediaTab === "videos" ? "video" : "image"
                     };
+
+                    chunkBuffer.push(photo);
+                    // Flush the buffer if it hits 10 photos, or if this is the absolute last photo being uploaded
+                    if (chunkBuffer.length >= 10 || (index === selectedFiles.length - 1)) {
+                        await flushChunkBuffer();
+                    }
 
                     // Mark as processing (generating thumbnails)
                     setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "processing", progress: 90 } : item));

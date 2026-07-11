@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
  * 2. Uploads binary directly to Backblaze B2.
  * 3. Saves photo metadata to Supabase via Railway save-photo endpoint.
  */
-export async function uploadEventImage(file: File, eventId: string, userId?: string, laneIndex = 0) {
+export async function uploadEventImage(file: File, eventId: string, userId?: string, laneIndex = 0, skipSaveMetadata = false) {
     try {
         console.log(`[Storage] Starting direct B2 upload for: ${file.name} to event: ${eventId} (lane: ${laneIndex})`);
 
@@ -104,27 +104,33 @@ export async function uploadEventImage(file: File, eventId: string, userId?: str
             throw new Error((uploadResult && uploadResult.message) || `Direct B2 upload failed with status: ${uploadResponse ? uploadResponse.status : "unknown"}`);
         }
 
-        // 3. Save database record and trigger background worker on Railway
-        console.log(`[Storage] Saving metadata to database...`);
-        const saveResponse = await fetch("/api/media/save-photo", {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-                storageKey,
-                eventId,
-                fileName: file.name,
-                fileSize: file.size,
-                resourceType,
-            }),
-        });
+        if (!skipSaveMetadata) {
+            // 3. Save database record and trigger background worker on Railway
+            console.log(`[Storage] Saving metadata to database...`);
+            const saveResponse = await fetch("/api/media/save-photo", {
+                method: "POST",
+                headers,
+                body: JSON.stringify({
+                    storageKey,
+                    eventId,
+                    fileName: file.name,
+                    fileSize: file.size,
+                    resourceType,
+                }),
+            });
 
-        const saveResult = await saveResponse.json().catch(() => ({}));
-        if (!saveResponse.ok) {
-            throw new Error(saveResult.error || `Failed to save photo metadata (status: ${saveResponse.status})`);
+            const saveResult = await saveResponse.json().catch(() => ({}));
+            if (!saveResponse.ok) {
+                throw new Error(saveResult.error || `Failed to save photo metadata (status: ${saveResponse.status})`);
+            }
         }
 
+        // We construct the media URL locally to avoid depending on saveResult.url when skipSaveMetadata is true
+        const mediaDomain = process.env.NEXT_PUBLIC_MEDIA_DOMAIN || "media.evebash.com";
+        const finalUrl = `https://${mediaDomain}/${storageKey}`;
+
         return {
-            url: saveResult.url,
+            url: finalUrl,
             publicId: storageKey,
             width: undefined,
             height: undefined,
