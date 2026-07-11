@@ -115,8 +115,8 @@ def process_single_photo(photo_data: dict):
         
         # Update Supabase with thumbnail URLs
         media_domain = os.environ.get("MEDIA_DOMAIN", "media.evebash.com")
+        print(f"[{photo_id}] Saving thumbnail URL and metadata to database...")
         supabase.table("photos").update({
-            "preview_url": f"https://{media_domain}/{preview_key}",
             "thumbnail_url": f"https://{media_domain}/{thumb_key}",
         }).eq("id", photo_id).execute()
         
