@@ -1036,7 +1036,7 @@ export async function getEventFaceEncodings(eventIds: string | string[], legacyI
         return (data || []).map(f => ({
             id: f.id,
             imageId: f.image_id,
-            descriptor: f.descriptor,
+            descriptor: typeof f.descriptor === 'string' ? JSON.parse(f.descriptor) : f.descriptor,
             eventId: f.event_id,
             imageUrl: f.image_url,
             width: f.width,
