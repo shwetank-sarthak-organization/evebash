@@ -130,12 +130,12 @@ def process_single_photo(photo_data: dict):
             face_records = []
             for encoding in face_encodings:
                 face_records.append({
-                    "image_id": photo_id,
-                    "descriptor": encoding.tolist(),
                     "event_id": event_id,
+                    "image_id": photo_id,
                     "image_url": original_url,
                     "width": width,
-                    "height": height
+                    "height": height,
+                    "descriptor": encoding.tolist()
                 })
             
             supabase.table("faces").insert(face_records).execute()
