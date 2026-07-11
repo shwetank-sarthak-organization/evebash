@@ -2,7 +2,6 @@
 
 import { randomUUID } from "crypto";
 import { after } from "next/server";
-import { publishResizeTask } from "@/lib/qstash";
 import sharp from "sharp";
 import { getCachedBackblazeAuth, getUploadUrl } from "@/lib/backblaze";
 
@@ -122,39 +121,33 @@ export async function uploadToBackblaze(base64File: string, folder: string, opti
         const mediaDomain = requireEnv("MEDIA_DOMAIN").replace(/^https?:\/\//, "").replace(/\/+$/, "");
         const url = `https://${mediaDomain}/${storageKey}`;
 
-        // Inline resizing — generate thumbnail and preview immediately
+        // Resizing logic for non-event images (e.g. profile photos)
         if (resourceType === "image" && contentType && !contentType.startsWith("video/")) {
-            const qstashToken = process.env.QSTASH_TOKEN;
             if (process.env.NODE_ENV === "development") {
                 console.log(`[Server Action] Local development environment detected. Processing resizing locally in background for: ${storageKey}`);
                 localDevResizeAndUpload(bytes, storageKey, mediaDomain);
-            } else if (qstashToken) {
-                // QStash path: run in next/server after() to publish in background
-                console.log(`[Server Action] Queuing resize via QStash for: ${storageKey}`);
-                after(() => {
-                    publishResizeTask({ storageKey }).catch((err) => {
-                        console.error("[Server Action] Error publishing resize task via QStash:", err);
-                    });
-                });
             } else {
-                // Fallback: inline resizing
-                console.log(`[Server Action] No QStash token — resizing inline for: ${storageKey}`);
-                try {
-                    const thumbnailBuffer = await sharp(bytes)
-                        .rotate()
-                        .resize({ width: 400, fit: "inside", withoutEnlargement: true })
-                        .webp({ quality: 75 })
-                        .toBuffer();
-                    const previewBuffer = await sharp(bytes)
-                        .rotate()
-                        .resize({ width: 900, fit: "inside", withoutEnlargement: true })
-                        .webp({ quality: 75 })
-                        .toBuffer();
-                    await uploadBufferToB2(thumbnailBuffer, `${storageKey}-thumbnail.webp`, "image/webp");
-                    await uploadBufferToB2(previewBuffer, `${storageKey}-preview.webp`, "image/webp");
-                } catch (resizeErr) {
-                    console.error(`[Server Action] Resizing failed for ${storageKey}:`, resizeErr);
-                }
+                // Background resizing for production (e.g., profile pictures) via after()
+                console.log(`[Server Action] Queuing profile resize in background for: ${storageKey}`);
+                after(async () => {
+                    try {
+                        const thumbnailBuffer = await sharp(bytes)
+                            .rotate()
+                            .resize({ width: 400, fit: "inside", withoutEnlargement: true })
+                            .webp({ quality: 75 })
+                            .toBuffer();
+                        const previewBuffer = await sharp(bytes)
+                            .rotate()
+                            .resize({ width: 900, fit: "inside", withoutEnlargement: true })
+                            .webp({ quality: 75 })
+                            .toBuffer();
+                        await uploadBufferToB2(thumbnailBuffer, `${storageKey}-thumbnail.webp`, "image/webp");
+                        await uploadBufferToB2(previewBuffer, `${storageKey}-preview.webp`, "image/webp");
+                        console.log(`[Server Action] Background profile resizing complete for: ${storageKey}`);
+                    } catch (resizeErr) {
+                        console.error(`[Server Action] Background profile resizing failed for ${storageKey}:`, resizeErr);
+                    }
+                });
             }
         }
 

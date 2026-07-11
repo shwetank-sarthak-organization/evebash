@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { publishResizeTask, publishFaceIndexingTask } from "@/lib/qstash";
+import { publishModalMediaTask } from "@/lib/qstash";
 import { getCachedBackblazeAuth, BackblazeAuth } from "@/lib/backblaze";
 import { createClient } from "@supabase/supabase-js";
 
@@ -253,17 +253,21 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Trigger resizing worker via QStash
+    // Trigger background Modal Media Engine via QStash
     if (actualResourceType === "image") {
       const qstashToken = process.env.QSTASH_TOKEN;
       if (qstashToken) {
-        console.log(`[SavePhoto] Queuing resize and face indexing via QStash for: ${storageKey}`);
+        console.log(`[SavePhoto] Queuing Modal Media Engine task via QStash for: ${storageKey}`);
         after(() => {
-          publishResizeTask({ storageKey, origin: request.nextUrl.origin }).catch((err) => {
-            console.error("[SavePhoto] Error publishing resize task via QStash:", err);
-          });
-          publishFaceIndexingTask({ storageKey, origin: request.nextUrl.origin }).catch((err) => {
-            console.error("[SavePhoto] Error publishing face indexing task via QStash:", err);
+          publishModalMediaTask([{
+            id: photoId,
+            storage_key: storageKey,
+            event_id: eventId,
+            url: url,
+            width: null,
+            height: null
+          }]).catch((err) => {
+            console.error("[SavePhoto] Error publishing Modal media task via QStash:", err);
           });
         });
       }

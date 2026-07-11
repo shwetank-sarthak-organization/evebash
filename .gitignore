@@ -50,3 +50,7 @@ next
 wedding-app@0.1.0
 supabase/.temp/
 
+
+modal_engine/venv/
+__pycache__/
+*.pyc

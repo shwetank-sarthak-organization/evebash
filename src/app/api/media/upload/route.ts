@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { publishResizeTask } from "@/lib/qstash";
+import { publishModalMediaTask } from "@/lib/qstash";
 import sharp from "sharp";
 import { getCachedBackblazeAuth, getUploadUrl, BackblazeAuth } from "@/lib/backblaze";
 import { createClient } from "@supabase/supabase-js";
@@ -578,10 +578,17 @@ export async function POST(request: NextRequest) {
         localDevResizeAndUpload(bytes, storageKey, mediaDomain);
       } else if (qstashToken) {
         // QStash path: return response immediately, publish resize job in background
-        console.log(`[Upload] Queuing resize via QStash for: ${storageKey}`);
+        console.log(`[Upload] Queuing Modal Media Engine task via QStash for: ${storageKey}`);
         after(() => {
-          publishResizeTask({ storageKey, origin: request.nextUrl.origin }).catch((err) => {
-            console.error("[Upload] Error publishing resize task via QStash:", err);
+          publishModalMediaTask([{
+            id: savedPhotoId || "",
+            storage_key: storageKey,
+            event_id: eventId || "",
+            url: url,
+            width: null,
+            height: null
+          }]).catch((err) => {
+            console.error("[Upload] Error publishing Modal media task via QStash:", err);
           });
         });
       } else {
