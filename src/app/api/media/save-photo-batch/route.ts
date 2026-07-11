@@ -128,8 +128,7 @@ export async function POST(request: NextRequest) {
         size: Number(fileSize) || 0,
         format: fileName.split(".").pop()?.toLowerCase() || "jpg",
         media_type: mediaType,
-        resource_type: actualResourceType,
-        processing_status: actualResourceType === "image" ? "processing" : "completed"
+        resource_type: actualResourceType
       });
 
       if (actualResourceType === "image") {
