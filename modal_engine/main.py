@@ -106,9 +106,8 @@ def process_single_photo(photo_data: dict):
         thumb_bytes.seek(0)
         
         # Upload Thumbnails back to B2
-        base_name = object_key.rsplit('.', 1)[0]
-        preview_key = f"previews/{base_name}.webp"
-        thumb_key = f"thumbnails/{base_name}.webp"
+        preview_key = f"{object_key}-preview.webp"
+        thumb_key = f"{object_key}-thumbnail.webp"
         
         b2_client.put_object(Bucket=bucket_name, Key=preview_key, Body=preview_bytes, ContentType="image/webp")
         b2_client.put_object(Bucket=bucket_name, Key=thumb_key, Body=thumb_bytes, ContentType="image/webp")
