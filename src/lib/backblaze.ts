@@ -66,18 +66,6 @@ export async function getCachedBackblazeAuth(): Promise<BackblazeAuth> {
   return authPromise;
 }
 
-const POOL_SIZE = 5;
-
-interface PooledToken {
-  promise: Promise<BackblazeUploadUrl> | null;
-  expiresAt: number;
-}
-
-const tokenPool: PooledToken[] = Array.from({ length: POOL_SIZE }, () => ({
-  promise: null,
-  expiresAt: 0
-}));
-
 export async function getUploadUrl(auth: BackblazeAuth): Promise<BackblazeUploadUrl> {
   const bucketId = requireEnv("B2_BUCKET_ID");
   const response = await fetch(`${auth.apiUrl}/b2api/v3/b2_get_upload_url`, {
@@ -102,30 +90,8 @@ export async function getCachedUploadUrl(
   forceRefresh = false,
   laneIndex = 0
 ): Promise<BackblazeUploadUrl> {
-  const index = Math.min(Math.max(0, laneIndex), POOL_SIZE - 1);
-  const slot = tokenPool[index];
-
-  if (forceRefresh) {
-    slot.promise = null;
-    slot.expiresAt = 0;
-  }
-
-  if (slot.promise && Date.now() < slot.expiresAt) {
-    return slot.promise;
-  }
-
-  // Cache for 10 minutes (standard batch duration)
-  slot.expiresAt = Date.now() + 10 * 60 * 1000;
-
-  slot.promise = (async () => {
-    try {
-      return await getUploadUrl(auth);
-    } catch (err) {
-      slot.promise = null;
-      slot.expiresAt = 0;
-      throw err;
-    }
-  })();
-
-  return slot.promise;
+  // We completely bypass the global token pool in Serverless environments.
+  // Sharing upload tokens across concurrent serverless requests/users causes B2 to throw "more than one upload using auth token" 400 Bad Request.
+  // Generating a fresh URL for every file adds ~100ms but guarantees 100% thread safety and zero collisions.
+  return getUploadUrl(auth);
 }
