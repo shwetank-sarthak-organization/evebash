@@ -42,6 +42,7 @@ export async function getCachedBackblazeAuth(): Promise<BackblazeAuth> {
         headers: {
           Authorization: `Basic ${credentials}`,
         },
+        cache: "no-store",
       });
 
       if (!response.ok) {
@@ -86,6 +87,7 @@ export async function getUploadUrl(auth: BackblazeAuth): Promise<BackblazeUpload
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ bucketId }),
+    cache: "no-store",
   });
 
   if (!response.ok) {
