@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { publishModalMediaTask } from "@/lib/qstash";
+import { publishResizeTask } from "@/lib/qstash";
 import sharp from "sharp";
-import { getCachedBackblazeAuth, getUploadUrl, BackblazeAuth } from "@/lib/backblaze";
+import { getCachedBackblazeAuth, getCachedUploadUrl, getUploadUrl, BackblazeAuth } from "@/lib/backblaze";
 import { createClient } from "@supabase/supabase-js";
 import { formatStorageSize, getPlanDetails } from "@/lib/planLimits";
 
@@ -461,7 +461,8 @@ export async function POST(request: NextRequest) {
     });
 
     const backblazeAuth = await getCachedBackblazeAuth();
-    const uploadUrl = await getUploadUrl(backblazeAuth);
+    const laneIndex = parseInt(request.nextUrl.searchParams.get("lane") || "0", 10);
+    const uploadUrl = await getCachedUploadUrl(backblazeAuth, false, laneIndex);
 
     // Convert ArrayBuffer to Buffer — raw ArrayBuffer as fetch body is unreliable
     // in some Node.js/Vercel runtime versions and can cause B2 upload failures.
@@ -578,17 +579,10 @@ export async function POST(request: NextRequest) {
         localDevResizeAndUpload(bytes, storageKey, mediaDomain);
       } else if (qstashToken) {
         // QStash path: return response immediately, publish resize job in background
-        console.log(`[Upload] Queuing Modal Media Engine task via QStash for: ${storageKey}`);
+        console.log(`[Upload] Queuing resize via QStash for: ${storageKey}`);
         after(() => {
-          publishModalMediaTask([{
-            id: savedPhotoId || "",
-            storage_key: storageKey,
-            event_id: eventId || "",
-            url: url,
-            width: null,
-            height: null
-          }]).catch((err) => {
-            console.error("[Upload] Error publishing Modal media task via QStash:", err);
+          publishResizeTask({ storageKey, origin: request.nextUrl.origin }).catch((err) => {
+            console.error("[Upload] Error publishing resize task via QStash:", err);
           });
         });
       } else {

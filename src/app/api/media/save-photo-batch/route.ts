@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { publishModalMediaTask } from "@/lib/qstash";
+import { publishResizeTask } from "@/lib/qstash";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -179,11 +179,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 3. Batch Publish to Modal via QStash
+    // 3. Batch Publish to local resizing worker via QStash
     if (modalPayloadArray.length > 0) {
-      console.log(`[SavePhotoBatch] Queuing batch of ${modalPayloadArray.length} photos to Modal`);
+      console.log(`[SavePhotoBatch] Queuing batch of ${modalPayloadArray.length} photos to local resizing via QStash`);
       after(() => {
-        publishModalMediaTask(modalPayloadArray).catch(console.error);
+        for (const photo of modalPayloadArray) {
+          publishResizeTask({ storageKey: photo.storage_key, origin: request.nextUrl.origin }).catch((err) => {
+            console.error(`[SavePhotoBatch] Error publishing resize task for ${photo.storage_key}:`, err);
+          });
+        }
       });
     }
 

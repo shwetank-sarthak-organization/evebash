@@ -85,13 +85,28 @@ export async function getUploadUrl(auth: BackblazeAuth): Promise<BackblazeUpload
   return response.json();
 }
 
+const POOL_SIZE = 5;
+const uploadUrlPool: (Promise<BackblazeUploadUrl> | null)[] = new Array(POOL_SIZE).fill(null);
+const poolExpiration: number[] = new Array(POOL_SIZE).fill(0);
+
 export async function getCachedUploadUrl(
   auth: BackblazeAuth,
   forceRefresh = false,
   laneIndex = 0
 ): Promise<BackblazeUploadUrl> {
-  // We completely bypass the global token pool in Serverless environments.
-  // Sharing upload tokens across concurrent serverless requests/users causes B2 to throw "more than one upload using auth token" 400 Bad Request.
-  // Generating a fresh URL for every file adds ~100ms but guarantees 100% thread safety and zero collisions.
-  return getUploadUrl(auth);
+  // Use laneIndex to assign a consistent slot from the pool for this specific upload lane
+  const slotIndex = (typeof laneIndex === 'number' && !isNaN(laneIndex)) 
+    ? (Math.abs(laneIndex) % POOL_SIZE) 
+    : 0;
+
+  if (forceRefresh || !uploadUrlPool[slotIndex] || Date.now() > poolExpiration[slotIndex]) {
+    // Tokens are valid for 24 hours, but we refresh slightly earlier (23 hours)
+    poolExpiration[slotIndex] = Date.now() + 23 * 60 * 60 * 1000;
+    uploadUrlPool[slotIndex] = getUploadUrl(auth).catch(err => {
+      uploadUrlPool[slotIndex] = null;
+      poolExpiration[slotIndex] = 0;
+      throw err;
+    });
+  }
+  return uploadUrlPool[slotIndex]!;
 }

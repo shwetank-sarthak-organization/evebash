@@ -1,0 +1,158 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getCachedBackblazeAuth, BackblazeAuth } from "@/lib/backblaze";
+import { createClient } from "@supabase/supabase-js";
+import sharp from "sharp";
+
+export const runtime = "nodejs";
+// Allow long execution for large images
+export const maxDuration = 120;
+
+function requireEnv(name: string) {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`${name} is not configured`);
+  }
+  return value;
+}
+
+// Ensure QStash signature verification for security in production
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { storageKey } = body;
+
+    if (!storageKey) {
+      return NextResponse.json({ error: "Missing storageKey" }, { status: 400 });
+    }
+
+    console.log(`[Process Thumbnail] Started resizing background job for: ${storageKey}`);
+
+    const supabaseAdmin = createClient(
+      requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+      requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
+
+    const backblazeAuth = await getCachedBackblazeAuth();
+    const bucketId = requireEnv("B2_BUCKET_ID");
+    const mediaDomain = requireEnv("MEDIA_DOMAIN").replace(/^https?:\/\//, "").replace(/\/+$/, "");
+
+    // 1. Download the original high-res image from B2
+    const downloadUrl = `${backblazeAuth.downloadUrl}/file/${requireEnv("B2_BUCKET_NAME")}/${storageKey}`;
+    console.log(`[Process Thumbnail] Downloading from B2: ${downloadUrl}`);
+    
+    const downloadResponse = await fetch(downloadUrl, {
+      headers: { Authorization: backblazeAuth.authorizationToken }
+    });
+
+    if (!downloadResponse.ok) {
+      throw new Error(`Failed to download from B2: ${downloadResponse.status} ${downloadResponse.statusText}`);
+    }
+
+    const arrayBuffer = await downloadResponse.arrayBuffer();
+    const bufferBytes = Buffer.from(arrayBuffer);
+
+    console.log(`[Process Thumbnail] Successfully downloaded ${bufferBytes.length} bytes for ${storageKey}. Starting sharp processing...`);
+
+    // 2. Extract original dimensions for the DB
+    const metadata = await sharp(bufferBytes).metadata();
+    const originalWidth = metadata.width || 0;
+    const originalHeight = metadata.height || 0;
+
+    // 3. Generate Thumbnail and Preview buffers
+    const thumbnailBuffer = await sharp(bufferBytes)
+      .rotate()
+      .resize({ width: 400, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 75 })
+      .toBuffer();
+
+    const previewBuffer = await sharp(bufferBytes)
+      .rotate()
+      .resize({ width: 900, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 75 })
+      .toBuffer();
+
+    // 4. Upload to B2
+    const thumbnailKey = `${storageKey}-thumbnail.webp`;
+    const previewKey = `${storageKey}-preview.webp`;
+    const thumbnailUrl = `https://${mediaDomain}/${thumbnailKey}`;
+    const previewUrl = `https://${mediaDomain}/${previewKey}`;
+
+    async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string) {
+      // Re-fetch upload URL because they expire quickly
+      const uploadUrlResponse = await fetch(`${backblazeAuth.apiUrl}/b2api/v3/b2_get_upload_url`, {
+        method: "POST",
+        headers: { Authorization: backblazeAuth.authorizationToken },
+        body: JSON.stringify({ bucketId }),
+      });
+      if (!uploadUrlResponse.ok) throw new Error("Failed to get B2 upload URL");
+      const uploadUrlData = await uploadUrlResponse.json();
+
+      const uploadResponse = await fetch(uploadUrlData.uploadUrl, {
+        method: "POST",
+        headers: {
+          Authorization: uploadUrlData.authorizationToken,
+          "Content-Type": contentType,
+          "X-Bz-File-Name": encodeURIComponent(key),
+          "X-Bz-Content-Sha1": "do_not_verify",
+          "Content-Length": String(buffer.length),
+        },
+        body: buffer as unknown as BodyInit,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`B2 upload failed for key ${key}`);
+      }
+      return (await uploadResponse.json()).fileId;
+    }
+
+    console.log(`[Process Thumbnail] Uploading assets to B2...`);
+    await uploadBufferToB2(thumbnailBuffer, thumbnailKey, "image/webp");
+    await uploadBufferToB2(previewBuffer, previewKey, "image/webp");
+
+    // 5. Update Database Record
+    let updated = false;
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      const { data, error: dbError } = await supabaseAdmin
+        .from("photos")
+        .update({ 
+          thumbnail_url: thumbnailUrl,
+          width: originalWidth,
+          height: originalHeight
+        })
+        .eq("storage_key", storageKey)
+        .select();
+
+      if (dbError) throw dbError;
+
+      if (data && data.length > 0) {
+        console.log(`[Process Thumbnail] Successfully updated database record in attempt ${attempt}`);
+        updated = true;
+        break;
+      }
+      if (attempt < 4) {
+        console.log(`[Process Thumbnail] Row not found yet, sleeping 2 seconds...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+
+    if (!updated) {
+      console.warn(`[Process Thumbnail] Database row not found matching storage_key "${storageKey}".`);
+      return NextResponse.json({ error: "Database row not found" }, { status: 404 });
+    }
+
+    console.log(`[Process Thumbnail] Job finished successfully for ${storageKey}`);
+    return NextResponse.json({ success: true, thumbnailUrl, previewUrl });
+
+  } catch (error: unknown) {
+    console.error("[Process Thumbnail] Failed:", error);
+    const errMessage = error instanceof Error ? error.message : "Processing failed";
+    // Throwing a 500 error causes QStash to automatically retry
+    return NextResponse.json({ error: errMessage }, { status: 500 });
+  }
+}

@@ -12,7 +12,12 @@ interface PhotoPayload {
   height: number | null;
 }
 
-export async function publishModalMediaTask(photos: PhotoPayload[]): Promise<boolean> {
+interface QStashPublishOptions {
+  storageKey: string;
+  origin?: string;
+}
+
+export async function publishModalBatchTask(previewUrls: string[]): Promise<boolean> {
   const qstashToken = process.env.QSTASH_TOKEN;
   if (!qstashToken) {
     console.warn("[QStash] QSTASH_TOKEN is not configured. Background media processing will not run.");
@@ -22,7 +27,7 @@ export async function publishModalMediaTask(photos: PhotoPayload[]): Promise<boo
   // The new Modal.com serverless endpoint
   const targetUrl = "https://shwetank-sarthak--wedding-media-engine-process-media-batch.modal.run";
 
-  console.log(`[QStash] Publishing batch media task for ${photos.length} photos to Modal`);
+  console.log(`[QStash] Publishing batch media task for ${previewUrls.length} photos to Modal`);
 
   try {
     const headers: Record<string, string> = {
@@ -35,7 +40,7 @@ export async function publishModalMediaTask(photos: PhotoPayload[]): Promise<boo
     const response = await fetch(`https://qstash-us-east-1.upstash.io/v2/publish/${targetUrl}`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ photos }),
+      body: JSON.stringify({ urls: previewUrls }),
     });
 
     if (!response.ok) {
@@ -51,3 +56,53 @@ export async function publishModalMediaTask(photos: PhotoPayload[]): Promise<boo
     return false;
   }
 }
+
+export async function publishResizeTask(options: QStashPublishOptions): Promise<boolean> {
+  const qstashToken = process.env.QSTASH_TOKEN;
+  if (!qstashToken) {
+    console.warn("[QStash] QSTASH_TOKEN is not configured. Background resizing will run synchronously or fall back to sweeper.");
+    return false;
+  }
+
+  const railwayUrl = process.env.RAILWAY_STATIC_URL ? `https://${process.env.RAILWAY_STATIC_URL}` : null;
+  const isLocalOrigin = options.origin && (
+    options.origin.includes('localhost') || 
+    options.origin.includes('127.0.0.1') || 
+    options.origin.includes('192.168.') || 
+    options.origin.startsWith('http://10.')
+  );
+  
+  const siteUrl = (!options.origin || isLocalOrigin)
+    ? (process.env.NEXT_PUBLIC_SITE_URL || railwayUrl || `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost:3000'}`)
+    : options.origin;
+    
+  const targetUrl = `${siteUrl}/api/media/process-thumbnail`;
+
+  console.log(`[QStash] Publishing resize task for ${options.storageKey} to target: ${targetUrl}`);
+
+  try {
+    const headers: Record<string, string> = {
+      "Authorization": `Bearer ${qstashToken}`,
+      "Content-Type": "application/json",
+    };
+
+    const response = await fetch(`https://qstash-us-east-1.upstash.io/v2/publish/${targetUrl}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ storageKey: options.storageKey }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`QStash publish failed with status ${response.status}: ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log(`[QStash] Successfully published resize task. Message ID: ${result.messageId}`);
+    return true;
+  } catch (error) {
+    console.error("[QStash] Error publishing resize task:", error);
+    return false;
+  }
+}
+
