@@ -30,7 +30,7 @@ export async function POST() {
     // Default value should be FALSE.
     const { data: pendingPhotos, error } = await supabaseAdmin
       .from("photos")
-      .select("id, url, thumbnail_url, uploaded_at")
+      .select("id, url, storage_key, event_id, thumbnail_url, uploaded_at")
       .not("thumbnail_url", "is", null) // Ensure resizing finished
       .eq("face_indexed", false)
       .eq("media_type", "photo"); // Only process photos, not videos
@@ -65,38 +65,53 @@ export async function POST() {
 
     console.log(`[Modal Batcher] Found ${pendingPhotos.length} photos ready for face indexing (Cost Optimization Criteria Met).`);
 
-    // 2. Extract preview URLs (assuming preview URL is determinable or just send thumbnail)
-    // In our architecture, previewUrl is `${storageKey}-preview.webp`. 
-    // Since we don't store preview_url explicitly, we can construct it from thumbnail_url
-    const previewUrls = pendingPhotos.map(p => {
-      if (p.thumbnail_url) {
-        return p.thumbnail_url.replace("-thumbnail.webp", "-preview.webp");
-      }
-      return p.url; // Fallback to original if something is weird
+    // 2. Format the payload for Modal with necessary keys (id, storage_key, event_id, url)
+    const modalPhotos = pendingPhotos.map(p => {
+      const url = p.thumbnail_url
+        ? p.thumbnail_url.replace("-thumbnail.webp", "-preview.webp")
+        : p.url;
+      return {
+        id: p.id,
+        storage_key: p.storage_key,
+        event_id: p.event_id,
+        url: url
+      };
     });
 
     // 3. Publish massive batch to Modal via QStash
-    const success = await publishModalBatchTask(previewUrls);
+    const success = await publishModalBatchTask(modalPhotos);
 
     if (!success) {
       throw new Error("Failed to publish batch to QStash");
     }
 
     // 4. Mark these photos as `face_indexed = true` so we don't process them again
-    // If Modal fails, we rely on QStash's automatic retries for this specific message.
+    // We chunk these updates to avoid URL query parameter length limits in Supabase PostgREST (since photo IDs are very long).
     const photoIds = pendingPhotos.map(p => p.id);
-    const { error: updateError } = await supabaseAdmin
-      .from("photos")
-      .update({ face_indexed: true })
-      .in("id", photoIds);
+    const chunkSize = 40;
+    let updateFailed = false;
+    let lastError = null;
 
-    if (updateError) {
-      console.error("[Modal Batcher] Warning: Failed to update face_indexed flag:", updateError);
-      // We don't fail the request here, but it means they might be batched again next minute
+    for (let i = 0; i < photoIds.length; i += chunkSize) {
+      const chunk = photoIds.slice(i, i + chunkSize);
+      const { error: chunkUpdateError } = await supabaseAdmin
+        .from("photos")
+        .update({ face_indexed: true })
+        .in("id", chunk);
+
+      if (chunkUpdateError) {
+        updateFailed = true;
+        lastError = chunkUpdateError;
+        console.error(`[Modal Batcher] Warning: Failed to update face_indexed flag for chunk ${Math.floor(i / chunkSize)}:`, chunkUpdateError);
+      }
     }
 
-    console.log(`[Modal Batcher] Successfully batched and dispatched ${previewUrls.length} photos.`);
-    return NextResponse.json({ success: true, count: previewUrls.length });
+    if (updateFailed) {
+      console.error("[Modal Batcher] One or more database update chunks failed. Last error:", lastError);
+    }
+
+    console.log(`[Modal Batcher] Successfully batched and dispatched ${modalPhotos.length} photos.`);
+    return NextResponse.json({ success: true, count: modalPhotos.length });
   } catch (error: any) {
     console.error("[Modal Batcher] Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

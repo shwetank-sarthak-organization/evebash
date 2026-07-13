@@ -17,7 +17,7 @@ interface QStashPublishOptions {
   origin?: string;
 }
 
-export async function publishModalBatchTask(previewUrls: string[]): Promise<boolean> {
+export async function publishModalBatchTask(photos: { id: string; storage_key: string; event_id: string; url: string }[]): Promise<boolean> {
   const qstashToken = process.env.QSTASH_TOKEN;
   if (!qstashToken) {
     console.warn("[QStash] QSTASH_TOKEN is not configured. Background media processing will not run.");
@@ -27,7 +27,7 @@ export async function publishModalBatchTask(previewUrls: string[]): Promise<bool
   // The new Modal.com serverless endpoint
   const targetUrl = "https://shwetank-sarthak--wedding-media-engine-process-media-batch.modal.run";
 
-  console.log(`[QStash] Publishing batch media task for ${previewUrls.length} photos to Modal`);
+  console.log(`[QStash] Publishing batch media task for ${photos.length} photos to Modal`);
 
   try {
     const headers: Record<string, string> = {
@@ -40,7 +40,7 @@ export async function publishModalBatchTask(previewUrls: string[]): Promise<bool
     const response = await fetch(`https://qstash-us-east-1.upstash.io/v2/publish/${targetUrl}`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ urls: previewUrls }),
+      body: JSON.stringify({ photos }),
     });
 
     if (!response.ok) {
