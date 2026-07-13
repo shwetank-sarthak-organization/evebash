@@ -117,10 +117,19 @@ export async function GET(request: NextRequest) {
         }
 
         // B. Thumbnail does not exist. We need to download original and regenerate
-        console.log(`[Sweeper] Thumbnail missing for ${storageKey}. Downloading original from: ${photo.url}`);
-        const downloadResponse = await fetch(photo.url);
+        console.log(`[Sweeper] Thumbnail missing for ${storageKey}. Downloading original from B2 file API...`);
+        const backblazeAuth = await getCachedBackblazeAuth();
+        const downloadUrl = `${backblazeAuth.downloadUrl}/file/${requireEnv("B2_BUCKET_NAME")}/${storageKey}`;
+        const downloadResponse = await fetch(downloadUrl, {
+          headers: { Authorization: backblazeAuth.authorizationToken }
+        });
         if (!downloadResponse.ok) {
-          throw new Error(`Failed to download original photo from ${photo.url} (status: ${downloadResponse.status})`);
+          if (downloadResponse.status === 404) {
+            console.warn(`[Sweeper] Original file missing from B2 (404). Deleting ghost database record for: ${photo.id}`);
+            await supabaseAdmin.from("photos").delete().eq("id", photo.id);
+            continue;
+          }
+          throw new Error(`Failed to download original photo from B2: ${downloadResponse.status} ${downloadResponse.statusText}`);
         }
 
         const arrayBuffer = await downloadResponse.arrayBuffer();
