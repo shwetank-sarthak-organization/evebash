@@ -190,7 +190,19 @@ export async function POST(request: NextRequest) {
       ]);
     }
 
-    // 4. Delete photo from database
+    // 4. Delete face embeddings for this photo
+    const { error: facesDeleteError } = await supabaseAdmin
+      .from("faces")
+      .delete()
+      .eq("image_id", photoId);
+
+    if (facesDeleteError) {
+      console.warn(`[MediaDelete] Could not delete face records for ${photoId}:`, facesDeleteError.message);
+    } else {
+      console.log(`[MediaDelete] Deleted face embeddings for photo ${photoId}.`);
+    }
+
+    // 5. Delete photo from database
     const { error: deleteError } = await supabaseAdmin
       .from("photos")
       .delete()
