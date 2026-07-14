@@ -1845,11 +1845,11 @@ function DashboardContent() {
                             }
                             if (thumbnailGenerated) {
                                 fetchEventPhotos();
+                                setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "success", progress: 100 } : item));
                             } else {
-                                console.warn(`[Dashboard] Thumbnail generation polling timed out for ${file.name}, but it is likely still in the background queue. Assuming success.`);
+                                console.error(`[Dashboard] Thumbnail generation timed out for ${file.name}`);
+                                setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "error", progress: 100, error: "Thumbnail generation timed out" } : item));
                             }
-                            // Always mark as success since the background worker will eventually finish it
-                            setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "success", progress: 100 } : item));
                         })();
                     } else {
                         // Videos don't require resizing/thumbnail generation

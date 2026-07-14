@@ -43,7 +43,8 @@ export async function POST(request: NextRequest) {
     const mediaDomain = requireEnv("MEDIA_DOMAIN").replace(/^https?:\/\//, "").replace(/\/+$/, "");
 
     // 1. Download the original high-res image from B2
-    const downloadUrl = `${backblazeAuth.downloadUrl}/file/${requireEnv("B2_BUCKET_NAME")}/${storageKey}`;
+    const encodedStorageKey = storageKey.split('/').map(encodeURIComponent).join('/');
+    const downloadUrl = `${backblazeAuth.downloadUrl}/file/${requireEnv("B2_BUCKET_NAME")}/${encodedStorageKey}`;
     console.log(`[Process Thumbnail] Downloading from B2: ${downloadUrl}`);
     
     const downloadResponse = await fetch(downloadUrl, {
