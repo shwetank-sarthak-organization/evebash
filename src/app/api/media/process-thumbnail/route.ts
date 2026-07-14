@@ -59,8 +59,8 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Process Thumbnail] Successfully downloaded ${bufferBytes.length} bytes for ${storageKey}. Starting sharp processing...`);
 
-    // 2. Extract original dimensions for the DB
-    const metadata = await sharp(bufferBytes).metadata();
+    // 2. Extract original dimensions for the DB (using .rotate() first to apply EXIF orientation swap)
+    const metadata = await sharp(bufferBytes).rotate().metadata();
     const originalWidth = metadata.width || 0;
     const originalHeight = metadata.height || 0;
 

@@ -161,3 +161,108 @@ def process_single_photo(photo_data: dict):
     except Exception as e:
         print(f"Error processing {photo_id}: {str(e)}")
         return {"status": "error", "photo_id": photo_id, "error": str(e)}
+
+
+@app.function(
+    image=image,
+    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+)
+@modal.fastapi_endpoint(method="POST")
+def find_matching_photos(request: dict):
+    """
+    Search endpoint for Guest Selfie Matching.
+    Accepts:
+      - selfie_base64: Base64-encoded selfie image
+      - event_ids: List of event IDs to search in
+    Returns list of matched image records.
+    """
+    import base64
+    import io
+    from PIL import Image
+    import face_recognition
+    import numpy as np
+    from supabase import create_client, Client
+    
+    selfie_base64 = request.get("selfie_base64", "")
+    event_ids = request.get("event_ids", [])
+    
+    if not selfie_base64 or not event_ids:
+        return {"error": "Missing selfie_base64 or event_ids", "matches": []}
+        
+    try:
+        # 1. Decode and load selfie image
+        selfie_bytes = base64.b64decode(selfie_base64)
+        selfie_img = Image.open(io.BytesIO(selfie_bytes)).convert("RGB")
+        selfie_arr = np.array(selfie_img)
+        
+        # 2. Extract face encoding from selfie
+        selfie_encodings = face_recognition.face_encodings(selfie_arr)
+        if not selfie_encodings:
+            return {"error": "No face detected in selfie", "matches": []}
+            
+        selfie_encoding = selfie_encodings[0]
+        
+        # 3. Initialize Supabase
+        supabase: Client = create_client(
+            os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
+            os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+        )
+        
+        # 4. Fetch all face records for target event IDs
+        response = supabase.table("faces").select("*").in_("event_id", event_ids).execute()
+        db_faces = response.data or []
+        
+        # 5. Compare descriptors
+        THRESHOLD = 0.6
+        matches_map = {}
+        
+        for face in db_faces:
+            db_descriptor = face.get("descriptor")
+            if not db_descriptor:
+                continue
+                
+            try:
+                # Convert to list/array of floats
+                if isinstance(db_descriptor, str):
+                    import json
+                    db_descriptor = json.loads(db_descriptor)
+                
+                db_vector = np.array(db_descriptor)
+                if len(db_vector) != 128:
+                    continue
+                    
+                distance = np.linalg.norm(selfie_encoding - db_vector)
+                
+                if distance < THRESHOLD:
+                    image_id = face.get("image_id")
+                    if image_id not in matches_map or distance < matches_map[image_id]["distance"]:
+                        matches_map[image_id] = {
+                            "id": image_id,
+                            "imageId": image_id,
+                            "imageUrl": face.get("image_url"),
+                            "width": face.get("width"),
+                            "height": face.get("height"),
+                            "distance": float(distance)
+                        }
+            except Exception as e:
+                print(f"Error matching face {face.get('id')}: {str(e)}")
+                
+        # Remove distance from final output
+        matches = []
+        for m in matches_map.values():
+            del m["distance"]
+            matches.append(m)
+            
+        return {
+            "success": True,
+            "matches": matches,
+            "debug": {
+                "indexedFacesCount": len(db_faces),
+                "selfieDetected": True,
+                "matchesCount": len(matches)
+            }
+        }
+    except Exception as e:
+        print(f"Error in find_matching_photos: {str(e)}")
+        return {"error": str(e), "matches": []}
+

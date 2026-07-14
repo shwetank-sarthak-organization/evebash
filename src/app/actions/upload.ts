@@ -232,7 +232,12 @@ async function localDevResizeAndUpload(bytes: Buffer, storageKey: string, mediaD
     await uploadBufferToB2(thumbnailBuffer, thumbnailKey, "image/webp");
     await uploadBufferToB2(previewBuffer, previewKey, "image/webp");
 
-    console.log(`[Local Dev Background Action] Updating DB record for storage_key: ${storageKey}`);
+    // Extract dimensions
+    const metadata = await sharp(bytes).rotate().metadata();
+    const width = metadata.width || null;
+    const height = metadata.height || null;
+
+    console.log(`[Local Dev Background Action] Updating DB record for storage_key: ${storageKey} (width: ${width}, height: ${height})`);
     const { createClient } = await import("@supabase/supabase-js");
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -244,7 +249,11 @@ async function localDevResizeAndUpload(bytes: Buffer, storageKey: string, mediaD
     for (let attempt = 1; attempt <= 4; attempt++) {
       const { data: updatedData, error: dbError } = await supabaseAdmin
         .from("photos")
-        .update({ thumbnail_url: thumbnailUrl })
+        .update({ 
+          thumbnail_url: thumbnailUrl,
+          width,
+          height
+        })
         .eq("storage_key", storageKey)
         .select();
 
