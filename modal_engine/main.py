@@ -172,7 +172,7 @@ def process_single_photo(photo_data: dict):
         
         # 7. Log infrastructure cost
         duration = time.time() - start_time
-        estimated_cost_inr = duration * 0.00045
+        estimated_cost_inr = duration * 0.001532  # Modal.com CPU: ($0.0000131/core + $0.00000222/GiB) × ₹100 for 1 core + ~1GiB
         try:
             supabase.table("modal_cost_logs").insert({
                 "photo_id": photo_id,
