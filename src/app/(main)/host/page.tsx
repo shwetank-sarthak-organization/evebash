@@ -3653,64 +3653,34 @@ function DashboardContent() {
                                                 <div className="space-y-6">
                                                     <section className="space-y-3">
                                                         <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">Primary Gallery</p>
-                                                        <div 
-                                                            className={cn(
-                                                                "group relative overflow-hidden rounded-[1.5rem] border shadow-lg transition-all cursor-pointer hover:border-amber-400/50 w-full sm:w-[280px] aspect-square flex-shrink-0",
-                                                                selectedEventId === selectedMainEvent.id && manageMode === "add-image"
-                                                                    ? "border-amber-400/70 shadow-amber-950/10"
-                                                                    : "border-slate-700 shadow-slate-950/10"
-                                                            )}
-                                                            onClick={() => openUploadForEvent(selectedMainEvent.id, selectedMainEvent.title)}
-                                                        >
-                                                            <img
-                                                                src={resolveEventCoverImage(selectedMainEvent.coverImage, 'thumbnail')}
-                                                                alt={selectedMainEvent.title}
-                                                                className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                                            />
-                                                            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none" />
-                                                            
-                                                            <div className="absolute inset-0 p-3 flex flex-col justify-between">
-                                                                <div className="flex">
-                                                                    <div className="flex items-center gap-1 rounded-lg bg-black/65 border border-white/20 px-2 py-1">
-                                                                        <Home className="h-2.5 w-2.5 text-white/90" />
-                                                                        <span className="text-[9px] font-bold tracking-wider text-white/90">PRIMARY</span>
-                                                                    </div>
-                                                                </div>
-                                                                
-                                                                <div className="flex items-end justify-between gap-2">
-                                                                    <div className="min-w-0 flex-1">
-                                                                        <h5 className="text-[13px] font-bold text-white drop-shadow-md line-clamp-2 leading-tight">{selectedMainEvent.title || 'Home'}</h5>
-                                                                    </div>
-                                                                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20 border border-white/30 backdrop-blur-sm transition-colors group-hover:bg-white/30">
-                                                                        <ChevronRight className="h-3 w-3 text-white" />
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        {eventFavouriteCount > 0 && (
-                                                            <div
-                                                                className="group relative overflow-hidden rounded-[1.5rem] border border-amber-400/60 shadow-lg shadow-amber-950/20 transition-all cursor-pointer hover:border-amber-300 w-full sm:w-[280px] aspect-square flex-shrink-0"
-                                                                onClick={() => window.open(`/events/${selectedMainEvent.id}#favourite`, "_blank")}
+                                                        <div className="flex flex-wrap gap-4">
+                                                            <div 
+                                                                className={cn(
+                                                                    "group relative overflow-hidden rounded-[1.5rem] border shadow-lg transition-all cursor-pointer hover:border-amber-400/50 w-full sm:w-[280px] aspect-square flex-shrink-0",
+                                                                    selectedEventId === selectedMainEvent.id && manageMode === "add-image"
+                                                                        ? "border-amber-400/70 shadow-amber-950/10"
+                                                                        : "border-slate-700 shadow-slate-950/10"
+                                                                )}
+                                                                onClick={() => openUploadForEvent(selectedMainEvent.id, selectedMainEvent.title)}
                                                             >
                                                                 <img
-                                                                    src={eventFavouritePreview?.thumbnailUrl || eventFavouritePreview?.url || selectedMainEvent.coverImage || DEFAULT_EVENT_COVER_IMAGE}
-                                                                    alt="Favourite photos"
+                                                                    src={resolveEventCoverImage(selectedMainEvent.coverImage, 'thumbnail')}
+                                                                    alt={selectedMainEvent.title}
                                                                     className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                                                                 />
-                                                                <div className="absolute inset-0 bg-gradient-to-t from-amber-950/95 via-black/40 to-transparent pointer-events-none" />
-
+                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none" />
+                                                                
                                                                 <div className="absolute inset-0 p-3 flex flex-col justify-between">
                                                                     <div className="flex">
-                                                                        <div className="flex items-center gap-1 rounded-lg bg-amber-400 text-slate-950 border border-amber-200 px-2 py-1">
-                                                                            <Star className="h-2.5 w-2.5 fill-current" />
-                                                                            <span className="text-[9px] font-black tracking-wider">FAVOURITE</span>
+                                                                        <div className="flex items-center gap-1 rounded-lg bg-black/65 border border-white/20 px-2 py-1">
+                                                                            <Home className="h-2.5 w-2.5 text-white/90" />
+                                                                            <span className="text-[9px] font-bold tracking-wider text-white/90">PRIMARY</span>
                                                                         </div>
                                                                     </div>
-
+                                                                    
                                                                     <div className="flex items-end justify-between gap-2">
                                                                         <div className="min-w-0 flex-1">
-                                                                            <h5 className="text-[13px] font-bold text-white drop-shadow-md line-clamp-2 leading-tight">Favourite</h5>
-                                                                            <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-amber-100">{eventFavouriteCount} photos selected</p>
+                                                                            <h5 className="text-[13px] font-bold text-white drop-shadow-md line-clamp-2 leading-tight">{selectedMainEvent.title || 'Home'}</h5>
                                                                         </div>
                                                                         <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20 border border-white/30 backdrop-blur-sm transition-colors group-hover:bg-white/30">
                                                                             <ChevronRight className="h-3 w-3 text-white" />
@@ -3718,7 +3688,40 @@ function DashboardContent() {
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                        )}
+
+                                                            {eventFavouriteCount > 0 && (
+                                                                <div
+                                                                    className="group relative overflow-hidden rounded-[1.5rem] border border-amber-400/60 shadow-lg shadow-amber-950/20 transition-all cursor-pointer hover:border-amber-300 w-full sm:w-[280px] aspect-square flex-shrink-0"
+                                                                    onClick={() => window.open(`/events/${selectedMainEvent.id}#favourite`, "_blank")}
+                                                                >
+                                                                    <img
+                                                                        src={eventFavouritePreview?.thumbnailUrl || eventFavouritePreview?.url || selectedMainEvent.coverImage || DEFAULT_EVENT_COVER_IMAGE}
+                                                                        alt="Favourite photos"
+                                                                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                                                    />
+                                                                    <div className="absolute inset-0 bg-gradient-to-t from-amber-950/95 via-black/40 to-transparent pointer-events-none" />
+
+                                                                    <div className="absolute inset-0 p-3 flex flex-col justify-between">
+                                                                        <div className="flex">
+                                                                            <div className="flex items-center gap-1 rounded-lg bg-amber-400 text-slate-950 border border-amber-200 px-2 py-1">
+                                                                                <Star className="h-2.5 w-2.5 fill-current" />
+                                                                                <span className="text-[9px] font-black tracking-wider">FAVOURITE</span>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div className="flex items-end justify-between gap-2">
+                                                                            <div className="min-w-0 flex-1">
+                                                                                <h5 className="text-[13px] font-bold text-white drop-shadow-md line-clamp-2 leading-tight">Favourite</h5>
+                                                                                <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-amber-100">{eventFavouriteCount} photos selected</p>
+                                                                            </div>
+                                                                            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20 border border-white/30 backdrop-blur-sm transition-colors group-hover:bg-white/30">
+                                                                                <ChevronRight className="h-3 w-3 text-white" />
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </section>
 
                                                     <section className="space-y-3">
@@ -5982,6 +5985,12 @@ function DashboardContent() {
                     onClose={() => setViewingPhoto(null)}
                     theme={getWebLightboxTheme(selectedMainEvent?.templateId)}
                     onRotate={(direction) => viewingPhoto?.id ? handleRotatePhoto(viewingPhoto.id, direction) : undefined}
+                    isFavourite={!!viewingPhoto?.id && eventFavouritePhotoIds.has(viewingPhoto.id)}
+                    onToggleFavourite={
+                        viewingPhoto?.id && viewingPhoto.mediaType !== "video" && viewingPhoto.resourceType !== "video"
+                            ? () => handleToggleEventFavourite(viewingPhoto.id)
+                            : undefined
+                    }
                     onNext={() => {
                         const currentIndex = activeGalleryItems.findIndex(p => p.id === viewingPhoto?.id);
                         if (currentIndex !== -1) {

@@ -15,3 +15,20 @@ CREATE INDEX IF NOT EXISTS event_favourite_photos_photo_id_idx
 
 GRANT SELECT ON event_favourite_photos TO anon, authenticated;
 GRANT INSERT, UPDATE, DELETE ON event_favourite_photos TO authenticated;
+
+ALTER TABLE event_favourite_photos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow reading event favourites" ON event_favourite_photos;
+CREATE POLICY "Allow reading event favourites"
+    ON event_favourite_photos
+    FOR SELECT
+    TO anon, authenticated
+    USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated users to manage event favourites" ON event_favourite_photos;
+CREATE POLICY "Allow authenticated users to manage event favourites"
+    ON event_favourite_photos
+    FOR ALL
+    TO authenticated
+    USING (true)
+    WITH CHECK (true);

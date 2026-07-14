@@ -10,7 +10,8 @@ export type AdminAction =
   | 'deleteEvent'
   | 'deleteGuest'
   | 'scanBackblazeOrphans'
-  | 'deleteBackblazeOrphans';
+  | 'deleteBackblazeOrphans'
+  | 'updatePricingPlans';
 
 export interface AdminActionResult {
   success: boolean;

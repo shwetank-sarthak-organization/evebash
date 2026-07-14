@@ -789,8 +789,15 @@ function isEventFavouriteTableUnavailable(error: unknown) {
     const formatted = formatSupabaseError(error);
     if (!formatted || typeof formatted !== "object") return false;
     const code = (formatted as any).code;
+    return code === "42P01" || code === "PGRST205";
+}
+
+function isEventFavouritePolicyBlocked(error: unknown) {
+    const formatted = formatSupabaseError(error);
+    if (!formatted || typeof formatted !== "object") return false;
+    const code = (formatted as any).code;
     const message = String((formatted as any).message || "").toLowerCase();
-    return code === "42P01" || code === "PGRST205" || message.includes("event_favourite_photos");
+    return code === "42501" || message.includes("row-level security") || message.includes("permission denied");
 }
 
 /**
@@ -830,6 +837,10 @@ export async function getFavouritePhotosForEvents(eventIds: string[]): Promise<P
             console.warn("Favourite gallery table is not available yet. Apply the Supabase migration for event_favourite_photos.");
             return [];
         }
+        if (isEventFavouritePolicyBlocked(error)) {
+            console.warn("Favourite gallery table exists, but RLS policies are not allowing access yet.");
+            return [];
+        }
         console.warn("Error fetching favourite photos:", formatSupabaseError(error));
         return [];
     }
@@ -850,6 +861,10 @@ export async function getEventFavouritePhotos(eventId: string): Promise<EventFav
     } catch (error) {
         if (isEventFavouriteTableUnavailable(error)) {
             console.warn("Favourite gallery table is not available yet. Apply the Supabase migration for event_favourite_photos.");
+            return [];
+        }
+        if (isEventFavouritePolicyBlocked(error)) {
+            console.warn("Favourite gallery table exists, but RLS policies are not allowing access yet.");
             return [];
         }
         console.warn("Error fetching event favourite photos:", formatSupabaseError(error));
@@ -897,6 +912,13 @@ export async function toggleEventFavouritePhoto(eventId: string, photoId: string
             };
         }
 
+        if (isEventFavouritePolicyBlocked(error)) {
+            return {
+                favourited: false,
+                error: "Favourite gallery table exists, but Supabase RLS policies are not allowing access yet."
+            };
+        }
+
         const formattedError = formatSupabaseError(error);
         console.warn("Error toggling event favourite photo:", formattedError);
         const message = formattedError && typeof formattedError === "object" && "message" in formattedError
@@ -914,18 +936,37 @@ export async function toggleEventFavouritePhoto(eventId: string, photoId: string
  */
 export async function saveFaceToIndex(face: FaceRecord) {
     try {
-        const { error } = await supabase.from('faces').insert({
-            image_id: face.imageId,
-            descriptor: face.descriptor,
-            event_id: face.eventId,
-            image_url: face.imageUrl,
-            width: face.width,
-            height: face.height
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+            console.warn("Skipping face index save: no authenticated Supabase session.");
+            return false;
+        }
+
+        const response = await fetch("/api/find-you/index-face", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+                image_id: face.imageId,
+                descriptor: face.descriptor,
+                event_id: face.eventId,
+                image_url: face.imageUrl,
+                width: face.width,
+                height: face.height
+            }),
         });
-        if (error) throw error;
+
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            console.warn("Face index save skipped:", result.error || `status ${response.status}`);
+            return false;
+        }
+
         return true;
     } catch (error) {
-        console.error("Error saving face to index:", error);
+        console.warn("Face index save skipped:", error instanceof Error ? error.message : formatSupabaseError(error));
         return false;
     }
 }

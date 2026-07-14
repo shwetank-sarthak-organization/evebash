@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
 import { getImageUrl } from "@/lib/imageUrl";
-import { Heart, MessageCircle, Send, X, Download, ChevronLeft, ChevronRight, Trash2, Loader2, Image as ImageIcon, RotateCcw, RotateCw } from "lucide-react";
+import { Heart, MessageCircle, Send, X, Download, ChevronLeft, ChevronRight, Trash2, Loader2, Image as ImageIcon, RotateCcw, RotateCw, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface LightboxTheme {
@@ -43,6 +43,8 @@ interface LightboxProps {
     className?: string;
     theme?: LightboxTheme;
     onLikeChange?: () => void;
+    isFavourite?: boolean;
+    onToggleFavourite?: () => Promise<void> | void;
 }
 
 function addAlpha(color: string, alpha: string) {
@@ -50,7 +52,20 @@ function addAlpha(color: string, alpha: string) {
     return color;
 }
 
-export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, onRotate, disableDownload = false, className, theme, onLikeChange }: LightboxProps) {
+export function Lightbox({
+    isOpen,
+    onClose,
+    photo,
+    onNext,
+    onPrev,
+    onRotate,
+    disableDownload = false,
+    className,
+    theme,
+    onLikeChange,
+    isFavourite = false,
+    onToggleFavourite
+}: LightboxProps) {
     const { user } = useAuth();
     const [likes, setLikes] = useState<any[]>([]);
     const [comments, setComments] = useState<any[]>([]);
@@ -63,6 +78,7 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, onRotate, dis
     const [imageError, setImageError] = useState(false);
     const [imageSrc, setImageSrc] = useState("");
     const [isRotating, setIsRotating] = useState(false);
+    const [isTogglingFavourite, setIsTogglingFavourite] = useState(false);
 
     useEffect(() => {
         if (photo?.id) {
@@ -207,6 +223,20 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, onRotate, dis
         }
     };
 
+    const handleToggleFavourite = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!onToggleFavourite || isTogglingFavourite || isVideo) return;
+
+        setIsTogglingFavourite(true);
+        try {
+            await onToggleFavourite();
+        } catch (error) {
+            console.error("Favourite toggle failed", error);
+        } finally {
+            setIsTogglingFavourite(false);
+        }
+    };
+
     // Handle Keyboard events
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -265,6 +295,21 @@ export function Lightbox({ isOpen, onClose, photo, onNext, onPrev, onRotate, dis
                         </div>
 
                         <div className="flex items-center space-x-1 pointer-events-auto">
+                            {onToggleFavourite && !isVideo && (
+                                <button
+                                    onClick={handleToggleFavourite}
+                                    disabled={isTogglingFavourite}
+                                    className="p-2.5 rounded-full transition-all disabled:opacity-40"
+                                    style={{ color: isFavourite ? "#fbbf24" : viewerTheme.muted }}
+                                    title={isFavourite ? "Remove from Favourite" : "Add to Favourite"}
+                                >
+                                    {isTogglingFavourite ? (
+                                        <Loader2 size={20} className="animate-spin" />
+                                    ) : (
+                                        <Star size={20} className={cn(isFavourite && "fill-current")} />
+                                    )}
+                                </button>
+                            )}
                             {onRotate && !isVideo && (
                                 <>
                                     <button

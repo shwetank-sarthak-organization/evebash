@@ -10,6 +10,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
+class AdminActionError extends Error {
+  status: number;
+
+  constructor(message: string, status = 400) {
+    super(message);
+    this.name = "AdminActionError";
+    this.status = status;
+  }
+}
+
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return NextResponse.json(body, {
     status,
@@ -78,6 +88,52 @@ function addDurationToDate(startDate: string, duration: string) {
   const end = new Date(start);
   end.setUTCMonth(end.getUTCMonth() + (monthsByDuration[duration] || 1));
   return toDateOnly(end);
+}
+
+function toNonNegativeNumber(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+function toNonNegativeInteger(value: unknown) {
+  return Math.round(toNonNegativeNumber(value));
+}
+
+function normalizePricingPlan(value: unknown, index: number) {
+  const plan = (value || {}) as Record<string, unknown>;
+  const id = String(plan.id || "").trim().toLowerCase();
+  const name = String(plan.name || "").trim();
+  const storageLabel = String(plan.storageLabel || "").trim();
+
+  if (!id) throw new Error("Every pricing plan needs an id");
+  if (!name) throw new Error(`Pricing plan ${id} needs a name`);
+  if (!storageLabel) throw new Error(`Pricing plan ${id} needs a storage label`);
+
+  const videoLimitMb = plan.videoLimitMb === null || plan.videoLimitMb === undefined || plan.videoLimitMb === ""
+    ? null
+    : toNonNegativeInteger(plan.videoLimitMb);
+
+  return {
+    id,
+    name,
+    storage_gb: toNonNegativeNumber(plan.storageGb),
+    storage_label: storageLabel,
+    events: toNonNegativeInteger(plan.events),
+    image_upload: Boolean(plan.imageUpload),
+    video_upload: Boolean(plan.videoUpload),
+    video_limit_mb: videoLimitMb,
+    monthly_actual_price: toNonNegativeNumber(plan.monthlyActualPrice ?? plan.monthlyPrice),
+    monthly_price: toNonNegativeNumber(plan.monthlyPrice),
+    three_month_actual_price: toNonNegativeNumber(plan.threeMonthActualPrice ?? plan.threeMonthPrice),
+    three_month_price: toNonNegativeNumber(plan.threeMonthPrice),
+    six_month_actual_price: toNonNegativeNumber(plan.sixMonthActualPrice ?? plan.sixMonthPrice),
+    six_month_price: toNonNegativeNumber(plan.sixMonthPrice),
+    discounted_yearly_price: toNonNegativeNumber(plan.discountedYearlyPrice),
+    yearly_price: toNonNegativeNumber(plan.yearlyActualPrice ?? plan.yearlyPrice),
+    active: Boolean(plan.active),
+    display_order: toNonNegativeInteger(plan.displayOrder ?? index + 1),
+    updated_at: new Date().toISOString(),
+  };
 }
 
 function uniqueValues(values: Array<string | null | undefined>) {
@@ -856,6 +912,40 @@ async function deleteBackblazeOrphans(supabaseAdmin: ReturnType<typeof getAdminC
   };
 }
 
+async function updatePricingPlans(
+  supabaseAdmin: ReturnType<typeof getAdminClient>,
+  payload: Record<string, unknown>
+) {
+  const plans = Array.isArray(payload.plans) ? payload.plans : [];
+  if (plans.length === 0) {
+    throw new Error("At least one pricing plan is required");
+  }
+
+  const rows = plans.map((plan, index) => normalizePricingPlan(plan, index));
+  const { error } = await supabaseAdmin
+    .from("pricing_plans")
+    .upsert(rows, { onConflict: "id" });
+
+  if (error) {
+    const message = error.message || "";
+    const code = error.code || "";
+    if (
+      code === "42P01" ||
+      code === "PGRST205" ||
+      message.includes("pricing_plans") ||
+      message.toLowerCase().includes("schema cache")
+    ) {
+      throw new AdminActionError(
+        "Pricing table is not ready yet. Apply supabase/migrations/20260710000000_add_pricing_plans.sql in Supabase, then refresh the analytics dashboard.",
+        409
+      );
+    }
+    throw error;
+  }
+
+  return { count: rows.length };
+}
+
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
@@ -927,12 +1017,17 @@ export async function POST(request: NextRequest) {
         const result = await deleteBackblazeOrphans(supabaseAdmin);
         return jsonResponse({ success: true, ...result });
       }
+      case "updatePricingPlans": {
+        const result = await updatePricingPlans(supabaseAdmin, payload);
+        return jsonResponse({ success: true, ...result });
+      }
       default:
         return jsonResponse({ success: false, error: "Unsupported admin action" }, 400);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Admin action failed";
     console.error("[admin/control]", message);
-    return jsonResponse({ success: false, error: message }, 500);
+    const status = error instanceof AdminActionError ? error.status : 500;
+    return jsonResponse({ success: false, error: message }, status);
   }
 }

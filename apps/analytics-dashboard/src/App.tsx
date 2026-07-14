@@ -16,10 +16,11 @@ import { AnalyticsOverview } from './components/AnalyticsOverview';
 import { UserGrid } from './components/UserGrid';
 import { EventGrid } from './components/EventGrid';
 import { PlanDetailsGrid } from './components/PlanDetailsGrid';
+import { ManagePricingGrid } from './components/ManagePricingGrid';
 import { InfraCostGrid } from './components/InfraCostGrid';
 import { SuperAdminPanel } from './components/SuperAdminPanel';
 import { runAdminAction, type AdminAction } from './lib/adminApi';
-import { BarChart3, Users, Folder, LogOut, Key, Mail, AlertTriangle, ShieldCheck, Layers, DollarSign } from 'lucide-react';
+import { BarChart3, Users, Folder, LogOut, Key, Mail, AlertTriangle, ShieldCheck, Layers, DollarSign, Settings2 } from 'lucide-react';
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
@@ -40,7 +41,7 @@ export default function App() {
   const [guests, setGuests] = useState<GuestLog[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'events' | 'plans' | 'infra' | 'superadmin'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'events' | 'plans' | 'pricing' | 'infra' | 'superadmin'>('overview');
 
   useEffect(() => {
     // Get initial session
@@ -364,6 +365,18 @@ export default function App() {
             </button>
 
             <button
+              onClick={() => setActiveTab('pricing')}
+              className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                activeTab === 'pricing'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
+                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+              }`}
+            >
+              <Settings2 className="w-4 h-4 mr-3" />
+              Manage Pricing
+            </button>
+
+            <button
               onClick={() => setActiveTab('infra')}
               className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
                 activeTab === 'infra'
@@ -419,6 +432,7 @@ export default function App() {
              activeTab === 'users' ? 'Registered User Accounts' :
              activeTab === 'events' ? 'Galleries Catalog' :
              activeTab === 'plans' ? 'Subscription Plans Details' :
+             activeTab === 'pricing' ? 'Manage Pricing' :
              activeTab === 'infra' ? 'Infrastructure Cost Hub' :
              'Super Admin Control'}
           </h2>
@@ -483,6 +497,7 @@ export default function App() {
               )}
               {activeTab === 'events' && <EventGrid events={events} users={users} guests={guests} photos={photos} />}
               {activeTab === 'plans' && <PlanDetailsGrid users={users} />}
+              {activeTab === 'pricing' && <ManagePricingGrid />}
               {activeTab === 'infra' && <InfraCostGrid stats={stats} users={users} events={events} guests={guests} photos={photos} />}
               {activeTab === 'superadmin' && (
                 <SuperAdminPanel
