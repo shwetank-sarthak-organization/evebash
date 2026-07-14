@@ -45,6 +45,9 @@ def process_media_batch(request: dict):
     secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
 )
 def process_single_photo(photo_data: dict):
+    import time
+    start_time = time.time()
+    
     import boto3
     from PIL import Image, ImageOps
     from supabase import create_client, Client
@@ -159,6 +162,21 @@ def process_single_photo(photo_data: dict):
         # 6. Mark photo as indexed in Supabase
         print(f"[{photo_id}] Marking photo as indexed in database...")
         supabase.table("photos").update({"face_indexed": True}).eq("id", photo_id).execute()
+        
+        # 7. Log infrastructure cost
+        duration = time.time() - start_time
+        estimated_cost_inr = duration * 0.00045
+        try:
+            supabase.table("modal_cost_logs").insert({
+                "photo_id": photo_id,
+                "event_id": event_id,
+                "execution_time_seconds": duration,
+                "estimated_cost_inr": estimated_cost_inr,
+                "faces_detected": len(face_encodings)
+            }).execute()
+            print(f"[{photo_id}] Cost logged: {duration:.2f}s, {estimated_cost_inr:.5f} INR")
+        except Exception as log_err:
+            print(f"[{photo_id}] Failed to save cost log to Supabase: {str(log_err)}")
             
         return {"status": "success", "photo_id": photo_id, "faces": len(face_encodings)}
         

@@ -15,9 +15,11 @@ import {
   Server,
   Sparkles,
   Search,
-  Trash2
+  Trash2,
+  Cpu
 } from 'lucide-react';
 import { runAdminAction, type AdminActionResult } from '../lib/adminApi';
+import { supabase } from '../lib/supabase';
 
 interface Props {
   stats: DashboardStats | null;
@@ -67,7 +69,8 @@ const formatNumber = (num: number) => {
 };
 
 export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, photos }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'total' | 'supabase' | 'backblaze' | 'cloudflare'>('total');
+  const [activeSubTab, setActiveSubTab] = useState<'total' | 'supabase' | 'backblaze' | 'cloudflare' | 'modal'>('total');
+  const [modalLogs, setModalLogs] = useState<any[]>([]);
   
   // Interactive Simulator States
   const [supabaseTier, setSupabaseTier] = useState<'free' | 'pro'>('free');
@@ -140,6 +143,22 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
             code: b2Data?.code,
           });
         }
+        // Fetch Modal logs for the last 30 days
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+        try {
+          const { data: logs, error: logsErr } = await supabase
+            .from('modal_cost_logs')
+            .select('*')
+            .gte('created_at', oneMonthAgo.toISOString())
+            .order('created_at', { ascending: false });
+          if (!logsErr && logs) {
+            setModalLogs(logs);
+          }
+        } catch (logsErr) {
+          console.error('Failed to fetch modal logs on billing mount:', logsErr);
+        }
+
       } catch (err: any) {
         console.error('Failed to fetch live billing data:', err);
       } finally {
@@ -307,9 +326,16 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   const actualCloudflareCost = registrarCost + actualCfImageCostMonth + liveCfSubscriptionCost;
   const simulatedCloudflareCost = registrarCost + workersCost + simCfImageCostMonth;
 
+  // 3b. Modal.com actual costs
+  const actualModalCost = useMemo(() => {
+    // Sum estimated_cost_inr from logs, convert to USD ($1 = ₹100 exchange rate)
+    const sumInr = modalLogs.reduce((sum, log) => sum + (Number(log.estimated_cost_inr) || 0), 0);
+    return sumInr / 100;
+  }, [modalLogs]);
+
   // 4. Combined Totals
-  const actualTotalCost = supabaseTierCost + actualB2Cost + actualCloudflareCost;
-  const simulatedTotalCost = supabaseTierCost + simulatedB2Cost + simulatedCloudflareCost;
+  const actualTotalCost = supabaseTierCost + actualB2Cost + actualCloudflareCost + actualModalCost;
+  const simulatedTotalCost = supabaseTierCost + simulatedB2Cost + simulatedCloudflareCost + actualModalCost;
 
   // Media breakdown stats
   const mediaBreakdown = useMemo(() => {
@@ -377,6 +403,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
     { id: 'supabase', label: 'Supabase', icon: Database },
     { id: 'backblaze', label: 'Backblaze B2', icon: HardDrive },
     { id: 'cloudflare', label: 'Cloudflare', icon: Cloud },
+    { id: 'modal', label: 'Modal.com (AI)', icon: Cpu },
   ];
 
   return (
@@ -546,15 +573,22 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                   )}
                   {simulatedCloudflareCost > 0 && (
                     <div
-                      style={{ width: `${(simulatedCloudflareCost / simulatedTotalCost) * 100}%` }}
-                      className="bg-amber-500 hover:brightness-110 transition-all duration-200"
-                      title={`Cloudflare Network: $${simulatedCloudflareCost.toFixed(2)}`}
+                       style={{ width: `${(simulatedCloudflareCost / simulatedTotalCost) * 100}%` }}
+                       className="bg-amber-500 hover:brightness-110 transition-all duration-200"
+                       title={`Cloudflare Network: $${simulatedCloudflareCost.toFixed(2)}`}
+                    />
+                  )}
+                  {actualModalCost > 0 && (
+                    <div
+                      style={{ width: `${(actualModalCost / simulatedTotalCost) * 100}%` }}
+                      className="bg-indigo-600 hover:brightness-110 transition-all duration-200"
+                      title={`Modal.com (AI): $${actualModalCost.toFixed(4)}`}
                     />
                   )}
                 </div>
 
                 {/* Key Details List */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 pt-2">
                   <div className="flex items-center space-x-3">
                     <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 shrink-0" />
                     <div>
@@ -584,6 +618,17 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                       <p className="text-lg font-black text-white mt-0.5">${simulatedCloudflareCost.toFixed(2)}</p>
                       <p className="text-[10px] text-slate-500">
                         {((simulatedCloudflareCost / simulatedTotalCost) * 100).toFixed(1)}% of total cost
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-3">
+                    <span className="w-3.5 h-3.5 rounded-full bg-indigo-600 shrink-0" />
+                    <div>
+                      <p className="text-xs font-semibold text-slate-300">Modal.com (AI)</p>
+                      <p className="text-lg font-black text-white mt-0.5">${actualModalCost.toFixed(4)}</p>
+                      <p className="text-[10px] text-slate-500">
+                        {((actualModalCost / simulatedTotalCost) * 100).toFixed(1)}% of total cost
                       </p>
                     </div>
                   </div>
@@ -649,6 +694,17 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                     <td className="py-4 px-4 font-mono font-bold text-amber-400">${actualCloudflareCost.toFixed(2)}</td>
                     <td className="py-4 px-4 font-mono text-slate-400">${simulatedCloudflareCost.toFixed(2)}</td>
                     <td className="py-4 px-4 font-mono text-slate-400">${(actualCloudflareCost * 12).toFixed(2)} / yr</td>
+                  </tr>
+
+                  {/* Modal.com Row */}
+                  <tr className="hover:bg-slate-800/10 transition-colors">
+                    <td className="py-4 px-4 font-semibold text-white">Modal.com (AI Face-Indexing)</td>
+                    <td className="py-4 px-4">
+                      $30.00 (₹3,000) Monthly Free Tier Included
+                    </td>
+                    <td className="py-4 px-4 font-mono font-bold text-indigo-400">${actualModalCost.toFixed(4)}</td>
+                    <td className="py-4 px-4 font-mono text-slate-400">${actualModalCost.toFixed(4)}</td>
+                    <td className="py-4 px-4 font-mono text-slate-400">${(actualModalCost * 12).toFixed(4)} / yr</td>
                   </tr>
 
                   {/* Consolidated Total Row */}
@@ -1712,6 +1768,118 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                     <td className="py-4 px-4 font-mono text-amber-400">${actualCloudflareCost.toFixed(2)} / mo</td>
                     <td className="py-4 px-4 font-mono text-slate-350">${(actualCloudflareCost * 12).toFixed(2)} / yr</td>
                   </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB PANEL 5: MODAL.COM (AI) */}
+      {activeSubTab === 'modal' && (
+        <div className="space-y-8 animate-fadeIn">
+          {/* Overview Metrics Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
+            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg">
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Cost (Last 30d)</p>
+              <h3 className="text-2xl font-black text-indigo-450 mt-1">
+                ₹{(actualModalCost * 100).toFixed(2)}
+              </h3>
+              <p className="text-[10px] text-slate-500 mt-2">
+                Estimated for {modalLogs.length} indexing runs
+              </p>
+            </div>
+
+            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg">
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Indexed Photos</p>
+              <h3 className="text-2xl font-black text-white mt-1">
+                {modalLogs.length}
+              </h3>
+              <p className="text-[10px] text-slate-500 mt-2">
+                Sent to Modal background workers
+              </p>
+            </div>
+
+            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg">
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Avg Process Time</p>
+              <h3 className="text-2xl font-black text-white mt-1">
+                {modalLogs.length > 0
+                  ? `${(modalLogs.reduce((sum, l) => sum + (Number(l.execution_time_seconds) || 0), 0) / modalLogs.length).toFixed(2)}s`
+                  : '0.00s'}
+              </h3>
+              <p className="text-[10px] text-slate-500 mt-2">
+                Per photo execution average
+              </p>
+            </div>
+
+            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg">
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Faces Detected</p>
+              <h3 className="text-2xl font-black text-white mt-1">
+                {modalLogs.reduce((sum, l) => sum + (Number(l.faces_detected) || 0), 0)}
+              </h3>
+              <p className="text-[10px] text-slate-500 mt-2">
+                Found and index mapped in database
+              </p>
+            </div>
+          </div>
+
+          {/* Cost Logs Table */}
+          <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl">
+            <h4 className="text-md font-bold text-white mb-1.5 flex items-center">
+              <Cpu className="w-5 h-5 mr-2 text-indigo-400" />
+              Recent Indexing Cost Logs (Last 30 Days)
+            </h4>
+            <p className="text-slate-400 text-xs mb-6">
+              Track real-time face indexing executions, detected faces, and billing cost calculations per upload.
+            </p>
+
+            <div className="overflow-x-auto border border-slate-800/60 rounded-2xl">
+              <table className="w-full text-left text-xs text-slate-400">
+                <thead className="text-[10px] text-slate-500 uppercase bg-slate-900/30 border-b border-slate-800">
+                  <tr>
+                    <th className="py-3 px-4">Timestamp</th>
+                    <th className="py-3 px-4">Photo ID</th>
+                    <th className="py-3 px-4">Event ID</th>
+                    <th className="py-3 px-4">Execution Time</th>
+                    <th className="py-3 px-4">Faces Detected</th>
+                    <th className="py-3 px-4">Estimated Cost</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/40 text-slate-350">
+                  {modalLogs.length > 0 ? (
+                    modalLogs.map(log => {
+                      const costInr = Number(log.estimated_cost_inr) || 0;
+                      const paise = costInr * 100;
+                      return (
+                        <tr key={log.id} className="hover:bg-slate-800/10 transition-colors">
+                          <td className="py-3 px-4 text-[11px] font-mono">
+                            {new Date(log.created_at).toLocaleString()}
+                          </td>
+                          <td className="py-3 px-4 font-mono text-[10px] text-slate-400 truncate max-w-xs" title={log.photo_id}>
+                            {log.photo_id.slice(-20)}
+                          </td>
+                          <td className="py-3 px-4 font-mono text-[11px] text-slate-400">
+                            {log.event_id}
+                          </td>
+                          <td className="py-3 px-4 font-mono">
+                            {(log.execution_time_seconds || 0).toFixed(2)}s
+                          </td>
+                          <td className="py-3 px-4 font-semibold text-white">
+                            {log.faces_detected}
+                          </td>
+                          <td className="py-3 px-4 font-mono font-bold text-indigo-400">
+                            ₹{costInr.toFixed(5)} ({paise.toFixed(2)} Paise)
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-500">
+                        No face indexing runs logged in the last 30 days.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
