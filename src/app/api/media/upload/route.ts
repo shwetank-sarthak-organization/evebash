@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { publishResizeTask } from "@/lib/qstash";
+import { publishResizeTask, publishDelayedModalTrigger } from "@/lib/qstash";
 import sharp from "sharp";
 import { getCachedBackblazeAuth, getCachedUploadUrl, getUploadUrl, BackblazeAuth } from "@/lib/backblaze";
 import { createClient } from "@supabase/supabase-js";
@@ -539,6 +539,15 @@ export async function POST(request: NextRequest) {
       }
 
       savedPhotoId = photoId;
+
+      // Queue a 5-minute delayed face recognition run as a backup timer
+      if (eventId) {
+        after(() => {
+          publishDelayedModalTrigger(eventId, request.nextUrl.origin).catch((err) => {
+            console.error("[Upload] Error publishing delayed modal trigger:", err);
+          });
+        });
+      }
 
       // Notify event owner when a guest uploads media
       if (eventId && user.id) {

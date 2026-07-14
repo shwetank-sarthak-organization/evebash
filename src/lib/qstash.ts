@@ -106,3 +106,55 @@ export async function publishResizeTask(options: QStashPublishOptions): Promise<
   }
 }
 
+export async function publishDelayedModalTrigger(eventId: string, origin?: string): Promise<boolean> {
+  const qstashToken = process.env.QSTASH_TOKEN;
+  if (!qstashToken) {
+    console.warn("[QStash] QSTASH_TOKEN is not configured. Delayed modal trigger will not run.");
+    return false;
+  }
+
+  const railwayUrl = process.env.RAILWAY_STATIC_URL ? `https://${process.env.RAILWAY_STATIC_URL}` : null;
+  const isLocalOrigin = origin && (
+    origin.includes('localhost') || 
+    origin.includes('127.0.0.1') || 
+    origin.includes('192.168.') || 
+    origin.startsWith('http://10.')
+  );
+  
+  const siteUrl = (!origin || isLocalOrigin)
+    ? (process.env.NEXT_PUBLIC_SITE_URL || railwayUrl || `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost:3000'}`)
+    : origin;
+    
+  const targetUrl = `${siteUrl}/api/media/trigger-modal-batch`;
+
+  console.log(`[QStash] Publishing delayed modal trigger for event ${eventId} targeting: ${targetUrl}`);
+
+  try {
+    const headers: Record<string, string> = {
+      "Authorization": `Bearer ${qstashToken}`,
+      "Content-Type": "application/json",
+      "Upstash-Delay": "5m",
+      "Upstash-Deduplication-Id": `modal-batch-trigger-${eventId}`
+    };
+
+    const response = await fetch(`https://qstash-us-east-1.upstash.io/v2/publish/${targetUrl}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ eventId })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`QStash publish failed with status ${response.status}: ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log(`[QStash] Successfully scheduled delayed trigger for event ${eventId}. Message ID: ${result.messageId}`);
+    return true;
+  } catch (error) {
+    console.error(`[QStash] Error publishing delayed trigger for event ${eventId}:`, error);
+    return false;
+  }
+}
+
+

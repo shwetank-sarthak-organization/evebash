@@ -320,6 +320,24 @@ async function notifyQueueDrained() {
   const failed = queue.filter(item => item.status === 'failed');
   const succeeded = queue.filter(item => item.status === 'completed');
 
+  // Trigger immediate face recognition on the backend if any uploads succeeded
+  if (succeeded.length > 0) {
+    try {
+      const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+      if (apiBaseUrl) {
+        const triggerUrl = joinUrl(apiBaseUrl, '/api/media/trigger-modal-batch?immediate=true');
+        console.log(`[UploadQueue] Queue drained. Triggering immediate face indexing at: ${triggerUrl}`);
+        
+        // Trigger asynchronously to avoid blocking the UI alert/notification
+        fetch(triggerUrl, { method: 'POST' }).catch(err => {
+          console.warn('[UploadQueue] Immediate face indexing trigger failed:', err);
+        });
+      }
+    } catch (triggerErr) {
+      console.warn('[UploadQueue] Failed to initiate immediate face indexing trigger:', triggerErr);
+    }
+  }
+
   if (Notifications) {
     try {
       await Notifications.dismissNotificationAsync(PROGRESS_NOTIFICATION_ID);
@@ -482,8 +500,32 @@ async function uploadWorker(item: UploadQueueItem) {
             item.progress = 100;
             uploadSuccess = true;
           } else {
-            console.warn(`[UploadQueue] Thumbnail generation timed out for ${item.fileName}. Rolling back upload...`);
-            await deletePhoto(savedPhotoId);
+            console.warn(`[UploadQueue] Thumbnail generation timed out for ${item.fileName}. Rolling back upload and B2 files...`);
+            try {
+              const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+              if (apiBaseUrl) {
+                const deleteUrl = joinUrl(apiBaseUrl, '/api/media/delete');
+                const deleteResponse = await fetch(deleteUrl, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`
+                  },
+                  body: JSON.stringify({ photoId: savedPhotoId })
+                });
+                
+                if (!deleteResponse.ok) {
+                  const errorText = await deleteResponse.text();
+                  throw new Error(`Delete API returned status ${deleteResponse.status}: ${errorText}`);
+                }
+                console.log(`[UploadQueue] Successfully rolled back B2 & Supabase assets for: ${savedPhotoId}`);
+              } else {
+                await deletePhoto(savedPhotoId);
+              }
+            } catch (deleteErr) {
+              console.error(`[UploadQueue] Failed to roll back B2 assets via API, falling back to local DB delete:`, deleteErr);
+              await deletePhoto(savedPhotoId);
+            }
             throw new Error('Failed to generate optimized thumbnails (Timeout).');
           }
           break; // Exit endpoints loop

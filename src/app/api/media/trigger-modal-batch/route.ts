@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { publishModalBatchTask } from "@/lib/qstash";
 
@@ -12,7 +12,7 @@ function requireEnv(name: string) {
   return value;
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
     const supabaseAdmin = createClient(
       requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
@@ -58,7 +58,9 @@ export async function POST() {
 
     const oldestAgeMs = now - new Date(oldestPhoto.uploaded_at).getTime();
 
-    if (pendingPhotos.length < BATCH_SIZE_THRESHOLD && oldestAgeMs < MAX_WAIT_TIME_MS) {
+    const isImmediate = request.nextUrl.searchParams.get("immediate") === "true";
+
+    if (!isImmediate && pendingPhotos.length < BATCH_SIZE_THRESHOLD && oldestAgeMs < MAX_WAIT_TIME_MS) {
       console.log(`[Modal Batcher] Only ${pendingPhotos.length} photos ready. Oldest is ${Math.round(oldestAgeMs/1000)}s old. Waiting for ${BATCH_SIZE_THRESHOLD} photos or 5 mins to save Modal costs.`);
       return NextResponse.json({ success: true, message: "Waiting for larger batch to optimize costs" });
     }
