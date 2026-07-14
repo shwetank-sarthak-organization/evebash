@@ -97,51 +97,63 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
         const origin = window.location.origin;
         const apiBase = origin.includes('5173') ? 'http://localhost:3000' : '';
         
-        // Fetch Supabase
-        const res = await fetch(`${apiBase}/api/admin/supabase-billing`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.billing_tier?.id) {
-            setLiveBillingTier(data.billing_tier.id);
-            if (data.billing_tier.id === 'pro' || data.billing_tier.id === 'free') {
-              setSupabaseTier(data.billing_tier.id);
+        // Fetch Supabase billing — isolated so failure doesn't block other fetches
+        try {
+          const res = await fetch(`${apiBase}/api/admin/supabase-billing`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.billing_tier?.id) {
+              setLiveBillingTier(data.billing_tier.id);
+              if (data.billing_tier.id === 'pro' || data.billing_tier.id === 'free') {
+                setSupabaseTier(data.billing_tier.id);
+              }
             }
           }
+        } catch (err) {
+          console.warn('[InfraCost] Supabase billing API unavailable (is Next.js running?):', err);
         }
 
-        // Fetch Cloudflare
-        const cfRes = await fetch(`${apiBase}/api/admin/cloudflare-billing`);
-        if (cfRes.ok) {
-          const cfData = await cfRes.json();
-          if (cfData.zonePlan) {
-            setLiveCfPlan(cfData.zonePlan);
+        // Fetch Cloudflare billing — isolated so failure doesn't block other fetches
+        try {
+          const cfRes = await fetch(`${apiBase}/api/admin/cloudflare-billing`);
+          if (cfRes.ok) {
+            const cfData = await cfRes.json();
+            if (cfData.zonePlan) {
+              setLiveCfPlan(cfData.zonePlan);
+            }
+            if (typeof cfData.uniqueTransformations === 'number') {
+              setLiveCfTransformations(cfData.uniqueTransformations);
+              setSimulatedTransformations(Math.max(cfData.uniqueTransformations, Math.ceil(photos.length * 3)));
+            }
+            if (typeof cfData.storedImages === 'number') {
+              setLiveCfStoredImages(cfData.storedImages);
+            }
+            if (Array.isArray(cfData.subscriptions)) {
+              setLiveCfSubscriptions(cfData.subscriptions);
+            }
           }
-          if (typeof cfData.uniqueTransformations === 'number') {
-            setLiveCfTransformations(cfData.uniqueTransformations);
-            setSimulatedTransformations(Math.max(cfData.uniqueTransformations, Math.ceil(photos.length * 3)));
-          }
-          if (typeof cfData.storedImages === 'number') {
-            setLiveCfStoredImages(cfData.storedImages);
-          }
-          if (Array.isArray(cfData.subscriptions)) {
-            setLiveCfSubscriptions(cfData.subscriptions);
-          }
+        } catch (err) {
+          console.warn('[InfraCost] Cloudflare billing API unavailable:', err);
         }
 
-        // Fetch Backblaze B2 bucket usage
-        const b2Res = await fetch(`${apiBase}/api/admin/backblaze-usage`);
-        const b2Data = await b2Res.json().catch(() => null);
-        if (b2Res.ok && b2Data) {
-          setLiveB2Usage(b2Data);
-          if (typeof b2Data.totalGb === 'number') {
-            setSimulatedStorageGB(Math.max(50, Math.ceil(b2Data.totalGb)));
+        // Fetch Backblaze B2 bucket usage — isolated so failure doesn't block other fetches
+        try {
+          const b2Res = await fetch(`${apiBase}/api/admin/backblaze-usage`);
+          const b2Data = await b2Res.json().catch(() => null);
+          if (b2Res.ok && b2Data) {
+            setLiveB2Usage(b2Data);
+            if (typeof b2Data.totalGb === 'number') {
+              setSimulatedStorageGB(Math.max(50, Math.ceil(b2Data.totalGb)));
+            }
+          } else {
+            setLiveB2Usage({
+              bucketName: b2Data?.bucketName || 'EveBash',
+              error: b2Data?.error || `Backblaze usage API returned status ${b2Res.status}`,
+              code: b2Data?.code,
+            });
           }
-        } else {
-          setLiveB2Usage({
-            bucketName: b2Data?.bucketName || 'EveBash',
-            error: b2Data?.error || `Backblaze usage API returned status ${b2Res.status}`,
-            code: b2Data?.code,
-          });
+        } catch (err) {
+          console.warn('[InfraCost] Backblaze usage API unavailable:', err);
         }
         // Fetch Modal logs for the last 30 days
         const oneMonthAgo = new Date();

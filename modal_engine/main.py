@@ -136,12 +136,20 @@ def process_single_photo(photo_data: dict):
             
             ai_img = preview_img
             
-        # 4. Face Detection — use full 1000px preview for accuracy
-        # CNN model handles group shots, angled faces, and small faces far better than HOG
+        # 4. Face Detection — use full preview resolution for accuracy
         fr_image = np.array(ai_img)
+        print(f"[{photo_id}] Image shape for face detection: {fr_image.shape}")
         
-        face_locations = face_recognition.face_locations(fr_image, model='cnn')
+        try:
+            face_locations = face_recognition.face_locations(fr_image, model='cnn')
+            print(f"[{photo_id}] CNN model: found {len(face_locations)} face locations")
+        except Exception as cnn_err:
+            print(f"[{photo_id}] CNN model failed ({cnn_err}), falling back to HOG")
+            face_locations = face_recognition.face_locations(fr_image, model='hog')
+            print(f"[{photo_id}] HOG model: found {len(face_locations)} face locations")
+        
         face_encodings = face_recognition.face_encodings(fr_image, face_locations)
+        print(f"[{photo_id}] Face encodings computed: {len(face_encodings)}")
         
         # 5. Save face embeddings to Supabase
         if face_encodings:
