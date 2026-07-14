@@ -136,12 +136,11 @@ def process_single_photo(photo_data: dict):
             
             ai_img = preview_img
             
-        # 4. Face Detection (Shrink to 600px first to save 64% of AI processing time!)
-        ai_img = ai_img.copy()
-        ai_img.thumbnail((600, 600))
+        # 4. Face Detection — use full 1000px preview for accuracy
+        # CNN model handles group shots, angled faces, and small faces far better than HOG
         fr_image = np.array(ai_img)
         
-        face_locations = face_recognition.face_locations(fr_image)
+        face_locations = face_recognition.face_locations(fr_image, model='cnn')
         face_encodings = face_recognition.face_encodings(fr_image, face_locations)
         
         # 5. Save face embeddings to Supabase

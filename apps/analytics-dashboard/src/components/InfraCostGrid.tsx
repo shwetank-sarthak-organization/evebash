@@ -152,7 +152,9 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
             .select('*')
             .gte('created_at', oneMonthAgo.toISOString())
             .order('created_at', { ascending: false });
-          if (!logsErr && logs) {
+          if (logsErr) {
+            console.error('[Modal] modal_cost_logs fetch error (check RLS / table existence):', logsErr);
+          } else if (logs) {
             setModalLogs(logs);
           }
         } catch (logsErr) {
