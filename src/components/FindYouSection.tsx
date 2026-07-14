@@ -13,9 +13,10 @@ interface FindYouSectionProps {
     parentId?: string;
     eventSlug?: string;
     lightboxTheme?: LightboxTheme;
+    subEventIds?: string[];
 }
 
-export function FindYouSection({ eventId, legacyId, parentId, eventSlug, lightboxTheme }: FindYouSectionProps) {
+export function FindYouSection({ eventId, legacyId, parentId, eventSlug, lightboxTheme, subEventIds }: FindYouSectionProps) {
     const [modelsLoaded, setModelsLoaded] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [processing, setProcessing] = useState(false);
@@ -78,6 +79,7 @@ export function FindYouSection({ eventId, legacyId, parentId, eventSlug, lightbo
             // 2. Fetch ONLY this event's face encodings (event-scoped)
             const eventIds = [eventId];
             if (parentId) eventIds.push(parentId);
+            if (subEventIds && subEventIds.length > 0) eventIds.push(...subEventIds);
             const legacyIds = legacyId ? [legacyId] : [];
 
             const indexedFaces = await getEventFaceEncodings(eventIds, legacyIds);

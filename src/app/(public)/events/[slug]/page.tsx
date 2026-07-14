@@ -697,6 +697,7 @@ function EventPageContent() {
                             eventId={event.id}
                             legacyId={event.legacyId}
                             parentId={event.parentId}
+                            subEventIds={subEvents.map(s => s.id)}
                             eventSlug={slug}
                             lightboxTheme={getWebLightboxTheme(event.templateId)}
                         />
