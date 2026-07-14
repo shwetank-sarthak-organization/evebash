@@ -13,6 +13,7 @@ interface Photo {
     id: string;
     src: string;
     thumbnailUrl?: string;
+    previewUrl?: string;
     storageKey?: string;
     alt?: string;
     height?: number;

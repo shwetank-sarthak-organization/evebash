@@ -6,6 +6,7 @@ import { MasonryGrid } from "@/components/ui/MasonryGrid";
 import { getEventFaceEncodings, FaceRecord } from "@/lib/database";
 import { LightboxTheme } from "@/components/ui/Lightbox";
 import { Camera, FolderOpen, Loader2, Search, Sparkles } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 interface FindYouSectionProps {
     eventId: string;
@@ -93,7 +94,7 @@ export function FindYouSection({ eventId, legacyId, parentId, eventSlug, lightbo
 
             // 3. Match faces with euclidean distance
             const matches: FaceRecord[] = [];
-            const threshold = 0.5;
+            const threshold = 0.6; // Updated to match backend dlib standard matching threshold (0.6)
 
             for (const face of indexedFaces) {
                 const storedDescriptor = new Float32Array(face.descriptor);
@@ -106,15 +107,51 @@ export function FindYouSection({ eventId, legacyId, parentId, eventSlug, lightbo
             // Deduplicate by imageId
             const uniqueMatches = Array.from(new Map(matches.map(item => [item.imageId, item])).values());
 
-            setMatchedPhotos(uniqueMatches.map(p => ({
-                id: p.imageId,
-                src: p.imageUrl,
-                width: p.width,
-                height: p.height,
-                alt: "Your photo",
-                storageKey: p.imageId,
-                mediaType: "photo",
-            })));
+            // 4. Fetch the full photos metadata for the matched image IDs to get original and thumbnail URLs
+            const matchedImageIds = uniqueMatches.map(m => m.imageId);
+            let photoMap = new Map();
+            
+            if (matchedImageIds.length > 0) {
+                const { data: matchedPhotosData, error: photosErr } = await supabase
+                    .from("photos")
+                    .select("id, url, thumbnail_url, width, height, storage_key, media_type, resource_type, format")
+                    .in("id", matchedImageIds);
+
+                if (!photosErr && matchedPhotosData) {
+                    photoMap = new Map(matchedPhotosData.map(p => [p.id, p]));
+                } else if (photosErr) {
+                    console.error("Failed to fetch full photo metadata for matches:", photosErr);
+                }
+            }
+
+            const resolvedMatches = uniqueMatches.map(m => {
+                const photo = photoMap.get(m.imageId);
+                
+                const mediaDomain = process.env.NEXT_PUBLIC_MEDIA_DOMAIN || 'media.evebash.com';
+                const originalUrl = photo?.url || m.imageUrl;
+                const storageKey = photo?.storage_key || m.imageId;
+                
+                // Use stored thumbnail URL or fallback to formatting B2 URL
+                const thumbnailUrl = photo?.thumbnail_url || `https://${mediaDomain}/${storageKey}-thumbnail.webp`;
+                
+                // Format preview B2 URL
+                const previewUrl = `https://${mediaDomain}/${storageKey}-preview.webp`;
+
+                return {
+                    id: m.imageId,
+                    src: originalUrl, // Original high-res for download
+                    thumbnailUrl: thumbnailUrl, // Grid thumbnail (-thumbnail.webp)
+                    previewUrl: previewUrl, // Preview lightbox (-preview.webp)
+                    width: photo?.width || m.width || undefined,
+                    height: photo?.height || m.height || undefined,
+                    alt: "Your photo",
+                    storageKey: storageKey,
+                    mediaType: photo?.media_type || "photo",
+                    filename: `${storageKey.split('/').pop() || 'photo'}.${photo?.format || 'jpg'}`
+                };
+            });
+
+            setMatchedPhotos(resolvedMatches);
 
             setHasSearched(true);
             if (uniqueMatches.length === 0) {

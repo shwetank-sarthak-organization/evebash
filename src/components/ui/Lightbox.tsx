@@ -33,6 +33,7 @@ interface LightboxProps {
         height?: number;
         filename?: string;
         thumbnailUrl?: string;
+        previewUrl?: string;
         mediaType?: "photo" | "video";
         resourceType?: "image" | "video" | string;
     } | null;
@@ -84,14 +85,14 @@ export function Lightbox({
         if (photo?.id) {
             setImageLoading(true);
             setImageError(false);
-            const nextSrc = photo.src ? getImageUrl(photo.src, { width: 900, quality: 75, format: 'webp' }) : "";
+            const nextSrc = photo.previewUrl || (photo.src ? getImageUrl(photo.src, { width: 900, quality: 75, format: 'webp' }) : "");
             setImageSrc(nextSrc);
             if (!nextSrc) {
                 setImageLoading(false);
                 setImageError(true);
             }
         }
-    }, [photo?.id, photo?.src]);
+    }, [photo?.id, photo?.src, photo?.previewUrl]);
 
     const commentsEndRef = useRef<HTMLDivElement>(null);
     const commentInputRef = useRef<HTMLInputElement>(null);

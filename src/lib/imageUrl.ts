@@ -45,6 +45,12 @@ export function getImageUrl(src: string | null | undefined, opts: ImageTransform
     // Map to pre-generated static files on Backblaze B2 based on size requested
     const [baseSrc, queryString] = src.split("?");
     const query = queryString ? `?${queryString}` : "";
+
+    // If it is already a pre-resized WebP file, return it directly to avoid appending double extensions
+    if (baseSrc.endsWith("-preview.webp") || baseSrc.endsWith("-thumbnail.webp")) {
+        return src;
+    }
+
     const width = opts.width || 0;
     if (width > 0 && width <= 200) {
         return `${baseSrc}-thumbnail.webp${query}`;
