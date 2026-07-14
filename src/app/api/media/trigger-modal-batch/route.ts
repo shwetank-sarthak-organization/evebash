@@ -85,31 +85,6 @@ export async function POST() {
       throw new Error("Failed to publish batch to QStash");
     }
 
-    // 4. Mark these photos as `face_indexed = true` so we don't process them again
-    // We chunk these updates to avoid URL query parameter length limits in Supabase PostgREST (since photo IDs are very long).
-    const photoIds = pendingPhotos.map(p => p.id);
-    const chunkSize = 40;
-    let updateFailed = false;
-    let lastError = null;
-
-    for (let i = 0; i < photoIds.length; i += chunkSize) {
-      const chunk = photoIds.slice(i, i + chunkSize);
-      const { error: chunkUpdateError } = await supabaseAdmin
-        .from("photos")
-        .update({ face_indexed: true })
-        .in("id", chunk);
-
-      if (chunkUpdateError) {
-        updateFailed = true;
-        lastError = chunkUpdateError;
-        console.error(`[Modal Batcher] Warning: Failed to update face_indexed flag for chunk ${Math.floor(i / chunkSize)}:`, chunkUpdateError);
-      }
-    }
-
-    if (updateFailed) {
-      console.error("[Modal Batcher] One or more database update chunks failed. Last error:", lastError);
-    }
-
     console.log(`[Modal Batcher] Successfully batched and dispatched ${modalPhotos.length} photos.`);
     return NextResponse.json({ success: true, count: modalPhotos.length });
   } catch (error: any) {

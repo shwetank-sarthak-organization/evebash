@@ -156,6 +156,10 @@ def process_single_photo(photo_data: dict):
             
             supabase.table("faces").insert(face_records).execute()
             
+        # 6. Mark photo as indexed in Supabase
+        print(f"[{photo_id}] Marking photo as indexed in database...")
+        supabase.table("photos").update({"face_indexed": True}).eq("id", photo_id).execute()
+            
         return {"status": "success", "photo_id": photo_id, "faces": len(face_encodings)}
         
     except Exception as e:
