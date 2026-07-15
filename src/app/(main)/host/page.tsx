@@ -1781,6 +1781,7 @@ function DashboardContent() {
             let activeCount = 0;
             let currentIndex = 0;
             let chunkBuffer: { photo: Photo; queueItemId: string }[] = [];
+            let completedCount = 0;
 
             const flushChunkBuffer = async () => {
                 if (chunkBuffer.length === 0) return;
@@ -1870,8 +1871,8 @@ function DashboardContent() {
                     };
 
                     chunkBuffer.push({ photo, queueItemId });
-                    // Flush the buffer if it hits 10 photos, or if this is the absolute last photo being uploaded
-                    if (chunkBuffer.length >= 10 || (index === selectedFiles.length - 1)) {
+                    // Flush the buffer if it hits 10 photos
+                    if (chunkBuffer.length >= 10) {
                         await flushChunkBuffer();
                     }
 
@@ -1886,6 +1887,13 @@ function DashboardContent() {
                     setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "error", progress: 100, error: fileErr.message || "Failed" } : item));
                 } finally {
                     activeCount--;
+                    completedCount++;
+                    
+                    // If this is the absolute last photo of the entire batch to complete (success or fail), flush any remaining items
+                    if (completedCount === selectedFiles.length) {
+                        await flushChunkBuffer();
+                    }
+                    
                     // Process next file in the queue
                     await runNext(workerId);
                 }
