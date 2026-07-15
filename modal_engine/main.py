@@ -8,7 +8,7 @@ app = modal.App("wedding-media-engine")
 # Load environment variables from the .env file in the parent directory
 image = (
     modal.Image.debian_slim(python_version="3.11")
-    .apt_install("cmake", "g++", "libgl1-mesa-glx", "libglib2.0-0")
+    .apt_install("cmake", "g++", "libgl1-mesa-glx", "libglib2.0-0", "wget")
     .pip_install(
         "fastapi[standard]",
         "boto3",
@@ -16,7 +16,11 @@ image = (
         "face_recognition",
         "supabase",
         "requests",
-        "numpy"
+        "numpy",
+        "opencv-python-headless"
+    )
+    .run_commands(
+        "wget -O /root/face_detection_yunet_2023mar.onnx https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
     )
 )
 
@@ -94,60 +98,63 @@ def process_single_photo(photo_data: dict):
             ai_img = img
             print(f"[{photo_id}] Loaded preview successfully (bypassed B2 upload and resizing).")
         except Exception as e:
-            # Fallback: Download original and generate thumbnails
-            print(f"[{photo_id}] Preview WebP not found or download failed ({str(e)}). Downloading original: {object_key}")
-            response = b2_client.get_object(Bucket=bucket_name, Key=object_key)
-            image_bytes = response['Body'].read()
-            
-            img = Image.open(io.BytesIO(image_bytes))
-            # Fix orientation (EXIF)
+            print(f"[{photo_id}] Preview WebP not found ({str(e)}). Deleting original from BB and marking as failed.")
+            # Delete original from B2
             try:
-                img = ImageOps.exif_transpose(img)
-            except Exception:
-                pass
-            img = img.convert("RGB")
-            width, height = img.size
+                b2_client.delete_object(Bucket=bucket_name, Key=object_key)
+            except Exception as del_err:
+                print(f"[{photo_id}] Failed to delete original from B2: {str(del_err)}")
+                
+            # Update Supabase status to failed
+            try:
+                supabase.table("photos").update({"status": "failed"}).eq("id", photo_id).execute()
+            except Exception as db_err:
+                print(f"[{photo_id}] Could not update status, trying to delete row: {str(db_err)}")
+                try:
+                    supabase.table("photos").delete().eq("id", photo_id).execute()
+                except Exception:
+                    pass
+                    
+            return {"status": "error", "photo_id": photo_id, "error": "Preview missing. Image deleted from B2 and face recog aborted."}
             
-            # Generate Preview (1000px)
-            preview_img = img.copy()
-            preview_img.thumbnail((1000, 1000))
-            preview_bytes = io.BytesIO()
-            preview_img.save(preview_bytes, format="WEBP", quality=80)
-            preview_bytes.seek(0)
-            
-            # Generate Thumbnail (400px)
-            thumb_img = img.copy()
-            thumb_img.thumbnail((400, 400))
-            thumb_bytes = io.BytesIO()
-            thumb_img.save(thumb_bytes, format="WEBP", quality=80)
-            thumb_bytes.seek(0)
-            
-            # Upload Thumbnails back to B2
-            print(f"[{photo_id}] Uploading resized thumbnails to B2...")
-            b2_client.put_object(Bucket=bucket_name, Key=preview_key, Body=preview_bytes, ContentType="image/webp")
-            b2_client.put_object(Bucket=bucket_name, Key=thumb_key, Body=thumb_bytes, ContentType="image/webp")
-            
-            # Update Supabase with thumbnail URLs
-            media_domain = os.environ.get("MEDIA_DOMAIN", "media.evebash.com")
-            print(f"[{photo_id}] Saving thumbnail URL to database...")
-            supabase.table("photos").update({
-                "thumbnail_url": f"https://{media_domain}/{thumb_key}",
-            }).eq("id", photo_id).execute()
-            
-            ai_img = preview_img
-            
-        # 4. Face Detection — use full preview resolution for accuracy
-        fr_image = np.array(ai_img)
-        print(f"[{photo_id}] Image shape for face detection: {fr_image.shape}")
+        # 4. Face Detection — use YuNet for fast CPU inference
+        import cv2
+        
+        # Convert PIL image to BGR numpy array for OpenCV
+        open_cv_image = np.array(ai_img)
+        open_cv_image = open_cv_image[:, :, ::-1].copy() # Convert RGB to BGR
+        h, w, _ = open_cv_image.shape
+        
+        print(f"[{photo_id}] Image shape for YuNet face detection: {open_cv_image.shape}")
         
         try:
-            face_locations = face_recognition.face_locations(fr_image, model='cnn')
-            print(f"[{photo_id}] CNN model: found {len(face_locations)} face locations")
-        except Exception as cnn_err:
-            print(f"[{photo_id}] CNN model failed ({cnn_err}), falling back to HOG")
+            detector = cv2.FaceDetectorYN.create(
+                model="/root/face_detection_yunet_2023mar.onnx",
+                config="",
+                input_size=(w, h),
+                score_threshold=0.5,
+                nms_threshold=0.3,
+                top_k=5000
+            )
+            _, faces = detector.detect(open_cv_image)
+            
+            face_locations = []
+            if faces is not None:
+                for face in faces:
+                    x, y, w_box, h_box = map(int, face[0:4])
+                    top = max(0, y)
+                    right = min(w, x + w_box)
+                    bottom = min(h, y + h_box)
+                    left = max(0, x)
+                    face_locations.append((top, right, bottom, left))
+            print(f"[{photo_id}] YuNet found {len(face_locations)} face locations")
+        except Exception as yunet_err:
+            print(f"[{photo_id}] YuNet failed ({yunet_err}), falling back to HOG")
+            fr_image = np.array(ai_img)
             face_locations = face_recognition.face_locations(fr_image, model='hog')
-            print(f"[{photo_id}] HOG model: found {len(face_locations)} face locations")
-        
+            print(f"[{photo_id}] HOG fallback found {len(face_locations)} face locations")
+            
+        fr_image = np.array(ai_img)
         face_encodings = face_recognition.face_encodings(fr_image, face_locations)
         print(f"[{photo_id}] Face encodings computed: {len(face_encodings)}")
         
