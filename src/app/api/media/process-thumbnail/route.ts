@@ -15,17 +15,51 @@ function requireEnv(name: string) {
   return value;
 }
 
+// Global in-memory semaphore to limit concurrent image processing (Sharp resizing).
+// Setting limit to 3 keeps Railway CPU cool, prevents OOM spikes, and provides smooth, sequential execution.
+let activeResizes = 0;
+const MAX_CONCURRENT_RESIZES = 3;
+const queue: (() => void)[] = [];
+
+async function acquireLock() {
+  if (activeResizes < MAX_CONCURRENT_RESIZES) {
+    activeResizes++;
+    return;
+  }
+  return new Promise<void>((resolve) => {
+    queue.push(resolve);
+  });
+}
+
+function releaseLock() {
+  activeResizes--;
+  const next = queue.shift();
+  if (next) {
+    activeResizes++;
+    next();
+  }
+}
+
 // Ensure QStash signature verification for security in production
 export async function POST(request: NextRequest) {
+  let hasLock = false;
+  let currentStorageKey = "unknown";
+  
   try {
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const { storageKey } = body;
+    currentStorageKey = storageKey || "unknown";
 
     if (!storageKey) {
       return NextResponse.json({ error: "Missing storageKey" }, { status: 400 });
     }
 
-    console.log(`[Process Thumbnail] Started resizing background job for: ${storageKey}`);
+    console.log(`[Process Thumbnail] Queued background job for: ${storageKey} (Queue size: ${queue.length}, Active: ${activeResizes})`);
+    
+    // Acquire lock (blocks if activeResizes >= 3)
+    await acquireLock();
+    hasLock = true;
+    console.log(`[Process Thumbnail] Acquired lock for: ${storageKey} (Active: ${activeResizes})`);
 
     const supabaseAdmin = createClient(
       requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
@@ -167,5 +201,10 @@ export async function POST(request: NextRequest) {
     const errMessage = error instanceof Error ? error.message : "Processing failed";
     // Returning 500 causes QStash to automatically retry this job
     return NextResponse.json({ error: errMessage }, { status: 500 });
+  } finally {
+    if (hasLock) {
+      releaseLock();
+      console.log(`[Process Thumbnail] Released lock for: ${currentStorageKey} (Active: ${activeResizes})`);
+    }
   }
 }
