@@ -284,8 +284,8 @@ def find_matching_photos(request: dict):
         db_faces = response.data or []
         
         # 5. Compare descriptors
-        # 0.45 gives very high confidence matches only — eliminates false positives in group/wedding photos
-        THRESHOLD = 0.45
+        # 0.53 is the sweet spot for dlib ResNet-1 model to match rotated/shadowed faces without false positives
+        THRESHOLD = 0.53
         matches_map = {}
         
         for face in db_faces:
