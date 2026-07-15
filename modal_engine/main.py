@@ -250,13 +250,15 @@ def find_matching_photos(request: dict):
             )
             _, selfie_faces = selfie_detector.detect(selfie_bgr)
             if selfie_faces is not None:
-                for face in selfie_faces:
+                # Sort faces by bounding box area descending so the largest face is at index 0 (user)
+                sorted_faces = sorted(selfie_faces, key=lambda f: f[2] * f[3], reverse=True)
+                for face in sorted_faces:
                     x, y, w_box, h_box = map(int, face[0:4])
                     selfie_face_locations.append((
                         max(0, y), min(sw, x + w_box),
                         min(sh, y + h_box), max(0, x)
                     ))
-            print(f"[Selfie] YuNet detected {len(selfie_face_locations)} face(s) in selfie")
+            print(f"[Selfie] YuNet detected {len(selfie_face_locations)} face(s) in selfie. Picked largest at index 0.")
         except Exception as yunet_err:
             print(f"[Selfie] YuNet failed ({yunet_err}), falling back to HOG")
             selfie_face_locations = face_recognition.face_locations(selfie_arr, model='hog')
@@ -302,6 +304,9 @@ def find_matching_photos(request: dict):
                     continue
                     
                 distance = np.linalg.norm(selfie_encoding - db_vector)
+                
+                # Print distance to Modal logs for debugging matching accuracy
+                print(f"[Match Distance Debug] Image ID: {face.get('image_id')}, Distance: {distance:.4f} (Threshold: {THRESHOLD})")
                 
                 if distance < THRESHOLD:
                     image_id = face.get("image_id")
