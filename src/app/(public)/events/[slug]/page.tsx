@@ -17,6 +17,7 @@ import { useRef } from "react";
 import { getWebTemplateComponent } from "@/components/templateRegistry";
 import { getWebLightboxTheme } from "@/lib/webTemplateTheme";
 import { FindYouSection } from "@/components/FindYouSection";
+import { supabase } from "@/lib/supabase";
 
 function EventPageContent() {
     const params = useParams();
@@ -91,6 +92,52 @@ function EventPageContent() {
             setHasCheckedSession(true);
         }
     }, [hasCheckedSession]);
+
+    // Real-time photo grid updates (syncing uploads and background resizing updates)
+    useEffect(() => {
+        if (!event?.id) return;
+
+        const eventIds = [event.id, ...subEvents.map(s => s.id)];
+        const channels = eventIds.map(id => {
+            return supabase
+                .channel(`rt-photos-event-${id}`)
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'photos', filter: `event_id=eq.${id}` },
+                    (payload) => {
+                        console.log(`[Realtime] Received DB change on photos table for event ${id}:`, payload);
+                        
+                        if (payload.eventType === 'INSERT') {
+                            if (activeVirtualGallery === 'favourite') {
+                                loadFavouritePhotos();
+                            } else {
+                                loadGalleryPhotos(activeGallery || event, 0, false);
+                            }
+                        } else if (payload.eventType === 'UPDATE') {
+                            setPhotos(prev => prev.map(p => {
+                                if (p.id === payload.new.id) {
+                                    return {
+                                        ...p,
+                                        thumbnailUrl: payload.new.thumbnail_url,
+                                        width: payload.new.width || p.width,
+                                        height: payload.new.height || p.height,
+                                        src: payload.new.url || p.src,
+                                    };
+                                }
+                                return p;
+                            }));
+                        } else if (payload.eventType === 'DELETE') {
+                            setPhotos(prev => prev.filter(p => p.id !== payload.old.id));
+                        }
+                    }
+                )
+                .subscribe();
+        });
+
+        return () => {
+            channels.forEach(ch => supabase.removeChannel(ch));
+        };
+    }, [event?.id, subEvents, activeGallery, activeVirtualGallery]);
 
     // Check for guest details or user approval if shared link
     useEffect(() => {

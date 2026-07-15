@@ -1740,34 +1740,50 @@ function DashboardContent() {
             const concurrencyLimit = 3;
             let activeCount = 0;
             let currentIndex = 0;
-            let chunkBuffer: Photo[] = [];
+            let chunkBuffer: { photo: Photo; queueItemId: string }[] = [];
 
             const flushChunkBuffer = async () => {
                 if (chunkBuffer.length === 0) return;
-                const photosToFlush = [...chunkBuffer];
+                const itemsToFlush = [...chunkBuffer];
                 chunkBuffer = [];
-                console.log(`[Dashboard] Flushing chunk of ${photosToFlush.length} photos to batch API...`);
+                console.log(`[Dashboard] Flushing chunk of ${itemsToFlush.length} photos to batch API...`);
                 try {
                     const session = await supabase.auth.getSession();
                     const headers: Record<string, string> = { "Content-Type": "application/json" };
                     if (session.data.session?.access_token) {
                         headers["Authorization"] = `Bearer ${session.data.session.access_token}`;
                     }
-                    await fetch("/api/media/save-photo-batch", {
+                    const res = await fetch("/api/media/save-photo-batch", {
                         method: "POST",
                         headers,
                         body: JSON.stringify({
-                            photos: photosToFlush.map(p => ({
-                                storageKey: p.storageKey,
-                                eventId: p.eventId,
-                                fileName: p.storageKey.split('/').pop() || 'image.jpg',
-                                fileSize: p.size,
-                                resourceType: p.resourceType
+                            photos: itemsToFlush.map(item => ({
+                                storageKey: item.photo.storageKey,
+                                eventId: item.photo.eventId,
+                                fileName: item.photo.storageKey.split('/').pop() || 'image.jpg',
+                                fileSize: item.photo.size,
+                                resourceType: item.photo.resourceType
                             }))
                         })
                     });
-                } catch (e) {
+                    if (res.ok) {
+                        const itemIds = new Set(itemsToFlush.map(item => item.queueItemId));
+                        setUploadQueue(prev => prev.map(qItem => 
+                            itemIds.has(qItem.id) ? { ...qItem, status: "success", progress: 100 } : qItem
+                        ));
+                        fetchEventPhotos();
+                    } else {
+                        const itemIds = new Set(itemsToFlush.map(item => item.queueItemId));
+                        setUploadQueue(prev => prev.map(qItem => 
+                            itemIds.has(qItem.id) ? { ...qItem, status: "error", progress: 100, error: "Failed to save photo metadata" } : qItem
+                        ));
+                    }
+                } catch (e: any) {
                     console.error("[Dashboard] Batch flush error:", e);
+                    const itemIds = new Set(itemsToFlush.map(item => item.queueItemId));
+                    setUploadQueue(prev => prev.map(qItem => 
+                        itemIds.has(qItem.id) ? { ...qItem, status: "error", progress: 100, error: e.message || "Failed to save photo metadata" } : qItem
+                    ));
                 }
             };
 
@@ -1813,49 +1829,17 @@ function DashboardContent() {
                         resourceType: galleryMediaTab === "videos" ? "video" : "image"
                     };
 
-                    chunkBuffer.push(photo);
+                    chunkBuffer.push({ photo, queueItemId });
                     // Flush the buffer if it hits 10 photos, or if this is the absolute last photo being uploaded
                     if (chunkBuffer.length >= 10 || (index === selectedFiles.length - 1)) {
                         await flushChunkBuffer();
                     }
 
-                    // Mark as processing (generating thumbnails)
+                    // Mark as processing (saving metadata)
                     setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "processing", progress: 90 } : item));
 
-                    // Server now writes directly to DB so client-side savePhoto is bypassed.
-                    uploadResults.push({ file, photo }); // Store for background indexing
-
-                    if (photo.mediaType === "photo" && photo.resourceType === "image") {
-                        // Poll Supabase in background (asynchronously) so queue worker continues immediately
-                        void (async () => {
-                            let thumbnailGenerated = false;
-                            for (let poll = 0; poll < 40; poll++) {
-                                await new Promise(resolve => setTimeout(resolve, 2000));
-                                const { data: checkData } = await supabase
-                                    .from('photos')
-                                    .select('thumbnail_url')
-                                    .eq('storage_key', uploadResult.publicId)
-                                    .maybeSingle();
-
-                                if (checkData && checkData.thumbnail_url) {
-                                    thumbnailGenerated = true;
-                                    photo.thumbnailUrl = checkData.thumbnail_url;
-                                    break;
-                                }
-                            }
-                            if (thumbnailGenerated) {
-                                fetchEventPhotos();
-                                setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "success", progress: 100 } : item));
-                            } else {
-                                console.error(`[Dashboard] Thumbnail generation timed out for ${file.name}`);
-                                setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "error", progress: 100, error: "Thumbnail generation timed out" } : item));
-                            }
-                        })();
-                    } else {
-                        // Videos don't require resizing/thumbnail generation
-                        fetchEventPhotos();
-                        setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "success", progress: 100 } : item));
-                    }
+                    // Store for background indexing
+                    uploadResults.push({ file, photo });
                 } catch (fileErr: any) {
                     clearInterval(progressInterval);
                     console.error(`[Dashboard] File upload error for ${file.name}:`, fileErr);
