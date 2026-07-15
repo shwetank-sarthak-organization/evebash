@@ -135,7 +135,6 @@ export async function POST(request: NextRequest) {
         .from("photos")
         .update({ 
           thumbnail_url: thumbnailUrl,
-          preview_url: previewUrl,
           width: originalWidth,
           height: originalHeight
         })
