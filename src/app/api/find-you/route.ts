@@ -34,11 +34,13 @@ export async function POST(request: NextRequest) {
             selfieBuffer = Buffer.from(await downloadRes.arrayBuffer());
         }
 
-        // 2. Optimize selfie image using Sharp (rotate, resize, compress to JPEG)
+        // Optimize selfie: fix EXIF rotation, resize to 1000px, save as lossless PNG.
+        // PNG (lossless) avoids the JPEG compression artifact mismatch that caused
+        // cosine similarity drift between selfie encoding and indexed photo encoding.
         const optimizedSelfieBuffer = await sharp(selfieBuffer)
             .rotate()
             .resize({ width: 1000, fit: "inside", withoutEnlargement: true })
-            .jpeg({ quality: 80 })
+            .png()
             .toBuffer();
 
         const selfieBase64Str = optimizedSelfieBuffer.toString("base64");

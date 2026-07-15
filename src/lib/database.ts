@@ -116,7 +116,7 @@ export interface BusinessPortfolioMedia {
 export interface FaceRecord {
     id?: string;
     imageId: string;
-    descriptor: number[]; // The 128-float vector
+    descriptor: number[]; // The 512-float FaceNet vector (L2-normalized)
     eventId: string;
     imageUrl: string;
     width: number;
