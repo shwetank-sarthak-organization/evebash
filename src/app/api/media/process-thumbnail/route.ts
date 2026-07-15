@@ -78,7 +78,9 @@ export async function POST(request: NextRequest) {
       .webp({ quality: 75 })
       .toBuffer();
 
-    // 4. Upload to B2
+    // 4. Upload BOTH thumbnail and preview to B2 atomically.
+    // If either upload fails, we throw an error → QStash will automatically retry the whole job.
+    // We never update the DB unless both files are safely in B2.
     const thumbnailKey = `${storageKey}-thumbnail.webp`;
     const previewKey = `${storageKey}-preview.webp`;
     const thumbnailUrl = `https://${mediaDomain}/${thumbnailKey}`;
@@ -112,17 +114,28 @@ export async function POST(request: NextRequest) {
       return (await uploadResponse.json()).fileId;
     }
 
-    console.log(`[Process Thumbnail] Uploading assets to B2...`);
+    console.log(`[Process Thumbnail] Uploading thumbnail to B2...`);
     await uploadBufferToB2(thumbnailBuffer, thumbnailKey, "image/webp");
-    await uploadBufferToB2(previewBuffer, previewKey, "image/webp");
 
-    // 5. Update Database Record
+    console.log(`[Process Thumbnail] Uploading preview to B2...`);
+    try {
+      await uploadBufferToB2(previewBuffer, previewKey, "image/webp");
+    } catch (previewErr) {
+      // Preview upload failed — do NOT save anything to DB.
+      // Return 500 so QStash retries the entire job (thumbnail will just be overwritten on retry).
+      console.error(`[Process Thumbnail] Preview upload failed for ${storageKey}. Aborting DB update. QStash will retry.`, previewErr);
+      throw previewErr;
+    }
+
+    // Both uploads succeeded — now it is safe to update the DB.
+    // 5. Update Database Record with both URLs
     let updated = false;
     for (let attempt = 1; attempt <= 4; attempt++) {
       const { data, error: dbError } = await supabaseAdmin
         .from("photos")
         .update({ 
           thumbnail_url: thumbnailUrl,
+          preview_url: previewUrl,
           width: originalWidth,
           height: originalHeight
         })
@@ -153,7 +166,7 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error("[Process Thumbnail] Failed:", error);
     const errMessage = error instanceof Error ? error.message : "Processing failed";
-    // Throwing a 500 error causes QStash to automatically retry
+    // Returning 500 causes QStash to automatically retry this job
     return NextResponse.json({ error: errMessage }, { status: 500 });
   }
 }
