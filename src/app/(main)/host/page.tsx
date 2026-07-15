@@ -1261,7 +1261,27 @@ function DashboardContent() {
                     if (payload.eventType === 'INSERT') {
                         // For INSERT events, event_id is always present in the payload
                         if (payload.new.event_id === selectedEventId) {
-                            fetchEventPhotos();
+                            const newPhoto: Photo = {
+                                id: payload.new.id,
+                                eventId: payload.new.event_id,
+                                storageKey: payload.new.storage_key,
+                                url: payload.new.url,
+                                thumbnailUrl: payload.new.thumbnail_url,
+                                width: payload.new.width,
+                                height: payload.new.height,
+                                uploadedAt: payload.new.uploaded_at,
+                                userId: payload.new.user_id,
+                                size: payload.new.size,
+                                format: payload.new.format,
+                                mediaType: payload.new.media_type,
+                                resourceType: payload.new.resource_type
+                            };
+
+                            // Add to grid state directly in real-time so it shows immediately!
+                            setCurrentEventPhotos(prev => {
+                                if (prev.some(p => p.id === newPhoto.id)) return prev;
+                                return [newPhoto, ...prev];
+                            });
                         }
                     } else if (payload.eventType === 'UPDATE') {
                         // For UPDATE events under default replica identity, event_id might be undefined.
