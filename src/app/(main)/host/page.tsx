@@ -658,6 +658,18 @@ function DashboardContent() {
     const [loadingPhotos, setLoadingPhotos] = useState(false);
     const [photoPage, setPhotoPage] = useState(0);
     const [hasMorePhotos, setHasMorePhotos] = useState(false);
+
+    // Refs to keep track of currentEventPhotos and uploadQueue to avoid stale closure bugs in Supabase Realtime callbacks
+    const currentEventPhotosRef = useRef<Photo[]>([]);
+    const uploadQueueRef = useRef<UploadQueueItem[]>([]);
+    
+    useEffect(() => {
+        currentEventPhotosRef.current = currentEventPhotos;
+    }, [currentEventPhotos]);
+
+    useEffect(() => {
+        uploadQueueRef.current = uploadQueue;
+    }, [uploadQueue]);
     const [totalStorage, setTotalStorage] = useState<number>(0);
     const [totalMainEvents, setTotalMainEvents] = useState<number>(0);
     const [workspaceOwner, setWorkspaceOwner] = useState<any | null>(null);
@@ -1284,25 +1296,51 @@ function DashboardContent() {
                             });
                         }
                     } else if (payload.eventType === 'UPDATE') {
-                        // For UPDATE events under default replica identity, event_id might be undefined.
-                        // We check if it belongs to the current event using our local state.
-                        const isOurPhoto = currentEventPhotos.some(p => p.id === payload.new.id) ||
-                                           uploadQueue.some(qItem => qItem.photoId === payload.new.id);
+                        // Use currentEventPhotosRef and uploadQueueRef to avoid stale closure state snapshots
+                        const isOurPhoto = currentEventPhotosRef.current.some(p => p.id === payload.new.id) ||
+                                           uploadQueueRef.current.some(qItem => qItem.photoId === payload.new.id);
                         
                         if (!isOurPhoto) return;
 
-                        setCurrentEventPhotos(prev => prev.map(p => {
-                            if (p.id === payload.new.id) {
-                                return {
-                                    ...p,
-                                    thumbnailUrl: payload.new.thumbnail_url,
-                                    width: payload.new.width || p.width,
-                                    height: payload.new.height || p.height,
-                                    url: payload.new.url || p.url,
-                                };
+                        setCurrentEventPhotos(prev => {
+                            const exists = prev.some(p => p.id === payload.new.id);
+                            
+                            // 1. If it doesn't exist yet (UPDATE arrived before INSERT state re-rendered),
+                            // we build the Photo record and insert it directly in its completed state.
+                            if (!exists) {
+                                const queueItem = uploadQueueRef.current.find(q => q.photoId === payload.new.id);
+                                if (queueItem) {
+                                    const completedPhoto: Photo = {
+                                        id: payload.new.id,
+                                        eventId: selectedEventId,
+                                        storageKey: payload.new.storage_key || queueItem.storageKey || "",
+                                        url: payload.new.url,
+                                        thumbnailUrl: payload.new.thumbnail_url,
+                                        width: payload.new.width,
+                                        height: payload.new.height,
+                                        uploadedAt: payload.new.uploaded_at || new Date().toISOString(),
+                                        mediaType: payload.new.media_type || "photo",
+                                        resourceType: payload.new.resource_type || "image"
+                                    };
+                                    return [completedPhoto, ...prev];
+                                }
+                                return prev;
                             }
-                            return p;
-                        }));
+
+                            // 2. If it already exists in the grid, update its thumbnail and sizes
+                            return prev.map(p => {
+                                if (p.id === payload.new.id) {
+                                    return {
+                                        ...p,
+                                        thumbnailUrl: payload.new.thumbnail_url,
+                                        width: payload.new.width || p.width,
+                                        height: payload.new.height || p.height,
+                                        url: payload.new.url || p.url,
+                                    };
+                                }
+                                return p;
+                            });
+                        });
 
                         if (payload.new.thumbnail_url) {
                             setUploadQueue(prev => prev.map(qItem => 
