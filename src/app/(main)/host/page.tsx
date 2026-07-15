@@ -1874,9 +1874,6 @@ function DashboardContent() {
                     // Flush immediately after each upload so resizing starts right away
                     await flushChunkBuffer();
 
-                    // Mark as processing (saving metadata)
-                    setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "processing", progress: 90 } : item));
-
                     // Store for background indexing
                     uploadResults.push({ file, photo });
                 } catch (fileErr: any) {
