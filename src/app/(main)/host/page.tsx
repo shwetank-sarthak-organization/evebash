@@ -1243,6 +1243,46 @@ function DashboardContent() {
         };
     }, [user?.uid, user?.email, user?.phone, fetchStorageStats]);
 
+    // Real-time photo grid updates for host dashboard (syncs thumbnail resolving in real time)
+    useEffect(() => {
+        if (!selectedEventId) return;
+
+        console.log(`[Dashboard Realtime] Subscribing to photos for event: ${selectedEventId}`);
+        const channel = supabase
+            .channel(`host-photos-event-${selectedEventId}-${Math.random().toString(36).slice(2, 8)}`)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'photos', filter: `event_id=eq.${selectedEventId}` },
+                (payload) => {
+                    console.log(`[Dashboard Realtime] Received DB change:`, payload);
+                    
+                    if (payload.eventType === 'INSERT') {
+                        fetchEventPhotos();
+                    } else if (payload.eventType === 'UPDATE') {
+                        setCurrentEventPhotos(prev => prev.map(p => {
+                            if (p.id === payload.new.id) {
+                                return {
+                                    ...p,
+                                    thumbnailUrl: payload.new.thumbnail_url,
+                                    width: payload.new.width || p.width,
+                                    height: payload.new.height || p.height,
+                                    url: payload.new.url || p.url,
+                                };
+                            }
+                            return p;
+                        }));
+                    } else if (payload.eventType === 'DELETE') {
+                        setCurrentEventPhotos(prev => prev.filter(p => p.id !== payload.old.id));
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [selectedEventId]);
+
     useEffect(() => {
         if (!selectedGuestLog) {
             setSelectedGuestProfile(null);
