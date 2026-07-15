@@ -55,7 +55,7 @@ export function RoyalNavbar({ event, subEvents, basePath }: RoyalNavbarProps) {
     // Construct main links dynamically
     const homeLink = basePath || "/";
     const eventPartnersLink = basePath ? `${basePath}/event-partners` : "/event-partners";
-    const adminLink = basePath ? `${basePath}/admin` : "/admin";
+    const adminLink = basePath ? `${basePath}/admin` : "";
 
     // Dynamic Navigation Links
     const navLinks = [
@@ -65,7 +65,7 @@ export function RoyalNavbar({ event, subEvents, basePath }: RoyalNavbarProps) {
             href: basePath ? `${basePath}/events/${se.id}` : `/events/${se.id}`
         })),
         { name: "Event Partners", href: eventPartnersLink },
-        ...(isAdmin ? [{ name: "Admin", href: adminLink }] : [])
+        ...(isAdmin && adminLink ? [{ name: "Admin", href: adminLink }] : [])
     ];
 
     return (

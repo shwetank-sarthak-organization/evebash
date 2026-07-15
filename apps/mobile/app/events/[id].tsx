@@ -6636,7 +6636,7 @@ export default function EventDetailScreen() {
                   marginTop: 4,
                   lineHeight: 18
                 }}>
-                  Connect photographers, makeup artists, and venues from Create Business.
+                  Connect photographers, makeup artists, and venues from EB Business.
                 </Text>
               </View>
               <TouchableOpacity onPress={() => { setLinkingVendor(false); setVendorCode(''); }}>
@@ -6757,7 +6757,7 @@ export default function EventDetailScreen() {
             <Text style={{ color: '#d4af37', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Host</Text>
           </TouchableOpacity>
 
-          {/* TAB 2: Create Business (Matches TabLayout Svg exactly) */}
+          {/* TAB 2: EB Business (Matches TabLayout Svg exactly) */}
           <TouchableOpacity
             style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
             onPress={() => router.replace('/(tabs)/businesses')}
@@ -6781,7 +6781,7 @@ export default function EventDetailScreen() {
                 textAlign: 'center'
               }}
             >
-              Create Business
+              EB Business
             </Text>
           </TouchableOpacity>
 

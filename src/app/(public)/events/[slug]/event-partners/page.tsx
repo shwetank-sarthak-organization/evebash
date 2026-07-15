@@ -133,7 +133,7 @@ function EventPartnersContent({ slug }: { slug: string }) {
                         {vendors.map((vendor) => (
                             <Link
                                 key={vendor.id}
-                                href={`/marketplace/${vendor.id}`}
+                                href={`/eb-network/${vendor.id}`}
                                 className="group flex items-center gap-5 rounded-[1.5rem] border border-stone-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl"
                             >
                                 <div

@@ -3,33 +3,28 @@
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, X, Camera, User as UserIcon, ShieldCheck } from "lucide-react";
+import { Menu, X, Camera, User as UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 
 const guestNavLinks = [
     { name: "Sample Galleries", href: "/sample-galleries" },
     { name: "Pricing", href: "/pricing" },
-    { name: "Businesses", href: "#" },
+    { name: "EB Network", href: "/eb-network" },
     { name: "Contact Us", href: "/contact-us" },
 ];
 
 const authNavLinks = [
     { name: "Dashboard", href: "/dashboard" },
     { name: "Host", href: "/host" },
-    { name: "Create Business", href: "/biz-hub" },
-    { name: "EB Network", href: "/marketplace" },
+    { name: "EB Business", href: "/eb-business" },
+    { name: "EB Network", href: "/eb-network" },
 ];
 
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
     const { user, logout } = useAuth();
-    const isSuperAdmin = user?.role === "admin" && !user.delegatedBy;
-    const visibleAuthNavLinks = isSuperAdmin
-        ? [...authNavLinks, { name: "Super Admin", href: "/admin/dashboard" }]
-        : authNavLinks;
-
     const isActiveLink = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 
     const getPlanLabel = (role?: string) => {
@@ -64,7 +59,7 @@ export default function Navbar() {
 
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-8">
-                        {(user ? visibleAuthNavLinks : guestNavLinks).map((link) => (
+                        {(user ? authNavLinks : guestNavLinks).map((link) => (
                             <Link
                                 key={link.name}
                                 href={link.href}
@@ -75,7 +70,6 @@ export default function Navbar() {
                                         : "text-slate-300 hover:border-slate-500"
                                 )}
                             >
-                                {link.href === "/admin/dashboard" && <ShieldCheck className="h-4 w-4 text-amber-300" />}
                                 {link.name}
                             </Link>
                         ))}
@@ -130,7 +124,7 @@ export default function Navbar() {
                 )}
             >
                 <div className="px-4 pt-4 pb-6 space-y-2 flex flex-col">
-                    {(user ? visibleAuthNavLinks : guestNavLinks).map((link) => (
+                    {(user ? authNavLinks : guestNavLinks).map((link) => (
                         <Link
                             key={link.name}
                             href={link.href}
@@ -142,7 +136,6 @@ export default function Navbar() {
                                     : "text-slate-300 hover:bg-slate-700 hover:text-white"
                             )}
                         >
-                            {link.href === "/admin/dashboard" && <ShieldCheck className="h-5 w-5 text-amber-300" />}
                             {link.name}
                         </Link>
                     ))}

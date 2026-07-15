@@ -1,5 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async redirects() {
+    return [
+      {
+        source: '/biz-hub/:path*',
+        destination: '/eb-business/:path*',
+        permanent: true,
+      },
+      {
+        source: '/marketplace/:path*',
+        destination: '/eb-network/:path*',
+        permanent: true,
+      },
+    ];
+  },
   serverExternalPackages: ["sharp", "@tensorflow/tfjs-node"],
   images: {
     remotePatterns: [

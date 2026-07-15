@@ -247,7 +247,7 @@ export default function ManageBusinessPage() {
 
   const selectTab = (tab: TabName) => {
     setActiveTab(tab);
-    router.replace(`/biz-hub/${bizId}?tab=${encodeURIComponent(tab)}`, { scroll: false });
+    router.replace(`/eb-business/${bizId}?tab=${encodeURIComponent(tab)}`, { scroll: false });
   };
 
   const hydrateForm = (biz: Business) => {
@@ -550,8 +550,8 @@ export default function ManageBusinessPage() {
     return (
       <div className="flex min-h-[80vh] flex-col items-center justify-center bg-[#050505] px-4 text-center text-white">
         <h1 className="text-2xl font-black">Business not found</h1>
-        <button type="button" onClick={() => router.replace("/biz-hub")} className="mt-5 rounded-full bg-indigo-400 px-5 py-3 text-sm font-black text-[#101010]">
-          Back to Create Business
+        <button type="button" onClick={() => router.replace("/eb-business")} className="mt-5 rounded-full bg-indigo-400 px-5 py-3 text-sm font-black text-[#101010]">
+          Back to EB Business
         </button>
       </div>
     );
@@ -561,8 +561,8 @@ export default function ManageBusinessPage() {
     return (
       <div className="flex min-h-[80vh] flex-col items-center justify-center bg-[#050505] px-4 text-center text-white">
         <h1 className="text-2xl font-black">You do not have access to manage this business.</h1>
-        <button type="button" onClick={() => router.replace("/biz-hub")} className="mt-5 rounded-full bg-indigo-400 px-5 py-3 text-sm font-black text-[#101010]">
-          Back to Create Business
+        <button type="button" onClick={() => router.replace("/eb-business")} className="mt-5 rounded-full bg-indigo-400 px-5 py-3 text-sm font-black text-[#101010]">
+          Back to EB Business
         </button>
       </div>
     );
@@ -580,7 +580,7 @@ export default function ManageBusinessPage() {
             ) : (
               <button
                 type="button"
-                onClick={() => router.push("/biz-hub")}
+                onClick={() => router.push("/eb-business")}
                 className="flex h-12 w-12 items-center justify-center rounded-full border border-indigo-400/20 bg-indigo-400/10 text-[#818cf8]"
                 aria-label="Back"
               >
@@ -790,7 +790,7 @@ export default function ManageBusinessPage() {
                 <button
                   key={portfolio.id}
                   type="button"
-                  onClick={() => router.push(`/biz-hub/${business.id}/portfolio/${portfolio.id}?returnTo=${encodeURIComponent(`/biz-hub/${business.id}?tab=Portfolio`)}`)}
+                  onClick={() => router.push(`/eb-business/${business.id}/portfolio/${portfolio.id}?returnTo=${encodeURIComponent(`/eb-business/${business.id}?tab=Portfolio`)}`)}
                   className="group relative h-64 cursor-pointer overflow-hidden rounded-[1.5rem] bg-black text-left"
                 >
                   <div className="relative h-full overflow-hidden">

@@ -44,7 +44,7 @@ export default function PublicPortfolioEventPage() {
   const templateId = portfolio?.templateId || "hero";
   const TemplateComponent = getWebTemplateComponent(templateId);
 
-  const goBack = (fallback = "/marketplace") => {
+  const goBack = (fallback = "/eb-network") => {
     const returnTo = searchParams.get("returnTo");
     if (returnTo?.startsWith("/")) {
       router.push(returnTo);
@@ -117,7 +117,7 @@ export default function PublicPortfolioEventPage() {
   return (
     <div className="relative min-h-screen">
       <button
-        onClick={() => goBack("/marketplace")}
+        onClick={() => goBack("/eb-network")}
         className="fixed left-4 top-4 z-[80] flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/70 text-white shadow-xl backdrop-blur transition hover:bg-black"
         aria-label="Back to EB Network"
       >

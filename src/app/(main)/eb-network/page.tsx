@@ -162,7 +162,7 @@ export default function MarketplacePage() {
 
   const featuredVendors = filteredVendors.slice(0, 3);
   const openVendorPage = (vendorId: string) => {
-    router.push(`/marketplace/${vendorId}`);
+    router.push(`/eb-network/${vendorId}`);
   };
 
   return (
@@ -225,7 +225,7 @@ export default function MarketplacePage() {
         </section>
 
         <section
-          onClick={() => router.push("/biz-hub")}
+          onClick={() => router.push("/eb-business")}
           className="group relative cursor-pointer overflow-hidden rounded-[2rem] bg-gradient-to-br from-indigo-600 to-indigo-900 p-8 shadow-2xl shadow-indigo-950/20"
         >
           <div className="absolute right-6 top-1/2 hidden -translate-y-1/2 text-white/15 sm:block">
@@ -574,7 +574,7 @@ function VendorDetailModal({ vendor, shortlisted, onClose, onShortlist }: {
                     <button
                       key={portfolio.id}
                       type="button"
-                      onClick={() => router.push(`/marketplace/${vendor.id}/portfolio/${portfolio.id}?returnTo=${encodeURIComponent("/marketplace")}`)}
+                      onClick={() => router.push(`/eb-network/${vendor.id}/portfolio/${portfolio.id}?returnTo=${encodeURIComponent("/eb-network")}`)}
                       className="block w-full overflow-hidden rounded-[1.5rem] border border-[#1f2937] bg-[#050505] text-left"
                     >
                       <div className="relative h-56 bg-black">

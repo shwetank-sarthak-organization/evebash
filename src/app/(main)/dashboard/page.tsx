@@ -24,7 +24,6 @@ import {
     Send,
     Minus,
     Search,
-    ShieldCheck,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -321,8 +320,6 @@ export default function DashboardHub() {
 
     if (!user) return null;
 
-    const isSuperAdmin = user.role === "admin" && !user.delegatedBy;
-
     return (
         <div className="min-h-screen bg-slate-950 font-sans text-white">
             {/* Dashboard Sub-Navbar */}
@@ -338,16 +335,6 @@ export default function DashboardHub() {
 
                     {/* Right: Actions */}
                     <div className="flex items-center gap-3">
-                        {isSuperAdmin && (
-                            <button
-                                type="button"
-                                onClick={() => router.push("/admin/dashboard")}
-                                className="inline-flex h-10 items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400 px-4 text-sm font-black text-slate-950 transition-all hover:bg-amber-300"
-                            >
-                                <ShieldCheck className="h-4 w-4" />
-                                <span className="hidden sm:inline">Super Admin</span>
-                            </button>
-                        )}
                         <button
                             type="button"
                             onClick={() => router.push("/notifications")}

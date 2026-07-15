@@ -291,8 +291,8 @@ export default function BizHubPage() {
           </button>
 
           <div className="min-w-0 text-center">
-            <h1 className="font-playfair text-3xl font-black tracking-tight text-white sm:text-4xl">Create Business</h1>
-            <p className="mt-1 text-sm font-bold text-slate-400 sm:text-base">Manage & Grow your empire.</p>
+            <h1 className="font-playfair text-3xl font-black tracking-tight text-white sm:text-4xl">Create Your Business on EveBash</h1>
+            <p className="mt-1 text-sm font-bold text-slate-400 sm:text-base">Create, manage, and grow your business presence.</p>
           </div>
 
           <button
@@ -308,14 +308,14 @@ export default function BizHubPage() {
 
         {businesses.length > 0 ? (
           <section className="space-y-5">
-            <h2 className="text-2xl font-black text-white">Your Businesses</h2>
+            <h2 className="text-2xl font-black text-white">Your EB Business Profiles</h2>
             <div className="space-y-4">
               {businesses.map((business) => {
                 const typeColors = getBusinessTypeColor(business.type);
                 return (
                   <article
                     key={business.id}
-                    onClick={() => router.push(`/biz-hub/${business.id}`)}
+                    onClick={() => router.push(`/eb-business/${business.id}`)}
                     className="group flex cursor-pointer items-center gap-4 rounded-[1.25rem] border border-slate-800 bg-slate-900/80 p-3 transition-colors hover:border-indigo-400/30 hover:bg-slate-900"
                   >
                     <div className="relative h-32 w-40 shrink-0 overflow-hidden rounded-2xl bg-slate-950 sm:h-36 sm:w-48">

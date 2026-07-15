@@ -301,8 +301,8 @@ export default function BusinessLandingScreen() {
             </TouchableOpacity>
           </View>
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={styles.headerTitle}>Create Business</Text>
-            <Text style={styles.headerSubtitle}>Manage & Grow your empire.</Text>
+            <Text style={styles.headerTitle}>EB Business</Text>
+            <Text style={styles.headerSubtitle}>Create and manage your business presence.</Text>
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity 
@@ -326,7 +326,7 @@ export default function BusinessLandingScreen() {
           </View>
         ) : userBusinesses.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Businesses</Text>
+            <Text style={styles.sectionTitle}>Your EB Business Profiles</Text>
             {userBusinesses.map((biz) => (
               <TouchableOpacity 
                 key={biz.id} 

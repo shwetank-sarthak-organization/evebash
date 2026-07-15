@@ -20,7 +20,16 @@ import { ManagePricingGrid } from './components/ManagePricingGrid';
 import { InfraCostGrid } from './components/InfraCostGrid';
 import { SuperAdminPanel } from './components/SuperAdminPanel';
 import { runAdminAction, type AdminAction } from './lib/adminApi';
-import { BarChart3, Users, Folder, LogOut, Key, Mail, AlertTriangle, ShieldCheck, Layers, DollarSign, Settings2 } from 'lucide-react';
+import { BarChart3, Users, Folder, LogOut, Key, Mail, AlertTriangle, ShieldCheck, Layers, DollarSign, Settings2, CheckCircle2, ArrowLeft } from 'lucide-react';
+
+const isPasswordRecoveryUrl = () => {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.location.pathname.endsWith('/reset-password') ||
+    window.location.hash.includes('type=recovery') ||
+    window.location.search.includes('type=recovery')
+  );
+};
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
@@ -32,7 +41,12 @@ export default function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+  const [googleAuthLoading, setGoogleAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [authMessage, setAuthMessage] = useState('');
+  const [authView, setAuthView] = useState<'login' | 'forgot' | 'reset'>('login');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   // Dashboard Data State
   const [loadingData, setLoadingData] = useState(false);
@@ -44,9 +58,18 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'events' | 'plans' | 'pricing' | 'infra' | 'superadmin'>('overview');
 
   useEffect(() => {
+    const isRecoveryLink = isPasswordRecoveryUrl();
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (isRecoveryLink) {
+        setAuthView('reset');
+        setAuthError('');
+        setAuthMessage('Enter a new password for your Analytics Dashboard account.');
+        setCheckingAuth(false);
+        return;
+      }
       if (session?.user) {
         checkAdminStatus(session.user.id);
       } else {
@@ -56,8 +79,15 @@ export default function App() {
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
+      if (event === 'PASSWORD_RECOVERY' || (session && isPasswordRecoveryUrl())) {
+        setAuthView('reset');
+        setAuthError('');
+        setAuthMessage('Enter a new password for your Analytics Dashboard account.');
+        setCheckingAuth(false);
+        return;
+      }
       if (session?.user) {
         checkAdminStatus(session.user.id);
       } else {
@@ -109,6 +139,7 @@ export default function App() {
     e.preventDefault();
     setAuthLoading(true);
     setAuthError('');
+    setAuthMessage('');
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -117,6 +148,78 @@ export default function App() {
       if (error) throw error;
     } catch (err: any) {
       setAuthError(err.message || 'Login failed. Please check credentials.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setGoogleAuthLoading(true);
+    setAuthError('');
+    setAuthMessage('');
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      setGoogleAuthLoading(false);
+      setAuthError(err.message || 'Google login failed. Please try again.');
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthError('');
+    setAuthMessage('');
+    try {
+      const trimmedEmail = email.trim();
+      if (!trimmedEmail) {
+        throw new Error('Please enter your admin email address.');
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+        redirectTo: `${window.location.origin}/reset-password`
+      });
+
+      if (error) throw error;
+      setAuthMessage('Password reset link sent. Please check your email inbox.');
+    } catch (err: any) {
+      setAuthError(err.message || 'Unable to send password reset email.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthError('');
+    setAuthMessage('');
+    try {
+      if (newPassword.length < 6) {
+        throw new Error('Password must be at least 6 characters long.');
+      }
+      if (newPassword !== confirmPassword) {
+        throw new Error('New password and confirmation do not match.');
+      }
+
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+
+      setPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setAuthView('login');
+      setAuthMessage('Password updated. Please sign in with your new password.');
+      window.history.replaceState({}, document.title, '/');
+      await supabase.auth.signOut();
+    } catch (err: any) {
+      setAuthError(err.message || 'Unable to update password.');
     } finally {
       setAuthLoading(false);
     }
@@ -186,7 +289,7 @@ export default function App() {
   }
 
   // If session doesn't exist, show Login Gate
-  if (!session) {
+  if (!session || authView === 'reset') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0b0f19] px-4">
         <div className="w-full max-w-md bg-[#111827]/80 backdrop-blur-lg border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
@@ -196,77 +299,181 @@ export default function App() {
             <div className="w-12 h-12 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto text-indigo-400 mb-4">
               <ShieldCheck className="w-7 h-7" />
             </div>
-            <h2 className="text-2xl font-bold text-white tracking-tight">Admin Console</h2>
-            <p className="text-slate-400 text-sm mt-1.5">Sign in to view simple analytics & monitoring</p>
+            <h2 className="text-2xl font-bold text-white tracking-tight">
+              {authView === 'forgot' ? 'Reset Password' : authView === 'reset' ? 'Set New Password' : 'Admin Console'}
+            </h2>
+            <p className="text-slate-400 text-sm mt-1.5">
+              {authView === 'forgot'
+                ? 'Enter your admin email to receive a reset link'
+                : authView === 'reset'
+                  ? 'Create a new password for this admin account'
+                  : 'Sign in to view simple analytics & monitoring'}
+            </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-6 relative z-10">
+          <form
+            onSubmit={authView === 'forgot' ? handleForgotPassword : authView === 'reset' ? handleUpdatePassword : handleLogin}
+            className="space-y-6 relative z-10"
+          >
             {authError && (
               <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm rounded-xl flex items-start space-x-2">
                 <AlertTriangle className="w-5 h-5 shrink-0" />
                 <span>{authError}</span>
               </div>
             )}
-
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Email Address</label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="email"
-                  required
-                  placeholder="admin@example.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/50 placeholder-slate-600 transition-colors"
-                />
+            {authMessage && (
+              <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm rounded-xl flex items-start space-x-2">
+                <CheckCircle2 className="w-5 h-5 shrink-0" />
+                <span>{authMessage}</span>
               </div>
-            </div>
+            )}
 
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Password</label>
-              <div className="relative">
-                <Key className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/50 placeholder-slate-600 transition-colors"
-                />
+            {authView === 'login' && (
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Email Address</label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="admin@example.com"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/50 placeholder-slate-600 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Password</label>
+                  <div className="relative">
+                    <Key className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/50 placeholder-slate-600 transition-colors"
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {authView === 'forgot' && (
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Email Address</label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    required
+                    placeholder="admin@example.com"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/50 placeholder-slate-600 transition-colors"
+                  />
+                </div>
+              </div>
+            )}
+
+            {authView === 'reset' && (
+              <>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">New Password</label>
+                  <div className="relative">
+                    <Key className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      placeholder="••••••••"
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/50 placeholder-slate-600 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Confirm Password</label>
+                  <div className="relative">
+                    <Key className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      placeholder="••••••••"
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/50 placeholder-slate-600 transition-colors"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
             <button
               type="submit"
               disabled={authLoading}
               className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-indigo-600/20 active:scale-[0.98] cursor-pointer"
             >
-              {authLoading ? 'Signing In...' : 'Sign In'}
+              {authLoading
+                ? authView === 'forgot' ? 'Sending Link...' : authView === 'reset' ? 'Updating Password...' : 'Signing In...'
+                : authView === 'forgot' ? 'Send Reset Link' : authView === 'reset' ? 'Update Password' : 'Sign In'}
             </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setIsAdmin(true);
-                setSession({ user: { email: 'dev-bypass@example.com' } });
-                setProfile({
-                  id: 'dev-bypass',
-                  name: 'Dev Admin Bypass',
-                  email: 'dev-bypass@example.com',
-                  role: 'admin',
-                  roleType: 'admin',
-                  delegatedBy: '',
-                  createdAt: new Date().toISOString(),
-                  lastLogin: new Date().toISOString()
-                });
-                loadDashboardData();
-              }}
-              className="w-full mt-3 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-slate-900/20 active:scale-[0.98] cursor-pointer"
-            >
-              Developer Admin Bypass (No Auth)
-            </button>
+            {authView === 'login' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthView('forgot');
+                  setAuthError('');
+                  setAuthMessage('');
+                }}
+                className="w-full text-center text-xs font-semibold text-indigo-300 hover:text-indigo-200 transition-colors"
+              >
+                Forgot password?
+              </button>
+            )}
+
+            {authView === 'login' && (
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-slate-800" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600">or</span>
+                  <div className="h-px flex-1 bg-slate-800" />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  disabled={authLoading || googleAuthLoading}
+                  className="w-full py-3 bg-white hover:bg-slate-100 disabled:bg-slate-300 text-slate-900 font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-slate-950/20 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-sm font-black text-blue-600">G</span>
+                  {googleAuthLoading ? 'Opening Google...' : 'Continue with Google'}
+                </button>
+              </>
+            )}
+
+            {authView === 'forgot' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthView('login');
+                  setAuthError('');
+                  setAuthMessage('');
+                }}
+                className="w-full flex items-center justify-center text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
+                Back to sign in
+              </button>
+            )}
+
           </form>
         </div>
       </div>

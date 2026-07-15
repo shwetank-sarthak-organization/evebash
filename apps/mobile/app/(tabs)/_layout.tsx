@@ -62,7 +62,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="businesses"
         options={{
-          title: 'Create Business',
+          title: 'EB Business',
           tabBarIcon: ({ color }) => (
             <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <Path d="m11 17 2 2a1 1 0 1 0 3-3"/>

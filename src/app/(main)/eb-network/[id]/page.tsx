@@ -76,7 +76,7 @@ export default function MarketplaceBusinessDetailPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#050505] px-4 text-center text-white">
         <h1 className="text-2xl font-black">Business not found.</h1>
-        <button onClick={() => router.push("/marketplace")} className="mt-5 rounded-full bg-indigo-400 px-5 py-3 text-sm font-black text-[#101010]">
+        <button onClick={() => router.push("/eb-network")} className="mt-5 rounded-full bg-indigo-400 px-5 py-3 text-sm font-black text-[#101010]">
           Back to EB Network
         </button>
       </div>
@@ -95,7 +95,7 @@ export default function MarketplaceBusinessDetailPage() {
     <div className="min-h-screen bg-[#050505] px-4 py-6 text-white sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
         <header className="flex items-center justify-between gap-4">
-          <button onClick={() => router.push("/marketplace")} className="flex h-11 w-11 items-center justify-center rounded-full bg-[#101010] text-slate-200">
+          <button onClick={() => router.push("/eb-network")} className="flex h-11 w-11 items-center justify-center rounded-full bg-[#101010] text-slate-200">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="min-w-0 flex-1 text-center">
@@ -208,7 +208,7 @@ export default function MarketplaceBusinessDetailPage() {
                     <button
                       key={portfolio.id}
                       type="button"
-                      onClick={() => router.push(`/marketplace/${business.id}/portfolio/${portfolio.id}?returnTo=${encodeURIComponent(`/marketplace/${business.id}`)}`)}
+                      onClick={() => router.push(`/eb-network/${business.id}/portfolio/${portfolio.id}?returnTo=${encodeURIComponent(`/eb-network/${business.id}`)}`)}
                       className="block w-full overflow-hidden rounded-[1.5rem] border border-[#1f2937] bg-[#050505] text-left"
                     >
                       <div className="relative h-56 bg-black">

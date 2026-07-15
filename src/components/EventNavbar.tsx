@@ -364,7 +364,7 @@ export function EventNavbar({
                                                     <span>My Profile</span>
                                                 </Link>
                                                 <Link
-                                                    href={user.role === "admin" && !user.delegatedBy ? "/admin/dashboard" : "/dashboard"}
+                                                    href="/dashboard"
                                                     onClick={() => setMobileMenuOpen(false)}
                                                     className="flex items-center space-x-3 w-full p-4 text-sm font-bold text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded-2xl transition-all border border-transparent"
                                                 >

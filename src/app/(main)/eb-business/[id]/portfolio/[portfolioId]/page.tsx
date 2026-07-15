@@ -96,7 +96,7 @@ export default function ManagePortfolioEventPage() {
     business.ownerEmail === user.email
   ));
 
-  const goBack = (fallback = `/biz-hub/${params.id}`) => {
+  const goBack = (fallback = `/eb-business/${params.id}`) => {
     const returnTo = searchParams.get("returnTo");
     if (returnTo?.startsWith("/")) {
       router.push(returnTo);
@@ -428,7 +428,7 @@ export default function ManagePortfolioEventPage() {
       const nextPortfolioEvents = (business.portfolioEvents || []).filter((item) => item.id !== portfolio.id);
       const success = await updateBusiness(business.id, { portfolioEvents: nextPortfolioEvents });
       if (success) {
-        router.replace(`/biz-hub/${business.id}?tab=Portfolio`);
+        router.replace(`/eb-business/${business.id}?tab=Portfolio`);
         return;
       }
       setMessage("Could not delete portfolio event.");
@@ -481,7 +481,7 @@ export default function ManagePortfolioEventPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#050505] px-4 text-center text-white">
         <h1 className="text-2xl font-black">You do not have access to manage this portfolio.</h1>
-        <button onClick={() => router.replace("/marketplace")} className="mt-5 rounded-full bg-indigo-400 px-5 py-3 text-sm font-black text-[#101010]">Go to EB Network</button>
+        <button onClick={() => router.replace("/eb-network")} className="mt-5 rounded-full bg-indigo-400 px-5 py-3 text-sm font-black text-[#101010]">Go to EB Network</button>
       </div>
     );
   }
@@ -490,7 +490,7 @@ export default function ManagePortfolioEventPage() {
     <div className="min-h-screen bg-[#050505] px-4 py-6 text-white sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
         <header className="flex items-center justify-between gap-4">
-          <button onClick={() => goBack(`/biz-hub/${business.id}?tab=Portfolio`)} className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-900 text-slate-200">
+          <button onClick={() => goBack(`/eb-business/${business.id}?tab=Portfolio`)} className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-900 text-slate-200">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="min-w-0 flex-1 text-center">
