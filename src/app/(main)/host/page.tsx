@@ -1254,13 +1254,23 @@ function DashboardContent() {
             .channel(`host-photos-event-${selectedEventId}-${Math.random().toString(36).slice(2, 8)}`)
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'photos', filter: `event_id=eq.${selectedEventId}` },
+                { event: '*', schema: 'public', table: 'photos' },
                 (payload) => {
                     console.log(`[Dashboard Realtime] Received DB change:`, payload);
                     
                     if (payload.eventType === 'INSERT') {
-                        fetchEventPhotos();
+                        // For INSERT events, event_id is always present in the payload
+                        if (payload.new.event_id === selectedEventId) {
+                            fetchEventPhotos();
+                        }
                     } else if (payload.eventType === 'UPDATE') {
+                        // For UPDATE events under default replica identity, event_id might be undefined.
+                        // We check if it belongs to the current event using our local state.
+                        const isOurPhoto = currentEventPhotos.some(p => p.id === payload.new.id) ||
+                                           uploadQueue.some(qItem => qItem.photoId === payload.new.id);
+                        
+                        if (!isOurPhoto) return;
+
                         setCurrentEventPhotos(prev => prev.map(p => {
                             if (p.id === payload.new.id) {
                                 return {
