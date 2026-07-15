@@ -1871,10 +1871,8 @@ function DashboardContent() {
                     };
 
                     chunkBuffer.push({ photo, queueItemId });
-                    // Flush the buffer if it hits 10 photos
-                    if (chunkBuffer.length >= 10) {
-                        await flushChunkBuffer();
-                    }
+                    // Flush immediately after each upload so resizing starts right away
+                    await flushChunkBuffer();
 
                     // Mark as processing (saving metadata)
                     setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "processing", progress: 90 } : item));
