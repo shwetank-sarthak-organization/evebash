@@ -119,7 +119,8 @@ export async function GET(request: NextRequest) {
         // B. Thumbnail does not exist. We need to download original and regenerate
         console.log(`[Sweeper] Thumbnail missing for ${storageKey}. Downloading original from B2 file API...`);
         const backblazeAuth = await getCachedBackblazeAuth();
-        const downloadUrl = `${backblazeAuth.downloadUrl}/file/${requireEnv("B2_BUCKET_NAME")}/${storageKey}`;
+        const encodedStorageKey = storageKey.split('/').map(encodeURIComponent).join('/');
+        const downloadUrl = `${backblazeAuth.downloadUrl}/file/${requireEnv("B2_BUCKET_NAME")}/${encodedStorageKey}`;
         const downloadResponse = await fetch(downloadUrl, {
           headers: { Authorization: backblazeAuth.authorizationToken }
         });
