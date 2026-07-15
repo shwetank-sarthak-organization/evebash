@@ -84,11 +84,10 @@ export async function publishResizeTask(options: QStashPublishOptions): Promise<
     const headers: Record<string, string> = {
       "Authorization": `Bearer ${qstashToken}`,
       "Content-Type": "application/json",
+      "Upstash-Queue": "resize-queue",
     };
 
-    // Use /v2/enqueue/{queueName}/{url} — this is the correct way to publish to a queue.
-    // /v2/publish/ with Upstash-Queue header does NOT enforce queue parallelism limits.
-    const response = await fetch(`https://qstash-us-east-1.upstash.io/v2/enqueue/resize-queue/${targetUrl}`, {
+    const response = await fetch(`https://qstash-us-east-1.upstash.io/v2/publish/${targetUrl}`, {
       method: "POST",
       headers,
       body: JSON.stringify({ storageKey: options.storageKey }),
@@ -100,7 +99,7 @@ export async function publishResizeTask(options: QStashPublishOptions): Promise<
     }
 
     const result = await response.json();
-    console.log(`[QStash] Successfully enqueued resize task. Message ID: ${result.messageId}`);
+    console.log(`[QStash] Successfully published resize task. Message ID: ${result.messageId}`);
     return true;
   } catch (error) {
     console.error("[QStash] Error publishing resize task:", error);
