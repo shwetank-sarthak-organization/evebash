@@ -616,6 +616,7 @@ function DashboardContent() {
         progress: number; // 0 to 100
         error?: string;
         mediaType?: "photo" | "video";
+        storageKey?: string;
     }
     const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
     const [isUploadPanelOpen, setIsUploadPanelOpen] = useState(false);
@@ -1271,6 +1272,14 @@ function DashboardContent() {
                             }
                             return p;
                         }));
+
+                        if (payload.new.thumbnail_url) {
+                            setUploadQueue(prev => prev.map(qItem => 
+                                qItem.storageKey === payload.new.storage_key 
+                                    ? { ...qItem, status: "success", progress: 100 } 
+                                    : qItem
+                            ));
+                        }
                     } else if (payload.eventType === 'DELETE') {
                         setCurrentEventPhotos(prev => prev.filter(p => p.id !== payload.old.id));
                     }
@@ -1809,10 +1818,17 @@ function DashboardContent() {
                     });
                     if (res.ok) {
                         const itemIds = new Set(itemsToFlush.map(item => item.queueItemId));
-                        setUploadQueue(prev => prev.map(qItem => 
-                            itemIds.has(qItem.id) ? { ...qItem, status: "success", progress: 100 } : qItem
-                        ));
-                        fetchEventPhotos();
+                        setUploadQueue(prev => prev.map(qItem => {
+                            if (itemIds.has(qItem.id)) {
+                                const isVideo = qItem.mediaType === "video";
+                                return { 
+                                    ...qItem, 
+                                    status: isVideo ? "success" : "processing", 
+                                    progress: isVideo ? 100 : 90 
+                                };
+                            }
+                            return qItem;
+                        }));
                     } else {
                         const itemIds = new Set(itemsToFlush.map(item => item.queueItemId));
                         setUploadQueue(prev => prev.map(qItem => 
@@ -1870,9 +1886,16 @@ function DashboardContent() {
                         resourceType: galleryMediaTab === "videos" ? "video" : "image"
                     };
 
+                    // Store storageKey in the queue item so Realtime updates can map to it
+                    setUploadQueue(prev => prev.map(item => 
+                        item.id === queueItemId 
+                            ? { ...item, storageKey: uploadResult.publicId } 
+                            : item
+                    ));
+
                     chunkBuffer.push({ photo, queueItemId });
-                    // Flush immediately after each upload so resizing starts right away
-                    await flushChunkBuffer();
+                    // Flush immediately after each upload so resizing starts right away (non-blocking)
+                    flushChunkBuffer();
 
                     // Store for background indexing
                     uploadResults.push({ file, photo });
@@ -1886,7 +1909,7 @@ function DashboardContent() {
                     
                     // If this is the absolute last photo of the entire batch to complete (success or fail), flush any remaining items
                     if (completedCount === selectedFiles.length) {
-                        await flushChunkBuffer();
+                        flushChunkBuffer();
                     }
                     
                     // Process next file in the queue
