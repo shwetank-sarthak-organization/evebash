@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { publishResizeTask } from "@/lib/qstash";
+import { publishResizeTask, publishDelayedModalTrigger } from "@/lib/qstash";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -186,6 +186,14 @@ export async function POST(request: NextRequest) {
         for (const photo of modalPayloadArray) {
           publishResizeTask({ storageKey: photo.storage_key, origin: request.nextUrl.origin }).catch((err) => {
             console.error(`[SavePhotoBatch] Error publishing resize task for ${photo.storage_key}:`, err);
+          });
+        }
+
+        // Schedule the delayed modal batch trigger (runs 5m later, safely deduplicated per event)
+        if (firstEventId) {
+          console.log(`[SavePhotoBatch] Scheduling delayed modal trigger for event ${firstEventId}`);
+          publishDelayedModalTrigger(firstEventId, request.nextUrl.origin).catch((err) => {
+            console.error(`[SavePhotoBatch] Error scheduling delayed modal trigger:`, err);
           });
         }
       });
