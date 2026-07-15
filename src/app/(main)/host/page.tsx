@@ -1310,12 +1310,14 @@ function DashboardContent() {
                             if (!exists) {
                                 const queueItem = uploadQueueRef.current.find(q => q.photoId === payload.new.id);
                                 if (queueItem) {
+                                    const mediaDomain = process.env.NEXT_PUBLIC_MEDIA_DOMAIN || 'media.evebash.com';
+                                    const resolvedStorageKey = payload.new.storage_key || queueItem.storageKey || "";
                                     const completedPhoto: Photo = {
                                         id: payload.new.id,
                                         eventId: selectedEventId,
-                                        storageKey: payload.new.storage_key || queueItem.storageKey || "",
-                                        url: payload.new.url,
-                                        thumbnailUrl: payload.new.thumbnail_url,
+                                        storageKey: resolvedStorageKey,
+                                        url: payload.new.url || `https://${mediaDomain}/${resolvedStorageKey}`,
+                                        thumbnailUrl: payload.new.thumbnail_url ?? `https://${mediaDomain}/${resolvedStorageKey}-thumbnail.webp`,
                                         width: payload.new.width,
                                         height: payload.new.height,
                                         uploadedAt: payload.new.uploaded_at || new Date().toISOString(),
@@ -1332,7 +1334,7 @@ function DashboardContent() {
                                 if (p.id === payload.new.id) {
                                     return {
                                         ...p,
-                                        thumbnailUrl: payload.new.thumbnail_url,
+                                        thumbnailUrl: payload.new.thumbnail_url ?? p.thumbnailUrl,
                                         width: payload.new.width || p.width,
                                         height: payload.new.height || p.height,
                                         url: payload.new.url || p.url,
