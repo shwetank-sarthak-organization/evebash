@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense, useTransition, useRef } from "react";
+import React, { useState, useEffect, Suspense, useTransition, useRef, useCallback } from "react";
 import LoadingScreen from "@/components/LoadingScreen";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -99,12 +99,14 @@ const GridMediaCell = ({
     photo,
     gridSrc,
     isVideo,
-    shouldBlurMediaForPlan
+    shouldBlurMediaForPlan,
+    onThumbnailLoaded
 }: {
     photo: Photo;
     gridSrc: string;
     isVideo: boolean;
     shouldBlurMediaForPlan: boolean;
+    onThumbnailLoaded?: (photoId: string, storageKey: string) => void;
 }) => {
     const [loaded, setLoaded] = useState(!!photo.thumbnailUrl);
     const [retryCount, setRetryCount] = useState(0);
@@ -112,8 +114,11 @@ const GridMediaCell = ({
     useEffect(() => {
         if (photo.thumbnailUrl) {
             setLoaded(true);
+            if (onThumbnailLoaded) {
+                onThumbnailLoaded(photo.id, photo.storageKey || "");
+            }
         }
-    }, [photo.thumbnailUrl]);
+    }, [photo.thumbnailUrl, onThumbnailLoaded]);
 
     if (isVideo) {
         return (
@@ -153,7 +158,12 @@ const GridMediaCell = ({
                     shouldBlurMediaForPlan && "blur-[1.5px] scale-[1.02]",
                     !loaded && "invisible"
                 )}
-                onLoad={() => setLoaded(true)}
+                onLoad={() => {
+                    setLoaded(true);
+                    if (onThumbnailLoaded) {
+                        onThumbnailLoaded(photo.id, photo.storageKey || "");
+                    }
+                }}
                 onError={() => {
                     if (!photo.thumbnailUrl) {
                         setTimeout(() => {
@@ -742,6 +752,14 @@ function DashboardContent() {
     useEffect(() => {
         uploadQueueRef.current = uploadQueue;
     }, [uploadQueue]);
+
+    const handleThumbnailLoaded = useCallback((photoId: string, storageKey: string) => {
+        setUploadQueue(prev => prev.map(qItem => 
+            (qItem.photoId === photoId || qItem.storageKey === storageKey) && qItem.status !== "success"
+                ? { ...qItem, status: "success", progress: 100 } 
+                : qItem
+        ));
+    }, []);
     const [totalStorage, setTotalStorage] = useState<number>(0);
     const [totalMainEvents, setTotalMainEvents] = useState<number>(0);
     const [workspaceOwner, setWorkspaceOwner] = useState<any | null>(null);
@@ -4737,7 +4755,7 @@ function DashboardContent() {
                                                                 photo={photo}
                                                                 gridSrc={gridSrc}
                                                                 isVideo={isVideo}
-                                                                shouldBlurMediaForPlan={shouldBlurMediaForPlan}
+                                                                shouldBlurMediaForPlan={shouldBlurMediaForPlan} onThumbnailLoaded={handleThumbnailLoaded}
                                                             />
                                                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
                                                             {shouldBlurMediaForPlan && (
@@ -4972,6 +4990,7 @@ function DashboardContent() {
                                                                                     gridSrc={gridSrc}
                                                                                     isVideo={isVideo}
                                                                                     shouldBlurMediaForPlan={shouldBlurMediaForPlan}
+                                                                                    onThumbnailLoaded={handleThumbnailLoaded}
                                                                                 />
                                                                                 {shouldBlurMediaForPlan && (
                                                                                     <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 w-[calc(100%-1rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-amber-300/50 bg-slate-950/95 px-2 py-2 text-center text-[9px] font-black uppercase leading-4 tracking-[0.08em] text-amber-100 shadow-2xl shadow-black/50 backdrop-blur-md">
