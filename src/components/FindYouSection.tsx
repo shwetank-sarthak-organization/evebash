@@ -1,12 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import * as faceapi from "face-api.js";
+import React, { useState, useRef } from "react";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
-import { getEventFaceEncodings, FaceRecord } from "@/lib/database";
 import { LightboxTheme } from "@/components/ui/Lightbox";
 import { Camera, FolderOpen, Loader2, Search, Sparkles } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 
 interface FindYouSectionProps {
     eventId: string;
@@ -18,35 +15,16 @@ interface FindYouSectionProps {
 }
 
 export function FindYouSection({ eventId, legacyId, parentId, eventSlug, lightboxTheme, subEventIds }: FindYouSectionProps) {
-    const [modelsLoaded, setModelsLoaded] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [matchedPhotos, setMatchedPhotos] = useState<any[]>([]);
-    const [statusMessage, setStatusMessage] = useState("Loading AI Models...");
+    const [statusMessage, setStatusMessage] = useState("");
     const [selfieUrl, setSelfieUrl] = useState<string | null>(null);
     const [hasSearched, setHasSearched] = useState(false);
+    const modelsLoaded = true; // No client-side models to load now
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const cameraInputRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        const loadModels = async () => {
-            try {
-                const MODEL_URL = "/models";
-                await Promise.all([
-                    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-                ]);
-                setModelsLoaded(true);
-                setStatusMessage("Ready to find you!");
-            } catch (error) {
-                console.error("Error loading models:", error);
-                setStatusMessage("Error loading AI models. Please refresh.");
-            }
-        };
-        loadModels();
-    }, []);
 
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files?.length) return;
@@ -55,121 +33,81 @@ export function FindYouSection({ eventId, legacyId, parentId, eventSlug, lightbo
         setUploading(true);
         setMatchedPhotos([]);
         setHasSearched(false);
-        setStatusMessage("Analyzing your selfie...");
+        setStatusMessage("Optimizing selfie & searching photos...");
 
         const imageUrl = URL.createObjectURL(file);
         setSelfieUrl(imageUrl);
 
-        try {
-            // 1. Detect face in selfie
-            const selfieImage = await faceapi.fetchImage(imageUrl);
-            const selfieDetection = await faceapi
-                .detectSingleFace(selfieImage, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-                .withFaceLandmarks()
-                .withFaceDescriptor();
-
-            if (!selfieDetection) {
-                setStatusMessage("No face detected. Please use a clearer, well-lit selfie.");
-                setUploading(false);
-                return;
-            }
-
+        // Convert file to base64
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const base64Selfie = reader.result as string;
             setProcessing(true);
-            setStatusMessage("Searching this event's photos...");
 
-            // 2. Fetch ONLY this event's face encodings (event-scoped)
-            const eventIds = [eventId];
-            if (parentId) eventIds.push(parentId);
-            if (subEventIds && subEventIds.length > 0) eventIds.push(...subEventIds);
-            const legacyIds = legacyId ? [legacyId] : [];
+            try {
+                const eventIds = [eventId];
+                if (parentId) eventIds.push(parentId);
+                if (subEventIds && subEventIds.length > 0) eventIds.push(...subEventIds);
+                if (legacyId) eventIds.push(legacyId);
 
-            const indexedFaces = await getEventFaceEncodings(eventIds, legacyIds);
+                const response = await fetch("/api/find-you", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        selfieBase64: base64Selfie,
+                        eventIds: eventIds
+                    })
+                });
 
-            if (indexedFaces.length === 0) {
-                setStatusMessage("No indexed photos found for this event. Ask the organizer to run the Face Indexer.");
-                setProcessing(false);
+                if (!response.ok) {
+                    throw new Error(`Failed to search: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    setStatusMessage(data.error || "No face detected in selfie. Please try a clearer picture.");
+                    setHasSearched(true);
+                    return;
+                }
+
+                const matches = (data.matches || []).map((m: any) => {
+                    const mediaDomain = process.env.NEXT_PUBLIC_MEDIA_DOMAIN || 'media.evebash.com';
+                    const storageKey = m.storageKey || m.imageId || m.id;
+                    return {
+                        id: m.id || m.imageId,
+                        src: m.url || m.imageUrl,
+                        thumbnailUrl: m.thumbnailUrl || `https://${mediaDomain}/${storageKey}-thumbnail.webp`,
+                        previewUrl: m.previewUrl || `https://${mediaDomain}/${storageKey}-preview.webp`,
+                        width: m.width,
+                        height: m.height,
+                        alt: "Your photo",
+                        storageKey: storageKey,
+                        mediaType: m.mediaType || "photo",
+                        filename: `${storageKey.split('/').pop() || 'photo'}.${m.format || 'jpg'}`
+                    };
+                });
+
+                setMatchedPhotos(matches);
                 setHasSearched(true);
-                return;
-            }
-
-            // 3. Match faces with euclidean distance
-            const matches: FaceRecord[] = [];
-            const threshold = 0.6; // Updated to match backend dlib standard matching threshold (0.6)
-
-            for (const face of indexedFaces) {
-                const storedDescriptor = new Float32Array(face.descriptor);
-                const distance = faceapi.euclideanDistance(selfieDetection.descriptor, storedDescriptor);
-                if (distance < threshold) {
-                    matches.push(face);
+                
+                if (matches.length === 0) {
+                    setStatusMessage("No matching photos found. Try a clearer selfie facing forward!");
+                } else {
+                    setStatusMessage(`Found ${matches.length} photo${matches.length === 1 ? "" : "s"} of you! 🎉`);
                 }
+            } catch (error) {
+                console.error("Matching error:", error);
+                setStatusMessage("Something went wrong. Please try again.");
+            } finally {
+                setUploading(false);
+                setProcessing(false);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+                if (cameraInputRef.current) cameraInputRef.current.value = "";
             }
-
-            // Deduplicate by imageId
-            const uniqueMatches = Array.from(new Map(matches.map(item => [item.imageId, item])).values());
-
-            // 4. Fetch the full photos metadata for the matched image IDs to get original and thumbnail URLs
-            const matchedImageIds = uniqueMatches.map(m => m.imageId);
-            let photoMap = new Map();
-            
-            if (matchedImageIds.length > 0) {
-                const { data: matchedPhotosData, error: photosErr } = await supabase
-                    .from("photos")
-                    .select("id, url, thumbnail_url, width, height, storage_key, media_type, resource_type, format")
-                    .in("id", matchedImageIds);
-
-                if (!photosErr && matchedPhotosData) {
-                    photoMap = new Map(matchedPhotosData.map(p => [p.id, p]));
-                } else if (photosErr) {
-                    console.error("Failed to fetch full photo metadata for matches:", photosErr);
-                }
-            }
-
-            const resolvedMatches = uniqueMatches.map(m => {
-                const photo = photoMap.get(m.imageId);
-                
-                const mediaDomain = process.env.NEXT_PUBLIC_MEDIA_DOMAIN || 'media.evebash.com';
-                const originalUrl = photo?.url || m.imageUrl;
-                const storageKey = photo?.storage_key || m.imageId;
-                
-                // Use stored thumbnail URL or fallback to formatting B2 URL
-                const thumbnailUrl = photo?.thumbnail_url || `https://${mediaDomain}/${storageKey}-thumbnail.webp`;
-                
-                // Format preview B2 URL
-                const previewUrl = `https://${mediaDomain}/${storageKey}-preview.webp`;
-
-                return {
-                    id: m.imageId,
-                    src: originalUrl, // Original high-res for download
-                    thumbnailUrl: thumbnailUrl, // Grid thumbnail (-thumbnail.webp)
-                    previewUrl: previewUrl, // Preview lightbox (-preview.webp)
-                    width: photo?.width || m.width || undefined,
-                    height: photo?.height || m.height || undefined,
-                    alt: "Your photo",
-                    storageKey: storageKey,
-                    mediaType: photo?.media_type || "photo",
-                    filename: `${storageKey.split('/').pop() || 'photo'}.${photo?.format || 'jpg'}`
-                };
-            });
-
-            setMatchedPhotos(resolvedMatches);
-
-            setHasSearched(true);
-            if (uniqueMatches.length === 0) {
-                setStatusMessage("No matching photos found. Try a clearer selfie facing forward!");
-            } else {
-                setStatusMessage(`Found ${uniqueMatches.length} photo${uniqueMatches.length === 1 ? "" : "s"} of you! 🎉`);
-            }
-
-        } catch (error) {
-            console.error("Matching error:", error);
-            setStatusMessage("Something went wrong. Please try again.");
-        } finally {
-            setUploading(false);
-            setProcessing(false);
-            // Reset file inputs so same file can trigger onChange again
-            if (fileInputRef.current) fileInputRef.current.value = "";
-            if (cameraInputRef.current) cameraInputRef.current.value = "";
-        }
+        };
+        
+        reader.readAsDataURL(file);
     };
 
     const isBusy = uploading || processing;
