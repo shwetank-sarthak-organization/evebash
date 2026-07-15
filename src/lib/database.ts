@@ -2248,7 +2248,12 @@ export async function deleteEvent(eventId: string): Promise<boolean> {
         const { data: photos } = await supabase.from('photos').select('id').eq('event_id', eventId);
         if (photos && photos.length > 0) {
             console.log(`[deleteEvent] Cleaning up B2 files for ${photos.length} photos under event ${eventId}`);
-            await Promise.all(photos.map(photo => deletePhoto(photo.id)));
+            // Run deletions in chunks of 4 to prevent network socket exhaustion and 502 Bad Gateway timeouts on the server
+            const chunkSize = 4;
+            for (let i = 0; i < photos.length; i += chunkSize) {
+                const chunk = photos.slice(i, i + chunkSize);
+                await Promise.all(chunk.map(photo => deletePhoto(photo.id)));
+            }
         }
 
         // 3. Explicitly delete facial indexes associated with this event (for guest privacy)
