@@ -45,27 +45,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: "No pending photos" });
     }
 
-    // Cost Optimization: "Size OR Time" Logic
-    const BATCH_SIZE_THRESHOLD = 50;
-    const MAX_WAIT_TIME_MS = 5 * 60 * 1000; // 5 minutes
-
-    const now = new Date().getTime();
-    const oldestPhoto = pendingPhotos.reduce((oldest, p) => {
-      const pTime = new Date(p.uploaded_at).getTime();
-      const oldestTime = new Date(oldest.uploaded_at).getTime();
-      return pTime < oldestTime ? p : oldest;
-    }, pendingPhotos[0]);
-
-    const oldestAgeMs = now - new Date(oldestPhoto.uploaded_at).getTime();
-
-    const isImmediate = request.nextUrl.searchParams.get("immediate") === "true";
-
-    if (!isImmediate && pendingPhotos.length < BATCH_SIZE_THRESHOLD && oldestAgeMs < MAX_WAIT_TIME_MS) {
-      console.log(`[Modal Batcher] Only ${pendingPhotos.length} photos ready. Oldest is ${Math.round(oldestAgeMs/1000)}s old. Waiting for ${BATCH_SIZE_THRESHOLD} photos or 5 mins to save Modal costs.`);
-      return NextResponse.json({ success: true, message: "Waiting for larger batch to optimize costs" });
-    }
-
-    console.log(`[Modal Batcher] Found ${pendingPhotos.length} photos ready for face indexing (Cost Optimization Criteria Met).`);
+    // Process all pending photos that are ready (have finished resizing)
+    console.log(`[Modal Batcher] Found ${pendingPhotos.length} photos ready for face indexing. Triggering Modal batch process...`);
 
     // 2. Format the payload for Modal with necessary keys (id, storage_key, event_id, url)
     const modalPhotos = pendingPhotos.map(p => {
