@@ -95,7 +95,79 @@ import { deleteGuestAction, updateGuestPermissionsAction, updateGuestStatusActio
 
 
 import { Lightbox } from "@/components/ui/Lightbox";
+const GridMediaCell = ({
+    photo,
+    gridSrc,
+    isVideo,
+    shouldBlurMediaForPlan
+}: {
+    photo: Photo;
+    gridSrc: string;
+    isVideo: boolean;
+    shouldBlurMediaForPlan: boolean;
+}) => {
+    const [loaded, setLoaded] = useState(!!photo.thumbnailUrl);
+    const [retryCount, setRetryCount] = useState(0);
+
+    useEffect(() => {
+        if (photo.thumbnailUrl) {
+            setLoaded(true);
+        }
+    }, [photo.thumbnailUrl]);
+
+    if (isVideo) {
+        return (
+            <div className="relative h-full w-full bg-slate-950">
+                <video
+                    src={photo.url}
+                    className={cn(
+                        "h-full w-full object-cover transition-all duration-300",
+                        shouldBlurMediaForPlan && "blur-[1.5px] scale-[1.02]"
+                    )}
+                    muted
+                    playsInline
+                    preload="metadata"
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/70 bg-slate-950/80 text-amber-300 shadow-xl">
+                        <Play className="h-5 w-5 fill-current" />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="h-full w-full relative">
+            {!loaded && (
+                <div className="absolute inset-0 z-10 h-full w-full animate-pulse bg-slate-800/80 flex flex-col items-center justify-center space-y-1">
+                    <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+                    <span className="text-[8px] uppercase font-bold tracking-widest text-slate-500">Processing</span>
+                </div>
+            )}
+            <img
+                src={loaded ? gridSrc : `${photo.url}-thumbnail.webp?retry=${retryCount}`}
+                alt="Gallery item"
+                className={cn(
+                    "w-full h-full object-cover transition-all duration-500 group-hover:scale-105",
+                    shouldBlurMediaForPlan && "blur-[1.5px] scale-[1.02]",
+                    !loaded && "invisible"
+                )}
+                onLoad={() => setLoaded(true)}
+                onError={() => {
+                    if (!photo.thumbnailUrl) {
+                        setTimeout(() => {
+                            setRetryCount(prev => prev + 1);
+                        }, 2500);
+                    }
+                }}
+            />
+        </div>
+    );
+};
+
 import { resolveEventCoverImage } from "@/lib/eventCovers";
+
 
 const PLACEHOLDER_IMAGES = [
     "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop",
@@ -1888,6 +1960,14 @@ function DashboardContent() {
                         })
                     });
                     if (res.ok) {
+                        // Immediately prepend new photos to grid state so they render instantly
+                        setCurrentEventPhotos(prev => {
+                            const newPhotos = itemsToFlush
+                                .map(item => item.photo)
+                                .filter(p => !prev.some(existing => existing.id === p.id));
+                            return [...newPhotos, ...prev];
+                        });
+
                         const itemIds = new Set(itemsToFlush.map(item => item.queueItemId));
                         setUploadQueue(prev => prev.map(qItem => {
                             if (itemIds.has(qItem.id)) {
@@ -4653,39 +4733,12 @@ function DashboardContent() {
                                                     >
                                                         {/* Inner Clipping Container for Photo */}
                                                         <div className="absolute inset-0 overflow-hidden">
-                                                            {isVideo ? (
-                                                                <>
-                                                                    <video
-                                                                        src={photo.url}
-                                                                        className={cn(
-                                                                            "h-full w-full object-cover transition-all duration-300",
-                                                                            shouldBlurMediaForPlan && "blur-[1.5px] scale-[1.02]"
-                                                                        )}
-                                                                        muted
-                                                                        playsInline
-                                                                        preload="metadata"
-                                                                    />
-                                                                    <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20">
-                                                                        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-amber-300/70 bg-slate-950/80 text-amber-300 shadow-xl">
-                                                                            <Play className="h-5 w-5 fill-current" />
-                                                                        </div>
-                                                                    </div>
-                                                                </>
-                                                            ) : !photo.thumbnailUrl ? (
-                                                                <div className="h-full w-full animate-pulse bg-slate-800/80 flex flex-col items-center justify-center space-y-2">
-                                                                    <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
-                                                                    <span className="text-[9px] uppercase font-bold tracking-widest text-slate-500">Processing</span>
-                                                                </div>
-                                                            ) : (
-                                                                <img
-                                                                    src={gridSrc}
-                                                                    alt="Gallery item"
-                                                                    className={cn(
-                                                                        "w-full h-full object-cover transition-all duration-500 group-hover:scale-105",
-                                                                        shouldBlurMediaForPlan && "blur-[1.5px] scale-[1.02]"
-                                                                    )}
-                                                                />
-                                                            )}
+                                                            <GridMediaCell 
+                                                                photo={photo}
+                                                                gridSrc={gridSrc}
+                                                                isVideo={isVideo}
+                                                                shouldBlurMediaForPlan={shouldBlurMediaForPlan}
+                                                            />
                                                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
                                                             {shouldBlurMediaForPlan && (
                                                                 <div className="pointer-events-none absolute left-1/2 top-14 z-20 w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-2xl border border-amber-300/50 bg-slate-950/95 px-3 py-2 text-center text-[10px] font-black uppercase leading-4 tracking-[0.08em] text-amber-100 shadow-2xl shadow-black/50 backdrop-blur-md">
@@ -4914,39 +4967,12 @@ function DashboardContent() {
                                                                                     });
                                                                                 }}
                                                                             >
-                                                                                {isVideo ? (
-                                                                                    <div className="relative h-full w-full bg-slate-950">
-                                                                                        <video
-                                                                                            src={photo.url}
-                                                                                            className={cn(
-                                                                                                "h-full w-full object-cover transition-all duration-300",
-                                                                                                shouldBlurMediaForPlan && "blur-[1.5px] scale-[1.02]"
-                                                                                            )}
-                                                                                            muted
-                                                                                            playsInline
-                                                                                            preload="metadata"
-                                                                                        />
-                                                                                        <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20">
-                                                                                            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/70 bg-slate-950/80 text-amber-300 shadow-xl">
-                                                                                                <Play className="h-5 w-5 fill-current" />
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                ) : !photo.thumbnailUrl ? (
-                                                                                    <div className="h-full w-full animate-pulse bg-slate-800/80 flex flex-col items-center justify-center space-y-1">
-                                                                                        <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
-                                                                                        <span className="text-[8px] uppercase font-bold tracking-widest text-slate-500">Processing</span>
-                                                                                    </div>
-                                                                                ) : (
-                                                                                    <img
-                                                                                        src={gridSrc}
-                                                                                        alt=""
-                                                                                        className={cn(
-                                                                                            "w-full h-full object-cover transition-all duration-300",
-                                                                                            shouldBlurMediaForPlan && "blur-[1.5px] scale-[1.02]"
-                                                                                        )}
-                                                                                    />
-                                                                                )}
+                                                                                <GridMediaCell 
+                                                                                    photo={photo}
+                                                                                    gridSrc={gridSrc}
+                                                                                    isVideo={isVideo}
+                                                                                    shouldBlurMediaForPlan={shouldBlurMediaForPlan}
+                                                                                />
                                                                                 {shouldBlurMediaForPlan && (
                                                                                     <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 w-[calc(100%-1rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-amber-300/50 bg-slate-950/95 px-2 py-2 text-center text-[9px] font-black uppercase leading-4 tracking-[0.08em] text-amber-100 shadow-2xl shadow-black/50 backdrop-blur-md">
                                                                                         Plan expired<br />
