@@ -132,7 +132,10 @@ def process_single_photo(photo_data: dict):
                 model="/root/face_detection_yunet_2023mar.onnx",
                 config="",
                 input_size=(w, h),
-                score_threshold=0.7,
+                # Lowered from 0.7 → 0.5 to detect difficult faces:
+                # profile angles, motion blur, low-light, small faces in group shots.
+                # This is DETECTION confidence — completely separate from MATCHING threshold (0.565).
+                score_threshold=0.5,
                 nms_threshold=0.3,
                 top_k=5000
             )
@@ -148,11 +151,24 @@ def process_single_photo(photo_data: dict):
                     left = max(0, x)
                     face_locations.append((top, right, bottom, left))
             print(f"[{photo_id}] YuNet found {len(face_locations)} face locations")
+            
+            # FIX: If YuNet finds 0 faces (doesn't crash but is uncertain), fall back to HOG.
+            # Previously HOG only ran when YuNet threw an exception — this meant photos with
+            # difficult faces (profile, dark, blurry) were silently skipped with 0 detections.
+            if len(face_locations) == 0:
+                print(f"[{photo_id}] YuNet returned 0 faces — running HOG as genuine fallback")
+                fr_image_hog = np.array(ai_img)
+                hog_locations = face_recognition.face_locations(fr_image_hog, model='hog')
+                if hog_locations:
+                    face_locations = hog_locations
+                    print(f"[{photo_id}] HOG genuine fallback found {len(face_locations)} additional face locations")
+                else:
+                    print(f"[{photo_id}] HOG also found 0 faces — photo likely has no detectable face")
         except Exception as yunet_err:
-            print(f"[{photo_id}] YuNet failed ({yunet_err}), falling back to HOG")
+            print(f"[{photo_id}] YuNet crashed ({yunet_err}), falling back to HOG")
             fr_image = np.array(ai_img)
             face_locations = face_recognition.face_locations(fr_image, model='hog')
-            print(f"[{photo_id}] HOG fallback found {len(face_locations)} face locations")
+            print(f"[{photo_id}] HOG crash-fallback found {len(face_locations)} face locations")
             
         fr_image = np.array(ai_img)
         # num_jitters=5: compute embedding 5x with perturbations and average — much more stable
@@ -174,10 +190,17 @@ def process_single_photo(photo_data: dict):
                 })
             
             supabase.table("faces").insert(face_records).execute()
-            
-        # 6. Mark photo as indexed in Supabase
-        print(f"[{photo_id}] Marking photo as indexed in database...")
-        supabase.table("photos").update({"face_indexed": True}).eq("id", photo_id).execute()
+        
+        # 6. Mark face_indexed status in Supabase.
+        # CRITICAL FIX: Only mark face_indexed=True when at least one face was successfully stored.
+        # Previously this was unconditional — photos with 0 faces were permanently marked as indexed
+        # and could never be sent to Modal again, silently dropping valid faces forever.
+        # Now: 0 faces → stays face_indexed=False → will be retried on the next batch trigger.
+        if face_encodings:
+            print(f"[{photo_id}] {len(face_encodings)} face(s) stored. Marking face_indexed=True.")
+            supabase.table("photos").update({"face_indexed": True}).eq("id", photo_id).execute()
+        else:
+            print(f"[{photo_id}] 0 faces detected/encoded. Leaving face_indexed=False for future retry.")
         
         # 7. Log infrastructure cost
         duration = time.time() - start_time

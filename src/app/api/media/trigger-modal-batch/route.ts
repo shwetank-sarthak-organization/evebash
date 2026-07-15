@@ -14,6 +14,10 @@ function requireEnv(name: string) {
 
 export async function POST(request: NextRequest) {
   try {
+    const body = await request.json().catch(() => ({}));
+    // eventId is required — the dedup key in qstash.ts is per-event, and now the query is too.
+    const eventId = body.eventId as string | undefined;
+
     const supabaseAdmin = createClient(
       requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
       requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
@@ -25,15 +29,26 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    // 1. Fetch photos that have a preview (resizing is complete) but haven't been sent to Modal
-    // Note: This requires a `face_indexed` boolean column on the `photos` table in Supabase.
-    // Default value should be FALSE.
-    const { data: pendingPhotos, error } = await supabaseAdmin
+    // 1. Fetch photos that have a preview (resizing is complete) but haven't been face-indexed yet.
+    //    CRITICAL: Filter by event_id so we ONLY process photos from the event that just uploaded.
+    //    Without this filter, old failed photos from other events pollute the batch and consume
+    //    Modal capacity that should have gone to the new photos.
+    let query = supabaseAdmin
       .from("photos")
       .select("id, url, storage_key, event_id, thumbnail_url, uploaded_at")
       .not("thumbnail_url", "is", null) // Ensure resizing finished
       .eq("face_indexed", false)
       .eq("media_type", "photo"); // Only process photos, not videos
+
+    if (eventId) {
+      query = query.eq("event_id", eventId);
+      console.log(`[Modal Batcher] Triggered for event: ${eventId}`);
+    } else {
+      // Fallback: no event_id provided — process all pending (legacy behaviour, avoid if possible)
+      console.warn("[Modal Batcher] No eventId in request body — processing all pending photos globally. This may mix events.");
+    }
+
+    const { data: pendingPhotos, error } = await query;
 
     if (error) {
       console.error("[Modal Batcher] Error fetching pending photos:", error);
@@ -61,7 +76,7 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    // 3. Publish massive batch to Modal via QStash
+    // 3. Publish batch to Modal via QStash
     const success = await publishModalBatchTask(modalPhotos);
 
     if (!success) {
