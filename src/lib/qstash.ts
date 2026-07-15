@@ -84,7 +84,6 @@ export async function publishResizeTask(options: QStashPublishOptions): Promise<
     const headers: Record<string, string> = {
       "Authorization": `Bearer ${qstashToken}`,
       "Content-Type": "application/json",
-      "Upstash-Queue": "resize-queue",
     };
 
     const response = await fetch(`https://qstash-us-east-1.upstash.io/v2/publish/${targetUrl}`, {
