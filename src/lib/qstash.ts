@@ -133,7 +133,7 @@ export async function publishDelayedModalTrigger(eventId: string, origin?: strin
     const headers: Record<string, string> = {
       "Authorization": `Bearer ${qstashToken}`,
       "Content-Type": "application/json",
-      "Upstash-Delay": "30s",
+      "Upstash-Delay": "2m",
       "Upstash-Deduplication-Id": `modal-batch-trigger-${eventId}`
     };
 
