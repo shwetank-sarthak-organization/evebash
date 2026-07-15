@@ -617,6 +617,7 @@ function DashboardContent() {
         error?: string;
         mediaType?: "photo" | "video";
         storageKey?: string;
+        photoId?: string;
     }
     const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
     const [isUploadPanelOpen, setIsUploadPanelOpen] = useState(false);
@@ -1275,7 +1276,7 @@ function DashboardContent() {
 
                         if (payload.new.thumbnail_url) {
                             setUploadQueue(prev => prev.map(qItem => 
-                                qItem.storageKey === payload.new.storage_key 
+                                (qItem.photoId === payload.new.id || qItem.storageKey === payload.new.storage_key)
                                     ? { ...qItem, status: "success", progress: 100 } 
                                     : qItem
                             ));
@@ -1886,10 +1887,10 @@ function DashboardContent() {
                         resourceType: galleryMediaTab === "videos" ? "video" : "image"
                     };
 
-                    // Store storageKey in the queue item so Realtime updates can map to it
+                    // Store storageKey and photoId in the queue item so Realtime updates can map to it
                     setUploadQueue(prev => prev.map(item => 
                         item.id === queueItemId 
-                            ? { ...item, storageKey: uploadResult.publicId } 
+                            ? { ...item, storageKey: uploadResult.publicId, photoId: uniqueId } 
                             : item
                     ));
 
