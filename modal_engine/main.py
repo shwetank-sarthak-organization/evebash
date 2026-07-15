@@ -117,45 +117,15 @@ def process_single_photo(photo_data: dict):
                     
             return {"status": "error", "photo_id": photo_id, "error": "Preview missing. Image deleted from B2 and face recog aborted."}
             
-        # 4. Face Detection — use YuNet for fast CPU inference
-        import cv2
-        
-        # Convert PIL image to BGR numpy array for OpenCV
-        open_cv_image = np.array(ai_img)
-        open_cv_image = open_cv_image[:, :, ::-1].copy() # Convert RGB to BGR
-        h, w, _ = open_cv_image.shape
-        
-        print(f"[{photo_id}] Image shape for YuNet face detection: {open_cv_image.shape}")
-        
-        try:
-            detector = cv2.FaceDetectorYN.create(
-                model="/root/face_detection_yunet_2023mar.onnx",
-                config="",
-                input_size=(w, h),
-                score_threshold=0.5,
-                nms_threshold=0.3,
-                top_k=5000
-            )
-            _, faces = detector.detect(open_cv_image)
-            
-            face_locations = []
-            if faces is not None:
-                for face in faces:
-                    x, y, w_box, h_box = map(int, face[0:4])
-                    top = max(0, y)
-                    right = min(w, x + w_box)
-                    bottom = min(h, y + h_box)
-                    left = max(0, x)
-                    face_locations.append((top, right, bottom, left))
-            print(f"[{photo_id}] YuNet found {len(face_locations)} face locations")
-        except Exception as yunet_err:
-            print(f"[{photo_id}] YuNet failed ({yunet_err}), falling back to HOG")
-            fr_image = np.array(ai_img)
-            face_locations = face_recognition.face_locations(fr_image, model='hog')
-            print(f"[{photo_id}] HOG fallback found {len(face_locations)} face locations")
+        # 4. Face Detection — use HOG for highly precise human-only face detection (prevents false positives)
+        fr_image = np.array(ai_img)
+        face_locations = face_recognition.face_locations(fr_image, model='hog')
+        print(f"[{photo_id}] HOG found {len(face_locations)} face locations")
             
         fr_image = np.array(ai_img)
-        face_encodings = face_recognition.face_encodings(fr_image, face_locations)
+        # num_jitters=5: compute embedding 5x with perturbations and average — much more stable
+        # model="large": uses the more accurate 68-point landmark model vs the default "small" (5-point)
+        face_encodings = face_recognition.face_encodings(fr_image, face_locations, num_jitters=5, model="large")
         print(f"[{photo_id}] Face encodings computed: {len(face_encodings)}")
         
         # 5. Save face embeddings to Supabase
@@ -231,39 +201,15 @@ def find_matching_photos(request: dict):
         selfie_img = Image.open(io.BytesIO(selfie_bytes)).convert("RGB")
         selfie_arr = np.array(selfie_img)
         
-        # 2. Extract face encoding from selfie using YuNet (same detector used during indexing)
-        # This is much more accurate than the default HOG detector for selfies
-        import cv2
-        selfie_bgr = selfie_arr[:, :, ::-1].copy()  # RGB → BGR for OpenCV
-        sh, sw, _ = selfie_bgr.shape
-        
-        selfie_face_locations = []
-        try:
-            selfie_detector = cv2.FaceDetectorYN.create(
-                model="/root/face_detection_yunet_2023mar.onnx",
-                config="",
-                input_size=(sw, sh),
-                score_threshold=0.5,
-                nms_threshold=0.3,
-                top_k=10
-            )
-            _, selfie_faces = selfie_detector.detect(selfie_bgr)
-            if selfie_faces is not None:
-                for face in selfie_faces:
-                    x, y, w_box, h_box = map(int, face[0:4])
-                    selfie_face_locations.append((
-                        max(0, y), min(sw, x + w_box),
-                        min(sh, y + h_box), max(0, x)
-                    ))
-            print(f"[Selfie] YuNet detected {len(selfie_face_locations)} face(s) in selfie")
-        except Exception as yunet_err:
-            print(f"[Selfie] YuNet failed ({yunet_err}), falling back to HOG")
-            selfie_face_locations = face_recognition.face_locations(selfie_arr, model='hog')
+        # 2. Extract face encoding from selfie using dlib HOG (highly precise)
+        selfie_face_locations = face_recognition.face_locations(selfie_arr, model='hog')
+        print(f"[Selfie] HOG detected {len(selfie_face_locations)} face(s) in selfie")
         
         if not selfie_face_locations:
             return {"error": "No face detected in selfie", "matches": []}
         
-        selfie_encodings = face_recognition.face_encodings(selfie_arr, selfie_face_locations)
+        # Use large model + num_jitters=5 — must match exactly what was used during indexing
+        selfie_encodings = face_recognition.face_encodings(selfie_arr, selfie_face_locations, num_jitters=5, model="large")
         if not selfie_encodings:
             return {"error": "No face detected in selfie", "matches": []}
             
@@ -280,8 +226,8 @@ def find_matching_photos(request: dict):
         db_faces = response.data or []
         
         # 5. Compare descriptors
-        # 0.5 is stricter than the default 0.6 — eliminates false positives in group/wedding photos
-        THRESHOLD = 0.5
+        # 0.45 gives very high confidence matches only — eliminates false positives in group/wedding photos
+        THRESHOLD = 0.45
         matches_map = {}
         
         for face in db_faces:
