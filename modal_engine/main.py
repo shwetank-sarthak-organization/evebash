@@ -231,6 +231,11 @@ def find_matching_photos(request: dict):
         # 1. Decode and load selfie image
         selfie_bytes = base64.b64decode(selfie_base64)
         selfie_img = Image.open(io.BytesIO(selfie_bytes)).convert("RGB")
+        
+        # Apply EXIF orientation rotation so portrait selfies from mobile devices are upright
+        from PIL import ImageOps
+        selfie_img = ImageOps.exif_transpose(selfie_img)
+        
         selfie_arr = np.array(selfie_img)
         
         # 2. Extract face encoding from selfie using YuNet (score_threshold=0.7)
