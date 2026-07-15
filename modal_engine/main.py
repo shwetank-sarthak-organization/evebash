@@ -231,8 +231,39 @@ def find_matching_photos(request: dict):
         selfie_img = Image.open(io.BytesIO(selfie_bytes)).convert("RGB")
         selfie_arr = np.array(selfie_img)
         
-        # 2. Extract face encoding from selfie
-        selfie_encodings = face_recognition.face_encodings(selfie_arr)
+        # 2. Extract face encoding from selfie using YuNet (same detector used during indexing)
+        # This is much more accurate than the default HOG detector for selfies
+        import cv2
+        selfie_bgr = selfie_arr[:, :, ::-1].copy()  # RGB → BGR for OpenCV
+        sh, sw, _ = selfie_bgr.shape
+        
+        selfie_face_locations = []
+        try:
+            selfie_detector = cv2.FaceDetectorYN.create(
+                model="/root/face_detection_yunet_2023mar.onnx",
+                config="",
+                input_size=(sw, sh),
+                score_threshold=0.5,
+                nms_threshold=0.3,
+                top_k=10
+            )
+            _, selfie_faces = selfie_detector.detect(selfie_bgr)
+            if selfie_faces is not None:
+                for face in selfie_faces:
+                    x, y, w_box, h_box = map(int, face[0:4])
+                    selfie_face_locations.append((
+                        max(0, y), min(sw, x + w_box),
+                        min(sh, y + h_box), max(0, x)
+                    ))
+            print(f"[Selfie] YuNet detected {len(selfie_face_locations)} face(s) in selfie")
+        except Exception as yunet_err:
+            print(f"[Selfie] YuNet failed ({yunet_err}), falling back to HOG")
+            selfie_face_locations = face_recognition.face_locations(selfie_arr, model='hog')
+        
+        if not selfie_face_locations:
+            return {"error": "No face detected in selfie", "matches": []}
+        
+        selfie_encodings = face_recognition.face_encodings(selfie_arr, selfie_face_locations)
         if not selfie_encodings:
             return {"error": "No face detected in selfie", "matches": []}
             
@@ -249,7 +280,8 @@ def find_matching_photos(request: dict):
         db_faces = response.data or []
         
         # 5. Compare descriptors
-        THRESHOLD = 0.6
+        # 0.5 is stricter than the default 0.6 — eliminates false positives in group/wedding photos
+        THRESHOLD = 0.5
         matches_map = {}
         
         for face in db_faces:
