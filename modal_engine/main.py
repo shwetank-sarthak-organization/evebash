@@ -120,7 +120,7 @@ def process_single_photo(photo_data: dict):
             root="/root/.insightface",
             providers=["CPUExecutionProvider"]
         )
-        face_analysis.prepare(ctx_id=-1, det_size=(640, 640), det_thresh=0.4)
+        face_analysis.prepare(ctx_id=-1, det_size=(1280, 1280), det_thresh=0.4)
         
         # Get face predictions
         faces = face_analysis.get(img_bgr)
@@ -222,7 +222,7 @@ def find_matching_photos(request: dict):
             root="/root/.insightface",
             providers=["CPUExecutionProvider"]
         )
-        face_analysis.prepare(ctx_id=-1, det_size=(640, 640), det_thresh=0.5)
+        face_analysis.prepare(ctx_id=-1, det_size=(1280, 1280), det_thresh=0.5)
         
         selfie_faces = face_analysis.get(selfie_bgr)
         if not selfie_faces:

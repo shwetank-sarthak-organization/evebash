@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
 
     const previewBuffer = await sharp(bufferBytes)
       .rotate()
-      .resize({ width: 3000, fit: "inside", withoutEnlargement: true })
+      .resize({ width: 2000, fit: "inside", withoutEnlargement: true })
       .webp({ quality: 75 })
       .toBuffer();
 
