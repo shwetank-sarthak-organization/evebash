@@ -4,6 +4,9 @@ import io
 
 app = modal.App("wedding-media-engine")
 
+# Define the Modal image with system OpenCV dependencies and InsightFace + ONNX Runtime.
+# We download the fal/AuraFace-v1 weights (Apache 2.0) during image build so they are
+# cached in the container snapshot, eliminating cold-start download times.
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("libgl1-mesa-glx", "libglib2.0-0")
@@ -11,15 +14,17 @@ image = (
         "fastapi[standard]",
         "boto3",
         "Pillow",
-        "facenet-pytorch",   # Provides MTCNN (detection) + InceptionResnetV1 (recognition)
+        "insightface",        # SOTA face analysis library code (MIT license)
+        "onnxruntime",        # CPU execution engine for ONNX models
+        "huggingface_hub",    # CLI/SDK for downloading weights from HF
         "supabase",
         "requests",
         "numpy",
-        "torch",
-        "torchvision",
     )
-    # Models are downloaded at runtime and cached by Modal's container snapshot.
-    # VGGFace2 pretrained weights (~100MB) download once on first cold start.
+    .run_commands(
+        # Download AuraFace weights from fal/AuraFace-v1 to the standard model folder
+        "python -c 'from huggingface_hub import snapshot_download; snapshot_download(\"fal/AuraFace-v1\", local_dir=\"/root/.insightface/models/auraface\")'"
+    )
 )
 
 @app.function(
@@ -50,11 +55,11 @@ def process_single_photo(photo_data: dict):
     start_time = time.time()
 
     import boto3
-    from PIL import Image, ImageOps
+    from PIL import Image
     from supabase import create_client, Client
     import numpy as np
-    import torch
-    from facenet_pytorch import MTCNN, InceptionResnetV1
+    import cv2
+    from insightface.app import FaceAnalysis
 
     # ── 1. Init Supabase and B2 ──────────────────────────────────────────────
     supabase: Client = create_client(
@@ -86,9 +91,13 @@ def process_single_photo(photo_data: dict):
             print(f"[{photo_id}] Downloading preview: {preview_key}")
             response = b2_client.get_object(Bucket=bucket_name, Key=preview_key)
             image_bytes = response['Body'].read()
-            img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-            width, height = img.size
-            print(f"[{photo_id}] Preview loaded: {width}×{height}px")
+            # OpenCV expects BGR numpy array
+            nparr = np.frombuffer(image_bytes, np.uint8)
+            img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if img_bgr is None:
+                raise ValueError("cv2 failed to decode preview WebP image bytes")
+            h, w, _ = img_bgr.shape
+            print(f"[{photo_id}] Preview loaded: {w}×{h}px")
         except Exception as e:
             print(f"[{photo_id}] Preview not found ({e}). Marking failed.")
             try:
@@ -101,46 +110,30 @@ def process_single_photo(photo_data: dict):
                 pass
             return {"status": "error", "photo_id": photo_id, "error": "Preview missing."}
 
-        # ── 3. Face Detection — MTCNN ────────────────────────────────────────
-        # MTCNN is a 3-stage cascade detector trained specifically for faces.
-        # min_face_size=20 detects faces as small as 20px — critical for group
-        # shots where background guests appear tiny.
-        # keep_all=True returns every face, not just the largest.
-        mtcnn = MTCNN(
-            image_size=160,         # FaceNet input size
-            margin=20,              # Context margin around each face
-            min_face_size=20,       # Detect very small faces (20px) vs old YuNet ~50px
-            thresholds=[0.6, 0.7, 0.7],  # P-Net, R-Net, O-Net detection thresholds
-            factor=0.709,           # Scale factor for image pyramid
-            keep_all=True,          # Return ALL detected faces
-            device='cpu'
+        # ── 3. Face Detection & Alignment & Encoding — AuraFace ─────────────
+        # Initialize FaceAnalysis pointing to our downloaded auraface model directory.
+        # AuraFace-v1 uses a ResNet100 backbone trained with ArcFace loss.
+        # Standard detection size (det_size) is (640, 640) for fast CPU inference.
+        # det_thresh=0.4 allows us to capture angled/shadowed faces without false detections.
+        face_analysis = FaceAnalysis(
+            name="auraface",
+            root="/root/.insightface",
+            providers=["CPUExecutionProvider"]
         )
+        face_analysis.prepare(ctx_id=-1, det_size=(640, 640), det_thresh=0.4)
+        
+        # Get face predictions
+        faces = face_analysis.get(img_bgr)
+        print(f"[{photo_id}] AuraFace detector found {len(faces)} face(s).")
 
-        # Returns tensor (N, 3, 160, 160) or None if no faces detected
-        face_tensors, probs = mtcnn(img, return_prob=True)
-
-        if face_tensors is None:
-            print(f"[{photo_id}] MTCNN found 0 faces.")
-            face_tensors = []
-        else:
-            if face_tensors.dim() == 3:
-                face_tensors = face_tensors.unsqueeze(0)  # Single face → batch dim
-            print(f"[{photo_id}] MTCNN found {len(face_tensors)} face(s). Probs: {[f'{p:.3f}' for p in probs]}")
-
-        # ── 4. Face Encoding — FaceNet (InceptionResnetV1, VGGFace2) ────────
-        # InceptionResnetV1 pretrained on VGGFace2 (3.3M images, MIT license).
-        # Outputs 512-dim L2-normalized embeddings.
-        # No num_jitters needed — network is deterministic and fast.
         face_encodings = []
-        if len(face_tensors) > 0:
-            facenet = InceptionResnetV1(pretrained='vggface2').eval()
-            with torch.no_grad():
-                embeddings = facenet(face_tensors)                          # (N, 512)
-                embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)  # L2 norm
-            face_encodings = [emb.numpy() for emb in embeddings]
-            print(f"[{photo_id}] {len(face_encodings)} face encoding(s) computed (512-dim each).")
+        for face in faces:
+            # face.normed_embedding is the 512-dimension L2-normalized vector
+            embedding = face.normed_embedding
+            if embedding is not None:
+                face_encodings.append(embedding)
 
-        # ── 5. Save face embeddings to Supabase ─────────────────────────────
+        # ── 4. Save face embeddings to Supabase ─────────────────────────────
         if face_encodings:
             face_records = []
             for encoding in face_encodings:
@@ -148,23 +141,21 @@ def process_single_photo(photo_data: dict):
                     "event_id":  event_id,
                     "image_id":  photo_id,
                     "image_url": original_url,
-                    "width":     width,
-                    "height":    height,
+                    "width":     w,
+                    "height":    h,
                     "descriptor": encoding.tolist()   # 512 floats
                 })
             supabase.table("faces").insert(face_records).execute()
             print(f"[{photo_id}] Saved {len(face_records)} face record(s) to Supabase.")
 
-        # ── 6. Mark face_indexed status ──────────────────────────────────────
-        # Only mark True when at least one face was stored.
-        # Photos with 0 detections stay face_indexed=False and are retried next batch.
+        # ── 5. Mark face_indexed status ──────────────────────────────────────
         if face_encodings:
             supabase.table("photos").update({"face_indexed": True}).eq("id", photo_id).execute()
             print(f"[{photo_id}] Marked face_indexed=True ({len(face_encodings)} face(s)).")
         else:
             print(f"[{photo_id}] 0 faces — leaving face_indexed=False for retry.")
 
-        # ── 7. Log infrastructure cost ───────────────────────────────────────
+        # ── 6. Log infrastructure cost ───────────────────────────────────────
         duration = time.time() - start_time
         estimated_cost_inr = duration * 0.001532
         try:
@@ -195,18 +186,18 @@ def find_matching_photos(request: dict):
     """
     Guest Selfie Matching endpoint.
     Accepts selfie_base64 + event_ids, returns matched photos.
-    Uses FaceNet cosine similarity — threshold calibrated to 0.70.
+    Uses AuraFace cosine similarity.
 
-    NOTE: After your first real test upload, check Modal logs for
-    '[Match Distance Debug]' lines to see actual cosine distances,
-    then adjust THRESHOLD below to the natural gap between matches
-    and non-matches for your specific event photos.
+    AuraFace/ArcFace cosine similarity ranges:
+       - Identical / Same person: 0.50 to 0.85
+       - Different people:        -0.10 to 0.40
+    
+    Starting threshold set to 0.50 for high recall of profile faces.
     """
     import base64
-    from PIL import Image, ImageOps
     import numpy as np
-    import torch
-    from facenet_pytorch import MTCNN, InceptionResnetV1
+    import cv2
+    from insightface.app import FaceAnalysis
     from supabase import create_client, Client
 
     selfie_base64 = request.get("selfie_base64", "")
@@ -218,40 +209,36 @@ def find_matching_photos(request: dict):
     try:
         # ── 1. Decode and load selfie ────────────────────────────────────────
         selfie_bytes = base64.b64decode(selfie_base64)
-        selfie_img   = Image.open(io.BytesIO(selfie_bytes)).convert("RGB")
-        selfie_img   = ImageOps.exif_transpose(selfie_img)  # Fix mobile portrait rotation
-        print(f"[Selfie] Loaded selfie: {selfie_img.size}")
+        nparr = np.frombuffer(selfie_bytes, np.uint8)
+        selfie_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if selfie_bgr is None:
+            raise ValueError("cv2 failed to decode selfie image bytes")
+            
+        print(f"[Selfie] Loaded selfie: {selfie_bgr.shape}")
 
-        # ── 2. Detect face in selfie with MTCNN ─────────────────────────────
-        # For selfies we keep_all=False (take the largest face = the user).
-        # Higher thresholds than indexing since selfies are close-up, well-lit.
-        mtcnn_selfie = MTCNN(
-            image_size=160,
-            margin=20,
-            min_face_size=60,           # Selfies are close-up, face is large
-            thresholds=[0.7, 0.8, 0.9], # Higher confidence for selfie
-            keep_all=False,             # Only the largest (closest) face
-            device='cpu'
+        # ── 2. Detect & Encode selfie face ───────────────────────────────────
+        face_analysis = FaceAnalysis(
+            name="auraface",
+            root="/root/.insightface",
+            providers=["CPUExecutionProvider"]
         )
-
-        face_tensor = mtcnn_selfie(selfie_img)  # Returns (3, 160, 160) or None
-
-        if face_tensor is None:
+        face_analysis.prepare(ctx_id=-1, det_size=(640, 640), det_thresh=0.5)
+        
+        selfie_faces = face_analysis.get(selfie_bgr)
+        if not selfie_faces:
             print("[Selfie] No face detected in selfie.")
             return {"error": "No face detected in selfie", "matches": []}
 
-        face_tensor = face_tensor.unsqueeze(0)  # Add batch dim → (1, 3, 160, 160)
-        print("[Selfie] Face detected. Computing FaceNet embedding...")
+        # Sort by box area descending to pick the closest/largest face (the guest)
+        sorted_faces = sorted(selfie_faces, key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]), reverse=True)
+        selfie_vec = sorted_faces[0].normed_embedding
+        if selfie_vec is None:
+            print("[Selfie] Failed to generate face vector.")
+            return {"error": "Failed to generate face vector", "matches": []}
+            
+        print("[Selfie] Embedding successfully generated.")
 
-        # ── 3. Encode selfie face ────────────────────────────────────────────
-        facenet = InceptionResnetV1(pretrained='vggface2').eval()
-        with torch.no_grad():
-            selfie_embedding = facenet(face_tensor)                               # (1, 512)
-            selfie_embedding = torch.nn.functional.normalize(selfie_embedding, p=2, dim=1)
-        selfie_vec = selfie_embedding[0].numpy()  # (512,)
-        print(f"[Selfie] Embedding computed. Norm: {np.linalg.norm(selfie_vec):.4f}")
-
-        # ── 4. Fetch all indexed face descriptors for these events ───────────
+        # ── 3. Fetch all indexed face descriptors for these events ───────────
         supabase: Client = create_client(
             os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
             os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
@@ -260,20 +247,10 @@ def find_matching_photos(request: dict):
         db_faces = response.data or []
         print(f"[Selfie] Fetched {len(db_faces)} indexed face records to compare.")
 
-        # ── 5. Cosine similarity matching ────────────────────────────────────
-        # FaceNet embeddings are L2-normalized so:
-        #   cosine_similarity = dot(a, b) / (|a| * |b|) = dot(a, b)  (since |a|=|b|=1)
-        #
-        # Cosine similarity ranges: 1.0 = identical, 0.0 = unrelated, -1.0 = opposite.
-        # Same person in wedding photos: typically 0.65–0.90
-        # Different people:              typically 0.10–0.55
-        #
-        # THRESHOLD = 0.70 is a safe starting point.
-        # After your first real test, check Modal logs and adjust this number.
-        # To reduce false positives → raise threshold (e.g. 0.75)
-        # To reduce missed faces   → lower threshold  (e.g. 0.65)
-        THRESHOLD = 0.70
-
+        # ── 4. Cosine similarity matching ────────────────────────────────────
+        # Threshold set to 0.50 (comprehensive recall for side profiles).
+        # Check logs for '[Match Debug]' similarity scores to fine-tune.
+        THRESHOLD = 0.50
         matches_map = {}
 
         for face in db_faces:
@@ -288,19 +265,17 @@ def find_matching_photos(request: dict):
 
                 db_vec = np.array(db_descriptor, dtype=np.float32)
 
-                # Skip old 128-dim dlib vectors — incompatible with 512-dim FaceNet
                 if len(db_vec) != 512:
-                    print(f"[Match] Skipping face {face.get('id')} — wrong dim ({len(db_vec)}, expected 512)")
+                    print(f"[Match] Skipping old vector {face.get('id')} — incorrect dim ({len(db_vec)})")
                     continue
 
-                # Cosine similarity (dot product of L2-normalized vectors)
+                # Cosine similarity of L2-normalized vectors
                 cosine_sim = float(np.dot(selfie_vec, db_vec))
 
                 print(f"[Match Debug] image_id={face.get('image_id')} cosine_sim={cosine_sim:.4f} (threshold={THRESHOLD})")
 
                 if cosine_sim >= THRESHOLD:
                     image_id = face.get("image_id")
-                    # Keep the highest-similarity match per photo
                     if image_id not in matches_map or cosine_sim > matches_map[image_id]["sim"]:
                         matches_map[image_id] = {
                             "id":       image_id,
@@ -313,7 +288,6 @@ def find_matching_photos(request: dict):
             except Exception as e:
                 print(f"[Match] Error on face {face.get('id')}: {e}")
 
-        # Remove internal 'sim' field from output
         matches = []
         for m in matches_map.values():
             del m["sim"]
