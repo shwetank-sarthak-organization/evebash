@@ -217,12 +217,21 @@ def find_matching_photos(request: dict):
         print(f"[Selfie] Loaded selfie: {selfie_bgr.shape}")
 
         # ── 2. Detect & Encode selfie face ───────────────────────────────────
+        # Dynamically set detection size based on input selfie dimensions.
+        # This prevents severe upscaling blur on tiny cropped screenshots (e.g. 172px).
+        # We ensure dimensions are multiples of 32 (required by ONNX models).
+        h, w, _ = selfie_bgr.shape
+        det_w = min(w, 640) if w < 640 else 1280
+        det_h = min(h, 640) if h < 640 else 1280
+        det_w = max((det_w // 32) * 32, 128)
+        det_h = max((det_h // 32) * 32, 128)
+
         face_analysis = FaceAnalysis(
             name="auraface",
             root="/root/.insightface",
             providers=["CPUExecutionProvider"]
         )
-        face_analysis.prepare(ctx_id=-1, det_size=(1280, 1280), det_thresh=0.5)
+        face_analysis.prepare(ctx_id=-1, det_size=(det_w, det_h), det_thresh=0.4)
         
         selfie_faces = face_analysis.get(selfie_bgr)
         if not selfie_faces:
