@@ -257,9 +257,11 @@ def find_matching_photos(request: dict):
         print(f"[Selfie] Fetched {len(db_faces)} indexed face records to compare.")
 
         # ── 4. Cosine similarity matching ────────────────────────────────────
-        # Threshold set to 0.50 (comprehensive recall for side profiles).
+        # Threshold set to 0.40 (maximum recall for side profiles, group shots).
         # Check logs for '[Match Debug]' similarity scores to fine-tune.
-        THRESHOLD = 0.50
+        # To reduce false positives → raise threshold (e.g. 0.45)
+        # To reduce missed faces   → lower threshold  (e.g. 0.38)
+        THRESHOLD = 0.40
         matches_map = {}
 
         for face in db_faces:
