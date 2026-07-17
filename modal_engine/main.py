@@ -25,28 +25,41 @@ image = (
     )
 )
 
-# Global model cache to persist AuraFace in memory across warm container invocations.
-_face_analysis_model = None
+# Global model caches to persist AuraFace in memory across warm container invocations.
+_indexing_model = None
+_selfie_model = None
 
-def get_face_analysis(det_size=(1280, 1280), det_thresh=0.25):
+def get_indexing_model():
     """
-    Lazy-loads the AuraFace model ONNX weights from local disk into RAM once.
-    Subsequent calls in the same warm container reuse the in-memory instance,
-    reducing photo execution duration from ~5.0s to ~3.5s.
+    Lazy-loads the indexing model (1280x1280) once and keeps it warm.
     """
-    global _face_analysis_model
-    if _face_analysis_model is None:
+    global _indexing_model
+    if _indexing_model is None:
         from insightface.app import FaceAnalysis
-        print("[Container Init] Loading AuraFace ONNX models into RAM...")
-        _face_analysis_model = FaceAnalysis(
+        print("[Container Init] Loading AuraFace Indexing model (1280x1280)...")
+        _indexing_model = FaceAnalysis(
             name="auraface",
             root="/root/.insightface",
             providers=["CPUExecutionProvider"]
         )
-    # Always call prepare to set custom det_size (dynamic for selfies),
-    # which is virtually instant since weights are already loaded.
-    _face_analysis_model.prepare(ctx_id=-1, det_size=det_size, det_thresh=det_thresh)
-    return _face_analysis_model
+        _indexing_model.prepare(ctx_id=-1, det_size=(1280, 1280), det_thresh=0.25)
+    return _indexing_model
+
+def get_selfie_model():
+    """
+    Lazy-loads the selfie matching model (640x640) once and keeps it warm.
+    """
+    global _selfie_model
+    if _selfie_model is None:
+        from insightface.app import FaceAnalysis
+        print("[Container Init] Loading AuraFace Selfie model (640x640)...")
+        _selfie_model = FaceAnalysis(
+            name="auraface",
+            root="/root/.insightface",
+            providers=["CPUExecutionProvider"]
+        )
+        _selfie_model.prepare(ctx_id=-1, det_size=(640, 640), det_thresh=0.25)
+    return _selfie_model
 
 
 @app.function(
@@ -131,8 +144,8 @@ def process_single_photo(photo_data: dict):
             return {"status": "error", "photo_id": photo_id, "error": "Preview missing."}
 
         # ── 3. Face Detection & Alignment & Encoding — AuraFace ─────────
-        # Retrieve the in-memory global model instance
-        face_analysis = get_face_analysis(det_size=(1280, 1280), det_thresh=0.25)
+        # Retrieve the global in-memory indexing model instance
+        face_analysis = get_indexing_model()
         faces = face_analysis.get(img_bgr)
         print(f"[{photo_id}] AuraFace detector found {len(faces)} face(s).")
 
@@ -218,11 +231,8 @@ def find_matching_photos(request: dict):
             
         print(f"[Selfie] Loaded selfie: {selfie_bgr.shape}")
 
-        # ── 2. Detect & Encode selfie face ───────────────────────────────
-        # For selfies, we use a standard 640x640 detection size.
-        # Selfies are close-up faces: 640x640 is the native resolution of the detector,
-        # ensuring the face sits perfectly within the network's anchor box limits.
-        face_analysis = get_face_analysis(det_size=(640, 640), det_thresh=0.25)
+        # Retrieve the global in-memory selfie model instance
+        face_analysis = get_selfie_model()
         
         selfie_faces = face_analysis.get(selfie_bgr)
         if not selfie_faces:
