@@ -41,7 +41,7 @@ type AppUser = {
 interface AuthContextType {
     user: AppUser | null;
     login: (email: string, password: string) => Promise<{success: boolean, error?: string}>;
-    signup: (email: string, password: string, name: string) => Promise<{success: boolean, error?: string}>;
+    signup: (email: string, password: string, name: string) => Promise<{success: boolean, error?: string, needsEmailVerification?: boolean}>;
     loginWithGoogle: () => Promise<boolean>;
     resetPassword: (email: string) => Promise<boolean>;
     loginWithPhoneSimple: (name: string, phone: string) => Promise<boolean>;
@@ -64,6 +64,15 @@ function getErrorMessage(error: unknown, fallback: string) {
         if (typeof message === "string" && message) return message;
     }
     return fallback;
+}
+
+function isEmailConfirmationError(error: unknown) {
+    const message = getErrorMessage(error, "").toLowerCase();
+    return message.includes("email not confirmed") || message.includes("not confirmed");
+}
+
+function needsEmailVerification(user: { email?: string | null; email_confirmed_at?: string | null }) {
+    return Boolean(user.email && !user.email.endsWith("@phone-login.local") && !user.email_confirmed_at);
 }
 
 function buildUserData(uid: string, email: string | null, fallbackName: string, profile: Awaited<ReturnType<typeof getUserProfile>>): AppUser {
@@ -186,6 +195,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const { data: { session } } = await supabase.auth.getSession();
 
                 if (session?.user) {
+                    if (needsEmailVerification(session.user)) {
+                        await supabase.auth.signOut();
+                        return;
+                    }
                     const fallbackName =
                         session.user.user_metadata?.name ||
                         session.user.email?.split("@")[0] ||
@@ -235,6 +248,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             try {
                 if (session?.user) {
+                    if (needsEmailVerification(session.user)) {
+                        await supabase.auth.signOut();
+                        return;
+                    }
                     const fallbackName =
                         session.user.user_metadata?.name ||
                         session.user.email?.split("@")[0] ||
@@ -277,6 +294,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             const { data, error } = await supabase.auth.signInWithPassword({ email, password });
             if (error) throw error;
+            if (data.user && needsEmailVerification(data.user)) {
+                await supabase.auth.signOut();
+                return {
+                    success: false,
+                    error: "A confirmation link has been sent to your email. Please confirm your email before signing in.",
+                };
+            }
             if (data.user) {
                 const fallbackName = data.user.user_metadata?.name || email.split("@")[0] || "Wedding User";
                 syncUserSession(buildBasicUserData(data.user.id, data.user.email || email, fallbackName));
@@ -284,11 +308,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return { success: true };
         } catch (error: unknown) {
             console.error("Supabase login error:", error);
+            if (isEmailConfirmationError(error)) {
+                return {
+                    success: false,
+                    error: "A confirmation link has been sent to your email. Please confirm your email before signing in.",
+                };
+            }
             return { success: false, error: getErrorMessage(error, "Login failed") };
         }
     };
 
-    const signup = async (email: string, password: string, name: string): Promise<{success: boolean, error?: string}> => {
+    const signup = async (email: string, password: string, name: string): Promise<{success: boolean, error?: string, needsEmailVerification?: boolean}> => {
         try {
             const { data, error } = await supabase.auth.signUp({
                 email,
@@ -298,6 +328,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 },
             });
             if (error) throw error;
+            if (data.user && data.session === null) {
+                await supabase.auth.signOut();
+                return { success: true, needsEmailVerification: true };
+            }
             if (data.user) {
                 await createUserProfile(data.user.id, name, data.user.email || email);
                 const profile = await getUserProfile(data.user.id);
@@ -329,7 +363,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const resetPassword = async (email: string) => {
         try {
             const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/login`,
+                redirectTo: `${window.location.origin}/reset-password`,
             });
             if (error) throw error;
             return true;
@@ -379,6 +413,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
 
         if (!loginError && loginData.user) {
+            if (needsEmailVerification(loginData.user)) {
+                await supabase.auth.signOut();
+                return {
+                    success: false,
+                    error: "A confirmation link has been sent to your email. Please confirm your email before signing in.",
+                };
+            }
             const fallbackName = name || loginData.user.user_metadata?.name || loginData.user.email?.split("@")[0] || "Wedding User";
             syncUserSession(buildBasicUserData(loginData.user.id, loginData.user.email || email, fallbackName));
             hydrateSupabaseUserInBackground(loginData.user.id, loginData.user.email || email, fallbackName, {
@@ -399,7 +440,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (signupError || !signupData.user) {
             console.error("Supabase email auth error:", signupError || loginError);
+            if (isEmailConfirmationError(signupError || loginError)) {
+                return {
+                    success: false,
+                    error: "A confirmation link has been sent to your email. Please confirm your email before signing in.",
+                };
+            }
             return { success: false, error: signupError?.message || loginError?.message || "Auth failed" };
+        }
+
+        if (signupData.session === null && !email.endsWith("@phone-login.local")) {
+            await supabase.auth.signOut();
+            return { success: true, needsEmailVerification: true };
         }
 
         await createUserProfile(signupData.user.id, name, signupData.user.email || email, phone);

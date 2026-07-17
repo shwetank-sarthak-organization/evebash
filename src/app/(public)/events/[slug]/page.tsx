@@ -275,6 +275,10 @@ function EventPageContent() {
                     if (!success && result.error) setAuthError(result.error);
                 } else {
                     const result = await signup(email, password, guestName);
+                    if (result.needsEmailVerification) {
+                        setAuthError(`A confirmation link has been sent to ${email.trim()}. Please confirm your email before signing in.`);
+                        return;
+                    }
                     success = result.success;
                     if (!success && result.error) setAuthError(result.error);
                 }

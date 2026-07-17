@@ -62,6 +62,15 @@ const getAuthErrorMessage = (err: any, fallback: string) => {
   return rawMessage || fallback;
 };
 
+const isEmailConfirmationError = (err: any) => {
+  const message = getAuthErrorMessage(err, '').toLowerCase();
+  return message.includes('email not confirmed') || message.includes('not confirmed');
+};
+
+const needsEmailVerification = (user: SupabaseUser) => {
+  return Boolean(user.email && !user.email.endsWith('@phone-login.local') && !user.email_confirmed_at);
+};
+
 interface AppUser {
   uid: string;
   name: string;
@@ -159,6 +168,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const handleUserSession = async (supabaseUser: SupabaseUser) => {
       try {
+        if (needsEmailVerification(supabaseUser)) {
+          await supabase.auth.signOut();
+          finishAuthLoading();
+          return;
+        }
+
         // Stop any previous profile listener
         if (profileUnsubscribe) profileUnsubscribe();
 
@@ -327,8 +342,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password,
       });
       if (error) throw error;
+      if (data.user && needsEmailVerification(data.user)) {
+        await supabase.auth.signOut();
+        return {
+          success: false,
+          error: 'A confirmation link has been sent to your email. Please confirm your email before signing in.',
+        };
+      }
       return { success: true };
     } catch (err: any) {
+      if (isEmailConfirmationError(err)) {
+        return {
+          success: false,
+          error: 'A confirmation link has been sent to your email. Please confirm your email before signing in.',
+        };
+      }
       const message = getAuthErrorMessage(err, 'Login failed. Please try again.');
       return { success: false, error: message };
     }
@@ -352,6 +380,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
 
       const needsEmailVerification = !!(data.user && data.session === null);
+
+      if (needsEmailVerification) {
+        await supabase.auth.signOut();
+        return { success: true, needsEmailVerification: true };
+      }
 
       if (data.user) {
         const { error: profileError } = await supabase

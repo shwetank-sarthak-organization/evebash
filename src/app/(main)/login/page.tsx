@@ -25,6 +25,8 @@ function LoginContent() {
     const searchParams = useSearchParams();
     const returnTo = searchParams.get("returnTo");
     const isPhoneAuth = authMethod === "phone";
+    const normalizedEmail = email.trim().toLowerCase();
+    const isGmailSignup = isSignUp && !isPhoneAuth && normalizedEmail.endsWith("@gmail.com");
 
     React.useEffect(() => {
         if (!loading && user) {
@@ -116,7 +118,14 @@ function LoginContent() {
                     : await signup(email, password, name);
 
                 if (result.success) {
-                    router.push(returnTo || "/dashboard");
+                    if ("needsEmailVerification" in result && result.needsEmailVerification) {
+                        setVerificationMessage(`A confirmation link has been sent to ${email.trim()}. Please check your inbox and confirm your email before signing in.`);
+                        setPassword("");
+                        setConfirmPassword("");
+                        setStatus("idle");
+                    } else {
+                        router.push(returnTo || "/dashboard");
+                    }
                 } else {
                     setError(result.error || "Failed to create account. Please check your details.");
                     setStatus("idle");
@@ -240,6 +249,14 @@ function LoginContent() {
                             </div>
                         )}
 
+                        {isGmailSignup && (
+                            <div className="rounded-xl border border-sky-500/30 bg-sky-950/40 p-3">
+                                <p className="text-sm font-medium text-sky-100">
+                                    You can continue faster with Google, or create an account with email verification.
+                                </p>
+                            </div>
+                        )}
+
                         <div>
                             <div className="flex justify-between items-center mb-1 ml-1">
                                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Password</label>
@@ -317,13 +334,13 @@ function LoginContent() {
 
                         <button
                             type="submit"
-                            disabled={status !== "idle" || (isSignUp && (!passLength || !passUpper || !passNumber || (password !== confirmPassword)))}
+                            disabled={status !== "idle" || (isSignUp && (!isPassValid || (password !== confirmPassword)))}
                             className="w-full py-3.5 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-white rounded-xl font-bold text-[15px] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 focus:ring-offset-slate-900 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 mt-2"
                         >
                             {status === "loading" ? (
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                             ) : (
-                                isSignUp ? "Create Account" : "Sign In"
+                                isGmailSignup ? "Continue with email verification" : isSignUp ? "Create Account" : "Sign In"
                             )}
                         </button>
                     </form>
