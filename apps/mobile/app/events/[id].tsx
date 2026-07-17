@@ -646,6 +646,7 @@ export default function EventDetailScreen() {
   const [coverUploadMessage, setCoverUploadMessage] = useState<string | null>(null);
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
   const [showUploadCompleteModal, setShowUploadCompleteModal] = useState(false);
+  const [mobileIndexingStatus, setMobileIndexingStatus] = useState<any>(null);
   const [showUploadFailedModal, setShowUploadFailedModal] = useState(false);
   const prevActiveCountRef = React.useRef(0);
   const completedIdsRef = React.useRef<string[]>([]);
@@ -1458,6 +1459,63 @@ export default function EventDetailScreen() {
 
     return unsubscribe;
   }, [event?.id, activeSubEvent?.id, selectedAdminGallery?.id]);
+
+  // Poll face indexing status when upload completes in mobile app
+  useEffect(() => {
+    if (!showUploadCompleteModal || !id) {
+      setMobileIndexingStatus(null);
+      return;
+    }
+
+    let pollInterval: NodeJS.Timeout;
+
+    const getApiBaseUrl = () => {
+      const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+      if (apiBase) return apiBase.replace(/\/+$/, '');
+      
+      try {
+        const Constants = require('expo-constants').default;
+        const hostUri = Constants?.expoConfig?.hostUri || Constants?.manifest2?.extra?.expoGo?.developer?.hostUri;
+        const devHost = typeof hostUri === 'string' ? hostUri.split(':')[0] : '';
+        if (devHost) return `http://${devHost}:3000`;
+      } catch (e) {}
+
+      try {
+        const { Platform } = require('react-native');
+        if (Platform.OS === 'android') return 'http://10.0.2.2:3000';
+      } catch (e) {}
+
+      return 'http://localhost:3000';
+    };
+
+    const checkStatus = async () => {
+      try {
+        const baseUrl = getApiBaseUrl();
+        const eventIdToQuery = selectedAdminGallery !== undefined
+          ? (selectedAdminGallery ? selectedAdminGallery.id : id)
+          : (activeSubEvent ? activeSubEvent.id : id);
+
+        const res = await fetch(`${baseUrl}/api/media/indexing-status?eventId=${eventIdToQuery}`);
+        if (res.ok) {
+          const data = await res.json();
+          setMobileIndexingStatus(data);
+          
+          if (data.status === 'complete') {
+            clearInterval(pollInterval);
+          }
+        }
+      } catch (err) {
+        console.error('[UploadCompleteModal] Error fetching status:', err);
+      }
+    };
+
+    checkStatus();
+    pollInterval = setInterval(checkStatus, 4000);
+
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [showUploadCompleteModal, id, activeSubEvent?.id, selectedAdminGallery?.id]);
 
   useEffect(() => {
     if (user) {
@@ -6966,15 +7024,49 @@ export default function EventDetailScreen() {
               Upload Complete
             </Text>
 
-            <Text style={{
-              fontSize: 14,
-              color: isDark ? '#cbd5e1' : '#64748b',
-              textAlign: 'center',
-              marginBottom: 20,
-              fontFamily: Fonts.inter.regular,
-            }}>
-              Upload complete
-            </Text>
+            {mobileIndexingStatus ? (
+              <View style={{ width: '100%', alignItems: 'center', marginBottom: 20 }}>
+                <Text style={{
+                  fontSize: 14,
+                  color: isDark ? '#cbd5e1' : '#64748b',
+                  textAlign: 'center',
+                  marginBottom: 12,
+                  fontFamily: Fonts.inter.regular,
+                  lineHeight: 18,
+                }}>
+                  {mobileIndexingStatus.status === 'complete'
+                    ? '✓ AI face indexing complete! All photos are searchable by guests.'
+                    : `AI is indexing faces: ${mobileIndexingStatus.indexed}/${mobileIndexingStatus.total} (${mobileIndexingStatus.percentComplete}%)`}
+                </Text>
+                {mobileIndexingStatus.status === 'processing' && (
+                  <View style={{ width: '100%', height: 4, backgroundColor: isDark ? '#202020' : '#e2e8f0', borderRadius: 2, overflow: 'hidden' }}>
+                    <View style={{ width: `${mobileIndexingStatus.percentComplete}%`, height: '100%', backgroundColor: selectedTemplate.accent || MidnightColors.gold || '#CCA43B' }} />
+                  </View>
+                )}
+                {mobileIndexingStatus.status === 'processing' && (
+                  <Text style={{
+                    fontSize: 11,
+                    color: isDark ? '#94a3b8' : '#64748b',
+                    textAlign: 'center',
+                    marginTop: 8,
+                    fontStyle: 'italic',
+                    fontFamily: Fonts.inter.regular,
+                  }}>
+                    You can safely close this screen; indexing runs in the background.
+                  </Text>
+                )}
+              </View>
+            ) : (
+              <Text style={{
+                fontSize: 14,
+                color: isDark ? '#cbd5e1' : '#64748b',
+                textAlign: 'center',
+                marginBottom: 20,
+                fontFamily: Fonts.inter.regular,
+              }}>
+                Upload complete. Previews are being generated...
+              </Text>
+            )}
 
             <TouchableOpacity
               style={{

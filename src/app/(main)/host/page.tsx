@@ -704,6 +704,13 @@ function DashboardContent() {
     const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
     const [isUploadPanelOpen, setIsUploadPanelOpen] = useState(false);
     const [isUploadPanelMinimized, setIsUploadPanelMinimized] = useState(false);
+    const [indexingStatus, setIndexingStatus] = useState<{
+        total: number;
+        indexed: number;
+        pending: number;
+        percentComplete: number;
+        status: string;
+    } | null>(null);
 
     // Helper: show loading screen briefly, then navigate
     const navigateTo = (url: string, message?: string) => {
@@ -890,6 +897,47 @@ function DashboardContent() {
             window.removeEventListener("beforeunload", handleBeforeUnload);
         };
     }, [uploadQueue]);
+
+    // Poll face indexing status when items are in queue
+    useEffect(() => {
+        if (!selectedEventId || uploadQueue.length === 0) {
+            setIndexingStatus(null);
+            return;
+        }
+
+        let pollInterval: NodeJS.Timeout;
+
+        const checkStatus = async () => {
+            try {
+                const res = await fetch(`/api/media/indexing-status?eventId=${selectedEventId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setIndexingStatus(data);
+
+                    // If indexing is fully complete, stop polling
+                    if (data.status === "complete") {
+                        clearInterval(pollInterval);
+                        // Mark all processing items in the queue as success
+                        setUploadQueue(prev => prev.map(item => 
+                            item.status === "processing" ? { ...item, status: "success", progress: 100 } : item
+                        ));
+                    }
+                }
+            } catch (err) {
+                console.error("[Dashboard] Error polling indexing status:", err);
+            }
+        };
+
+        // Run immediately
+        checkStatus();
+
+        // Poll every 5 seconds
+        pollInterval = setInterval(checkStatus, 5000);
+
+        return () => {
+            if (pollInterval) clearInterval(pollInterval);
+        };
+    }, [selectedEventId, uploadQueue.length]);
 
     // URL State Synchronization
     useEffect(() => {
@@ -3322,9 +3370,11 @@ function DashboardContent() {
     if (uploadingItems > 0) {
         overallStatusText = `Uploading ${uploadingItems} of ${totalItems} ${uploadingItems === 1 ? 'file' : 'files'}...`;
     } else if (processingItems > 0) {
-        overallStatusText = `Processing ${processingItems} ${processingItems === 1 ? 'file' : 'files'}...`;
-    } else if (completedItems === totalItems) {
-        overallStatusText = `${totalItems} ${totalItems === 1 ? 'upload' : 'uploads'} complete`;
+        overallStatusText = `Resizing ${processingItems} ${processingItems === 1 ? 'file' : 'files'}...`;
+    } else if (indexingStatus && indexingStatus.status === "processing") {
+        overallStatusText = `AI Indexing: ${indexingStatus.indexed}/${indexingStatus.total} (${indexingStatus.percentComplete}%)`;
+    } else if (completedItems === totalItems || (indexingStatus && indexingStatus.status === "complete")) {
+        overallStatusText = `✓ AI Indexing complete! ${totalItems} searchable`;
     } else {
         overallStatusText = "Upload status";
     }
@@ -6604,13 +6654,15 @@ function DashboardContent() {
                             </div>
 
                             {/* Overall progress bar at the very bottom of minimized header */}
-                            {isUploadPanelMinimized && (uploadingItems > 0 || processingItems > 0) && (
+                            {isUploadPanelMinimized && (uploadingItems > 0 || processingItems > 0 || (indexingStatus && indexingStatus.status === "processing")) && (
                                 <div className="w-full h-1 bg-slate-900 overflow-hidden relative">
                                     <div 
                                         className="h-full bg-gradient-to-r from-amber-500 to-sky-500 transition-all duration-300"
                                         style={{ 
                                             width: `${
-                                                (uploadQueue.reduce((acc, curr) => acc + curr.progress, 0) / (totalItems * 100)) * 100
+                                                indexingStatus && indexingStatus.status === "processing"
+                                                    ? indexingStatus.percentComplete
+                                                    : (uploadQueue.reduce((acc, curr) => acc + curr.progress, 0) / (totalItems * 100)) * 100
                                             }%` 
                                         }}
                                     ></div>
@@ -6658,8 +6710,8 @@ function DashboardContent() {
                                                                 </span>
                                                             )}
                                                             {item.status === "processing" && (
-                                                                <span className="text-[10px] font-bold text-sky-400 shrink-0">
-                                                                    Processing...
+                                                                <span className="text-[10px] font-bold text-sky-400 shrink-0 animate-pulse">
+                                                                    {indexingStatus && indexingStatus.status === "processing" ? "Indexing..." : "Resizing..."}
                                                                 </span>
                                                             )}
                                                             {item.status === "success" && (
