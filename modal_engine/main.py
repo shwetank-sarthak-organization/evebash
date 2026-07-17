@@ -219,27 +219,10 @@ def find_matching_photos(request: dict):
         print(f"[Selfie] Loaded selfie: {selfie_bgr.shape}")
 
         # ── 2. Detect & Encode selfie face ───────────────────────────────
-        # Proportionally scale dimensions to preserve the original aspect ratio.
-        # This prevents face squashing/stretching which causes detection to fail on portrait selfies.
-        h, w, _ = selfie_bgr.shape
-        max_dim = max(w, h)
-        if max_dim < 640:
-            # For small screenshots, round to nearest multiple of 32 without upscaling
-            det_w = (w // 32) * 32
-            det_h = (h // 32) * 32
-        else:
-            # For larger images, scale proportionally so the maximum dimension fits in 1280px
-            scale = 1280.0 / max_dim
-            det_w = int(w * scale)
-            det_h = int(h * scale)
-            det_w = (det_w // 32) * 32
-            det_h = (det_h // 32) * 32
-
-        det_w = max(det_w, 128)
-        det_h = max(det_h, 128)
-
-        # Retrieve the global in-memory model and adjust the detection grid dynamically
-        face_analysis = get_face_analysis(det_size=(det_w, det_h), det_thresh=0.25)
+        # For selfies, we use a standard 640x640 detection size.
+        # Selfies are close-up faces: 640x640 is the native resolution of the detector,
+        # ensuring the face sits perfectly within the network's anchor box limits.
+        face_analysis = get_face_analysis(det_size=(640, 640), det_thresh=0.25)
         
         selfie_faces = face_analysis.get(selfie_bgr)
         if not selfie_faces:
