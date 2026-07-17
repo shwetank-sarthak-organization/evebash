@@ -9,9 +9,12 @@ interface Props {
   onPlanChange?: (userId: string, role: string) => Promise<void> | void;
   onDurationChange?: (userId: string, duration: string) => Promise<void> | void;
   onPlanDatesChange?: (userId: string, startDate: string, endDate: string) => Promise<void> | void;
+  onPromoteSuperAdmin?: (userId: string) => Promise<void> | void;
+  onRevokeSuperAdmin?: (userId: string) => Promise<void> | void;
   onResetUserData?: (userId: string) => Promise<void> | void;
   onDeleteUser?: (userId: string) => Promise<void> | void;
   onDeleteEvent?: (eventId: string) => Promise<void> | void;
+  currentAdminId?: string;
 }
 
 const planOptions = [
@@ -111,12 +114,14 @@ const openDatePicker = (event: React.MouseEvent<HTMLInputElement>) => {
   }
 };
 
-export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onPlanChange, onDurationChange, onPlanDatesChange, onResetUserData, onDeleteUser, onDeleteEvent }) => {
+export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onPlanChange, onDurationChange, onPlanDatesChange, onPromoteSuperAdmin, onRevokeSuperAdmin, onResetUserData, onDeleteUser, onDeleteEvent, currentAdminId }) => {
   const [search, setSearch] = useState('');
   const [planFilter, setPlanFilter] = useState('all');
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [savingDurationUserId, setSavingDurationUserId] = useState<string | null>(null);
   const [savingDatesUserId, setSavingDatesUserId] = useState<string | null>(null);
+  const [promotingUserId, setPromotingUserId] = useState<string | null>(null);
+  const [revokingUserId, setRevokingUserId] = useState<string | null>(null);
   const [resettingUserId, setResettingUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
@@ -161,6 +166,44 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
       await onPlanDatesChange(userId, nextStartDate, nextEndDate);
     } finally {
       setSavingDatesUserId(null);
+    }
+  };
+
+  const handlePromoteSuperAdmin = async (user: UserProfile) => {
+    if (!onPromoteSuperAdmin || promotingUserId) return;
+    const label = user.email || user.name || user.id;
+    const confirmed = window.confirm(
+      `Make ${label} a Super Admin?\n\nThis will give full Analytics Dashboard access, including user management, pricing management, and destructive admin actions.`
+    );
+    if (!confirmed) return;
+
+    const typed = window.prompt(`Type SUPER ADMIN to confirm full dashboard access for ${label}.`);
+    if (typed !== 'SUPER ADMIN') return;
+
+    setPromotingUserId(user.id);
+    try {
+      await onPromoteSuperAdmin(user.id);
+    } finally {
+      setPromotingUserId(null);
+    }
+  };
+
+  const handleRevokeSuperAdmin = async (user: UserProfile) => {
+    if (!onRevokeSuperAdmin || revokingUserId) return;
+    const label = user.email || user.name || user.id;
+    const confirmed = window.confirm(
+      `Revoke Super Admin access for ${label}?\n\nThis will remove full Analytics Dashboard access and move the user back to the Free plan.`
+    );
+    if (!confirmed) return;
+
+    const typed = window.prompt(`Type REVOKE SUPER ADMIN to confirm removing full dashboard access for ${label}.`);
+    if (typed !== 'REVOKE SUPER ADMIN') return;
+
+    setRevokingUserId(user.id);
+    try {
+      await onRevokeSuperAdmin(user.id);
+    } finally {
+      setRevokingUserId(null);
     }
   };
 
@@ -495,12 +538,13 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
 
       {/* Users Table */}
       <div className="overflow-x-auto border border-slate-800/60 rounded-2xl">
-        <table className="w-full min-w-[2180px] text-left text-sm text-slate-400">
+        <table className="w-full min-w-[2320px] text-left text-sm text-slate-400">
           <thead className="text-xs text-slate-500 uppercase bg-slate-900/30 border-b border-slate-800">
             <tr>
               <th scope="col" className="py-3.5 px-4 whitespace-nowrap">User Details</th>
               <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Role</th>
               <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Storage Plan</th>
+              <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Super Admin</th>
               <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Events Created</th>
               <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Images GB</th>
               <th scope="col" className="py-3.5 px-4 whitespace-nowrap">Videos GB</th>
@@ -598,6 +642,39 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
                             {savingUserId === user.id ? 'Saving...' : `${getStoragePlan(user.role || 'free')} allotted`}
                           </span>
                         </div>
+                      )}
+                    </td>
+
+                    {/* Super Admin Promotion */}
+                    <td className="py-3.5 px-4 min-w-40">
+                      {user.role === 'admin' && !user.delegatedBy ? (
+                        <div className="flex flex-col gap-2">
+                          <span className="inline-flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-300">
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            Super Admin
+                          </span>
+                          <button
+                            type="button"
+                            disabled={!onRevokeSuperAdmin || revokingUserId === user.id || user.id === currentAdminId}
+                            onClick={() => handleRevokeSuperAdmin(user)}
+                            className="inline-flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-300 transition-colors hover:border-rose-400 hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-45"
+                            title={user.id === currentAdminId ? 'You cannot revoke your own Super Admin access' : 'Remove full Analytics Dashboard access'}
+                          >
+                            <UserX className="h-3.5 w-3.5" />
+                            {revokingUserId === user.id ? 'Revoking...' : 'Revoke'}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={!onPromoteSuperAdmin || promotingUserId === user.id}
+                          onClick={() => handlePromoteSuperAdmin(user)}
+                          className="inline-flex items-center gap-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-xs font-bold text-indigo-300 transition-colors hover:border-indigo-400 hover:bg-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-45"
+                          title="Grant full Analytics Dashboard access"
+                        >
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          {promotingUserId === user.id ? 'Promoting...' : 'Make Super Admin'}
+                        </button>
                       )}
                     </td>
 
@@ -755,7 +832,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
                   </tr>
                   {isEventsExpanded && (
                     <tr className="bg-slate-950/70">
-                      <td colSpan={14} className="px-4 py-4">
+                      <td colSpan={15} className="px-4 py-4">
                         <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
                           <div className="mb-3 flex items-center justify-between">
                             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -903,7 +980,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
             
             {filteredUsers.length === 0 && (
               <tr>
-                <td colSpan={14} className="py-12 text-center text-slate-500 bg-slate-900/10">
+                <td colSpan={15} className="py-12 text-center text-slate-500 bg-slate-900/10">
                   <p className="text-base font-semibold">No accounts found</p>
                   <p className="text-xs text-slate-600 mt-1">Try adjusting your filters or search query.</p>
                 </td>

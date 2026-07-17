@@ -59,12 +59,6 @@ export default function Footer() {
                                 </Link>
                             </li>
                             <li>
-                                <Link href="#" className="text-slate-400 hover:text-sky-400 transition-colors flex items-center group">
-                                    <span className="w-1 h-1 rounded-full bg-slate-700 mr-2 group-hover:bg-sky-500 transition-colors"></span>
-                                    Businesses
-                                </Link>
-                            </li>
-                            <li>
                                 <Link href="/contact-us" className="text-slate-400 hover:text-sky-400 transition-colors flex items-center group">
                                     <span className="w-1 h-1 rounded-full bg-slate-700 mr-2 group-hover:bg-sky-500 transition-colors"></span>
                                     Contact Us

@@ -14,7 +14,6 @@ import {
 import {
     ArrowLeft,
     ArrowRight,
-    Bell,
     Calendar,
     MessageCircle,
     Play,
@@ -333,18 +332,6 @@ export default function DashboardHub() {
                         <span className="text-xs font-bold text-slate-400">{user.name || user.email || "My Dashboard"}</span>
                     </div>
 
-                    {/* Right: Actions */}
-                    <div className="flex items-center gap-3">
-                        <button
-                            type="button"
-                            onClick={() => router.push("/notifications")}
-                            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 bg-slate-900 text-slate-300 transition-all hover:bg-slate-800 hover:text-white"
-                            aria-label="Notifications"
-                            title="Notifications"
-                        >
-                            <Bell className="h-4.5 w-4.5 text-amber-300" />
-                        </button>
-                    </div>
                 </div>
             </div>
 

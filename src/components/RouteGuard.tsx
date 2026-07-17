@@ -12,8 +12,8 @@ export default function RouteGuard({ children }: { children: React.ReactNode }) 
 
     useEffect(() => {
         if (!loading) {
-            // Allow access to login and seed pages without user
-            if (!user && pathname !== "/login" && pathname !== "/seed") {
+            // Allow access to login without user
+            if (!user && pathname !== "/login") {
                 router.push("/login");
             } else if (user && pathname === "/login") {
                 router.push("/");

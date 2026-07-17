@@ -400,7 +400,8 @@ async function syncAllAuthUsers(supabaseAdmin: ReturnType<typeof getAdminClient>
 
 async function updateUserRole(
   supabaseAdmin: ReturnType<typeof getAdminClient>,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  actorUserId?: string
 ) {
   const uid = String(payload.uid || "");
   const role = typeof payload.role === "string" ? payload.role : null;
@@ -412,6 +413,36 @@ async function updateUserRole(
 
   if (!uid) {
     throw new Error("User id is required");
+  }
+
+  if (role !== null) {
+    const { data: targetProfile, error: targetProfileError } = await supabaseAdmin
+      .from("profiles")
+      .select("role, delegated_by")
+      .eq("id", uid)
+      .maybeSingle();
+
+    if (targetProfileError) throw targetProfileError;
+
+    const targetIsGlobalSuperAdmin = targetProfile?.role === "admin" && !targetProfile.delegated_by;
+    const wouldRemoveGlobalSuperAdmin = targetIsGlobalSuperAdmin && (role !== "admin" || !!delegatedBy);
+
+    if (wouldRemoveGlobalSuperAdmin) {
+      if (uid === actorUserId) {
+        throw new AdminActionError("You cannot revoke your own Super Admin access", 409);
+      }
+
+      const { count, error: countError } = await supabaseAdmin
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "admin")
+        .is("delegated_by", null);
+
+      if (countError) throw countError;
+      if ((count || 0) <= 1) {
+        throw new AdminActionError("At least one Super Admin must remain", 409);
+      }
+    }
   }
 
   const updateData: Record<string, string | null> = {};
@@ -466,6 +497,110 @@ async function updateUserRole(
 
     if (insertError) throw insertError;
   }
+}
+
+async function promoteSuperAdmin(
+  supabaseAdmin: ReturnType<typeof getAdminClient>,
+  payload: Record<string, unknown>
+) {
+  const uid = String(payload.uid || "");
+
+  if (!uid) {
+    throw new Error("User id is required");
+  }
+
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from("profiles")
+    .select("id")
+    .eq("id", uid)
+    .maybeSingle();
+
+  if (profileError) throw profileError;
+  if (!profile) {
+    throw new AdminActionError("User profile was not found", 404);
+  }
+
+  const { error } = await supabaseAdmin
+    .from("profiles")
+    .update({
+      role: "admin",
+      delegated_by: null,
+      role_type: "primary",
+      plan_start_date: null,
+      plan_end_date: null,
+    })
+    .eq("id", uid);
+
+  if (error) throw error;
+
+  const { error: clearError } = await supabaseAdmin
+    .from("profile_assigned_events")
+    .delete()
+    .eq("profile_id", uid);
+
+  if (clearError) throw clearError;
+}
+
+async function revokeSuperAdmin(
+  supabaseAdmin: ReturnType<typeof getAdminClient>,
+  payload: Record<string, unknown>,
+  actorUserId: string
+) {
+  const uid = String(payload.uid || "");
+
+  if (!uid) {
+    throw new Error("User id is required");
+  }
+
+  if (uid === actorUserId) {
+    throw new AdminActionError("You cannot revoke your own Super Admin access", 409);
+  }
+
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from("profiles")
+    .select("id, role, delegated_by")
+    .eq("id", uid)
+    .maybeSingle();
+
+  if (profileError) throw profileError;
+  if (!profile) {
+    throw new AdminActionError("User profile was not found", 404);
+  }
+
+  if (profile.role !== "admin" || profile.delegated_by) {
+    throw new AdminActionError("Only global Super Admin access can be revoked here", 409);
+  }
+
+  const { count, error: countError } = await supabaseAdmin
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("role", "admin")
+    .is("delegated_by", null);
+
+  if (countError) throw countError;
+  if ((count || 0) <= 1) {
+    throw new AdminActionError("At least one Super Admin must remain", 409);
+  }
+
+  const { error } = await supabaseAdmin
+    .from("profiles")
+    .update({
+      role: "free",
+      delegated_by: null,
+      role_type: "primary",
+      plan_start_date: null,
+      plan_end_date: null,
+    })
+    .eq("id", uid);
+
+  if (error) throw error;
+
+  const { error: clearError } = await supabaseAdmin
+    .from("profile_assigned_events")
+    .delete()
+    .eq("profile_id", uid);
+
+  if (clearError) throw clearError;
 }
 
 async function updateUserDuration(
@@ -966,7 +1101,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const action = String(body.action || "");
     const payload = (body.payload || {}) as Record<string, unknown>;
-    const { supabaseAdmin } = verification;
+    const { supabaseAdmin, user } = verification;
 
     switch (action) {
       case "syncUsers": {
@@ -974,7 +1109,15 @@ export async function POST(request: NextRequest) {
         return jsonResponse({ success: true, ...result });
       }
       case "updateUserRole": {
-        await updateUserRole(supabaseAdmin, payload);
+        await updateUserRole(supabaseAdmin, payload, user.id);
+        return jsonResponse({ success: true });
+      }
+      case "promoteSuperAdmin": {
+        await promoteSuperAdmin(supabaseAdmin, payload);
+        return jsonResponse({ success: true });
+      }
+      case "revokeSuperAdmin": {
+        await revokeSuperAdmin(supabaseAdmin, payload, user.id);
         return jsonResponse({ success: true });
       }
       case "updateUserDuration": {

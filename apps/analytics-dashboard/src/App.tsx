@@ -666,6 +666,7 @@ export default function App() {
                   users={users}
                   events={events}
                   photos={photos}
+                  currentAdminId={profile?.id}
                   onPlanChange={(userId, role) =>
                     handleAdminAction(
                       'updateUserRole',
@@ -685,6 +686,20 @@ export default function App() {
                       'updateUserPlanDates',
                       { uid: userId, planStartDate, planEndDate },
                       ''
+                    )
+                  }
+                  onPromoteSuperAdmin={userId =>
+                    handleAdminAction(
+                      'promoteSuperAdmin',
+                      { uid: userId },
+                      'User promoted to Super Admin.'
+                    )
+                  }
+                  onRevokeSuperAdmin={userId =>
+                    handleAdminAction(
+                      'revokeSuperAdmin',
+                      { uid: userId },
+                      'Super Admin access revoked.'
                     )
                   }
                   onResetUserData={userId =>

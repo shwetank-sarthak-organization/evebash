@@ -21,10 +21,9 @@ export default function TenantGuard({ children, slug: propSlug }: TenantGuardPro
     useEffect(() => {
         if (!loading) {
             const isLoginPage = pathname?.endsWith("/login");
-            const isSeedPage = pathname?.endsWith("/seed"); // Just in case we need it
 
-            // Allow access to login and seed pages without user
-            if (!user && !isLoginPage && !isSeedPage) {
+            // Allow access to login without user
+            if (!user && !isLoginPage) {
                 router.push(`/tenant/${slug}/login`);
             } else if (user && isLoginPage) {
                 router.push(`/tenant/${slug}`);

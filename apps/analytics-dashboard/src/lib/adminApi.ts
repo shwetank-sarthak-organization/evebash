@@ -3,6 +3,8 @@ import { supabase } from './supabase';
 export type AdminAction =
   | 'syncUsers'
   | 'updateUserRole'
+  | 'promoteSuperAdmin'
+  | 'revokeSuperAdmin'
   | 'updateUserDuration'
   | 'updateUserPlanDates'
   | 'resetUserData'
