@@ -16,7 +16,9 @@ import {
   Sparkles,
   Search,
   Trash2,
-  Cpu
+  Cpu,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { runAdminAction, type AdminActionResult } from '../lib/adminApi';
 import { supabase } from '../lib/supabase';
@@ -69,7 +71,7 @@ const formatNumber = (num: number) => {
 };
 
 export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, photos }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'total' | 'supabase' | 'backblaze' | 'cloudflare' | 'modal'>('total');
+  const [activeSubTab, setActiveSubTab] = useState<'total' | 'supabase' | 'backblaze' | 'cloudflare' | 'modal' | 'railway'>('total');
   const [modalLogs, setModalLogs] = useState<any[]>([]);
   
   // Interactive Simulator States
@@ -89,6 +91,105 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   const [orphanActionLoading, setOrphanActionLoading] = useState<'scan' | 'delete' | null>(null);
   const [orphanActionError, setOrphanActionError] = useState('');
   const [billingRefreshKey, setBillingRefreshKey] = useState(0);
+
+  // Railway Live API States
+  const [liveRailwayData, setLiveRailwayData] = useState<{
+    projectName: string;
+    cpuDollars: number;
+    memoryDollars: number;
+    networkDollars: number;
+    totalEstimatedDollars: number;
+    invoiceDollars: number | null;
+    error?: string;
+  } | null>(null);
+
+  // Exchange Rate State (USD to INR)
+  const [usdToInrRateInput, setUsdToInrRateInput] = useState<string>('100');
+  const usdToInrRate = useMemo(() => {
+    const parsed = parseFloat(usdToInrRateInput);
+    return isNaN(parsed) || parsed <= 0 ? 100 : parsed;
+  }, [usdToInrRateInput]);
+
+  // Timeframe Filter States
+  const [timeFilter, setTimeFilter] = useState<'1d' | '1w' | '1m' | 'custom'>('1m');
+
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 10;
+
+  // Reset page when logs change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [modalLogs.length]);
+
+  const paginatedLogs = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return modalLogs.slice(startIndex, startIndex + itemsPerPage);
+  }, [modalLogs, currentPage]);
+
+  const totalPages = Math.ceil(modalLogs.length / itemsPerPage);
+
+  const pageNumbers = useMemo(() => {
+    const range: number[] = [];
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    
+    for (let i = start; i <= end; i++) {
+      range.push(i);
+    }
+    return range;
+  }, [currentPage, totalPages]);
+
+  // Format local timestamps (YYYY-MM-DDTHH:MM)
+  const defaultCustomStart = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 3); // Default to 3 days ago for custom start
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
+  }, []);
+
+  const defaultCustomEnd = useMemo(() => {
+    const d = new Date();
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
+  }, []);
+
+  const [customStart, setCustomStart] = useState<string>(defaultCustomStart);
+  const [customEnd, setCustomEnd] = useState<string>(defaultCustomEnd);
+
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    let start: Date;
+    let end: Date = now;
+    
+    if (timeFilter === '1d') {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      start = startOfDay;
+    } else if (timeFilter === '1w') {
+      const startOfWeek = new Date();
+      startOfWeek.setHours(0, 0, 0, 0);
+      const day = startOfWeek.getDay();
+      const diff = startOfWeek.getDate() - (day === 0 ? 6 : day - 1);
+      startOfWeek.setDate(diff);
+      start = startOfWeek;
+    } else if (timeFilter === '1m') {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      start = startOfMonth;
+    } else { // 'custom'
+      start = customStart ? new Date(customStart) : new Date(now.getFullYear(), now.getMonth(), 1);
+      end = customEnd ? new Date(customEnd) : now;
+    }
+    
+    return { start, end };
+  }, [timeFilter, customStart, customEnd]);
 
   useEffect(() => {
     const fetchBilling = async () => {
@@ -155,24 +256,87 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
         } catch (err) {
           console.warn('[InfraCost] Backblaze usage API unavailable:', err);
         }
-        // Fetch Modal logs for the last 30 days
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
-        try {
-          const { data: logs, error: logsErr } = await supabase
-            .from('modal_cost_logs')
-            .select('*')
-            .gte('created_at', oneMonthAgo.toISOString())
-            .order('created_at', { ascending: false });
-          if (logsErr) {
-            console.error('[Modal] modal_cost_logs fetch error (check RLS / table existence):', logsErr);
-          } else if (logs) {
-            setModalLogs(logs);
-          }
-        } catch (logsErr) {
-          console.error('Failed to fetch modal logs on billing mount:', logsErr);
-        }
 
+        // Fetch Railway billing — calls Railway GraphQL API directly (no Next.js needed)
+        try {
+          const railwayToken = import.meta.env.VITE_RAILWAY_API_TOKEN;
+          const railwayProjectId = import.meta.env.VITE_RAILWAY_PROJECT_ID;
+
+          if (railwayToken && railwayProjectId) {
+            // Use Vite proxy /railway-gql → https://backboard.railway.app/graphql/v2 (avoids CORS)
+            const RAILWAY_GQL = '/railway-gql';
+
+            // Get project name
+            let projectName = 'divine-optimism';
+            try {
+              const nameRes = await fetch(RAILWAY_GQL, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${railwayToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: `{ project(id: "${railwayProjectId}") { name } }` }),
+              });
+              if (nameRes.ok) {
+                const nameData = await nameRes.json();
+                projectName = nameData.data?.project?.name || projectName;
+              }
+            } catch (_) {}
+
+            // Get usage metrics
+            const usageRes = await fetch(RAILWAY_GQL, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${railwayToken}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                query: `{
+                  usage(
+                    projectId: "${railwayProjectId}",
+                    measurements: [CPU_USAGE, MEMORY_USAGE_GB, NETWORK_TX_GB],
+                    startDate: "${dateRange.start.toISOString()}",
+                    endDate: "${dateRange.end.toISOString()}"
+                  ) { measurement value }
+                }`,
+              }),
+            });
+
+            if (usageRes.ok) {
+              const usageData = await usageRes.json();
+              const items: { measurement: string; value: number }[] = usageData.data?.usage || [];
+
+              let cpuVcpuMin = 0, memGbMin = 0, networkTxGb = 0;
+              for (const item of items) {
+                const v = Number(item.value) || 0;
+                if (item.measurement === 'CPU_USAGE')       cpuVcpuMin  = v;
+                if (item.measurement === 'MEMORY_USAGE_GB') memGbMin    = v;
+                if (item.measurement === 'NETWORK_TX_GB')   networkTxGb = v;
+              }
+
+              // Convert minutes to seconds (as Railway API aggregation values are in vCPU-minutes and GB-minutes)
+              const cpuVcpuSec = cpuVcpuMin * 60;
+              const memGbSec = memGbMin * 60;
+
+              const cpuDollars     = cpuVcpuSec  * 0.00000772;
+              const memoryDollars  = memGbSec    * 0.00000386;
+              const networkDollars = networkTxGb * 0.05;
+              const totalEstimatedDollars = cpuDollars + memoryDollars + networkDollars;
+
+              setLiveRailwayData({
+                projectName,
+                cpuDollars,
+                memoryDollars,
+                networkDollars,
+                totalEstimatedDollars,
+                invoiceDollars: null,
+              });
+            }
+          } else {
+            setLiveRailwayData({
+              projectName: 'EveBash',
+              cpuDollars: 0, memoryDollars: 0, networkDollars: 0,
+              totalEstimatedDollars: 0, invoiceDollars: null,
+              error: 'VITE_RAILWAY_API_TOKEN or VITE_RAILWAY_PROJECT_ID not set in dashboard .env',
+            });
+          }
+        } catch (err) {
+          console.warn('[InfraCost] Railway direct API call failed:', err);
+        }
       } catch (err: any) {
         console.error('Failed to fetch live billing data:', err);
       } finally {
@@ -181,7 +345,31 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
     };
 
     fetchBilling();
-  }, [photos.length, billingRefreshKey]);
+  }, [photos.length, billingRefreshKey, dateRange]);
+
+  // Fetch Modal logs for the selected range when dateRange or billingRefreshKey changes
+  useEffect(() => {
+    const fetchModalLogs = async () => {
+      try {
+        const { data: logs, error: logsErr } = await supabase
+          .from('modal_cost_logs')
+          .select('*')
+          .gte('created_at', dateRange.start.toISOString())
+          .lte('created_at', dateRange.end.toISOString())
+          .order('created_at', { ascending: false });
+        
+        if (logsErr) {
+          console.error('[Modal] modal_cost_logs fetch error:', logsErr);
+        } else if (logs) {
+          setModalLogs(logs);
+        }
+      } catch (err) {
+        console.error('Failed to fetch modal logs:', err);
+      }
+    };
+    
+    fetchModalLogs();
+  }, [dateRange.start.toISOString(), dateRange.end.toISOString(), billingRefreshKey]);
   
   
   // Extract and default simulated storage
@@ -203,6 +391,12 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   // Simulated image transformations (first 5,000 free, then $0.50 per 1,000)
   const defaultSimTransformations = Math.max(15000, Math.ceil(photos.length * 3));
   const [simulatedTransformations, setSimulatedTransformations] = useState<number>(defaultSimTransformations);
+
+  // Simulated Railway Usage
+  const [simulatedRailwayRAM, setSimulatedRailwayRAM] = useState<number>(0.5); // GB
+  const [simulatedRailwayCPU, setSimulatedRailwayCPU] = useState<number>(0.05); // vCPU
+  const [simulatedRailwayEgress, setSimulatedRailwayEgress] = useState<number>(5); // GB
+
 
   // --- Cost Calculations ---
 
@@ -320,36 +514,108 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
 
   // Actual subscription costs fetched live (e.g. Pro Plan, image resizing subscription bases, paid workers/KV bases)
   const liveCfSubscriptionCost = useMemo(() => {
-    if (!liveCfSubscriptions || liveCfSubscriptions.length === 0) {
-      // If we got zonePlan = 'pro' live but no explicit subscription payload details, default to pro plan pricing ($20 or $25 base)
-      if (liveCfPlan === 'pro' || liveCfPlan === 'business') {
-        return liveCfPlan === 'pro' ? 20.00 : 200.00;
-      }
-      return 0.00;
+    let subscriptionSum = 0;
+    let hasZonePlanInSubscriptions = false;
+
+    if (Array.isArray(liveCfSubscriptions) && liveCfSubscriptions.length > 0) {
+      subscriptionSum = liveCfSubscriptions.reduce((sum, sub) => {
+        if (sub.state === 'active' || sub.state === 'paid') {
+          const freqMultiplier = sub.frequency === 'yearly' ? 1 / 12 : 1;
+          
+          // Check if this subscription is for a zone plan
+          const ratePlanId = (sub.rate_plan?.id || '').toLowerCase();
+          if (ratePlanId.includes('pro') || ratePlanId.includes('business')) {
+            hasZonePlanInSubscriptions = true;
+          }
+          
+          return sum + ((sub.price || 0) * freqMultiplier);
+        }
+        return sum;
+      }, 0);
     }
-    return liveCfSubscriptions.reduce((sum, sub) => {
-      // Calculate active monthly cost from actual subscriptions
-      if (sub.state === 'active' || sub.state === 'paid') {
-        const freqMultiplier = sub.frequency === 'yearly' ? 1 / 12 : 1;
-        return sum + ((sub.price || 0) * freqMultiplier);
+
+    // Fallback: If zone plan is active but not represented in the subscription list, add its default cost
+    if (!hasZonePlanInSubscriptions) {
+      const normalizedPlan = (liveCfPlan || '').toLowerCase();
+      if (normalizedPlan.includes('pro')) {
+        subscriptionSum += 25.00; // $25.00 Pro Plan (₹2,500/mo)
+      } else if (normalizedPlan.includes('business')) {
+        subscriptionSum += 200.00; // $200.00 Business Plan (₹20,000/mo)
       }
-      return sum;
-    }, 0);
+    }
+
+    return subscriptionSum;
   }, [liveCfSubscriptions, liveCfPlan]);
 
   const actualCloudflareCost = registrarCost + actualCfImageCostMonth + liveCfSubscriptionCost;
   const simulatedCloudflareCost = registrarCost + workersCost + simCfImageCostMonth;
 
   // 3b. Modal.com actual costs
-  const actualModalCost = useMemo(() => {
-    // Sum estimated_cost_inr from logs, convert to USD ($1 = ₹100 exchange rate)
-    const sumInr = modalLogs.reduce((sum, log) => sum + (Number(log.estimated_cost_inr) || 0), 0);
-    return sumInr / 100;
+  const actualModalCostInfo = useMemo(() => {
+    let totalUsd = 0;
+    modalLogs.forEach(log => {
+      const duration = Number(log.execution_time_seconds) || 0;
+      const cpu = Number(log.cpu_cores) || 1.0;
+      const mem = Number(log.memory_gb) || 1.0;
+      totalUsd += duration * ((cpu * 0.0000131) + (mem * 0.00000222));
+    });
+    return {
+      usd: totalUsd,
+      inr: totalUsd * usdToInrRate
+    };
+  }, [modalLogs, usdToInrRate]);
+
+  const actualModalCost = actualModalCostInfo.usd;
+
+  // Modal.com metrics breakdown
+  const modalStats = useMemo(() => {
+    let photosCount = 0;
+    let selfiesCount = 0;
+    let batchesCount = 0;
+    let totalFaces = 0;
+    let totalDuration = 0;
+
+    modalLogs.forEach(log => {
+      const fn = log.function_name || 'process_single_photo';
+      if (fn === 'process_single_photo') {
+        photosCount++;
+      } else if (fn === 'find_matching_photos') {
+        selfiesCount++;
+      } else if (fn === 'process_media_batch') {
+        batchesCount++;
+      }
+
+      totalFaces += Number(log.faces_detected) || 0;
+      totalDuration += Number(log.execution_time_seconds) || 0;
+    });
+
+    return {
+      photosCount,
+      selfiesCount,
+      batchesCount,
+      totalFaces,
+      avgDuration: modalLogs.length > 0 ? totalDuration / modalLogs.length : 0,
+    };
   }, [modalLogs]);
 
+  // 3c. Railway.app actual/simulated costs
+  // Railway bills per SECOND: CPU @ $0.00000772/vCPU/sec, RAM @ $0.00000386/GB/sec, Egress @ $0.05/GB
+  // 30 days = 2,592,000 seconds/month
+  const railwaySecondsPerMonth = 2592000; // 30 days * 24 hours * 3600 seconds
+  const railwayRamCostMonth = simulatedRailwayRAM * 0.00000386 * railwaySecondsPerMonth;
+  const railwayCpuCostMonth = simulatedRailwayCPU * 0.00000772 * railwaySecondsPerMonth;
+  const railwayEgressCostMonth = simulatedRailwayEgress * 0.05;
+  const simulatedRailwayCost = railwayRamCostMonth + railwayCpuCostMonth + railwayEgressCostMonth;
+
+  // If live Railway data is available, prefer the real invoice/estimated total
+  const hasLiveRailway = liveRailwayData && !liveRailwayData.error && liveRailwayData.totalEstimatedDollars > 0;
+  const actualRailwayCost = hasLiveRailway
+    ? (liveRailwayData.invoiceDollars ?? liveRailwayData.totalEstimatedDollars)
+    : simulatedRailwayCost;
+
   // 4. Combined Totals
-  const actualTotalCost = supabaseTierCost + actualB2Cost + actualCloudflareCost + actualModalCost;
-  const simulatedTotalCost = supabaseTierCost + simulatedB2Cost + simulatedCloudflareCost + actualModalCost;
+  const actualTotalCost = supabaseTierCost + actualB2Cost + actualCloudflareCost + actualModalCost + actualRailwayCost;
+  const simulatedTotalCost = supabaseTierCost + simulatedB2Cost + simulatedCloudflareCost + actualModalCost + actualRailwayCost;
 
   // Media breakdown stats
   const mediaBreakdown = useMemo(() => {
@@ -418,6 +684,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
     { id: 'backblaze', label: 'Backblaze B2', icon: HardDrive },
     { id: 'cloudflare', label: 'Cloudflare', icon: Cloud },
     { id: 'modal', label: 'Modal.com (AI)', icon: Cpu },
+    { id: 'railway', label: 'Railway (App)', icon: Server },
   ];
 
   return (
@@ -439,7 +706,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
       </div>
 
       {/* Pill Capsule Sub-tab Switcher */}
-      <div className="bg-slate-900/40 p-1 border border-slate-800 rounded-2xl flex flex-wrap gap-1 max-w-2xl">
+      <div className="bg-slate-900/40 p-1 border border-slate-800 rounded-2xl flex flex-wrap gap-1 w-fit max-w-full">
         {tabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeSubTab === tab.id;
@@ -463,8 +730,92 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
       {/* TAB PANEL 1: TOTAL COST OVERVIEW */}
       {activeSubTab === 'total' && (
         <div className="space-y-8">
+          {/* Timeframe & Exchange Rate Filters */}
+          <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-5 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-fadeIn">
+            <div className="flex items-center space-x-3">
+              <Sliders className="w-5 h-5 text-indigo-400" />
+              <div>
+                <h4 className="text-sm font-bold text-white">Timeframe & Exchange Rate</h4>
+                <p className="text-[10px] text-slate-400">Filter cost calculations, adjust exchange rate conversions.</p>
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-3">
+              {/* USD to INR Rate Setter */}
+              <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
+                <span className="text-[9px] font-bold text-slate-500 uppercase">Rate ($1 = ₹):</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={usdToInrRateInput}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                      setUsdToInrRateInput(val);
+                    }
+                  }}
+                  className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 w-12 text-center font-bold"
+                />
+              </div>
+
+              {/* Presets */}
+              <div className="bg-slate-900/60 p-1 border border-slate-800 rounded-xl flex gap-1">
+                {(['1d', '1w', '1m', 'custom'] as const).map(preset => {
+                  const labelMap: Record<string, string> = {
+                    '1d': 'Running Day',
+                    '1w': 'Running Week',
+                    '1m': 'Running Month',
+                    'custom': 'Custom'
+                  };
+                  const isActive = timeFilter === preset;
+                  return (
+                    <button
+                      key={preset}
+                      onClick={() => setTimeFilter(preset)}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-150 cursor-pointer ${
+                        isActive
+                          ? 'bg-indigo-600 text-white'
+                          : 'text-slate-450 hover:text-slate-200'
+                      }`}
+                    >
+                      {labelMap[preset]}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Custom Date Time Pickers */}
+              {timeFilter === 'custom' && (
+                <div className="flex flex-wrap items-center gap-2 animate-fadeIn">
+                  <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase">Start:</span>
+                    <input
+                      type="datetime-local"
+                      value={customStart}
+                      onChange={e => setCustomStart(e.target.value)}
+                      onClick={e => (e.target as any).showPicker?.()}
+                      style={{ colorScheme: 'dark' }}
+                      className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 cursor-pointer w-[155px]"
+                    />
+                  </div>
+                  <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase">End:</span>
+                    <input
+                      type="datetime-local"
+                      value={customEnd}
+                      onChange={e => setCustomEnd(e.target.value)}
+                      onClick={e => (e.target as any).showPicker?.()}
+                      style={{ colorScheme: 'dark' }}
+                      className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 cursor-pointer w-[155px]"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Main cost summary cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Supabase summary */}
             <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg group">
               <div className="flex justify-between items-start">
@@ -537,6 +888,60 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
               </div>
             </div>
 
+            {/* Modal.com summary */}
+            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg group">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Modal.com (AI)</p>
+                  <h3 className="text-2xl font-black text-white mt-1 group-hover:text-indigo-400 transition-colors">
+                    ₹{actualModalCostInfo.inr.toFixed(2)} <span className="text-xs font-semibold text-slate-500">(${actualModalCostInfo.usd.toFixed(4)})</span>
+                  </h3>
+                </div>
+                <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">
+                  <Cpu className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="flex items-center justify-between mt-4">
+                <span className="text-[10px] text-slate-500">Invocations: {modalLogs.length}</span>
+                <button
+                  onClick={() => setActiveSubTab('modal')}
+                  className="text-[10px] text-indigo-400 hover:underline font-bold"
+                >
+                  Configure &rarr;
+                </button>
+              </div>
+            </div>
+
+            {/* Railway summary */}
+            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg group">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Railway (App Server)</p>
+                  <h3 className="text-2xl font-black text-white mt-1 group-hover:text-fuchsia-400 transition-colors">
+                    ${actualRailwayCost.toFixed(2)} <span className="text-xs font-semibold text-slate-500">/ mo</span>
+                  </h3>
+                </div>
+                <div className="p-2 bg-fuchsia-500/10 rounded-lg text-fuchsia-400">
+                  <Server className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="flex items-center justify-between mt-4">
+                {hasLiveRailway ? (
+                  <span className="px-2 py-0.5 text-[9px] font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" /> Live Sync Active
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-500">Simulated | RAM: {simulatedRailwayRAM}GB CPU: {simulatedRailwayCPU}vCPU</span>
+                )}
+                <button
+                  onClick={() => setActiveSubTab('railway')}
+                  className="text-[10px] text-indigo-400 hover:underline font-bold"
+                >
+                  {hasLiveRailway ? 'Details →' : 'Configure →'}
+                </button>
+              </div>
+            </div>
+
             {/* Combined upkeep */}
             <div className="bg-[#111827]/80 border border-indigo-950 rounded-2xl p-5 shadow-lg bg-gradient-to-br from-[#111827]/90 to-indigo-950/20 relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
@@ -561,55 +966,62 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
           <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl">
             <h4 className="text-md font-bold text-white mb-1.5 flex items-center">
               <TrendingUp className="w-5 h-5 mr-2 text-indigo-400" />
-              Simulated Infrastructure Cost Distribution Share
+              Actual Infrastructure Cost Distribution Share
             </h4>
             <p className="text-slate-400 text-xs mb-6">
-              Visual breakdown of simulated infrastructure costs across cloud nodes.
+              Visual breakdown of actual infrastructure costs across cloud nodes.
             </p>
 
-            {simulatedTotalCost > 0 ? (
+            {actualTotalCost > 0 ? (
               <div className="space-y-6">
                 {/* Horizontal Segmented Bar */}
                 <div className="h-6 w-full rounded-xl bg-slate-800 overflow-hidden flex shadow-inner">
                   {supabaseTierCost > 0 && (
                     <div
-                      style={{ width: `${(supabaseTierCost / simulatedTotalCost) * 100}%` }}
+                      style={{ width: `${(supabaseTierCost / actualTotalCost) * 100}%` }}
                       className="bg-emerald-500 hover:brightness-110 transition-all duration-200"
                       title={`Supabase Database: $${supabaseTierCost.toFixed(2)}`}
                     />
                   )}
-                  {simulatedB2Cost > 0 && (
+                  {actualB2Cost > 0 && (
                     <div
-                      style={{ width: `${(simulatedB2Cost / simulatedTotalCost) * 100}%` }}
+                      style={{ width: `${(actualB2Cost / actualTotalCost) * 100}%` }}
                       className="bg-sky-500 hover:brightness-110 transition-all duration-200"
-                      title={`Backblaze B2 Storage: $${simulatedB2Cost.toFixed(4)}`}
+                      title={`Backblaze B2 Storage: $${actualB2Cost.toFixed(4)}`}
                     />
                   )}
-                  {simulatedCloudflareCost > 0 && (
+                  {actualCloudflareCost > 0 && (
                     <div
-                       style={{ width: `${(simulatedCloudflareCost / simulatedTotalCost) * 100}%` }}
+                       style={{ width: `${(actualCloudflareCost / actualTotalCost) * 100}%` }}
                        className="bg-amber-500 hover:brightness-110 transition-all duration-200"
-                       title={`Cloudflare Network: $${simulatedCloudflareCost.toFixed(2)}`}
+                       title={`Cloudflare Network: $${actualCloudflareCost.toFixed(2)}`}
                     />
                   )}
                   {actualModalCost > 0 && (
                     <div
-                      style={{ width: `${(actualModalCost / simulatedTotalCost) * 100}%` }}
+                      style={{ width: `${(actualModalCost / actualTotalCost) * 100}%` }}
                       className="bg-indigo-600 hover:brightness-110 transition-all duration-200"
                       title={`Modal.com (AI): $${actualModalCost.toFixed(4)}`}
+                    />
+                  )}
+                  {actualRailwayCost > 0 && (
+                    <div
+                      style={{ width: `${(actualRailwayCost / actualTotalCost) * 100}%` }}
+                      className="bg-fuchsia-500 hover:brightness-110 transition-all duration-200"
+                      title={`Railway: $${actualRailwayCost.toFixed(2)}`}
                     />
                   )}
                 </div>
 
                 {/* Key Details List */}
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-5 gap-6 pt-2">
                   <div className="flex items-center space-x-3">
                     <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 shrink-0" />
                     <div>
                       <p className="text-xs font-semibold text-slate-300">Supabase DB</p>
                       <p className="text-lg font-black text-white mt-0.5">${supabaseTierCost.toFixed(2)}</p>
                       <p className="text-[10px] text-slate-500">
-                        {((supabaseTierCost / simulatedTotalCost) * 100).toFixed(1)}% of total cost
+                        {((supabaseTierCost / actualTotalCost) * 100).toFixed(1)}% of total cost
                       </p>
                     </div>
                   </div>
@@ -618,9 +1030,9 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                     <span className="w-3.5 h-3.5 rounded-full bg-sky-500 shrink-0" />
                     <div>
                       <p className="text-xs font-semibold text-slate-300">Backblaze B2 Storage</p>
-                      <p className="text-lg font-black text-white mt-0.5">${simulatedB2Cost.toFixed(4)}</p>
+                      <p className="text-lg font-black text-white mt-0.5">${actualB2Cost.toFixed(4)}</p>
                       <p className="text-[10px] text-slate-500">
-                        {((simulatedB2Cost / simulatedTotalCost) * 100).toFixed(1)}% of total cost
+                        {((actualB2Cost / actualTotalCost) * 100).toFixed(1)}% of total cost
                       </p>
                     </div>
                   </div>
@@ -629,9 +1041,9 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                     <span className="w-3.5 h-3.5 rounded-full bg-amber-500 shrink-0" />
                     <div>
                       <p className="text-xs font-semibold text-slate-300">Cloudflare Edge & DNS</p>
-                      <p className="text-lg font-black text-white mt-0.5">${simulatedCloudflareCost.toFixed(2)}</p>
+                      <p className="text-lg font-black text-white mt-0.5">${actualCloudflareCost.toFixed(2)}</p>
                       <p className="text-[10px] text-slate-500">
-                        {((simulatedCloudflareCost / simulatedTotalCost) * 100).toFixed(1)}% of total cost
+                        {((actualCloudflareCost / actualTotalCost) * 100).toFixed(1)}% of total cost
                       </p>
                     </div>
                   </div>
@@ -642,7 +1054,18 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                       <p className="text-xs font-semibold text-slate-300">Modal.com (AI)</p>
                       <p className="text-lg font-black text-white mt-0.5">${actualModalCost.toFixed(4)}</p>
                       <p className="text-[10px] text-slate-500">
-                        {((actualModalCost / simulatedTotalCost) * 100).toFixed(1)}% of total cost
+                        {((actualModalCost / actualTotalCost) * 100).toFixed(1)}% of total cost
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-3">
+                    <span className="w-3.5 h-3.5 rounded-full bg-fuchsia-500 shrink-0" />
+                    <div>
+                      <p className="text-xs font-semibold text-slate-300">Railway (App)</p>
+                      <p className="text-lg font-black text-white mt-0.5">${actualRailwayCost.toFixed(2)}</p>
+                      <p className="text-[10px] text-slate-500">
+                        {((actualRailwayCost / actualTotalCost) * 100).toFixed(1)}% of total cost
                       </p>
                     </div>
                   </div>
@@ -650,7 +1073,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
               </div>
             ) : (
               <div className="text-center py-6 text-slate-500 text-xs">
-                No simulated expenses generated.
+                No active platform expenses generated.
               </div>
             )}
           </div>
@@ -719,6 +1142,17 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                     <td className="py-4 px-4 font-mono font-bold text-indigo-400">${actualModalCost.toFixed(4)}</td>
                     <td className="py-4 px-4 font-mono text-slate-400">${actualModalCost.toFixed(4)}</td>
                     <td className="py-4 px-4 font-mono text-slate-400">${(actualModalCost * 12).toFixed(4)} / yr</td>
+                  </tr>
+
+                  {/* Railway Row */}
+                  <tr className="hover:bg-slate-800/10 transition-colors">
+                    <td className="py-4 px-4 font-semibold text-white">Railway (App Server)</td>
+                    <td className="py-4 px-4">
+                      Node.js Edge Deployment (Simulated Cost)
+                    </td>
+                    <td className="py-4 px-4 font-mono font-bold text-indigo-400">${actualRailwayCost.toFixed(2)}</td>
+                    <td className="py-4 px-4 font-mono text-slate-400">${simulatedRailwayCost.toFixed(2)}</td>
+                    <td className="py-4 px-4 font-mono text-slate-400">${(actualRailwayCost * 12).toFixed(2)} / yr</td>
                   </tr>
 
                   {/* Consolidated Total Row */}
@@ -818,6 +1252,19 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                     <td className="py-4 px-4">
                       <span className="px-2 py-0.5 text-[9px] font-semibold bg-slate-800 border border-slate-700 text-slate-400 rounded-full">
                         Ledger Standard
+                      </span>
+                    </td>
+                  </tr>
+
+                  <tr className="hover:bg-slate-800/10 transition-colors">
+                    <td className="py-4 px-4 font-semibold text-white">Railway (App Server)</td>
+                    <td className="py-4 px-4">
+                      Container metrics usage billed per minute (CPU/RAM).
+                    </td>
+                    <td className="py-4 px-4 text-indigo-400 font-mono">RAILWAY_API_TOKEN</td>
+                    <td className="py-4 px-4">
+                      <span className="px-2 py-0.5 text-[9px] font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full">
+                        Offline / Simulated
                       </span>
                     </td>
                   </tr>
@@ -1788,48 +2235,131 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
           </div>
         </div>
       )}
-
       {/* TAB PANEL 5: MODAL.COM (AI) */}
       {activeSubTab === 'modal' && (
         <div className="space-y-8 animate-fadeIn">
+          {/* Real-time Timeframe Filtering Controls */}
+          <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-5 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center space-x-3">
+              <Sliders className="w-5 h-5 text-indigo-400" />
+              <div>
+                <h4 className="text-sm font-bold text-white">Timeframe & Exchange Rate</h4>
+                <p className="text-[10px] text-slate-400">Filter cost calculations, adjust exchange rate conversions.</p>
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-3">
+              {/* USD to INR Rate Setter */}
+              <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
+                <span className="text-[9px] font-bold text-slate-500 uppercase">Rate ($1 = ₹):</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={usdToInrRateInput}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                      setUsdToInrRateInput(val);
+                    }
+                  }}
+                  className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 w-12 text-center font-bold"
+                />
+              </div>
+
+              {/* Presets */}
+              <div className="bg-slate-900/60 p-1 border border-slate-800 rounded-xl flex gap-1">
+                {(['1d', '1w', '1m', 'custom'] as const).map(preset => {
+                  const labelMap: Record<string, string> = {
+                    '1d': 'Running Day',
+                    '1w': 'Running Week',
+                    '1m': 'Running Month',
+                    'custom': 'Custom'
+                  };
+                  const isActive = timeFilter === preset;
+                  return (
+                    <button
+                      key={preset}
+                      onClick={() => setTimeFilter(preset)}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-150 cursor-pointer ${
+                        isActive
+                          ? 'bg-indigo-600 text-white'
+                          : 'text-slate-450 hover:text-slate-200'
+                      }`}
+                    >
+                      {labelMap[preset]}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Custom Date Time Pickers */}
+              {timeFilter === 'custom' && (
+                <div className="flex flex-wrap items-center gap-2 animate-fadeIn">
+                  <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase">Start:</span>
+                    <input
+                      type="datetime-local"
+                      value={customStart}
+                      onChange={e => setCustomStart(e.target.value)}
+                      onClick={e => (e.target as any).showPicker?.()}
+                      style={{ colorScheme: 'dark' }}
+                      className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 cursor-pointer w-[155px]"
+                    />
+                  </div>
+                  <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase">End:</span>
+                    <input
+                      type="datetime-local"
+                      value={customEnd}
+                      onChange={e => setCustomEnd(e.target.value)}
+                      onClick={e => (e.target as any).showPicker?.()}
+                      style={{ colorScheme: 'dark' }}
+                      className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 cursor-pointer w-[155px]"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Overview Metrics Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
             <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg">
-              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Cost (Last 30d)</p>
-              <h3 className="text-2xl font-black text-indigo-450 mt-1">
-                ₹{(actualModalCost * 100).toFixed(2)}
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+                Total Cost ({timeFilter === '1d' ? 'Running Day' : timeFilter === '1w' ? 'Running Week' : timeFilter === '1m' ? 'Running Month' : 'Custom'})
+              </p>
+              <h3 className="text-2xl font-black text-indigo-455 mt-1">
+                ₹{actualModalCostInfo.inr.toFixed(2)} <span className="text-xs font-semibold text-slate-400">(${actualModalCostInfo.usd.toFixed(4)})</span>
               </h3>
               <p className="text-[10px] text-slate-500 mt-2">
-                Estimated for {modalLogs.length} indexing runs
+                Estimated for {modalLogs.length} execution runs
               </p>
             </div>
 
             <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg">
-              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Indexed Photos</p>
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Invocations</p>
               <h3 className="text-2xl font-black text-white mt-1">
                 {modalLogs.length}
               </h3>
               <p className="text-[10px] text-slate-500 mt-2">
-                Sent to Modal background workers
+                {modalStats.photosCount} Photos | {modalStats.selfiesCount} Selfies | {modalStats.batchesCount} Batches
               </p>
             </div>
 
             <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg">
               <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Avg Process Time</p>
               <h3 className="text-2xl font-black text-white mt-1">
-                {modalLogs.length > 0
-                  ? `${(modalLogs.reduce((sum, l) => sum + (Number(l.execution_time_seconds) || 0), 0) / modalLogs.length).toFixed(2)}s`
-                  : '0.00s'}
+                {modalStats.avgDuration.toFixed(2)}s
               </h3>
               <p className="text-[10px] text-slate-500 mt-2">
-                Per photo execution average
+                Per execution average
               </p>
             </div>
 
             <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg">
               <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Faces Detected</p>
               <h3 className="text-2xl font-black text-white mt-1">
-                {modalLogs.reduce((sum, l) => sum + (Number(l.faces_detected) || 0), 0)}
+                {modalStats.totalFaces}
               </h3>
               <p className="text-[10px] text-slate-500 mt-2">
                 Found and index mapped in database
@@ -1852,50 +2382,413 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                 <thead className="text-[10px] text-slate-500 uppercase bg-slate-900/30 border-b border-slate-800">
                   <tr>
                     <th className="py-3 px-4">Timestamp</th>
-                    <th className="py-3 px-4">Photo ID</th>
+                    <th className="py-3 px-4">Function</th>
+                    <th className="py-3 px-4">Resources</th>
                     <th className="py-3 px-4">Event ID</th>
                     <th className="py-3 px-4">Execution Time</th>
-                    <th className="py-3 px-4">Faces Detected</th>
+                    <th className="py-3 px-4">Faces</th>
                     <th className="py-3 px-4">Estimated Cost</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/40 text-slate-350">
-                  {modalLogs.length > 0 ? (
-                    modalLogs.map(log => {
-                      const costInr = Number(log.estimated_cost_inr) || 0;
-                      const paise = costInr * 100;
+                  {paginatedLogs.length > 0 ? (
+                    paginatedLogs.map(log => {
+                      const functionName = log.function_name || 'process_single_photo';
+                      
+                      const duration = Number(log.execution_time_seconds) || 0;
+                      const cpu = log.cpu_cores || 1.0;
+                      const mem = log.memory_gb || 1.0;
+                      
+                      const costUsd = duration * ((cpu * 0.0000131) + (mem * 0.00000222));
+                      const costInr = costUsd * usdToInrRate;
+                      
+                      let badgeColor = 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
+                      if (functionName === 'find_matching_photos') {
+                        badgeColor = 'bg-purple-500/10 border-purple-500/20 text-purple-400';
+                      } else if (functionName === 'process_media_batch') {
+                        badgeColor = 'bg-blue-500/10 border-blue-500/20 text-blue-400';
+                      }
+                      
                       return (
                         <tr key={log.id} className="hover:bg-slate-800/10 transition-colors">
                           <td className="py-3 px-4 text-[11px] font-mono">
                             {new Date(log.created_at).toLocaleString()}
                           </td>
-                          <td className="py-3 px-4 font-mono text-[10px] text-slate-400 truncate max-w-xs" title={log.photo_id}>
-                            {log.photo_id.slice(-20)}
+                          <td className="py-3 px-4">
+                            <span className={`px-2 py-0.5 text-[9px] font-bold border rounded-full ${badgeColor}`}>
+                              {functionName}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 font-mono text-[10px] text-slate-400">
+                            {cpu} CPU | {mem} GB
                           </td>
                           <td className="py-3 px-4 font-mono text-[11px] text-slate-400">
-                            {log.event_id}
+                            {log.event_id ? (
+                              <span>📅 {log.event_id}</span>
+                            ) : (
+                              <span>-</span>
+                            )}
                           </td>
                           <td className="py-3 px-4 font-mono">
-                            {(log.execution_time_seconds || 0).toFixed(2)}s
+                            {duration.toFixed(2)}s
                           </td>
                           <td className="py-3 px-4 font-semibold text-white">
                             {log.faces_detected}
                           </td>
                           <td className="py-3 px-4 font-mono font-bold text-indigo-400">
-                            ₹{costInr.toFixed(5)} ({paise.toFixed(2)} Paise)
+                            ₹{costInr.toFixed(5)} <span className="text-[10px] text-slate-400">(${costUsd.toFixed(6)})</span>
                           </td>
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-500">
+                      <td colSpan={7} className="py-8 text-center text-slate-500">
                         No face indexing runs logged in the last 30 days.
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
+              
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between border-t border-slate-800/60 px-4 py-4 sm:px-6 bg-slate-900/10">
+                  <div className="flex flex-1 justify-between sm:hidden">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center rounded-xl border border-slate-800 bg-slate-950 px-4 py-2 text-xs font-medium text-slate-450 hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="relative ml-3 inline-flex items-center rounded-xl border border-slate-800 bg-slate-950 px-4 py-2 text-xs font-medium text-slate-450 hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      Next
+                    </button>
+                  </div>
+                  <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs text-slate-400">
+                        Showing <span className="font-semibold text-white">{Math.min(modalLogs.length, (currentPage - 1) * itemsPerPage + 1)}</span> to{' '}
+                        <span className="font-semibold text-white">{Math.min(modalLogs.length, currentPage * itemsPerPage)}</span> of{' '}
+                        <span className="font-semibold text-white">{modalLogs.length}</span> entries
+                      </p>
+                    </div>
+                    <div>
+                      <nav className="isolate inline-flex -space-x-px rounded-xl border border-slate-800/65 bg-slate-950 p-1 gap-1" aria-label="Pagination">
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1}
+                          className="relative inline-flex items-center rounded-lg p-1.5 text-slate-450 hover:bg-slate-900 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          <span className="sr-only">Previous</span>
+                          <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        
+                        {pageNumbers.map(page => {
+                          const isActive = page === currentPage;
+                          return (
+                            <button
+                              key={page}
+                              onClick={() => setCurrentPage(page)}
+                              className={`relative inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
+                                isActive
+                                  ? 'bg-indigo-650 text-white'
+                                  : 'text-slate-450 hover:bg-slate-900 hover:text-slate-200'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          );
+                        })}
+
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                          disabled={currentPage === totalPages}
+                          className="relative inline-flex items-center rounded-lg p-1.5 text-slate-450 hover:bg-slate-900 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          <span className="sr-only">Next</span>
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </nav>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Railway.app Tab */}
+      {activeSubTab === 'railway' && (
+        <div className="space-y-8 animate-fadeIn">
+          {/* Timeframe & Exchange Rate Controls */}
+          <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-5 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center space-x-3">
+              <Sliders className="w-5 h-5 text-fuchsia-400" />
+              <div>
+                <h4 className="text-sm font-bold text-white">Timeframe & Exchange Rate</h4>
+                <p className="text-[10px] text-slate-400">Filter cost calculations, adjust exchange rate conversions.</p>
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-3">
+              {/* USD to INR Rate Setter */}
+              <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
+                <span className="text-[9px] font-bold text-slate-500 uppercase">Rate ($1 = ₹):</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={usdToInrRateInput}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                      setUsdToInrRateInput(val);
+                    }
+                  }}
+                  className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 w-12 text-center font-bold"
+                />
+              </div>
+
+              {/* Presets */}
+              <div className="bg-slate-900/60 p-1 border border-slate-800 rounded-xl flex gap-1">
+                {(['1d', '1w', '1m', 'custom'] as const).map(preset => {
+                  const labelMap: Record<string, string> = {
+                    '1d': 'Running Day',
+                    '1w': 'Running Week',
+                    '1m': 'Running Month',
+                    'custom': 'Custom'
+                  };
+                  const isActive = timeFilter === preset;
+                  return (
+                    <button
+                      key={preset}
+                      onClick={() => setTimeFilter(preset)}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-150 cursor-pointer ${
+                        isActive
+                          ? 'bg-fuchsia-600 text-white'
+                          : 'text-slate-450 hover:text-slate-200'
+                      }`}
+                    >
+                      {labelMap[preset]}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Custom Date Time Pickers */}
+              {timeFilter === 'custom' && (
+                <div className="flex flex-wrap items-center gap-2 animate-fadeIn">
+                  <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase">Start:</span>
+                    <input
+                      type="datetime-local"
+                      value={customStart}
+                      onChange={e => setCustomStart(e.target.value)}
+                      onClick={e => (e.target as any).showPicker?.()}
+                      style={{ colorScheme: 'dark' }}
+                      className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 cursor-pointer w-[155px]"
+                    />
+                  </div>
+                  <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase">End:</span>
+                    <input
+                      type="datetime-local"
+                      value={customEnd}
+                      onChange={e => setCustomEnd(e.target.value)}
+                      onClick={e => (e.target as any).showPicker?.()}
+                      style={{ colorScheme: 'dark' }}
+                      className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 cursor-pointer w-[155px]"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Live Cost Banner — shown when API is connected */}
+          {hasLiveRailway && liveRailwayData && (
+            <div className="bg-emerald-950/30 border border-emerald-800/40 rounded-3xl p-6 shadow-xl">
+              <div className="flex items-center gap-2 mb-5">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                <h4 className="text-base font-bold text-emerald-300">Live Railway Billing — {liveRailwayData.projectName}</h4>
+                <span className="ml-auto text-[10px] text-emerald-500 font-mono">Real-time via Railway GraphQL API</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="bg-emerald-950/40 rounded-2xl p-4">
+                  <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-1">CPU Compute</p>
+                  <p className="text-2xl font-black text-white">${liveRailwayData.cpuDollars.toFixed(2)}</p>
+                  <p className="text-[10px] text-emerald-500 mt-1">This month</p>
+                </div>
+                <div className="bg-emerald-950/40 rounded-2xl p-4">
+                  <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-1">RAM Memory</p>
+                  <p className="text-2xl font-black text-white">${liveRailwayData.memoryDollars.toFixed(2)}</p>
+                  <p className="text-[10px] text-emerald-500 mt-1">This month</p>
+                </div>
+                <div className="bg-emerald-950/40 rounded-2xl p-4">
+                  <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-1">Network Egress</p>
+                  <p className="text-2xl font-black text-white">${liveRailwayData.networkDollars.toFixed(2)}</p>
+                  <p className="text-[10px] text-emerald-500 mt-1">This month</p>
+                </div>
+                <div className="bg-emerald-900/30 border border-emerald-700/30 rounded-2xl p-4">
+                  <p className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider mb-1">
+                    {liveRailwayData.invoiceDollars !== null ? 'Current Invoice' : 'Estimated Total'}
+                  </p>
+                  <p className="text-2xl font-black text-emerald-300">${actualRailwayCost.toFixed(2)}</p>
+                  <p className="text-[10px] text-emerald-500 mt-1">
+                    ₹{(actualRailwayCost * usdToInrRate).toFixed(0)} @ ₹{usdToInrRate}/USD
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Error state — token not configured */}
+          {liveRailwayData?.error && (
+            <div className="bg-amber-950/30 border border-amber-800/40 rounded-3xl p-5 flex items-start gap-3">
+              <HelpCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-amber-300">Live Railway data unavailable</p>
+                <p className="text-xs text-amber-400/80 mt-1">{liveRailwayData.error}</p>
+                <div className="mt-3 space-y-1.5 text-xs text-amber-400/70">
+                  <p>To enable live billing sync, add these to your Next.js <code className="bg-amber-950/60 px-1 rounded">.env.local</code>:</p>
+                  <p className="font-mono bg-amber-950/60 px-2 py-1 rounded text-amber-300">RAILWAY_API_TOKEN=your_account_token</p>
+                  <p className="font-mono bg-amber-950/60 px-2 py-1 rounded text-amber-300">RAILWAY_PROJECT_ID=your_project_id</p>
+                  <p className="text-amber-500 mt-2">
+                    ⚠️ Must be an <strong>Account Token</strong> — not a Project or Workspace token.<br />
+                    Get it from: <strong>Railway Dashboard → Account Settings → Tokens → New Token</strong>
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* Left: Configuration Sliders */}
+            <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-8">
+              <div>
+                <h4 className="text-lg font-bold text-white mb-2 flex items-center">
+                  <Sliders className="w-5 h-5 mr-2 text-fuchsia-400" />
+                  Railway Server Simulator
+                </h4>
+                <p className="text-slate-400 text-xs">
+                  {hasLiveRailway
+                    ? 'Live data is active above. Use these sliders to model future scaling scenarios.'
+                    : 'Railway.app bills your edge server usage by the second based on Memory and CPU allocation. Use the sliders to estimate your Node.js container\'s costs.'}
+                </p>
+              </div>
+
+              <div className="space-y-8">
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <label className="text-sm font-semibold text-slate-300">Container RAM Allocation</label>
+                    <span className="px-3 py-1 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-fuchsia-400">
+                      {simulatedRailwayRAM.toFixed(1)} GB
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="8"
+                    step="0.1"
+                    value={simulatedRailwayRAM}
+                    onChange={e => setSimulatedRailwayRAM(Number(e.target.value))}
+                    className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-fuchsia-500"
+                  />
+                  <div className="flex justify-between mt-2 text-[10px] text-slate-500">
+                    <span>0.5 GB</span>
+                    <span>8 GB</span>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <label className="text-sm font-semibold text-slate-300">Container vCPU Allocation</label>
+                    <span className="px-3 py-1 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-fuchsia-400">
+                      {simulatedRailwayCPU.toFixed(2)} vCPU
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.05"
+                    max="4"
+                    step="0.05"
+                    value={simulatedRailwayCPU}
+                    onChange={e => setSimulatedRailwayCPU(Number(e.target.value))}
+                    className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-fuchsia-500"
+                  />
+                  <div className="flex justify-between mt-2 text-[10px] text-slate-500">
+                    <span>0.05 vCPU</span>
+                    <span>4 vCPU</span>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <label className="text-sm font-semibold text-slate-300">Monthly Egress (Bandwidth)</label>
+                    <span className="px-3 py-1 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-fuchsia-400">
+                      {simulatedRailwayEgress} GB
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="500"
+                    step="1"
+                    value={simulatedRailwayEgress}
+                    onChange={e => setSimulatedRailwayEgress(Number(e.target.value))}
+                    className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-fuchsia-500"
+                  />
+                  <div className="flex justify-between mt-2 text-[10px] text-slate-500">
+                    <span>1 GB</span>
+                    <span>500 GB</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Cost Breakdown & Architecture Details */}
+            <div className="space-y-6">
+              <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-fuchsia-500/10 rounded-full blur-2xl pointer-events-none" />
+                <h4 className="text-lg font-bold text-white mb-6 border-b border-slate-800 pb-4">Estimated Monthly Impact</h4>
+                
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-slate-400 text-sm">Memory Compute</span>
+                    <span className="font-mono text-white">${railwayRamCostMonth.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-slate-400 text-sm">vCPU Compute</span>
+                    <span className="font-mono text-white">${railwayCpuCostMonth.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-slate-400 text-sm">Network Egress</span>
+                    <span className="font-mono text-white">${railwayEgressCostMonth.toFixed(2)}</span>
+                  </div>
+                  <div className="border-t border-slate-800 pt-4 flex justify-between items-center">
+                    <span className="font-bold text-slate-300">Total Simulated Cost</span>
+                    <span className="font-mono font-black text-fuchsia-400 text-xl">${simulatedRailwayCost.toFixed(2)} / mo</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-fuchsia-950/20 border border-fuchsia-900/30 rounded-3xl p-6">
+                <h4 className="text-sm font-bold text-fuchsia-300 mb-3 flex items-center">
+                  <Server className="w-4 h-4 mr-2" /> Server Architecture Notes
+                </h4>
+                <ul className="space-y-2 text-xs text-fuchsia-200/70 list-disc list-inside">
+                  <li><strong>Compute Profile:</strong> Next.js containers naturally idle around 0.005 vCPU and ~300MB RAM. Egress is drastically reduced because heavy media assets are served directly from Backblaze B2 & Cloudflare.</li>
+                  <li><strong>Execution Rates:</strong> Billed precisely by the second based on actual usage peaks. Memory is $0.00000386/GB/sec (~$10/GB/month), CPU is $0.00000772/vCPU/sec (~$20/vCPU/month), Egress is $0.05/GB.</li>
+                  <li><strong>Included Credits:</strong> Hobby plan ($5/mo) and Pro plan ($20/mo) come with matching usage credits — you only pay overage above that. Adjust sliders to your actual container allocation from Railway dashboard.</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>

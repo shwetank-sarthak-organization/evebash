@@ -72,11 +72,37 @@ def process_media_batch(request: dict):
     QStash Webhook Entrypoint.
     Accepts a batch of photos and fans them out to parallel CPU workers.
     """
+    import time
+    start_time = time.time()
+
     photos = request.get("photos", [])
     if not photos:
         return {"status": "no photos provided"}
 
     results = list(process_single_photo.map(photos))
+
+    duration = time.time() - start_time
+    cpu_cores = 0.125
+    memory_gb = 1.0
+    estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
+    try:
+        from supabase import create_client
+        supabase = create_client(
+            os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
+            os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+        )
+        supabase.table("modal_cost_logs").insert({
+            "function_name":           "process_media_batch",
+            "cpu_cores":               cpu_cores,
+            "memory_gb":               memory_gb,
+            "execution_time_seconds":  duration,
+            "estimated_cost_inr":      estimated_cost_inr,
+            "faces_detected":          0
+        }).execute()
+        print(f"[Batch] Cost logged: {duration:.2f}s, ₹{estimated_cost_inr:.5f}")
+    except Exception as log_err:
+        print(f"[Batch] Cost log failed: {log_err}")
+
     return {"status": "success", "processed": len(results), "results": results}
 
 
@@ -179,11 +205,16 @@ def process_single_photo(photo_data: dict):
 
         # ── 6. Log infrastructure cost ───────────────────────────────────
         duration = time.time() - start_time
-        estimated_cost_inr = duration * 0.001532
+        cpu_cores = 1.0
+        memory_gb = 1.0
+        estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
         try:
             supabase.table("modal_cost_logs").insert({
                 "photo_id":                photo_id,
                 "event_id":                event_id,
+                "function_name":           "process_single_photo",
+                "cpu_cores":               cpu_cores,
+                "memory_gb":               memory_gb,
                 "execution_time_seconds":  duration,
                 "estimated_cost_inr":      estimated_cost_inr,
                 "faces_detected":          len(face_encodings)
@@ -210,6 +241,9 @@ def find_matching_photos(request: dict):
     Accepts selfie_base64 + event_ids, returns matched photos.
     Uses AuraFace cosine similarity.
     """
+    import time
+    start_time = time.time()
+
     import base64
     import numpy as np
     import cv2
@@ -237,6 +271,26 @@ def find_matching_photos(request: dict):
         selfie_faces = face_analysis.get(selfie_bgr)
         if not selfie_faces:
             print("[Selfie] No face detected in selfie.")
+            # Log cost even if no face detected
+            duration = time.time() - start_time
+            cpu_cores = 0.125
+            memory_gb = 1.0
+            estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
+            try:
+                supabase: Client = create_client(
+                    os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
+                    os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+                )
+                supabase.table("modal_cost_logs").insert({
+                    "function_name":           "find_matching_photos",
+                    "cpu_cores":               cpu_cores,
+                    "memory_gb":               memory_gb,
+                    "execution_time_seconds":  duration,
+                    "estimated_cost_inr":      estimated_cost_inr,
+                    "faces_detected":          0
+                }).execute()
+            except Exception as log_err:
+                print(f"[Selfie] Cost log failed: {log_err}")
             return {"error": "No face detected in selfie", "matches": []}
 
         # Sort by box area descending to pick the closest/largest face
@@ -244,6 +298,26 @@ def find_matching_photos(request: dict):
         selfie_vec = sorted_faces[0].normed_embedding
         if selfie_vec is None:
             print("[Selfie] Failed to generate face vector.")
+            # Log cost even if failure
+            duration = time.time() - start_time
+            cpu_cores = 0.125
+            memory_gb = 1.0
+            estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
+            try:
+                supabase: Client = create_client(
+                    os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
+                    os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+                )
+                supabase.table("modal_cost_logs").insert({
+                    "function_name":           "find_matching_photos",
+                    "cpu_cores":               cpu_cores,
+                    "memory_gb":               memory_gb,
+                    "execution_time_seconds":  duration,
+                    "estimated_cost_inr":      estimated_cost_inr,
+                    "faces_detected":          0
+                }).execute()
+            except Exception as log_err:
+                print(f"[Selfie] Cost log failed: {log_err}")
             return {"error": "Failed to generate face vector", "matches": []}
             
         print("[Selfie] Embedding successfully generated.")
@@ -303,6 +377,25 @@ def find_matching_photos(request: dict):
             matches.append(m)
 
         print(f"[Selfie] Returning {len(matches)} match(es).")
+        
+        # Log infrastructure cost
+        duration = time.time() - start_time
+        cpu_cores = 0.125
+        memory_gb = 1.0
+        estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
+        try:
+            supabase.table("modal_cost_logs").insert({
+                "function_name":           "find_matching_photos",
+                "cpu_cores":               cpu_cores,
+                "memory_gb":               memory_gb,
+                "execution_time_seconds":  duration,
+                "estimated_cost_inr":      estimated_cost_inr,
+                "faces_detected":          len(selfie_faces)
+            }).execute()
+            print(f"[Selfie] Cost logged: {duration:.2f}s, ₹{estimated_cost_inr:.5f}")
+        except Exception as log_err:
+            print(f"[Selfie] Cost log failed: {log_err}")
+
         return {
             "success": True,
             "matches": matches,
@@ -315,4 +408,24 @@ def find_matching_photos(request: dict):
 
     except Exception as e:
         print(f"[find_matching_photos] Error: {e}")
+        # Log cost even on exception
+        duration = time.time() - start_time
+        cpu_cores = 0.125
+        memory_gb = 1.0
+        estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
+        try:
+            supabase: Client = create_client(
+                os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
+                os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+            )
+            supabase.table("modal_cost_logs").insert({
+                "function_name":           "find_matching_photos",
+                "cpu_cores":               cpu_cores,
+                "memory_gb":               memory_gb,
+                "execution_time_seconds":  duration,
+                "estimated_cost_inr":      estimated_cost_inr,
+                "faces_detected":          0
+            }).execute()
+        except Exception as log_err:
+            print(f"[Selfie] Cost log failed: {log_err}")
         return {"error": str(e), "matches": []}
