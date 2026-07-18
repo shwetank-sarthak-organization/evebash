@@ -489,11 +489,28 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   const simulatedB2Cost = simStorageCostMonth + simClassBCostMonth + simClassCCostMonth;
 
   // 3. Cloudflare Costs
-  const registrarCost = 0.83; // Wholesale pricing ~ $10/year flat registrar rate
+  const registrarCost = 0.00; // Domain registered externally via Hostinger
   const monthlyRequests = simulatedDailyRequests * 30;
 
-  // Actual Image Resizing/Transformations: Set to $0.00 as transformations are pre-generated on B2 via backend
-  const actualCfImageCostMonth = 0;
+  // Actual Image Resizing/Transformations: Calculated dynamically from live API values
+  const actualCfImageCostMonth = useMemo(() => {
+    let cost = 0;
+    
+    // 1. Remote Image Resizing transformations cost (first 5,000 free, then $0.50 per 1,000 unique transformations)
+    if (liveCfTransformations !== null) {
+      const overageTransformations = Math.max(0, liveCfTransformations - 5000);
+      cost += (overageTransformations / 1000) * 0.50;
+    }
+    
+    // 2. Cloudflare Images storage cost (if using Cloudflare Images product)
+    if (liveCfStoredImages !== null && liveCfStoredImages > 0) {
+      cost += 5.00; // Base $5.00/mo subscription (includes 10,000 stored images)
+      const overageImages = Math.max(0, liveCfStoredImages - 10000);
+      cost += (overageImages / 10000) * 1.00;
+    }
+    
+    return cost;
+  }, [liveCfTransformations, liveCfStoredImages]);
 
   // Simulated Image Resizing/Transformations: Set to $0.00 as transformations are pre-generated on B2 via backend
   const simCfImageCostMonth = 0;
@@ -675,6 +692,94 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
     } finally {
       setOrphanActionLoading(null);
     }
+  };
+
+  // Shared Helper: Render Timeframe & Exchange Rate Filter Bar
+  const renderFilterBar = (activeBgClass: string, textThemeClass: string) => {
+    return (
+      <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-5 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex items-center space-x-3">
+          <Sliders className={`w-5 h-5 ${textThemeClass}`} />
+          <div>
+            <h4 className="text-sm font-bold text-white">Timeframe & Exchange Rate</h4>
+            <p className="text-[10px] text-slate-400">Filter cost calculations, adjust exchange rate conversions.</p>
+          </div>
+        </div>
+        
+        <div className="flex flex-wrap items-center gap-3">
+          {/* USD to INR Rate Setter */}
+          <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
+            <span className="text-[9px] font-bold text-slate-500 uppercase">Rate ($1 = ₹):</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={usdToInrRateInput}
+              onChange={e => {
+                const val = e.target.value;
+                if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                  setUsdToInrRateInput(val);
+                }
+              }}
+              className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 w-12 text-center font-bold"
+            />
+          </div>
+
+          {/* Presets */}
+          <div className="bg-slate-900/60 p-1 border border-slate-800 rounded-xl flex gap-1">
+            {(['1d', '1w', '1m', 'custom'] as const).map(preset => {
+              const labelMap: Record<string, string> = {
+                '1d': 'Running Day',
+                '1w': 'Running Week',
+                '1m': 'Running Month',
+                'custom': 'Custom'
+              };
+              const isActive = timeFilter === preset;
+              return (
+                <button
+                  key={preset}
+                  onClick={() => setTimeFilter(preset)}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-150 cursor-pointer ${
+                    isActive
+                      ? `${activeBgClass} text-white`
+                      : 'text-slate-450 hover:text-slate-200'
+                  }`}
+                >
+                  {labelMap[preset]}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Custom Date Time Pickers */}
+          {timeFilter === 'custom' && (
+            <div className="flex flex-wrap items-center gap-2 animate-fadeIn">
+              <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
+                <span className="text-[9px] font-bold text-slate-500 uppercase">Start:</span>
+                <input
+                  type="datetime-local"
+                  value={customStart}
+                  onChange={e => setCustomStart(e.target.value)}
+                  onClick={e => (e.target as any).showPicker?.()}
+                  style={{ colorScheme: 'dark' }}
+                  className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 cursor-pointer w-[155px]"
+                />
+              </div>
+              <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
+                <span className="text-[9px] font-bold text-slate-500 uppercase">End:</span>
+                <input
+                  type="datetime-local"
+                  value={customEnd}
+                  onChange={e => setCustomEnd(e.target.value)}
+                  onClick={e => (e.target as any).showPicker?.()}
+                  style={{ colorScheme: 'dark' }}
+                  className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 cursor-pointer w-[155px]"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   // Navigation Subtabs
@@ -1289,6 +1394,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
       {/* TAB PANEL 2: SUPABASE DETAIL */}
       {activeSubTab === 'supabase' && (
         <div className="space-y-8">
+          {renderFilterBar('bg-emerald-600', 'text-emerald-450')}
           {/* Supabase row count indicators */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
             <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 text-center">
@@ -1532,6 +1638,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
       {/* TAB PANEL 3: BACKBLAZE B2 STORAGE DETAIL */}
       {activeSubTab === 'backblaze' && (
         <div className="space-y-8">
+          {renderFilterBar('bg-sky-600', 'text-sky-405')}
           {/* Backblaze stats breakdown */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Photos count/size card */}
@@ -1861,7 +1968,46 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
 
       {/* TAB PANEL 4: CLOUDFLARE DETAIL */}
       {activeSubTab === 'cloudflare' && (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-fadeIn">
+          {renderFilterBar('bg-amber-600', 'text-amber-400')}
+
+          {/* Live Cost Banner — shown when API is connected */}
+          {liveCfPlan && (
+            <div className="bg-amber-955/20 border border-amber-800/30 rounded-3xl p-6 shadow-xl">
+              <div className="flex items-center gap-2 mb-5">
+                <ShieldCheck className="w-5 h-5 text-amber-400" />
+                <h4 className="text-base font-bold text-amber-300 font-sans">Live Cloudflare Account Billing</h4>
+                <span className="ml-auto text-[10px] text-amber-500 font-mono">Real-time via Cloudflare API v4</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="bg-amber-950/30 border border-amber-900/10 rounded-2xl p-4">
+                  <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-1">Zone Plan</p>
+                  <p className="text-2xl font-black text-white">{liveCfPlan.toUpperCase()}</p>
+                  <p className="text-[10px] text-amber-500 mt-1">Free Website Tier</p>
+                </div>
+                <div className="bg-amber-950/30 border border-amber-900/10 rounded-2xl p-4">
+                  <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-1">Domain Registrar</p>
+                  <p className="text-2xl font-black text-white">$0.00</p>
+                  <p className="text-[10px] text-amber-500 mt-1">Registered via Hostinger</p>
+                </div>
+                <div className="bg-amber-950/30 border border-amber-900/10 rounded-2xl p-4">
+                  <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-1">Active Subscriptions</p>
+                  <p className="text-2xl font-black text-white">
+                    {liveCfSubscriptionCost > 0 ? `$${liveCfSubscriptionCost.toFixed(2)}` : 'None'}
+                  </p>
+                  <p className="text-[10px] text-amber-500 mt-1">{liveCfSubscriptions.length} active addon(s)</p>
+                </div>
+                <div className="bg-amber-900/20 border border-amber-700/25 rounded-2xl p-4">
+                  <p className="text-[10px] text-amber-350 font-bold uppercase tracking-wider mb-1">Total Monthly Cost</p>
+                  <p className="text-2xl font-black text-amber-300">${actualCloudflareCost.toFixed(2)}</p>
+                  <p className="text-[10px] text-amber-500 mt-1">
+                    ₹{(actualCloudflareCost * usdToInrRate).toFixed(0)} @ ₹{usdToInrRate}/USD
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Cloudflare metrics block */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Egress savings banner */}
@@ -1892,14 +2038,13 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                 <div>Stored Images (Live): <span className="text-slate-200 font-semibold">{liveCfStoredImages !== null ? formatNumber(liveCfStoredImages) : 'N/A'}</span></div>
               </div>
             </div>
-
             {/* Registrar cost info */}
             <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg group">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Domain Registrar Cost</p>
                   <h3 className="text-xl font-black text-white mt-1 group-hover:text-amber-400 transition-colors">
-                    $0.83 <span className="text-xs font-medium text-slate-500">/ mo</span>
+                    $0.00 <span className="text-xs font-medium text-slate-500">/ mo</span>
                   </h3>
                 </div>
                 <div className="p-2.5 bg-amber-500/10 rounded-xl text-amber-400">
@@ -1907,7 +2052,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                 </div>
               </div>
               <p className="text-[10px] text-slate-500 mt-2.5">
-                Calculated from flat $10.00 / year wholesale registrar fee
+                $0.00 billed to Cloudflare (registered externally via Hostinger)
               </p>
             </div>
           </div>
@@ -2150,11 +2295,11 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                 <tbody className="divide-y divide-slate-800/40 text-slate-350">
                   {/* Row 1: Domain Registration */}
                   <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Domain Registrar (Wholesale .com)</td>
-                    <td className="py-4 px-4">Flat rate registry cost</td>
+                    <td className="py-4 px-4 font-semibold text-white">Domain Registrar (External Hostinger)</td>
+                    <td className="py-4 px-4">Registered externally via Hostinger</td>
                     <td className="py-4 px-4">1 Domain Active</td>
-                    <td className="py-4 px-4 font-mono font-bold text-amber-400">$0.83</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">$10.00</td>
+                    <td className="py-4 px-4 font-mono font-bold text-amber-400">$0.00</td>
+                    <td className="py-4 px-4 font-mono text-slate-400">$0.00</td>
                   </tr>
 
                   {/* Row 1b: Live Cloudflare Plan Subscriptions */}
@@ -2239,88 +2384,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
       {activeSubTab === 'modal' && (
         <div className="space-y-8 animate-fadeIn">
           {/* Real-time Timeframe Filtering Controls */}
-          <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-5 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div className="flex items-center space-x-3">
-              <Sliders className="w-5 h-5 text-indigo-400" />
-              <div>
-                <h4 className="text-sm font-bold text-white">Timeframe & Exchange Rate</h4>
-                <p className="text-[10px] text-slate-400">Filter cost calculations, adjust exchange rate conversions.</p>
-              </div>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-3">
-              {/* USD to INR Rate Setter */}
-              <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
-                <span className="text-[9px] font-bold text-slate-500 uppercase">Rate ($1 = ₹):</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={usdToInrRateInput}
-                  onChange={e => {
-                    const val = e.target.value;
-                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                      setUsdToInrRateInput(val);
-                    }
-                  }}
-                  className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 w-12 text-center font-bold"
-                />
-              </div>
-
-              {/* Presets */}
-              <div className="bg-slate-900/60 p-1 border border-slate-800 rounded-xl flex gap-1">
-                {(['1d', '1w', '1m', 'custom'] as const).map(preset => {
-                  const labelMap: Record<string, string> = {
-                    '1d': 'Running Day',
-                    '1w': 'Running Week',
-                    '1m': 'Running Month',
-                    'custom': 'Custom'
-                  };
-                  const isActive = timeFilter === preset;
-                  return (
-                    <button
-                      key={preset}
-                      onClick={() => setTimeFilter(preset)}
-                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-150 cursor-pointer ${
-                        isActive
-                          ? 'bg-indigo-600 text-white'
-                          : 'text-slate-450 hover:text-slate-200'
-                      }`}
-                    >
-                      {labelMap[preset]}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Custom Date Time Pickers */}
-              {timeFilter === 'custom' && (
-                <div className="flex flex-wrap items-center gap-2 animate-fadeIn">
-                  <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase">Start:</span>
-                    <input
-                      type="datetime-local"
-                      value={customStart}
-                      onChange={e => setCustomStart(e.target.value)}
-                      onClick={e => (e.target as any).showPicker?.()}
-                      style={{ colorScheme: 'dark' }}
-                      className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 cursor-pointer w-[155px]"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase">End:</span>
-                    <input
-                      type="datetime-local"
-                      value={customEnd}
-                      onChange={e => setCustomEnd(e.target.value)}
-                      onClick={e => (e.target as any).showPicker?.()}
-                      style={{ colorScheme: 'dark' }}
-                      className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 cursor-pointer w-[155px]"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          {renderFilterBar('bg-indigo-650', 'text-indigo-400')}
 
           {/* Overview Metrics Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
@@ -2528,88 +2592,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
       {activeSubTab === 'railway' && (
         <div className="space-y-8 animate-fadeIn">
           {/* Timeframe & Exchange Rate Controls */}
-          <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-5 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div className="flex items-center space-x-3">
-              <Sliders className="w-5 h-5 text-fuchsia-400" />
-              <div>
-                <h4 className="text-sm font-bold text-white">Timeframe & Exchange Rate</h4>
-                <p className="text-[10px] text-slate-400">Filter cost calculations, adjust exchange rate conversions.</p>
-              </div>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-3">
-              {/* USD to INR Rate Setter */}
-              <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
-                <span className="text-[9px] font-bold text-slate-500 uppercase">Rate ($1 = ₹):</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={usdToInrRateInput}
-                  onChange={e => {
-                    const val = e.target.value;
-                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                      setUsdToInrRateInput(val);
-                    }
-                  }}
-                  className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 w-12 text-center font-bold"
-                />
-              </div>
-
-              {/* Presets */}
-              <div className="bg-slate-900/60 p-1 border border-slate-800 rounded-xl flex gap-1">
-                {(['1d', '1w', '1m', 'custom'] as const).map(preset => {
-                  const labelMap: Record<string, string> = {
-                    '1d': 'Running Day',
-                    '1w': 'Running Week',
-                    '1m': 'Running Month',
-                    'custom': 'Custom'
-                  };
-                  const isActive = timeFilter === preset;
-                  return (
-                    <button
-                      key={preset}
-                      onClick={() => setTimeFilter(preset)}
-                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-150 cursor-pointer ${
-                        isActive
-                          ? 'bg-fuchsia-600 text-white'
-                          : 'text-slate-450 hover:text-slate-200'
-                      }`}
-                    >
-                      {labelMap[preset]}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Custom Date Time Pickers */}
-              {timeFilter === 'custom' && (
-                <div className="flex flex-wrap items-center gap-2 animate-fadeIn">
-                  <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase">Start:</span>
-                    <input
-                      type="datetime-local"
-                      value={customStart}
-                      onChange={e => setCustomStart(e.target.value)}
-                      onClick={e => (e.target as any).showPicker?.()}
-                      style={{ colorScheme: 'dark' }}
-                      className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 cursor-pointer w-[155px]"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase">End:</span>
-                    <input
-                      type="datetime-local"
-                      value={customEnd}
-                      onChange={e => setCustomEnd(e.target.value)}
-                      onClick={e => (e.target as any).showPicker?.()}
-                      style={{ colorScheme: 'dark' }}
-                      className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 cursor-pointer w-[155px]"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          {renderFilterBar('bg-fuchsia-600', 'text-fuchsia-400')}
 
           {/* Live Cost Banner — shown when API is connected */}
           {hasLiveRailway && liveRailwayData && (
