@@ -2072,18 +2072,23 @@ function DashboardContent() {
                 // Update status to uploading in UI when task actually starts
                 setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "uploading" } : item));
 
-                // Smoothly animate upload progress to 85% over 1.5 seconds
-                let currentProgress = 0;
-                const progressInterval = setInterval(() => {
-                    currentProgress = Math.min(85, currentProgress + Math.floor(Math.random() * 15) + 5);
-                    setUploadQueue(prev => prev.map(item => item.id === queueItemId && item.status === "uploading" ? { ...item, progress: currentProgress } : item));
-                }, 200);
-
                 try {
                     console.log(`[Dashboard] Uploading file ${index + 1}/${selectedFiles.length}: ${file.name} (lane: ${workerId})`);
                     // Upload the original file — skip single-save so we can chunk it
-                    const uploadResult = await uploadEventImage(file, selectedEventId, user.uid || "anonymous", workerId, true);
-                    clearInterval(progressInterval);
+                    const uploadResult = await uploadEventImage(
+                        file,
+                        selectedEventId,
+                        user.uid || "anonymous",
+                        workerId,
+                        true,
+                        (percent) => {
+                            setUploadQueue(prev => prev.map(item =>
+                                item.id === queueItemId && item.status === "uploading"
+                                    ? { ...item, progress: Math.min(99, Math.round(percent)) }
+                                    : item
+                            ));
+                        }
+                    );
 
                     if (index === 0) firstUploadedUrl = uploadResult.url;
 
@@ -2117,7 +2122,6 @@ function DashboardContent() {
                     // Store for background indexing
                     uploadResults.push({ file, photo });
                 } catch (fileErr: any) {
-                    clearInterval(progressInterval);
                     console.error(`[Dashboard] File upload error for ${file.name}:`, fileErr);
                     setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "error", progress: 100, error: fileErr.message || "Failed" } : item));
                 } finally {

@@ -6,7 +6,58 @@ import { supabase } from "@/lib/supabase";
  * 2. Uploads binary directly to Backblaze B2.
  * 3. Saves photo metadata to Supabase via Railway save-photo endpoint.
  */
-export async function uploadEventImage(file: File, eventId: string, userId?: string, laneIndex = 0, skipSaveMetadata = false) {
+function uploadWithXhr(
+    url: string,
+    authToken: string,
+    storageKey: string,
+    file: File,
+    onProgress?: (percent: number) => void
+): Promise<{ status: number; responseText: string }> {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", url, true);
+
+        xhr.setRequestHeader("Authorization", authToken);
+        xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+        xhr.setRequestHeader("X-Bz-File-Name", encodeURIComponent(storageKey));
+        xhr.setRequestHeader("X-Bz-Content-Sha1", "do_not_verify");
+
+        if (onProgress) {
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percent = (event.loaded / event.total) * 100;
+                    onProgress(percent);
+                }
+            };
+        }
+
+        xhr.onload = () => {
+            resolve({
+                status: xhr.status,
+                responseText: xhr.responseText
+            });
+        };
+
+        xhr.onerror = () => {
+            reject(new Error("Network error during direct B2 upload."));
+        };
+
+        xhr.onabort = () => {
+            reject(new Error("Upload aborted."));
+        };
+
+        xhr.send(file);
+    });
+}
+
+export async function uploadEventImage(
+    file: File, 
+    eventId: string, 
+    userId?: string, 
+    laneIndex = 0, 
+    skipSaveMetadata = false,
+    onProgress?: (percent: number) => void
+) {
     try {
         console.log(`[Storage] Starting direct B2 upload for: ${file.name} to event: ${eventId} (lane: ${laneIndex})`);
 
@@ -41,26 +92,35 @@ export async function uploadEventImage(file: File, eventId: string, userId?: str
 
         // 2. Upload file binary directly to Backblaze B2 URL
         console.log(`[Storage] Uploading file binary directly to B2...`);
-        let uploadResponse: Response | undefined;
-        let uploadResult: { message?: string } = {};
         let currentUploadUrl = uploadUrl;
         let currentAuthToken = authorizationToken;
+        let responseStatus: number;
+        let responseText: string;
 
         try {
-            uploadResponse = await fetch(currentUploadUrl, {
-                method: "POST",
-                headers: {
-                    Authorization: currentAuthToken,
-                    "Content-Type": file.type || "application/octet-stream",
-                    "X-Bz-File-Name": encodeURIComponent(storageKey),
-                    "X-Bz-Content-Sha1": "do_not_verify",
-                    "Content-Length": String(file.size),
-                },
-                body: file,
-            });
-            uploadResult = await uploadResponse.json().catch(() => ({}));
-            if (!uploadResponse.ok) {
-                throw new Error(uploadResult.message || `Upload failed with status: ${uploadResponse.status}`);
+            if (typeof XMLHttpRequest === "undefined") {
+                // Fallback to fetch (e.g. server-side/test environment)
+                const res = await fetch(currentUploadUrl, {
+                    method: "POST",
+                    headers: {
+                        Authorization: currentAuthToken,
+                        "Content-Type": file.type || "application/octet-stream",
+                        "X-Bz-File-Name": encodeURIComponent(storageKey),
+                        "X-Bz-Content-Sha1": "do_not_verify",
+                        "Content-Length": String(file.size),
+                    },
+                    body: file,
+                });
+                responseStatus = res.status;
+                responseText = await res.text();
+            } else {
+                const xhrResult = await uploadWithXhr(currentUploadUrl, currentAuthToken, storageKey, file, onProgress);
+                responseStatus = xhrResult.status;
+                responseText = xhrResult.responseText;
+            }
+
+            if (responseStatus < 200 || responseStatus >= 300) {
+                throw new Error(`Upload failed with status: ${responseStatus}`);
             }
         } catch (fetchErr) {
             console.warn(`[Storage] Direct B2 upload failed for ${file.name}. Requesting fresh upload URL and retrying...`, fetchErr);
@@ -86,22 +146,34 @@ export async function uploadEventImage(file: File, eventId: string, userId?: str
             currentAuthToken = retryUrlResult.authorizationToken;
 
             // Retry the upload one more time with a fresh URL
-            uploadResponse = await fetch(currentUploadUrl, {
-                method: "POST",
-                headers: {
-                    Authorization: currentAuthToken,
-                    "Content-Type": file.type || "application/octet-stream",
-                    "X-Bz-File-Name": encodeURIComponent(storageKey),
-                    "X-Bz-Content-Sha1": "do_not_verify",
-                    "Content-Length": String(file.size),
-                },
-                body: file,
-            });
-            uploadResult = await uploadResponse.json().catch(() => ({}));
+            if (typeof XMLHttpRequest === "undefined") {
+                const res = await fetch(currentUploadUrl, {
+                    method: "POST",
+                    headers: {
+                        Authorization: currentAuthToken,
+                        "Content-Type": file.type || "application/octet-stream",
+                        "X-Bz-File-Name": encodeURIComponent(storageKey),
+                        "X-Bz-Content-Sha1": "do_not_verify",
+                        "Content-Length": String(file.size),
+                    },
+                    body: file,
+                });
+                responseStatus = res.status;
+                responseText = await res.text();
+            } else {
+                const xhrResult = await uploadWithXhr(currentUploadUrl, currentAuthToken, storageKey, file, onProgress);
+                responseStatus = xhrResult.status;
+                responseText = xhrResult.responseText;
+            }
         }
 
-        if (!uploadResponse || !uploadResponse.ok) {
-            throw new Error((uploadResult && uploadResult.message) || `Direct B2 upload failed with status: ${uploadResponse ? uploadResponse.status : "unknown"}`);
+        if (responseStatus < 200 || responseStatus >= 300) {
+            let errorMsg = "Direct B2 upload failed";
+            try {
+                const parsed = JSON.parse(responseText);
+                errorMsg = parsed.message || errorMsg;
+            } catch (e) {}
+            throw new Error(`${errorMsg} (status: ${responseStatus})`);
         }
 
         if (!skipSaveMetadata) {

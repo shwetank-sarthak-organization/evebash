@@ -1,9 +1,8 @@
 import { Platform, Alert } from 'react-native';
-import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createUploadTask, FileSystemUploadType, FileSystemSessionType } from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from './supabase';
-import { addPhoto, deletePhoto } from './database';
+import { getEndpointsForPath, fetchWithEndpointFallback } from './storage';
 
 let Notifications: any = null;
 try {
@@ -279,40 +278,6 @@ async function updateProgressNotification() {
   }
 }
 
-function joinUrl(baseUrl: string, path: string) {
-  return `${baseUrl.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`;
-}
-
-function getUploadEndpoints() {
-  const explicitEndpoint = process.env.EXPO_PUBLIC_MEDIA_UPLOAD_URL?.trim();
-  if (explicitEndpoint) return [explicitEndpoint];
-
-  const endpoints: string[] = [];
-
-  const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
-  if (apiBaseUrl) {
-    endpoints.push(joinUrl(apiBaseUrl, '/api/media/upload'));
-  }
-
-  const hostUri = Constants.expoConfig?.hostUri || Constants.manifest2?.extra?.expoGo?.developer?.hostUri;
-  const devHost = typeof hostUri === 'string' ? hostUri.split(':')[0] : '';
-  if (devHost) {
-    endpoints.push(`http://${devHost}:3000/api/media/upload`);
-  }
-
-  if (Platform.OS === 'android') {
-    endpoints.push('http://10.0.2.2:3000/api/media/upload');
-  }
-
-  endpoints.push('http://localhost:3000/api/media/upload');
-
-  return Array.from(new Set(endpoints));
-}
-
-/**
- * Fires completion notification/alert when every item in the queue is settled
- * (completed or failed) and no slots are active.
- */
 async function notifyQueueDrained() {
   const totalCount = queue.length;
   if (totalCount === 0) return;
@@ -323,9 +288,8 @@ async function notifyQueueDrained() {
   // Trigger immediate face recognition on the backend if any uploads succeeded
   if (succeeded.length > 0) {
     try {
-      const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
-      if (apiBaseUrl) {
-        const triggerUrl = joinUrl(apiBaseUrl, '/api/media/trigger-modal-batch?immediate=true');
+      const triggerUrl = getEndpointsForPath('/api/media/trigger-modal-batch?immediate=true')[0];
+      if (triggerUrl) {
         console.log(`[UploadQueue] Queue drained. Triggering immediate face indexing at: ${triggerUrl}`);
         
         // Trigger asynchronously to avoid blocking the UI alert/notification
@@ -406,143 +370,106 @@ async function uploadWorker(item: UploadQueueItem) {
       throw new Error('Authorization required.');
     }
 
-    const endpoints = getUploadEndpoints();
-    let uploadSuccess = false;
-    let lastError: any = null;
-
-    for (const uploadUrl of endpoints) {
-      try {
-        console.log(`[UploadQueue] Trying: ${item.fileName} via ${uploadUrl}`);
-
-        const uploadTask = createUploadTask(
-          uploadUrl,
-          item.fileUri,
-          {
-            uploadType: FileSystemUploadType.MULTIPART,
-            fieldName: 'file',
-            mimeType: item.fileType,
-            parameters: {
-              eventId: item.eventId,
-              resourceType: item.mediaType === 'video' ? 'video' : 'image',
-            },
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-            sessionType: FileSystemSessionType.BACKGROUND,
+    // 1. Get B2 upload URL and token
+    console.log(`[UploadQueue] Getting B2 upload URL for: ${item.fileName}`);
+    const getUrlResponse = await fetchWithEndpointFallback(
+      getEndpointsForPath('/api/media/get-upload-url'),
+      (endpoint: string) => {
+        return fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
           },
-          (progress) => {
-            const percent = Math.min(
-              99, // limit to 99% until response is finalized
-              Math.max(0, (progress.totalBytesSent / progress.totalBytesExpectedToSend) * 100)
-            );
-            item.progress = percent;
-            notifyListeners();
-            void updateProgressNotification();
-          }
-        );
+          body: JSON.stringify({
+            eventId: item.eventId,
+            fileName: item.fileName,
+            resourceType: item.mediaType === 'video' ? 'video' : 'image',
+          }),
+        });
+      },
+      'get upload url'
+    );
 
-        const response = await uploadTask.uploadAsync();
+    const getUrlResult = await getUrlResponse.json().catch(() => ({}));
+    if (!getUrlResponse.ok) {
+      throw new Error(getUrlResult.error || `Failed to get B2 upload URL (status: ${getUrlResponse.status})`);
+    }
 
-        if (response && response.status === 200) {
-          let result: any = {};
-          try {
-            result = JSON.parse(response.body);
-          } catch (parseErr) {
-            throw new Error(`Server returned 200 but body could not be parsed: ${response.body.slice(0, 200)}`);
-          }
-          console.log(`[UploadQueue] Upload succeeded for ${item.fileName}. Writing DB record...`);
+    const { uploadUrl, authorizationToken, storageKey } = getUrlResult;
 
-          // Write to Supabase database (only if the server hasn't already written it)
-          let savedPhotoId = result.savedPhotoId;
-          if (!savedPhotoId) {
-            console.log(`[UploadQueue] Server did not write to DB. Writing client-side DB record...`);
-            savedPhotoId = await addPhoto({
-              eventId: item.eventId,
-              url: result.url,
-              storageKey: result.publicId || '',
-              mediaType: item.mediaType,
-              resourceType: result.resourceType,
-              uploadedAt: new Date(),
-              userId: item.userId,
-              width: result.width,
-              height: result.height,
-              size: result.bytes,
-              format: result.format,
-            });
-            if (!savedPhotoId) {
-              throw new Error('Failed to record photo meta in DB.');
-            }
-          } else {
-            console.log(`[UploadQueue] Server successfully recorded photo meta in DB: ${savedPhotoId}`);
-          }
-
-          // Poll for thumbnail URL to confirm processing is complete (matches web flow)
-          item.progress = 90;
-          notifyListeners();
-          await updateProgressNotification();
-
-          let thumbnailGenerated = false;
-          for (let poll = 0; poll < 30; poll++) {
-            const { data: checkData } = await supabase
-              .from('photos')
-              .select('thumbnail_url')
-              .eq('storage_key', result.storageKey || result.publicId)
-              .maybeSingle();
-            if (checkData?.thumbnail_url) {
-              thumbnailGenerated = true;
-              break;
-            }
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-          }
-
-          if (thumbnailGenerated) {
-            item.status = 'completed';
-            item.progress = 100;
-            uploadSuccess = true;
-          } else {
-            console.warn(`[UploadQueue] Thumbnail generation timed out for ${item.fileName}. Rolling back upload and B2 files...`);
-            try {
-              const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
-              if (apiBaseUrl) {
-                const deleteUrl = joinUrl(apiBaseUrl, '/api/media/delete');
-                const deleteResponse = await fetch(deleteUrl, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${accessToken}`
-                  },
-                  body: JSON.stringify({ photoId: savedPhotoId })
-                });
-                
-                if (!deleteResponse.ok) {
-                  const errorText = await deleteResponse.text();
-                  throw new Error(`Delete API returned status ${deleteResponse.status}: ${errorText}`);
-                }
-                console.log(`[UploadQueue] Successfully rolled back B2 & Supabase assets for: ${savedPhotoId}`);
-              } else {
-                await deletePhoto(savedPhotoId);
-              }
-            } catch (deleteErr) {
-              console.error(`[UploadQueue] Failed to roll back B2 assets via API, falling back to local DB delete:`, deleteErr);
-              await deletePhoto(savedPhotoId);
-            }
-            throw new Error('Failed to generate optimized thumbnails (Timeout).');
-          }
-          break; // Exit endpoints loop
-        } else {
-          const errBody = response ? response.body : 'No response body';
-          throw new Error(`Upload returned status ${response?.status || 'unknown'}: ${errBody}`);
-        }
-      } catch (err: any) {
-        lastError = err;
-        console.warn(`[UploadQueue] Endpoint failed: ${uploadUrl}`, err?.message || err);
+    // Get file size to save with metadata
+    let fileSize = 0;
+    try {
+      const info = await FileSystem.getInfoAsync(item.fileUri);
+      if (info && info.exists) {
+        fileSize = info.size || 0;
       }
+    } catch (infoErr) {
+      console.warn('[UploadQueue] Could not get file size info:', infoErr);
     }
 
-    if (!uploadSuccess) {
-      const endpointsStr = endpoints.join(', ');
-      throw new Error(`Failed to connect to any upload endpoint. Tried: [${endpointsStr}]. Last error: ${lastError?.message || lastError}`);
+    // 2. Upload file binary directly to B2
+    console.log(`[UploadQueue] Uploading file binary directly to B2 for: ${storageKey}`);
+    const uploadTask = FileSystem.createUploadTask(
+      uploadUrl,
+      item.fileUri,
+      {
+        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+        headers: {
+          Authorization: authorizationToken,
+          'Content-Type': item.fileType || 'application/octet-stream',
+          'X-Bz-File-Name': encodeURIComponent(storageKey),
+          'X-Bz-Content-Sha1': 'do_not_verify',
+        },
+        sessionType: FileSystem.FileSystemSessionType.BACKGROUND,
+      },
+      (progress) => {
+        const percent = Math.min(
+          99, // limit to 99% until response is finalized
+          Math.max(0, (progress.totalBytesSent / progress.totalBytesExpectedToSend) * 100)
+        );
+        item.progress = percent;
+        notifyListeners();
+        void updateProgressNotification();
+      }
+    );
+
+    const response = await uploadTask.uploadAsync();
+    if (!response || response.status !== 200) {
+      throw new Error(`Direct B2 upload failed with status: ${response ? response.status : 'unknown'}`);
     }
+
+    // 3. Save photo metadata to Vercel/Railway
+    console.log(`[UploadQueue] Saving metadata to database for: ${storageKey}`);
+    const saveResponse = await fetchWithEndpointFallback(
+      getEndpointsForPath('/api/media/save-photo'),
+      (endpoint: string) => {
+        return fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            storageKey,
+            eventId: item.eventId,
+            fileName: item.fileName,
+            fileSize,
+            resourceType: item.mediaType === 'video' ? 'video' : 'image',
+          }),
+        });
+      },
+      'save photo metadata'
+    );
+
+    const saveResult = await saveResponse.json().catch(() => ({}));
+    if (!saveResponse.ok) {
+      throw new Error(saveResult.error || `Failed to save photo metadata (status: ${saveResponse.status})`);
+    }
+
+    item.status = 'completed';
+    item.progress = 100;
   } catch (err: any) {
     console.error(`[UploadQueue] Error uploading ${item.fileName}:`, err);
     item.status = 'failed';
