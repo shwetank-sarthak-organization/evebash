@@ -6,12 +6,27 @@ This is a comprehensive financial model for your startup. *All costs are convert
 
 ## 1. Unit Economics (Cost per Platform)
 
-*   **Backblaze B2:** ₹600 per TB/month for storage. Bandwidth (Egress) is **₹0** because of the Cloudflare Bandwidth Alliance. Class B Transactions (Gallery viewing) cost ~₹50 per photographer.
-*   **Modal.com (AI & Resizing):** Processing 100,000 photos costs ₹820 total (₹68/month). Modal provides a ₹3,000/month free tier.
-*   **Upstash QStash:** ₹100 per 100,000 messages. (Essentially ₹8 per month per photographer).
-*   **Supabase (Database & Auth):** Pro Plan is a flat ₹2,500/month. It includes 100,000 Monthly Active Users (MAU) and 8GB database space (which holds ~4 million photos' metadata). After 100k MAU, it costs ₹0.325 per extra user.
-*   **Railway (Next.js Web Server):** Because Modal and B2 do the heavy lifting, your Railway server uses very little compute. Estimated at ~₹500 to ₹1,500 per month for basic traffic.
-*   **Cloudflare:** ₹0 for basic routing. We will assume the ₹2,500/mo Pro plan or ₹20,000/mo Business plan as you scale for advanced security.
+*   **Backblaze B2:** 
+    *   **Storage:** ₹600 per TB/month ($0.006/GB/mo). First 10 GB free.
+    *   **Bandwidth (Egress):** **₹0** (100% free egress via Cloudflare Bandwidth Alliance).
+    *   **Class B Transactions (Metadata/Downloads):** 75,000 requests/month free (2,500/day). Overages cost $0.004 per 10,000 requests (~₹0.40 per 10k). Estimated at ~₹50 per photographer/year.
+    *   **Class C Transactions (Uploads/Creation):** 75,000 requests/month free (2,500/day). Overages cost $0.004 per 1,000 requests (~₹0.40 per 1k).
+*   **Modal.com (AI Face Detection & Resizing):** 
+    *   **Per-second Compute Billing:** CPU at $0.0000131/vCPU/sec, Memory at $0.00000222/GB/sec.
+    *   **Photo Processing Cost:** Processing 100,000 photos costs ~$8.20 (₹820 total, ~₹68/month amortized).
+    *   **Free Tier:** Includes a $30/month (₹3,000/month) free tier covering ~360,000 photo executions per month (free up to ~100 active photographers).
+*   **Upstash QStash (Serverless Queue):** ₹100 per 100,000 messages ($1.00 per 100k). (Essentially ~₹8 per month per photographer).
+*   **Supabase (Database & Auth):** 
+    *   **Free Tier:** 0.5 GB database storage, 50,000 MAUs, 2 GB egress.
+    *   **Pro Plan:** Flat ₹2,500/month ($25.00/mo). Includes 100,000 Monthly Active Users (MAU), 8 GB database space (holds ~4 million photos' metadata), and 50 GB egress.
+    *   **Overages:** Extra Database Storage at $0.125/GB/mo (~₹12.50/GB/mo); Extra MAUs at $0.00325/MAU (~₹0.325 per extra user/mo); Extra Egress at $0.09/GB (bypassed via Cloudflare).
+*   **Railway (Next.js Web Server):** 
+    *   **Per-second Serverless Billing:** CPU at $0.00000772/vCPU/sec, RAM at $0.00000386/GB/sec, Egress at $0.05/GB.
+    *   Because Modal and B2 handle image processing and storage, web server compute remains minimal. Baseline server (0.5 GB RAM, 0.05 vCPU, 5 GB Egress) averages ~$11.00/mo (~₹1,100/mo or ₹13,200/yr). Estimated scale ranges between ₹500 to ₹1,500/month for normal traffic.
+*   **Cloudflare (CDN & Edge Routing):** 
+    *   **Routing & DNS:** ₹0 for basic routing.
+    *   **Workers:** Free plan includes up to 100k requests/day (3M/mo). Paid plan base is $5.00/mo (includes 10M requests), plus $0.50 per additional 1M requests.
+    *   **Zone Plans:** Pro plan at ₹2,500/month ($25.00/mo) or Business plan at ₹20,000/month ($200.00/mo) as scale requires advanced security/WAF.
 
 ---
 
@@ -59,6 +74,9 @@ This is a comprehensive financial model for your startup. *All costs are convert
 1. **Massive Margins:** 
    In a realistic, average-case scenario for 1,000 Indian wedding photographers, your total infrastructure cost drops to just **₹3,705 per photographer, per year**. If you charge them a ₹40,000 annual subscription, your business operates at a phenomenal **90% profit margin**.
 2. **Modal AI is Free up to 100 Photographers:**
-   Because the average photographer uploads 40k photos instead of 100k, you can support roughly **100 full-time photographers** entirely on Modal.com's free tier. You won't pay a single Rupee for AI compute until photographer #101 joins.
+   Because the average photographer uploads 40k photos instead of 100k, you can support roughly **100 full-time photographers** entirely on Modal.com's $30/mo free tier. You won't pay a single Rupee for AI compute until photographer #101 joins.
 3. **Storage Dominates:**
-   Even in the average-case, Backblaze B2 makes up 77% of your bill at enterprise scale. Fortunately, it is still the cheapest enterprise storage option on the planet, making your unit economics highly sustainable.
+   Even in the average-case, Backblaze B2 makes up 77% of your bill at enterprise scale. Fortunately, it is still the cheapest enterprise storage option on the planet ($0.006/GB/mo with 0 egress fees via Cloudflare), making your unit economics highly sustainable.
+4. **Live Monitoring Sync:**
+   The Analytics Dashboard features a live **Infrastructure Cost Hub** ([InfraCostGrid.tsx](file:///Users/sarthak/EveBash/apps/analytics-dashboard/src/components/InfraCostGrid.tsx)) that fetches real-time usage metrics and applies these exact financial formulas for live operational budgeting.
+

@@ -224,7 +224,6 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
             }
             if (typeof cfData.uniqueTransformations === 'number') {
               setLiveCfTransformations(cfData.uniqueTransformations);
-              setSimulatedTransformations(Math.max(cfData.uniqueTransformations, Math.ceil(photos.length * 3)));
             }
             if (typeof cfData.storedImages === 'number') {
               setLiveCfStoredImages(cfData.storedImages);
@@ -388,9 +387,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   // Simulated request rate for Cloudflare Workers
   const [simulatedDailyRequests, setSimulatedDailyRequests] = useState<number>(50000);
 
-  // Simulated image transformations (first 5,000 free, then $0.50 per 1,000)
-  const defaultSimTransformations = Math.max(15000, Math.ceil(photos.length * 3));
-  const [simulatedTransformations, setSimulatedTransformations] = useState<number>(defaultSimTransformations);
+
 
   // Simulated Railway Usage
   const [simulatedRailwayRAM, setSimulatedRailwayRAM] = useState<number>(0.5); // GB
@@ -983,7 +980,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                 </div>
               </div>
               <div className="flex items-center justify-between mt-4">
-                <span className="text-[10px] text-slate-500">Workers: ${workersCost.toFixed(2)} | Resizing: ${simCfImageCostMonth.toFixed(2)}</span>
+                <span className="text-[10px] text-slate-500">Workers: ${workersCost.toFixed(2)} | CDN Caching: Free</span>
                 <button
                   onClick={() => setActiveSubTab('cloudflare')}
                   className="text-[10px] text-indigo-400 hover:underline font-bold"
@@ -2166,110 +2163,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
             </div>
           </div>
 
-          {/* Remote Image Resizing / Transformations Simulator */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl md:col-span-2 space-y-6">
-              <div>
-                <h4 className="text-md font-bold text-white flex items-center">
-                  <Sparkles className="w-5 h-5 mr-2 text-amber-400" />
-                  Cloudflare Remote Image Resizing Simulator
-                </h4>
-                <p className="text-slate-400 text-xs mt-1">
-                  Simulate unique image transformations per month to calculate Cloudflare Images usage costs. <span className="text-amber-400 font-bold">(Currently deactivated: image transformation is handled on the backend)</span>
-                </p>
-              </div>
 
-              {/* Transformations Slider */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-400">Simulated Monthly Transformations:</span>
-                  <span className="text-amber-400 font-bold text-sm">
-                    {formatNumber(simulatedTransformations)} transformations / month
-                  </span>
-                </div>
-
-                <input
-                  type="range"
-                  min="0"
-                  max="200000"
-                  step="1000"
-                  value={simulatedTransformations}
-                  onChange={e => setSimulatedTransformations(Number(e.target.value))}
-                  className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
-                />
-
-                <div className="flex justify-between text-[10px] text-slate-650 font-semibold uppercase">
-                  <span>0 (Min)</span>
-                  <span>50k</span>
-                  <span>100k</span>
-                  <span>150k</span>
-                  <span>200k (Max)</span>
-                </div>
-              </div>
-
-              {/* Calculation analysis cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 rounded-xl border border-slate-850 bg-slate-900/30">
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Simulated Transformations</p>
-                  <h4 className="text-md font-black text-white mt-1.5">
-                    {formatNumber(simulatedTransformations)} <span className="text-[10px] font-semibold text-slate-500">units</span>
-                  </h4>
-                </div>
-
-                <div className="p-4 rounded-xl border border-slate-850 bg-slate-900/30">
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Plan Allowance</p>
-                  <h4 className="text-md font-black text-white mt-1.5">
-                    5,000 Free
-                  </h4>
-                </div>
-
-                <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
-                  <p className="text-[10px] text-amber-400 font-black uppercase tracking-wider">Resizing Monthly Cost</p>
-                  <h4 className="text-md font-black text-white mt-1.5">
-                    ${simCfImageCostMonth.toFixed(2)} <span className="text-[10px] font-semibold text-slate-500">/ mo</span>
-                  </h4>
-                </div>
-              </div>
-            </div>
-
-            {/* Remote Resizing pricing terms side card */}
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
-              <div>
-                <h4 className="text-md font-bold text-white mb-1.5 flex items-center">
-                  <Info className="w-5 h-5 mr-2 text-indigo-400" />
-                  Remote Image Resizing
-                </h4>
-                <p className="text-slate-400 text-xs mb-6">
-                  Resize and optimize images stored on external origins (like Backblaze B2) at Cloudflare edge network.
-                </p>
-
-                <div className="space-y-4 text-xs">
-                  <div className="flex justify-between py-2 border-b border-slate-800/40">
-                    <span className="text-slate-400">Included Free volume</span>
-                    <span className="text-white font-semibold">5,000 unique / month</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-slate-800/40">
-                    <span className="text-slate-400">Overage Rate</span>
-                    <span className="text-white font-semibold">$0.50 per 1,000 unique</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-slate-800/40">
-                    <span className="text-slate-400">Source Origin</span>
-                    <span className="text-white font-semibold">Backblaze B2 Bucket</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl mt-6">
-                <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center">
-                  <Sparkles className="w-3.5 h-3.5 mr-1" />
-                  Optimization Advantage
-                </p>
-                <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed">
-                  Cloudflare Remote Image Resizing rescales images dynamically based on URL queries and caches result variants at the edge, saving massive CPU power and source bandwidth.
-                </p>
-              </div>
-            </div>
-          </div>
 
           {/* Cloudflare Charging Units Cost Table */}
           <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl">
