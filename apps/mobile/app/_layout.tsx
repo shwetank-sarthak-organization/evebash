@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import * as React from 'react';
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator, LogBox, Platform } from 'react-native';
+import { View, ActivityIndicator, LogBox, Platform, StyleSheet, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import LoadingScreen from '@/components/LoadingScreen';
 
@@ -74,6 +74,8 @@ import {
   SpaceGrotesk_600SemiBold,
   SpaceGrotesk_700Bold,
 } from '@expo-google-fonts/space-grotesk';
+
+const IS_STAGING_BUILD = process.env.EXPO_PUBLIC_API_BASE_URL?.includes('api-staging.evebash.com') ?? false;
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -217,6 +219,11 @@ function RootLayoutContent() {
         </Stack>
       </AuthGate>
       <StatusBar style={isDark ? "light" : "dark"} />
+      {IS_STAGING_BUILD && (
+        <View pointerEvents="none" style={styles.stagingBadge}>
+          <Text style={styles.stagingBadgeText}>STAGING</Text>
+        </View>
+      )}
     </ThemeProvider>
   );
 }
@@ -302,3 +309,29 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  stagingBadge: {
+    position: 'absolute',
+    top: Platform.select({ ios: 56, android: 34, default: 34 }),
+    right: 12,
+    zIndex: 9999,
+    elevation: 9999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#f59e0b',
+    borderWidth: 1,
+    borderColor: '#92400e',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+  },
+  stagingBadgeText: {
+    color: '#111827',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0,
+  },
+});
