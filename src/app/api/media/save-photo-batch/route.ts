@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { publishResizeTask, publishDelayedModalTrigger } from "@/lib/qstash";
+import { publishResizeTask, publishDelayedModalTrigger, publishVideoTranscodeTask } from "@/lib/qstash";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
     // Prepare batch upsert payload for Supabase and batch payload for Modal
     const upsertDataArray: any[] = [];
     const modalPayloadArray: any[] = [];
+    const videoPayloadArray: any[] = [];
     let firstEventId = null;
 
     for (const photo of photos) {
@@ -140,6 +141,13 @@ export async function POST(request: NextRequest) {
           width: null,
           height: null
         });
+      } else if (actualResourceType === "video") {
+        videoPayloadArray.push({
+          id: photoId,
+          storage_key: storageKey,
+          event_id: eventId,
+          url: url
+        });
       }
     }
 
@@ -180,21 +188,32 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Batch Publish to local resizing worker via QStash
-    if (modalPayloadArray.length > 0) {
-      console.log(`[SavePhotoBatch] Queuing batch of ${modalPayloadArray.length} photos to local resizing via QStash`);
+    if (modalPayloadArray.length > 0 || videoPayloadArray.length > 0) {
       after(() => {
-        for (const photo of modalPayloadArray) {
-          publishResizeTask({ storageKey: photo.storage_key, origin: request.nextUrl.origin }).catch((err) => {
-            console.error(`[SavePhotoBatch] Error publishing resize task for ${photo.storage_key}:`, err);
-          });
+        if (modalPayloadArray.length > 0) {
+          console.log(`[SavePhotoBatch] Queuing batch of ${modalPayloadArray.length} photos to local resizing via QStash`);
+          for (const photo of modalPayloadArray) {
+            publishResizeTask({ storageKey: photo.storage_key, origin: request.nextUrl.origin }).catch((err) => {
+              console.error(`[SavePhotoBatch] Error publishing resize task for ${photo.storage_key}:`, err);
+            });
+          }
+
+          // Schedule the delayed modal batch trigger (runs 5m later, safely deduplicated per event)
+          if (firstEventId) {
+            console.log(`[SavePhotoBatch] Scheduling delayed modal trigger for event ${firstEventId}`);
+            publishDelayedModalTrigger(firstEventId, request.nextUrl.origin).catch((err) => {
+              console.error(`[SavePhotoBatch] Error scheduling delayed modal trigger:`, err);
+            });
+          }
         }
 
-        // Schedule the delayed modal batch trigger (runs 5m later, safely deduplicated per event)
-        if (firstEventId) {
-          console.log(`[SavePhotoBatch] Scheduling delayed modal trigger for event ${firstEventId}`);
-          publishDelayedModalTrigger(firstEventId, request.nextUrl.origin).catch((err) => {
-            console.error(`[SavePhotoBatch] Error scheduling delayed modal trigger:`, err);
-          });
+        if (videoPayloadArray.length > 0) {
+          console.log(`[SavePhotoBatch] Queuing batch of ${videoPayloadArray.length} videos to Modal transcoding via QStash`);
+          for (const video of videoPayloadArray) {
+            publishVideoTranscodeTask(video).catch((err) => {
+              console.error(`[SavePhotoBatch] Error publishing video transcode task for ${video.storage_key}:`, err);
+            });
+          }
         }
       });
     }

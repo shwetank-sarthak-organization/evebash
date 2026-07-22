@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { publishResizeTask } from "@/lib/qstash";
+import { publishResizeTask, publishVideoTranscodeTask } from "@/lib/qstash";
 import { getCachedBackblazeAuth, BackblazeAuth } from "@/lib/backblaze";
 import { createClient } from "@supabase/supabase-js";
 
@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Trigger background resizing via QStash
+    // Trigger background processing via QStash
     if (actualResourceType === "image") {
       const qstashToken = process.env.QSTASH_TOKEN;
       if (qstashToken) {
@@ -264,6 +264,18 @@ export async function POST(request: NextRequest) {
           });
         });
       }
+    } else if (actualResourceType === "video") {
+      console.log(`[SavePhoto] Queuing video transcode task via QStash for: ${storageKey}`);
+      after(() => {
+        publishVideoTranscodeTask({
+          id: photoId,
+          storage_key: storageKey,
+          event_id: eventId,
+          url
+        }).catch((err) => {
+          console.error("[SavePhoto] Error publishing video transcode task via QStash:", err);
+        });
+      });
     }
 
     return jsonResponse({

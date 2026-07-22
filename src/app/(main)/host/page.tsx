@@ -2019,7 +2019,7 @@ function DashboardContent() {
                     if (session.data.session?.access_token) {
                         headers["Authorization"] = `Bearer ${session.data.session.access_token}`;
                     }
-                    const res = await fetch("/api/media/save-photo-batch", {
+                    let res = await fetch("/api/media/save-photo-batch", {
                         method: "POST",
                         headers,
                         body: JSON.stringify({
@@ -2032,6 +2032,28 @@ function DashboardContent() {
                             }))
                         })
                     });
+
+                    if (!res.ok && (res.status === 401 || res.status === 500)) {
+                        console.warn("[Dashboard] save-photo-batch failed, refreshing auth session and retrying...");
+                        const { data: refreshed } = await supabase.auth.refreshSession();
+                        if (refreshed.session?.access_token) {
+                            headers["Authorization"] = `Bearer ${refreshed.session.access_token}`;
+                            res = await fetch("/api/media/save-photo-batch", {
+                                method: "POST",
+                                headers,
+                                body: JSON.stringify({
+                                    photos: itemsToFlush.map(item => ({
+                                        storageKey: item.photo.storageKey,
+                                        eventId: item.photo.eventId,
+                                        fileName: item.photo.storageKey.split('/').pop() || 'image.jpg',
+                                        fileSize: item.photo.size,
+                                        resourceType: item.photo.resourceType
+                                    }))
+                                })
+                            });
+                        }
+                    }
+
                     if (res.ok) {
                         // Immediately prepend new photos to grid state so they render instantly
                         setCurrentEventPhotos(prev => {

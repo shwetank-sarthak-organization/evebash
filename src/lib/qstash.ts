@@ -159,3 +159,46 @@ export async function publishDelayedModalTrigger(eventId: string, origin?: strin
     return false;
   }
 }
+
+export async function publishVideoTranscodeTask(payload: { id: string; storage_key: string; event_id: string; url?: string }): Promise<boolean> {
+  const qstashToken = process.env.QSTASH_TOKEN;
+  if (!qstashToken) {
+    console.warn("[QStash] QSTASH_TOKEN is not configured. Video transcoding task will not run.");
+    return false;
+  }
+
+  const targetUrl = "https://shwetank-sarthak--wedding-media-engine-process-video-transcode.modal.run";
+
+  console.log(`[QStash] Publishing video transcode task for ${payload.storage_key} to Modal`);
+
+  try {
+    const headers: Record<string, string> = {
+      "Authorization": `Bearer ${qstashToken}`,
+      "Content-Type": "application/json",
+      "Upstash-Timeout": "300s"
+    };
+
+    const response = await fetch(`https://qstash-us-east-1.upstash.io/v2/publish/${targetUrl}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        photo_id: payload.id,
+        storage_key: payload.storage_key,
+        event_id: payload.event_id,
+        url: payload.url
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`QStash video publish failed with status ${response.status}: ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log(`[QStash] Successfully published video transcode task to Modal. Message ID: ${result.messageId}`);
+    return true;
+  } catch (error) {
+    console.error("[QStash] Error publishing video transcode task:", error);
+    return false;
+  }
+}

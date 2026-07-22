@@ -177,11 +177,23 @@ export async function uploadEventImage(
         }
 
         if (!skipSaveMetadata) {
-            // 3. Save database record and trigger background worker on Railway
-            console.log(`[Storage] Saving metadata to database...`);
-            const saveResponse = await fetch("/api/media/save-photo", {
+            // 3. Save database record with a fresh session token (prevents token expiration on long uploads)
+            console.log(`[Storage] Refreshing session and saving metadata to database...`);
+            const { data: freshSessionData } = await supabase.auth.getSession();
+            const freshToken = freshSessionData.session?.access_token;
+            
+            const saveHeaders: Record<string, string> = {
+                "Content-Type": "application/json",
+            };
+            if (freshToken) {
+                saveHeaders["Authorization"] = `Bearer ${freshToken}`;
+            } else if (headers["Authorization"]) {
+                saveHeaders["Authorization"] = headers["Authorization"];
+            }
+
+            let saveResponse = await fetch("/api/media/save-photo", {
                 method: "POST",
-                headers,
+                headers: saveHeaders,
                 body: JSON.stringify({
                     storageKey,
                     eventId,
@@ -190,6 +202,26 @@ export async function uploadEventImage(
                     resourceType,
                 }),
             });
+
+            // If token expired, try one force-refresh of the Supabase auth session
+            if (!saveResponse.ok && (saveResponse.status === 401 || saveResponse.status === 500)) {
+                console.warn("[Storage] Save metadata failed, attempting session refresh and retry...");
+                const { data: refreshedAuth } = await supabase.auth.refreshSession();
+                if (refreshedAuth.session?.access_token) {
+                    saveHeaders["Authorization"] = `Bearer ${refreshedAuth.session.access_token}`;
+                    saveResponse = await fetch("/api/media/save-photo", {
+                        method: "POST",
+                        headers: saveHeaders,
+                        body: JSON.stringify({
+                            storageKey,
+                            eventId,
+                            fileName: file.name,
+                            fileSize: file.size,
+                            resourceType,
+                        }),
+                    });
+                }
+            }
 
             const saveResult = await saveResponse.json().catch(() => ({}));
             if (!saveResponse.ok) {
