@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Check, Info } from "lucide-react";
 import { pricingPlanToFeatures, PricingPlan } from "@/lib/pricingPlans";
 import type { RazorpayBillingDuration } from "@/lib/razorpayPricing";
+import { supabase } from "@/lib/supabase";
 
 type BillingCycle = "monthly" | "threeMonths" | "sixMonths" | "yearly";
 
@@ -277,12 +278,29 @@ export default function Pricing() {
                 handler: async (paymentResponse) => {
                     paymentCompleted = true;
                     setCheckoutPlanId(plan.id);
+                    const { data: sessionData } = await supabase.auth.getSession();
+                    const accessToken = sessionData.session?.access_token;
+
+                    if (!accessToken) {
+                        setCheckoutMessage({
+                            type: "error",
+                            text: "Payment was received, but you are not signed in. Please contact support to activate your plan.",
+                        });
+                        setCheckoutPlanId(null);
+                        return;
+                    }
+
                     const verifyResponse = await fetch("/api/verify-payment", {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
+                            Authorization: `Bearer ${accessToken}`,
                         },
-                        body: JSON.stringify(paymentResponse),
+                        body: JSON.stringify({
+                            ...paymentResponse,
+                            planId: plan.id,
+                            duration: billingCycle as RazorpayBillingDuration,
+                        }),
                     });
                     const verifyResult = await verifyResponse.json().catch(() => ({}));
 
@@ -297,7 +315,7 @@ export default function Pricing() {
 
                     setCheckoutMessage({
                         type: "success",
-                        text: "Payment verified successfully. Plan activation will be completed by the server.",
+                        text: "Payment verified successfully. Your plan is active now.",
                     });
                     setCheckoutPlanId(null);
                 },
