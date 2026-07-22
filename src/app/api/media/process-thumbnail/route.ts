@@ -15,6 +15,66 @@ function requireEnv(name: string) {
   return value;
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const B2_DOWNLOAD_RETRY_DELAYS_MS = [1500, 3000, 6000, 10000, 15000, 20000];
+const B2_UPLOAD_RETRY_DELAYS_MS = [1000, 2500, 5000, 10000];
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isRetryableB2Status(status: number) {
+  return status === 404 || status === 408 || status === 409 || status === 425 || status === 429 || status >= 500;
+}
+
+async function fetchB2WithRetries(
+  url: string,
+  init: RequestInit,
+  label: string,
+  retryDelaysMs: number[],
+) {
+  const maxAttempts = retryDelaysMs.length + 1;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await fetch(url, init);
+      if (response.ok) {
+        if (attempt > 1) {
+          console.log(`[Process Thumbnail] ${label} succeeded on attempt ${attempt}/${maxAttempts}`);
+        }
+        return response;
+      }
+
+      const message = `${label} failed with ${response.status} ${response.statusText}`;
+      lastError = new Error(message);
+
+      if (!isRetryableB2Status(response.status) || attempt === maxAttempts) {
+        throw lastError;
+      }
+
+      const delayMs = retryDelaysMs[attempt - 1];
+      console.warn(`[Process Thumbnail] ${message}. Retrying in ${delayMs}ms (${attempt}/${maxAttempts})`);
+      await sleep(delayMs);
+    } catch (error) {
+      lastError = error;
+
+      if (attempt === maxAttempts) {
+        break;
+      }
+
+      const delayMs = retryDelaysMs[attempt - 1];
+      console.warn(
+        `[Process Thumbnail] ${label} network error: ${getErrorMessage(error)}. Retrying in ${delayMs}ms (${attempt}/${maxAttempts})`,
+      );
+      await sleep(delayMs);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(`${label} failed after ${maxAttempts} attempts`);
+}
+
 // Global in-memory semaphore to limit concurrent image processing (Sharp resizing).
 // Setting limit to 3 keeps Railway CPU cool, prevents OOM spikes, and provides smooth, sequential execution.
 let activeResizes = 0;
@@ -81,13 +141,12 @@ export async function POST(request: NextRequest) {
     const downloadUrl = `${backblazeAuth.downloadUrl}/file/${requireEnv("B2_BUCKET_NAME")}/${encodedStorageKey}`;
     console.log(`[Process Thumbnail] Downloading from B2: ${downloadUrl}`);
     
-    const downloadResponse = await fetch(downloadUrl, {
-      headers: { Authorization: backblazeAuth.authorizationToken }
-    });
-
-    if (!downloadResponse.ok) {
-      throw new Error(`Failed to download from B2: ${downloadResponse.status} ${downloadResponse.statusText}`);
-    }
+    const downloadResponse = await fetchB2WithRetries(
+      downloadUrl,
+      { headers: { Authorization: backblazeAuth.authorizationToken } },
+      `B2 original download for ${storageKey}`,
+      B2_DOWNLOAD_RETRY_DELAYS_MS,
+    );
 
     const arrayBuffer = await downloadResponse.arrayBuffer();
     const bufferBytes = Buffer.from(arrayBuffer);
@@ -121,31 +180,69 @@ export async function POST(request: NextRequest) {
     const previewUrl = `https://${mediaDomain}/${previewKey}`;
 
     async function uploadBufferToB2(buffer: Buffer, key: string, contentType: string) {
-      // Re-fetch upload URL because they expire quickly
-      const uploadUrlResponse = await fetch(`${backblazeAuth.apiUrl}/b2api/v3/b2_get_upload_url`, {
-        method: "POST",
-        headers: { Authorization: backblazeAuth.authorizationToken },
-        body: JSON.stringify({ bucketId }),
-      });
-      if (!uploadUrlResponse.ok) throw new Error("Failed to get B2 upload URL");
-      const uploadUrlData = await uploadUrlResponse.json();
+      const maxAttempts = B2_UPLOAD_RETRY_DELAYS_MS.length + 1;
+      let lastError: unknown;
 
-      const uploadResponse = await fetch(uploadUrlData.uploadUrl, {
-        method: "POST",
-        headers: {
-          Authorization: uploadUrlData.authorizationToken,
-          "Content-Type": contentType,
-          "X-Bz-File-Name": encodeURIComponent(key),
-          "X-Bz-Content-Sha1": "do_not_verify",
-          "Content-Length": String(buffer.length),
-        },
-        body: buffer as unknown as BodyInit,
-      });
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          // Re-fetch upload URL on every attempt because B2 upload URLs can expire or become unusable.
+          const uploadUrlResponse = await fetchB2WithRetries(
+            `${backblazeAuth.apiUrl}/b2api/v3/b2_get_upload_url`,
+            {
+              method: "POST",
+              headers: { Authorization: backblazeAuth.authorizationToken },
+              body: JSON.stringify({ bucketId }),
+            },
+            `B2 upload URL request for ${key}`,
+            B2_UPLOAD_RETRY_DELAYS_MS.slice(0, 2),
+          );
+          const uploadUrlData = await uploadUrlResponse.json();
 
-      if (!uploadResponse.ok) {
-        throw new Error(`B2 upload failed for key ${key}`);
+          const uploadResponse = await fetch(uploadUrlData.uploadUrl, {
+            method: "POST",
+            headers: {
+              Authorization: uploadUrlData.authorizationToken,
+              "Content-Type": contentType,
+              "X-Bz-File-Name": encodeURIComponent(key),
+              "X-Bz-Content-Sha1": "do_not_verify",
+              "Content-Length": String(buffer.length),
+            },
+            body: buffer as unknown as BodyInit,
+          });
+
+          if (uploadResponse.ok) {
+            if (attempt > 1) {
+              console.log(`[Process Thumbnail] B2 upload succeeded for ${key} on attempt ${attempt}/${maxAttempts}`);
+            }
+            return (await uploadResponse.json()).fileId;
+          }
+
+          const message = `B2 upload failed for ${key}: ${uploadResponse.status} ${uploadResponse.statusText}`;
+          lastError = new Error(message);
+
+          if (!isRetryableB2Status(uploadResponse.status) || attempt === maxAttempts) {
+            throw lastError;
+          }
+
+          const delayMs = B2_UPLOAD_RETRY_DELAYS_MS[attempt - 1];
+          console.warn(`[Process Thumbnail] ${message}. Retrying in ${delayMs}ms (${attempt}/${maxAttempts})`);
+          await sleep(delayMs);
+        } catch (error) {
+          lastError = error;
+
+          if (attempt === maxAttempts) {
+            break;
+          }
+
+          const delayMs = B2_UPLOAD_RETRY_DELAYS_MS[attempt - 1];
+          console.warn(
+            `[Process Thumbnail] B2 upload network error for ${key}: ${getErrorMessage(error)}. Retrying in ${delayMs}ms (${attempt}/${maxAttempts})`,
+          );
+          await sleep(delayMs);
+        }
       }
-      return (await uploadResponse.json()).fileId;
+
+      throw lastError instanceof Error ? lastError : new Error(`B2 upload failed for key ${key}`);
     }
 
     console.log(`[Process Thumbnail] Uploading thumbnail to B2...`);
@@ -184,7 +281,7 @@ export async function POST(request: NextRequest) {
       }
       if (attempt < 4) {
         console.log(`[Process Thumbnail] Row not found yet, sleeping 2 seconds...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await sleep(2000);
       }
     }
 
