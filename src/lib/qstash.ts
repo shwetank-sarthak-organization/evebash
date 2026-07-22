@@ -71,10 +71,12 @@ export async function publishResizeTask(options: QStashPublishOptions): Promise<
     options.origin.includes('192.168.') || 
     options.origin.startsWith('http://10.')
   );
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
   
   const siteUrl = (!options.origin || isLocalOrigin)
     ? (process.env.NEXT_PUBLIC_SITE_URL || railwayUrl || `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost:3000'}`)
-    : options.origin;
+    : (apiUrl || options.origin);
     
   const targetUrl = `${siteUrl}/api/media/process-thumbnail`;
 
@@ -157,4 +159,3 @@ export async function publishDelayedModalTrigger(eventId: string, origin?: strin
     return false;
   }
 }
-
