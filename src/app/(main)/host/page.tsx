@@ -916,12 +916,17 @@ function DashboardContent() {
                     const data = await res.json();
                     setIndexingStatus(data);
 
-                    // If indexing is fully complete, stop polling
-                    if (data.status === "complete") {
+                    // Check if there are any items still actively uploading or pending in the queue
+                    const hasActiveUploads = uploadQueueRef.current.some(item => item.status === "pending" || item.status === "uploading");
+
+                    // Only stop polling when indexing is fully complete AND all file uploads have finished
+                    if (data.status === "complete" && !hasActiveUploads) {
                         clearInterval(pollInterval);
-                        // Mark all processing items in the queue as success
+                        // Mark all processing/pending items in the queue as success
                         setUploadQueue(prev => prev.map(item => 
-                            item.status === "processing" ? { ...item, status: "success", progress: 100 } : item
+                            (item.status === "processing" || item.status === "pending" || item.status === "uploading")
+                                ? { ...item, status: "success", progress: 100 } 
+                                : item
                         ));
                     }
                 }

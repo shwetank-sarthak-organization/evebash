@@ -1500,7 +1500,8 @@ export default function EventDetailScreen() {
           const data = await res.json();
           setMobileIndexingStatus(data);
           
-          if (data.status === 'complete') {
+          const hasActiveUploads = uploadQueue.some(i => i.status === 'uploading' || i.status === 'pending');
+          if (data.status === 'complete' && !hasActiveUploads) {
             clearInterval(pollInterval);
           }
         }
