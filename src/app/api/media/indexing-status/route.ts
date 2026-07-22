@@ -39,10 +39,29 @@ export async function GET(request: NextRequest) {
       .eq("media_type", "photo")
       .eq("face_indexed", true);
 
-    if (indexedErr) throw indexedErr;
+    // 3. Get count of photos with faces vs without faces
+    let photosWithFaces = 0;
+    const { data: photoIds } = await supabaseAdmin
+      .from("photos")
+      .select("id")
+      .eq("event_id", eventId)
+      .eq("media_type", "photo");
+
+    if (photoIds && photoIds.length > 0) {
+      const ids = photoIds.map(p => p.id);
+      const { data: eventFaces } = await supabaseAdmin
+        .from("faces")
+        .select("image_id")
+        .in("image_id", ids);
+
+      if (eventFaces) {
+        photosWithFaces = new Set(eventFaces.map(f => f.image_id)).size;
+      }
+    }
 
     const total = totalPhotos || 0;
     const indexed = indexedPhotos || 0;
+    const photosWithoutFaces = Math.max(0, indexed - photosWithFaces);
     const pending = Math.max(0, total - indexed);
     const percentComplete = total > 0 ? Math.round((indexed / total) * 100) : 0;
     const status = (total > 0 && pending === 0) ? "complete" : "processing";
@@ -50,6 +69,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       total,
       indexed,
+      photosWithFaces,
+      photosWithoutFaces,
       pending,
       percentComplete,
       status

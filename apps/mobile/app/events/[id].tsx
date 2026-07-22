@@ -7035,7 +7035,9 @@ export default function EventDetailScreen() {
                   lineHeight: 18,
                 }}>
                   {mobileIndexingStatus.status === 'complete'
-                    ? '✓ AI face indexing complete! All photos are searchable by guests.'
+                    ? (mobileIndexingStatus.photosWithoutFaces > 0
+                        ? `✓ AI face indexing complete! ${mobileIndexingStatus.photosWithFaces || 0} with faces, ${mobileIndexingStatus.photosWithoutFaces} without faces.`
+                        : '✓ AI face indexing complete! All photos are searchable by guests.')
                     : `AI is indexing faces: ${mobileIndexingStatus.indexed}/${mobileIndexingStatus.total} (${mobileIndexingStatus.percentComplete}%)`}
                 </Text>
                 {mobileIndexingStatus.status === 'processing' && (

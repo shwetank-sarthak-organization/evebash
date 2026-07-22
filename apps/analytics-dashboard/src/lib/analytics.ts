@@ -42,6 +42,9 @@ export interface Event {
   parentId?: string;
   type?: string;
   vendors?: string[];
+  isDeleted?: boolean;
+  deletedAt?: string;
+  status?: string;
 }
 
 export interface DashboardStats {

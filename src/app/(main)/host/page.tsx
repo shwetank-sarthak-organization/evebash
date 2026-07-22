@@ -707,6 +707,8 @@ function DashboardContent() {
     const [indexingStatus, setIndexingStatus] = useState<{
         total: number;
         indexed: number;
+        photosWithFaces?: number;
+        photosWithoutFaces?: number;
         pending: number;
         percentComplete: number;
         status: string;
@@ -3378,7 +3380,11 @@ function DashboardContent() {
     } else if (indexingStatus && indexingStatus.status === "processing") {
         overallStatusText = `AI Indexing: ${indexingStatus.indexed}/${indexingStatus.total} (${indexingStatus.percentComplete}%)`;
     } else if (completedItems === totalItems || (indexingStatus && indexingStatus.status === "complete")) {
-        overallStatusText = `✓ AI Indexing complete! ${totalItems} searchable`;
+        const withoutFaces = indexingStatus?.photosWithoutFaces || 0;
+        const withFaces = indexingStatus?.photosWithFaces || 0;
+        overallStatusText = withoutFaces > 0
+            ? `✓ AI Indexing complete! ${indexingStatus?.total || totalItems} photos (${withFaces} with faces, ${withoutFaces} without faces)`
+            : `✓ AI Indexing complete! ${totalItems} photos searchable`;
     } else {
         overallStatusText = "Upload status";
     }

@@ -197,11 +197,8 @@ def process_single_photo(photo_data: dict):
             print(f"[{photo_id}] Saved {len(face_records)} face record(s) to Supabase.")
 
         # ── 5. Mark face_indexed status ──────────────────────────────────
-        if face_encodings:
-            supabase.table("photos").update({"face_indexed": True}).eq("id", photo_id).execute()
-            print(f"[{photo_id}] Marked face_indexed=True ({len(face_encodings)} face(s)).")
-        else:
-            print(f"[{photo_id}] 0 faces — leaving face_indexed=False for retry.")
+        supabase.table("photos").update({"face_indexed": True}).eq("id", photo_id).execute()
+        print(f"[{photo_id}] Marked face_indexed=True ({len(face_encodings)} face(s) found).")
 
         # ── 6. Log infrastructure cost ───────────────────────────────────
         duration = time.time() - start_time

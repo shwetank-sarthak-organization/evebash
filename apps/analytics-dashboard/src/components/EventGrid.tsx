@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { Event, UserProfile, GuestLog, Photo } from '../lib/analytics';
-import { Search, Calendar, Folder, Mail, Database, Image, Video, Users, ShieldAlert, Award } from 'lucide-react';
+import { Search, Calendar, Folder, Mail, Database, Image, Video, Users, ShieldAlert, Award, AlertTriangle, CheckCircle2, Ghost } from 'lucide-react';
 
 interface Props {
   events: Event[];
@@ -21,42 +21,30 @@ const formatSize = (bytes: number | null | undefined) => {
 
 export const EventGrid: React.FC<Props> = ({ events, users, guests, photos }) => {
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'deleted'>('all');
 
-  // 1. Calculate overall stats for the quick analytics header
-  const stats = useMemo(() => {
-    const totalGalleries = events.length;
-    const totalPhotos = photos.filter(p => p.mediaType !== 'video').length;
-    const totalVideos = photos.filter(p => p.mediaType === 'video').length;
-    const totalData = photos.reduce((sum, p) => sum + p.size, 0);
-    const totalVendors = events.reduce((sum, e) => sum + (e.vendors ? e.vendors.length : 0), 0);
-
-    return { totalGalleries, totalPhotos, totalVideos, totalData, totalVendors };
-  }, [events, photos]);
-
-  // 2. Aggregate detailed metrics per gallery/event
+  // 1. Aggregate detailed metrics per gallery/event + detect ghost galleries (deleted by user but files remain)
   const galleriesDetails = useMemo(() => {
-    return events.map(event => {
-      // Match creator profile
+    const knownEventIds = new Set(events.map(e => e.id));
+    
+    // Process active/known database events
+    const activeList = events.map(event => {
       const creator = users.find(u => u.id === event.createdById);
       const creatorName = creator ? creator.name : 'Unknown Owner';
       const creatorEmail = creator ? creator.email : 'N/A';
 
-      // Filter event photos/media
       const eventPhotos = photos.filter(p => p.eventId === event.id);
       const totalPhotos = eventPhotos.filter(p => p.mediaType !== 'video').length;
       const totalVideos = eventPhotos.filter(p => p.mediaType === 'video').length;
       const dataUsed = eventPhotos.reduce((sum, p) => sum + (Number(p.size) || 0), 0);
 
-      // Filter event guests
       const eventGuests = guests.filter(g => g.eventId === event.id);
       const guestsCount = eventGuests.length;
-      
-      // Calculate total admins (1 creator + guests with canAdmin = true)
       const guestAdminsCount = eventGuests.filter(g => g.canAdmin).length;
       const totalAdmins = 1 + guestAdminsCount;
-
-      // Vendors count
       const vendorsLinked = event.vendors ? event.vendors.length : 0;
+
+      const isDeleted = Boolean(event.isDeleted) || event.status === 'deleted';
 
       return {
         ...event,
@@ -67,32 +55,105 @@ export const EventGrid: React.FC<Props> = ({ events, users, guests, photos }) =>
         dataUsed,
         guestsCount,
         totalAdmins,
-        vendorsLinked
+        vendorsLinked,
+        isDeleted,
+        statusLabel: isDeleted ? 'Deleted' : 'Active'
       };
     });
+
+    // Detect Ghost Galleries (event_id exists in photos/guests but row was deleted from events table)
+    const ghostEventIds = new Set<string>();
+    photos.forEach(p => {
+      if (p.eventId && !knownEventIds.has(p.eventId)) {
+        ghostEventIds.add(p.eventId);
+      }
+    });
+    guests.forEach(g => {
+      if (g.eventId && !knownEventIds.has(g.eventId)) {
+        ghostEventIds.add(g.eventId);
+      }
+    });
+
+    const ghostList = Array.from(ghostEventIds).map(eventId => {
+      const eventPhotos = photos.filter(p => p.eventId === eventId);
+      const totalPhotos = eventPhotos.filter(p => p.mediaType !== 'video').length;
+      const totalVideos = eventPhotos.filter(p => p.mediaType === 'video').length;
+      const dataUsed = eventPhotos.reduce((sum, p) => sum + (Number(p.size) || 0), 0);
+
+      // Try finding creator from photos' user_id
+      const firstPhoto = eventPhotos.find(p => p.userId);
+      const creator = firstPhoto ? users.find(u => u.id === firstPhoto.userId) : null;
+      const creatorName = creator ? creator.name : 'Unknown (Deleted Gallery)';
+      const creatorEmail = creator ? creator.email : 'N/A';
+
+      const eventGuests = guests.filter(g => g.eventId === eventId);
+      const guestsCount = eventGuests.length;
+      const totalAdmins = eventGuests.filter(g => g.canAdmin).length;
+
+      return {
+        id: eventId,
+        title: `[Ghost Gallery] ID: ${eventId.slice(0, 12)}...`,
+        createdAt: eventPhotos[0]?.id ? undefined : undefined,
+        createdById: creator?.id || '',
+        createdBy: creator?.id || '',
+        creatorName,
+        creatorEmail,
+        totalPhotos,
+        totalVideos,
+        dataUsed,
+        guestsCount,
+        totalAdmins,
+        vendorsLinked: 0,
+        isDeleted: true,
+        statusLabel: 'Deleted (Ghost Gallery)'
+      };
+    });
+
+    return [...activeList, ...ghostList];
   }, [events, users, guests, photos]);
 
-  // 3. Search filter
+  // 2. Calculate overall stats for quick analytics header
+  const stats = useMemo(() => {
+    const totalGalleries = galleriesDetails.length;
+    const activeGalleries = galleriesDetails.filter(g => !g.isDeleted).length;
+    const ghostGalleries = galleriesDetails.filter(g => g.isDeleted).length;
+    const ghostDataUsed = galleriesDetails.filter(g => g.isDeleted).reduce((sum, g) => sum + g.dataUsed, 0);
+
+    const totalPhotos = photos.filter(p => p.mediaType !== 'video').length;
+    const totalVideos = photos.filter(p => p.mediaType === 'video').length;
+    const totalData = photos.reduce((sum, p) => sum + p.size, 0);
+    const totalVendors = events.reduce((sum, e) => sum + (e.vendors ? e.vendors.length : 0), 0);
+
+    return { totalGalleries, activeGalleries, ghostGalleries, ghostDataUsed, totalPhotos, totalVideos, totalData, totalVendors };
+  }, [galleriesDetails, events, photos]);
+
+  // 3. Search and status filter
   const filteredGalleries = useMemo(() => {
     return galleriesDetails.filter(g => {
-      return (
+      const matchesSearch =
         g.title.toLowerCase().includes(search.toLowerCase()) ||
         g.id.toLowerCase().includes(search.toLowerCase()) ||
         g.creatorName.toLowerCase().includes(search.toLowerCase()) ||
-        g.creatorEmail.toLowerCase().includes(search.toLowerCase())
-      );
+        g.creatorEmail.toLowerCase().includes(search.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === 'all' ? true :
+        statusFilter === 'active' ? !g.isDeleted :
+        g.isDeleted;
+
+      return matchesSearch && matchesStatus;
     });
-  }, [galleriesDetails, search]);
+  }, [galleriesDetails, search, statusFilter]);
 
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Quick Analytics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Card 1: Total Events */}
+        {/* Card 1: Total Events & Status */}
         <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 hover:border-indigo-500/50 transition-all duration-300 shadow-lg group">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Total Events</p>
+              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Total Galleries</p>
               <h3 className="text-2xl font-black text-white mt-1 group-hover:text-indigo-400 transition-colors">
                 {stats.totalGalleries}
               </h3>
@@ -101,7 +162,10 @@ export const EventGrid: React.FC<Props> = ({ events, users, guests, photos }) =>
               <Folder className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-[10px] text-slate-500 mt-2">All events created by all users</p>
+          <p className="text-[10px] text-slate-500 mt-2">
+            <span className="text-emerald-400 font-semibold">{stats.activeGalleries} Active</span> •{' '}
+            <span className="text-rose-400 font-semibold">{stats.ghostGalleries} Ghost/Deleted</span>
+          </p>
         </div>
 
         {/* Card 2: Media Files */}
@@ -139,46 +203,84 @@ export const EventGrid: React.FC<Props> = ({ events, users, guests, photos }) =>
               <Database className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-[10px] text-slate-500 mt-2">Data stored on Cloudflare B2</p>
+          <p className="text-[10px] text-slate-500 mt-2">
+            {stats.ghostDataUsed > 0 ? `${formatSize(stats.ghostDataUsed)} in ghost galleries` : 'Data stored on Backblaze B2'}
+          </p>
         </div>
 
-        {/* Card 4: Linked Vendors */}
-        <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 hover:border-amber-500/50 transition-all duration-300 shadow-lg group">
+        {/* Card 4: Ghost / Deleted Warning */}
+        <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 hover:border-rose-500/50 transition-all duration-300 shadow-lg group">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Linked Vendors</p>
-              <h3 className="text-2xl font-black text-white mt-1 group-hover:text-amber-400 transition-colors">
-                {stats.totalVendors}
+              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Ghost Galleries</p>
+              <h3 className="text-2xl font-black text-rose-400 mt-1">
+                {stats.ghostGalleries}
               </h3>
             </div>
-            <div className="p-2.5 bg-amber-500/10 rounded-xl text-amber-400">
-              <Award className="w-5 h-5" />
+            <div className="p-2.5 bg-rose-500/10 rounded-xl text-rose-400">
+              <Ghost className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-[10px] text-slate-500 mt-2">Professional vendors connected</p>
+          <p className="text-[10px] text-rose-300/80 mt-2">
+            {stats.ghostGalleries > 0 ? `Deleted by user but storage left` : 'No leftover ghost galleries'}
+          </p>
         </div>
       </div>
 
       {/* Main Table Box */}
       <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl">
-        {/* Search Header */}
+        {/* Search & Filter Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h4 className="text-lg font-bold text-white">Events & Galleries Catalog</h4>
             <p className="text-slate-400 text-xs mt-0.5">
-              Showing {filteredGalleries.length} of {events.length} events
+              Showing {filteredGalleries.length} of {galleriesDetails.length} total entries
             </p>
           </div>
 
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search by title, owner, ID..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500/50 w-full sm:w-64 placeholder-slate-600 transition-colors"
-            />
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Status Filter Tabs */}
+            <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setStatusFilter('all')}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                  statusFilter === 'all' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('active')}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                  statusFilter === 'active' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Active
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('deleted')}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                  statusFilter === 'deleted' ? 'bg-rose-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Ghost / Deleted
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search title, owner, ID..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500/50 w-full sm:w-56 placeholder-slate-600 transition-colors"
+              />
+            </div>
           </div>
         </div>
 
@@ -188,6 +290,7 @@ export const EventGrid: React.FC<Props> = ({ events, users, guests, photos }) =>
             <thead className="text-xs text-slate-500 uppercase bg-slate-900/30 border-b border-slate-800">
               <tr>
                 <th scope="col" className="py-3.5 px-4">Gallery Details</th>
+                <th scope="col" className="py-3.5 px-4">Gallery Status</th>
                 <th scope="col" className="py-3.5 px-4">Created By</th>
                 <th scope="col" className="py-3.5 px-4">Data Used</th>
                 <th scope="col" className="py-3.5 px-4">Photos / Videos</th>
@@ -207,11 +310,17 @@ export const EventGrid: React.FC<Props> = ({ events, users, guests, photos }) =>
                     {/* Gallery Name & ID */}
                     <td className="py-4 px-4">
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-500/5 border border-indigo-500/10 flex items-center justify-center text-indigo-400 shrink-0">
-                          <Folder className="w-5 h-5" />
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                          gallery.isDeleted
+                            ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                            : 'bg-indigo-500/5 border-indigo-500/10 text-indigo-400'
+                        }`}>
+                          {gallery.isDeleted ? <Ghost className="w-5 h-5" /> : <Folder className="w-5 h-5" />}
                         </div>
                         <div>
-                          <p className="font-semibold text-white leading-tight whitespace-pre-line">{gallery.title}</p>
+                          <p className={`font-semibold leading-tight whitespace-pre-line ${gallery.isDeleted ? 'text-rose-200' : 'text-white'}`}>
+                            {gallery.title}
+                          </p>
                           <div className="flex items-center space-x-2 mt-1.5">
                             <span className="font-mono text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
                               {gallery.id}
@@ -223,6 +332,21 @@ export const EventGrid: React.FC<Props> = ({ events, users, guests, photos }) =>
                           </div>
                         </div>
                       </div>
+                    </td>
+
+                    {/* Gallery Status Column */}
+                    <td className="py-4 px-4 text-xs font-semibold">
+                      {gallery.isDeleted ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-rose-500/20 bg-rose-500/10 text-rose-300 text-[11px] font-bold">
+                          <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                          Deleted / Ghost
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 text-[11px] font-bold">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          Active
+                        </span>
+                      )}
                     </td>
 
                     {/* Created By Owner */}
@@ -287,9 +411,9 @@ export const EventGrid: React.FC<Props> = ({ events, users, guests, photos }) =>
 
               {filteredGalleries.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-500 bg-slate-900/10">
+                  <td colSpan={8} className="py-12 text-center text-slate-500 bg-slate-900/10">
                     <p className="text-base font-semibold">No galleries found</p>
-                    <p className="text-xs text-slate-600 mt-1">Try adjusting your search query.</p>
+                    <p className="text-xs text-slate-600 mt-1">Try adjusting your search query or status filter.</p>
                   </td>
                 </tr>
               )}
