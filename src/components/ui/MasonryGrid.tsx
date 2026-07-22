@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { onPhotoInteractions, toggleLike } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
-import { Heart, MessageCircle, Download } from "lucide-react";
+import { Heart, MessageCircle, Download, Play } from "lucide-react";
 import { Lightbox, type LightboxTheme } from "./Lightbox";
 import { getGridThumbnail } from "@/lib/imageUrl";
 
@@ -142,13 +142,20 @@ function PhotoCard({
         >
             <div className="relative w-full overflow-hidden">
                 {isVideo ? (
-                    <video
-                        src={photo.src}
-                        className="aspect-[4/5] w-full object-cover transform transition-all duration-700 group-hover:scale-[1.02]"
-                        muted
-                        playsInline
-                        preload="metadata"
-                    />
+                    <div className="relative aspect-[4/5] w-full bg-slate-950 overflow-hidden">
+                        <video
+                            src={photo.src}
+                            className="h-full w-full object-cover transform transition-all duration-700 group-hover:scale-[1.02]"
+                            muted
+                            playsInline
+                            preload="metadata"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20 group-hover:bg-slate-950/10 transition-colors">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-black/60 text-white shadow-xl backdrop-blur-sm group-hover:scale-110 transition-transform">
+                                <Play className="h-5 w-5 fill-current ml-0.5" />
+                            </div>
+                        </div>
+                    </div>
                 ) : imageSrc ? (
                     <img
                         src={imageSrc}

@@ -7,7 +7,7 @@ app = modal.App("wedding-media-engine")
 # Define the Modal image with system OpenCV dependencies and InsightFace + ONNX Runtime.
 image = (
     modal.Image.debian_slim(python_version="3.11")
-    .apt_install("libgl1-mesa-glx", "libglib2.0-0")
+    .apt_install("libgl1-mesa-glx", "libglib2.0-0", "ffmpeg")
     .pip_install(
         "fastapi[standard]",
         "boto3",
@@ -426,3 +426,170 @@ def find_matching_photos(request: dict):
         except Exception as log_err:
             print(f"[Selfie] Cost log failed: {log_err}")
         return {"error": str(e), "matches": []}
+
+
+@app.function(
+    image=image,
+    cpu=2.0,
+    memory=2048,
+    timeout=600,
+    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+)
+@modal.fastapi_endpoint(method="POST")
+def process_video_transcode(request: dict):
+    """
+    QStash Webhook Entrypoint for Video Transcoding.
+    Downloads raw video from B2, runs FFmpeg to generate adaptive HLS renditions (.m3u8 + .ts),
+    poster frame, uploads to B2, and updates Supabase database.
+    """
+    import time
+    import subprocess
+    import tempfile
+    import pathlib
+    import boto3
+    from supabase import create_client, Client
+
+    start_time = time.time()
+
+    photo_id   = request.get("photo_id") or request.get("id")
+    object_key = request.get("storage_key") or request.get("object_key")
+
+    if not object_key or not photo_id:
+        return {"error": "Missing storage_key or photo_id", "status": "failed"}
+
+    print(f"[VideoTranscode] Starting HLS encoding for: {object_key} (ID: {photo_id})")
+
+    supabase: Client = create_client(
+        os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
+        os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    )
+
+    b2_client = boto3.client(
+        's3',
+        endpoint_url=f"https://{os.environ.get('B2_ENDPOINT')}",
+        aws_access_key_id=os.environ.get('B2_KEY_ID'),
+        aws_secret_access_key=os.environ.get('B2_APPLICATION_KEY')
+    )
+    bucket_name = os.environ.get('B2_BUCKET_NAME')
+    media_domain = (os.environ.get("MEDIA_DOMAIN") or "media.evebash.com").replace("https://", "").strip("/")
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = pathlib.Path(tmp_dir)
+        raw_input_path = tmp_path / "input_raw.mp4"
+        output_hls_dir = tmp_path / "hls"
+        output_hls_dir.mkdir(parents=True, exist_ok=True)
+
+        # 1. Download raw video file from Backblaze B2
+        print(f"[VideoTranscode] Downloading raw video from B2 bucket '{bucket_name}' key '{object_key}'...")
+        try:
+            b2_client.download_file(bucket_name, object_key, str(raw_input_path))
+        except Exception as dl_err:
+            print(f"[VideoTranscode] Error downloading video from B2: {dl_err}")
+            return {"error": f"Failed to download video from B2: {str(dl_err)}", "status": "failed"}
+
+        # 2. Extract Poster Frame (JPEG at 1-second mark)
+        poster_path = output_hls_dir / "poster.jpg"
+        poster_cmd = [
+            "ffmpeg", "-y", "-i", str(raw_input_path),
+            "-ss", "00:00:01", "-vframes", "1",
+            "-q:v", "2", str(poster_path)
+        ]
+        subprocess.run(poster_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        # 3. Transcode to HLS (1080p, 720p, 480p adaptive bitrate streams)
+        master_playlist_path = output_hls_dir / "master.m3u8"
+        hls_cmd = [
+            "ffmpeg", "-y", "-i", str(raw_input_path),
+            "-filter_complex",
+            "[0:v]split=3[v1,v2,v3]; "
+            "[v1]scale=w=1920:h=1080:force_original_aspect_ratio=decrease[v1out]; "
+            "[v2]scale=w=1280:h=720:force_original_aspect_ratio=decrease[v2out]; "
+            "[v3]scale=w=854:h=480:force_original_aspect_ratio=decrease[v3out]",
+            "-map", "[v1out]", "-c:v:0", "libx264", "-b:v:0", "4000k", "-maxrate:v:0", "4500k", "-bufsize:v:0", "6000k",
+            "-map", "[v2out]", "-c:v:1", "libx264", "-b:v:1", "2500k", "-maxrate:v:1", "2800k", "-bufsize:v:1", "3500k",
+            "-map", "[v3out]", "-c:v:2", "libx264", "-b:v:2", "1000k", "-maxrate:v:2", "1200k", "-bufsize:v:2", "1500k",
+            "-map", "a:0?", "-c:a:0", "aac", "-b:a:0", "128k",
+            "-map", "a:0?", "-c:a:1", "aac", "-b:a:1", "128k",
+            "-map", "a:0?", "-c:a:2", "aac", "-b:a:2", "96k",
+            "-var_stream_map", "v:0,a:0,name:1080p v:1,a:1,name:720p v:2,a:2,name:480p",
+            "-preset", "veryfast", "-g", "48", "-sc_threshold", "0",
+            "-hls_time", "4", "-hls_playlist_type", "vod",
+            "-hls_segment_filename", f"{output_hls_dir}/%v/segment_%03d.ts",
+            "-master_pl_name", "master.m3u8",
+            f"{output_hls_dir}/%v/playlist.m3u8"
+        ]
+
+        print(f"[VideoTranscode] Running FFmpeg HLS encoding pipeline...")
+        ffmpeg_res = subprocess.run(hls_cmd, capture_output=True, text=True)
+
+        if ffmpeg_res.returncode != 0:
+            print(f"[VideoTranscode] Multi-rendition FFmpeg failed, running fallback single stream...")
+            fallback_cmd = [
+                "ffmpeg", "-y", "-i", str(raw_input_path),
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+                "-c:a", "aac", "-b:a", "128k",
+                "-hls_time", "4", "-hls_playlist_type", "vod",
+                "-hls_segment_filename", f"{output_hls_dir}/segment_%03d.ts",
+                str(master_playlist_path)
+            ]
+            subprocess.run(fallback_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        # 4. Upload HLS files to B2
+        hls_prefix = f"hls/{object_key}"
+        print(f"[VideoTranscode] Uploading generated HLS package to B2 key prefix '{hls_prefix}'...")
+
+        for file_path in output_hls_dir.glob("**/*"):
+            if file_path.is_file():
+                rel_path = file_path.relative_to(output_hls_dir)
+                b2_key = f"{hls_prefix}/{rel_path}"
+                content_type = "application/x-mpegURL" if file_path.suffix == ".m3u8" else \
+                               "video/MP2T" if file_path.suffix == ".ts" else \
+                               "image/jpeg" if file_path.suffix in [".jpg", ".jpeg"] else \
+                               "application/octet-stream"
+                b2_client.upload_file(
+                    str(file_path),
+                    bucket_name,
+                    b2_key,
+                    ExtraArgs={"ContentType": content_type}
+                )
+
+        hls_master_url = f"https://{media_domain}/{hls_prefix}/master.m3u8"
+        poster_url = f"https://{media_domain}/{hls_prefix}/poster.jpg" if poster_path.exists() else None
+
+        # 5. Update Supabase record
+        update_data = {
+            "url": hls_master_url,
+            "resource_type": "video",
+            "media_type": "video",
+        }
+        if poster_url:
+            update_data["thumbnail_url"] = poster_url
+
+        supabase.table("photos").update(update_data).eq("id", photo_id).execute()
+        print(f"[VideoTranscode] Successfully encoded & updated photo {photo_id} with HLS URL: {hls_master_url}")
+
+        # 6. Log infrastructure cost
+        duration = time.time() - start_time
+        cpu_cores = 2.0
+        memory_gb = 2.0
+        estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
+        try:
+            supabase.table("modal_cost_logs").insert({
+                "function_name": "process_video_transcode",
+                "cpu_cores": cpu_cores,
+                "memory_gb": memory_gb,
+                "execution_time_seconds": duration,
+                "estimated_cost_inr": estimated_cost_inr,
+                "faces_detected": 0
+            }).execute()
+        except Exception as log_err:
+            print(f"[VideoTranscode] Cost log failed: {log_err}")
+
+        return {
+            "status": "success",
+            "photo_id": photo_id,
+            "hls_url": hls_master_url,
+            "poster_url": poster_url,
+            "duration_seconds": duration
+        }
+
