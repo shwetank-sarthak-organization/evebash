@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Check, Info } from "lucide-react";
+import { getPlanDetails } from "@/lib/planLimits";
 import { pricingPlanToFeatures, PricingPlan } from "@/lib/pricingPlans";
 import type { RazorpayBillingDuration } from "@/lib/razorpayPricing";
 import { supabase } from "@/lib/supabase";
@@ -19,6 +20,17 @@ const billingCycles: { key: BillingCycle; label: string; period: string }[] = [
 type CheckoutMessage = {
     type: "success" | "error" | "info";
     text: string;
+};
+
+type CurrentSubscription = {
+    role: string | null;
+    subscriptionDuration: string | null;
+    planStartDate: string | null;
+    planEndDate: string | null;
+    pendingPlanRole: string | null;
+    pendingSubscriptionDuration: string | null;
+    pendingPlanStartDate: string | null;
+    pendingPlanEndDate: string | null;
 };
 
 type RazorpaySuccessResponse = {
@@ -68,6 +80,63 @@ const formatPrice = (amount: number) =>
         currency: "INR",
         maximumFractionDigits: 0,
     }).format(amount);
+
+const cycleDurationsInMonths: Record<BillingCycle, number> = {
+    monthly: 1,
+    threeMonths: 3,
+    sixMonths: 6,
+    yearly: 12,
+};
+
+const durationLabels: Record<BillingCycle, string> = {
+    monthly: "monthly",
+    threeMonths: "3 month",
+    sixMonths: "6 month",
+    yearly: "yearly",
+};
+
+function toDateOnly(date: Date) {
+    return date.toISOString().slice(0, 10);
+}
+
+function addMonths(date: Date, months: number) {
+    const nextDate = new Date(date);
+    nextDate.setMonth(nextDate.getMonth() + months);
+    return nextDate;
+}
+
+function addDays(date: Date, days: number) {
+    const nextDate = new Date(date);
+    nextDate.setDate(nextDate.getDate() + days);
+    return nextDate;
+}
+
+function parseDateOnly(value?: string | null) {
+    if (!value) return null;
+    const date = new Date(`${value}T00:00:00`);
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isCurrentSubscriptionActive(subscription: CurrentSubscription | null) {
+    const endDate = parseDateOnly(subscription?.planEndDate);
+    if (!endDate) return false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return endDate >= today;
+}
+
+function formatDate(date: Date | string | null | undefined) {
+    if (!date) return "Not set";
+    const parsedDate = typeof date === "string" ? new Date(`${date}T00:00:00`) : date;
+    if (Number.isNaN(parsedDate.getTime())) return "Not set";
+
+    return new Intl.DateTimeFormat("en-IN", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+    }).format(parsedDate);
+}
 
 const planVisuals: Record<string, {
     badge: string | null;
@@ -191,7 +260,30 @@ export default function Pricing() {
     const [pricingStatus, setPricingStatus] = useState<"loading" | "ready" | "unavailable">("loading");
     const [checkoutPlanId, setCheckoutPlanId] = useState<string | null>(null);
     const [checkoutMessage, setCheckoutMessage] = useState<CheckoutMessage | null>(null);
+    const [currentSubscription, setCurrentSubscription] = useState<CurrentSubscription | null>(null);
+    const [confirmPlan, setConfirmPlan] = useState<PricingPlan | null>(null);
     const selectedCycle = billingCycles.find((cycle) => cycle.key === billingCycle) || billingCycles[0];
+    const newPlanStartDate = new Date();
+    const newPlanEndDate = addMonths(newPlanStartDate, cycleDurationsInMonths[billingCycle]);
+    const isDowngradePlan = (plan: PricingPlan) => {
+        if (!currentSubscription?.role || !isCurrentSubscriptionActive(currentSubscription)) return false;
+        if (currentSubscription.role.toLowerCase() === "admin") return false;
+        const currentPlan = getPlanDetails(currentSubscription.role);
+        const selectedPlan = getPlanDetails(plan.id);
+        return selectedPlan.storageBytes < currentPlan.storageBytes;
+    };
+    const confirmPlanIsDowngrade = confirmPlan ? isDowngradePlan(confirmPlan) : false;
+    const scheduledPlanStartDate = confirmPlanIsDowngrade
+        ? addDays(parseDateOnly(currentSubscription?.planEndDate) || new Date(), 1)
+        : newPlanStartDate;
+    const scheduledPlanEndDate = addMonths(scheduledPlanStartDate, cycleDurationsInMonths[billingCycle]);
+
+    const getPlanDisplayName = (planId: string | null | undefined) => {
+        if (!planId) return "Free plan";
+        const plan = plans.find((item) => item.id === planId);
+        if (!plan) return `${planId.charAt(0).toUpperCase()}${planId.slice(1)} plan`;
+        return `${plan.name} (${plan.storageLabel})`;
+    };
 
     useEffect(() => {
         let isMounted = true;
@@ -223,6 +315,46 @@ export default function Pricing() {
             isMounted = false;
         };
     }, []);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        async function loadCurrentSubscription() {
+            const { data: authData } = await supabase.auth.getUser();
+            const user = authData.user;
+            if (!user) return;
+
+            const { data } = await supabase
+                .from("profiles")
+                .select("role, subscription_duration, plan_start_date, plan_end_date, pending_plan_role, pending_subscription_duration, pending_plan_start_date, pending_plan_end_date")
+                .eq("id", user.id)
+                .maybeSingle();
+
+            if (!isMounted || !data) return;
+
+            setCurrentSubscription({
+                role: data.role || null,
+                subscriptionDuration: data.subscription_duration || null,
+                planStartDate: data.plan_start_date || null,
+                planEndDate: data.plan_end_date || null,
+                pendingPlanRole: data.pending_plan_role || null,
+                pendingSubscriptionDuration: data.pending_subscription_duration || null,
+                pendingPlanStartDate: data.pending_plan_start_date || null,
+                pendingPlanEndDate: data.pending_plan_end_date || null,
+            });
+        }
+
+        loadCurrentSubscription();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    function openCheckoutConfirmation(plan: PricingPlan) {
+        setCheckoutMessage(null);
+        setConfirmPlan(plan);
+    }
 
     async function handleCheckout(plan: PricingPlan) {
         setCheckoutMessage(null);
@@ -313,10 +445,37 @@ export default function Pricing() {
                         return;
                     }
 
-                    setCheckoutMessage({
-                        type: "success",
-                        text: "Payment verified successfully. Your plan is active now.",
-                    });
+                    if (verifyResult.change_type === "downgrade_scheduled") {
+                        setCheckoutMessage({
+                            type: "success",
+                            text: `Payment verified. Your downgrade to ${plan.name} is scheduled for ${formatDate(verifyResult.pending_plan_start_date)}.`,
+                        });
+                        setCurrentSubscription((current) => ({
+                            role: current?.role || verifyResult.plan_id || null,
+                            subscriptionDuration: current?.subscriptionDuration || null,
+                            planStartDate: current?.planStartDate || null,
+                            planEndDate: current?.planEndDate || null,
+                            pendingPlanRole: verifyResult.pending_plan_role || plan.id,
+                            pendingSubscriptionDuration: verifyResult.pending_subscription_duration || durationLabels[billingCycle],
+                            pendingPlanStartDate: verifyResult.pending_plan_start_date || null,
+                            pendingPlanEndDate: verifyResult.pending_plan_end_date || null,
+                        }));
+                    } else {
+                        setCheckoutMessage({
+                            type: "success",
+                            text: "Payment verified successfully. Your plan is active now.",
+                        });
+                        setCurrentSubscription({
+                            role: verifyResult.plan_id || plan.id,
+                            subscriptionDuration: verifyResult.subscription_duration || durationLabels[billingCycle],
+                            planStartDate: verifyResult.plan_start_date || toDateOnly(new Date()),
+                            planEndDate: verifyResult.plan_end_date || toDateOnly(addMonths(new Date(), cycleDurationsInMonths[billingCycle])),
+                            pendingPlanRole: null,
+                            pendingSubscriptionDuration: null,
+                            pendingPlanStartDate: null,
+                            pendingPlanEndDate: null,
+                        });
+                    }
                     setCheckoutPlanId(null);
                 },
                 modal: {
@@ -487,7 +646,7 @@ export default function Pricing() {
                                 ) : (
                                     <button
                                         type="button"
-                                        onClick={() => handleCheckout(plan)}
+                                        onClick={() => openCheckoutConfirmation(plan)}
                                         disabled={isCheckingOut}
                                         className={`w-full py-3 text-center rounded-xl uppercase tracking-widest text-xs font-bold transition-all duration-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70 ${visual.btnClass}`}
                                     >
@@ -510,6 +669,79 @@ export default function Pricing() {
                         Extra Storage: ₹5/GB &bull; Extra Bandwidth: ₹7–₹10/GB.
                     </p>
                 </div>
+                )}
+
+                {confirmPlan && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6">
+                        <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+                            <div className="space-y-2">
+                                <p className="text-xs font-black uppercase tracking-widest text-sky-600">
+                                    {confirmPlanIsDowngrade ? "Schedule Plan Downgrade" : "Confirm Plan Change"}
+                                </p>
+                                <h2 className="text-2xl font-serif font-bold text-slate-900">
+                                    {confirmPlanIsDowngrade ? "Switch" : "Upgrade"} to {confirmPlan.name} ({confirmPlan.storageLabel})
+                                </h2>
+                                <p className="text-sm leading-6 text-slate-600">
+                                    {confirmPlanIsDowngrade
+                                        ? `Your current plan stays active until ${formatDate(currentSubscription?.planEndDate)}. The lower plan starts in your next billing cycle.`
+                                        : `Your new ${durationLabels[billingCycle]} plan will start immediately after successful payment.`}
+                                </p>
+                            </div>
+
+                            <div className="mt-6 grid gap-3 text-sm">
+                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Current Plan</p>
+                                    <p className="mt-1 font-semibold text-slate-900">{getPlanDisplayName(currentSubscription?.role)}</p>
+                                    <p className="mt-1 text-slate-600">
+                                        Active until {formatDate(currentSubscription?.planEndDate)}
+                                    </p>
+                                </div>
+
+                                <div className={`rounded-xl border p-4 ${
+                                    confirmPlanIsDowngrade
+                                        ? "border-amber-200 bg-amber-50"
+                                        : "border-emerald-200 bg-emerald-50"
+                                }`}>
+                                    <p className={`text-[11px] font-black uppercase tracking-widest ${
+                                        confirmPlanIsDowngrade ? "text-amber-700" : "text-emerald-700"
+                                    }`}>
+                                        {confirmPlanIsDowngrade ? "Scheduled Plan" : "New Plan After Payment"}
+                                    </p>
+                                    <p className="mt-1 font-semibold text-slate-900">{confirmPlan.name} ({confirmPlan.storageLabel})</p>
+                                    <p className="mt-1 text-slate-700">
+                                        Starts {formatDate(scheduledPlanStartDate)} and ends {formatDate(scheduledPlanEndDate)}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                                {confirmPlanIsDowngrade
+                                    ? "Downgrades are scheduled for the next billing cycle so your current paid storage is not reduced early."
+                                    : "Your current plan period will be replaced by this new plan period. The upgraded storage and limits will apply immediately after payment verification."}
+                            </div>
+
+                            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => setConfirmPlan(null)}
+                                    className="rounded-xl border border-slate-200 px-5 py-3 text-xs font-bold uppercase tracking-widest text-slate-700 transition-colors hover:bg-slate-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const plan = confirmPlan;
+                                        setConfirmPlan(null);
+                                        handleCheckout(plan);
+                                    }}
+                                    className="rounded-xl bg-slate-900 px-5 py-3 text-xs font-bold uppercase tracking-widest text-white transition-colors hover:bg-slate-800"
+                                >
+                                    Continue to Payment
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 )}
 
                 {/* Custom Plan CTA */}

@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import Razorpay from "razorpay";
+import { getPlanDetails } from "@/lib/planLimits";
 import { normalizeBillingDuration, type RazorpayBillingDuration } from "@/lib/razorpayPricing";
 
 export const runtime = "nodejs";
@@ -49,6 +50,27 @@ function addMonths(date: Date, months: number) {
     const nextDate = new Date(date);
     nextDate.setMonth(nextDate.getMonth() + months);
     return nextDate;
+}
+
+function addDays(date: Date, days: number) {
+    const nextDate = new Date(date);
+    nextDate.setDate(nextDate.getDate() + days);
+    return nextDate;
+}
+
+function parseDateOnly(value?: string | null) {
+    if (!value) return null;
+    const date = new Date(`${value}T00:00:00`);
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isCurrentPlanActive(planEndDate?: string | null) {
+    const endDate = parseDateOnly(planEndDate);
+    if (!endDate) return false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return endDate >= today;
 }
 
 function safeCompare(left: string, right: string) {
@@ -136,15 +158,71 @@ export async function POST(request: NextRequest) {
     const today = new Date();
     const planStartDate = toDateOnly(today);
     const planEndDate = toDateOnly(addMonths(today, DURATION_TO_MONTHS[duration]));
+    const subscriptionDuration = DURATION_TO_PROFILE_VALUE[duration];
+
+    const { data: currentProfile, error: profileError } = await supabaseAdmin
+        .from("profiles")
+        .select("role, subscription_duration, plan_start_date, plan_end_date")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    if (profileError) {
+        return NextResponse.json({ error: profileError.message || "Could not load your current plan." }, { status: 500 });
+    }
+
+    const currentRole = typeof currentProfile?.role === "string" && currentProfile.role ? currentProfile.role : "free";
+    const currentPlan = getPlanDetails(currentRole);
+    const selectedPlan = getPlanDetails(planId);
+    const isDowngrade =
+        currentRole.toLowerCase() !== "admin" &&
+        isCurrentPlanActive(currentProfile?.plan_end_date) &&
+        selectedPlan.storageBytes < currentPlan.storageBytes;
+
+    if (isDowngrade) {
+        const currentEndDate = parseDateOnly(currentProfile?.plan_end_date) || today;
+        const pendingStartDate = addDays(currentEndDate, 1);
+        const pendingPlanStartDate = toDateOnly(pendingStartDate);
+        const pendingPlanEndDate = toDateOnly(addMonths(pendingStartDate, DURATION_TO_MONTHS[duration]));
+
+        const { error: scheduleError } = await supabaseAdmin
+            .from("profiles")
+            .update({
+                pending_plan_role: planId,
+                pending_subscription_duration: subscriptionDuration,
+                pending_plan_start_date: pendingPlanStartDate,
+                pending_plan_end_date: pendingPlanEndDate,
+            })
+            .eq("id", user.id);
+
+        if (scheduleError) {
+            return NextResponse.json({ error: scheduleError.message || "Payment verified, but downgrade scheduling failed." }, { status: 500 });
+        }
+
+        return NextResponse.json({
+            success: true,
+            change_type: "downgrade_scheduled",
+            payment_id: paymentId,
+            order_id: orderId,
+            plan_id: currentRole,
+            pending_plan_role: planId,
+            pending_subscription_duration: subscriptionDuration,
+            pending_plan_start_date: pendingPlanStartDate,
+            pending_plan_end_date: pendingPlanEndDate,
+        });
+    }
 
     const { error: updateError } = await supabaseAdmin
         .from("profiles")
         .update({
             role: planId,
             role_type: "primary",
-            subscription_duration: DURATION_TO_PROFILE_VALUE[duration],
+            subscription_duration: subscriptionDuration,
             plan_start_date: planStartDate,
             plan_end_date: planEndDate,
+            pending_plan_role: null,
+            pending_subscription_duration: null,
+            pending_plan_start_date: null,
+            pending_plan_end_date: null,
         })
         .eq("id", user.id);
 
@@ -154,9 +232,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
         success: true,
+        change_type: "immediate",
         payment_id: paymentId,
         order_id: orderId,
         plan_id: planId,
+        subscription_duration: subscriptionDuration,
         plan_start_date: planStartDate,
         plan_end_date: planEndDate,
     });

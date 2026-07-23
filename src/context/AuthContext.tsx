@@ -36,6 +36,10 @@ type AppUser = {
     subscriptionDuration?: string;
     planStartDate?: string;
     planEndDate?: string;
+    pendingPlanRole?: string;
+    pendingSubscriptionDuration?: string;
+    pendingPlanStartDate?: string;
+    pendingPlanEndDate?: string;
 };
 
 interface AuthContextType {
@@ -102,6 +106,10 @@ function buildUserData(uid: string, email: string | null, fallbackName: string, 
         subscriptionDuration: profile?.subscriptionDuration,
         planStartDate: profile?.planStartDate,
         planEndDate: profile?.planEndDate,
+        pendingPlanRole: profile?.pendingPlanRole,
+        pendingSubscriptionDuration: profile?.pendingSubscriptionDuration,
+        pendingPlanStartDate: profile?.pendingPlanStartDate,
+        pendingPlanEndDate: profile?.pendingPlanEndDate,
     };
 }
 
@@ -127,6 +135,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const currentUserId = useRef<string | null>(null);
     const currentUserData = useRef<AppUser | null>(null);
 
+    const applyPendingPlanChangeIfDue = useCallback(async () => {
+        const { data } = await supabase.auth.getSession();
+        const accessToken = data.session?.access_token;
+        if (!accessToken) return;
+
+        await fetch("/api/subscription/apply-pending", {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+            },
+        });
+    }, []);
+
     const syncUserSession = useCallback((userData: AppUser) => {
         currentUserId.current = userData.uid;
         currentUserData.current = userData;
@@ -140,6 +161,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fallbackName: string,
         options?: { phone?: string; role?: string; shouldSync?: () => boolean }
     ) => {
+        await applyPendingPlanChangeIfDue().catch((error) => {
+            console.error("[Auth] Pending plan check failed:", error);
+        });
+
         let profile = await getUserProfile(uid);
         if (!profile) {
             await createUserProfile(uid, fallbackName, email || "", options?.phone || "", options?.role || "user");
@@ -147,7 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         if (options?.shouldSync && !options.shouldSync()) return;
         syncUserSession(buildUserData(uid, email, fallbackName, profile));
-    }, [syncUserSession]);
+    }, [applyPendingPlanChangeIfDue, syncUserSession]);
 
     const hydrateSupabaseUserInBackground = useCallback((
         uid: string,

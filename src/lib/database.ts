@@ -148,6 +148,10 @@ export interface UserProfile {
     subscriptionDuration?: string;
     planStartDate?: string;
     planEndDate?: string;
+    pendingPlanRole?: string;
+    pendingSubscriptionDuration?: string;
+    pendingPlanStartDate?: string;
+    pendingPlanEndDate?: string;
     pushToken?: string;
     notificationPreferences?: any;
 }
@@ -176,6 +180,10 @@ const USER_PROFILE_COLUMN_MAP: Record<keyof Partial<UserProfile>, string> = {
     subscriptionDuration: "subscription_duration",
     planStartDate: "plan_start_date",
     planEndDate: "plan_end_date",
+    pendingPlanRole: "pending_plan_role",
+    pendingSubscriptionDuration: "pending_subscription_duration",
+    pendingPlanStartDate: "pending_plan_start_date",
+    pendingPlanEndDate: "pending_plan_end_date",
     pushToken: "push_token",
     notificationPreferences: "notification_preferences",
 };
@@ -446,6 +454,10 @@ function mapSqlToProfile(u: any): UserProfile {
         subscriptionDuration: u.subscription_duration,
         planStartDate: u.plan_start_date,
         planEndDate: u.plan_end_date,
+        pendingPlanRole: u.pending_plan_role,
+        pendingSubscriptionDuration: u.pending_subscription_duration,
+        pendingPlanStartDate: u.pending_plan_start_date,
+        pendingPlanEndDate: u.pending_plan_end_date,
         assignedEvents: [], // Will be populated when querying assignments
         pushToken: u.push_token,
         notificationPreferences: u.notification_preferences

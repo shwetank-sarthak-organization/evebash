@@ -42,26 +42,13 @@ import {
     updateUserProfileImage,
 } from "@/lib/database";
 import { supabase } from "@/lib/supabase";
+import { getPlanDetails } from "@/lib/planLimits";
 import { getSubscriptionStatus } from "@/lib/subscriptionStatus";
 import { cn } from "@/lib/utils";
 
 const personaOptions = ["Guest", "Host / Organizer", "Vendor / Business"];
 const genderOptions = ["Male", "Female", "Other", "Prefer not to say"];
 const relationshipOptions = ["Single", "Engaged", "Married", "Prefer not to say"];
-
-function getPlanLabel(role?: string) {
-    switch (role) {
-        case "admin": return "Super Admin";
-        case "ultimate": return "1 TB Plan";
-        case "elite": return "Elite Plan";
-        case "pro": return "200 GB Plan";
-        case "premium": return "Premium Plan";
-        case "standard": return "Standard Plan";
-        case "basic": return "Basic Plan";
-        case "starter": return "10 GB Plan";
-        default: return "Free Plan";
-    }
-}
 
 function formatBytes(bytes: number) {
     if (!bytes) return "0 KB";
@@ -80,6 +67,18 @@ function formatJoinedDate(value: any) {
 
     if (Number.isNaN(date.getTime())) return "Not available";
     return date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+}
+
+function formatPlanDate(value?: string | null) {
+    if (!value) return "Not set";
+    const date = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return "Not set";
+
+    return date.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+    });
 }
 
 function getPersonasArray(value: any): string[] {
@@ -193,6 +192,9 @@ export default function ProfilePage() {
             planEndDate: user.planEndDate,
         })
         : null;
+    const activePlan = getPlanDetails(user?.role);
+    const pendingPlan = getPlanDetails(user?.pendingPlanRole);
+    const hasPendingPlanChange = Boolean(user?.pendingPlanRole && user?.pendingPlanStartDate);
 
     useEffect(() => {
         if (!authLoading && !user) router.push("/login");
@@ -458,7 +460,7 @@ export default function ProfilePage() {
                                     <h1 className="mt-1 text-3xl font-black tracking-tight text-white">{user.name}</h1>
                                     <div className="mt-3 flex flex-wrap gap-2">
                                         <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-emerald-300">
-                                            {getPlanLabel(user.role)}
+                                            {activePlan.name}
                                         </span>
                                         {getPersonasArray(user.persona).map((persona) => (
                                             <span key={persona} className="rounded-full border border-slate-700 bg-slate-800 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-slate-300">
@@ -562,7 +564,10 @@ export default function ProfilePage() {
                                     </div>
                                     <div className="rounded-2xl bg-slate-900 p-4">
                                         <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Active Plan</p>
-                                        <p className="mt-1 text-xl font-black text-emerald-300">{getPlanLabel(user.role)}</p>
+                                        <p className="mt-1 text-xl font-black text-emerald-300">{activePlan.name}</p>
+                                        <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                                            {activePlan.storageLabel} storage
+                                        </p>
                                     </div>
                                     {subscriptionStatus?.message && (
                                         <div className={cn(
@@ -576,6 +581,15 @@ export default function ProfilePage() {
                                             </p>
                                             <p className="mt-1 text-sm font-semibold leading-6">
                                                 {subscriptionStatus.message}
+                                            </p>
+                                        </div>
+                                    )}
+                                    {hasPendingPlanChange && (
+                                        <div className="rounded-2xl border border-sky-400/25 bg-sky-400/10 p-4 text-sky-100">
+                                            <p className="text-[11px] font-black uppercase tracking-[0.16em]">Scheduled Change</p>
+                                            <p className="mt-1 text-sm font-black text-white">{pendingPlan.name}</p>
+                                            <p className="mt-1 text-xs font-semibold leading-5">
+                                                {pendingPlan.storageLabel} storage starts {formatPlanDate(user?.pendingPlanStartDate)}.
                                             </p>
                                         </div>
                                     )}
