@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { LinearGradient } from 'expo-linear-gradient';
-
-const { width } = Dimensions.get('window');
+import { EveBashLogoBadge } from '@/components/EveBashLogo';
+import { useAppTheme } from '@/context/ThemeContext';
+import { MidnightColors } from '@/constants/theme';
 
 const packages = [
   {
@@ -229,6 +230,8 @@ const packages = [
 
 export default function PricingScreen() {
   const router = useRouter();
+  const { colors, isDark } = useAppTheme();
+  const styles = getStyles(colors, isDark);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'quarterly' | 'semiannual' | 'yearly'>('monthly');
   const [selectedTierIndex, setSelectedTierIndex] = useState<number>(4); // Default to 100 GB (index 4)
 
@@ -251,9 +254,12 @@ export default function PricingScreen() {
           }} 
           style={styles.backButton}
         >
-          <IconSymbol name="chevron.left" size={24} color="#d4af37" />
+          <IconSymbol name="chevron.left" size={24} color={colors.gold} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Upgrade Plan</Text>
+        <View style={styles.headingLogoRow}>
+          <EveBashLogoBadge onPress={() => router.replace('/(tabs)' as any)} />
+          <Text style={styles.headerTitle}>Upgrade Plan</Text>
+        </View>
         <View style={{ width: 40 }} /> 
       </View>
 
@@ -392,7 +398,7 @@ export default function PricingScreen() {
         </View>
 
         <View style={styles.footer}>
-          <IconSymbol name="info.circle" size={18} color="#94a3b8" />
+          <IconSymbol name="info.circle" size={18} color={colors.slate400} />
           <Text style={styles.footerText}>
             Fair Usage Policy: Bandwidth usage beyond fair limits may incur additional charges. Extra Storage: ₹5/GB • Extra Bandwidth: ₹7–₹10/GB.
           </Text>
@@ -412,10 +418,10 @@ export default function PricingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: colors.background,
   },
   headerRow: {
     flexDirection: 'row',
@@ -433,15 +439,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.06)',
   },
   headerTitle: {
-    fontSize: 13,
+    fontSize: 28,
+    lineHeight: 38,
     fontFamily: 'Inter_700Bold',
-    color: '#94a3b8',
+    color: colors.slate400,
     textTransform: 'uppercase',
     letterSpacing: 2,
+    includeFontPadding: false,
   },
+  headingLogoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 38 },
   scrollContent: {
     padding: 16,
     paddingBottom: 40,
@@ -453,26 +462,26 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontFamily: 'Outfit_800ExtraBold',
-    color: '#ffffff',
+    color: colors.white,
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
     fontFamily: 'Inter_500Medium',
-    color: '#94a3b8',
+    color: colors.slate400,
     textAlign: 'center',
     paddingHorizontal: 16,
     lineHeight: 20,
   },
   filterContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : colors.deepSlate,
     borderRadius: 14,
     padding: 4,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: colors.cardBorder,
   },
   filterTab: {
     flex: 1,
@@ -486,7 +495,7 @@ const styles = StyleSheet.create({
   filterTabText: {
     fontSize: 12,
     fontFamily: 'Outfit_600SemiBold',
-    color: '#94a3b8',
+    color: colors.slate400,
   },
   filterTabTextActive: {
     color: '#050505',
@@ -495,7 +504,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 14,
     fontFamily: 'Inter_700Bold',
-    color: '#94a3b8',
+    color: colors.slate400,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
     marginBottom: 12,
@@ -512,10 +521,10 @@ const styles = StyleSheet.create({
   tierPill: {
     width: 90,
     height: 75,
-    backgroundColor: '#101010',
+    backgroundColor: colors.deepSlate,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: colors.cardBorder,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -543,7 +552,7 @@ const styles = StyleSheet.create({
   tierPillTitle: {
     fontSize: 16,
     fontFamily: 'Outfit_800ExtraBold',
-    color: '#f8fafc',
+    color: colors.ghostWhite,
   },
   tierPillTitleActive: {
     color: '#d4af37',
@@ -551,14 +560,14 @@ const styles = StyleSheet.create({
   tierPillSubtitle: {
     fontSize: 10,
     fontFamily: 'Inter_500Medium',
-    color: '#64748b',
+    color: colors.slate400,
     marginTop: 2,
   },
   detailCard: {
-    backgroundColor: '#101010',
+    backgroundColor: colors.deepSlate,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: colors.cardBorder,
     overflow: 'hidden',
     padding: 24,
   },
@@ -575,12 +584,12 @@ const styles = StyleSheet.create({
   planName: {
     fontSize: 24,
     fontFamily: 'Outfit_800ExtraBold',
-    color: '#ffffff',
+    color: colors.white,
   },
   planCapacityLabel: {
     fontSize: 13,
     fontFamily: 'Inter_500Medium',
-    color: '#94a3b8',
+    color: colors.slate400,
     marginTop: 2,
   },
   saveBadge: {
@@ -604,17 +613,17 @@ const styles = StyleSheet.create({
   planPrice: {
     fontSize: 42,
     fontFamily: 'Outfit_800ExtraBold',
-    color: '#ffffff',
+    color: colors.white,
   },
   planPeriod: {
     fontSize: 14,
     fontFamily: 'Inter_500Medium',
-    color: '#94a3b8',
+    color: colors.slate400,
     marginLeft: 6,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.1)',
     marginBottom: 20,
   },
   featuresList: {
@@ -636,7 +645,7 @@ const styles = StyleSheet.create({
   featureText: {
     fontSize: 14,
     fontFamily: 'Inter_400Regular',
-    color: '#e2e8f0',
+    color: colors.ghostWhite,
     flex: 1,
   },
   ctaButton: {
@@ -654,23 +663,23 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#101010',
+    backgroundColor: colors.deepSlate,
     padding: 16,
     borderRadius: 16,
     marginTop: 32,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: colors.cardBorder,
   },
   footerText: {
     flex: 1,
     fontSize: 12,
     fontFamily: 'Inter_400Regular',
-    color: '#94a3b8',
+    color: colors.slate400,
     marginLeft: 12,
     lineHeight: 18,
   },
   customPlanCard: {
-    backgroundColor: '#101010',
+    backgroundColor: colors.deepSlate,
     padding: 24,
     borderRadius: 20,
     marginTop: 20,
@@ -681,13 +690,13 @@ const styles = StyleSheet.create({
   customPlanTitle: {
     fontSize: 20,
     fontFamily: 'Outfit_700Bold',
-    color: '#ffffff',
+    color: colors.white,
     marginBottom: 8,
   },
   customPlanDesc: {
     fontSize: 14,
     fontFamily: 'Inter_400Regular',
-    color: '#94a3b8',
+    color: colors.slate400,
     textAlign: 'center',
     marginBottom: 16,
     lineHeight: 22,

@@ -33,6 +33,8 @@ export interface Event {
     coverScale?: number;
     coverMode?: 'fit' | 'fill';
     order?: number;
+    isSampleGallery?: boolean;
+    sampleGalleryOrder?: number;
     createdAt?: any;
 }
 
@@ -265,6 +267,8 @@ function mapSqlToEvent(e: any): Event {
         coverScale: e.cover_scale,
         coverMode: e.cover_mode,
         order: e.order,
+        isSampleGallery: !!e.is_sample_gallery,
+        sampleGalleryOrder: e.sample_gallery_order,
         createdAt: e.created_at
     };
 }
@@ -631,6 +635,27 @@ export async function getEvents(): Promise<Event[]> {
         return (data || []).map(mapSqlToEvent);
     } catch (error) {
         console.error("Error fetching events:", error);
+        return [];
+    }
+}
+
+/**
+ * Fetches public sample galleries selected by the admin.
+ */
+export async function getSampleGalleryEvents(): Promise<Event[]> {
+    try {
+        const { data, error } = await supabase
+            .from('events')
+            .select('*')
+            .eq('is_sample_gallery', true)
+            .or('type.eq.main,and(type.is.null,parent_id.is.null)')
+            .order('sample_gallery_order', { ascending: true, nullsFirst: false })
+            .order('title', { ascending: true });
+
+        if (error) throw error;
+        return (data || []).map(mapSqlToEvent);
+    } catch (error) {
+        console.error("Error fetching sample gallery events:", error);
         return [];
     }
 }
@@ -2150,19 +2175,56 @@ export async function getEventById(eventId: string): Promise<Event | null> {
     }
 }
 
-/**
- * Fetches an event by its unique join code.
- */
+export function generateEventJoinId(eventId: string): string {
+    const cleanId = eventId.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const parts = eventId.split('-');
+    const suffix = parts.length > 1 ? parts[parts.length - 1].toUpperCase() : '';
+    const prefix = cleanId.slice(0, 4);
+
+    if (suffix && suffix.length >= 3 && /^[A-Z0-9]+$/.test(suffix)) {
+        return `${prefix}-${suffix}`;
+    }
+
+    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `${prefix}-${randomSuffix}`;
+}
+
 export async function getEventByJoinId(joinId: string): Promise<Event | null> {
     try {
-        const { data, error } = await supabase
+        const cleanJoinId = joinId.toUpperCase().trim();
+        let { data, error } = await supabase
             .from('events')
             .select('*')
-            .eq('join_id', joinId.toUpperCase().trim())
-            .maybeSingle();
+            .eq('join_id', cleanJoinId);
 
         if (error) throw error;
-        return data ? mapSqlToEvent(data) : null;
+
+        if (!data || data.length === 0) {
+            const { data: allEvents, error: allErr } = await supabase
+                .from('events')
+                .select('*')
+                .not('join_id', 'is', null);
+
+            if (!allErr && allEvents) {
+                const targetNormalized = cleanJoinId.replace(/[^A-Z0-9]/g, '');
+                const matches = allEvents.filter(e => {
+                    if (!e.join_id) return false;
+                    const dbNormalized = e.join_id.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    return dbNormalized === targetNormalized;
+                });
+                if (matches.length > 0) {
+                    data = matches;
+                }
+            }
+        }
+
+        if (!data || data.length === 0) return null;
+
+        if (data.length > 1) {
+            const mainEvent = data.find(e => e.type === 'main');
+            if (mainEvent) return mapSqlToEvent(mainEvent);
+        }
+        return mapSqlToEvent(data[0]);
     } catch (error) {
         console.error("Error fetching event by joinId:", error);
         return null;
@@ -2302,6 +2364,8 @@ export async function updateEvent(eventId: string, data: Partial<Event>): Promis
         if (data.coverScale !== undefined) updateData.cover_scale = data.coverScale;
         if (data.coverMode !== undefined) updateData.cover_mode = data.coverMode;
         if (data.order !== undefined) updateData.order = data.order;
+        if (data.isSampleGallery !== undefined) updateData.is_sample_gallery = data.isSampleGallery;
+        if (data.sampleGalleryOrder !== undefined) updateData.sample_gallery_order = data.sampleGalleryOrder;
 
         if (Object.keys(updateData).length === 0) {
             return true;
@@ -2330,6 +2394,8 @@ export async function updateEvent(eventId: string, data: Partial<Event>): Promis
                     cover_scale: 'coverScale',
                     cover_mode: 'coverMode',
                     order: 'order',
+                    is_sample_gallery: 'isSampleGallery',
+                    sample_gallery_order: 'sampleGalleryOrder',
                 };
                 const prop = missingCol ? dbToPropMap[missingCol] : undefined;
 
@@ -2348,6 +2414,22 @@ export async function updateEvent(eventId: string, data: Partial<Event>): Promis
         return true;
     } catch (error) {
         console.error("Error updating event:", formatSupabaseError(error));
+        return false;
+    }
+}
+
+export async function setEventSampleGalleryStatus(eventId: string, isSampleGallery: boolean): Promise<boolean> {
+    try {
+        const { error } = await supabase
+            .from('events')
+            .update({ is_sample_gallery: isSampleGallery })
+            .eq('id', eventId);
+
+        if (error) throw error;
+        delete eventCache[eventId];
+        return true;
+    } catch (error) {
+        console.error("Error updating sample gallery status:", formatSupabaseError(error));
         return false;
     }
 }
@@ -2495,8 +2577,8 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
     const fetchAndTrigger = async () => {
         // Fetch profiles alongside likes/comments using Postgres joins
         const [likesRes, commentsRes] = await Promise.all([
-            supabase.from('likes').select('id, created_at, user_id, profiles(name)').eq('photo_id', photoId),
-            supabase.from('comments').select('id, text, created_at, user_id, parent_id, profiles(name)').eq('photo_id', photoId)
+            supabase.from('likes').select('id, created_at, user_id, profiles(name, profile_image)').eq('photo_id', photoId),
+            supabase.from('comments').select('id, text, created_at, user_id, parent_id, profiles(name, profile_image)').eq('photo_id', photoId)
         ]);
 
         if (!likesRes.error && likesRes.data) {
@@ -2505,6 +2587,7 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
                 photoId: photoId,
                 userId: l.user_id,
                 userName: l.profiles?.name || 'Guest User',
+                profileImage: l.profiles?.profile_image || null,
                 createdAt: l.created_at
             }));
             currentLikes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -2516,6 +2599,7 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
                 photoId: photoId,
                 userId: c.user_id,
                 userName: c.profiles?.name || 'Guest User',
+                profileImage: c.profiles?.profile_image || null,
                 text: c.text,
                 parentId: c.parent_id || null,
                 createdAt: c.created_at

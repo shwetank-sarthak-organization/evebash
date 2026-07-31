@@ -26,12 +26,9 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
-import { useTheme } from "@/context/ThemeContext";
 import { uploadProfileImageToBackblaze } from "@/app/actions/userActions";
 import {
     getApprovedSharedEventsForUser,
-    getFollowersCount,
-    getFollowingCount,
     getUserEventCount,
     getUserPhotosCount,
     getUserTotalStorage,
@@ -150,7 +147,6 @@ function VerificationBadge({ verified, missing, missingText }: { verified: boole
 
 export default function ProfilePage() {
     const { user, loading: authLoading, logout } = useAuth();
-    const { theme, setTheme } = useTheme();
     const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -158,8 +154,6 @@ export default function ProfilePage() {
     const [photosCount, setPhotosCount] = useState(0);
     const [eventCount, setEventCount] = useState(0);
     const [joinedCount, setJoinedCount] = useState(0);
-    const [followersCount, setFollowersCount] = useState(0);
-    const [followingCount, setFollowingCount] = useState(0);
     const [loadingStats, setLoadingStats] = useState(true);
     const [profileImage, setProfileImage] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
@@ -242,20 +236,16 @@ export default function ProfilePage() {
             setLoadingStats(true);
             try {
                 const identifiers = [user.uid, user.email, user.phone].filter(Boolean) as string[];
-                const [storage, photos, hosted, joined, followers, following] = await Promise.all([
+                const [storage, photos, hosted, joined] = await Promise.all([
                     getUserTotalStorage(identifiers),
                     getUserPhotosCount(user.uid),
                     getUserEventCount(user.uid),
                     getApprovedSharedEventsForUser(identifiers),
-                    getFollowersCount(user.uid),
-                    getFollowingCount(user.uid),
                 ]);
                 setStorageUsed(storage);
                 setPhotosCount(photos);
                 setEventCount(hosted);
                 setJoinedCount(joined.length);
-                setFollowersCount(followers);
-                setFollowingCount(following);
             } finally {
                 setLoadingStats(false);
             }
@@ -468,15 +458,6 @@ export default function ProfilePage() {
                                             </span>
                                         ))}
                                     </div>
-                                    <div className="mt-3 flex items-center gap-3 text-xs font-bold text-slate-400">
-                                        <span>
-                                            <span className="font-black text-white">{followersCount}</span> Followers
-                                        </span>
-                                        <span className="h-1 w-1 rounded-full bg-slate-700" />
-                                        <span>
-                                            <span className="font-black text-white">{followingCount}</span> Following
-                                        </span>
-                                    </div>
                                 </div>
                             </div>
                             <button
@@ -619,28 +600,6 @@ export default function ProfilePage() {
                                     >
                                         <span className={cn("absolute top-1 h-5 w-5 rounded-full bg-white transition", isPrivate ? "left-6" : "left-1")} />
                                     </button>
-                                </div>
-                            </section>
-
-                            <section className="rounded-3xl border border-slate-800 bg-slate-950 p-5">
-                                <h2 className="font-black text-white">App Preferences</h2>
-                                <div className="mt-4 grid grid-cols-2 gap-3">
-                                    {[
-                                        { id: "royal", label: "Royal Cream" },
-                                        { id: "light", label: "Modern Light" },
-                                    ].map((item) => (
-                                        <button
-                                            key={item.id}
-                                            type="button"
-                                            onClick={() => setTheme(item.id as any)}
-                                            className={cn(
-                                                "rounded-2xl border p-4 text-left text-xs font-black transition",
-                                                theme === item.id ? "border-yellow-400 bg-yellow-400 text-slate-950" : "border-slate-800 bg-slate-900 text-slate-300"
-                                            )}
-                                        >
-                                            {item.label}
-                                        </button>
-                                    ))}
                                 </div>
                             </section>
 

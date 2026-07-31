@@ -74,6 +74,8 @@ export interface Event {
     titleAlign?: 'left' | 'center' | 'right';
     hostName?: string;
     showWelcomeCard?: boolean;
+    isSampleGallery?: boolean;
+    sampleGalleryOrder?: number;
 }
 
 export interface Photo {
@@ -303,7 +305,9 @@ function mapSqlToEvent(e: any): Event {
         coverMode: e.cover_mode,
         titleAlign: e.title_align,
         vendors: e.vendors || [],
-        hostName: e.host_name
+        hostName: e.host_name,
+        isSampleGallery: !!e.is_sample_gallery,
+        sampleGalleryOrder: e.sample_gallery_order
     };
 }
 
@@ -765,6 +769,24 @@ export async function getUserEvents(userIds: string | string[], type?: 'main' | 
     }
 }
 
+export async function getSampleGalleryEvents(): Promise<Event[]> {
+    try {
+        const { data, error } = await supabase
+            .from('events')
+            .select('*')
+            .eq('is_sample_gallery', true)
+            .or('type.eq.main,and(type.is.null,parent_id.is.null)')
+            .order('sample_gallery_order', { ascending: true, nullsFirst: false })
+            .order('title', { ascending: true });
+
+        if (error) throw error;
+        return (data || []).map(mapSqlToEvent);
+    } catch (error) {
+        console.error("Error fetching sample gallery events:", error);
+        return [];
+    }
+}
+
 export async function updateUserProfileImage(uid: string, imageUrl: string) {
     try {
         const { error } = await supabase
@@ -952,10 +974,21 @@ export async function getEventPhotosPaginated(
     legacyId?: string,
     page: number = 0,
     limit: number = 20
-): Promise<{ photos: Photo[], hasMore: boolean }> {
-    if (!eventId) return { photos: [], hasMore: false };
+): Promise<{ photos: Photo[], hasMore: boolean, totalPhotos: number, totalVideos: number }> {
+    if (!eventId) return { photos: [], hasMore: false, totalPhotos: 0, totalVideos: 0 };
     try {
         const ids = legacyId && legacyId !== eventId ? [eventId, legacyId] : [eventId];
+
+        const { data: countData, error: countError } = await supabase
+            .from('photos')
+            .select('id,event_id,storage_key,url,media_type,resource_type')
+            .in('event_id', ids);
+
+        if (countError) throw countError;
+
+        const countedMedia = (countData || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo));
+        const totalVideos = countedMedia.filter(photo => photo.mediaType === 'video' || photo.resourceType === 'video').length;
+        const totalPhotos = countedMedia.length - totalVideos;
 
         // Fetch limit + 1 to determine if hasMore is true
         const { data, error } = await supabase
@@ -974,11 +1007,58 @@ export async function getEventPhotosPaginated(
 
         return {
             photos: photosToReturn,
-            hasMore
+            hasMore,
+            totalPhotos,
+            totalVideos
         };
     } catch (error) {
         console.error("Error fetching paginated photos:", error);
-        return { photos: [], hasMore: false };
+        return { photos: [], hasMore: false, totalPhotos: 0, totalVideos: 0 };
+    }
+}
+
+export async function getFavouritePhotosForEvents(eventIds: string[]): Promise<Photo[]> {
+    const cleanEventIds = Array.from(new Set(eventIds.filter(Boolean)));
+    if (cleanEventIds.length === 0) return [];
+
+    try {
+        const { data: favouriteRows, error: favouritesError } = await supabase
+            .from('event_favourite_photos')
+            .select('photo_id, created_at')
+            .in('event_id', cleanEventIds)
+            .order('created_at', { ascending: false });
+
+        if (favouritesError) throw favouritesError;
+
+        const favouritePhotoIds = Array.from(new Set((favouriteRows || []).map((row: any) => row.photo_id).filter(Boolean)));
+        if (favouritePhotoIds.length === 0) return [];
+
+        const { data, error } = await supabase
+            .from('photos')
+            .select('*')
+            .in('id', favouritePhotoIds);
+
+        if (error) throw error;
+
+        const favouriteOrder = new Map(favouritePhotoIds.map((id, index) => [id, index]));
+        return (data || [])
+            .map(mapSqlToPhoto)
+            .filter(photo => !isCoverUsagePhoto(photo))
+            .sort((a, b) => (favouriteOrder.get(a.id) ?? 0) - (favouriteOrder.get(b.id) ?? 0));
+    } catch (error) {
+        const formatted = formatSupabaseError(error);
+        const code = formatted && typeof formatted === 'object' ? (formatted as any).code : undefined;
+        const message = String((formatted as any)?.message || '').toLowerCase();
+        if (code === '42P01' || code === 'PGRST205') {
+            console.warn('Favourite gallery table is not available yet.');
+            return [];
+        }
+        if (code === '42501' || message.includes('row-level security') || message.includes('permission denied')) {
+            console.warn('Favourite gallery table exists, but RLS policies are not allowing access yet.');
+            return [];
+        }
+        console.warn('Error fetching favourite photos:', formatted);
+        return [];
     }
 }
 
@@ -1195,8 +1275,8 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
 
     const fetchAndTrigger = async () => {
         const [likesRes, commentsRes] = await Promise.all([
-            supabase.from('likes').select('id, created_at, user_id, profiles(name)').eq('photo_id', photoId),
-            supabase.from('comments').select('id, text, created_at, user_id, parent_id, profiles(name)').eq('photo_id', photoId)
+            supabase.from('likes').select('id, created_at, user_id, profiles(name, profile_image)').eq('photo_id', photoId),
+            supabase.from('comments').select('id, text, created_at, user_id, parent_id, profiles(name, profile_image)').eq('photo_id', photoId)
         ]);
 
         if (!likesRes.error && likesRes.data) {
@@ -1205,6 +1285,7 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
                 photoId: photoId,
                 userId: l.user_id,
                 userName: l.profiles?.name || 'Guest User',
+                profileImage: l.profiles?.profile_image || null,
                 createdAt: l.created_at
             }));
             currentLikes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -1216,6 +1297,7 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
                 photoId: photoId,
                 userId: c.user_id,
                 userName: c.profiles?.name || 'Guest User',
+                profileImage: c.profiles?.profile_image || null,
                 text: c.text,
                 parentId: c.parent_id || null,
                 createdAt: c.created_at
@@ -2394,16 +2476,56 @@ export function serializeDatabaseData<T>(data: T): T {
     return data;
 }
 
+export function generateEventJoinId(eventId: string): string {
+    const cleanId = eventId.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const parts = eventId.split('-');
+    const suffix = parts.length > 1 ? parts[parts.length - 1].toUpperCase() : '';
+    const prefix = cleanId.slice(0, 4);
+
+    if (suffix && suffix.length >= 3 && /^[A-Z0-9]+$/.test(suffix)) {
+        return `${prefix}-${suffix}`;
+    }
+
+    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `${prefix}-${randomSuffix}`;
+}
+
 export async function getEventByJoinId(joinId: string): Promise<Event | null> {
     try {
-        const { data, error } = await supabase
+        const cleanJoinId = joinId.toUpperCase().trim();
+        let { data, error } = await supabase
             .from('events')
             .select('*')
-            .eq('join_id', joinId.toUpperCase().trim())
-            .maybeSingle();
+            .eq('join_id', cleanJoinId);
 
         if (error) throw error;
-        return data ? mapSqlToEvent(data) : null;
+
+        if (!data || data.length === 0) {
+            const { data: allEvents, error: allErr } = await supabase
+                .from('events')
+                .select('*')
+                .not('join_id', 'is', null);
+
+            if (!allErr && allEvents) {
+                const targetNormalized = cleanJoinId.replace(/[^A-Z0-9]/g, '');
+                const matches = allEvents.filter(e => {
+                    if (!e.join_id) return false;
+                    const dbNormalized = e.join_id.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    return dbNormalized === targetNormalized;
+                });
+                if (matches.length > 0) {
+                    data = matches;
+                }
+            }
+        }
+
+        if (!data || data.length === 0) return null;
+
+        if (data.length > 1) {
+            const mainEvent = data.find(e => e.type === 'main');
+            if (mainEvent) return mapSqlToEvent(mainEvent);
+        }
+        return mapSqlToEvent(data[0]);
     } catch (error) {
         console.error("Error fetching event by joinId:", error);
         return null;

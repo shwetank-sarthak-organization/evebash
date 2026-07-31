@@ -10,15 +10,21 @@
   --color-royal-green: #005D4B;
   --color-slate-800: #1e293b;
   --opacity-noise: 0.4;
+  --site-bg: #050505;
+  --site-surface: #101010;
+  --site-surface-2: #1a1a1a;
+  --site-card: #101010;
+  --site-card-muted: rgba(255, 255, 255, 0.05);
+  --site-border: rgba(255, 255, 255, 0.1);
+  --site-text: #f8fafc;
+  --site-muted: #94a3b8;
+  --site-subtle: #cbd5e1;
+  --site-input: rgba(255, 255, 255, 0.05);
 }
 
-.theme-light {
-  --color-royal-maroon: #0ea5e9; /* Sky blue */
-  --color-royal-gold: #0ea5e9; /* Sky blue */
-  --color-royal-cream: #f8fafc; /* Very light slate-50 gray */
-  --color-royal-green: #0ea5e9;
-  --color-slate-800: #101010;
-  --opacity-noise: 0.15; /* Subtler noise */
+.theme-dark {
+  --color-royal-cream: #050505;
+  --color-slate-800: #f8fafc;
 }
 
 @theme {
@@ -43,7 +49,9 @@
   }
 
   body {
-    @apply bg-black text-slate-200 font-sans antialiased relative min-h-screen selection:bg-sky-500/30 selection:text-white;
+    @apply font-sans antialiased relative min-h-screen selection:bg-sky-500/30 selection:text-white;
+    background: var(--site-bg);
+    color: var(--site-text);
   }
 
   /* Subtle Noise Texture */
@@ -66,7 +74,8 @@
   h4,
   h5,
   h6 {
-    @apply font-serif text-slate-900;
+    @apply font-serif;
+    color: var(--site-text);
   }
 }
 
@@ -263,48 +272,98 @@ header {
   transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
-/* Hero Adaptive styles for Modern Light theme */
-.theme-light .hero-overlay {
-  background: linear-gradient(to top, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0.15) 100%) !important;
+.event-template-shell footer,
+.event-footer {
+  background-color: var(--event-template-primary, var(--site-bg)) !important;
+  border-color: var(--event-template-border, var(--site-border)) !important;
+  color: var(--event-template-muted, var(--site-muted)) !important;
 }
 
-.theme-light .hero-title {
-  color: #0f172a !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+.event-footer h3,
+.event-footer h4,
+.event-footer p,
+.event-footer a,
+.event-footer svg,
+.event-template-shell footer p {
+  color: inherit !important;
 }
 
-.theme-light .hero-subtitle {
-  color: #334155 !important;
-  text-shadow: none !important;
+.event-footer h3,
+.event-footer h4 {
+  color: var(--event-template-text, var(--site-text)) !important;
 }
 
-.theme-light .hero-chip {
-  background-color: rgba(14, 165, 233, 0.1) !important;
-  border-color: rgba(14, 165, 233, 0.2) !important;
+.event-footer span[class*="rounded-full"] {
+  background-color: var(--event-template-accent, var(--site-muted)) !important;
 }
 
-.theme-light .hero-chip p {
-  color: #0369a1 !important;
+.page-flip-stage {
+  transform-style: preserve-3d;
+  contain: layout paint;
 }
 
-.theme-light .hero-chip svg {
-  color: #0ea5e9 !important;
+.page-flip-page {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
 }
 
-.theme-light .hero-btn-portfolio {
-  background-color: #0ea5e9 !important;
-  color: #ffffff !important;
+.page-flip-page-turning-next .page-flip-fold {
+  right: 0;
+  opacity: 1;
+  background: linear-gradient(to left, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
+  animation: page-fold-sweep 620ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.theme-light .hero-btn-portfolio:hover {
-  background-color: #0284c7 !important;
+.page-flip-page-turning-prev .page-flip-fold {
+  left: 0;
+  opacity: 1;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
+  animation: page-fold-sweep 620ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.theme-light .hero-btn-book {
-  border-color: rgba(14, 165, 233, 0.5) !important;
-  color: #0369a1 !important;
+.page-flip-page-turning-next .page-flip-page-shadow,
+.page-flip-page-turning-prev .page-flip-page-shadow {
+  opacity: 1;
+  background: radial-gradient(circle at 70% 50%, rgba(0, 0, 0, 0.4), transparent 54%);
+  animation: page-shadow-pulse 620ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.theme-light .hero-btn-book:hover {
-  background-color: rgba(14, 165, 233, 0.05) !important;
+.page-flip-texture::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.12;
+  mix-blend-mode: soft-light;
+  background-image:
+    linear-gradient(90deg, rgba(255,255,255,0.14), transparent 18%, transparent 82%, rgba(0,0,0,0.16)),
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.08) 0, rgba(255,255,255,0.08) 1px, transparent 1px, transparent 5px);
+}
+
+.page-flip-glow {
+  box-shadow: 0 26px 90px rgba(0, 0, 0, 0.5), 0 0 42px color-mix(in srgb, currentColor 22%, transparent);
+}
+
+@keyframes page-fold-sweep {
+  0% { opacity: 0; transform: scaleX(0.45); }
+  45% { opacity: 0.78; transform: scaleX(1.2); }
+  100% { opacity: 0; transform: scaleX(0.55); }
+}
+
+@keyframes page-shadow-pulse {
+  0% { opacity: 0; }
+  45% { opacity: 0.75; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-flip-stage,
+  .page-flip-page,
+  .page-flip-page *,
+  .page-flip-page::before {
+    animation: none !important;
+    transition-duration: 120ms !important;
+    transform: none !important;
+  }
 }

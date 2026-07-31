@@ -1,12 +1,58 @@
+"use client";
+
+import { FormEvent, useState } from "react";
 import { MapPin, Phone, Mail, Clock } from "lucide-react";
 
 export default function ContactUs() {
+    const [form, setForm] = useState({
+        firstName: "",
+        lastName: "",
+        email: "",
+        message: "",
+    });
+    const [submitting, setSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState("");
+    const [submitSuccess, setSubmitSuccess] = useState("");
+
+    const updateField = (field: keyof typeof form, value: string) => {
+        setForm(prev => ({ ...prev, [field]: value }));
+        setSubmitError("");
+        setSubmitSuccess("");
+    };
+
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setSubmitting(true);
+        setSubmitError("");
+        setSubmitSuccess("");
+
+        try {
+            const response = await fetch("/api/contact-messages", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...form, source: "web" }),
+            });
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || "Unable to send message right now.");
+            }
+
+            setForm({ firstName: "", lastName: "", email: "", message: "" });
+            setSubmitSuccess("Message sent. We will get back to you within 24 hours.");
+        } catch (error) {
+            setSubmitError(error instanceof Error ? error.message : "Unable to send message right now.");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     return (
-        <div className="min-h-screen bg-slate-50 py-24 px-4">
+        <div className="min-h-screen bg-[var(--site-bg)] py-24 px-4">
             <div className="max-w-7xl mx-auto">
                 <div className="text-center mb-16 space-y-4">
-                    <h1 className="text-4xl md:text-5xl font-serif text-slate-800">Get in Touch</h1>
-                    <p className="text-slate-700 text-lg max-w-2xl mx-auto font-light">
+                    <h1 className="text-4xl md:text-5xl font-serif text-[var(--site-text)]">Get in Touch</h1>
+                    <p className="text-[var(--site-subtle)] text-lg max-w-2xl mx-auto font-light">
                         We'd love to hear about your story. Send us a message and let's start planning something beautiful.
                     </p>
                 </div>
@@ -14,49 +60,47 @@ export default function ContactUs() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                     {/* Contact Information */}
                     <div className="space-y-8">
-                        <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-100">
-                            <h2 className="text-2xl font-serif text-slate-800 mb-6 border-b border-slate-100 pb-4">Contact Information</h2>
+                        <div className="bg-[var(--site-card)] p-8 rounded-2xl shadow-lg border border-[var(--site-border)]">
+                            <h2 className="text-2xl font-serif text-[var(--site-text)] mb-6 border-b border-[var(--site-border)] pb-4">Contact Information</h2>
                             <div className="space-y-8">
                                 <div className="flex items-start group">
-                                    <div className="p-3 bg-sky-50 rounded-lg group-hover:bg-sky-100 transition-colors">
+                                    <div className="p-3 bg-sky-500/10 rounded-lg group-hover:bg-sky-500/15 transition-colors">
                                         <MapPin className="w-6 h-6 text-sky-600" />
                                     </div>
                                     <div className="ml-4">
-                                        <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide mb-1">Studio Address</h3>
-                                        <p className="text-slate-700 leading-relaxed">123 Kingsway Road, Dehradun,<br />Uttarakhand, India - 248001</p>
+                                        <h3 className="font-bold text-[var(--site-text)] text-sm uppercase tracking-wide mb-1">Studio Address</h3>
+                                        <p className="text-[var(--site-subtle)] leading-relaxed">Dehradun, Uttarakhand, India - 248001</p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-start group">
-                                    <div className="p-3 bg-sky-50 rounded-lg group-hover:bg-sky-100 transition-colors">
+                                    <div className="p-3 bg-sky-500/10 rounded-lg group-hover:bg-sky-500/15 transition-colors">
                                         <Phone className="w-6 h-6 text-sky-600" />
                                     </div>
                                     <div className="ml-4">
-                                        <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide mb-1">Phone</h3>
-                                        <p className="text-slate-700">+91 987 654 3210</p>
-                                        <p className="text-slate-700">+91 123 456 7890</p>
+                                        <h3 className="font-bold text-[var(--site-text)] text-sm uppercase tracking-wide mb-1">Phone</h3>
+                                        <p className="text-[var(--site-subtle)]">+91 98712 64964</p>
+                                        <p className="text-[var(--site-subtle)]">+91 85350 29872</p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-start group">
-                                    <div className="p-3 bg-sky-50 rounded-lg group-hover:bg-sky-100 transition-colors">
+                                    <div className="p-3 bg-sky-500/10 rounded-lg group-hover:bg-sky-500/15 transition-colors">
                                         <Mail className="w-6 h-6 text-sky-600" />
                                     </div>
                                     <div className="ml-4">
-                                        <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide mb-1">Email</h3>
-                                        <p className="text-slate-700">hello@weddingalbum.com</p>
-                                        <p className="text-slate-700">bookings@weddingalbum.com</p>
+                                        <h3 className="font-bold text-[var(--site-text)] text-sm uppercase tracking-wide mb-1">Email</h3>
+                                        <p className="text-[var(--site-subtle)]">support@evebash.com</p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-start group">
-                                    <div className="p-3 bg-sky-50 rounded-lg group-hover:bg-sky-100 transition-colors">
+                                    <div className="p-3 bg-sky-500/10 rounded-lg group-hover:bg-sky-500/15 transition-colors">
                                         <Clock className="w-6 h-6 text-sky-600" />
                                     </div>
                                     <div className="ml-4">
-                                        <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide mb-1">Business Hours</h3>
-                                        <p className="text-slate-700">Mon - Sat: 10:00 AM - 7:00 PM</p>
-                                        <p className="text-slate-700">Sun: By Appointment Only</p>
+                                        <h3 className="font-bold text-[var(--site-text)] text-sm uppercase tracking-wide mb-1">Business Hours</h3>
+                                        <p className="text-[var(--site-subtle)]">Mon - Fri: 10:00 AM - 6:00 PM</p>
                                     </div>
                                 </div>
                             </div>
@@ -64,45 +108,81 @@ export default function ContactUs() {
                     </div>
 
                     {/* Contact Form */}
-                    <div className="bg-white p-8 md:p-12 rounded-2xl shadow-xl border border-slate-100">
-                        <h2 className="text-3xl font-serif text-slate-800 mb-2">Send Us a Message</h2>
-                        <p className="text-slate-600 mb-8 text-sm">Fill out the form below and we will get back to you within 24 hours.</p>
+                    <div className="bg-[var(--site-card)] p-8 md:p-12 rounded-2xl shadow-xl border border-[var(--site-border)]">
+                        <h2 className="text-3xl font-serif text-[var(--site-text)] mb-2">Send Us a Message</h2>
+                        <p className="text-[var(--site-muted)] mb-8 text-sm">Fill out the form below and we will get back to you within 24 hours.</p>
 
-                        <form className="space-y-6">
+                        <form className="space-y-6" onSubmit={handleSubmit}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label htmlFor="firstName" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">First Name</label>
-                                    <input type="text" id="firstName" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 transition-all" placeholder="John" />
+                                    <label htmlFor="firstName" className="block text-xs font-bold text-[var(--site-subtle)] uppercase tracking-wider mb-2">First Name</label>
+                                    <input
+                                        type="text"
+                                        id="firstName"
+                                        value={form.firstName}
+                                        onChange={event => updateField("firstName", event.target.value)}
+                                        required
+                                        className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 transition-all"
+                                        placeholder="John"
+                                    />
                                 </div>
                                 <div>
-                                    <label htmlFor="lastName" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Last Name</label>
-                                    <input type="text" id="lastName" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 transition-all" placeholder="Doe" />
+                                    <label htmlFor="lastName" className="block text-xs font-bold text-[var(--site-subtle)] uppercase tracking-wider mb-2">Last Name</label>
+                                    <input
+                                        type="text"
+                                        id="lastName"
+                                        value={form.lastName}
+                                        onChange={event => updateField("lastName", event.target.value)}
+                                        required
+                                        className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 transition-all"
+                                        placeholder="Doe"
+                                    />
                                 </div>
                             </div>
 
                             <div>
-                                <label htmlFor="email" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Email Address</label>
-                                <input type="email" id="email" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 transition-all" placeholder="john@example.com" />
+                                <label htmlFor="email" className="block text-xs font-bold text-[var(--site-subtle)] uppercase tracking-wider mb-2">Email Address</label>
+                                <input
+                                    type="email"
+                                    id="email"
+                                    value={form.email}
+                                    onChange={event => updateField("email", event.target.value)}
+                                    required
+                                    className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 transition-all"
+                                    placeholder="john@example.com"
+                                />
                             </div>
 
                             <div>
-                                <label htmlFor="subject" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Subject</label>
-                                <select id="subject" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 transition-all text-slate-600">
-                                    <option value="">Select an inquiry type</option>
-                                    <option value="wedding">Wedding Photography</option>
-                                    <option value="portrait">Portrait Session</option>
-                                    <option value="event">Event Coverage</option>
-                                    <option value="other">Other</option>
-                                </select>
+                                <label htmlFor="message" className="block text-xs font-bold text-[var(--site-subtle)] uppercase tracking-wider mb-2">Message</label>
+                                <textarea
+                                    id="message"
+                                    rows={5}
+                                    value={form.message}
+                                    onChange={event => updateField("message", event.target.value)}
+                                    required
+                                    className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 transition-all"
+                                    placeholder="Tell us more about your event..."
+                                />
                             </div>
 
-                            <div>
-                                <label htmlFor="message" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Message</label>
-                                <textarea id="message" rows={5} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 transition-all" placeholder="Tell us more about your event..."></textarea>
-                            </div>
+                            {submitError && (
+                                <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+                                    {submitError}
+                                </p>
+                            )}
+                            {submitSuccess && (
+                                <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+                                    {submitSuccess}
+                                </p>
+                            )}
 
-                            <button type="submit" className="w-full py-4 bg-slate-900 text-white font-bold uppercase tracking-widest hover:bg-sky-600 transition-colors duration-300 rounded-lg shadow-lg">
-                                Send Message
+                            <button
+                                type="submit"
+                                disabled={submitting}
+                                className="w-full py-4 bg-slate-900 text-white font-bold uppercase tracking-widest hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-500 transition-colors duration-300 rounded-lg shadow-lg"
+                            >
+                                {submitting ? "Sending..." : "Send Message"}
                             </button>
                         </form>
                     </div>
