@@ -171,9 +171,9 @@ export default function HomeScreen() {
               <Text style={styles.footerBullet}>•</Text>
               <Text style={styles.footerLinkText}>Cancellation & Refund</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/shipping-delivery-policy')} activeOpacity={0.75} style={styles.footerLink}>
+            <TouchableOpacity onPress={() => router.push('/digital-service-delivery-policy' as any)} activeOpacity={0.75} style={styles.footerLink}>
               <Text style={styles.footerBullet}>•</Text>
-              <Text style={styles.footerLinkText}>Shipping & Delivery</Text>
+              <Text style={styles.footerLinkText}>Digital Service Delivery</Text>
             </TouchableOpacity>
           </View>
 

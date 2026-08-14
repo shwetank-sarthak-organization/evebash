@@ -108,9 +108,9 @@ export default function Footer() {
                                 </Link>
                             </li>
                             <li>
-                                <Link href="/shipping-delivery-policy" className="text-[var(--site-muted)] hover:text-sky-400 transition-colors flex items-center group">
+                                <Link href="/digital-service-delivery-policy" className="text-[var(--site-muted)] hover:text-sky-400 transition-colors flex items-center group">
                                     <span className="w-1 h-1 rounded-full bg-[var(--site-muted)] mr-2 group-hover:bg-sky-500 transition-colors"></span>
-                                    Shipping & Delivery
+                                    Digital Service Delivery
                                 </Link>
                             </li>
                         </ul>
