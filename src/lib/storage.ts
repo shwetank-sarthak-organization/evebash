@@ -401,6 +401,37 @@ export async function uploadEventImage(
     skipSaveMetadata = false,
     onProgress?: (percent: number) => void
 ) {
+    const isVideoFile = file.type.startsWith("video/") || ["mp4", "mov", "avi", "mkv", "webm", "m4v", "3gp", "flv", "wmv", "mts", "m2ts", "ts", "ogv"].includes(file.name.split('.').pop()?.toLowerCase() || "");
+    if (isVideoFile) {
+        return new Promise<{
+            url: string;
+            publicId: string;
+            width: undefined;
+            height: undefined;
+            bytes: number;
+            format: string;
+        }>((resolve, reject) => {
+            uploadVideoSegmented({
+                file,
+                eventId,
+                onProgress,
+                onComplete: (res) => {
+                    resolve({
+                        url: `https://${process.env.NEXT_PUBLIC_MEDIA_DOMAIN || "media.evebash.com"}/hls/${res.storageKey}/master.m3u8`,
+                        publicId: res.storageKey,
+                        width: undefined,
+                        height: undefined,
+                        bytes: file.size,
+                        format: "mp4"
+                    });
+                },
+                onError: (err) => {
+                    reject(err);
+                }
+            });
+        });
+    }
+
     if (file.size > 100 * 1024 * 1024) { // > 100 MB
         return uploadLargeFileInChunks(file, eventId, onProgress);
     }
@@ -591,5 +622,157 @@ export async function uploadEventImage(
     } catch (error: unknown) {
         console.error("[Storage] Direct upload flow error:", error);
         throw error;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Real-Time Segment Upload Pipeline (Web — FFmpeg.wasm)
+// ---------------------------------------------------------------------------
+
+export interface VideoSegmentUploadOptions {
+    file: File;
+    eventId: string;
+    /** Called with 0–100 as upload progresses */
+    onProgress?: (percent: number) => void;
+    /** Called when fully processed */
+    onComplete?: (result: { storageKey: string; photoId: string }) => void;
+    /** Called on terminal failure */
+    onError?: (err: Error) => void;
+}
+
+const MODAL_SEGMENT_URL = (() => {
+    const base = (process.env.NEXT_PUBLIC_MODAL_SEGMENT_URL || "").trim().replace(/\/+$/, "");
+    return base || null;
+})();
+
+const MAX_PARALLEL_UPLOADS = 4;
+
+/**
+ * Uploads a video using FFmpeg.wasm real-time segmentation:
+ * 1. FFmpeg.wasm slices the file into 30s self-contained .ts segments.
+ * 2. Each segment is uploaded in parallel (up to 4 at a time) to Modal's
+ *    process_video_segment endpoint for real-time transcoding.
+ * 3. After all segments are uploaded, triggers assemble_fmp4_manifest
+ *    via the backend which merges raw video and assembles HLS playlists.
+ */
+export async function uploadVideoSegmented(options: VideoSegmentUploadOptions): Promise<void> {
+    const { file, eventId, onProgress, onComplete, onError } = options;
+
+    const report = (err: Error) => {
+        console.error("[SegmentUpload]", err);
+        onError?.(err);
+    };
+
+    try {
+        const { data: session } = await supabase.auth.getSession();
+        const accessToken = session?.session?.access_token;
+        if (!accessToken) throw new Error("Not authenticated");
+
+        if (!MODAL_SEGMENT_URL) throw new Error("NEXT_PUBLIC_MODAL_SEGMENT_URL is not configured");
+
+        onProgress?.(2);
+
+        // 1. Init: create Supabase record + get storageKey
+        const initRes = await fetch(getApiUrl("/api/v1/media/upload/video/init"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+            body: JSON.stringify({ eventId, fileName: file.name, fileSize: file.size }),
+        });
+        const { storageKey, photoId } = await initRes.json();
+        if (!storageKey || !photoId) throw new Error("Failed to init video upload");
+
+        onProgress?.(5);
+
+        // 2. Load FFmpeg.wasm lazily
+        console.log("[SegmentUpload] Loading FFmpeg.wasm...");
+        const { FFmpeg } = await import("@ffmpeg/ffmpeg");
+        const { fetchFile, toBlobURL } = await import("@ffmpeg/util");
+        const ffmpeg = new FFmpeg();
+
+        const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm";
+        await ffmpeg.load({
+            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+        });
+
+        onProgress?.(10);
+
+        // 3. Write file to FFmpeg virtual FS and segment into 30s .ts files
+        console.log("[SegmentUpload] Writing file to FFmpeg FS and slicing into 30s segments...");
+        ffmpeg.on("progress", ({ progress }) => {
+            // FFmpeg slicing progress: map 0–1 to 10–25%
+            onProgress?.(10 + Math.round(progress * 15));
+        });
+
+        await ffmpeg.writeFile("input.mp4", await fetchFile(file));
+        await ffmpeg.exec([
+            "-i", "input.mp4",
+            "-c", "copy",
+            "-f", "segment",
+            "-segment_time", "30",
+            "-reset_timestamps", "1",
+            "segment_%03d.ts",
+        ]);
+
+        // Collect all produced segment files
+        const allFiles = await ffmpeg.listDir("/");
+        const segmentNames = (allFiles as Array<{ isDir: boolean; name: string }>)
+            .filter((f) => !f.isDir && /^segment_\d+\.ts$/.test(f.name))
+            .map((f) => f.name)
+            .sort();
+
+        if (segmentNames.length === 0) throw new Error("FFmpeg produced no segments");
+        console.log(`[SegmentUpload] Sliced into ${segmentNames.length} segments`);
+        onProgress?.(25);
+
+        // 4. Upload segments to Modal in parallel (pool of MAX_PARALLEL_UPLOADS)
+        let completedCount = 0;
+        const totalSegments = segmentNames.length;
+
+        const uploadSegment = async (segName: string, segIndex: number): Promise<void> => {
+            const data = await ffmpeg.readFile(segName);
+            const blob = new Blob([data as any], { type: "video/mp2t" });
+
+            const url = `${MODAL_SEGMENT_URL}?storage_key=${encodeURIComponent(storageKey)}&segment_index=${segIndex}&total_segments=${totalSegments}&photo_id=${encodeURIComponent(photoId)}`;
+
+            const res = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/octet-stream" },
+                body: blob,
+            });
+
+            if (!res.ok) {
+                const errText = await res.text().catch(() => "unknown");
+                throw new Error(`Segment ${segIndex} upload failed (${res.status}): ${errText}`);
+            }
+
+            completedCount++;
+            // Segments: 25–95% of progress
+            onProgress?.(25 + Math.round((completedCount / totalSegments) * 70));
+            console.log(`[SegmentUpload] Segment ${segIndex}/${totalSegments} done`);
+        };
+
+        // Process uploads in parallel pools
+        for (let i = 0; i < totalSegments; i += MAX_PARALLEL_UPLOADS) {
+            const batch = segmentNames.slice(i, i + MAX_PARALLEL_UPLOADS);
+            await Promise.all(batch.map((name, idx) => uploadSegment(name, i + idx)));
+        }
+
+        onProgress?.(95);
+
+        // 5. Trigger manifest assembly
+        console.log("[SegmentUpload] All segments uploaded. Triggering assembly...");
+        const completeRes = await fetch(getApiUrl("/api/v1/media/upload/video/complete"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+            body: JSON.stringify({ storageKey, photoId, eventId, totalSegments }),
+        });
+        if (!completeRes.ok) throw new Error("Failed to trigger manifest assembly");
+
+        onProgress?.(100);
+        onComplete?.({ storageKey, photoId });
+
+    } catch (err: unknown) {
+        report(err instanceof Error ? err : new Error(String(err)));
     }
 }

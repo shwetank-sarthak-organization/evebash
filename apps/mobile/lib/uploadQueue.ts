@@ -582,6 +582,33 @@ async function uploadWorker(item: UploadQueueItem) {
       console.warn('[UploadQueue] Could not get file size info:', infoErr);
     }
 
+    if (item.mediaType === 'video') {
+      await uploadVideoSegmentedMobile({
+        fileUri: item.fileUri,
+        fileName: item.fileName,
+        fileSize,
+        eventId: item.eventId,
+        onProgress: (percent) => {
+          item.progress = percent;
+          notifyListeners();
+          void updateProgressNotification();
+        },
+        onComplete: (res) => {
+          item.status = 'completed';
+          item.progress = 100;
+          notifyListeners();
+          void saveQueueToStorage();
+        },
+        onError: (err) => {
+          item.status = 'failed';
+          item.error = err.message || String(err);
+          notifyListeners();
+          void saveQueueToStorage();
+        }
+      });
+      return;
+    }
+
     if (fileSize > 100 * 1024 * 1024) { // > 100 MB
       await uploadWorkerLargeFileInChunks(item, accessToken, fileSize);
       return;
@@ -719,5 +746,162 @@ async function processQueue() {
     // Claim this slot and launch the worker
     activeSlots++;
     uploadWorker(nextItem); // intentionally not awaited — runs concurrently
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Real-Time Segment Upload Pipeline (Mobile — ffmpeg-kit-react-native)
+// ---------------------------------------------------------------------------
+
+const MODAL_SEGMENT_URL = (process.env.EXPO_PUBLIC_MODAL_SEGMENT_URL || "").trim().replace(/\/+$/, "");
+const MOBILE_MAX_PARALLEL_UPLOADS = 4;
+
+export interface MobileVideoUploadOptions {
+  fileUri: string;
+  fileName: string;
+  fileSize: number;
+  eventId: string;
+  onProgress?: (percent: number) => void;
+  onComplete?: (result: { storageKey: string; photoId: string }) => void;
+  onError?: (err: Error) => void;
+}
+
+/**
+ * Mobile Real-Time Video Segment Upload:
+ * 1. Uses ffmpeg-kit-react-native to slice the video into 30s self-contained .ts segments.
+ * 2. Uploads each segment in parallel to Modal's process_video_segment endpoint.
+ * 3. Triggers manifest assembly via backend when all segments are done.
+ */
+export async function uploadVideoSegmentedMobile(options: MobileVideoUploadOptions): Promise<void> {
+  const { fileUri, fileName, fileSize, eventId, onProgress, onComplete, onError } = options;
+
+  const report = (err: Error) => {
+    console.error('[MobileSegmentUpload]', err);
+    onError?.(err);
+  };
+
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (!accessToken) throw new Error('Not authenticated');
+    if (!MODAL_SEGMENT_URL) throw new Error('EXPO_PUBLIC_MODAL_SEGMENT_URL is not configured');
+
+    onProgress?.(2);
+
+    // 1. Init: create Supabase record + get storageKey from backend
+    const initEndpoints = getEndpointsForPath('/api/v1/media/upload/video/init');
+    const initResponse = await fetchWithEndpointFallback(
+      initEndpoints,
+      (endpoint: string) => fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ eventId, fileName, fileSize }),
+      }),
+      'video upload init'
+    );
+    const { storageKey, photoId } = await initResponse.json();
+    if (!storageKey || !photoId) throw new Error('Failed to init video upload');
+
+    onProgress?.(5);
+
+    // 2. Slice video into 30s segments using native FFmpeg
+    const segmentsDir = `${FileSystem.cacheDirectory}segments_${Date.now()}/`;
+    await FileSystem.makeDirectoryAsync(segmentsDir, { intermediates: true });
+
+    console.log('[MobileSegmentUpload] Slicing video with native FFmpeg...');
+
+    let FFmpegKit: any;
+    try {
+      FFmpegKit = require('ffmpeg-kit-react-native').FFmpegKit;
+    } catch {
+      throw new Error('ffmpeg-kit-react-native is not installed. Run: npm install ffmpeg-kit-react-native');
+    }
+
+    const outputPattern = `${segmentsDir}segment_%03d.ts`;
+    const session = await FFmpegKit.execute(
+      `-i "${fileUri}" -c copy -f segment -segment_time 30 -reset_timestamps 1 "${outputPattern}"`
+    );
+
+    const returnCode = await session.getReturnCode();
+    if (!returnCode.isValueSuccess()) {
+      const logs = await session.getOutput();
+      throw new Error(`FFmpeg slicing failed: ${logs}`);
+    }
+
+    onProgress?.(20);
+
+    // 3. List all produced segment files
+    const dirContents = await FileSystem.readDirectoryAsync(segmentsDir);
+    const segmentFiles = dirContents
+      .filter((name: string) => /^segment_\d+\.ts$/.test(name))
+      .sort();
+
+    if (segmentFiles.length === 0) throw new Error('FFmpeg produced no segments');
+    console.log(`[MobileSegmentUpload] Sliced into ${segmentFiles.length} segments`);
+
+    const totalSegments = segmentFiles.length;
+    let completedCount = 0;
+
+    // 4. Upload each segment to Modal in parallel batches
+    const uploadSegment = async (segName: string, segIndex: number): Promise<void> => {
+      const segUri = `${segmentsDir}${segName}`;
+      const segInfo = await FileSystem.getInfoAsync(segUri);
+      if (!segInfo.exists) throw new Error(`Segment file not found: ${segUri}`);
+
+      const url = `${MODAL_SEGMENT_URL}?storage_key=${encodeURIComponent(storageKey)}&segment_index=${segIndex}&total_segments=${totalSegments}&photo_id=${encodeURIComponent(photoId)}`;
+
+      const uploadTask = FileSystem.createUploadTask(
+        url,
+        segUri,
+        {
+          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+          headers: { 'Content-Type': 'application/octet-stream' },
+          sessionType: FileSystem.FileSystemSessionType.BACKGROUND,
+        }
+      );
+
+      const res = await uploadTask.uploadAsync();
+      if (!res || res.status !== 200) {
+        throw new Error(`Segment ${segIndex} upload failed (status: ${res?.status ?? 'unknown'})`);
+      }
+
+      // Cleanup segment from cache
+      await FileSystem.deleteAsync(segUri, { idempotent: true }).catch(() => {});
+
+      completedCount++;
+      // Progress: 20–90%
+      onProgress?.(20 + Math.round((completedCount / totalSegments) * 70));
+      console.log(`[MobileSegmentUpload] Segment ${segIndex}/${totalSegments} done`);
+    };
+
+    for (let i = 0; i < totalSegments; i += MOBILE_MAX_PARALLEL_UPLOADS) {
+      const batch = segmentFiles.slice(i, i + MOBILE_MAX_PARALLEL_UPLOADS);
+      await Promise.all(batch.map((name: string, idx: number) => uploadSegment(name, i + idx)));
+    }
+
+    // Cleanup segments dir
+    await FileSystem.deleteAsync(segmentsDir, { idempotent: true }).catch(() => {});
+
+    onProgress?.(90);
+
+    // 5. Trigger manifest assembly via backend
+    const completeEndpoints = getEndpointsForPath('/api/v1/media/upload/video/complete');
+    const completeResponse = await fetchWithEndpointFallback(
+      completeEndpoints,
+      (endpoint: string) => fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ storageKey, photoId, eventId, totalSegments }),
+      }),
+      'trigger manifest assembly'
+    );
+
+    if (!completeResponse.ok) throw new Error('Failed to trigger manifest assembly');
+
+    onProgress?.(100);
+    onComplete?.({ storageKey, photoId });
+
+  } catch (err: unknown) {
+    report(err instanceof Error ? err : new Error(String(err)));
   }
 }

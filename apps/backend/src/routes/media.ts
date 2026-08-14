@@ -562,6 +562,63 @@ mediaRouter.post("/upload/chunk/complete-part", asyncRoute(async (request, respo
   response.json({ success: true, partNumber, totalParts });
 }));
 
+// ---------------------------------------------------------------------------
+// New: Real-Time Segment Pipeline (FFmpeg.wasm / ffmpeg-kit)
+// ---------------------------------------------------------------------------
+
+// Initialize a video upload: creates Supabase record, returns storageKey + photoId
+mediaRouter.post("/upload/video/init", asyncRoute(async (request, response) => {
+  const eventId = String(request.body?.eventId || "");
+  const fileName = String(request.body?.fileName || "video.mp4");
+  const fileSize = Number(request.body?.fileSize || 0);
+
+  if (!eventId) return jsonError(response, 400, "Missing eventId");
+
+  const storageKey = `events/${eventId}/videos/${Date.now()}-${fileName.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+
+  const supabase = getSupabaseAdminClient();
+  const { data: photo, error } = await supabase
+    .from("photos")
+    .insert({
+      event_id: eventId,
+      storage_key: storageKey,
+      url: "",
+      resource_type: "video",
+      media_type: "video",
+      file_size: fileSize,
+      status: "uploading",
+    })
+    .select("id")
+    .single();
+
+  if (error || !photo) {
+    console.error("[VideoInit] Supabase insert error:", error);
+    return jsonError(response, 500, "Failed to create video record");
+  }
+
+  response.json({ success: true, storageKey, photoId: photo.id });
+}));
+
+// Complete a video segment upload: triggers assemble_fmp4_manifest via QStash
+mediaRouter.post("/upload/video/complete", asyncRoute(async (request, response) => {
+  const storageKey = String(request.body?.storageKey || "");
+  const photoId = String(request.body?.photoId || "");
+  const eventId = String(request.body?.eventId || "");
+  const totalSegments = Number(request.body?.totalSegments || 0);
+
+  if (!storageKey || !photoId) return jsonError(response, 400, "Missing storageKey or photoId");
+
+  background("AssembleVideoManifest", () =>
+    publishManifestAssemblyTask({
+      id: photoId,
+      storage_key: storageKey,
+      event_id: eventId,
+      total_segments: totalSegments,
+    })
+  );
+
+  response.json({ success: true, storageKey, photoId });
+}));
 
 
 mediaRouter.post("/upload/chunk/abort", asyncRoute(async (request, response) => {

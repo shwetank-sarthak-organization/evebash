@@ -182,6 +182,7 @@ export async function publishManifestAssemblyTask(payload: {
   id: string;
   storage_key: string;
   event_id: string;
+  total_segments?: number;
 }): Promise<boolean> {
   const qstashToken = process.env.QSTASH_TOKEN;
   const targetUrl = (
