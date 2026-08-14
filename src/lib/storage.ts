@@ -296,18 +296,17 @@ async function uploadLargeFileInChunks(
 
                 console.log(`[Storage] ✓ Chunk ${partNumber}/${totalChunks} done (sha1: ${sha1.substring(0, 8)}...)`);
 
-                // Fire-and-forget chunk binary to backend for real-time Modal transcode
-                fetch(getApiUrl(`/api/media/upload/chunk/transcode-part?storageKey=${encodeURIComponent(storageKey)}&partNumber=${partNumber}&totalParts=${totalChunks}`), {
+                // Fire-and-forget lightweight part completion notification to backend
+                fetch(getApiUrl("/api/media/upload/chunk/complete-part"), {
                     method: "POST",
-                    headers: {
-                        ...headers,
-                        "Content-Type": "application/octet-stream",
-                        "X-Storage-Key": storageKey,
-                        "X-Part-Number": String(partNumber),
-                        "X-Total-Parts": String(totalChunks),
-                    },
-                    body: chunkBlob,
-                }).catch((err) => console.warn(`[Storage] Part transcode stream failed (non-critical):`, err));
+                    headers,
+                    body: JSON.stringify({
+                        storageKey,
+                        eventId,
+                        partNumber,
+                        totalParts: totalChunks,
+                    }),
+                }).catch((err) => console.warn(`[Storage] Part complete notification failed (non-critical):`, err));
 
                 return; // success — exit retry loop
 
