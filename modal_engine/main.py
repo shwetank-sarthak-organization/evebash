@@ -570,6 +570,7 @@ def transcode_cloud_segment(task: dict) -> dict:
         tmp_path = pathlib.Path(tmp_dir)
         seg_file = tmp_path / f"segment_{seg_index:03d}.ts"
         seg_file.write_bytes(seg_bytes)
+        quality_entries = {"1080p": [], "720p": [], "480p": []}
 
         for res in resolutions:
             qname = res["name"]
