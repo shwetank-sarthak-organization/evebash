@@ -574,29 +574,31 @@ mediaRouter.post("/upload/video/init", asyncRoute(async (request, response) => {
 
   if (!eventId) return jsonError(response, 400, "Missing eventId");
 
+  const userId = await getUploadUserId(request);
+  if (userId === "anonymous" && !(await validateAnonymousEvent(eventId))) {
+    return jsonError(response, 401, "Invalid event or unauthorized access");
+  }
+
   const storageKey = `events/${eventId}/videos/${Date.now()}-${fileName.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+  
+  const { row, photoId } = toPhotoRow({
+    storageKey,
+    eventId,
+    fileName,
+    fileSize,
+    userId,
+    resourceType: "video",
+  });
 
   const supabase = getSupabaseAdminClient();
-  const { data: photo, error } = await supabase
-    .from("photos")
-    .insert({
-      event_id: eventId,
-      storage_key: storageKey,
-      url: "",
-      resource_type: "video",
-      media_type: "video",
-      file_size: fileSize,
-      status: "uploading",
-    })
-    .select("id")
-    .single();
+  const { error } = await supabase.from("photos").upsert(row);
 
-  if (error || !photo) {
+  if (error) {
     console.error("[VideoInit] Supabase insert error:", error);
     return jsonError(response, 500, "Failed to create video record");
   }
 
-  response.json({ success: true, storageKey, photoId: photo.id });
+  response.json({ success: true, storageKey, photoId });
 }));
 
 // Complete a video segment upload: triggers assemble_fmp4_manifest via QStash
