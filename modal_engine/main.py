@@ -600,12 +600,20 @@ async def process_fmp4_chunk_transcode(request: fastapi.Request):
                 )
 
     print(f"[StreamChunkWorker] Successfully processed part {part_number}/{total_parts} for {storage_key}")
-    return {
-        "status": "success",
-        "storage_key": storage_key,
-        "part_number": part_number,
-        "total_parts": total_parts,
-    }
+    import fastapi.responses
+    return fastapi.responses.JSONResponse(
+        content={
+            "status": "success",
+            "storage_key": storage_key,
+            "part_number": part_number,
+            "total_parts": total_parts,
+        },
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
 
 
 @app.function(
