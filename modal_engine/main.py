@@ -578,30 +578,34 @@ def process_fmp4_chunk_transcode(request: dict):
 
 @app.function(
     image=image,
-    cpu=1.0,
-    memory=2048,
-    timeout=600,
+    cpu=2.0,
+    memory=4096,
+    timeout=900,
     secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
 )
 @modal.fastapi_endpoint(method="POST")
 def assemble_fmp4_manifest(request: dict):
     """
-    Manifest Coordinator: Triggered upon final chunk completion to generate master.m3u8 index,
-    poster JPEG, and update Supabase DB.
+    Video HLS Transcode & Manifest Generator:
+    Downloads the uploaded video from B2, generates multi-rendition HLS (1080p, 720p, 480p),
+    extracts poster frame JPEG, uploads full HLS package to B2, and updates Supabase DB.
     """
     import boto3
     import tempfile
     import pathlib
     import subprocess
+    import shutil
+    import time
     from supabase import create_client, Client
 
+    start_time = time.time()
     storage_key = request.get("storage_key") or request.get("object_key")
     photo_id = request.get("photo_id") or request.get("id")
 
     if not storage_key:
         return {"error": "Missing storage_key", "status": "failed"}
 
-    print(f"[ManifestCoordinator] Assembling master HLS manifest for {storage_key}")
+    print(f"[ManifestCoordinator] Starting full HLS transcode for {storage_key} (ID: {photo_id})")
 
     supabase: Client = create_client(
         os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
@@ -619,71 +623,150 @@ def assemble_fmp4_manifest(request: dict):
     hls_prefix = f"hls/{storage_key}"
     hls_master_url = f"https://{media_domain}/{hls_prefix}/master.m3u8"
     poster_url = f"https://{media_domain}/{hls_prefix}/poster.jpg"
+    raw_video_url = f"https://{media_domain}/{storage_key}"
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = pathlib.Path(tmp_dir)
+        raw_path = tmp_path / "raw.mp4"
+        output_hls_dir = tmp_path / "hls"
+        output_hls_dir.mkdir(parents=True, exist_ok=True)
 
-        # 1. Generate master.m3u8 text index
-        master_content = "\n".join([
-            "#EXTM3U",
-            "#EXT-X-VERSION:3",
-            "#EXT-X-STREAM-INF:BANDWIDTH=4000000,RESOLUTION=1920x1080",
-            "1080p/playlist.m3u8",
-            "#EXT-X-STREAM-INF:BANDWIDTH=2500000,RESOLUTION=1280x720",
-            "720p/playlist.m3u8",
-            "#EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=854x480",
-            "480p/playlist.m3u8",
-            ""
-        ])
-
-        b2_client.put_object(
-            Bucket=bucket_name,
-            Key=f"{hls_prefix}/master.m3u8",
-            Body=master_content.encode("utf-8"),
-            ContentType="application/x-mpegURL"
-        )
-
-        # 2. Extract poster JPEG frame at 1-sec mark from original B2 video
+        # 1. Download raw video from B2
         try:
-            raw_path = tmp_path / "raw.mp4"
+            print(f"[ManifestCoordinator] Downloading raw video from B2: {storage_key}")
             b2_client.download_file(bucket_name, storage_key, str(raw_path))
-            poster_path = tmp_path / "poster.jpg"
-            subprocess.run([
-                "ffmpeg", "-y", "-i", str(raw_path),
-                "-ss", "00:00:01", "-vframes", "1", "-q:v", "2",
-                str(poster_path)
-            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as dl_err:
+            print(f"[ManifestCoordinator] Failed to download raw video from B2: {dl_err}")
+            return {"error": f"Failed to download raw video: {dl_err}", "status": "failed"}
 
-            if poster_path.exists():
-                b2_client.upload_file(
-                    str(poster_path), bucket_name, f"{hls_prefix}/poster.jpg",
-                    ExtraArgs={"ContentType": "image/jpeg"}
-                )
-        except Exception as poster_err:
-            print(f"[ManifestCoordinator] Poster extraction warning: {poster_err}")
+        # 2. Extract poster JPEG frame at 1-sec mark
+        poster_path = output_hls_dir / "poster.jpg"
+        subprocess.run([
+            "ffmpeg", "-y", "-i", str(raw_path),
+            "-ss", "00:00:01", "-vframes", "1", "-q:v", "2",
+            str(poster_path)
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    # 3. Update Supabase photos row
-    update_data = {
-        "url": hls_master_url,
-        "thumbnail_url": poster_url,
-        "resource_type": "video",
-        "media_type": "video",
-        "status": "processed"
-    }
-    if photo_id:
+        # 3. Check audio stream with ffprobe
+        has_audio = False
         try:
-            supabase.table("photos").update(update_data).eq("id", photo_id).execute()
+            probe_res = subprocess.run([
+                "ffprobe", "-v", "error", "-select_streams", "a",
+                "-show_entries", "stream=index", "-of", "csv=p=0",
+                str(raw_path)
+            ], capture_output=True, text=True)
+            if probe_res.stdout.strip():
+                has_audio = True
         except Exception:
-            update_data.pop("status", None)
-            supabase.table("photos").update(update_data).eq("id", photo_id).execute()
+            pass
 
-    print(f"[ManifestCoordinator] Successfully assembled HLS manifest for {storage_key}")
-    return {
-        "status": "success",
-        "storage_key": storage_key,
-        "hls_master_url": hls_master_url,
-        "poster_url": poster_url
-    }
+        # 4. Multi-rendition HLS Transcode via FFmpeg
+        resolutions = [
+            {"name": "1080p", "scale": "-2:1080", "vbitrate": "4000k", "maxrate": "4500k", "bufsize": "6000k", "abitrate": "128k"},
+            {"name": "720p",  "scale": "-2:720",  "vbitrate": "2500k", "maxrate": "2800k", "bufsize": "3500k", "abitrate": "128k"},
+            {"name": "480p",  "scale": "-2:480",  "vbitrate": "1000k", "maxrate": "1200k", "bufsize": "1500k", "abitrate": "96k"},
+        ]
+
+        split_labels = "".join(f"[v{i+1}]" for i in range(len(resolutions)))
+        filter_complex_parts = [f"[0:v]split={len(resolutions)}{split_labels}"]
+        for i, r in enumerate(resolutions):
+            filter_complex_parts.append(f"[v{i+1}]scale={r['scale']}[v{i+1}out]")
+        filter_complex = "; ".join(filter_complex_parts)
+
+        hls_cmd = ["ffmpeg", "-y", "-i", str(raw_path), "-filter_complex", filter_complex]
+        for i, r in enumerate(resolutions):
+            hls_cmd += ["-map", f"[v{i+1}out]", f"-c:v:{i}", "libx264",
+                        f"-b:v:{i}", r["vbitrate"], f"-maxrate:v:{i}", r["maxrate"], f"-bufsize:v:{i}", r["bufsize"]]
+        if has_audio:
+            for i, r in enumerate(resolutions):
+                hls_cmd += ["-map", "a:0", f"-c:a:{i}", "aac", f"-b:a:{i}", r["abitrate"]]
+            var_stream_map = " ".join(f"v:{i},a:{i},name:{r['name']}" for i, r in enumerate(resolutions))
+        else:
+            var_stream_map = " ".join(f"v:{i},name:{r['name']}" for i, r in enumerate(resolutions))
+
+        hls_cmd += [
+            "-var_stream_map", var_stream_map,
+            "-preset", "veryfast", "-g", "48", "-sc_threshold", "0",
+            "-hls_time", "4", "-hls_playlist_type", "vod",
+            "-hls_segment_filename", f"{output_hls_dir}/%v/segment_%03d.ts",
+            "-master_pl_name", "master.m3u8",
+            f"{output_hls_dir}/%v/playlist.m3u8"
+        ]
+
+        print(f"[ManifestCoordinator] Running FFmpeg HLS encoding...")
+        ffmpeg_res = subprocess.run(hls_cmd, capture_output=True, text=True)
+
+        if ffmpeg_res.returncode != 0:
+            print(f"[ManifestCoordinator] Multi-rendition FFmpeg failed: {ffmpeg_res.stderr[-300:]}. Running single stream fallback...")
+            for qname in ["1080p", "720p", "480p"]:
+                (output_hls_dir / qname).mkdir(parents=True, exist_ok=True)
+            fallback_cmd = [
+                "ffmpeg", "-y", "-i", str(raw_path),
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+                "-c:a", "aac", "-b:a", "128k",
+                "-hls_time", "4", "-hls_playlist_type", "vod",
+                "-hls_segment_filename", f"{output_hls_dir}/1080p/segment_%03d.ts",
+                f"{output_hls_dir}/1080p/playlist.m3u8"
+            ]
+            subprocess.run(fallback_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            shutil.copy(output_hls_dir / "1080p/playlist.m3u8", output_hls_dir / "720p/playlist.m3u8")
+            shutil.copy(output_hls_dir / "1080p/playlist.m3u8", output_hls_dir / "480p/playlist.m3u8")
+
+            # Write master.m3u8 fallback index
+            master_content = "\n".join([
+                "#EXTM3U",
+                "#EXT-X-VERSION:3",
+                "#EXT-X-STREAM-INF:BANDWIDTH=4000000,RESOLUTION=1920x1080",
+                "1080p/playlist.m3u8",
+                "#EXT-X-STREAM-INF:BANDWIDTH=2500000,RESOLUTION=1280x720",
+                "720p/playlist.m3u8",
+                "#EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=854x480",
+                "480p/playlist.m3u8",
+                ""
+            ])
+            (output_hls_dir / "master.m3u8").write_text(master_content)
+
+        # 5. Upload complete HLS package to B2
+        print(f"[ManifestCoordinator] Uploading generated HLS package to B2 at prefix '{hls_prefix}'...")
+        for file_path in output_hls_dir.glob("**/*"):
+            if file_path.is_file():
+                rel_path = file_path.relative_to(output_hls_dir)
+                b2_key = f"{hls_prefix}/{rel_path}"
+                content_type = "application/x-mpegURL" if file_path.suffix == ".m3u8" else \
+                               "video/MP2T" if file_path.suffix == ".ts" else \
+                               "image/jpeg" if file_path.suffix in [".jpg", ".jpeg"] else \
+                               "application/octet-stream"
+                b2_client.upload_file(
+                    str(file_path), bucket_name, b2_key,
+                    ExtraArgs={"ContentType": content_type}
+                )
+
+        # 6. Mark photo processed in Supabase
+        update_data = {
+            "url": hls_master_url,
+            "resource_type": "video",
+            "media_type": "video",
+            "status": "processed"
+        }
+        if poster_path.exists():
+            update_data["thumbnail_url"] = poster_url
+
+        if photo_id:
+            try:
+                supabase.table("photos").update(update_data).eq("id", photo_id).execute()
+            except Exception:
+                update_data.pop("status", None)
+                supabase.table("photos").update(update_data).eq("id", photo_id).execute()
+
+        duration = time.time() - start_time
+        print(f"[ManifestCoordinator] Successfully transcoded & uploaded HLS package for {storage_key} in {duration:.1f}s")
+        return {
+            "status": "success",
+            "storage_key": storage_key,
+            "hls_master_url": hls_master_url,
+            "poster_url": poster_url,
+            "duration_seconds": duration
+        }
 
 
 

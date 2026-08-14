@@ -174,25 +174,44 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
           setActiveLevel(data.level);
         });
 
+        let retryCount = 0;
         hls.on(Hls.Events.ERROR, (_event: any, data: any) => {
           if (!data) return;
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                console.warn("[HLSPlayer] Fatal network error encountered, attempting recovery...");
-                hls.startLoad();
+                retryCount++;
+                if (retryCount <= 2) {
+                  console.warn(`[HLSPlayer] Network error encountered, retry ${retryCount}/2...`);
+                  hls.startLoad();
+                } else {
+                  console.warn("[HLSPlayer] HLS network load failed. Falling back to direct raw video playback...");
+                  try {
+                    hls.destroy();
+                    hlsRef.current = null;
+                  } catch {}
+                  const rawFallbackUrl = url.replace("/hls/", "/").replace("/master.m3u8", "");
+                  video.src = rawFallbackUrl;
+                  video.load();
+                  setState("playing");
+                  if (autoPlay) video.play().catch(() => {});
+                }
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
                 console.warn("[HLSPlayer] Fatal media error encountered, attempting recovery...");
                 hls.recoverMediaError();
                 break;
               default:
-                console.error("[HLSPlayer] Fatal unrecoverable Hls.js error:", data.type, data.details);
+                console.warn("[HLSPlayer] Fatal HLS error. Falling back to direct raw video playback...");
                 try {
                   hls.destroy();
+                  hlsRef.current = null;
                 } catch {}
-                setState("error");
-                setErrorMsg("Failed to load video stream.");
+                const rawFallbackUrl = url.replace("/hls/", "/").replace("/master.m3u8", "");
+                video.src = rawFallbackUrl;
+                video.load();
+                setState("playing");
+                if (autoPlay) video.play().catch(() => {});
                 break;
             }
           }
