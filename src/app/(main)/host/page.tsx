@@ -201,7 +201,7 @@ const EVENT_TYPE_OPTIONS = [
     { name: "Other", icon: MoreHorizontal },
 ];
 
-export const TEMPLATE_THEMES = [
+const TEMPLATE_THEMES = [
     {
         "id": "royal",
         "category": "Wedding",
@@ -557,12 +557,12 @@ export const TEMPLATE_THEMES = [
 ];
 
 
-export const getTemplateCategoryForEventCategory = (category?: string) => {
+const getTemplateCategoryForEventCategory = (category?: string) => {
     if (category === 'Sports') return 'Other';
     return category || 'Wedding';
 };
 
-export const getTemplatesForEventCategory = (category?: string) => {
+const getTemplatesForEventCategory = (category?: string) => {
     const templateCategory = getTemplateCategoryForEventCategory(category);
     return TEMPLATE_THEMES.filter((theme) => theme.category === templateCategory);
 };
