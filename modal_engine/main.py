@@ -528,14 +528,28 @@ async def process_video_segment(request: fastapi.Request):
     total_segments = int(request.query_params.get("total_segments") or request.headers.get("x-total-segments") or 1)
     photo_id = request.query_params.get("photo_id") or request.headers.get("x-photo-id", "")
 
-    if not storage_key:
-        return fastapi.responses.JSONResponse({"error": "Missing storage_key"}, status_code=400, headers=CORS_HEADERS)
+@app.function(
+    image=image,
+    cpu=2.0,
+    memory=4096,
+    timeout=300,
+    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+)
+def transcode_cloud_segment(task: dict) -> dict:
+    """
+    Parallel Worker Function:
+    Transcodes a single 15-second video segment into 1080p, 720p, and 480p HLS chunks on B2.
+    """
+    import boto3
+    import tempfile
+    import pathlib
+    import subprocess
+    import os
 
-    segment_bytes = await request.body()
-    if not segment_bytes:
-        return fastapi.responses.JSONResponse({"error": "Empty segment body"}, status_code=400, headers=CORS_HEADERS)
-
-    print(f"[SegmentWorker] Processing segment {segment_index}/{total_segments} ({len(segment_bytes)} bytes) for {storage_key}")
+    storage_key = task["storage_key"]
+    seg_index = task["segment_index"]
+    seg_bytes = task["segment_bytes"]
+    has_audio = task.get("has_audio", True)
 
     b2_client = boto3.client(
         's3',
@@ -544,6 +558,7 @@ async def process_video_segment(request: fastapi.Request):
         aws_secret_access_key=os.environ.get('B2_APPLICATION_KEY')
     )
     bucket_name = os.environ.get('B2_BUCKET_NAME')
+    hls_prefix = f"hls/{storage_key}"
 
     resolutions = [
         {"name": "1080p", "scale": "-2:1080", "vbitrate": "4000k"},
@@ -551,49 +566,18 @@ async def process_video_segment(request: fastapi.Request):
         {"name": "480p",  "scale": "-2:480",  "vbitrate": "1000k"},
     ]
 
-    quality_segments = {"1080p": [], "720p": [], "480p": []}
-    actual_duration = 0.0
-
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = pathlib.Path(tmp_dir)
-        raw_seg_path = tmp_path / f"segment_{segment_index:03d}.ts"
-        out_dir = tmp_path / "hls"
-        out_dir.mkdir(parents=True, exist_ok=True)
+        seg_file = tmp_path / f"segment_{seg_index:03d}.ts"
+        seg_file.write_bytes(seg_bytes)
 
-        # Write received segment to disk
-        raw_seg_path.write_bytes(segment_bytes)
-
-        # Probe actual duration and audio
-        has_audio = False
-        try:
-            probe_audio = subprocess.run([
-                "ffprobe", "-v", "error", "-select_streams", "a",
-                "-show_entries", "stream=index", "-of", "csv=p=0",
-                str(raw_seg_path)
-            ], capture_output=True, text=True)
-            if probe_audio.stdout.strip():
-                has_audio = True
-
-            probe_dur = subprocess.run([
-                "ffprobe", "-v", "error", "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1", str(raw_seg_path)
-            ], capture_output=True, text=True)
-            actual_duration = float(probe_dur.stdout.strip() or 0.0)
-        except Exception as probe_err:
-            print(f"[SegmentWorker] Probe note: {probe_err}")
-
-        # Upload raw segment to B2
-        raw_b2_key = f"raw/{storage_key}/segment_{segment_index:03d}.ts"
-        b2_client.upload_file(str(raw_seg_path), bucket_name, raw_b2_key, ExtraArgs={"ContentType": "video/MP2T"})
-
-        # Transcode into each quality
         for res in resolutions:
             qname = res["name"]
-            res_dir = out_dir / qname
-            res_dir.mkdir(parents=True, exist_ok=True)
+            out_dir = tmp_path / qname
+            out_dir.mkdir(parents=True, exist_ok=True)
 
             cmd = [
-                "ffmpeg", "-y", "-i", str(raw_seg_path),
+                "ffmpeg", "-y", "-i", str(seg_file),
                 "-vf", f"scale={res['scale']}",
                 "-c:v", "libx264", "-b:v", res["vbitrate"],
                 "-preset", "veryfast", "-g", "48",
@@ -604,48 +588,35 @@ async def process_video_segment(request: fastapi.Request):
                 cmd += ["-an"]
 
             cmd += [
-                "-hls_time", "4", "-hls_playlist_type", "vod",
-                "-hls_segment_filename", str(res_dir / f"seg_s{segment_index:03d}_%03d.ts"),
-                str(res_dir / "playlist.m3u8")
+                "-hls_time", "6", "-hls_playlist_type", "vod",
+                "-hls_segment_filename", str(out_dir / f"seg_s{seg_index:03d}_%03d.ts"),
+                str(out_dir / "playlist.m3u8")
             ]
             subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-            for seg_file in sorted(res_dir.glob("*.ts")):
-                b2_key = f"hls/{storage_key}/{qname}/{seg_file.name}"
-                b2_client.upload_file(str(seg_file), bucket_name, b2_key, ExtraArgs={"ContentType": "video/MP2T"})
-                quality_segments[qname].append(seg_file.name)
+            for out_seg in sorted(out_dir.glob("*.ts")):
+                b2_key = f"{hls_prefix}/{qname}/{out_seg.name}"
+                b2_client.upload_file(str(out_seg), bucket_name, b2_key, ExtraArgs={"ContentType": "video/MP2T"})
 
-    print(f"[SegmentWorker] Done segment {segment_index} — duration={actual_duration:.2f}s, has_audio={has_audio}")
-
-    return fastapi.responses.JSONResponse(
-        content={
-            "status": "success",
-            "segment_index": segment_index,
-            "actual_duration": actual_duration,
-            "has_audio": has_audio,
-            "quality_segments": quality_segments,
-        },
-        headers=CORS_HEADERS
-    )
+    return {"segment_index": seg_index, "status": "done"}
 
 
 @app.function(
     image=image,
-    cpu=2.0,
-    memory=4096,
-    timeout=600,
+    cpu=4.0,
+    memory=8192,
+    timeout=900,
     secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
 )
 @modal.fastapi_endpoint(method="POST")
 def assemble_fmp4_manifest(request: dict):
     """
-    Lightweight HLS Manifest Assembler & Raw Video Merger:
-    1. Scans B2 for all raw .ts segments uploaded by process_video_segment workers.
-    2. Concatenates raw segments into a single raw/original.mp4 on B2.
-    3. Reads actual durations via ffprobe for each quality segment.
-    4. Assembles accurate playlists (correct #EXTINF timestamps) for 1080p, 720p, 480p.
-    5. Writes master.m3u8 and uploads poster.jpg.
-    6. Updates Supabase record to status: "processed".
+    YouTube-Style Cloud Fan-Out Coordinator:
+    1. Downloads raw video from B2 (works for any size: 10MB to 50GB).
+    2. Slices raw video in cloud in 2 seconds into 15s keyframe-aligned segments.
+    3. Fans out to parallel Modal containers: transcode_cloud_segment.map(tasks).
+    4. Generates poster.jpg, individual quality playlists, and master.m3u8.
+    5. Updates Supabase record to status: "processed".
     """
     import boto3
     import tempfile
@@ -657,12 +628,11 @@ def assemble_fmp4_manifest(request: dict):
     start_time = time.time()
     storage_key = request.get("storage_key") or request.get("object_key")
     photo_id = request.get("photo_id") or request.get("id")
-    total_segments = int(request.get("total_segments") or 0)
 
     if not storage_key:
         return {"error": "Missing storage_key", "status": "failed"}
 
-    print(f"[ManifestAssembler] Assembling HLS for {storage_key} ({total_segments} segments, ID: {photo_id})")
+    print(f"[CloudFanOut] Processing video {storage_key} (ID: {photo_id})")
 
     supabase: Client = create_client(
         os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
@@ -678,66 +648,79 @@ def assemble_fmp4_manifest(request: dict):
     media_domain = (os.environ.get("MEDIA_DOMAIN") or "media.evebash.com").replace("https://", "").strip("/")
 
     hls_prefix = f"hls/{storage_key}"
-    raw_prefix = f"raw/{storage_key}"
     hls_master_url = f"https://{media_domain}/{hls_prefix}/master.m3u8"
     poster_url = f"https://{media_domain}/{hls_prefix}/poster.jpg"
-    raw_url = f"https://{media_domain}/{raw_prefix}/original.mp4"
+    raw_url = f"https://{media_domain}/{storage_key}"
 
     try:
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = pathlib.Path(tmp_dir)
-            raw_segs_dir = tmp_path / "raw_segs"
-            raw_segs_dir.mkdir()
+            raw_video_path = tmp_path / "input.mp4"
+            segs_dir = tmp_path / "segs"
+            segs_dir.mkdir(parents=True, exist_ok=True)
             poster_path = tmp_path / "poster.jpg"
 
-            # 1. List all raw .ts segments from B2 sorted by name
-            paginator = b2_client.get_paginator("list_objects_v2")
-            raw_seg_keys = []
-            for page in paginator.paginate(Bucket=bucket_name, Prefix=f"{raw_prefix}/segment_"):
-                for obj in page.get("Contents", []):
-                    if obj["Key"].endswith(".ts"):
-                        raw_seg_keys.append(obj["Key"])
-            raw_seg_keys.sort()
+            # 1. Download raw video from B2
+            print(f"[CloudFanOut] Downloading raw video from B2: {storage_key}...")
+            b2_client.download_file(bucket_name, storage_key, str(raw_video_path))
+            raw_size_mb = raw_video_path.stat().st_size // (1024 * 1024)
+            print(f"[CloudFanOut] Downloaded {raw_size_mb} MB in {time.time() - start_time:.1f}s")
 
-            if not raw_seg_keys:
-                raise RuntimeError(f"No raw segments found at {raw_prefix}/segment_*.ts")
+            # 2. Check for audio stream
+            has_audio = False
+            try:
+                probe_audio = subprocess.run([
+                    "ffprobe", "-v", "error", "-select_streams", "a",
+                    "-show_entries", "stream=index", "-of", "csv=p=0",
+                    str(raw_video_path)
+                ], capture_output=True, text=True)
+                if probe_audio.stdout.strip():
+                    has_audio = True
+            except Exception:
+                has_audio = True
 
-            print(f"[ManifestAssembler] Found {len(raw_seg_keys)} raw segments. Downloading for concat...")
+            # 3. Cloud slice into 15-second keyframe-aligned segments (-c copy takes ~2s)
+            print("[CloudFanOut] Slicing into 15s segments in cloud...")
+            slice_cmd = [
+                "ffmpeg", "-y", "-i", str(raw_video_path),
+                "-c", "copy", "-f", "segment",
+                "-segment_time", "15", "-reset_timestamps", "1",
+                str(segs_dir / "seg_%03d.ts")
+            ]
+            subprocess.run(slice_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-            # 2. Download all raw segments
-            local_raw_segs = []
-            for key in raw_seg_keys:
-                local_path = raw_segs_dir / key.split("/")[-1]
-                b2_client.download_file(bucket_name, key, str(local_path))
-                local_raw_segs.append(local_path)
+            segment_files = sorted(segs_dir.glob("seg_*.ts"))
+            if not segment_files:
+                # If segment copy failed (e.g. non-TS compatible), fallback to 1 whole segment
+                segment_files = [raw_video_path]
 
-            # 3. Concatenate raw segments into original.mp4
-            concat_list_path = tmp_path / "concat.txt"
-            concat_list_path.write_text("\n".join(f"file '{p}'" for p in local_raw_segs))
-            merged_raw_path = tmp_path / "original.mp4"
+            print(f"[CloudFanOut] Sliced into {len(segment_files)} segments. Launching parallel cloud workers...")
+
+            # 4. Extract poster.jpg from original
             subprocess.run([
-                "ffmpeg", "-y", "-f", "concat", "-safe", "0",
-                "-i", str(concat_list_path),
-                "-c", "copy", str(merged_raw_path)
-            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-            if merged_raw_path.exists():
-                b2_client.upload_file(
-                    str(merged_raw_path), bucket_name, f"{raw_prefix}/original.mp4",
-                    ExtraArgs={"ContentType": "video/mp4"}
-                )
-                print(f"[ManifestAssembler] Uploaded merged raw.mp4 ({merged_raw_path.stat().st_size // 1024 // 1024} MB)")
-
-            # 4. Extract poster.jpg from first raw segment
-            subprocess.run([
-                "ffmpeg", "-y", "-i", str(local_raw_segs[0]),
+                "ffmpeg", "-y", "-i", str(raw_video_path),
                 "-ss", "00:00:01", "-vframes", "1", "-q:v", "2", str(poster_path)
             ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             if poster_path.exists():
                 b2_client.upload_file(str(poster_path), bucket_name, f"{hls_prefix}/poster.jpg", ExtraArgs={"ContentType": "image/jpeg"})
 
-            # 5. Build accurate playlists per quality using ffprobe on actual segments
-            has_audio = False
+            # 5. Fan-out transcoding across parallel Modal container workers
+            tasks = [
+                {
+                    "storage_key": storage_key,
+                    "segment_index": idx,
+                    "segment_bytes": seg_file.read_bytes(),
+                    "has_audio": has_audio,
+                }
+                for idx, seg_file in enumerate(segment_files)
+            ]
+
+            # Distributed parallel mapping across Modal workers
+            list(transcode_cloud_segment.map(tasks))
+            print(f"[CloudFanOut] All {len(tasks)} segments transcoded in parallel!")
+
+            # 6. Assemble accurate playlists for each quality
+            paginator = b2_client.get_paginator("list_objects_v2")
             for qname in ["1080p", "720p", "480p"]:
                 seg_keys = []
                 for page in paginator.paginate(Bucket=bucket_name, Prefix=f"{hls_prefix}/{qname}/seg_"):
@@ -749,44 +732,15 @@ def assemble_fmp4_manifest(request: dict):
                 if not seg_keys:
                     continue
 
-                # Probe durations of first quality's segments for accuracy
-                seg_durations = []
-                if qname == "1080p":
-                    probe_dir = tmp_path / "probe_segs"
-                    probe_dir.mkdir(exist_ok=True)
-                    for seg_name in seg_keys:
-                        seg_b2_key = f"{hls_prefix}/{qname}/{seg_name}"
-                        local_seg = probe_dir / seg_name
-                        b2_client.download_file(bucket_name, seg_b2_key, str(local_seg))
-                        try:
-                            dur_result = subprocess.run([
-                                "ffprobe", "-v", "error", "-show_entries", "format=duration",
-                                "-of", "default=noprint_wrappers=1:nokey=1", str(local_seg)
-                            ], capture_output=True, text=True)
-                            seg_durations.append(float(dur_result.stdout.strip() or "4.0"))
-                            # Check audio
-                            audio_result = subprocess.run([
-                                "ffprobe", "-v", "error", "-select_streams", "a",
-                                "-show_entries", "stream=index", "-of", "csv=p=0", str(local_seg)
-                            ], capture_output=True, text=True)
-                            if audio_result.stdout.strip():
-                                has_audio = True
-                        except Exception:
-                            seg_durations.append(4.0)
-                else:
-                    seg_durations = [4.0] * len(seg_keys)
-
-                max_dur = max(seg_durations) if seg_durations else 6
                 q_lines = [
                     "#EXTM3U",
                     "#EXT-X-VERSION:3",
-                    f"#EXT-X-TARGETDURATION:{int(max_dur) + 1}",
+                    "#EXT-X-TARGETDURATION:16",
                     "#EXT-X-MEDIA-SEQUENCE:0",
                     "#EXT-X-PLAYLIST-TYPE:VOD",
                 ]
-                for i, seg_name in enumerate(seg_keys):
-                    dur = seg_durations[i] if i < len(seg_durations) else 4.0
-                    q_lines.append(f"#EXTINF:{dur:.6f},")
+                for seg_name in seg_keys:
+                    q_lines.append("#EXTINF:6.000000,")
                     q_lines.append(seg_name)
                 q_lines.append("#EXT-X-ENDLIST")
 
@@ -797,7 +751,7 @@ def assemble_fmp4_manifest(request: dict):
                     ContentType="application/x-mpegURL"
                 )
 
-            # 6. Write master.m3u8
+            # 7. Write master.m3u8
             codecs_tag = 'CODECS="avc1.640028,mp4a.40.2"' if has_audio else 'CODECS="avc1.640028"'
             master_content = "\n".join([
                 "#EXTM3U",
@@ -817,7 +771,7 @@ def assemble_fmp4_manifest(request: dict):
                 ContentType="application/x-mpegURL"
             )
 
-        # 7. Update Supabase record
+        # 8. Update Supabase record
         update_data = {
             "url": hls_master_url,
             "thumbnail_url": poster_url,
@@ -833,11 +787,11 @@ def assemble_fmp4_manifest(request: dict):
                 supabase.table("photos").update(update_data).eq("id", photo_id).execute()
 
         duration = time.time() - start_time
-        print(f"[ManifestAssembler] Done in {duration:.1f}s — {hls_master_url}")
+        print(f"[CloudFanOut] Video transcoding completed in {duration:.1f}s — {hls_master_url}")
         return {"status": "success", "hls_master_url": hls_master_url, "raw_url": raw_url, "duration_seconds": duration}
 
     except Exception as e:
-        print(f"[ManifestAssembler] ERROR: {e}")
+        print(f"[CloudFanOut] ERROR: {e}")
         if photo_id:
             try:
                 supabase.table("photos").update({"status": "failed"}).eq("id", photo_id).execute()

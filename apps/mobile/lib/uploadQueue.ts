@@ -582,34 +582,7 @@ async function uploadWorker(item: UploadQueueItem) {
       console.warn('[UploadQueue] Could not get file size info:', infoErr);
     }
 
-    if (item.mediaType === 'video') {
-      await uploadVideoSegmentedMobile({
-        fileUri: item.fileUri,
-        fileName: item.fileName,
-        fileSize,
-        eventId: item.eventId,
-        onProgress: (percent) => {
-          item.progress = percent;
-          notifyListeners();
-          void updateProgressNotification();
-        },
-        onComplete: (res) => {
-          item.status = 'completed';
-          item.progress = 100;
-          notifyListeners();
-          void saveQueueToStorage();
-        },
-        onError: (err) => {
-          item.status = 'failed';
-          item.error = err.message || String(err);
-          notifyListeners();
-          void saveQueueToStorage();
-        }
-      });
-      return;
-    }
-
-    if (fileSize > 100 * 1024 * 1024) { // > 100 MB
+    if (fileSize > 100 * 1024 * 1024) { // > 100 MB (videos and large photos)
       await uploadWorkerLargeFileInChunks(item, accessToken, fileSize);
       return;
     }

@@ -401,38 +401,7 @@ export async function uploadEventImage(
     skipSaveMetadata = false,
     onProgress?: (percent: number) => void
 ) {
-    const isVideoFile = file.type.startsWith("video/") || ["mp4", "mov", "avi", "mkv", "webm", "m4v", "3gp", "flv", "wmv", "mts", "m2ts", "ts", "ogv"].includes(file.name.split('.').pop()?.toLowerCase() || "");
-    if (isVideoFile) {
-        return new Promise<{
-            url: string;
-            publicId: string;
-            width: undefined;
-            height: undefined;
-            bytes: number;
-            format: string;
-        }>((resolve, reject) => {
-            uploadVideoSegmented({
-                file,
-                eventId,
-                onProgress,
-                onComplete: (res) => {
-                    resolve({
-                        url: `https://${process.env.NEXT_PUBLIC_MEDIA_DOMAIN || "media.evebash.com"}/hls/${res.storageKey}/master.m3u8`,
-                        publicId: res.storageKey,
-                        width: undefined,
-                        height: undefined,
-                        bytes: file.size,
-                        format: "mp4"
-                    });
-                },
-                onError: (err) => {
-                    reject(err);
-                }
-            });
-        });
-    }
-
-    if (file.size > 100 * 1024 * 1024) { // > 100 MB
+    if (file.size > 100 * 1024 * 1024) { // > 100 MB (any video or large image)
         return uploadLargeFileInChunks(file, eventId, onProgress);
     }
 
