@@ -647,6 +647,43 @@ const MODAL_SEGMENT_URL = (() => {
 
 const MAX_PARALLEL_UPLOADS = 4;
 
+async function loadFFmpegWasm(): Promise<{ FFmpeg: any; fetchFile: any; toBlobURL: any }> {
+    if (typeof window === "undefined") {
+        throw new Error("FFmpeg.wasm can only be executed in a browser environment");
+    }
+
+    const loadScript = (src: string): Promise<void> => {
+        return new Promise((resolve, reject) => {
+            if (document.querySelector(`script[src="${src}"]`)) {
+                return resolve();
+            }
+            const script = document.createElement("script");
+            script.src = src;
+            script.crossOrigin = "anonymous";
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error(`Failed to load external script: ${src}`));
+            document.head.appendChild(script);
+        });
+    };
+
+    // Load UMD distribution scripts directly into window to avoid Webpack module interception
+    if (!(window as any).FFmpegUtil) {
+        await loadScript("https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js");
+    }
+    if (!(window as any).FFmpegWASM) {
+        await loadScript("https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js");
+    }
+
+    const FFmpeg = (window as any).FFmpegWASM?.FFmpeg;
+    const { fetchFile, toBlobURL } = (window as any).FFmpegUtil || {};
+
+    if (!FFmpeg || !fetchFile || !toBlobURL) {
+        throw new Error("Failed to initialize FFmpeg.wasm UMD binaries in browser");
+    }
+
+    return { FFmpeg, fetchFile, toBlobURL };
+}
+
 /**
  * Uploads a video using FFmpeg.wasm real-time segmentation:
  * 1. FFmpeg.wasm slices the file into 30s self-contained .ts segments.
@@ -683,27 +720,24 @@ export async function uploadVideoSegmented(options: VideoSegmentUploadOptions): 
 
         onProgress?.(5);
 
-        // 2. Load FFmpeg.wasm lazily
-        console.log("[SegmentUpload] Loading FFmpeg.wasm...");
-        const { FFmpeg } = await import("@ffmpeg/ffmpeg");
-        const { fetchFile, toBlobURL } = await import("@ffmpeg/util");
+        // 2. Load FFmpeg.wasm lazily via standalone script loader to avoid Next.js Webpack worker interception
+        console.log("[SegmentUpload] Loading FFmpeg.wasm via dynamic UMD script loader...");
+        const { FFmpeg, fetchFile, toBlobURL } = await loadFFmpegWasm();
         const ffmpeg = new FFmpeg();
 
         const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
-        const ffmpegURL = "https://unpkg.com/@ffmpeg/ffmpeg@0.12.15/dist/umd";
         await ffmpeg.load({
             coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
             wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
-            classWorkerURL: await toBlobURL(`${ffmpegURL}/814.ffmpeg.js`, "text/javascript"),
         });
 
         onProgress?.(10);
 
         // 3. Write file to FFmpeg virtual FS and segment into 30s .ts files
         console.log("[SegmentUpload] Writing file to FFmpeg FS and slicing into 30s segments...");
-        ffmpeg.on("progress", ({ progress }) => {
+        ffmpeg.on("progress", (event: { progress: number }) => {
             // FFmpeg slicing progress: map 0–1 to 10–25%
-            onProgress?.(10 + Math.round(progress * 15));
+            onProgress?.(10 + Math.round((event?.progress || 0) * 15));
         });
 
         await ffmpeg.writeFile("input.mp4", await fetchFile(file));
