@@ -577,6 +577,44 @@ mediaRouter.post("/upload/chunk/complete-part", asyncRoute(async (request, respo
   response.json({ success: true, partNumber, totalParts });
 }));
 
+mediaRouter.post("/upload/chunk/transcode-part", asyncRoute(async (request, response) => {
+  const storageKey = String(request.headers["x-storage-key"] || request.query.storageKey || "");
+  const partNumber = Number(request.headers["x-part-number"] || request.query.partNumber || 1);
+  const totalParts = Number(request.headers["x-total-parts"] || request.query.totalParts || 1);
+
+  if (!storageKey) return jsonError(response, 400, "Missing storageKey");
+
+  const chunks: Buffer[] = [];
+  request.on("data", (chunk: Buffer) => chunks.push(chunk));
+  request.on("end", async () => {
+    const chunkBuffer = Buffer.concat(chunks);
+    const targetUrl = (
+      process.env.MODAL_FMP4_CHUNK_URL ||
+      "https://shwetank-sarthak--wedding-media-engine-process-fmp4-chun-cf16e5.modal.run"
+    ).trim();
+
+    background("ForwardChunkBinaryToModal", async () => {
+      try {
+        await fetch(targetUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/octet-stream",
+            "X-Storage-Key": storageKey,
+            "X-Part-Number": String(partNumber),
+            "X-Total-Parts": String(totalParts),
+          },
+          body: chunkBuffer,
+        });
+      } catch (err) {
+        console.warn(`[MediaRouter] Chunk transcode forward failed for part ${partNumber}:`, err);
+      }
+    });
+  });
+
+  response.json({ success: true, partNumber, totalParts });
+}));
+
+
 mediaRouter.post("/upload/chunk/abort", asyncRoute(async (request, response) => {
   const fileId = String(request.body?.fileId || "");
   if (!fileId.trim()) return jsonError(response, 400, "Missing fileId");
