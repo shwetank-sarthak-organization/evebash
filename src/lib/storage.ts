@@ -726,9 +726,15 @@ export async function uploadVideoSegmented(options: VideoSegmentUploadOptions): 
         const ffmpeg = new FFmpeg();
 
         const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
+        const workerBlobUrl = URL.createObjectURL(
+            new Blob([`importScripts("https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/814.ffmpeg.js");`], {
+                type: "application/javascript",
+            })
+        );
         await ffmpeg.load({
             coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
             wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+            classWorkerURL: workerBlobUrl,
         });
 
         onProgress?.(10);
