@@ -700,11 +700,11 @@ def assemble_fmp4_manifest(request: dict):
             master_content = "\n".join([
                 "#EXTM3U",
                 "#EXT-X-VERSION:3",
-                "#EXT-X-STREAM-INF:BANDWIDTH=4000000,RESOLUTION=1920x1080",
+                '#EXT-X-STREAM-INF:BANDWIDTH=4000000,RESOLUTION=1920x1080,CODECS="avc1.640028,mp4a.40.2"',
                 "1080p/playlist.m3u8",
-                "#EXT-X-STREAM-INF:BANDWIDTH=2500000,RESOLUTION=1280x720",
+                '#EXT-X-STREAM-INF:BANDWIDTH=2500000,RESOLUTION=1280x720,CODECS="avc1.640028,mp4a.40.2"',
                 "720p/playlist.m3u8",
-                "#EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=854x480",
+                '#EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=854x480,CODECS="avc1.640028,mp4a.40.2"',
                 "480p/playlist.m3u8",
                 ""
             ])
@@ -741,6 +741,19 @@ def assemble_fmp4_manifest(request: dict):
                 str(poster_path)
             ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+            # Probe audio stream
+            has_audio = False
+            try:
+                probe_res = subprocess.run([
+                    "ffprobe", "-v", "error", "-select_streams", "a",
+                    "-show_entries", "stream=index", "-of", "csv=p=0",
+                    str(raw_path)
+                ], capture_output=True, text=True)
+                if probe_res.stdout.strip():
+                    has_audio = True
+            except Exception:
+                pass
+
             resolutions = [
                 {"name": "1080p", "scale": "-2:1080", "vbitrate": "4000k"},
                 {"name": "720p",  "scale": "-2:720",  "vbitrate": "2500k"},
@@ -758,9 +771,23 @@ def assemble_fmp4_manifest(request: dict):
                 "-map", "[v1out]", "-c:v:0", "libx264", "-b:v:0", "4000k",
                 "-map", "[v2out]", "-c:v:1", "libx264", "-b:v:1", "2500k",
                 "-map", "[v3out]", "-c:v:2", "libx264", "-b:v:2", "1000k",
+            ]
+
+            if has_audio:
+                hls_cmd += [
+                    "-map", "a:0", "-c:a:0", "aac", "-b:a:0", "128k",
+                    "-map", "a:0", "-c:a:1", "aac", "-b:a:1", "128k",
+                    "-map", "a:0", "-c:a:2", "aac", "-b:a:2", "96k",
+                    "-var_stream_map", "v:0,a:0,name:1080p v:1,a:1,name:720p v:2,a:2,name:480p",
+                ]
+            else:
+                hls_cmd += [
+                    "-var_stream_map", "v:0,name:1080p v:1,name:720p v:2,name:480p",
+                ]
+
+            hls_cmd += [
                 "-preset", "veryfast", "-g", "48", "-sc_threshold", "0",
                 "-hls_time", "4", "-hls_playlist_type", "vod",
-                "-var_stream_map", "v:0,name:1080p v:1,name:720p v:2,name:480p",
                 "-hls_segment_filename", f"{output_hls_dir}/%v/segment_%03d.ts",
                 "-master_pl_name", "master.m3u8",
                 f"{output_hls_dir}/%v/playlist.m3u8"
