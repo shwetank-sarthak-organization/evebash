@@ -489,60 +489,31 @@ def find_matching_photos(request: dict):
 
 
 # ---------------------------------------------------------------------------
-# Stream Processing & HLS Manifest Assembly Pipeline
+# Parallel Chunk Transcoding & HLS Manifest Assembly Pipeline
 # ---------------------------------------------------------------------------
 
 @app.function(
     image=image,
     cpu=1.5,
     memory=3072,
-    timeout=600,
+    timeout=300,
     secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
 )
-@modal.fastapi_endpoint(method="POST")
-async def process_fmp4_chunk_transcode(request: fastapi.Request):
+def transcode_chunk(chunk_input: dict) -> dict:
     """
-    Stream Processing Worker: Receives an incoming 10 MB chunk binary as it uploads,
-    transcodes it into 1080p, 720p, and 480p HLS segments, and uploads segments directly to B2.
+    Parallel Chunk Worker:
+    Receives a single sliced chunk, transcodes into 1080p, 720p, and 480p with stereo AAC audio,
+    uploads .ts segments directly to Backblaze B2, and returns segment metadata.
     """
     import tempfile
     import pathlib
     import subprocess
     import boto3
-    import json
-    import base64
 
-    content_type = request.headers.get("content-type", "")
-    chunk_bytes = b""
-    storage_key = request.headers.get("x-storage-key") or request.query_params.get("storage_key")
-    part_number = int(request.headers.get("x-part-number") or request.query_params.get("part_number") or 1)
-    total_parts = int(request.headers.get("x-total-parts") or request.query_params.get("total_parts") or 1)
-
-    if "application/json" in content_type:
-        try:
-            body_json = await request.json()
-            storage_key = body_json.get("storage_key") or storage_key
-            part_number = int(body_json.get("part_number") or part_number)
-            total_parts = int(body_json.get("total_parts") or total_parts)
-            if body_json.get("chunk_base64"):
-                chunk_bytes = base64.b64decode(body_json["chunk_base64"])
-        except Exception:
-            pass
-    elif "multipart/form-data" in content_type:
-        form = await request.form()
-        storage_key = form.get("storage_key") or storage_key
-        part_number = int(form.get("part_number") or part_number)
-        total_parts = int(form.get("total_parts") or total_parts)
-        chunk_file = form.get("chunk")
-        if chunk_file and hasattr(chunk_file, "read"):
-            chunk_bytes = await chunk_file.read()
-    else:
-        chunk_bytes = await request.body()
-
-    if not storage_key:
-        return {"error": "Missing storage_key", "status": "failed"}
-
-    print(f"[StreamChunkWorker] Transcoding {len(chunk_bytes)} bytes for part {part_number}/{total_parts} ({storage_key})")
+    chunk_index = int(chunk_input.get("chunk_index", 0))
+    b2_chunk_key = chunk_input.get("b2_chunk_key")
+    hls_prefix = chunk_input.get("hls_prefix")
+    has_audio = bool(chunk_input.get("has_audio", True))
 
     b2_client = boto3.client(
         's3',
@@ -558,26 +529,18 @@ async def process_fmp4_chunk_transcode(request: fastapi.Request):
         {"name": "480p",  "scale": "-2:480",  "vbitrate": "1000k"},
     ]
 
+    segments_by_quality = {"1080p": [], "720p": [], "480p": []}
+
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = pathlib.Path(tmp_dir)
-        raw_chunk_path = tmp_path / f"part_{part_number}.mp4"
+        raw_chunk_path = tmp_path / f"chunk_{chunk_index:03d}.mp4"
         out_dir = tmp_path / "hls"
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        temp_chunk_key = f"raw_chunks/{storage_key}/part_{part_number:03d}.mp4"
-        if chunk_bytes:
-            raw_chunk_path.write_bytes(chunk_bytes)
-        else:
-            try:
-                b2_client.download_file(bucket_name, temp_chunk_key, str(raw_chunk_path))
-            except Exception:
-                try:
-                    b2_client.download_file(bucket_name, storage_key, str(raw_chunk_path))
-                except Exception as dl_err:
-                    print(f"[StreamChunkWorker] Raw chunk download note for part {part_number}: {dl_err}")
-                    return {"status": "chunk_not_ready", "part_number": part_number}
+        # Download sliced chunk from B2
+        b2_client.download_file(bucket_name, b2_chunk_key, str(raw_chunk_path))
 
-        # Transcode chunk into HLS renditions via FFmpeg
+        # Transcode each quality
         for res in resolutions:
             qname = res["name"]
             res_dir = out_dir / qname
@@ -588,42 +551,39 @@ async def process_fmp4_chunk_transcode(request: fastapi.Request):
                 "-vf", f"scale={res['scale']}",
                 "-c:v", "libx264", "-b:v", res["vbitrate"],
                 "-preset", "veryfast", "-g", "48",
-                "-c:a", "aac", "-b:a", "128k",
+            ]
+            if has_audio:
+                cmd += ["-c:a", "aac", "-b:a", "128k"]
+            else:
+                cmd += ["-an"]
+
+            cmd += [
                 "-hls_time", "4", "-hls_playlist_type", "vod",
-                "-hls_segment_filename", str(res_dir / f"seg_p{part_number:03d}_%03d.ts"),
+                "-hls_segment_filename", str(res_dir / f"seg_c{chunk_index:03d}_%03d.ts"),
                 str(res_dir / "playlist.m3u8")
             ]
             subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-            # Upload generated .ts segments to B2 under hls/{storage_key}/{qname}/
-            for seg_file in res_dir.glob("*.ts"):
-                b2_seg_key = f"hls/{storage_key}/{qname}/{seg_file.name}"
+            # Upload generated .ts segments to B2
+            seg_files = sorted(res_dir.glob("*.ts"))
+            for seg_file in seg_files:
+                b2_seg_key = f"{hls_prefix}/{qname}/{seg_file.name}"
                 b2_client.upload_file(
                     str(seg_file), bucket_name, b2_seg_key,
                     ExtraArgs={"ContentType": "video/MP2T"}
                 )
+                segments_by_quality[qname].append(seg_file.name)
 
-        # Cleanup temp chunk from B2 if it was downloaded from raw_chunks/
+        # Cleanup temp sliced chunk from B2
         try:
-            b2_client.delete_object(Bucket=bucket_name, Key=temp_chunk_key)
+            b2_client.delete_object(Bucket=bucket_name, Key=b2_chunk_key)
         except Exception:
             pass
 
-    print(f"[StreamChunkWorker] Successfully processed part {part_number}/{total_parts} for {storage_key}")
-    import fastapi.responses
-    return fastapi.responses.JSONResponse(
-        content={
-            "status": "success",
-            "storage_key": storage_key,
-            "part_number": part_number,
-            "total_parts": total_parts,
-        },
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "*",
-        }
-    )
+    return {
+        "chunk_index": chunk_index,
+        "segments": segments_by_quality
+    }
 
 
 @app.function(
@@ -636,18 +596,20 @@ async def process_fmp4_chunk_transcode(request: fastapi.Request):
 @modal.fastapi_endpoint(method="POST")
 def assemble_fmp4_manifest(request: dict):
     """
-    Instant Manifest Assembly & HLS Coordinator:
-    1. Checks B2 for pre-transcoded chunk segments under hls/{storage_key}/.
-    2. If segments exist, stitches 480p, 720p, 1080p playlists and master.m3u8 in < 1.5 seconds.
-    3. If no pre-chunked segments exist, runs multi-rendition FFmpeg transcode as resilient fallback.
-    4. Generates poster JPEG frame and updates Supabase DB.
+    Parallel Video Transcoder Coordinator:
+    1. Downloads raw video from B2.
+    2. Slices into 60s keyframe-aligned chunks in < 2s.
+    3. Fans out across parallel Modal workers via transcode_chunk.map().
+    4. Writes 1080p, 720p, 480p playlists and master.m3u8 in < 1s.
+    5. Extracts poster.jpg and updates Supabase DB.
     """
     import boto3
     import tempfile
     import pathlib
     import subprocess
-    import shutil
     import time
+    import uuid
+    from concurrent.futures import ThreadPoolExecutor
     from supabase import create_client, Client
 
     start_time = time.time()
@@ -657,7 +619,7 @@ def assemble_fmp4_manifest(request: dict):
     if not storage_key:
         return {"error": "Missing storage_key", "status": "failed"}
 
-    print(f"[ManifestCoordinator] Assembling HLS package for {storage_key} (ID: {photo_id})")
+    print(f"[VideoCoordinator] Starting parallel transcoding for {storage_key} (ID: {photo_id})")
 
     supabase: Client = create_client(
         os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
@@ -676,154 +638,135 @@ def assemble_fmp4_manifest(request: dict):
     hls_master_url = f"https://{media_domain}/{hls_prefix}/master.m3u8"
     poster_url = f"https://{media_domain}/{hls_prefix}/poster.jpg"
 
-    # Step 1: Check if chunk workers already uploaded .ts segments to B2
-    existing_1080p_segs = []
-    try:
-        resp = b2_client.list_objects_v2(Bucket=bucket_name, Prefix=f"{hls_prefix}/1080p/seg_")
-        existing_1080p_segs = [obj["Key"].split("/")[-1] for obj in resp.get("Contents", []) if obj["Key"].endswith(".ts")]
-        existing_1080p_segs.sort()
-    except Exception as list_err:
-        print(f"[ManifestCoordinator] List segments note: {list_err}")
-
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = pathlib.Path(tmp_dir)
-        output_hls_dir = tmp_path / "hls"
-        output_hls_dir.mkdir(parents=True, exist_ok=True)
-        poster_path = output_hls_dir / "poster.jpg"
+        raw_path = tmp_path / "raw.mp4"
+        chunks_dir = tmp_path / "chunks"
+        chunks_dir.mkdir(parents=True, exist_ok=True)
+        poster_path = tmp_path / "poster.jpg"
 
-        if len(existing_1080p_segs) > 0:
-            print(f"[ManifestCoordinator] Found {len(existing_1080p_segs)} pre-transcoded chunk segments. Assembling playlists instantly in memory...")
-            for qname in ["1080p", "720p", "480p"]:
-                q_lines = [
-                    "#EXTM3U",
-                    "#EXT-X-VERSION:3",
-                    "#EXT-X-TARGETDURATION:6",
-                    "#EXT-X-MEDIA-SEQUENCE:0",
-                    "#EXT-X-PLAYLIST-TYPE:VOD",
-                ]
-                for seg_name in existing_1080p_segs:
-                    q_lines.append("#EXTINF:4.000000,")
-                    q_lines.append(seg_name)
-                q_lines.append("#EXT-X-ENDLIST")
-                playlist_bytes = ("\n".join(q_lines) + "\n").encode("utf-8")
+        # 1. Download raw video from B2
+        print(f"[VideoCoordinator] Downloading raw video from B2: {storage_key}")
+        b2_client.download_file(bucket_name, storage_key, str(raw_path))
 
-                b2_client.put_object(
-                    Bucket=bucket_name,
-                    Key=f"{hls_prefix}/{qname}/playlist.m3u8",
-                    Body=playlist_bytes,
-                    ContentType="application/x-mpegURL"
-                )
+        # 2. Probe duration and audio
+        has_audio = False
+        duration_sec = 0.0
+        try:
+            probe_audio = subprocess.run([
+                "ffprobe", "-v", "error", "-select_streams", "a",
+                "-show_entries", "stream=index", "-of", "csv=p=0",
+                str(raw_path)
+            ], capture_output=True, text=True)
+            if probe_audio.stdout.strip():
+                has_audio = True
 
-            # Master playlist
-            master_content = "\n".join([
+            probe_dur = subprocess.run([
+                "ffprobe", "-v", "error", "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1", str(raw_path)
+            ], capture_output=True, text=True)
+            duration_sec = float(probe_dur.stdout.strip() or 0.0)
+        except Exception as probe_err:
+            print(f"[VideoCoordinator] Probe note: {probe_err}")
+
+        # 3. Extract poster thumbnail snapshot
+        subprocess.run([
+            "ffmpeg", "-y", "-i", str(raw_path),
+            "-ss", "00:00:01", "-vframes", "1", "-q:v", "2",
+            str(poster_path)
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if poster_path.exists():
+            b2_client.upload_file(str(poster_path), bucket_name, f"{hls_prefix}/poster.jpg", ExtraArgs={"ContentType": "image/jpeg"})
+
+        # 4. Slicing logic: If duration > 45s, slice into 60s chunks; else single chunk
+        chunk_files = []
+        if duration_sec > 45:
+            print(f"[VideoCoordinator] Slicing {duration_sec:.1f}s video into 60s parallel chunks...")
+            slice_cmd = [
+                "ffmpeg", "-y", "-i", str(raw_path),
+                "-c", "copy", "-f", "segment",
+                "-segment_time", "60",
+                "-reset_timestamps", "1",
+                str(chunks_dir / "chunk_%03d.mp4")
+            ]
+            subprocess.run(slice_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            chunk_files = sorted(chunks_dir.glob("chunk_*.mp4"))
+
+        if not chunk_files:
+            chunk_files = [raw_path]
+
+        print(f"[VideoCoordinator] Sliced into {len(chunk_files)} chunks. Uploading temp chunks to B2...")
+        job_id = uuid.uuid4().hex[:12]
+        temp_b2_keys = [f"tmp/chunks/{job_id}/{cf.name}" for cf in chunk_files]
+
+        def upload_chunk_file(item):
+            cf, key = item
+            b2_client.upload_file(str(cf), bucket_name, key)
+
+        with ThreadPoolExecutor(max_workers=min(16, len(chunk_files))) as executor:
+            list(executor.map(upload_chunk_file, zip(chunk_files, temp_b2_keys)))
+
+        # 5. Fan out across parallel Modal workers
+        print(f"[VideoCoordinator] Fanning out {len(chunk_files)} chunks across parallel Modal workers...")
+        chunk_inputs = [
+            {
+                "chunk_index": i,
+                "b2_chunk_key": temp_b2_keys[i],
+                "hls_prefix": hls_prefix,
+                "has_audio": has_audio,
+                "storage_key": storage_key,
+            }
+            for i in range(len(chunk_files))
+        ]
+
+        chunk_results = list(transcode_chunk.map(chunk_inputs))
+        chunk_results.sort(key=lambda r: r["chunk_index"])
+
+        # 6. Assemble playlists in memory and write to B2
+        print(f"[VideoCoordinator] Assembling master and quality playlists...")
+        for qname in ["1080p", "720p", "480p"]:
+            all_segs = []
+            for cr in chunk_results:
+                all_segs.extend(cr.get("segments", {}).get(qname, []))
+
+            q_lines = [
                 "#EXTM3U",
                 "#EXT-X-VERSION:3",
-                '#EXT-X-STREAM-INF:BANDWIDTH=4000000,RESOLUTION=1920x1080,CODECS="avc1.640028,mp4a.40.2"',
-                "1080p/playlist.m3u8",
-                '#EXT-X-STREAM-INF:BANDWIDTH=2500000,RESOLUTION=1280x720,CODECS="avc1.640028,mp4a.40.2"',
-                "720p/playlist.m3u8",
-                '#EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=854x480,CODECS="avc1.640028,mp4a.40.2"',
-                "480p/playlist.m3u8",
-                ""
-            ])
+                "#EXT-X-TARGETDURATION:6",
+                "#EXT-X-MEDIA-SEQUENCE:0",
+                "#EXT-X-PLAYLIST-TYPE:VOD",
+            ]
+            for seg in all_segs:
+                q_lines.append("#EXTINF:4.000000,")
+                q_lines.append(seg)
+            q_lines.append("#EXT-X-ENDLIST")
             b2_client.put_object(
                 Bucket=bucket_name,
-                Key=f"{hls_prefix}/master.m3u8",
-                Body=master_content.encode("utf-8"),
+                Key=f"{hls_prefix}/{qname}/playlist.m3u8",
+                Body=("\n".join(q_lines) + "\n").encode("utf-8"),
                 ContentType="application/x-mpegURL"
             )
 
-            # Extract poster frame from first chunk or raw video
-            try:
-                first_seg_key = f"{hls_prefix}/1080p/{existing_1080p_segs[0]}"
-                seg_tmp = tmp_path / "first_seg.ts"
-                b2_client.download_file(bucket_name, first_seg_key, str(seg_tmp))
-                subprocess.run([
-                    "ffmpeg", "-y", "-i", str(seg_tmp),
-                    "-ss", "00:00:01", "-vframes", "1", "-q:v", "2",
-                    str(poster_path)
-                ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                if poster_path.exists():
-                    b2_client.upload_file(str(poster_path), bucket_name, f"{hls_prefix}/poster.jpg", ExtraArgs={"ContentType": "image/jpeg"})
-            except Exception as poster_err:
-                print(f"[ManifestCoordinator] Poster frame note: {poster_err}")
+        codecs_tag = 'CODECS="avc1.640028,mp4a.40.2"' if has_audio else 'CODECS="avc1.640028"'
+        master_content = "\n".join([
+            "#EXTM3U",
+            "#EXT-X-VERSION:3",
+            f'#EXT-X-STREAM-INF:BANDWIDTH=4000000,RESOLUTION=1920x1080,{codecs_tag}',
+            "1080p/playlist.m3u8",
+            f'#EXT-X-STREAM-INF:BANDWIDTH=2500000,RESOLUTION=1280x720,{codecs_tag}',
+            "720p/playlist.m3u8",
+            f'#EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=854x480,{codecs_tag}',
+            "480p/playlist.m3u8",
+            ""
+        ])
+        b2_client.put_object(
+            Bucket=bucket_name,
+            Key=f"{hls_prefix}/master.m3u8",
+            Body=master_content.encode("utf-8"),
+            ContentType="application/x-mpegURL"
+        )
 
-        else:
-            print(f"[ManifestCoordinator] No pre-transcoded segments found. Running fast multi-rendition HLS encoding...")
-            raw_path = tmp_path / "raw.mp4"
-            b2_client.download_file(bucket_name, storage_key, str(raw_path))
-
-            subprocess.run([
-                "ffmpeg", "-y", "-i", str(raw_path),
-                "-ss", "00:00:01", "-vframes", "1", "-q:v", "2",
-                str(poster_path)
-            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-            # Probe audio stream
-            has_audio = False
-            try:
-                probe_res = subprocess.run([
-                    "ffprobe", "-v", "error", "-select_streams", "a",
-                    "-show_entries", "stream=index", "-of", "csv=p=0",
-                    str(raw_path)
-                ], capture_output=True, text=True)
-                if probe_res.stdout.strip():
-                    has_audio = True
-            except Exception:
-                pass
-
-            resolutions = [
-                {"name": "1080p", "scale": "-2:1080", "vbitrate": "4000k"},
-                {"name": "720p",  "scale": "-2:720",  "vbitrate": "2500k"},
-                {"name": "480p",  "scale": "-2:480",  "vbitrate": "1000k"},
-            ]
-
-            split_labels = "".join(f"[v{i+1}]" for i in range(len(resolutions)))
-            filter_complex_parts = [f"[0:v]split={len(resolutions)}{split_labels}"]
-            for i, r in enumerate(resolutions):
-                filter_complex_parts.append(f"[v{i+1}]scale={r['scale']}[v{i+1}out]")
-            filter_complex = "; ".join(filter_complex_parts)
-
-            hls_cmd = [
-                "ffmpeg", "-y", "-i", str(raw_path), "-filter_complex", filter_complex,
-                "-map", "[v1out]", "-c:v:0", "libx264", "-b:v:0", "4000k",
-                "-map", "[v2out]", "-c:v:1", "libx264", "-b:v:1", "2500k",
-                "-map", "[v3out]", "-c:v:2", "libx264", "-b:v:2", "1000k",
-            ]
-
-            if has_audio:
-                hls_cmd += [
-                    "-map", "a:0", "-c:a:0", "aac", "-b:a:0", "128k",
-                    "-map", "a:0", "-c:a:1", "aac", "-b:a:1", "128k",
-                    "-map", "a:0", "-c:a:2", "aac", "-b:a:2", "96k",
-                    "-var_stream_map", "v:0,a:0,name:1080p v:1,a:1,name:720p v:2,a:2,name:480p",
-                ]
-            else:
-                hls_cmd += [
-                    "-var_stream_map", "v:0,name:1080p v:1,name:720p v:2,name:480p",
-                ]
-
-            hls_cmd += [
-                "-preset", "veryfast", "-g", "48", "-sc_threshold", "0",
-                "-hls_time", "4", "-hls_playlist_type", "vod",
-                "-hls_segment_filename", f"{output_hls_dir}/%v/segment_%03d.ts",
-                "-master_pl_name", "master.m3u8",
-                f"{output_hls_dir}/%v/playlist.m3u8"
-            ]
-            subprocess.run(hls_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-            # Upload generated files
-            for file_path in output_hls_dir.glob("**/*"):
-                if file_path.is_file():
-                    rel_path = file_path.relative_to(output_hls_dir)
-                    b2_key = f"{hls_prefix}/{rel_path}"
-                    content_type = "application/x-mpegURL" if file_path.suffix == ".m3u8" else \
-                                   "video/MP2T" if file_path.suffix == ".ts" else \
-                                   "image/jpeg" if file_path.suffix in [".jpg", ".jpeg"] else \
-                                   "application/octet-stream"
-                    b2_client.upload_file(str(file_path), bucket_name, b2_key, ExtraArgs={"ContentType": content_type})
-
-    # Step 3: Update Supabase record
+    # 7. Update Supabase record
     update_data = {
         "url": hls_master_url,
         "thumbnail_url": poster_url,
@@ -838,15 +781,17 @@ def assemble_fmp4_manifest(request: dict):
             update_data.pop("status", None)
             supabase.table("photos").update(update_data).eq("id", photo_id).execute()
 
-    duration = time.time() - start_time
-    print(f"[ManifestCoordinator] Successfully assembled HLS manifest for {storage_key} in {duration:.1f}s")
+    total_duration = time.time() - start_time
+    print(f"[VideoCoordinator] Successfully transcoded {storage_key} in {total_duration:.1f}s via {len(chunk_files)} parallel workers")
+
     return {
         "status": "success",
         "storage_key": storage_key,
         "hls_master_url": hls_master_url,
-        "poster_url": poster_url,
-        "duration_seconds": duration
+        "duration_seconds": total_duration,
+        "parallel_workers": len(chunk_files)
     }
+
 
 
 
