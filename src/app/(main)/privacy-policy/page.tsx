@@ -5,7 +5,7 @@ export default function PrivacyPolicyPage() {
     <LegalPolicyPage
       title="Privacy Policy"
       lastUpdated="August 14, 2026"
-      description="EveBash respects your privacy and is committed to handling personal information responsibly and transparently. This Privacy Policy explains how EveBash (&quot;EveBash&quot;, &quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) collects, uses, stores, processes, shares, and protects personal information when people use our websites, mobile applications, accounts, event galleries, media-sharing features, business features, subscriptions, payment features, Find You functionality, and related services (collectively, the &quot;Services&quot;). By using EveBash, you acknowledge the practices described in this Privacy Policy. Where consent is required by applicable law, we will request appropriate consent before carrying out the relevant processing."
+      description="EveBash respects your privacy and is committed to handling personal information responsibly and transparently. This Privacy Policy explains how EveBash collects, uses, stores, processes, shares, and protects personal information when people use our websites, mobile applications, accounts, event galleries, media-sharing features, business features, subscriptions, payment features, find You functionality, and related services. By using EveBash, you acknowledge the practices described in this Privacy Policy. Where consent is required by applicable law, we will request appropriate consent before carrying out the relevant processing."
       sections={[
         {
           title: "1. Scope of This Privacy Policy",
