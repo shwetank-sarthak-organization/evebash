@@ -580,10 +580,15 @@ def transcode_cloud_segment(task: dict) -> dict:
                 "ffmpeg", "-y", "-i", str(seg_file),
                 "-vf", f"scale={res['scale']}",
                 "-c:v", "libx264", "-b:v", res["vbitrate"],
-                "-preset", "veryfast", "-g", "48",
+                "-preset", "veryfast", "-g", "48", "-keyint_min", "48",
+                "-flags", "+cgop", "-sc_threshold", "0",
             ]
             if has_audio:
-                cmd += ["-c:a", "aac", "-b:a", "128k"]
+                cmd += [
+                    "-c:a", "aac", "-b:a", "128k",
+                    "-ar", "48000", "-ac", "2",
+                    "-af", "aresample=async=1000:first_pts=0",
+                ]
             else:
                 cmd += ["-an"]
 
