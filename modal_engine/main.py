@@ -564,14 +564,18 @@ async def process_fmp4_chunk_transcode(request: fastapi.Request):
         out_dir = tmp_path / "hls"
         out_dir.mkdir(parents=True, exist_ok=True)
 
+        temp_chunk_key = f"raw_chunks/{storage_key}/part_{part_number:03d}.mp4"
         if chunk_bytes:
             raw_chunk_path.write_bytes(chunk_bytes)
         else:
             try:
-                b2_client.download_file(bucket_name, storage_key, str(raw_chunk_path))
-            except Exception as dl_err:
-                print(f"[StreamChunkWorker] Raw chunk download warning for part {part_number}: {dl_err}")
-                return {"status": "chunk_not_ready", "part_number": part_number}
+                b2_client.download_file(bucket_name, temp_chunk_key, str(raw_chunk_path))
+            except Exception:
+                try:
+                    b2_client.download_file(bucket_name, storage_key, str(raw_chunk_path))
+                except Exception as dl_err:
+                    print(f"[StreamChunkWorker] Raw chunk download note for part {part_number}: {dl_err}")
+                    return {"status": "chunk_not_ready", "part_number": part_number}
 
         # Transcode chunk into HLS renditions via FFmpeg
         for res in resolutions:
@@ -598,6 +602,12 @@ async def process_fmp4_chunk_transcode(request: fastapi.Request):
                     str(seg_file), bucket_name, b2_seg_key,
                     ExtraArgs={"ContentType": "video/MP2T"}
                 )
+
+        # Cleanup temp chunk from B2 if it was downloaded from raw_chunks/
+        try:
+            b2_client.delete_object(Bucket=bucket_name, Key=temp_chunk_key)
+        except Exception:
+            pass
 
     print(f"[StreamChunkWorker] Successfully processed part {part_number}/{total_parts} for {storage_key}")
     import fastapi.responses

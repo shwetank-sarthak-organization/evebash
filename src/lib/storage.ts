@@ -296,17 +296,17 @@ async function uploadLargeFileInChunks(
 
                 console.log(`[Storage] ✓ Chunk ${partNumber}/${totalChunks} done (sha1: ${sha1.substring(0, 8)}...)`);
 
-                // Direct stream to Modal real-time chunk transcoder (bypassing Express backend completely)
-                const modalChunkUrl = process.env.NEXT_PUBLIC_MODAL_CHUNK_URL ||
-                    "https://shwetank-sarthak--wedding-media-engine-process-fmp4-chun-cf16e5.modal.run";
-
-                fetch(`${modalChunkUrl}?storage_key=${encodeURIComponent(storageKey)}&part_number=${partNumber}&total_parts=${totalChunks}`, {
+                // Fire-and-forget lightweight part completion notification to backend
+                fetch(getApiUrl("/api/media/upload/chunk/complete-part"), {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/octet-stream",
-                    },
-                    body: chunkBlob,
-                }).catch((err) => console.warn(`[Storage] Direct Modal chunk stream note:`, err));
+                    headers,
+                    body: JSON.stringify({
+                        storageKey,
+                        eventId,
+                        partNumber,
+                        totalParts: totalChunks,
+                    }),
+                }).catch((err) => console.warn(`[Storage] Part complete notification failed (non-critical):`, err));
 
                 return; // success — exit retry loop
 
