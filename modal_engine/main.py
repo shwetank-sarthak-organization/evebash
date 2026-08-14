@@ -2,6 +2,11 @@ import modal
 import os
 import io
 
+try:
+    import fastapi
+except ImportError:
+    fastapi = None
+
 app = modal.App("wedding-media-engine")
 
 # Define the Modal image with system OpenCV dependencies and InsightFace + ONNX Runtime.
