@@ -237,7 +237,7 @@ export async function publishManifestAssemblyTask(payload: {
   const qstashToken = process.env.QSTASH_TOKEN;
   const targetUrl = (
     process.env.MODAL_FMP4_MANIFEST_URL ||
-    "https://shwetank-sarthak--wedding-media-engine-assemble-fmp4-man-156b2c.modal.run"
+    "https://shwetank-sarthak--wedding-media-engine-assemble-fmp4-manifest.modal.run"
   ).trim();
 
   if (!qstashToken) {
