@@ -599,11 +599,26 @@ def transcode_cloud_segment(task: dict) -> dict:
             ]
             subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+            quality_entries[qname] = []
+            playlist_file = out_dir / "playlist.m3u8"
+            if playlist_file.exists():
+                lines = playlist_file.read_text().splitlines()
+                current_extinf = None
+                for line in lines:
+                    if line.startswith("#EXTINF:"):
+                        current_extinf = line
+                    elif line.endswith(".ts") and current_extinf:
+                        quality_entries[qname].append({
+                            "extinf": current_extinf,
+                            "filename": line.strip()
+                        })
+                        current_extinf = None
+
             for out_seg in sorted(out_dir.glob("*.ts")):
                 b2_key = f"{hls_prefix}/{qname}/{out_seg.name}"
                 b2_client.upload_file(str(out_seg), bucket_name, b2_key, ExtraArgs={"ContentType": "video/MP2T"})
 
-    return {"segment_index": seg_index, "status": "done"}
+    return {"segment_index": seg_index, "quality_entries": quality_entries, "status": "done"}
 
 
 @app.function(
@@ -620,7 +635,7 @@ def assemble_fmp4_manifest(request: dict):
     1. Downloads raw video from B2 (works for any size: 10MB to 50GB).
     2. Slices raw video in cloud in 2 seconds into 15s keyframe-aligned segments.
     3. Fans out to parallel Modal containers: transcode_cloud_segment.map(tasks).
-    4. Generates poster.jpg, individual quality playlists, and master.m3u8.
+    4. Generates poster.jpg, individual quality playlists with exact #EXTINF timestamps, and master.m3u8.
     5. Updates Supabase record to status: "processed".
     """
     import boto3
@@ -721,20 +736,17 @@ def assemble_fmp4_manifest(request: dict):
             ]
 
             # Distributed parallel mapping across Modal workers
-            list(transcode_cloud_segment.map(tasks))
+            results = list(transcode_cloud_segment.map(tasks))
+            results.sort(key=lambda r: r.get("segment_index", 0))
             print(f"[CloudFanOut] All {len(tasks)} segments transcoded in parallel!")
 
-            # 6. Assemble accurate playlists for each quality
-            paginator = b2_client.get_paginator("list_objects_v2")
+            # 6. Assemble accurate playlists for each quality using exact FFmpeg EXTINF lines
             for qname in ["1080p", "720p", "480p"]:
-                seg_keys = []
-                for page in paginator.paginate(Bucket=bucket_name, Prefix=f"{hls_prefix}/{qname}/seg_"):
-                    for obj in page.get("Contents", []):
-                        if obj["Key"].endswith(".ts"):
-                            seg_keys.append(obj["Key"].split("/")[-1])
-                seg_keys.sort()
+                q_entries = []
+                for r in results:
+                    q_entries.extend(r.get("quality_entries", {}).get(qname, []))
 
-                if not seg_keys:
+                if not q_entries:
                     continue
 
                 q_lines = [
@@ -744,9 +756,9 @@ def assemble_fmp4_manifest(request: dict):
                     "#EXT-X-MEDIA-SEQUENCE:0",
                     "#EXT-X-PLAYLIST-TYPE:VOD",
                 ]
-                for seg_name in seg_keys:
-                    q_lines.append("#EXTINF:6.000000,")
-                    q_lines.append(seg_name)
+                for entry in q_entries:
+                    q_lines.append(entry["extinf"])
+                    q_lines.append(entry["filename"])
                 q_lines.append("#EXT-X-ENDLIST")
 
                 b2_client.put_object(
