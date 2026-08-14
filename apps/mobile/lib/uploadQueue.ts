@@ -753,7 +753,7 @@ async function processQueue() {
 // Real-Time Segment Upload Pipeline (Mobile — ffmpeg-kit-react-native)
 // ---------------------------------------------------------------------------
 
-const MODAL_SEGMENT_URL = (process.env.EXPO_PUBLIC_MODAL_SEGMENT_URL || "").trim().replace(/\/+$/, "");
+const MODAL_SEGMENT_URL = (process.env.EXPO_PUBLIC_MODAL_SEGMENT_URL || "https://shwetank-sarthak--wedding-media-engine-process-video-segment.modal.run").trim().replace(/\/+$/, "");
 const MOBILE_MAX_PARALLEL_UPLOADS = 4;
 
 export interface MobileVideoUploadOptions {
@@ -784,7 +784,6 @@ export async function uploadVideoSegmentedMobile(options: MobileVideoUploadOptio
     const { data: sessionData } = await supabase.auth.getSession();
     const accessToken = sessionData.session?.access_token;
     if (!accessToken) throw new Error('Not authenticated');
-    if (!MODAL_SEGMENT_URL) throw new Error('EXPO_PUBLIC_MODAL_SEGMENT_URL is not configured');
 
     onProgress?.(2);
 

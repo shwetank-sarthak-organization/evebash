@@ -642,7 +642,7 @@ export interface VideoSegmentUploadOptions {
 
 const MODAL_SEGMENT_URL = (() => {
     const base = (process.env.NEXT_PUBLIC_MODAL_SEGMENT_URL || "").trim().replace(/\/+$/, "");
-    return base || null;
+    return base || "https://shwetank-sarthak--wedding-media-engine-process-video-segment.modal.run";
 })();
 
 const MAX_PARALLEL_UPLOADS = 4;
