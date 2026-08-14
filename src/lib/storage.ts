@@ -726,16 +726,114 @@ export async function uploadVideoSegmented(options: VideoSegmentUploadOptions): 
         const ffmpeg = new FFmpeg();
 
         const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm";
+        console.log("[SegmentUpload] Fetching FFmpeg core and WASM binaries...");
+        const coreBlobUrl = await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript");
+        const wasmBlobUrl = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm");
+
+        // Clean module worker that directly imports the core without triggering browser importScripts TypeError
+        const cleanWorkerCode = `
+const FFMessageType = {
+    LOAD: "LOAD",
+    EXEC: "EXEC",
+    WRITE_FILE: "WRITE_FILE",
+    READ_FILE: "READ_FILE",
+    DELETE_FILE: "DELETE_FILE",
+    LIST_DIR: "LIST_DIR",
+    LOG: "LOG",
+    PROGRESS: "PROGRESS",
+    ERROR: "ERROR",
+};
+
+let ffmpegCore;
+
+self.onmessage = async ({ data: { id, type, data } }) => {
+    if (type === FFMessageType.LOAD) {
+        try {
+            const { coreURL, wasmURL } = data;
+            const coreMod = await import(coreURL);
+            const createCore = coreMod.default || coreMod;
+            ffmpegCore = await createCore({
+                mainScriptUrlOrBlob: \`\${coreURL}#\${btoa(JSON.stringify({ wasmURL }))}\`,
+            });
+            ffmpegCore.setLogger((logData) => self.postMessage({ type: FFMessageType.LOG, data: logData }));
+            ffmpegCore.setProgress((progData) => self.postMessage({ type: FFMessageType.PROGRESS, data: progData }));
+            self.postMessage({ id, type: FFMessageType.LOAD, data: true });
+        } catch (err) {
+            self.postMessage({ id, type: FFMessageType.ERROR, data: String(err) });
+        }
+        return;
+    }
+    if (type === FFMessageType.EXEC) {
+        try {
+            const { args, timeout = -1 } = data;
+            ffmpegCore.setTimeout(timeout);
+            ffmpegCore.exec(...args);
+            const ret = ffmpegCore.ret;
+            ffmpegCore.reset();
+            self.postMessage({ id, type: FFMessageType.EXEC, data: ret });
+        } catch (err) {
+            self.postMessage({ id, type: FFMessageType.ERROR, data: String(err) });
+        }
+        return;
+    }
+    if (type === FFMessageType.WRITE_FILE) {
+        try {
+            const { path, data: fileData } = data;
+            ffmpegCore.FS.writeFile(path, fileData);
+            self.postMessage({ id, type: FFMessageType.WRITE_FILE, data: true });
+        } catch (err) {
+            self.postMessage({ id, type: FFMessageType.ERROR, data: String(err) });
+        }
+        return;
+    }
+    if (type === FFMessageType.READ_FILE) {
+        try {
+            const { path, encoding } = data;
+            const res = ffmpegCore.FS.readFile(path, { encoding });
+            self.postMessage({ id, type: FFMessageType.READ_FILE, data: res });
+        } catch (err) {
+            self.postMessage({ id, type: FFMessageType.ERROR, data: String(err) });
+        }
+        return;
+    }
+    if (type === FFMessageType.LIST_DIR) {
+        try {
+            const { path } = data;
+            const names = ffmpegCore.FS.readdir(path);
+            const nodes = [];
+            for (const name of names) {
+                const stat = ffmpegCore.FS.stat(\`\${path}/\${name}\`);
+                nodes.push({ name, isDir: ffmpegCore.FS.isDir(stat.mode) });
+            }
+            self.postMessage({ id, type: FFMessageType.LIST_DIR, data: nodes });
+        } catch (err) {
+            self.postMessage({ id, type: FFMessageType.ERROR, data: String(err) });
+        }
+        return;
+    }
+    if (type === FFMessageType.DELETE_FILE) {
+        try {
+            const { path } = data;
+            ffmpegCore.FS.unlink(path);
+            self.postMessage({ id, type: FFMessageType.DELETE_FILE, data: true });
+        } catch (err) {
+            self.postMessage({ id, type: FFMessageType.ERROR, data: String(err) });
+        }
+        return;
+    }
+};
+`;
         const workerBlobUrl = URL.createObjectURL(
-            new Blob([`import "https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/worker.js";`], {
-                type: "text/javascript",
-            })
+            new Blob([cleanWorkerCode], { type: "text/javascript" })
         );
+
+        console.log("[SegmentUpload] Initializing FFmpeg Web Worker...");
         await ffmpeg.load({
-            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+            coreURL: coreBlobUrl,
+            wasmURL: wasmBlobUrl,
             classWorkerURL: workerBlobUrl,
         });
+        console.log("[SegmentUpload] FFmpeg.wasm successfully initialized!");
 
         onProgress?.(10);
 
