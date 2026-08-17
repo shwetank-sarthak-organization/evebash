@@ -6,6 +6,14 @@ import TenantGuard from "@/components/TenantGuard";
 export const metadata: Metadata = {
   title: "Wedding Album",
   description: "Our Wedding Celebration",
+  icons: {
+    icon: [
+      { url: "/evebash-logo-gold.svg", type: "image/svg+xml" },
+      { url: "/evebash-logo-gold.png", type: "image/png" },
+    ],
+    shortcut: "/evebash-logo-gold.svg",
+    apple: "/evebash-logo-gold.png",
+  },
 };
 
 export default function TenantLayout({
@@ -16,6 +24,9 @@ export default function TenantLayout({
   return (
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
       <head>
+        <link rel="icon" href="/evebash-logo-gold.svg" type="image/svg+xml" />
+        <link rel="alternate icon" href="/evebash-logo-gold.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/evebash-logo-gold.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Lato:wght@100;300;400;700;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet" />
