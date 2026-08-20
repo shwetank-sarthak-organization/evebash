@@ -1,17 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  async headers() {
-    return [
-      {
-        // Enable SharedArrayBuffer for FFmpeg.wasm on upload-related pages only
-        source: '/(main)/dashboard/:path*',
-        headers: [
-          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
-          { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
-        ],
-      },
-    ];
-  },
   async redirects() {
     return [
       {
@@ -51,11 +39,6 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '50mb',
     },
-  },
-  webpack: (config) => {
-    // Required for @ffmpeg/ffmpeg WASM threading
-    config.resolve.fallback = { ...config.resolve.fallback, fs: false };
-    return config;
   },
 };
 

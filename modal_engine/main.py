@@ -489,44 +489,8 @@ def find_matching_photos(request: dict):
 
 
 # ---------------------------------------------------------------------------
-# Real-Time Parallel Video Segment Pipeline
+# Cloud Video Transcoding & HLS Manifest Assembly
 # ---------------------------------------------------------------------------
-
-@app.function(
-    image=image,
-    cpu=2.0,
-    memory=4096,
-    timeout=300,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
-)
-@modal.fastapi_endpoint(method="POST")
-async def process_video_segment(request: fastapi.Request):
-    """
-    Real-Time Segment Worker (Web Endpoint):
-    Receives a single self-contained 30s .ts segment binary directly from browser/app,
-    transcodes into 1080p, 720p, 480p with stereo AAC audio,
-    uploads raw segment + all renditions to Backblaze B2,
-    and returns segment metadata (index, actual duration, quality segment names).
-    """
-    import tempfile
-    import pathlib
-    import subprocess
-    import boto3
-    import fastapi.responses
-
-    CORS_HEADERS = {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Segment-Index, X-Total-Segments, X-Storage-Key, X-Photo-Id",
-    }
-
-    if request.method == "OPTIONS":
-        return fastapi.responses.Response(status_code=204, headers=CORS_HEADERS)
-
-    storage_key = request.query_params.get("storage_key") or request.headers.get("x-storage-key", "")
-    segment_index = int(request.query_params.get("segment_index") or request.headers.get("x-segment-index") or 0)
-    total_segments = int(request.query_params.get("total_segments") or request.headers.get("x-total-segments") or 1)
-    photo_id = request.query_params.get("photo_id") or request.headers.get("x-photo-id", "")
 
 @app.function(
     image=image,

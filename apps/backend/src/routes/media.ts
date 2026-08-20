@@ -562,66 +562,6 @@ mediaRouter.post("/upload/chunk/complete-part", asyncRoute(async (request, respo
   response.json({ success: true, partNumber, totalParts });
 }));
 
-// ---------------------------------------------------------------------------
-// New: Real-Time Segment Pipeline (FFmpeg.wasm / ffmpeg-kit)
-// ---------------------------------------------------------------------------
-
-// Initialize a video upload: creates Supabase record, returns storageKey + photoId
-mediaRouter.post("/upload/video/init", asyncRoute(async (request, response) => {
-  const eventId = String(request.body?.eventId || "");
-  const fileName = String(request.body?.fileName || "video.mp4");
-  const fileSize = Number(request.body?.fileSize || 0);
-
-  if (!eventId) return jsonError(response, 400, "Missing eventId");
-
-  const userId = await getUploadUserId(request);
-  if (userId === "anonymous" && !(await validateAnonymousEvent(eventId))) {
-    return jsonError(response, 401, "Invalid event or unauthorized access");
-  }
-
-  const storageKey = `events/${eventId}/videos/${Date.now()}-${fileName.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-  
-  const { row, photoId } = toPhotoRow({
-    storageKey,
-    eventId,
-    fileName,
-    fileSize,
-    userId,
-    resourceType: "video",
-  });
-
-  const supabase = getSupabaseAdminClient();
-  const { error } = await supabase.from("photos").upsert(row);
-
-  if (error) {
-    console.error("[VideoInit] Supabase insert error:", error);
-    return jsonError(response, 500, "Failed to create video record");
-  }
-
-  response.json({ success: true, storageKey, photoId });
-}));
-
-// Complete a video segment upload: triggers assemble_fmp4_manifest via QStash
-mediaRouter.post("/upload/video/complete", asyncRoute(async (request, response) => {
-  const storageKey = String(request.body?.storageKey || "");
-  const photoId = String(request.body?.photoId || "");
-  const eventId = String(request.body?.eventId || "");
-  const totalSegments = Number(request.body?.totalSegments || 0);
-
-  if (!storageKey || !photoId) return jsonError(response, 400, "Missing storageKey or photoId");
-
-  background("AssembleVideoManifest", () =>
-    publishManifestAssemblyTask({
-      id: photoId,
-      storage_key: storageKey,
-      event_id: eventId,
-      total_segments: totalSegments,
-    })
-  );
-
-  response.json({ success: true, storageKey, photoId });
-}));
-
 
 mediaRouter.post("/upload/chunk/abort", asyncRoute(async (request, response) => {
   const fileId = String(request.body?.fileId || "");
