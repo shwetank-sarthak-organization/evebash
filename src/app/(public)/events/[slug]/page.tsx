@@ -351,14 +351,18 @@ function EventPageContent() {
         width: p.width || 800,
         height: p.height || 600,
         filename: p.storageKey ? p.storageKey.split('/').pop() : 'photo',
-        thumbnailUrl: p.thumbnailUrl,
+        thumbnailUrl: p.thumbnailUrl || p.url || "",
         mediaType: p.mediaType,
         resourceType: p.resourceType
     }));
 
-    const loadGalleryPhotos = async (gallery: Event, page = 0, append = false) => {
-        if (!gallery.parentId && event) {
-            const eventIds = Array.from(new Set([event.id, ...subEvents.map(s => s.id)].filter(Boolean)));
+    const loadGalleryPhotos = async (gallery: Event, page = 0, append = false, overrideSubEvents?: Event[]) => {
+        const currentMainEvent = gallery.type === 'main' ? gallery : event;
+        const subEventList = overrideSubEvents || subEvents;
+
+        if (!gallery.parentId && (currentMainEvent || gallery.type === 'main')) {
+            const rootId = gallery.type === 'main' ? gallery.id : currentMainEvent?.id;
+            const eventIds = Array.from(new Set([rootId, ...subEventList.map(s => s.id)].filter(Boolean) as string[]));
             if (eventIds.length > 0) {
                 const favPhotos = await getFavouritePhotosForEvents(eventIds);
                 if (favPhotos.length > 0) {
@@ -497,7 +501,7 @@ function EventPageContent() {
                 setActiveGallery(null);
                 setActiveVirtualGallery(null);
                 setGalleryMediaTab("photos");
-                await loadGalleryPhotos(eventData, 0, false);
+                await loadGalleryPhotos(eventData, 0, false, resolvedSubEvents);
             } else {
                 // Fetch Photos (Sub-event or single gallery)
                 console.log(`[EventPage] Sub-view detected. Fetching photos for: ${eventData.id}`);
@@ -587,7 +591,7 @@ function EventPageContent() {
         );
     }
 
-    const photoItems = photos.filter(photo => photo.mediaType !== "video" && photo.resourceType !== "video" && !!photo.thumbnailUrl);
+    const photoItems = photos.filter(photo => photo.mediaType !== "video" && photo.resourceType !== "video" && !!(photo.thumbnailUrl || photo.src));
     const videoItems = photos.filter(photo => photo.mediaType === "video" || photo.resourceType === "video");
     const activeGalleryItems = galleryMediaTab === "videos" ? videoItems : photoItems;
     const displayedPhotoCount = mediaTotals.photos || photoItems.length;
