@@ -289,13 +289,24 @@ async function notifyQueueDrained() {
   if (succeeded.length > 0) {
     try {
       const triggerUrl = getEndpointsForPath('/api/media/trigger-modal-batch?immediate=true')[0];
-      if (triggerUrl) {
-        console.log(`[UploadQueue] Queue drained. Triggering immediate face indexing at: ${triggerUrl}`);
-        
-        // Trigger asynchronously to avoid blocking the UI alert/notification
-        fetch(triggerUrl, { method: 'POST' }).catch(err => {
-          console.warn('[UploadQueue] Immediate face indexing trigger failed:', err);
-        });
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (triggerUrl && accessToken) {
+        const eventIds = Array.from(new Set(succeeded.map(item => item.eventId).filter(Boolean)));
+        console.log(`[UploadQueue] Queue drained. Triggering face indexing for ${eventIds.length} event(s).`);
+
+        for (const eventId of eventIds) {
+          fetch(triggerUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({ eventId }),
+          }).catch(err => {
+            console.warn(`[UploadQueue] Face indexing trigger failed for event ${eventId}:`, err);
+          });
+        }
       }
     } catch (triggerErr) {
       console.warn('[UploadQueue] Failed to initiate immediate face indexing trigger:', triggerErr);
@@ -571,7 +582,7 @@ async function uploadWorker(item: UploadQueueItem) {
       console.warn('[UploadQueue] Could not get file size info:', infoErr);
     }
 
-    if (fileSize > 100 * 1024 * 1024) { // > 100 MB
+    if (fileSize > 100 * 1024 * 1024) { // > 100 MB (videos and large photos)
       await uploadWorkerLargeFileInChunks(item, accessToken, fileSize);
       return;
     }
@@ -710,3 +721,4 @@ async function processQueue() {
     uploadWorker(nextItem); // intentionally not awaited — runs concurrently
   }
 }
+

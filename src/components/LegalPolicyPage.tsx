@@ -9,17 +9,19 @@ type PolicySection = {
 type LegalPolicyPageProps = {
   title: string;
   description: string;
+  lastUpdated?: string;
   sections: PolicySection[];
 };
 
 export default function LegalPolicyPage({
   title,
   description,
+  lastUpdated = "August 14, 2026",
   sections,
 }: LegalPolicyPageProps) {
   return (
     <main className="min-h-screen bg-[var(--site-bg)] px-4 py-24 text-[var(--site-text)] sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-7xl">
         <Link
           href="/"
           className="text-sm font-semibold text-sky-400 hover:text-sky-300"
@@ -35,7 +37,7 @@ export default function LegalPolicyPage({
             {title}
           </h1>
           <p className="mt-3 text-sm text-[var(--site-muted)]">
-            Last updated: July 25, 2026
+            Last updated: {lastUpdated}
           </p>
           <p className="mt-6 text-lg leading-8 text-[var(--site-subtle)]">
             {description}

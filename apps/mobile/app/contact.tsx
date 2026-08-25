@@ -17,7 +17,7 @@ export default function ContactUsScreen() {
   const [submitError, setSubmitError] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState('');
 
-  const apiBaseUrl = (process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000').replace(/\/+$/, '');
+  const apiBaseUrl = (process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8080').replace(/\/+$/, '');
 
   const clearSubmitState = () => {
     setSubmitError('');
@@ -31,7 +31,7 @@ export default function ContactUsScreen() {
     setSubmitSuccess('');
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/contact-messages`, {
+      const response = await fetch(`${apiBaseUrl}/api/v1/contact-messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

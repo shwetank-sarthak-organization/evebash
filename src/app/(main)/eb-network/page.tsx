@@ -102,7 +102,7 @@ function getExperienceLabel(experience?: number) {
 }
 
 // Preserved for the next EB Network rollout. Do not delete; this is the original full implementation.
-export function LegacyMarketplacePage() {
+function LegacyMarketplacePage() {
   const { user } = useAuth();
   const router = useRouter();
 

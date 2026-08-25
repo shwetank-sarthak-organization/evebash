@@ -88,7 +88,7 @@ function getBusinessLimit(role?: string | null) {
 }
 
 // Preserved for the next EB Business rollout. Do not delete; this is the original full implementation.
-export function LegacyBizHubPage() {
+function LegacyBizHubPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 

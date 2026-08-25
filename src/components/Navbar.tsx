@@ -50,10 +50,10 @@ export default function Navbar() {
                 <div className="flex items-center justify-between h-20">
                     {/* Logo & Brand */}
                     <Link href="/" className="flex items-center space-x-2 group">
-                        <div className="bg-white text-[#0f172a] p-2 rounded-lg group-hover:bg-slate-200 transition-colors">
-                            <EveBashLogo className="h-6 w-6" aria-hidden="true" />
+                        <div className="bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#D4AF37] p-2 rounded-lg group-hover:bg-[#D4AF37]/20 group-hover:border-[#D4AF37]/60 transition-all duration-300">
+                            <EveBashLogo className="h-6 w-6 text-[#D4AF37]" aria-hidden="true" />
                         </div>
-                        <span className="font-playfair text-xl font-bold text-[var(--site-text)]">
+                        <span className="font-playfair text-xl font-bold text-[var(--site-text)] group-hover:text-[#D4AF37] transition-colors">
                             EveBash
                         </span>
                     </Link>

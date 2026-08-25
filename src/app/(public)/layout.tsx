@@ -8,6 +8,14 @@ import Footer from "@/components/Footer";
 export const metadata: Metadata = {
     title: "EveBash | Premium Wedding Photography",
     description: "Capturing life's most beautiful moments.",
+    icons: {
+        icon: [
+            { url: "/evebash-logo-gold.svg", type: "image/svg+xml" },
+            { url: "/evebash-logo-gold.png", type: "image/png" },
+        ],
+        shortcut: "/evebash-logo-gold.svg",
+        apple: "/evebash-logo-gold.png",
+    },
 };
 
 export default function PublicLayout({
@@ -18,6 +26,9 @@ export default function PublicLayout({
     return (
         <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
             <head>
+                <link rel="icon" href="/evebash-logo-gold.svg" type="image/svg+xml" />
+                <link rel="alternate icon" href="/evebash-logo-gold.png" type="image/png" />
+                <link rel="apple-touch-icon" href="/evebash-logo-gold.png" />
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
                 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@100;300;400;700;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet" />

@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getImageUrl } from "@/lib/imageUrl";
 import { Heart, MessageCircle, Send, X, Download, ChevronLeft, ChevronRight, Trash2, Loader2, Image as ImageIcon, RotateCcw, RotateCw, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { HLSVideoPlayer } from "@/components/ui/HLSVideoPlayer";
 
 export interface LightboxTheme {
     background?: string;
@@ -226,7 +227,7 @@ export function Lightbox({
 
     const handleToggleFavourite = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!onToggleFavourite || isTogglingFavourite || isVideo) return;
+        if (!onToggleFavourite || isTogglingFavourite) return;
 
         setIsTogglingFavourite(true);
         try {
@@ -296,7 +297,7 @@ export function Lightbox({
                         </div>
 
                         <div className="flex items-center space-x-1 pointer-events-auto">
-                            {onToggleFavourite && !isVideo && (
+                            {onToggleFavourite && (
                                 <button
                                     onClick={handleToggleFavourite}
                                     disabled={isTogglingFavourite}
@@ -386,11 +387,12 @@ export function Lightbox({
                                 className="relative flex w-full items-center justify-center pointer-events-none"
                             >
                                 {isVideo ? (
-                                    <video
-                                        key={photo.src}
+                                    <HLSVideoPlayer
+                                        mediaId={photo.id}
                                         src={photo.src}
-                                        className="max-h-[60vh] w-[95vw] max-w-5xl object-contain shadow-2xl pointer-events-auto md:max-h-[85vh]"
-                                        style={{ borderRadius: viewerTheme.radius, backgroundColor: viewerTheme.tile }}
+                                        poster={photo.thumbnailUrl}
+                                        className="max-h-[60vh] w-[95vw] max-w-5xl shadow-2xl pointer-events-auto md:max-h-[85vh]"
+                                        style={{ borderRadius: viewerTheme.radius }}
                                         controls
                                         playsInline
                                         autoPlay

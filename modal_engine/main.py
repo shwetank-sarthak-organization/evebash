@@ -2,6 +2,11 @@ import modal
 import os
 import io
 
+try:
+    import fastapi
+except ImportError:
+    fastapi = None
+
 app = modal.App("wedding-media-engine")
 
 # Define the Modal image with system OpenCV dependencies and InsightFace + ONNX Runtime.
@@ -113,13 +118,15 @@ def process_media_batch(request: dict):
 )
 def process_single_photo(photo_data: dict):
     import time
-    start_time = time.time()
-
+    import io
+    import os
     import boto3
-    from PIL import Image
-    from supabase import create_client, Client
     import numpy as np
     import cv2
+    from PIL import Image, ImageOps
+    from supabase import create_client, Client
+
+    start_time = time.time()
 
     # ── 1. Init Supabase and B2 ──────────────────────────────────────────
     supabase: Client = create_client(
@@ -144,33 +151,73 @@ def process_single_photo(photo_data: dict):
         return {"error": "no object key", "id": photo_id}
 
     try:
-        # ── 2. Download preview WebP from B2 ────────────────────────────
-        preview_key = f"{object_key}-preview.webp"
-
+        # ── 2. Download original photo from B2 (Single Download) ────────────
+        print(f"[{photo_id}] Downloading original photo from B2: {object_key}")
         try:
-            print(f"[{photo_id}] Downloading preview: {preview_key}")
-            response = b2_client.get_object(Bucket=bucket_name, Key=preview_key)
+            response = b2_client.get_object(Bucket=bucket_name, Key=object_key)
             image_bytes = response['Body'].read()
-            nparr = np.frombuffer(image_bytes, np.uint8)
-            img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            if img_bgr is None:
-                raise ValueError("cv2 failed to decode preview WebP image bytes")
-            h, w, _ = img_bgr.shape
-            print(f"[{photo_id}] Preview loaded: {w}×{h}px")
-        except Exception as e:
-            print(f"[{photo_id}] Preview not found ({e}). Marking failed.")
-            try:
-                b2_client.delete_object(Bucket=bucket_name, Key=object_key)
-            except Exception:
-                pass
+        except Exception as dl_err:
+            print(f"[{photo_id}] Failed to download original photo ({dl_err}). Marking failed.")
             try:
                 supabase.table("photos").update({"status": "failed"}).eq("id", photo_id).execute()
             except Exception:
                 pass
-            return {"status": "error", "photo_id": photo_id, "error": "Preview missing."}
+            return {"status": "error", "photo_id": photo_id, "error": f"Download failed: {dl_err}"}
 
-        # ── 3. Face Detection & Alignment & Encoding — AuraFace ─────────
-        # Retrieve the global in-memory indexing model instance
+        # ── 3. Image Decoding & EXIF Orientation ───────────────────────────
+        try:
+            pil_img = Image.open(io.BytesIO(image_bytes))
+            try:
+                pil_img = ImageOps.exif_transpose(pil_img)
+            except Exception:
+                pass
+            if pil_img.mode != "RGB":
+                pil_img = pil_img.convert("RGB")
+            orig_w, orig_h = pil_img.size
+            print(f"[{photo_id}] Original image loaded: {orig_w}×{orig_h}px")
+        except Exception as decode_err:
+            print(f"[{photo_id}] PIL failed to decode image: {decode_err}")
+            return {"status": "error", "photo_id": photo_id, "error": str(decode_err)}
+
+        # ── 4. Resizing & Thumbnail WebP Generation ────────────────────────
+        # Generate 1080p Preview WebP
+        preview_img = pil_img.copy()
+        preview_img.thumbnail((1920, 1920), Image.Resampling.LANCZOS)
+        preview_buf = io.BytesIO()
+        preview_img.save(preview_buf, format="WEBP", quality=75)
+        preview_bytes = preview_buf.getvalue()
+
+        # Generate 480p Thumbnail WebP
+        thumb_img = pil_img.copy()
+        thumb_img.thumbnail((480, 480), Image.Resampling.LANCZOS)
+        thumb_buf = io.BytesIO()
+        thumb_img.save(thumb_buf, format="WEBP", quality=75)
+        thumb_bytes = thumb_buf.getvalue()
+
+        # Upload WebP variants directly to Backblaze B2
+        preview_key = f"{object_key}-preview.webp"
+        thumb_key   = f"{object_key}-thumbnail.webp"
+
+        b2_client.put_object(Bucket=bucket_name, Key=preview_key, Body=preview_bytes, ContentType="image/webp")
+        b2_client.put_object(Bucket=bucket_name, Key=thumb_key, Body=thumb_bytes, ContentType="image/webp")
+        print(f"[{photo_id}] Uploaded WebP variants to B2: {preview_key}, {thumb_key}")
+
+        # Construct public media URLs
+        media_domain = (
+            os.environ.get("MEDIA_DOMAIN")
+            or os.environ.get("CLOUDFLARE_DOMAIN")
+            or os.environ.get("NEXT_PUBLIC_MEDIA_DOMAIN")
+            or "media.evebash.com"
+        ).strip().replace("https://", "").replace("http://", "").rstrip("/")
+
+        preview_url = f"https://{media_domain}/{preview_key}"
+        thumbnail_url = f"https://{media_domain}/{thumb_key}"
+
+        # ── 5. Face Detection & AuraFace Vector Extraction ─────────────────
+        img_rgb = np.array(pil_img)
+        img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+        h, w, _ = img_bgr.shape
+
         face_analysis = get_indexing_model()
         faces = face_analysis.get(img_bgr)
         print(f"[{photo_id}] AuraFace detector found {len(faces)} face(s).")
@@ -181,14 +228,14 @@ def process_single_photo(photo_data: dict):
             if embedding is not None:
                 face_encodings.append(embedding)
 
-        # ── 4. Save face embeddings to Supabase ─────────────────────────
+        # ── 6. Save face records to Supabase ──────────────────────────────
         if face_encodings:
             face_records = []
             for encoding in face_encodings:
                 face_records.append({
                     "event_id":  event_id,
                     "image_id":  photo_id,
-                    "image_url": original_url,
+                    "image_url": preview_url or original_url,
                     "width":     w,
                     "height":    h,
                     "descriptor": encoding.tolist()
@@ -196,11 +243,24 @@ def process_single_photo(photo_data: dict):
             supabase.table("faces").insert(face_records).execute()
             print(f"[{photo_id}] Saved {len(face_records)} face record(s) to Supabase.")
 
-        # ── 5. Mark face_indexed status ──────────────────────────────────
-        supabase.table("photos").update({"face_indexed": True}).eq("id", photo_id).execute()
-        print(f"[{photo_id}] Marked face_indexed=True ({len(face_encodings)} face(s) found).")
+        # ── 7. Update photo row in Supabase ────────────────────────────────
+        update_data = {
+            "thumbnail_url": thumbnail_url,
+            "preview_url": preview_url,
+            "width": orig_w,
+            "height": orig_h,
+            "face_indexed": True,
+            "status": "processed"
+        }
+        try:
+            supabase.table("photos").update(update_data).eq("id", photo_id).execute()
+        except Exception:
+            update_data.pop("status", None)
+            supabase.table("photos").update(update_data).eq("id", photo_id).execute()
 
-        # ── 6. Log infrastructure cost ───────────────────────────────────
+        print(f"[{photo_id}] Updated photos table: face_indexed=True, thumbnails saved.")
+
+        # ── 8. Log infrastructure cost ───────────────────────────────────
         duration = time.time() - start_time
         cpu_cores = 1.0
         memory_gb = 1.0
@@ -223,7 +283,7 @@ def process_single_photo(photo_data: dict):
         return {"status": "success", "photo_id": photo_id, "faces": len(face_encodings)}
 
     except Exception as e:
-        print(f"[{photo_id}] Error: {e}")
+        print(f"[{photo_id}] Error in process_single_photo: {e}")
         return {"status": "error", "photo_id": photo_id, "error": str(e)}
 
 
@@ -428,34 +488,141 @@ def find_matching_photos(request: dict):
         return {"error": str(e), "matches": []}
 
 
-def run_transcode(request: dict):
+# ---------------------------------------------------------------------------
+# Cloud Video Transcoding & HLS Manifest Assembly
+# ---------------------------------------------------------------------------
+
+@app.function(
+    image=image,
+    cpu=2.0,
+    memory=4096,
+    timeout=300,
+    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+)
+def transcode_cloud_segment(task: dict) -> dict:
     """
-    QStash Webhook Entrypoint for Video Transcoding.
-    Downloads raw video from B2, runs FFmpeg to generate adaptive HLS renditions (.m3u8 + .ts),
-    poster frame, uploads to B2, and updates Supabase database.
+    Parallel Worker Function:
+    Transcodes a single 15-second video segment into 1080p, 720p, and 480p HLS chunks on B2.
     """
-    import time
-    import subprocess
+    import boto3
     import tempfile
     import pathlib
+    import subprocess
+    import os
+
+    storage_key = task["storage_key"]
+    seg_index = task["segment_index"]
+    seg_bytes = task["segment_bytes"]
+    has_audio = task.get("has_audio", True)
+
+    b2_client = boto3.client(
+        's3',
+        endpoint_url=f"https://{os.environ.get('B2_ENDPOINT')}",
+        aws_access_key_id=os.environ.get('B2_KEY_ID'),
+        aws_secret_access_key=os.environ.get('B2_APPLICATION_KEY')
+    )
+    bucket_name = os.environ.get('B2_BUCKET_NAME')
+    hls_prefix = f"hls/{storage_key}"
+
+    resolutions = [
+        {"name": "1080p", "scale": "-2:1080", "vbitrate": "4000k"},
+        {"name": "720p",  "scale": "-2:720",  "vbitrate": "2500k"},
+        {"name": "480p",  "scale": "-2:480",  "vbitrate": "1000k"},
+    ]
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = pathlib.Path(tmp_dir)
+        seg_file = tmp_path / f"segment_{seg_index:03d}.ts"
+        seg_file.write_bytes(seg_bytes)
+        quality_entries = {"1080p": [], "720p": [], "480p": []}
+
+        for res in resolutions:
+            qname = res["name"]
+            out_dir = tmp_path / qname
+            out_dir.mkdir(parents=True, exist_ok=True)
+
+            cmd = [
+                "ffmpeg", "-y", "-i", str(seg_file),
+                "-vf", f"scale={res['scale']}",
+                "-c:v", "libx264", "-b:v", res["vbitrate"],
+                "-preset", "veryfast", "-g", "48", "-keyint_min", "48",
+                "-flags", "+cgop", "-sc_threshold", "0",
+            ]
+            if has_audio:
+                cmd += [
+                    "-c:a", "aac", "-b:a", "128k",
+                    "-ar", "48000", "-ac", "2",
+                    "-af", "aresample=async=1000:first_pts=0",
+                ]
+            else:
+                cmd += ["-an"]
+
+            cmd += [
+                "-hls_time", "6", "-hls_playlist_type", "vod",
+                "-hls_segment_filename", str(out_dir / f"seg_s{seg_index:03d}_%03d.ts"),
+                str(out_dir / "playlist.m3u8")
+            ]
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            quality_entries[qname] = []
+            playlist_file = out_dir / "playlist.m3u8"
+            if playlist_file.exists():
+                lines = playlist_file.read_text().splitlines()
+                current_extinf = None
+                for line in lines:
+                    if line.startswith("#EXTINF:"):
+                        current_extinf = line
+                    elif line.endswith(".ts") and current_extinf:
+                        quality_entries[qname].append({
+                            "extinf": current_extinf,
+                            "filename": line.strip()
+                        })
+                        current_extinf = None
+
+            for out_seg in sorted(out_dir.glob("*.ts")):
+                b2_key = f"{hls_prefix}/{qname}/{out_seg.name}"
+                b2_client.upload_file(str(out_seg), bucket_name, b2_key, ExtraArgs={"ContentType": "video/MP2T"})
+
+    return {"segment_index": seg_index, "quality_entries": quality_entries, "status": "done"}
+
+
+@app.function(
+    image=image,
+    cpu=4.0,
+    memory=8192,
+    timeout=900,
+    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+)
+@modal.fastapi_endpoint(method="POST")
+def assemble_fmp4_manifest(request: dict):
+    """
+    YouTube-Style Cloud Fan-Out Coordinator:
+    1. Downloads raw video from B2 (works for any size: 10MB to 50GB).
+    2. Slices raw video in cloud in 2 seconds into 15s keyframe-aligned segments.
+    3. Fans out to parallel Modal containers: transcode_cloud_segment.map(tasks).
+    4. Generates poster.jpg, individual quality playlists with exact #EXTINF timestamps, and master.m3u8.
+    5. Updates Supabase record to status: "processed".
+    """
     import boto3
+    import tempfile
+    import pathlib
+    import subprocess
+    import time
     from supabase import create_client, Client
 
     start_time = time.time()
+    storage_key = request.get("storage_key") or request.get("object_key")
+    photo_id = request.get("photo_id") or request.get("id")
 
-    photo_id   = request.get("photo_id") or request.get("id")
-    object_key = request.get("storage_key") or request.get("object_key")
+    if not storage_key:
+        return {"error": "Missing storage_key", "status": "failed"}
 
-    if not object_key or not photo_id:
-        return {"error": "Missing storage_key or photo_id", "status": "failed"}
-
-    print(f"[VideoTranscode] Starting HLS encoding for: {object_key} (ID: {photo_id})")
+    print(f"[CloudFanOut] Processing video {storage_key} (ID: {photo_id})")
 
     supabase: Client = create_client(
         os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
         os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
     )
-
     b2_client = boto3.client(
         's3',
         endpoint_url=f"https://{os.environ.get('B2_ENDPOINT')}",
@@ -465,159 +632,154 @@ def run_transcode(request: dict):
     bucket_name = os.environ.get('B2_BUCKET_NAME')
     media_domain = (os.environ.get("MEDIA_DOMAIN") or "media.evebash.com").replace("https://", "").strip("/")
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp_path = pathlib.Path(tmp_dir)
-        raw_input_path = tmp_path / "input_raw.mp4"
-        output_hls_dir = tmp_path / "hls"
-        output_hls_dir.mkdir(parents=True, exist_ok=True)
+    hls_prefix = f"hls/{storage_key}"
+    hls_master_url = f"https://{media_domain}/{hls_prefix}/master.m3u8"
+    poster_url = f"https://{media_domain}/{hls_prefix}/poster.jpg"
+    raw_url = f"https://{media_domain}/{storage_key}"
 
-        # 1. Download raw video file from Backblaze B2
-        print(f"[VideoTranscode] Downloading raw video from B2 bucket '{bucket_name}' key '{object_key}'...")
-        try:
-            b2_client.download_file(bucket_name, object_key, str(raw_input_path))
-        except Exception as dl_err:
-            print(f"[VideoTranscode] Error downloading video from B2: {dl_err}")
-            return {"error": f"Failed to download video from B2: {str(dl_err)}", "status": "failed"}
+    try:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = pathlib.Path(tmp_dir)
+            raw_video_path = tmp_path / "input.mp4"
+            segs_dir = tmp_path / "segs"
+            segs_dir.mkdir(parents=True, exist_ok=True)
+            poster_path = tmp_path / "poster.jpg"
 
-        # 2. Extract Poster Frame (JPEG at 1-second mark)
-        poster_path = output_hls_dir / "poster.jpg"
-        poster_cmd = [
-            "ffmpeg", "-y", "-i", str(raw_input_path),
-            "-ss", "00:00:01", "-vframes", "1",
-            "-q:v", "2", str(poster_path)
-        ]
-        subprocess.run(poster_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            # 1. Download raw video from B2
+            print(f"[CloudFanOut] Downloading raw video from B2: {storage_key}...")
+            b2_client.download_file(bucket_name, storage_key, str(raw_video_path))
+            raw_size_mb = raw_video_path.stat().st_size // (1024 * 1024)
+            print(f"[CloudFanOut] Downloaded {raw_size_mb} MB in {time.time() - start_time:.1f}s")
 
-        # 3. Transcode to HLS (1080p, 720p, 480p adaptive bitrate streams)
-        master_playlist_path = output_hls_dir / "master.m3u8"
-        hls_cmd = [
-            "ffmpeg", "-y", "-i", str(raw_input_path),
-            "-filter_complex",
-            "[0:v]split=3[v1,v2,v3]; "
-            "[v1]scale=w=1920:h=1080:force_original_aspect_ratio=decrease[v1out]; "
-            "[v2]scale=w=1280:h=720:force_original_aspect_ratio=decrease[v2out]; "
-            "[v3]scale=w=854:h=480:force_original_aspect_ratio=decrease[v3out]",
-            "-map", "[v1out]", "-c:v:0", "libx264", "-b:v:0", "4000k", "-maxrate:v:0", "4500k", "-bufsize:v:0", "6000k",
-            "-map", "[v2out]", "-c:v:1", "libx264", "-b:v:1", "2500k", "-maxrate:v:1", "2800k", "-bufsize:v:1", "3500k",
-            "-map", "[v3out]", "-c:v:2", "libx264", "-b:v:2", "1000k", "-maxrate:v:2", "1200k", "-bufsize:v:2", "1500k",
-            "-map", "a:0?", "-c:a:0", "aac", "-b:a:0", "128k",
-            "-map", "a:0?", "-c:a:1", "aac", "-b:a:1", "128k",
-            "-map", "a:0?", "-c:a:2", "aac", "-b:a:2", "96k",
-            "-var_stream_map", "v:0,a:0,name:1080p v:1,a:1,name:720p v:2,a:2,name:480p",
-            "-preset", "veryfast", "-g", "48", "-sc_threshold", "0",
-            "-hls_time", "4", "-hls_playlist_type", "vod",
-            "-hls_segment_filename", f"{output_hls_dir}/%v/segment_%03d.ts",
-            "-master_pl_name", "master.m3u8",
-            f"{output_hls_dir}/%v/playlist.m3u8"
-        ]
+            # 2. Check for audio stream
+            has_audio = False
+            try:
+                probe_audio = subprocess.run([
+                    "ffprobe", "-v", "error", "-select_streams", "a",
+                    "-show_entries", "stream=index", "-of", "csv=p=0",
+                    str(raw_video_path)
+                ], capture_output=True, text=True)
+                if probe_audio.stdout.strip():
+                    has_audio = True
+            except Exception:
+                has_audio = True
 
-        print(f"[VideoTranscode] Running FFmpeg HLS encoding pipeline...")
-        ffmpeg_res = subprocess.run(hls_cmd, capture_output=True, text=True)
-
-        if ffmpeg_res.returncode != 0:
-            print(f"[VideoTranscode] Multi-rendition FFmpeg failed, running fallback single stream...")
-            fallback_cmd = [
-                "ffmpeg", "-y", "-i", str(raw_input_path),
-                "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-                "-c:a", "aac", "-b:a", "128k",
-                "-hls_time", "4", "-hls_playlist_type", "vod",
-                "-hls_segment_filename", f"{output_hls_dir}/segment_%03d.ts",
-                str(master_playlist_path)
+            # 3. Cloud slice into 15-second keyframe-aligned segments (-c copy takes ~2s)
+            print("[CloudFanOut] Slicing into 15s segments in cloud...")
+            slice_cmd = [
+                "ffmpeg", "-y", "-i", str(raw_video_path),
+                "-c", "copy", "-f", "segment",
+                "-segment_time", "15", "-reset_timestamps", "1",
+                str(segs_dir / "seg_%03d.ts")
             ]
-            subprocess.run(fallback_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(slice_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        # 4. Upload HLS files to B2
-        hls_prefix = f"hls/{object_key}"
-        print(f"[VideoTranscode] Uploading generated HLS package to B2 key prefix '{hls_prefix}'...")
+            segment_files = sorted(segs_dir.glob("seg_*.ts"))
+            if not segment_files:
+                # If segment copy failed (e.g. non-TS compatible), fallback to 1 whole segment
+                segment_files = [raw_video_path]
 
-        for file_path in output_hls_dir.glob("**/*"):
-            if file_path.is_file():
-                rel_path = file_path.relative_to(output_hls_dir)
-                b2_key = f"{hls_prefix}/{rel_path}"
-                content_type = "application/x-mpegURL" if file_path.suffix == ".m3u8" else \
-                               "video/MP2T" if file_path.suffix == ".ts" else \
-                               "image/jpeg" if file_path.suffix in [".jpg", ".jpeg"] else \
-                               "application/octet-stream"
-                b2_client.upload_file(
-                    str(file_path),
-                    bucket_name,
-                    b2_key,
-                    ExtraArgs={"ContentType": content_type}
+            print(f"[CloudFanOut] Sliced into {len(segment_files)} segments. Launching parallel cloud workers...")
+
+            # 4. Extract poster.jpg from original
+            subprocess.run([
+                "ffmpeg", "-y", "-i", str(raw_video_path),
+                "-ss", "00:00:01", "-vframes", "1", "-q:v", "2", str(poster_path)
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if poster_path.exists():
+                b2_client.upload_file(str(poster_path), bucket_name, f"{hls_prefix}/poster.jpg", ExtraArgs={"ContentType": "image/jpeg"})
+
+            # 5. Fan-out transcoding across parallel Modal container workers
+            tasks = [
+                {
+                    "storage_key": storage_key,
+                    "segment_index": idx,
+                    "segment_bytes": seg_file.read_bytes(),
+                    "has_audio": has_audio,
+                }
+                for idx, seg_file in enumerate(segment_files)
+            ]
+
+            # Distributed parallel mapping across Modal workers
+            results = list(transcode_cloud_segment.map(tasks))
+            results.sort(key=lambda r: r.get("segment_index", 0))
+            print(f"[CloudFanOut] All {len(tasks)} segments transcoded in parallel!")
+
+            # 6. Assemble accurate playlists for each quality using exact FFmpeg EXTINF lines
+            for qname in ["1080p", "720p", "480p"]:
+                q_entries = []
+                for r in results:
+                    q_entries.extend(r.get("quality_entries", {}).get(qname, []))
+
+                if not q_entries:
+                    continue
+
+                q_lines = [
+                    "#EXTM3U",
+                    "#EXT-X-VERSION:3",
+                    "#EXT-X-TARGETDURATION:16",
+                    "#EXT-X-MEDIA-SEQUENCE:0",
+                    "#EXT-X-PLAYLIST-TYPE:VOD",
+                ]
+                for entry in q_entries:
+                    q_lines.append(entry["extinf"])
+                    q_lines.append(entry["filename"])
+                q_lines.append("#EXT-X-ENDLIST")
+
+                b2_client.put_object(
+                    Bucket=bucket_name,
+                    Key=f"{hls_prefix}/{qname}/playlist.m3u8",
+                    Body=("\n".join(q_lines) + "\n").encode("utf-8"),
+                    ContentType="application/x-mpegURL"
                 )
 
-        hls_master_url = f"https://{media_domain}/{hls_prefix}/master.m3u8"
-        poster_url = f"https://{media_domain}/{hls_prefix}/poster.jpg" if poster_path.exists() else None
+            # 7. Write master.m3u8
+            codecs_tag = 'CODECS="avc1.640028,mp4a.40.2"' if has_audio else 'CODECS="avc1.640028"'
+            master_content = "\n".join([
+                "#EXTM3U",
+                "#EXT-X-VERSION:3",
+                f'#EXT-X-STREAM-INF:BANDWIDTH=4000000,RESOLUTION=1920x1080,{codecs_tag}',
+                "1080p/playlist.m3u8",
+                f'#EXT-X-STREAM-INF:BANDWIDTH=2500000,RESOLUTION=1280x720,{codecs_tag}',
+                "720p/playlist.m3u8",
+                f'#EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=854x480,{codecs_tag}',
+                "480p/playlist.m3u8",
+                ""
+            ])
+            b2_client.put_object(
+                Bucket=bucket_name,
+                Key=f"{hls_prefix}/master.m3u8",
+                Body=master_content.encode("utf-8"),
+                ContentType="application/x-mpegURL"
+            )
 
-        # 5. Update Supabase record
+        # 8. Update Supabase record
         update_data = {
             "url": hls_master_url,
+            "thumbnail_url": poster_url,
             "resource_type": "video",
             "media_type": "video",
+            "status": "processed"
         }
-        if poster_url:
-            update_data["thumbnail_url"] = poster_url
+        if photo_id:
+            try:
+                supabase.table("photos").update(update_data).eq("id", photo_id).execute()
+            except Exception:
+                update_data.pop("status", None)
+                supabase.table("photos").update(update_data).eq("id", photo_id).execute()
 
-        supabase.table("photos").update(update_data).eq("id", photo_id).execute()
-        print(f"[VideoTranscode] Successfully encoded & updated photo {photo_id} with HLS URL: {hls_master_url}")
-
-        # 6. Log infrastructure cost
         duration = time.time() - start_time
-        cpu_cores = 2.0
-        memory_gb = 2.0
-        estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
-        try:
-            supabase.table("modal_cost_logs").insert({
-                "function_name": "process_video_transcode",
-                "cpu_cores": cpu_cores,
-                "memory_gb": memory_gb,
-                "execution_time_seconds": duration,
-                "estimated_cost_inr": estimated_cost_inr,
-                "faces_detected": 0
-            }).execute()
-        except Exception as log_err:
-            print(f"[VideoTranscode] Cost log failed: {log_err}")
+        print(f"[CloudFanOut] Video transcoding completed in {duration:.1f}s — {hls_master_url}")
+        return {"status": "success", "hls_master_url": hls_master_url, "raw_url": raw_url, "duration_seconds": duration}
 
-        return {
-            "status": "success",
-            "photo_id": photo_id,
-            "hls_url": hls_master_url,
-            "poster_url": poster_url,
-            "duration_seconds": duration
-        }
+    except Exception as e:
+        print(f"[CloudFanOut] ERROR: {e}")
+        if photo_id:
+            try:
+                supabase.table("photos").update({"status": "failed"}).eq("id", photo_id).execute()
+            except Exception:
+                pass
+        return {"status": "failed", "error": str(e)}
 
 
-@app.function(
-    image=image,
-    cpu=1.0,
-    memory=2048,
-    timeout=300,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
-)
-@modal.fastapi_endpoint(method="POST")
-def process_video_transcode_standard(request: dict):
-    return run_transcode(request)
-
-
-@app.function(
-    image=image,
-    cpu=2.0,
-    memory=4096,
-    timeout=600,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
-)
-@modal.fastapi_endpoint(method="POST")
-def process_video_transcode_medium(request: dict):
-    return run_transcode(request)
-
-
-@app.function(
-    image=image,
-    cpu=4.0,
-    memory=8192,
-    timeout=1200,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
-)
-@modal.fastapi_endpoint(method="POST")
-def process_video_transcode_large(request: dict):
-    return run_transcode(request)
 

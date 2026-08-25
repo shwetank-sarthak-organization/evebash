@@ -6,7 +6,7 @@ type EveBashLogoProps = {
   color?: string;
 };
 
-export function EveBashLogo({ size = 24, color = '#ffffff' }: EveBashLogoProps) {
+export function EveBashLogo({ size = 24, color = '#D4AF37' }: EveBashLogoProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 1024 1024" fill="none">
       <Path
@@ -29,8 +29,8 @@ type EveBashLogoBadgeProps = {
 export function EveBashLogoBadge({
   size = 38,
   logoSize = 24,
-  backgroundColor = '#ffffff',
-  color = '#0f172a',
+  backgroundColor = 'rgba(212, 175, 55, 0.12)',
+  color = '#D4AF37',
   onPress,
   accessibilityLabel = 'Go to home',
 }: EveBashLogoBadgeProps) {

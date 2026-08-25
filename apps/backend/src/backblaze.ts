@@ -1,4 +1,4 @@
-import { Buffer } from "buffer";
+import { Buffer } from "node:buffer";
 
 export type BackblazeAuth = {
   authorizationToken: string;
@@ -23,12 +23,10 @@ let authPromise: Promise<BackblazeAuth> | null = null;
 let tokenExpiresAt = 0;
 
 export async function getCachedBackblazeAuth(): Promise<BackblazeAuth> {
-  // Check if cached promise is still valid (tokens are valid for 24 hours)
   if (authPromise && Date.now() < tokenExpiresAt) {
     return authPromise;
   }
 
-  // Set new expiration time (23 hours from now)
   tokenExpiresAt = Date.now() + 23 * 60 * 60 * 1000;
 
   authPromise = (async () => {
@@ -42,7 +40,6 @@ export async function getCachedBackblazeAuth(): Promise<BackblazeAuth> {
         headers: {
           Authorization: `Basic ${credentials}`,
         },
-        cache: "no-store",
       });
 
       if (!response.ok) {
@@ -56,7 +53,6 @@ export async function getCachedBackblazeAuth(): Promise<BackblazeAuth> {
         downloadUrl: data.apiInfo.storageApi.downloadUrl,
       };
     } catch (err) {
-      // Reset on failure so the next upload request can retry
       authPromise = null;
       tokenExpiresAt = 0;
       throw err;
@@ -75,7 +71,6 @@ export async function getUploadUrl(auth: BackblazeAuth): Promise<BackblazeUpload
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ bucketId }),
-    cache: "no-store",
   });
 
   if (!response.ok) {
@@ -92,29 +87,26 @@ const poolExpiration: number[] = new Array(POOL_SIZE).fill(0);
 export async function getCachedUploadUrl(
   auth: BackblazeAuth,
   forceRefresh = false,
-  laneIndex = 0
+  laneIndex = 0,
 ): Promise<BackblazeUploadUrl> {
-  // Use laneIndex to assign a consistent slot from the pool for this specific upload lane
-  const slotIndex = (typeof laneIndex === 'number' && !isNaN(laneIndex)) 
-    ? (Math.abs(laneIndex) % POOL_SIZE) 
-    : 0;
+  const slotIndex = Number.isFinite(laneIndex) ? Math.abs(laneIndex) % POOL_SIZE : 0;
 
   if (forceRefresh || !uploadUrlPool[slotIndex] || Date.now() > poolExpiration[slotIndex]) {
-    // Tokens are valid for 24 hours, but we refresh slightly earlier (23 hours)
     poolExpiration[slotIndex] = Date.now() + 23 * 60 * 60 * 1000;
-    uploadUrlPool[slotIndex] = getUploadUrl(auth).catch(err => {
+    uploadUrlPool[slotIndex] = getUploadUrl(auth).catch((err) => {
       uploadUrlPool[slotIndex] = null;
       poolExpiration[slotIndex] = 0;
       throw err;
     });
   }
+
   return uploadUrlPool[slotIndex]!;
 }
 
 export async function startLargeFile(
   auth: BackblazeAuth,
   fileName: string,
-  contentType: string
+  contentType: string,
 ): Promise<{ fileId: string; fileName: string }> {
   const bucketId = requireEnv("B2_BUCKET_ID");
   const response = await fetch(`${auth.apiUrl}/b2api/v3/b2_start_large_file`, {
@@ -124,7 +116,6 @@ export async function startLargeFile(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ bucketId, fileName, contentType }),
-    cache: "no-store",
   });
 
   if (!response.ok) {
@@ -137,7 +128,7 @@ export async function startLargeFile(
 
 export async function getUploadPartUrl(
   auth: BackblazeAuth,
-  fileId: string
+  fileId: string,
 ): Promise<BackblazeUploadUrl> {
   const response = await fetch(`${auth.apiUrl}/b2api/v3/b2_get_upload_part_url`, {
     method: "POST",
@@ -146,7 +137,6 @@ export async function getUploadPartUrl(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ fileId }),
-    cache: "no-store",
   });
 
   if (!response.ok) {
@@ -160,8 +150,8 @@ export async function getUploadPartUrl(
 export async function finishLargeFile(
   auth: BackblazeAuth,
   fileId: string,
-  partSha1Array: string[]
-): Promise<any> {
+  partSha1Array: string[],
+): Promise<{ contentLength?: number }> {
   const response = await fetch(`${auth.apiUrl}/b2api/v3/b2_finish_large_file`, {
     method: "POST",
     headers: {
@@ -169,7 +159,6 @@ export async function finishLargeFile(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ fileId, partSha1Array }),
-    cache: "no-store",
   });
 
   if (!response.ok) {
@@ -180,10 +169,7 @@ export async function finishLargeFile(
   return response.json();
 }
 
-export async function cancelLargeFile(
-  auth: BackblazeAuth,
-  fileId: string
-): Promise<unknown> {
+export async function cancelLargeFile(auth: BackblazeAuth, fileId: string): Promise<unknown> {
   const response = await fetch(`${auth.apiUrl}/b2api/v3/b2_cancel_large_file`, {
     method: "POST",
     headers: {
@@ -191,7 +177,6 @@ export async function cancelLargeFile(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ fileId }),
-    cache: "no-store",
   });
 
   if (!response.ok) {
@@ -201,4 +186,3 @@ export async function cancelLargeFile(
 
   return response.json();
 }
-

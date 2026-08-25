@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense, useTransition, useRef, useCallbac
 import LoadingScreen from "@/components/LoadingScreen";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
+import { downloadGalleryAsZip } from "@/lib/zipDownload";
 import {
     LayoutDashboard,
     Eye,
@@ -47,7 +48,8 @@ import {
     Heart,
     Gift,
     Briefcase,
-    GraduationCap
+    GraduationCap,
+    Download
 } from "lucide-react";
 import { cn, formatEventDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -79,21 +81,21 @@ import {
     deleteCoverUsagePhoto,
     updatePhotosOrder,
     updateSubEventsOrder,
-    getEventFavouritePhotos,
-    toggleEventFavouritePhoto,
-    getFavouritePhotosForEvents,
-    generateEventJoinId,
-    setEventSampleGalleryStatus,
-} from "@/lib/database";
+	    getEventFavouritePhotos,
+	    toggleEventFavouritePhoto,
+	    getFavouritePhotosForEvents,
+	    generateEventJoinId,
+	    setEventSampleGalleryStatus,
+	} from "@/lib/database";
 import { uploadEventImage } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
+import { getApiUrl } from "@/lib/apiBase";
 import { Tooltip } from "@/components/Tooltip";
 import { navigateWithModifierClick } from "@/lib/navigation";
 import { formatStorageSize, getPlanDetails, getUsagePercent } from "@/lib/planLimits";
 import { getSubscriptionStatus } from "@/lib/subscriptionStatus";
 import { getWebLightboxTheme } from "@/lib/webTemplateTheme";
 import { v4 as uuidv4 } from "uuid";
-import { deleteGuestAction, updateGuestPermissionsAction, updateGuestStatusAction } from "@/app/actions/permissions";
 
 
 import { Lightbox } from "@/components/ui/Lightbox";
@@ -199,7 +201,7 @@ const EVENT_TYPE_OPTIONS = [
     { name: "Other", icon: MoreHorizontal },
 ];
 
-export const TEMPLATE_THEMES = [
+const TEMPLATE_THEMES = [
     {
         "id": "royal",
         "category": "Wedding",
@@ -555,12 +557,12 @@ export const TEMPLATE_THEMES = [
 ];
 
 
-export const getTemplateCategoryForEventCategory = (category?: string) => {
+const getTemplateCategoryForEventCategory = (category?: string) => {
     if (category === 'Sports') return 'Other';
     return category || 'Wedding';
 };
 
-export const getTemplatesForEventCategory = (category?: string) => {
+const getTemplatesForEventCategory = (category?: string) => {
     const templateCategory = getTemplateCategoryForEventCategory(category);
     return TEMPLATE_THEMES.filter((theme) => theme.category === templateCategory);
 };
@@ -753,6 +755,36 @@ function DashboardContent() {
     const [photoPage, setPhotoPage] = useState(0);
     const [hasMorePhotos, setHasMorePhotos] = useState(false);
 
+    const [isHostZipping, setIsHostZipping] = useState(false);
+    const [hostZipProgress, setHostZipProgress] = useState(0);
+
+    const handleHostDownloadZip = async () => {
+        if (!currentEventPhotos || currentEventPhotos.length === 0) {
+            alert("No photos or videos to download in this gallery.");
+            return;
+        }
+        setIsHostZipping(true);
+        setHostZipProgress(0);
+        try {
+            await downloadGalleryAsZip(
+                selectedEventName || "Gallery",
+                currentEventPhotos.map(p => ({
+                    id: p.id,
+                    url: p.url,
+                    filename: p.storageKey ? p.storageKey.split("/").pop() : undefined,
+                    mediaType: p.mediaType,
+                    resourceType: p.resourceType,
+                })),
+                (percent) => setHostZipProgress(percent)
+            );
+        } catch (err: any) {
+            alert(err.message || "Failed to generate zip file.");
+        } finally {
+            setIsHostZipping(false);
+            setHostZipProgress(0);
+        }
+    };
+
     // Refs to keep track of currentEventPhotos and uploadQueue to avoid stale closure bugs in Supabase Realtime callbacks
     const currentEventPhotosRef = useRef<Photo[]>([]);
     const uploadQueueRef = useRef<UploadQueueItem[]>([]);
@@ -914,7 +946,7 @@ function DashboardContent() {
 
         const checkStatus = async () => {
             try {
-                const res = await fetch(`/api/media/indexing-status?eventId=${selectedEventId}`);
+                const res = await fetch(getApiUrl(`/api/v1/media/indexing-status?eventId=${selectedEventId}`));
                 if (res.ok) {
                     const data = await res.json();
                     setIndexingStatus(data);
@@ -1292,8 +1324,23 @@ function DashboardContent() {
 
         setLoadingPhotos(true);
         try {
-            // 1. Fetch from Supabase database CLIENT-SIDE (Respects permissions)
-            // Use legacyId if available, fallback to selectedEventId
+            if (selectedEventId === selectedMainEventId) {
+                const groupEventIds = Array.from(new Set([selectedMainEventId, ...eventDetailGalleries.map(g => g.id)].filter(Boolean)));
+                if (groupEventIds.length > 0) {
+                    const favPhotos = await getFavouritePhotosForEvents(groupEventIds);
+                    if (favPhotos.length > 0) {
+                        setCurrentEventPhotos(favPhotos as Photo[]);
+                        const photoCount = favPhotos.filter(p => p.mediaType !== "video" && p.resourceType !== "video").length;
+                        const videoCount = favPhotos.filter(p => p.mediaType === "video" || p.resourceType === "video").length;
+                        setCurrentEventMediaCounts({ photos: photoCount, videos: videoCount });
+                        setCurrentEventRetainedMediaIds(new Set(favPhotos.map(p => p.id)));
+                        setPhotoPage(0);
+                        setHasMorePhotos(false);
+                        return;
+                    }
+                }
+            }
+
             const legacyId = currentEvent?.legacyId;
             const { photos, hasMore, totalPhotos, totalVideos, retainedMediaIds } = await getEventPhotosPaginated(selectedEventId, legacyId, 0, 20);
 
@@ -1663,6 +1710,51 @@ function DashboardContent() {
         setTimeout(() => setStatus("idle"), 3000);
     };
 
+    const updateGuestStatusAction = async (logId: string, status: string, requester: any) => {
+        try {
+            const url = getApiUrl("/api/v1/permissions/update-guest-status");
+            const res = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ logId, status, requester }),
+            });
+            const data = await res.json().catch(() => ({}));
+            return res.ok && data.success ? { success: true } : { success: false, error: data.error };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    };
+
+    const deleteGuestAction = async (logId: string, requester: any) => {
+        try {
+            const url = getApiUrl("/api/v1/permissions/delete-guest");
+            const res = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ logId, requester }),
+            });
+            const data = await res.json().catch(() => ({}));
+            return res.ok && data.success ? { success: true } : { success: false, error: data.error };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    };
+
+    const updateGuestPermissionsAction = async (logId: string, permissions: any, requester: any) => {
+        try {
+            const url = getApiUrl("/api/v1/permissions/update-guest-permissions");
+            const res = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ logId, permissions, requester }),
+            });
+            const data = await res.json().catch(() => ({}));
+            return res.ok && data.success ? { success: true } : { success: false, error: data.error };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
+    };
+
     const handleGuestStatusUpdate = async (logId: string, nextStatus: "approved" | "rejected") => {
         const result = await updateGuestStatusAction(logId, nextStatus, {
             uid: user?.uid,
@@ -2008,7 +2100,7 @@ function DashboardContent() {
             const concurrencyLimit = 3;
             let activeCount = 0;
             let currentIndex = 0;
-            let chunkBuffer: { photo: Photo; queueItemId: string }[] = [];
+            let chunkBuffer: { photo: Photo; queueItemId: string; transcodeTriggered?: boolean }[] = [];
             let completedCount = 0;
 
             const flushChunkBuffer = async () => {
@@ -2022,7 +2114,7 @@ function DashboardContent() {
                     if (session.data.session?.access_token) {
                         headers["Authorization"] = `Bearer ${session.data.session.access_token}`;
                     }
-                    let res = await fetch("/api/media/save-photo-batch", {
+                    let res = await fetch(getApiUrl("/api/media/save-photo-batch"), {
                         method: "POST",
                         headers,
                         body: JSON.stringify({
@@ -2031,7 +2123,8 @@ function DashboardContent() {
                                 eventId: item.photo.eventId,
                                 fileName: item.photo.storageKey.split('/').pop() || 'image.jpg',
                                 fileSize: item.photo.size,
-                                resourceType: item.photo.resourceType
+                                resourceType: item.photo.resourceType,
+                                skipTranscode: item.transcodeTriggered ?? false
                             }))
                         })
                     });
@@ -2041,7 +2134,7 @@ function DashboardContent() {
                         const { data: refreshed } = await supabase.auth.refreshSession();
                         if (refreshed.session?.access_token) {
                             headers["Authorization"] = `Bearer ${refreshed.session.access_token}`;
-                            res = await fetch("/api/media/save-photo-batch", {
+                            res = await fetch(getApiUrl("/api/media/save-photo-batch"), {
                                 method: "POST",
                                 headers,
                                 body: JSON.stringify({
@@ -2050,7 +2143,8 @@ function DashboardContent() {
                                         eventId: item.photo.eventId,
                                         fileName: item.photo.storageKey.split('/').pop() || 'image.jpg',
                                         fileSize: item.photo.size,
-                                        resourceType: item.photo.resourceType
+                                        resourceType: item.photo.resourceType,
+                                        skipTranscode: item.transcodeTriggered ?? false
                                     }))
                                 })
                             });
@@ -2148,7 +2242,10 @@ function DashboardContent() {
                             : item
                     ));
 
-                    chunkBuffer.push({ photo, queueItemId });
+                    // If this was a chunked upload (>100MB) AND a video, upload/chunk/complete
+                    // already triggered the transcode — skip it in save-photo-batch
+                    const transcodeTriggered = isVideoFile && file.size > 100 * 1024 * 1024;
+                    chunkBuffer.push({ photo, queueItemId, transcodeTriggered });
                     // Flush immediately after each upload so resizing starts right away (non-blocking)
                     flushChunkBuffer();
 
@@ -2188,9 +2285,20 @@ function DashboardContent() {
             const photoUploads = uploadResults.filter(item => item.photo.mediaType === "photo" && item.photo.resourceType === "image");
             if (photoUploads.length > 0) {
                 console.log(`[Dashboard] Drained upload queue. Triggering immediate face indexing...`);
-                fetch('/api/media/trigger-modal-batch?immediate=true', { method: 'POST' }).catch(err => {
-                    console.warn("[Dashboard] Immediate face indexing trigger failed:", err);
-                });
+                const { data: sessionData } = await supabase.auth.getSession();
+                const accessToken = sessionData.session?.access_token;
+                if (accessToken) {
+                    fetch(getApiUrl('/api/media/trigger-modal-batch?immediate=true'), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${accessToken}`,
+                        },
+                        body: JSON.stringify({ eventId: selectedEventId }),
+                    }).catch(err => {
+                        console.warn("[Dashboard] Immediate face indexing trigger failed:", err);
+                    });
+                }
             }
 
             // Auto-update cover if it's currently a placeholder or if it's the first upload
@@ -4035,39 +4143,6 @@ function DashboardContent() {
                                                                     </div>
                                                                 </div>
                                                             </div>
-
-                                                            {eventFavouriteCount > 0 && (
-                                                                <div
-                                                                    className="group relative overflow-hidden rounded-[1.5rem] border border-amber-400/60 shadow-lg shadow-amber-950/20 transition-all cursor-pointer hover:border-amber-300 w-full sm:w-[280px] aspect-square flex-shrink-0"
-                                                                    onClick={() => window.open(`/events/${selectedMainEvent.id}#favourite`, "_blank")}
-                                                                >
-                                                                    <img
-                                                                        src={eventFavouritePreview?.thumbnailUrl || eventFavouritePreview?.url || selectedMainEvent.coverImage || DEFAULT_EVENT_COVER_IMAGE}
-                                                                        alt="Favourite photos"
-                                                                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                                                    />
-                                                                    <div className="absolute inset-0 bg-gradient-to-t from-amber-950/95 via-black/40 to-transparent pointer-events-none" />
-
-                                                                    <div className="absolute inset-0 p-3 flex flex-col justify-between">
-                                                                        <div className="flex">
-                                                                            <div className="flex items-center gap-1 rounded-lg bg-amber-400 text-slate-950 border border-amber-200 px-2 py-1">
-                                                                                <Star className="h-2.5 w-2.5 fill-current" />
-                                                                                <span className="text-[9px] font-black tracking-wider">FAVOURITE</span>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        <div className="flex items-end justify-between gap-2">
-                                                                            <div className="min-w-0 flex-1">
-                                                                                <h5 className="text-[13px] font-bold text-white drop-shadow-md line-clamp-2 leading-tight">Favourite</h5>
-                                                                                <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-amber-100">{eventFavouriteCount} photos selected</p>
-                                                                            </div>
-                                                                            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20 border border-white/30 backdrop-blur-sm transition-colors group-hover:bg-white/30">
-                                                                                <ChevronRight className="h-3 w-3 text-white" />
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            )}
                                                         </div>
                                                     </section>
 
@@ -4698,6 +4773,25 @@ function DashboardContent() {
                                             <p className="text-slate-700 font-sans mt-1">Managing memories for <span className="text-white font-bold underline decoration-royal-gold decoration-2 underline-offset-4">{selectedEventName}</span></p>
                                         </div>
                                         <div className="flex items-center space-x-3">
+                                            <button
+                                                type="button"
+                                                onClick={handleHostDownloadZip}
+                                                disabled={isHostZipping || currentEventPhotos.length === 0}
+                                                className="flex items-center gap-2 rounded-2xl border border-amber-400/40 bg-amber-400/10 px-4 py-2 text-xs font-bold uppercase tracking-wider text-amber-300 transition-all hover:bg-amber-400 hover:text-slate-950 disabled:opacity-40"
+                                            >
+                                                {isHostZipping ? (
+                                                    <>
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                        <span>Zipping {hostZipProgress}%</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Download className="h-4 w-4" />
+                                                        <span>Download All (.ZIP)</span>
+                                                    </>
+                                                )}
+                                            </button>
+
                                             {/* View Toggle */}
                                             <div className="bg-slate-900/50 p-1 rounded-2xl flex items-center">
                                                 <Tooltip text="Grid View">
@@ -4863,6 +4957,7 @@ function DashboardContent() {
                                                                 width: photo.width,
                                                                 height: photo.height,
                                                                 filename: photo.storageKey?.split('/').pop() || (isVideo ? "video" : "photo"),
+                                                                thumbnailUrl: photo.thumbnailUrl,
                                                                 mediaType: isVideo ? "video" : "photo",
                                                                 resourceType: isVideo ? "video" : "image"
                                                             });
@@ -5099,6 +5194,7 @@ function DashboardContent() {
                                                                                         width: photo.width,
                                                                                         height: photo.height,
                                                                                         filename: photo.storageKey?.split('/').pop() || (isVideo ? "video" : "photo"),
+                                                                                        thumbnailUrl: photo.thumbnailUrl,
                                                                                         mediaType: isVideo ? "video" : "photo",
                                                                                         resourceType: isVideo ? "video" : "image"
                                                                                     });
@@ -6296,13 +6392,22 @@ function DashboardContent() {
                 {/* Image Preview Lightbox */}
                 <Lightbox
                     isOpen={!!viewingPhoto}
-                    photo={viewingPhoto}
+                    photo={viewingPhoto ? (() => {
+                        // Merge live photo data so HLSVideoPlayer gets the latest
+                        // HLS URL if Realtime updated it after the lightbox was opened
+                        const livePhoto = currentEventPhotos.find(p => p.id === viewingPhoto.id);
+                        return {
+                            ...viewingPhoto,
+                            src: livePhoto?.url || viewingPhoto.src,
+                            thumbnailUrl: livePhoto?.thumbnailUrl || viewingPhoto.thumbnailUrl,
+                        };
+                    })() : null}
                     onClose={() => setViewingPhoto(null)}
                     theme={getWebLightboxTheme(selectedMainEvent?.templateId)}
                     onRotate={(direction) => viewingPhoto?.id ? handleRotatePhoto(viewingPhoto.id, direction) : undefined}
                     isFavourite={!!viewingPhoto?.id && eventFavouritePhotoIds.has(viewingPhoto.id)}
                     onToggleFavourite={
-                        viewingPhoto?.id && viewingPhoto.mediaType !== "video" && viewingPhoto.resourceType !== "video"
+                        viewingPhoto?.id
                             ? () => handleToggleEventFavourite(viewingPhoto.id)
                             : undefined
                     }

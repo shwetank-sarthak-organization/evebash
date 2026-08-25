@@ -15,10 +15,16 @@ type PolicySection = {
 type LegalPolicyScreenProps = {
   title: string;
   description: string;
+  lastUpdated?: string;
   sections: PolicySection[];
 };
 
-export function LegalPolicyScreen({ title, description, sections }: LegalPolicyScreenProps) {
+export function LegalPolicyScreen({
+  title,
+  description,
+  lastUpdated = 'August 14, 2026',
+  sections,
+}: LegalPolicyScreenProps) {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
   const styles = getStyles(colors, isDark);
@@ -52,7 +58,7 @@ export function LegalPolicyScreen({ title, description, sections }: LegalPolicyS
         <View style={styles.header}>
           <Text style={styles.eyebrow}>EveBash Policy</Text>
           <Text style={styles.title}>{title}</Text>
-          <Text style={styles.updated}>Last updated: July 25, 2026</Text>
+          <Text style={styles.updated}>Last updated: {lastUpdated}</Text>
           <Text style={styles.description}>{description}</Text>
         </View>
 
