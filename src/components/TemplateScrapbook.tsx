@@ -32,7 +32,7 @@ export function TemplateScrapbook({ event, children }: TemplateScrapbookProps) {
                 <ScrollReveal delay={0.2} className="mt-8">
                     <div className="inline-block bg-white p-4 shadow-md rotate-2 border border-slate-200 max-w-lg transform">
                         <div className="w-4 h-4 rounded-full bg-slate-200 mx-auto mb-2" />
-                        <p className="font-handwriting text-xl text-slate-600 italic leading-relaxed" style={{ fontFamily: 'cursive' }}>
+                        <p className="font-handwriting text-xl text-slate-600 italic leading-relaxed" style={{ fontFamily: "var(--font-inter), Helvetica, Arial, sans-serif" }}>
                             {event.description}
                         </p>
                     </div>

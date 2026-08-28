@@ -47,6 +47,9 @@ interface LightboxProps {
     onLikeChange?: () => void;
     isFavourite?: boolean;
     onToggleFavourite?: () => Promise<void> | void;
+    keepPageHeaderVisible?: boolean;
+    hideFilename?: boolean;
+    compactMedia?: boolean;
 }
 
 function addAlpha(color: string, alpha: string) {
@@ -66,7 +69,10 @@ export function Lightbox({
     theme,
     onLikeChange,
     isFavourite = false,
-    onToggleFavourite
+    onToggleFavourite,
+    keepPageHeaderVisible = false,
+    hideFilename = false,
+    compactMedia = false
 }: LightboxProps) {
     const { user } = useAuth();
     const [likes, setLikes] = useState<any[]>([]);
@@ -133,6 +139,8 @@ export function Lightbox({
         radius: theme?.radius ?? 18,
         useSerif: theme?.useSerif ?? true,
     };
+    const compactMediaHeightClass = "max-h-[48dvh] sm:max-h-[54dvh] md:max-h-[60dvh] xl:max-h-[64dvh]";
+    const fullMediaHeightClass = "max-h-[60vh] md:max-h-[85vh]";
 
     useEffect(() => {
         if (photo?.id && isOpen) {
@@ -256,14 +264,18 @@ export function Lightbox({
             window.addEventListener("keydown", handleKeyDown);
             document.body.style.overflow = "hidden";
             document.body.setAttribute("data-lightbox-open", "true");
+            if (keepPageHeaderVisible) {
+                document.body.setAttribute("data-lightbox-keep-page-header", "true");
+            }
         }
 
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
             document.body.style.overflow = "unset";
             document.body.removeAttribute("data-lightbox-open");
+            document.body.removeAttribute("data-lightbox-keep-page-header");
         };
-    }, [isOpen, onClose, onNext, onPrev, showComments]);
+    }, [isOpen, onClose, onNext, onPrev, showComments, keepPageHeaderVisible]);
 
     if (!photo) return null;
 
@@ -277,7 +289,8 @@ export function Lightbox({
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
                     className={cn(
-                        "fixed inset-0 z-[100] overflow-y-auto [-webkit-overflow-scrolling:touch]",
+                        "fixed overflow-y-auto [-webkit-overflow-scrolling:touch]",
+                        keepPageHeaderVisible ? "inset-x-0 bottom-0 top-20 z-40" : "inset-0 z-[100]",
                         className
                     )}
                     style={{ backgroundColor: viewerTheme.background, color: viewerTheme.text }}
@@ -287,13 +300,18 @@ export function Lightbox({
 
                     {/* TOP ACTION BAR */}
                     <div
-                        className="fixed top-0 inset-x-0 h-20 z-[60] flex items-center justify-between px-6 pointer-events-none"
+                        className={cn(
+                            "fixed inset-x-0 z-[60] flex items-center justify-between px-6 pointer-events-none",
+                            keepPageHeaderVisible ? "top-20 h-14" : "top-0 h-20"
+                        )}
                         style={{ background: `linear-gradient(to bottom, ${addAlpha(viewerTheme.background, "cc")}, transparent)` }}
                     >
                         <div className="flex items-center space-x-2 pointer-events-auto">
-                            <span className="text-sm font-medium tracking-wide drop-shadow-md" style={{ color: viewerTheme.muted }}>
-                                {imageLoading ? "Loading..." : (photo.filename || "Photo")}
-                            </span>
+                            {!hideFilename && (
+                                <span className="text-sm font-medium tracking-wide drop-shadow-md" style={{ color: viewerTheme.muted }}>
+                                    {imageLoading ? "Loading..." : (photo.filename || "Photo")}
+                                </span>
+                            )}
                         </div>
 
                         <div className="flex items-center space-x-1 pointer-events-auto">
@@ -354,14 +372,27 @@ export function Lightbox({
                         </div>
                     </div>
 
-                    <div className="relative w-full min-h-[100dvh] flex flex-col items-center justify-start pt-24 pb-32 z-20 pointer-events-none">
+                    <div
+                        className={cn(
+                            "relative w-full flex flex-col items-center justify-start z-20 pointer-events-none",
+                            keepPageHeaderVisible ? "min-h-[calc(100dvh-5rem)] pt-6 pb-20 md:pt-8 md:pb-24" : "min-h-[100dvh] pt-24 pb-32"
+                        )}
+                    >
                         {/* Main Image Area */}
-                        <div className="relative w-full flex items-center justify-center px-4 md:px-16 mb-10 mt-auto">
+                        <div
+                            className={cn(
+                                "relative w-full flex items-center justify-center px-4 md:px-16",
+                                keepPageHeaderVisible ? "mb-6 mt-0" : "mb-10 mt-auto"
+                            )}
+                        >
                             {/* Navigation Buttons */}
                             {onPrev && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onPrev(); }}
-                                    className="fixed left-2 md:left-6 top-1/2 -translate-y-1/2 p-2 md:p-4 rounded-full transition-all z-[70] pointer-events-auto backdrop-blur-sm md:backdrop-blur-none border"
+                                    className={cn(
+                                        "fixed left-2 md:left-6 -translate-y-1/2 p-2 md:p-4 rounded-full transition-all z-[70] pointer-events-auto backdrop-blur-sm md:backdrop-blur-none border",
+                                        keepPageHeaderVisible ? "top-[calc(50%+2.5rem)]" : "top-1/2"
+                                    )}
                                     style={{ color: viewerTheme.muted, backgroundColor: viewerTheme.accentBg, borderColor: viewerTheme.border }}
                                 >
                                     <ChevronLeft size={32} className="md:w-11 md:h-11" />
@@ -371,7 +402,10 @@ export function Lightbox({
                             {onNext && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onNext(); }}
-                                    className="fixed right-2 md:right-6 top-1/2 -translate-y-1/2 p-2 md:p-4 rounded-full transition-all z-[70] pointer-events-auto backdrop-blur-sm md:backdrop-blur-none border"
+                                    className={cn(
+                                        "fixed right-2 md:right-6 -translate-y-1/2 p-2 md:p-4 rounded-full transition-all z-[70] pointer-events-auto backdrop-blur-sm md:backdrop-blur-none border",
+                                        keepPageHeaderVisible ? "top-[calc(50%+2.5rem)]" : "top-1/2"
+                                    )}
                                     style={{ color: viewerTheme.muted, backgroundColor: viewerTheme.accentBg, borderColor: viewerTheme.border }}
                                 >
                                     <ChevronRight size={32} className="md:w-11 md:h-11" />
@@ -391,14 +425,23 @@ export function Lightbox({
                                         mediaId={photo.id}
                                         src={photo.src}
                                         poster={photo.thumbnailUrl}
-                                        className="max-h-[60vh] w-[95vw] max-w-5xl shadow-2xl pointer-events-auto md:max-h-[85vh]"
+                                        className={cn(
+                                            "shadow-2xl pointer-events-auto",
+                                            compactMedia ? "w-[88vw] max-w-4xl" : "w-[95vw] max-w-5xl",
+                                            compactMedia ? compactMediaHeightClass : fullMediaHeightClass
+                                        )}
                                         style={{ borderRadius: viewerTheme.radius }}
                                         controls
                                         playsInline
                                         autoPlay
                                     />
                                 ) : (
-                                    <div className="relative flex items-center justify-center min-h-[300px] w-full max-w-5xl">
+                                    <div
+                                        className={cn(
+                                            "relative flex items-center justify-center min-h-[300px] w-full",
+                                            compactMedia ? "max-w-4xl" : "max-w-5xl"
+                                        )}
+                                    >
                                         {imageLoading && (
                                             <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4 pointer-events-none">
                                                 <Loader2 className="w-10 h-10 animate-spin" style={{ color: viewerTheme.accent }} />
@@ -426,7 +469,9 @@ export function Lightbox({
                                                     setImageError(true);
                                                 }}
                                                 className={cn(
-                                                    "max-w-[95vw] md:max-w-full max-h-[60vh] md:max-h-[85vh] w-auto h-auto object-contain shadow-2xl pointer-events-auto transition-all duration-300",
+                                                    "w-auto h-auto object-contain shadow-2xl pointer-events-auto transition-all duration-300",
+                                                    compactMedia ? "max-w-[88vw] md:max-w-[68vw] xl:max-w-4xl" : "max-w-[95vw] md:max-w-full",
+                                                    compactMedia ? compactMediaHeightClass : fullMediaHeightClass,
                                                     imageLoading || imageError ? "opacity-0 scale-95" : "opacity-100 scale-100"
                                                 )}
                                                 style={{ borderRadius: viewerTheme.radius, backgroundColor: viewerTheme.tile }}

@@ -121,7 +121,7 @@ export default function LoadingScreen({ message = "Capturing the moment" }: Load
         display: "flex",
         alignItems: "baseline",
         gap: 7,
-        fontFamily: "'Georgia', serif",
+        fontFamily: "var(--font-inter), Helvetica, Arial, sans-serif",
         animation: "ls-fadeup 0.8s ease-out 0.15s both",
       }}>
         <span style={{
@@ -136,7 +136,7 @@ export default function LoadingScreen({ message = "Capturing the moment" }: Load
       {/* Message */}
       <p style={{
         marginTop: 10,
-        fontFamily: "'Arial', sans-serif",
+        fontFamily: "var(--font-inter), Helvetica, Arial, sans-serif",
         fontSize: "0.68rem",
         letterSpacing: "0.22em",
         textTransform: "uppercase",

@@ -32,7 +32,7 @@ export function TemplatePolaroid({ event, children }: TemplatePolaroidProps) {
                             </div>
                         )}
 
-                        <h1 className="absolute bottom-4 left-0 right-0 text-center font-cursive text-4xl md:text-5xl text-stone-800" style={{ fontFamily: '"Comic Sans MS", "Chalkboard SE", "Marker Felt", sans-serif' }}>
+                        <h1 className="absolute bottom-4 left-0 right-0 text-center font-cursive text-4xl md:text-5xl text-stone-800" style={{ fontFamily: "var(--font-inter), Helvetica, Arial, sans-serif" }}>
                             {event.title}
                         </h1>
                     </div>

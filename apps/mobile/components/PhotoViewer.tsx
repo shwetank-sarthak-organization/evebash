@@ -18,6 +18,11 @@ interface PhotoViewerProps {
   viewerIdentity: { id: string; name: string };
   event: DatabaseEvent | null;
   selectedTemplate: any;
+  keepBottomBarVisible?: boolean;
+  bottomBarOffset?: number;
+  isPhotoFavourite?: (photo: any) => boolean;
+  onTogglePhotoFavourite?: (photo: any) => Promise<void> | void;
+  onRotatePhoto?: (photo: any, direction: 'left' | 'right') => Promise<void> | void;
 }
 
 type ViewerPalette = {
@@ -109,6 +114,11 @@ export default function PhotoViewer({
   viewerIdentity,
   event,
   selectedTemplate,
+  keepBottomBarVisible = false,
+  bottomBarOffset = 0,
+  isPhotoFavourite,
+  onTogglePhotoFavourite,
+  onRotatePhoto,
 }: PhotoViewerProps) {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(initialIndex);
   const [likes, setLikes] = useState<any[]>([]);
@@ -119,6 +129,8 @@ export default function PhotoViewer({
   const [isLiking, setIsLiking] = useState(false);
   const [isCommenting, setIsCommenting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isTogglingFavourite, setIsTogglingFavourite] = useState(false);
+  const [rotatingDirection, setRotatingDirection] = useState<'left' | 'right' | null>(null);
   const [expandedProfileImage, setExpandedProfileImage] = useState<{ src: string; name: string } | null>(null);
 
   // Sync index when initialIndex changes
@@ -129,6 +141,17 @@ export default function PhotoViewer({
   const currentPhoto = photos[currentPhotoIndex];
   const isLiked = useMemo(() => likes.some((like) => like.userId === viewerIdentity.id), [likes, viewerIdentity.id]);
   const isVideoMedia = currentPhoto?.mediaType === 'video' || currentPhoto?.resourceType === 'video';
+  const showHostTopControls = keepBottomBarVisible;
+  const currentPhotoIsFavourite = useMemo(
+    () => currentPhoto ? isPhotoFavourite?.(currentPhoto) ?? false : false,
+    [currentPhoto, isPhotoFavourite]
+  );
+
+  useEffect(() => {
+    if (visible && showHostTopControls) {
+      setShowComments(false);
+    }
+  }, [visible, showHostTopControls, currentPhoto?.id]);
 
   const isScrapbookTemplate = event?.templateId === 'scrapbook';
   const isNeonTemplate = event?.templateId === 'neon';
@@ -252,6 +275,32 @@ export default function PhotoViewer({
     }
   };
 
+  const handleToggleHostFavourite = async () => {
+    if (!currentPhoto || !onTogglePhotoFavourite || isTogglingFavourite) return;
+    setIsTogglingFavourite(true);
+    try {
+      await onTogglePhotoFavourite(currentPhoto);
+    } catch (error) {
+      console.error('[PhotoViewer] Favourite toggle failed:', error);
+      Alert.alert('Favourite Failed', 'Could not update this photo. Please try again.');
+    } finally {
+      setIsTogglingFavourite(false);
+    }
+  };
+
+  const handleRotateHostPhoto = async (direction: 'left' | 'right') => {
+    if (!currentPhoto || !onRotatePhoto || isVideoMedia || rotatingDirection) return;
+    setRotatingDirection(direction);
+    try {
+      await onRotatePhoto(currentPhoto, direction);
+    } catch (error) {
+      console.error('[PhotoViewer] Photo rotation failed:', error);
+      Alert.alert('Rotation Failed', 'Could not rotate this photo. Please try again.');
+    } finally {
+      setRotatingDirection(null);
+    }
+  };
+
   const handleDownloadPhoto = async () => {
     if (!currentPhoto?.url) return;
     setIsDownloading(true);
@@ -281,35 +330,89 @@ export default function PhotoViewer({
     }
   };
 
-  return (
-    <Modal
-      visible={visible}
-      animationType="fade"
-      presentationStyle="fullScreen"
-      statusBarTranslucent
-      navigationBarTranslucent
-      onRequestClose={onClose}
-    >
-      <View style={[styles.viewerContainer, { backgroundColor: viewerTheme.background }]}>
+  if (!visible) {
+    return null;
+  }
+
+  const viewerContent = (
+    <View style={[styles.viewerContainer, { backgroundColor: viewerTheme.background }]}>
         <LinearGradient
           colors={viewerTheme.overlay as [string, string]}
           style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
         />
-        <View
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            top: 28,
-            left: 18,
-            right: 18,
-            height: 1,
-            backgroundColor: viewerTheme.frameBorder,
-            opacity: 0.75,
-          }}
-        />
-        <TouchableOpacity style={[styles.viewerClose, { backgroundColor: viewerTheme.controlBg, borderRadius: viewerTheme.radius }]} onPress={onClose}>
-          <IconSymbol name="xmark" size={26} color={viewerTheme.controlText} />
-        </TouchableOpacity>
+        {showHostTopControls ? (
+          <View style={[localStyles.hostTopControls, { backgroundColor: viewerTheme.controlBg }]}>
+            {!!onTogglePhotoFavourite && !isVideoMedia && (
+              <TouchableOpacity
+                style={[localStyles.hostToolbarButton, isTogglingFavourite && localStyles.hostToolbarButtonDisabled]}
+                onPress={handleToggleHostFavourite}
+                disabled={isTogglingFavourite}
+                accessibilityLabel={currentPhotoIsFavourite ? 'Remove from favourite' : 'Add to favourite'}
+              >
+                {isTogglingFavourite ? (
+                  <ActivityIndicator size="small" color={viewerTheme.controlText} />
+                ) : (
+                  <IconSymbol
+                    name={currentPhotoIsFavourite ? 'star.fill' : 'star'}
+                    size={23}
+                    color={currentPhotoIsFavourite ? MidnightColors.gold : viewerTheme.controlText}
+                  />
+                )}
+              </TouchableOpacity>
+            )}
+            {!!onRotatePhoto && !isVideoMedia && (
+              <>
+                <TouchableOpacity
+                  style={[localStyles.hostToolbarButton, rotatingDirection === 'left' && localStyles.hostToolbarButtonDisabled]}
+                  onPress={() => handleRotateHostPhoto('left')}
+                  disabled={!!rotatingDirection}
+                  accessibilityLabel="Rotate photo left"
+                >
+                  {rotatingDirection === 'left' ? (
+                    <ActivityIndicator size="small" color={viewerTheme.controlText} />
+                  ) : (
+                    <IconSymbol name="arrow.counterclockwise" size={22} color={viewerTheme.controlText} />
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[localStyles.hostToolbarButton, rotatingDirection === 'right' && localStyles.hostToolbarButtonDisabled]}
+                  onPress={() => handleRotateHostPhoto('right')}
+                  disabled={!!rotatingDirection}
+                  accessibilityLabel="Rotate photo right"
+                >
+                  {rotatingDirection === 'right' ? (
+                    <ActivityIndicator size="small" color={viewerTheme.controlText} />
+                  ) : (
+                    <IconSymbol name="arrow.clockwise" size={22} color={viewerTheme.controlText} />
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+            <TouchableOpacity
+              style={[localStyles.hostToolbarButton, isDownloading && localStyles.hostToolbarButtonDisabled]}
+              onPress={handleDownloadPhoto}
+              disabled={isDownloading || !currentPhoto?.url}
+              accessibilityLabel="Download media"
+            >
+              {isDownloading ? (
+                <ActivityIndicator size="small" color={viewerTheme.controlText} />
+              ) : (
+                <IconSymbol name="arrow.down.to.line.compact" size={23} color={viewerTheme.controlText} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={localStyles.hostToolbarButton}
+              onPress={onClose}
+              accessibilityLabel="Close media viewer"
+            >
+              <IconSymbol name="xmark" size={25} color={viewerTheme.controlText} />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity style={[styles.viewerClose, { backgroundColor: viewerTheme.controlBg, borderRadius: viewerTheme.radius }]} onPress={onClose}>
+            <IconSymbol name="xmark" size={26} color={viewerTheme.controlText} />
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity style={[styles.navBtnLeft, { backgroundColor: viewerTheme.controlBg, borderColor: viewerTheme.frameBorder, borderWidth: 1 }]} onPress={() => navigateViewer('prev')}>
           <IconSymbol name="chevron.left" size={32} color={viewerTheme.controlText} />
@@ -320,13 +423,14 @@ export default function PhotoViewer({
             style={[
               styles.fullImage,
               showComments && styles.fullImageWithComments,
+              showHostTopControls && (showComments ? localStyles.hostFullImageWithGuestbook : localStyles.hostFullImageWithPeek),
               {
                 backgroundColor: viewerTheme.tileBg,
                 borderRadius: viewerTheme.radius,
-                borderWidth: 1,
-                borderColor: viewerTheme.frameBorder,
+                borderWidth: keepBottomBarVisible ? 0 : 1,
+                borderColor: keepBottomBarVisible ? 'transparent' : viewerTheme.frameBorder,
                 overflow: 'hidden',
-                width: '92%',
+                width: showHostTopControls ? '84%' : '92%',
               },
             ]}
           >
@@ -339,10 +443,12 @@ export default function PhotoViewer({
                 contentFit="contain"
               />
             )}
-            {isDownloading && (
+            {(isDownloading || rotatingDirection) && (
               <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }]}>
                 <ActivityIndicator size="large" color="#fff" />
-                <Text style={{ color: '#fff', marginTop: 12, fontSize: 14, fontWeight: '600' }}>Downloading original...</Text>
+                <Text style={{ color: '#fff', marginTop: 12, fontSize: 14, fontWeight: '600' }}>
+                  {rotatingDirection ? 'Saving rotation...' : 'Downloading original...'}
+                </Text>
               </View>
             )}
           </View>
@@ -352,65 +458,158 @@ export default function PhotoViewer({
           <IconSymbol name="chevron.right" size={32} color={viewerTheme.controlText} />
         </TouchableOpacity>
 
-        <View style={[styles.viewerActions, showComments ? styles.viewerActionsRaised : styles.viewerActionsDocked]}>
-          <TouchableOpacity style={styles.viewerAction} onPress={handleToggleLike} disabled={isLiking}>
-            <IconSymbol name={isLiked ? "heart.fill" : "heart"} size={30} color={isLiked ? "#f43f5e" : viewerTheme.controlText} />
-            <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{likes.length}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.viewerAction} onPress={() => setShowComments(true)}>
-            <IconSymbol name="bubble.right" size={30} color={showComments ? viewerTheme.accent : viewerTheme.controlText} />
-            <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{comments.length}</Text>
-          </TouchableOpacity>
-          {(isScrapbookTemplate || isNeonTemplate || isPopTemplate) && (
-            <TouchableOpacity style={styles.viewerAction} onPress={handleSharePhoto}>
-              <IconSymbol name="square.and.arrow.up" size={28} color={isNeonTemplate ? '#66e8ff' : (isPopTemplate ? '#231f20' : viewerTheme.controlText)} />
-              <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }, isNeonTemplate && styles.neonViewerActionCount, isPopTemplate && styles.popViewerActionCount]}>Share</Text>
-            </TouchableOpacity>
+        <View style={showHostTopControls ? [localStyles.hostViewerActions, showComments ? localStyles.hostViewerActionsRaised : localStyles.hostViewerActionsDocked] : [styles.viewerActions, showComments ? styles.viewerActionsRaised : styles.viewerActionsDocked]}>
+          {showHostTopControls ? (
+            <>
+              <TouchableOpacity style={localStyles.hostViewerAction} onPress={handleToggleLike} disabled={isLiking}>
+                <View
+                  style={[
+                    localStyles.hostViewerActionButton,
+                    {
+                      backgroundColor: isLiked ? 'rgba(244,63,94,0.2)' : viewerTheme.panel,
+                      borderColor: isLiked ? 'rgba(244,63,94,0.5)' : viewerTheme.frameBorder,
+                    },
+                  ]}
+                >
+                  <IconSymbol name={isLiked ? "heart.fill" : "heart"} size={24} color={isLiked ? "#f43f5e" : viewerTheme.controlText} />
+                </View>
+                <Text style={[localStyles.hostViewerActionLabel, { color: viewerTheme.muted }]}>{likes.length} LIKES</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={localStyles.hostViewerAction} onPress={() => setShowComments(true)}>
+                <View
+                  style={[
+                    localStyles.hostViewerActionButton,
+                    {
+                      backgroundColor: showComments ? `${viewerTheme.accent}24` : viewerTheme.panel,
+                      borderColor: showComments ? viewerTheme.accent : viewerTheme.frameBorder,
+                    },
+                  ]}
+                >
+                  <IconSymbol name="bubble.right" size={24} color={showComments ? viewerTheme.accent : viewerTheme.controlText} />
+                </View>
+                <Text style={[localStyles.hostViewerActionLabel, { color: viewerTheme.muted }]}>{comments.length} COMMENTS</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <TouchableOpacity style={styles.viewerAction} onPress={handleToggleLike} disabled={isLiking}>
+                <IconSymbol name={isLiked ? "heart.fill" : "heart"} size={30} color={isLiked ? "#f43f5e" : viewerTheme.controlText} />
+                <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{likes.length}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.viewerAction} onPress={() => setShowComments(true)}>
+                <IconSymbol name="bubble.right" size={30} color={showComments ? viewerTheme.accent : viewerTheme.controlText} />
+                <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{comments.length}</Text>
+              </TouchableOpacity>
+              {(isScrapbookTemplate || isNeonTemplate || isPopTemplate) && (
+                <TouchableOpacity style={styles.viewerAction} onPress={handleSharePhoto}>
+                  <IconSymbol name="square.and.arrow.up" size={28} color={isNeonTemplate ? '#66e8ff' : (isPopTemplate ? '#231f20' : viewerTheme.controlText)} />
+                  <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }, isNeonTemplate && styles.neonViewerActionCount, isPopTemplate && styles.popViewerActionCount]}>Share</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.viewerAction} onPress={handleDownloadPhoto} disabled={isDownloading}>
+                <IconSymbol name="arrow.down.to.line.compact" size={30} color={viewerTheme.controlText} />
+                <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Download</Text>
+              </TouchableOpacity>
+            </>
           )}
-          <TouchableOpacity style={styles.viewerAction} onPress={handleDownloadPhoto} disabled={isDownloading}>
-            <IconSymbol name="arrow.down.to.line.compact" size={30} color={viewerTheme.controlText} />
-            <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Download</Text>
-          </TouchableOpacity>
         </View>
 
-        {!showComments && (
+        {!showComments && !showHostTopControls && (
           <View style={[styles.viewerFooter, { backgroundColor: viewerTheme.controlBg, borderRadius: 999, paddingVertical: 8 }]}>
             <Text style={[styles.viewerText, { color: viewerTheme.controlText }]}>{currentPhotoIndex + 1} / {photos.length}</Text>
           </View>
         )}
 
+        {showHostTopControls && !showComments && (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            style={[
+              localStyles.hostGuestbookPeek,
+              {
+                backgroundColor: viewerTheme.panel,
+                borderColor: viewerTheme.frameBorder,
+                borderRadius: viewerTheme.radius + 10,
+              },
+            ]}
+            onPress={() => setShowComments(true)}
+            accessibilityLabel="Open guestbook"
+          >
+            <View>
+              <Text
+                style={[
+                  styles.guestbookTitle,
+                  localStyles.hostGuestbookPeekTitle,
+                  { color: viewerTheme.text },
+                  selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' },
+                ]}
+              >
+                Guestbook
+              </Text>
+              <Text
+                style={[
+                  styles.guestbookSubtitle,
+                  localStyles.hostGuestbookPeekSubtitle,
+                  { color: viewerTheme.muted },
+                  selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic' },
+                ]}
+              >
+                {comments.length} Shared Thoughts
+              </Text>
+            </View>
+            <View style={[localStyles.hostGuestbookPeekButton, { backgroundColor: viewerTheme.controlBg }]}>
+              <IconSymbol name="chevron.up" size={18} color={viewerTheme.controlText} />
+            </View>
+          </TouchableOpacity>
+        )}
+
         {showComments && (
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.guestbookPanel, { backgroundColor: viewerTheme.panel, borderRadius: viewerTheme.radius + 10, borderWidth: 1, borderColor: viewerTheme.frameBorder }]}>
-            <View style={[styles.guestbookHeader, { backgroundColor: viewerTheme.panel, borderBottomColor: viewerTheme.frameBorder }]}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={[
+              styles.guestbookPanel,
+              showHostTopControls && localStyles.hostGuestbookPanel,
+              {
+                backgroundColor: viewerTheme.panel,
+                borderRadius: viewerTheme.radius + 10,
+                borderWidth: 1,
+                borderColor: viewerTheme.frameBorder,
+              },
+            ]}
+          >
+            <View style={[styles.guestbookHeader, showHostTopControls && localStyles.hostGuestbookHeader, { backgroundColor: viewerTheme.panel, borderBottomColor: viewerTheme.frameBorder }]}>
               <View>
                 <Text style={[
                   styles.guestbookTitle,
+                  showHostTopControls && localStyles.hostGuestbookTitle,
                   { color: viewerTheme.text },
                   selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' }
                 ]}>Guestbook</Text>
                 <Text style={[
                   styles.guestbookSubtitle,
+                  showHostTopControls && localStyles.hostGuestbookSubtitle,
                   { color: viewerTheme.muted },
                   selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic' }
                 ]}>{comments.length} Shared Thoughts</Text>
               </View>
-              <TouchableOpacity style={[styles.closeGuestbookBtn, { backgroundColor: viewerTheme.controlBg }]} onPress={() => setShowComments(false)}>
+              <TouchableOpacity style={[styles.closeGuestbookBtn, showHostTopControls && localStyles.hostCloseGuestbookBtn, { backgroundColor: viewerTheme.controlBg }]} onPress={() => setShowComments(false)}>
                 <IconSymbol name="xmark" size={18} color={viewerTheme.controlText} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.guestbookList} contentContainerStyle={styles.guestbookListContent}>
+            <ScrollView style={styles.guestbookList} contentContainerStyle={[styles.guestbookListContent, showHostTopControls && localStyles.hostGuestbookListContent]}>
               {comments.length === 0 ? (
-                <View style={styles.emptyGuestbook}>
-                  <View style={styles.emptyGuestbookIcon}>
-                    <IconSymbol name="bubble.right" size={30} color="#78716c" />
+                <View style={[styles.emptyGuestbook, showHostTopControls && localStyles.hostEmptyGuestbook]}>
+                  <View style={[styles.emptyGuestbookIcon, showHostTopControls && localStyles.hostEmptyGuestbookIcon]}>
+                    <IconSymbol name="bubble.right" size={showHostTopControls ? 24 : 30} color="#78716c" />
                   </View>
                   <Text style={[
                     styles.emptyGuestbookTitle,
-                    selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic', fontSize: 18 }
+                    showHostTopControls && localStyles.hostEmptyGuestbookTitle,
+                    selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic', fontSize: showHostTopControls ? 16 : 18 }
                   ]}>No whispers yet...</Text>
                   <Text style={[
                     styles.emptyGuestbookText,
+                    showHostTopControls && localStyles.hostEmptyGuestbookText,
                     selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic' }
                   ]}>Write the first beautiful word.</Text>
                 </View>
@@ -531,7 +730,7 @@ export default function PhotoViewer({
               )}
             </ScrollView>
 
-            <View style={styles.commentComposer}>
+            <View style={[styles.commentComposer, showHostTopControls && localStyles.hostCommentComposer, { backgroundColor: viewerTheme.panel, borderTopColor: viewerTheme.frameBorder }]}>
               {replyingTo && (
                 <View style={styles.replyingToBanner}>
                   <Text style={styles.replyingToText}>Replying to <Text style={styles.replyingToName}>{replyingTo.userName}</Text></Text>
@@ -576,6 +775,179 @@ export default function PhotoViewer({
           </View>
         </Modal>
       </View>
+  );
+
+  if (keepBottomBarVisible) {
+    return (
+      <View style={[localStyles.inlineViewerOverlay, { bottom: bottomBarOffset }]}>
+        {viewerContent}
+      </View>
+    );
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="fade"
+      presentationStyle="fullScreen"
+      statusBarTranslucent
+      navigationBarTranslucent
+      onRequestClose={onClose}
+    >
+      {viewerContent}
     </Modal>
   );
 }
+
+const localStyles = StyleSheet.create({
+  hostTopControls: {
+    position: 'absolute',
+    top: 50,
+    right: 12,
+    zIndex: 30,
+    elevation: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    borderRadius: 999,
+    paddingHorizontal: 4,
+    paddingVertical: 3,
+  },
+  hostToolbarButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hostToolbarButtonDisabled: {
+    opacity: 0.55,
+  },
+  hostFullImageWithPeek: {
+    height: '50%',
+    marginBottom: 176,
+  },
+  hostFullImageWithGuestbook: {
+    height: '40%',
+    marginBottom: 278,
+  },
+  hostViewerActions: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    gap: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20,
+    elevation: 20,
+  },
+  hostViewerActionsRaised: {
+    bottom: 318,
+  },
+  hostViewerActionsDocked: {
+    bottom: 116,
+  },
+  hostViewerAction: {
+    alignItems: 'center',
+    gap: 7,
+    minWidth: 86,
+  },
+  hostViewerActionButton: {
+    width: 58,
+    height: 58,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hostViewerActionLabel: {
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+  },
+  hostGuestbookPanel: {
+    left: 20,
+    right: 20,
+    bottom: 12,
+    height: 290,
+  },
+  hostGuestbookHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 14,
+  },
+  hostGuestbookTitle: {
+    fontSize: 22,
+  },
+  hostGuestbookSubtitle: {
+    fontSize: 9,
+    letterSpacing: 1.8,
+  },
+  hostCloseGuestbookBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+  },
+  hostGuestbookListContent: {
+    padding: 18,
+    paddingBottom: 20,
+  },
+  hostEmptyGuestbook: {
+    paddingVertical: 26,
+  },
+  hostEmptyGuestbookIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    marginBottom: 12,
+  },
+  hostEmptyGuestbookTitle: {
+    fontSize: 16,
+  },
+  hostEmptyGuestbookText: {
+    fontSize: 12,
+  },
+  hostCommentComposer: {
+    padding: 14,
+  },
+  hostGuestbookPeek: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    bottom: 12,
+    height: 82,
+    borderWidth: 1,
+    paddingHorizontal: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+    zIndex: 18,
+    elevation: 18,
+  },
+  hostGuestbookPeekTitle: {
+    fontSize: 22,
+  },
+  hostGuestbookPeekSubtitle: {
+    fontSize: 9,
+    letterSpacing: 1.8,
+    marginTop: 5,
+  },
+  hostGuestbookPeekButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inlineViewerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 900,
+    elevation: 900,
+  },
+});

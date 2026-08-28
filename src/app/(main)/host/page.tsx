@@ -27,6 +27,7 @@ import {
     LayoutGrid,
     List,
     Users,
+    Store,
     Share2,
     Phone,
     Globe,
@@ -94,7 +95,6 @@ import { Tooltip } from "@/components/Tooltip";
 import { navigateWithModifierClick } from "@/lib/navigation";
 import { formatStorageSize, getPlanDetails, getUsagePercent } from "@/lib/planLimits";
 import { getSubscriptionStatus } from "@/lib/subscriptionStatus";
-import { getWebLightboxTheme } from "@/lib/webTemplateTheme";
 import { v4 as uuidv4 } from "uuid";
 
 
@@ -4321,27 +4321,34 @@ function DashboardContent() {
                                         )}
 
                                         {activeEventDetailTab === "partners" && (
-                                            <div className="space-y-5">
-                                                <div>
-                                                    <h4 className="text-xl font-black text-white">Partners</h4>
-                                                    <p className="text-sm font-bold text-slate-400">Linked vendors and event partners for this event.</p>
-                                                </div>
-
-                                                {(selectedMainEvent.vendors?.length || 0) > 0 ? (
-                                                    <div className="grid gap-3 sm:grid-cols-2">
-                                                        {selectedMainEvent.vendors?.map((vendorId) => (
-                                                            <div key={vendorId} className="rounded-[1.5rem] border border-slate-700 bg-slate-900/50 p-4">
-                                                                <p className="text-sm font-black text-white">Vendor</p>
-                                                                <p className="mt-1 break-all text-xs font-bold text-slate-400">{vendorId}</p>
+                                            <div className="space-y-6">
+                                                <div className="rounded-[1.8rem] border border-amber-400/20 bg-slate-900/60 p-6 text-left shadow-xl backdrop-blur-md sm:p-8">
+                                                    <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.2em] text-amber-300">
+                                                        <Users className="h-4 w-4 text-amber-400" />
+                                                        <span>Event Partners · Phase 2</span>
+                                                    </div>
+                                                    <h4 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+                                                        Coming Soon
+                                                    </h4>
+                                                    <p className="mt-3 text-sm font-medium leading-relaxed text-slate-300 sm:text-base">
+                                                        The Event Partners feature is linked with EB Business & EB Network. In Phase 2, hosts will be able to link verified photographers, caterers, planners, and venues directly to their event.
+                                                    </p>
+                                                    <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                                                        {[
+                                                            { title: "Link Verified Vendors", desc: "Attach official vendor profiles to your event dashboard.", icon: Users },
+                                                            { title: "EB Business Integration", desc: "Directly showcase service providers registered on EB Business.", icon: Store },
+                                                            { title: "Partner Showcase", desc: "Highlight credited partners to your guests on the event page.", icon: Star },
+                                                        ].map(({ title, desc, icon: Icon }) => (
+                                                            <div key={title} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                                                                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400/10 text-amber-300">
+                                                                    <Icon className="h-4 w-4" />
+                                                                </div>
+                                                                <h5 className="text-xs font-black uppercase tracking-wider text-white">{title}</h5>
+                                                                <p className="mt-1.5 text-xs font-medium text-slate-400 leading-normal">{desc}</p>
                                                             </div>
                                                         ))}
                                                     </div>
-                                                ) : (
-                                                    <div className="rounded-[1.5rem] border border-dashed border-slate-700 p-8 text-center">
-                                                        <Users className="mx-auto mb-3 h-8 w-8 text-slate-500" />
-                                                        <p className="text-sm font-bold text-slate-400">No partners linked to this event yet.</p>
-                                                    </div>
-                                                )}
+                                                </div>
                                             </div>
                                         )}
                                     </div>
@@ -6403,7 +6410,9 @@ function DashboardContent() {
                         };
                     })() : null}
                     onClose={() => setViewingPhoto(null)}
-                    theme={getWebLightboxTheme(selectedMainEvent?.templateId)}
+                    keepPageHeaderVisible
+                    hideFilename
+                    compactMedia
                     onRotate={(direction) => viewingPhoto?.id ? handleRotatePhoto(viewingPhoto.id, direction) : undefined}
                     isFavourite={!!viewingPhoto?.id && eventFavouritePhotoIds.has(viewingPhoto.id)}
                     onToggleFavourite={

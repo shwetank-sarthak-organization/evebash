@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Briefcase, ChevronRight, MapPin, Star } from "lucide-react";
+import { Briefcase, ChevronRight, MapPin, Star, Users, Store } from "lucide-react";
 import LoadingScreen from "@/components/LoadingScreen";
 import { EventNavbar } from "@/components/EventNavbar";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -152,14 +152,32 @@ function EventPartnersContent({ slug }: { slug: string }) {
                 />
 
                 {vendors.length === 0 ? (
-                    <div className="mx-auto mt-12 max-w-2xl rounded-[2rem] border border-stone-200 bg-white p-10 text-center shadow-sm">
-                        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-stone-100 text-stone-500">
-                            <Briefcase className="h-8 w-8" />
+                    <div className="mx-auto mt-12 max-w-3xl rounded-[2.5rem] border border-amber-400/20 bg-slate-950 p-8 text-center shadow-2xl sm:p-12 text-white">
+                        <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-amber-300">
+                            <Users className="h-4 w-4 text-amber-400" />
+                            <span>Event Partners · Phase 2</span>
                         </div>
-                        <h2 className="text-xl font-black text-slate-900">Vendor list coming soon</h2>
-                        <p className="mt-3 text-sm font-semibold leading-6 text-stone-600">
-                            Event partners linked by the host will appear here.
+                        <h2 className="font-playfair text-4xl font-black text-white sm:text-5xl">
+                            Coming Soon
+                        </h2>
+                        <p className="mt-4 text-sm font-semibold leading-relaxed text-slate-300 sm:text-base">
+                            The Event Partners directory is linked with EB Business & EB Network. In Phase 2, hosts will be able to feature verified photographers, caterers, planners, and venues directly on this page.
                         </p>
+                        <div className="mt-8 grid gap-4 text-left sm:grid-cols-3">
+                            {[
+                                { title: "Verified Partners", desc: "Browse authenticated service providers linked by the host.", icon: Users },
+                                { title: "EB Business Profiles", desc: "Discover full portfolios, ratings, and services.", icon: Store },
+                                { title: "Direct Enquiries", desc: "Connect with event vendors for your future celebrations.", icon: Star },
+                            ].map(({ title, desc, icon: Icon }) => (
+                                <div key={title} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+                                    <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400/10 text-amber-300">
+                                        <Icon className="h-4 w-4" />
+                                    </div>
+                                    <h3 className="text-xs font-black uppercase tracking-widest text-white">{title}</h3>
+                                    <p className="mt-1 text-xs font-medium text-slate-400 leading-normal">{desc}</p>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 ) : (
                     <div className="mt-12 grid gap-5 md:grid-cols-2">

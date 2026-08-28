@@ -51,8 +51,10 @@ const config: Config = {
                 },
             },
             fontFamily: {
-                serif: ["var(--font-playfair)", "serif"],
-                sans: ["var(--font-lato)", "sans-serif"],
+                serif: ["var(--font-inter)", "sans-serif"],
+                sans: ["var(--font-inter)", "sans-serif"],
+                lato: ["var(--font-inter)", "sans-serif"],
+                playfair: ["var(--font-inter)", "sans-serif"],
             },
             animation: {
                 'fade-in-up': 'fadeInUp 0.8s ease-out forwards',

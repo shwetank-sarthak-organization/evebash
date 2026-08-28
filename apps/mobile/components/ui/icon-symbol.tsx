@@ -84,6 +84,8 @@ const MAPPING = {
   'arrow.up.right': 'arrow-outward',
   'arrow.down.right': 'south-east',
   'arrow.down.to.line.compact': 'file-download',
+  'arrow.counterclockwise': 'rotate-left',
+  'arrow.clockwise': 'rotate-right',
   'minus': 'remove',
   'heart.circle.fill': 'favorite',
   'mappin.and.ellipse': 'location-on',

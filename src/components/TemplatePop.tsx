@@ -32,7 +32,7 @@ export function TemplatePop({ event, children }: TemplatePopProps) {
                     box-shadow: 16px 16px 0px 0px #111111 !important;
                 }
                 .pop-art-gallery-override a h3 {
-                    font-family: sans-serif !important;
+                    font-family: var(--font-inter), Helvetica, Arial, sans-serif !important;
                     font-weight: 950 !important;
                     text-transform: uppercase !important;
                     letter-spacing: -0.05em !important;
@@ -69,7 +69,7 @@ export function TemplatePop({ event, children }: TemplatePopProps) {
 
                 /* 3. Section Headers & Text styling inside children */
                 .pop-art-gallery-override h2 {
-                    font-family: sans-serif !important;
+                    font-family: var(--font-inter), Helvetica, Arial, sans-serif !important;
                     font-weight: 950 !important;
                     text-transform: uppercase !important;
                     letter-spacing: -0.03em !important;

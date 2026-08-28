@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import LoadingScreen from '@/components/LoadingScreen';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Share, Keyboard, useWindowDimensions, useColorScheme, BackHandler, PanResponder, Animated as RNAnimated } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Share, Keyboard, useWindowDimensions, useColorScheme, BackHandler, PanResponder, Animated as RNAnimated, type ViewStyle } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { getEventById, getSubEvents, logGuestLogin, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getUsers, UserProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents } from '@/lib/database';
+import { getEventById, getSubEvents, logGuestLogin, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getUsers, UserProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { styles, FunkyFonts } from '../../components/eventStyles';
@@ -17,7 +17,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { uploadEventImage, uploadEventMedia } from '@/lib/storage';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { subscribeToUploadQueue, addToUploadQueue, retryUploadItem, cancelUploadItem, clearFinishedUploads, resetUploadQueue, UploadQueueItem } from '@/lib/uploadQueue';
-import { VideoView, useVideoPlayer } from 'expo-video';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import Sortable from 'react-native-sortables';
@@ -367,10 +366,16 @@ function GalleryVideoCard({
   compact?: boolean;
   blurred?: boolean;
 }) {
-  const player = useVideoPlayer(video.url, (player) => {
-    player.loop = false;
-    player.muted = compact;
-  });
+  const posterUri = video.thumbnailUrl || video.thumbnail_url || video.posterUrl || video.previewUrl || '';
+  const [showPoster, setShowPoster] = useState(!!posterUri);
+
+  useEffect(() => {
+    setShowPoster(!!posterUri);
+  }, [posterUri]);
+
+  const previewStyle: ViewStyle = compact
+    ? { width: '100%', height: '100%', backgroundColor: '#050505' }
+    : { width: '100%', aspectRatio: 16 / 9, backgroundColor: '#050505' };
 
   return (
     <View style={{
@@ -383,15 +388,38 @@ function GalleryVideoCard({
       ...(compact ? { width: '100%', height: '100%' } : {}),
     }}>
       <View style={{ position: 'relative', backgroundColor: '#050505', flex: compact ? 1 : undefined }}>
-        <VideoView
-          player={player}
-          nativeControls={!compact}
-          contentFit={compact ? "cover" : "contain"}
-          surfaceType="textureView"
-          style={[
-            compact ? { width: '100%', height: '100%', backgroundColor: '#050505' } : { width: '100%', aspectRatio: 16 / 9, backgroundColor: '#050505' },
-            blurred && { opacity: 0.42 },
-          ]}
+        <View style={[previewStyle, blurred && { opacity: 0.42 }]}>
+          {showPoster ? (
+            <ExpoImage
+              source={{ uri: posterUri }}
+              style={{ width: '100%', height: '100%' }}
+              contentFit={compact ? "cover" : "contain"}
+              onError={() => setShowPoster(false)}
+            />
+          ) : (
+            <LinearGradient
+              colors={['rgba(15,23,42,0.98)', 'rgba(2,6,23,0.94)']}
+              style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16 }}
+            >
+              <View style={{
+                width: compact ? 34 : 46,
+                height: compact ? 34 : 46,
+                borderRadius: compact ? 17 : 23,
+                backgroundColor: `${accent}1f`,
+                borderWidth: 1,
+                borderColor: `${accent}66`,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <IconSymbol name="play.fill" size={compact ? 15 : 20} color={accent} />
+              </View>
+            </LinearGradient>
+          )}
+        </View>
+        <LinearGradient
+          pointerEvents="none"
+          colors={['rgba(2,6,23,0)', 'rgba(2,6,23,0.44)']}
+          style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: compact ? '50%' : '42%' }}
         />
         {onOpen && (
           <TouchableOpacity
@@ -942,6 +970,7 @@ export default function EventDetailScreen() {
   const [mediaTotals, setMediaTotals] = useState({ photos: 0, videos: 0 });
   const [storageStats, setStorageStats] = useState<{ used: number; limit: number; label: string; percent: number } | null>(null);
   const [retainedMediaIds, setRetainedMediaIds] = useState<Set<string>>(new Set());
+  const [eventFavouritePhotoIds, setEventFavouritePhotoIds] = useState<Set<string>>(new Set());
 
   const fetchStorage = useCallback(async () => {
     if (!user?.uid || !showAdminView) return;
@@ -1014,6 +1043,19 @@ export default function EventDetailScreen() {
     ? { id: user.uid, name: user.name || user.email?.split('@')[0] || 'User' }
     : { id: guestPhone || 'anonymous', name: guestName || 'Guest' }, [user, guestPhone, guestName]);
 
+  const getPrimaryFavouriteEventIds = useCallback((
+    mainEvent: DatabaseEvent | null = event,
+    galleries: DatabaseEvent[] = subEvents
+  ) => {
+    if (!mainEvent) return [];
+    return Array.from(new Set([
+      mainEvent.id,
+      mainEvent.legacyId,
+      ...galleries.map(sub => sub.id),
+      ...galleries.map(sub => sub.legacyId),
+    ].filter(Boolean) as string[]));
+  }, [event, subEvents]);
+
   const openViewer = (index: number) => {
     setCurrentPhotoIndex(index);
     setViewerVisible(true);
@@ -1069,8 +1111,8 @@ export default function EventDetailScreen() {
         setEvent(eventData);
         setIsOwner(ownerAccess);
 
-        // Fetch sub-events, vendors, guest logs, and photos concurrently
-        const [subs, vendorsData, logs, photoDataResult, retainedIds] = await Promise.all([
+        // Fetch sub-events, vendors, guest logs, photos, and gallery favourites concurrently
+        const [subs, vendorsData, logs, photoDataResult, retainedIds, favouriteRows] = await Promise.all([
           getSubEvents(id, eventData.legacyId),
           eventData.vendors && eventData.vendors.length > 0
             ? Promise.all(eventData.vendors.map((vid: string) => getBusinessById(vid)))
@@ -1080,6 +1122,7 @@ export default function EventDetailScreen() {
             : Promise.resolve([]),
           getEventPhotosPaginated(eventData.id, eventData.legacyId, 0, PHOTO_PAGE_SIZE),
           getRetainedMediaIdsForEventGrace(eventData.id, eventData.legacyId),
+          getEventFavouritePhotos(eventData.id),
         ]);
 
         const eventLogs = logs.filter(l => l.eventId === id || l.parentEventId === id);
@@ -1102,13 +1145,24 @@ export default function EventDetailScreen() {
           }
         });
 
+        const primaryFavouritePhotos = await getFavouritePhotosForEvents(getPrimaryFavouriteEventIds(eventData, normalizedSubs));
+        const hasPrimaryFavourites = primaryFavouritePhotos.length > 0;
+        const primaryFavouriteIds = primaryFavouritePhotos.map((photo: any) => photo.id).filter(Boolean);
+
         setSubEvents(normalizedSubs);
         setLinkedVendors(vendorsData.filter(v => v !== null) as Business[]);
-        setPhotos(photoDataResult.photos);
-        setMediaTotals({ photos: photoDataResult.totalPhotos, videos: photoDataResult.totalVideos });
+        setPhotos(hasPrimaryFavourites ? primaryFavouritePhotos : photoDataResult.photos);
+        setMediaTotals(hasPrimaryFavourites
+          ? {
+              photos: primaryFavouritePhotos.filter(isPhotoMedia).length,
+              videos: primaryFavouritePhotos.filter(isVideoMedia).length,
+            }
+          : { photos: photoDataResult.totalPhotos, videos: photoDataResult.totalVideos }
+        );
         setPhotoPage(0);
-        setHasMorePhotos(photoDataResult.hasMore);
-        setRetainedMediaIds(new Set(retainedIds));
+        setHasMorePhotos(hasPrimaryFavourites ? false : photoDataResult.hasMore);
+        setRetainedMediaIds(hasPrimaryFavourites ? new Set(primaryFavouriteIds) : new Set(retainedIds));
+        setEventFavouritePhotoIds(new Set(hasPrimaryFavourites ? primaryFavouriteIds : favouriteRows.map((row: any) => row.photoId)));
 
         if (ownerAccess || hasSharedAdminAccess) {
           eventLogs
@@ -1138,29 +1192,31 @@ export default function EventDetailScreen() {
     setLoadingPhotos(true);
     const perfPhotosStart = Date.now();
     try {
-      const [photoDataResult, retainedIds] = await Promise.all([
+      const [photoDataResult, retainedIds, favouriteRows] = await Promise.all([
         getEventPhotosPaginated(eventId, legacyId, 0, PHOTO_PAGE_SIZE),
         getRetainedMediaIdsForEventGrace(eventId, legacyId),
+        getEventFavouritePhotos(eventId),
       ]);
       setPhotos(photoDataResult.photos);
       setMediaTotals({ photos: photoDataResult.totalPhotos, videos: photoDataResult.totalVideos });
       setPhotoPage(0);
       setHasMorePhotos(photoDataResult.hasMore);
       setRetainedMediaIds(new Set(retainedIds));
+      setEventFavouritePhotoIds(new Set(favouriteRows.map((row: any) => row.photoId)));
       console.log(`[PERF] loadPhotos completed in ${Date.now() - perfPhotosStart}ms`);
     } catch (err) {
       console.error('[EventDetail] Photos load error:', err);
       setPhotos([]);
       setMediaTotals({ photos: 0, videos: 0 });
       setHasMorePhotos(false);
+      setEventFavouritePhotoIds(new Set());
     } finally {
       setLoadingPhotos(false);
     }
   };
 
   const getFavouriteEventIds = () => {
-    if (!event) return [];
-    return Array.from(new Set([event.id, event.legacyId, ...subEvents.map(sub => sub.id), ...subEvents.map(sub => sub.legacyId)].filter(Boolean) as string[]));
+    return getPrimaryFavouriteEventIds();
   };
 
   const loadFavouritePhotos = async () => {
@@ -1171,6 +1227,7 @@ export default function EventDetailScreen() {
       const favouriteVideoCount = favouritePhotos.filter(isVideoMedia).length;
       setPhotos(favouritePhotos);
       setMediaTotals({ photos: favouritePhotoCount, videos: favouriteVideoCount });
+      setEventFavouritePhotoIds(new Set(favouritePhotos.map((photo: any) => photo.id)));
       setPhotoPage(0);
       setHasMorePhotos(false);
     } catch (err) {
@@ -1178,10 +1235,53 @@ export default function EventDetailScreen() {
       setPhotos([]);
       setMediaTotals({ photos: 0, videos: 0 });
       setHasMorePhotos(false);
+      setEventFavouritePhotoIds(new Set());
     } finally {
       setLoadingPhotos(false);
     }
   };
+
+  const loadPrimaryGalleryPhotos = useCallback(async () => {
+    if (!event) return;
+    setLoadingPhotos(true);
+    try {
+      const favouritePhotos = await getFavouritePhotosForEvents(getPrimaryFavouriteEventIds());
+      if (favouritePhotos.length > 0) {
+        const favouriteIds = favouritePhotos.map((photo: any) => photo.id).filter(Boolean);
+        const favouritePhotoCount = favouritePhotos.filter(isPhotoMedia).length;
+        const favouriteVideoCount = favouritePhotos.filter(isVideoMedia).length;
+
+        setPhotos(favouritePhotos);
+        setMediaTotals({ photos: favouritePhotoCount, videos: favouriteVideoCount });
+        setEventFavouritePhotoIds(new Set(favouriteIds));
+        setRetainedMediaIds(new Set(favouriteIds));
+        setPhotoPage(0);
+        setHasMorePhotos(false);
+        return;
+      }
+
+      const [photoDataResult, retainedIds, favouriteRows] = await Promise.all([
+        getEventPhotosPaginated(event.id, event.legacyId, 0, PHOTO_PAGE_SIZE),
+        getRetainedMediaIdsForEventGrace(event.id, event.legacyId),
+        getEventFavouritePhotos(event.id),
+      ]);
+
+      setPhotos(photoDataResult.photos);
+      setMediaTotals({ photos: photoDataResult.totalPhotos, videos: photoDataResult.totalVideos });
+      setPhotoPage(0);
+      setHasMorePhotos(photoDataResult.hasMore);
+      setRetainedMediaIds(new Set(retainedIds));
+      setEventFavouritePhotoIds(new Set(favouriteRows.map((row: any) => row.photoId)));
+    } catch (err) {
+      console.error('[EventDetail] Primary gallery photos load error:', err);
+      setPhotos([]);
+      setMediaTotals({ photos: 0, videos: 0 });
+      setHasMorePhotos(false);
+      setEventFavouritePhotoIds(new Set());
+    } finally {
+      setLoadingPhotos(false);
+    }
+  }, [event, getPrimaryFavouriteEventIds]);
 
   const handleLoadMorePhotos = async () => {
     if (loadingMorePhotos || !hasMorePhotos || !event) return;
@@ -1224,7 +1324,7 @@ export default function EventDetailScreen() {
     if (sub) {
       loadPhotos(sub.id, sub.legacyId);
     } else if (event) {
-      loadPhotos(event.id, event.legacyId);
+      loadPrimaryGalleryPhotos();
     }
   };
 
@@ -1233,7 +1333,7 @@ export default function EventDetailScreen() {
       setSelectedAdminGallery(undefined);
       setGalleryMediaTab('photos');
       if (event) {
-        loadPhotos(event.id, event.legacyId);
+        loadPrimaryGalleryPhotos();
       }
       return;
     }
@@ -1242,7 +1342,7 @@ export default function EventDetailScreen() {
       setActiveSubEvent(null);
       setGalleryMediaTab('photos');
       if (event) {
-        loadPhotos(event.id, event.legacyId);
+        loadPrimaryGalleryPhotos();
       }
       return;
     }
@@ -1252,7 +1352,7 @@ export default function EventDetailScreen() {
     } else {
       router.replace('/(tabs)/dashboard');
     }
-  }, [activeSubEvent, event, router, selectedAdminGallery]);
+  }, [activeSubEvent, event, loadPrimaryGalleryPhotos, router, selectedAdminGallery]);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -1346,12 +1446,122 @@ export default function EventDetailScreen() {
 
   const handleReorderPhotos = async (newOrder: any[]) => {
     const reorderedIds = newOrder.map((p: any) => p.id);
-    setPhotos(newOrder);
+    setPhotos(prev => [...newOrder, ...prev.filter(item => isVideoMedia(item))]);
     try {
       await updatePhotosOrder(reorderedIds);
     } catch (err) {
       console.error('[ReorderPhotos] Error saving order:', err);
     }
+  };
+
+  const moveGalleryMedia = async (mediaId: string, direction: -1 | 1) => {
+    if (selectedAdminGallery === undefined && activeSubEvent?.id === 'favourite') return;
+
+    const visibleItems = galleryMediaTab === 'videos' ? videoItems : photoItems;
+    const currentIndex = visibleItems.findIndex(item => item.id === mediaId);
+    const targetIndex = currentIndex + direction;
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= visibleItems.length) return;
+
+    const reorderedItems = [...visibleItems];
+    [reorderedItems[currentIndex], reorderedItems[targetIndex]] = [reorderedItems[targetIndex], reorderedItems[currentIndex]];
+
+    const reorderedIds = reorderedItems.map((item: any) => item.id);
+    setPhotos(prev => {
+      const otherItems = prev.filter(item => !reorderedIds.includes(item.id));
+      return galleryMediaTab === 'videos'
+        ? [...otherItems, ...reorderedItems]
+        : [...reorderedItems, ...otherItems];
+    });
+
+    try {
+      await updatePhotosOrder(reorderedIds);
+    } catch (err) {
+      console.error('[ReorderMedia] Error saving order:', err);
+    }
+  };
+
+  const getEditableGalleryForActions = () => {
+    if (!event || (selectedAdminGallery === undefined && activeSubEvent?.id === 'favourite')) return null;
+    return selectedAdminGallery === undefined
+      ? (activeSubEvent || event)
+      : (selectedAdminGallery || event);
+  };
+
+  const handleToggleEventFavourite = async (photoId: string) => {
+    const editableGallery = getEditableGalleryForActions();
+    if (!editableGallery || !user?.uid) return;
+
+    const wasFavourite = eventFavouritePhotoIds.has(photoId);
+    setEventFavouritePhotoIds(prev => {
+      const next = new Set(prev);
+      if (wasFavourite) {
+        next.delete(photoId);
+      } else {
+        next.add(photoId);
+      }
+      return next;
+    });
+
+    const result = await toggleEventFavouritePhoto(editableGallery.id, photoId, user.uid);
+    if (result.error) {
+      setEventFavouritePhotoIds(prev => {
+        const next = new Set(prev);
+        if (wasFavourite) {
+          next.add(photoId);
+        } else {
+          next.delete(photoId);
+        }
+        return next;
+      });
+      Alert.alert('Error', result.error);
+      return;
+    }
+
+    setEventFavouritePhotoIds(prev => {
+      const next = new Set(prev);
+      if (result.favourited) {
+        next.add(photoId);
+      } else {
+        next.delete(photoId);
+      }
+      return next;
+    });
+
+    if ((activeSubEvent?.id === 'favourite' || selectedAdminGallery === null) && !result.favourited) {
+      setPhotos(prev => prev.filter(photo => photo.id !== photoId));
+    }
+  };
+
+  const appendMediaCacheBuster = (url?: string | null, cacheBuster = Date.now()) => {
+    if (!url) return url;
+    return `${url}${url.includes('?') ? '&' : '?'}v=${cacheBuster}`;
+  };
+
+  const handleRotateGalleryPhoto = async (photoId: string, direction: 'left' | 'right') => {
+    const result = await rotatePhoto(photoId, direction);
+    if (!result.success || !result.url || !result.thumbnailUrl) {
+      Alert.alert('Error', result.error || 'Failed to rotate photo.');
+      return;
+    }
+
+    const cacheBuster = result.cacheBuster || Date.now();
+    const displayUrl = appendMediaCacheBuster(result.url, cacheBuster) || result.url;
+    const displayThumbnailUrl = appendMediaCacheBuster(result.thumbnailUrl, cacheBuster) || result.thumbnailUrl;
+    const displayPreviewUrl = appendMediaCacheBuster(result.previewUrl, cacheBuster);
+
+    setPhotos(prev => prev.map(photo => (
+      photo.id === photoId
+        ? {
+            ...photo,
+            url: displayUrl,
+            thumbnailUrl: displayThumbnailUrl,
+            previewUrl: displayPreviewUrl || photo.previewUrl,
+            width: result.width ?? photo.width,
+            height: result.height ?? photo.height,
+            size: result.size ?? photo.size,
+          }
+        : photo
+    )));
   };
 
   const handleReorderSubEvents = async (newOrder: any[]) => {
@@ -1379,6 +1589,11 @@ export default function EventDetailScreen() {
             try {
               const { deletePhoto } = await import('@/lib/database');
               await deletePhoto(photoId);
+              setEventFavouritePhotoIds(prev => {
+                const next = new Set(prev);
+                next.delete(photoId);
+                return next;
+              });
 
               const activeId = selectedAdminGallery !== undefined
                 ? (selectedAdminGallery ? selectedAdminGallery.id : event!.id)
@@ -1387,7 +1602,11 @@ export default function EventDetailScreen() {
                 ? (selectedAdminGallery ? selectedAdminGallery.legacyId : event!.legacyId)
                 : (activeSubEvent ? activeSubEvent.legacyId : event!.legacyId);
 
-              loadPhotos(activeId, activeLegacyId);
+              if (selectedAdminGallery === null) {
+                loadPrimaryGalleryPhotos();
+              } else {
+                loadPhotos(activeId, activeLegacyId);
+              }
               Alert.alert("Success", `${selectedMediaLabel === 'video' ? 'Video' : 'Photo'} removed from gallery.`);
             } catch (err) {
               console.error('[DeletePhoto] Error:', err);
@@ -2329,6 +2548,8 @@ export default function EventDetailScreen() {
       </View>
     );
   };
+
+  const photoActionItemIsFavourite = photoActionItem ? eventFavouritePhotoIds.has(photoActionItem.id) : false;
 
   return (
     <View style={[styles.safeArea, { backgroundColor: pageBackground }]}>
@@ -3479,7 +3700,7 @@ export default function EventDetailScreen() {
                   <Text style={styles.heroBadgeText}>THE CELEBRATION OF</Text>
                 </View>
 
-                {/* Event Title - Poetic fluid Playfair Display Serif Italic */}
+                {/* Event Title */}
                 <Text style={[styles.heroTitleMain, { fontFamily: selectedTemplate.serifItalic, fontStyle: 'italic' }]}>
                   {currentActiveEvent?.title || event.title}
                 </Text>
@@ -4293,10 +4514,10 @@ export default function EventDetailScreen() {
                               { borderColor: selectedTemplate.accent, borderWidth: 1.5 }
                             ]}
 	                            onPress={() => {
-	                              loadPhotos(event.id, event.legacyId);
-	                              setGalleryDescText(event.description || '');
-                                  setGalleryMediaTab('photos');
-	                              setSelectedAdminGallery(null);
+		                              loadPrimaryGalleryPhotos();
+		                              setGalleryDescText(event.description || '');
+	                                  setGalleryMediaTab('photos');
+		                              setSelectedAdminGallery(null);
 	                            }}
                             activeOpacity={0.85}
                           >
@@ -4596,6 +4817,8 @@ export default function EventDetailScreen() {
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                           {videoItems.map((video, idx) => {
                             const shouldBlurVideo = shouldBlurMediaForPlan(video);
+                            const canMoveVideoUp = idx > 0;
+                            const canMoveVideoDown = idx < videoItems.length - 1;
                             return (
                             <View key={video.id} style={{ position: 'relative', width: '31.5%', aspectRatio: 1 }}>
                               <GalleryVideoCard
@@ -4621,6 +4844,54 @@ export default function EventDetailScreen() {
                               >
                                 <IconSymbol name="trash.fill" size={10} color="#fff" />
                               </TouchableOpacity>
+                              {videoItems.length > 1 && (
+                                <View
+                                  style={{
+                                    position: 'absolute',
+                                    left: 4,
+                                    bottom: 4,
+                                    flexDirection: 'row',
+                                    borderRadius: 13,
+                                    overflow: 'hidden',
+                                    backgroundColor: 'rgba(15,23,42,0.86)',
+                                    borderWidth: 1,
+                                    borderColor: 'rgba(255,255,255,0.12)',
+                                  }}
+                                >
+                                  <TouchableOpacity
+                                    style={{
+                                      width: 24,
+                                      height: 24,
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      opacity: canMoveVideoUp ? 1 : 0.35,
+                                    }}
+                                    disabled={!canMoveVideoUp}
+                                    onPress={(e) => {
+                                      e.stopPropagation();
+                                      moveGalleryMedia(video.id, -1);
+                                    }}
+                                  >
+                                    <IconSymbol name="chevron.up" size={15} color="#fff" />
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    style={{
+                                      width: 24,
+                                      height: 24,
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      opacity: canMoveVideoDown ? 1 : 0.35,
+                                    }}
+                                    disabled={!canMoveVideoDown}
+                                    onPress={(e) => {
+                                      e.stopPropagation();
+                                      moveGalleryMedia(video.id, 1);
+                                    }}
+                                  >
+                                    <IconSymbol name="chevron.down" size={15} color="#fff" />
+                                  </TouchableOpacity>
+                                </View>
+                              )}
                             </View>
                           );
                           })}
@@ -4637,11 +4908,15 @@ export default function EventDetailScreen() {
                             columnGap={8}
                             rowGap={8}
                             onDragEnd={({ data: newData }: { data: any[] }) => handleReorderPhotos(newData)}
-                            renderItem={({ item }: { item: any }) => {
-                              const shouldBlurPhoto = shouldBlurMediaForPlan(item);
-                              return (
-                              <View style={{ position: 'relative', borderRadius: 10, overflow: 'hidden' }}>
-                                <TouchableOpacity
+	                            renderItem={({ item }: { item: any }) => {
+	                              const shouldBlurPhoto = shouldBlurMediaForPlan(item);
+                              const itemIndex = photoItems.findIndex(photo => photo.id === item.id);
+                              const isFavouritePhoto = eventFavouritePhotoIds.has(item.id);
+                              const canMovePhotoUp = itemIndex > 0;
+                              const canMovePhotoDown = itemIndex >= 0 && itemIndex < photoItems.length - 1;
+	                              return (
+	                              <View style={{ position: 'relative', borderRadius: 10, overflow: 'hidden' }}>
+	                                <TouchableOpacity
                                   activeOpacity={0.9}
                                   onPress={() => {
                                     const photoIndex = photoItems.findIndex(photo => photo.id === item.id);
@@ -4670,15 +4945,44 @@ export default function EventDetailScreen() {
                                     borderRadius: 11,
                                     backgroundColor: 'rgba(15,23,42,0.85)',
                                     alignItems: 'center',
-                                    justifyContent: 'center',
-                                  }}
-                                  onPress={() => openGalleryPhotoActions(item)}
-                                >
-                                  <Text style={{ color: '#fff', fontSize: 14, lineHeight: 14, fontWeight: '900' }}>⋯</Text>
-                                </TouchableOpacity>
+	                                    justifyContent: 'center',
+	                                  }}
+	                                  onPress={(e) => {
+                                      e.stopPropagation();
+                                      openGalleryPhotoActions(item);
+                                    }}
+	                                >
+	                                  <Text style={{ color: '#fff', fontSize: 14, lineHeight: 14, fontWeight: '900' }}>⋯</Text>
+	                                </TouchableOpacity>
                                 <TouchableOpacity
                                   style={{
                                     position: 'absolute',
+                                    top: 4,
+                                    right: 30,
+                                    width: 22,
+                                    height: 22,
+                                    borderRadius: 11,
+                                    backgroundColor: isFavouritePhoto ? MidnightColors.gold : 'rgba(15,23,42,0.85)',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    borderWidth: 1,
+                                    borderColor: isFavouritePhoto ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)',
+                                  }}
+                                  onPress={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleEventFavourite(item.id);
+                                  }}
+                                  activeOpacity={0.75}
+                                >
+                                  <IconSymbol
+                                    name={isFavouritePhoto ? 'star.fill' : 'star'}
+                                    size={11}
+                                    color={isFavouritePhoto ? '#050505' : '#fff'}
+                                  />
+                                </TouchableOpacity>
+	                                <TouchableOpacity
+	                                  style={{
+	                                    position: 'absolute',
                                     top: 4,
                                     right: 4,
                                     width: 22,
@@ -4686,15 +4990,66 @@ export default function EventDetailScreen() {
                                     borderRadius: 11,
                                     backgroundColor: 'rgba(239,68,68,0.9)',
                                     alignItems: 'center',
-                                    justifyContent: 'center',
-                                  }}
-                                  onPress={() => handleDeleteGalleryPhoto(item.id)}
-                                >
-                                  <IconSymbol name="trash.fill" size={10} color="#fff" />
-                                </TouchableOpacity>
-                              </View>
-                            );
-                            }}
+	                                    justifyContent: 'center',
+	                                  }}
+	                                  onPress={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteGalleryPhoto(item.id);
+                                    }}
+	                                >
+	                                  <IconSymbol name="trash.fill" size={10} color="#fff" />
+	                                </TouchableOpacity>
+                                {photoItems.length > 1 && (
+                                  <View
+                                    style={{
+                                      position: 'absolute',
+                                      left: 4,
+                                      bottom: 4,
+                                      flexDirection: 'row',
+                                      borderRadius: 13,
+                                      overflow: 'hidden',
+                                      backgroundColor: 'rgba(15,23,42,0.86)',
+                                      borderWidth: 1,
+                                      borderColor: 'rgba(255,255,255,0.12)',
+                                    }}
+                                  >
+                                    <TouchableOpacity
+                                      style={{
+                                        width: 24,
+                                        height: 24,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        opacity: canMovePhotoUp ? 1 : 0.35,
+                                      }}
+                                      disabled={!canMovePhotoUp}
+                                      onPress={(e) => {
+                                        e.stopPropagation();
+                                        moveGalleryMedia(item.id, -1);
+                                      }}
+                                    >
+                                      <IconSymbol name="chevron.up" size={15} color="#fff" />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                      style={{
+                                        width: 24,
+                                        height: 24,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        opacity: canMovePhotoDown ? 1 : 0.35,
+                                      }}
+                                      disabled={!canMovePhotoDown}
+                                      onPress={(e) => {
+                                        e.stopPropagation();
+                                        moveGalleryMedia(item.id, 1);
+                                      }}
+                                    >
+                                      <IconSymbol name="chevron.down" size={15} color="#fff" />
+                                    </TouchableOpacity>
+                                  </View>
+                                )}
+	                              </View>
+	                            );
+	                            }}
                           />
                         </View>
                       )}
@@ -5078,135 +5433,55 @@ export default function EventDetailScreen() {
 
               {activeTab === 'partners' && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Event Partners</Text>
-
-                  {linkedVendors.length === 0 && (
+                  <View style={{
+                    backgroundColor: 'rgba(30, 41, 59, 0.4)',
+                    borderRadius: 24,
+                    padding: 20,
+                    borderWidth: 1,
+                    borderColor: 'rgba(204, 164, 59, 0.25)',
+                    gap: 12
+                  }}>
                     <View style={{
-                      backgroundColor: 'rgba(30, 41, 59, 0.4)',
+                      backgroundColor: 'rgba(204, 164, 59, 0.12)',
                       borderRadius: 20,
-                      paddingVertical: 20,
-                      paddingHorizontal: 16,
-                      alignItems: 'center',
+                      paddingHorizontal: 12,
+                      paddingVertical: 4,
+                      alignSelf: 'flex-start',
                       borderWidth: 1,
-                      borderColor: 'rgba(204, 164, 59, 0.2)',
+                      borderColor: 'rgba(204, 164, 59, 0.3)'
                     }}>
-                      <Text style={{
-                        color: '#fff',
-                        fontSize: 14,
-                        fontFamily: Fonts.outfit.bold,
-                        textTransform: 'uppercase',
-                        letterSpacing: 1.5,
-                        marginBottom: 8
-                      }}>Partner Management</Text>
-
-                      <Text style={{
-                        color: '#cbd5e1',
-                        fontSize: 13,
-                        textAlign: 'center',
-                        lineHeight: 20,
-                        paddingHorizontal: 12,
-                        fontFamily: Fonts.inter.regular,
-                      }}>
-                        Connect photographers, makeup artists, and venues to your event page using their unique Vendor Code.
+                      <Text style={{ color: MidnightColors.gold, fontSize: 10, fontFamily: Fonts.outfit.bold, textTransform: 'uppercase', letterSpacing: 1.5 }}>
+                        Event Partners · Phase 2
                       </Text>
-
-                      <TouchableOpacity
-                        style={{
-                          marginTop: 18,
-                          backgroundColor: MidnightColors.gold,
-                          paddingHorizontal: 28,
-                          paddingVertical: 10,
-                          borderRadius: 24,
-                        }}
-                        onPress={() => setLinkingVendor(true)}
-                      >
-                        <Text style={{ color: '#000', fontFamily: Fonts.outfit.bold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 }}>Link a Vendor</Text>
-                      </TouchableOpacity>
                     </View>
-                  )}
 
-                  {linkedVendors.length > 0 && (
-                    <View style={{ marginTop: 28, paddingHorizontal: 4 }}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                        <Text style={{
-                          color: '#cbd5e1',
-                          fontSize: 11,
-                          fontFamily: Fonts.inter.bold,
-                          textTransform: 'uppercase',
-                          letterSpacing: 1.2
-                        }}>Linked Partners</Text>
+                    <Text style={{ color: '#fff', fontSize: 22, fontFamily: Fonts.outfit.bold }}>
+                      Coming Soon
+                    </Text>
 
-                        {!linkingVendor && (
-                          <TouchableOpacity
-                            style={{
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              gap: 6,
-                              backgroundColor: 'rgba(204, 164, 59, 0.12)',
-                              borderRadius: 12,
-                              paddingHorizontal: 12,
-                              paddingVertical: 6,
-                              borderWidth: 1,
-                              borderColor: MidnightColors.gold
-                            }}
-                            onPress={() => setLinkingVendor(true)}
-                          >
-                            <IconSymbol name="plus" size={12} color={MidnightColors.gold} />
-                            <Text style={{ color: MidnightColors.gold, fontSize: 11, fontFamily: Fonts.outfit.bold, textTransform: 'uppercase', letterSpacing: 0.5 }}>Link Partner</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
+                    <Text style={{ color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.inter.regular, lineHeight: 20 }}>
+                      Event Partners is linked with EB Business & EB Network. In Phase 2, hosts will be able to link verified photographers, caterers, planners, and venues directly to their event.
+                    </Text>
 
-                      <View style={{ gap: 12 }}>
-                        {linkedVendors.map((biz) => (
-                          <View key={biz.id} style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            backgroundColor: 'rgba(30, 41, 59, 0.3)',
-                            paddingHorizontal: 16,
-                            paddingVertical: 12,
-                            borderRadius: 16,
-                            borderWidth: 1,
-                            borderColor: 'rgba(255, 255, 255, 0.05)',
-                          }}>
-                            <Image
-                              source={{ uri: biz.coverImage || 'https://via.placeholder.com/150' }}
-                              style={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: 22,
-                                marginRight: 14,
-                                backgroundColor: 'rgba(255, 255, 255, 0.05)'
-                              }}
-                            />
-
-                            <View style={{ flex: 1 }}>
-                              <Text style={{ color: '#fff', fontSize: 15, fontFamily: Fonts.outfit.bold }}>{biz.name}</Text>
-                              <Text style={{ color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.inter.medium, marginTop: 2 }}>{biz.type}</Text>
-                            </View>
-
-                            <TouchableOpacity
-                              style={{
-                                padding: 8,
-                                backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                                borderRadius: 10,
-                                borderWidth: 1,
-                                borderColor: 'rgba(239, 68, 68, 0.15)',
-                              }}
-                              onPress={async () => {
-                                const newVendors = event?.vendors?.filter(vid => vid !== biz.id) || [];
-                                await updateEvent(event!.id, { vendors: newVendors });
-                                setEvent({ ...event!, vendors: newVendors });
-                                setLinkedVendors(linkedVendors.filter(v => v.id !== biz.id));
-                              }}
-                            >
-                              <IconSymbol name="trash.fill" size={14} color="#ef4444" />
-                            </TouchableOpacity>
-                          </View>
-                        ))}
-                      </View>
+                    <View style={{ gap: 8, marginTop: 4 }}>
+                      {[
+                        { title: "Link Verified Vendors", desc: "Attach official vendor profiles to your event dashboard." },
+                        { title: "EB Business Integration", desc: "Showcase service providers registered on EB Business." },
+                        { title: "Partner Showcase", desc: "Highlight credited partners to your guests." }
+                      ].map((item) => (
+                        <View key={item.title} style={{
+                          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                          borderRadius: 14,
+                          padding: 12,
+                          borderWidth: 1,
+                          borderColor: 'rgba(255, 255, 255, 0.06)'
+                        }}>
+                          <Text style={{ color: '#fff', fontSize: 12, fontFamily: Fonts.outfit.bold, textTransform: 'uppercase', letterSpacing: 0.5 }}>{item.title}</Text>
+                          <Text style={{ color: MidnightColors.slate400, fontSize: 11, fontFamily: Fonts.inter.regular, marginTop: 2 }}>{item.desc}</Text>
+                        </View>
+                      ))}
                     </View>
-                  )}
+                  </View>
                 </View>
               )}
             </>
@@ -6310,7 +6585,7 @@ export default function EventDetailScreen() {
                                       marginTop: 4,
                                     }}>
                                       <Text style={{
-                                        fontFamily: 'Courier',
+                                        fontFamily: Fonts.inter.regular,
                                         fontSize: 8,
                                         color: selectedTemplate.muted,
                                         letterSpacing: 0.5,
@@ -6536,6 +6811,11 @@ export default function EventDetailScreen() {
         viewerIdentity={viewerIdentity}
         event={event}
         selectedTemplate={selectedTemplate}
+        keepBottomBarVisible={showAdminView}
+        bottomBarOffset={showAdminView ? 55 + insets.bottom : 0}
+        isPhotoFavourite={showAdminView ? ((photo) => !!photo?.id && eventFavouritePhotoIds.has(photo.id)) : undefined}
+        onTogglePhotoFavourite={showAdminView ? ((photo) => photo?.id ? handleToggleEventFavourite(photo.id) : undefined) : undefined}
+        onRotatePhoto={showAdminView ? ((photo, direction) => photo?.id ? handleRotateGalleryPhoto(photo.id, direction) : undefined) : undefined}
       />
 
       <Modal
@@ -6551,13 +6831,52 @@ export default function EventDetailScreen() {
               <View style={{ flex: 1, marginRight: 16 }}>
                 <Text style={{ fontSize: 22, color: '#fff', fontFamily: Fonts.outfit.bold }}>Photo Actions</Text>
                 <Text style={{ color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.inter.regular, marginTop: 4 }}>
-                  Choose where this photo should appear as a thumbnail.
+                  Manage how this photo appears in the gallery.
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setPhotoActionItem(null)} style={{ marginTop: 2 }}>
                 <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
               </TouchableOpacity>
             </View>
+
+            <TouchableOpacity
+              style={{
+                width: '100%',
+                minHeight: 56,
+                borderRadius: 18,
+                backgroundColor: photoActionItemIsFavourite ? MidnightColors.gold : 'rgba(212, 175, 55, 0.12)',
+                borderWidth: photoActionItemIsFavourite ? 0 : 1,
+                borderColor: 'rgba(212, 175, 55, 0.28)',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                paddingHorizontal: 18,
+                gap: 12,
+              }}
+              activeOpacity={0.85}
+              disabled={updating || !photoActionItem || !event}
+              onPress={() => {
+                if (!photoActionItem) return;
+                handleToggleEventFavourite(photoActionItem.id);
+              }}
+            >
+              <IconSymbol
+                name={photoActionItemIsFavourite ? 'star.fill' : 'star'}
+                size={16}
+                color={photoActionItemIsFavourite ? '#050505' : MidnightColors.gold}
+              />
+              <Text
+                style={{
+                  flex: 1,
+                  color: photoActionItemIsFavourite ? '#050505' : MidnightColors.gold,
+                  fontFamily: Fonts.outfit.bold,
+                  fontSize: 15,
+                }}
+                numberOfLines={2}
+              >
+                {photoActionItemIsFavourite ? 'Remove from Favourite' : 'Add to Favourite'}
+              </Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={{
