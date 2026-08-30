@@ -514,7 +514,7 @@ export default function PortfolioTabScreen() {
             transition={400}
           />
           <LinearGradient
-            colors={['rgba(2,6,23,0.15)', 'transparent']}
+            colors={['rgba(19, 25, 31,0.15)', 'transparent']}
             style={StyleSheet.absoluteFill}
           />
           {event.category ? (
@@ -558,7 +558,7 @@ export default function PortfolioTabScreen() {
       >
         {/* ── HEADER ── */}
         <LinearGradient
-          colors={isDark ? ['#101010', '#050505'] : [colors.deepSlate, colors.background]}
+          colors={isDark ? ['#1B211F', '#13191F'] : [colors.deepSlate, colors.background]}
           style={[styles.header, { paddingTop: insets.top + 4 }]}
         >
           <View style={styles.headerLeft}>
@@ -733,7 +733,7 @@ export default function PortfolioTabScreen() {
             <View style={styles.premiumModalBackdrop}>
               <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                 <LinearGradient
-                  colors={['#101010', '#050505']}
+                  colors={['#1B211F', '#13191F']}
                   style={styles.premiumModalContent}
                 >
                   {/* Header: Member Identity */}
@@ -742,7 +742,7 @@ export default function PortfolioTabScreen() {
                       {selectedRequestPhoto ? (
                         <Image source={{ uri: selectedRequestPhoto }} style={styles.memberInfoAvatarImage} />
                       ) : (
-                        <LinearGradient colors={[MidnightColors.gold, '#b8860b']} style={styles.avatarGradient}>
+                        <LinearGradient colors={[MidnightColors.gold, '#906D4B']} style={styles.avatarGradient}>
                           <Text style={styles.premiumAvatarText}>{selectedRequest?.name.charAt(0)}</Text>
                         </LinearGradient>
                       )}
@@ -910,7 +910,7 @@ export default function PortfolioTabScreen() {
 
             {/* ── Hero header ── */}
             <LinearGradient
-              colors={['rgba(212,175,55,0.18)', 'rgba(212,175,55,0.04)', 'transparent']}
+              colors={['rgba(202, 156, 104,0.18)', 'rgba(202, 156, 104,0.04)', 'transparent']}
               style={styles.quotaHero}
             >
               {/* Icon + title row */}
@@ -957,7 +957,7 @@ export default function PortfolioTabScreen() {
                   <View style={styles.quotaMetricRight}>
                     <Text style={styles.quotaMetricValue}>{formatStorageSize(storageUsed)}</Text>
                     <Text style={styles.quotaMetricMax}> / {planDetails.storageLabel}</Text>
-                    <View style={[styles.quotaPercentChip, { backgroundColor: 'rgba(212,175,55,0.12)' }]}>
+                    <View style={[styles.quotaPercentChip, { backgroundColor: 'rgba(202, 156, 104,0.12)' }]}>
                       <Text style={[styles.quotaPercentText, { color: colors.gold }]}>
                         {planDetails.storageBytes === Infinity ? '∞' : `${Math.round(storagePercent)}%`}
                       </Text>
@@ -1299,11 +1299,11 @@ export default function PortfolioTabScreen() {
                 disabled={creating}
               >
                 {creating ? (
-                  <ActivityIndicator color={'#050505'} />
+                  <ActivityIndicator color={'#13191F'} />
                 ) : (
                   <>
                     <Text style={styles.submitBtnText}>Create Event</Text>
-                    <IconSymbol name="sparkles" size={16} color={'#050505'} />
+                    <IconSymbol name="sparkles" size={16} color={'#13191F'} />
                   </>
                 )}
               </TouchableOpacity>
@@ -1348,7 +1348,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    backgroundColor: 'rgba(202, 156, 104, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
@@ -1477,9 +1477,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 14,
-    backgroundColor: 'rgba(212,175,55,0.1)',
+    backgroundColor: 'rgba(202, 156, 104,0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.3)',
+    borderColor: 'rgba(202, 156, 104,0.3)',
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -1527,8 +1527,8 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.1)',
-    backgroundColor: isDark ? '#101010' : '#ffffff',
+    borderColor: 'rgba(202, 156, 104,0.1)',
+    backgroundColor: isDark ? '#1B211F' : '#ffffff',
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
@@ -1542,7 +1542,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   cardImageWrap: {
     width: '100%',
     height: 115,
-    backgroundColor: isDark ? '#050505' : '#f1f5f9',
+    backgroundColor: isDark ? '#13191F' : '#f1f5f9',
     position: 'relative',
     overflow: 'hidden',
   },
@@ -1553,9 +1553,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     position: 'absolute',
     top: 10,
     left: 10,
-    backgroundColor: 'rgba(2,6,23,0.65)',
+    backgroundColor: 'rgba(19, 25, 31,0.65)',
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.3)',
+    borderColor: 'rgba(202, 156, 104,0.3)',
     borderRadius: 7,
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -1672,7 +1672,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderColor: colors.cardBorder,
     gap: 16,
   },
-  requestAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(212, 175, 55, 0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(212, 175, 55, 0.2)' },
+  requestAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(202, 156, 104, 0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(202, 156, 104, 0.2)' },
   avatarTextSmall: { color: colors.gold, fontSize: 20, fontFamily: Fonts.outfit.bold },
   requestInfo: { flex: 1, gap: 2 },
   requestName: { color: colors.white, fontSize: 16, fontFamily: Fonts.outfit.bold },
@@ -1710,7 +1710,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(2, 6, 23, 0.85)',
+    backgroundColor: 'rgba(19, 25, 31, 0.85)',
     paddingHorizontal: 20,
   },
   quotaModalContent: {
@@ -1719,7 +1719,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderRadius: 28,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.2)',
+    borderColor: 'rgba(202, 156, 104,0.2)',
   },
 
   // Hero section
@@ -1746,9 +1746,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: 'rgba(212,175,55,0.12)',
+    backgroundColor: 'rgba(202, 156, 104,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.3)',
+    borderColor: 'rgba(202, 156, 104,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: colors.gold,
@@ -2053,7 +2053,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(2, 6, 23, 0.95)',
+    backgroundColor: 'rgba(19, 25, 31, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000
@@ -2079,10 +2079,10 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   closeModalCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
   permissionsScroll: { padding: 16 },
   userInfoToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.025)', padding: 10, borderRadius: 14, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)', gap: 10 },
-  userInfoToggleActive: { backgroundColor: 'rgba(212, 175, 55, 0.06)', borderColor: 'rgba(212, 175, 55, 0.18)' },
-  userInfoToggleIcon: { width: 30, height: 30, borderRadius: 10, backgroundColor: 'rgba(212, 175, 55, 0.1)', alignItems: 'center', justifyContent: 'center' },
+  userInfoToggleActive: { backgroundColor: 'rgba(202, 156, 104, 0.06)', borderColor: 'rgba(202, 156, 104, 0.18)' },
+  userInfoToggleIcon: { width: 30, height: 30, borderRadius: 10, backgroundColor: 'rgba(202, 156, 104, 0.1)', alignItems: 'center', justifyContent: 'center' },
   userInfoToggleTitle: { color: '#fff', fontSize: 13, fontFamily: Fonts.outfit.bold },
-  userInfoToggleSub: { color: '#94a3b8', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 1 },
+  userInfoToggleSub: { color: '#CDB89E', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 1 },
   userInfoPanel: { backgroundColor: 'rgba(255,255,255,0.025)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', padding: 10, marginBottom: 10 },
   userInfoProfileRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   userInfoLargeAvatar: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden' },
@@ -2090,7 +2090,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   userInfoName: { color: '#fff', fontSize: 14, fontFamily: Fonts.outfit.bold },
   userInfoHandle: { color: MidnightColors.gold, fontSize: 11, fontFamily: Fonts.inter.bold, marginTop: 2 },
   userInfoDetails: { gap: 6 },
-  userInfoDetailRow: { backgroundColor: 'rgba(15, 23, 42, 0.7)', padding: 9, borderRadius: 12 },
-  userInfoDetailLabel: { color: '#94a3b8', fontSize: 9, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', marginBottom: 2, letterSpacing: 0.8 },
+  userInfoDetailRow: { backgroundColor: 'rgba(27, 33, 31, 0.7)', padding: 9, borderRadius: 12 },
+  userInfoDetailLabel: { color: '#CDB89E', fontSize: 9, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', marginBottom: 2, letterSpacing: 0.8 },
   userInfoDetailValue: { color: '#fff', fontSize: 12, fontFamily: Fonts.inter.medium },
 });

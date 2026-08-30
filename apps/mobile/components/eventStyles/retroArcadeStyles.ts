@@ -485,7 +485,7 @@ export const retroArcadeStyles = {
     letterSpacing: 1.2,
   },
   titleRowMain: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  renameHeroBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(212, 175, 55, 0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(212, 175, 55, 0.3)' },
+  renameHeroBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(202, 156, 104, 0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(202, 156, 104, 0.3)' },
   heroMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
   heroDate: { fontSize: 14, color: MidnightColors.gold, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', letterSpacing: 1 },
   editDateBtn: { paddingHorizontal: 4, paddingVertical: 2 },

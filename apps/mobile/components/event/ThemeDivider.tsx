@@ -20,9 +20,9 @@ export function ThemeDivider({ selectedTemplate, styles }: ThemeDividerProps) {
   if (selectedTemplate.id === 'classic') {
     return (
       <View style={styles.classicDividerContainer}>
-        <View style={[styles.classicDividerLine, { backgroundColor: 'rgba(212, 175, 55, 0.25)' }]} />
+        <View style={[styles.classicDividerLine, { backgroundColor: 'rgba(202, 156, 104, 0.25)' }]} />
         <Text style={[styles.classicDividerDot, { color: '#cca43b' }]}>✦</Text>
-        <View style={[styles.classicDividerLine, { backgroundColor: 'rgba(212, 175, 55, 0.25)' }]} />
+        <View style={[styles.classicDividerLine, { backgroundColor: 'rgba(202, 156, 104, 0.25)' }]} />
       </View>
     );
   }

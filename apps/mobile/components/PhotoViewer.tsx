@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platfor
 import { Image as ExpoImage } from 'expo-image';
 import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
-import { VideoView, useVideoPlayer } from 'expo-video';
+import { VideoView, createVideoPlayer, type VideoPlayer } from 'expo-video';
 import Svg, { Path } from 'react-native-svg';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, Event as DatabaseEvent } from '@/lib/database';
@@ -135,17 +135,59 @@ const SPORTS_VIEWER_PALETTES: Record<string, ViewerPalette> = {
 };
 
 function ViewerVideo({ uri, frameBg }: { uri: string; frameBg: string }) {
-  const player = useVideoPlayer(uri, (player) => {
-    player.loop = false;
-    player.muted = false;
-  });
+  const [player, setPlayer] = useState<VideoPlayer | null>(null);
+  const playerRef = useRef<VideoPlayer | null>(null);
+  const sourceRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const nextPlayer = createVideoPlayer(null);
+    nextPlayer.loop = false;
+    nextPlayer.muted = false;
+    playerRef.current = nextPlayer;
+    setPlayer(nextPlayer);
+
+    return () => {
+      const playerToRelease = nextPlayer;
+      playerRef.current = null;
+      sourceRef.current = null;
+      try {
+        playerToRelease.pause();
+      } catch {
+        // The player may already be detached by native cleanup.
+      }
+      setPlayer(null);
+      setTimeout(() => {
+        try {
+          playerToRelease.release();
+        } catch {
+          // Ignore double-release races during fast refresh or native teardown.
+        }
+      }, 250);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const activePlayer = playerRef.current;
+    if (!activePlayer || !uri || sourceRef.current === uri) return;
+
+    sourceRef.current = uri;
+    activePlayer.replaceAsync(uri).catch((error) => {
+      if (!cancelled) {
+        console.error('[PhotoViewer] Video source replace failed:', error);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [uri]);
 
   return (
     <VideoView
       player={player}
       nativeControls
       contentFit="contain"
-      surfaceType="textureView"
       style={{ width: '100%', height: '100%', backgroundColor: frameBg }}
     />
   );
@@ -544,7 +586,7 @@ export default function PhotoViewer({
             ]}
           >
             {isVideoMedia ? (
-              <ViewerVideo key={photos[currentPhotoIndex].id || photos[currentPhotoIndex].url} uri={photos[currentPhotoIndex].url} frameBg={viewerTheme.tileBg} />
+              <ViewerVideo uri={photos[currentPhotoIndex].url} frameBg={viewerTheme.tileBg} />
             ) : (
               <ExpoImage
                 source={{ uri: getImageUrl(photos[currentPhotoIndex].url, { width: 900, quality: 75, format: 'webp' }, photos[currentPhotoIndex].thumbnailUrl) }}

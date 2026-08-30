@@ -4,49 +4,49 @@
 
 import { Platform } from 'react-native';
 
-const tintColorDark = '#fff';
+const tintColorDark = '#CA9C68';
 
 export const Colors = {
   light: {
-    text: '#ECEDEE',
-    background: '#151718',
+    text: '#FFF7EB',
+    background: '#13191F',
     tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
+    icon: '#CDB89E',
+    tabIconDefault: '#CDB89E',
     tabIconSelected: tintColorDark,
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
+    text: '#FFF7EB',
+    background: '#13191F',
     tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
+    icon: '#CDB89E',
+    tabIconDefault: '#CDB89E',
     tabIconSelected: tintColorDark,
   },
 };
 
 export const MidnightColors = {
-  background: '#050505',
-  deepSlate: '#101010',
-  slate900: '#101010',
-  slate800: '#1a1a1a',
-  slate700: '#2a2a2a',
-  slate400: '#94a3b8',
-  gold: '#d4af37',
-  white: '#ffffff',
-  ghostWhite: '#f8fafc',
-  border: 'rgba(212, 175, 55, 0.25)',
-  cardBorder: 'rgba(255, 255, 255, 0.05)',
+  background: '#13191F',
+  deepSlate: '#1B211F',
+  slate900: '#1B211F',
+  slate800: '#2B2F2E',
+  slate700: '#594C3D',
+  slate400: '#CDB89E',
+  gold: '#CA9C68',
+  white: '#FFF7EB',
+  ghostWhite: '#FFF7EB',
+  border: 'rgba(202, 156, 104, 0.25)',
+  cardBorder: 'rgba(202, 156, 104, 0.12)',
 };
 
 export const RoyalColors = {
-  maroon: '#5D001E',
-  gold: '#D4AF37',
-  cream: '#FFFDD0',
-  green: '#005D4B',
-  slate800: '#1e293b',
-  slate700: '#334155',
-  slate400: '#94a3b8',
+  maroon: '#594C3D',
+  gold: '#CA9C68',
+  cream: '#FFF7EB',
+  green: '#2B2F2E',
+  slate800: '#2B2F2E',
+  slate700: '#594C3D',
+  slate400: '#CDB89E',
 };
 
 export const Fonts = {

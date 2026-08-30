@@ -83,7 +83,7 @@ const SPORTS_TEMPLATE_THEMES: Record<string, any> = {
     galleryLabel: 'Trophy Highlights',
     galleryTitle: 'Championship Frames',
     background: '#060a12',
-    overlay: ['rgba(2, 6, 23, 0.9)', 'rgba(96, 165, 250, 0.22)', 'rgba(6, 10, 18, 1)'],
+    overlay: ['rgba(19, 25, 31, 0.9)', 'rgba(96, 165, 250, 0.22)', 'rgba(6, 10, 18, 1)'],
     card: 'rgba(238, 242, 247, 0.94)',
     text: '#06111f',
     muted: '#5b6b7f',
@@ -238,12 +238,12 @@ const SPORTS_TEMPLATE_THEMES: Record<string, any> = {
     background: '#08111f',
     overlay: ['rgba(8, 17, 31, 0.84)', 'rgba(249, 115, 22, 0.22)', 'rgba(8, 17, 31, 1)'],
     card: 'rgba(248, 250, 252, 0.94)',
-    text: '#101010',
+    text: '#1B211F',
     muted: '#475569',
     accent: '#f97316',
     accentAlt: '#84cc16',
-    imageFrame: '#f8fafc',
-    darkControl: '#101010',
+    imageFrame: '#FFF7EB',
+    darkControl: '#1B211F',
     headingFont: Fonts.spaceGrotesk.bold,
   },
   zen: {
@@ -337,7 +337,7 @@ function GalleryThumbnailImage({
   }, [resolvedThumbnailUrl, url]);
 
   if (!sourceUri) {
-    return <View style={[style, { backgroundColor: 'rgba(15,23,42,0.9)' }]} />;
+    return <View style={[style, { backgroundColor: 'rgba(27, 33, 31,0.9)' }]} />;
   }
 
   return (
@@ -355,7 +355,7 @@ function GalleryThumbnailImage({
 
 function GalleryVideoCard({
   video,
-  accent = '#d4af37',
+  accent = '#CA9C68',
   onOpen,
   compact = false,
   blurred = false,
@@ -374,20 +374,20 @@ function GalleryVideoCard({
   }, [posterUri]);
 
   const previewStyle: ViewStyle = compact
-    ? { width: '100%', height: '100%', backgroundColor: '#050505' }
-    : { width: '100%', aspectRatio: 16 / 9, backgroundColor: '#050505' };
+    ? { width: '100%', height: '100%', backgroundColor: '#13191F' }
+    : { width: '100%', aspectRatio: 16 / 9, backgroundColor: '#13191F' };
 
   return (
     <View style={{
       borderRadius: compact ? 10 : 18,
       overflow: 'hidden',
-      backgroundColor: 'rgba(15, 23, 42, 0.92)',
+      backgroundColor: 'rgba(27, 33, 31, 0.92)',
       borderWidth: 1,
       borderColor: `${accent}55`,
       marginBottom: compact ? 0 : 16,
       ...(compact ? { width: '100%', height: '100%' } : {}),
     }}>
-      <View style={{ position: 'relative', backgroundColor: '#050505', flex: compact ? 1 : undefined }}>
+      <View style={{ position: 'relative', backgroundColor: '#13191F', flex: compact ? 1 : undefined }}>
         <View style={[previewStyle, blurred && { opacity: 0.42 }]}>
           {showPoster ? (
             <ExpoImage
@@ -398,7 +398,7 @@ function GalleryVideoCard({
             />
           ) : (
             <LinearGradient
-              colors={['rgba(15,23,42,0.98)', 'rgba(2,6,23,0.94)']}
+              colors={['rgba(27, 33, 31,0.98)', 'rgba(19, 25, 31,0.94)']}
               style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16 }}
             >
               <View style={{
@@ -418,7 +418,7 @@ function GalleryVideoCard({
         </View>
         <LinearGradient
           pointerEvents="none"
-          colors={['rgba(2,6,23,0)', 'rgba(2,6,23,0.44)']}
+          colors={['rgba(19, 25, 31,0)', 'rgba(19, 25, 31,0.44)']}
           style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: compact ? '50%' : '42%' }}
         />
         {onOpen && (
@@ -434,7 +434,7 @@ function GalleryVideoCard({
               minHeight: compact ? undefined : 34,
               borderRadius: compact ? 0 : 17,
               paddingHorizontal: compact ? 0 : 12,
-              backgroundColor: compact ? 'rgba(2, 6, 23, 0.26)' : 'rgba(2, 6, 23, 0.78)',
+              backgroundColor: compact ? 'rgba(19, 25, 31, 0.26)' : 'rgba(19, 25, 31, 0.78)',
               alignItems: 'center',
               justifyContent: 'center',
               flexDirection: 'row',
@@ -448,7 +448,7 @@ function GalleryVideoCard({
                 width: 36,
                 height: 36,
                 borderRadius: 18,
-                backgroundColor: 'rgba(2, 6, 23, 0.82)',
+                backgroundColor: 'rgba(19, 25, 31, 0.82)',
                 borderWidth: 1,
                 borderColor: `${accent}99`,
                 alignItems: 'center',
@@ -3581,7 +3581,7 @@ export default function EventDetailScreen() {
           ) : (!showAdminView && event?.templateId === 'classic') ? (
             <View style={styles.classicHeroOverlay}>
               {/* 1. Elegant Thin Matte Frame */}
-              <View style={[styles.classicFrame, { borderColor: 'rgba(212, 175, 55, 0.15)' }]} />
+              <View style={[styles.classicFrame, { borderColor: 'rgba(202, 156, 104, 0.15)' }]} />
 
               {/* 2. Center Content with Spaced-out Fine-Art Typography */}
               <View style={styles.classicCenterContent}>
@@ -3629,7 +3629,7 @@ export default function EventDetailScreen() {
               {/* 3. Classic Fine Art Brand Signature */}
               <View style={styles.classicBottomContent}>
                 <View style={styles.brandLogoContainer}>
-                  <Text style={[styles.classicBrandSubText, { color: '#94a3b8' }]}>EXHIBITION DELIVERED BY</Text>
+                  <Text style={[styles.classicBrandSubText, { color: '#CDB89E' }]}>EXHIBITION DELIVERED BY</Text>
                   <Text style={[styles.classicBrandLogoScript, { color: selectedTemplate.text, fontFamily: selectedTemplate.serifItalic }]}>EveBash</Text>
                 </View>
 
@@ -4744,8 +4744,8 @@ export default function EventDetailScreen() {
                         }}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <IconSymbol name="cloud.fill" size={14} color="#94a3b8" />
-                              <Text style={{ color: '#94a3b8', fontSize: 13, fontFamily: Fonts.inter.bold }}>Storage Usage</Text>
+                              <IconSymbol name="cloud.fill" size={14} color="#CDB89E" />
+                              <Text style={{ color: '#CDB89E', fontSize: 13, fontFamily: Fonts.inter.bold }}>Storage Usage</Text>
                             </View>
                             <Text style={{ color: '#f1f5f9', fontSize: 13, fontFamily: Fonts.inter.bold }}>
                               {(() => {
@@ -4760,7 +4760,7 @@ export default function EventDetailScreen() {
                           </View>
                           <View style={{ height: 6, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 3, overflow: 'hidden' }}>
                             <LinearGradient
-                              colors={storageStats.percent >= 1 ? ['#ef4444', '#b91c1c'] : ['#d4af37', '#b49430']}
+                              colors={storageStats.percent >= 1 ? ['#ef4444', '#b91c1c'] : ['#CA9C68', '#A77B52']}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 0 }}
                               style={{ height: '100%', borderRadius: 3, width: `${Math.min(100, storageStats.percent * 100)}%` }}
@@ -4785,7 +4785,7 @@ export default function EventDetailScreen() {
                             </Text>
                           </TouchableOpacity>
                         </View>
-                        <View style={{ flexDirection: 'row', backgroundColor: 'rgba(15,23,42,0.9)', borderRadius: 16, padding: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
+                        <View style={{ flexDirection: 'row', backgroundColor: 'rgba(27, 33, 31,0.9)', borderRadius: 16, padding: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
                           {mediaTabs.map((item) => {
                             const active = galleryMediaTab === item.id;
                             return (
@@ -4794,7 +4794,7 @@ export default function EventDetailScreen() {
                                 style={{ flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 12, backgroundColor: active ? MidnightColors.gold : 'transparent' }}
                                 onPress={() => setGalleryMediaTab(item.id)}
                               >
-                                <Text style={{ color: active ? '#050505' : '#cbd5e1', fontSize: 12, fontFamily: Fonts.inter.bold }}>
+                                <Text style={{ color: active ? '#13191F' : '#cbd5e1', fontSize: 12, fontFamily: Fonts.inter.bold }}>
                                   {item.label}
                                 </Text>
                               </TouchableOpacity>
@@ -4853,7 +4853,7 @@ export default function EventDetailScreen() {
                                     flexDirection: 'row',
                                     borderRadius: 13,
                                     overflow: 'hidden',
-                                    backgroundColor: 'rgba(15,23,42,0.86)',
+                                    backgroundColor: 'rgba(27, 33, 31,0.86)',
                                     borderWidth: 1,
                                     borderColor: 'rgba(255,255,255,0.12)',
                                   }}
@@ -4943,7 +4943,7 @@ export default function EventDetailScreen() {
                                     width: 22,
                                     height: 22,
                                     borderRadius: 11,
-                                    backgroundColor: 'rgba(15,23,42,0.85)',
+                                    backgroundColor: 'rgba(27, 33, 31,0.85)',
                                     alignItems: 'center',
 	                                    justifyContent: 'center',
 	                                  }}
@@ -4962,7 +4962,7 @@ export default function EventDetailScreen() {
                                     width: 22,
                                     height: 22,
                                     borderRadius: 11,
-                                    backgroundColor: isFavouritePhoto ? MidnightColors.gold : 'rgba(15,23,42,0.85)',
+                                    backgroundColor: isFavouritePhoto ? MidnightColors.gold : 'rgba(27, 33, 31,0.85)',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     borderWidth: 1,
@@ -4977,7 +4977,7 @@ export default function EventDetailScreen() {
                                   <IconSymbol
                                     name={isFavouritePhoto ? 'star.fill' : 'star'}
                                     size={11}
-                                    color={isFavouritePhoto ? '#050505' : '#fff'}
+                                    color={isFavouritePhoto ? '#13191F' : '#fff'}
                                   />
                                 </TouchableOpacity>
 	                                <TouchableOpacity
@@ -5008,7 +5008,7 @@ export default function EventDetailScreen() {
                                       flexDirection: 'row',
                                       borderRadius: 13,
                                       overflow: 'hidden',
-                                      backgroundColor: 'rgba(15,23,42,0.86)',
+                                      backgroundColor: 'rgba(27, 33, 31,0.86)',
                                       borderWidth: 1,
                                       borderColor: 'rgba(255,255,255,0.12)',
                                     }}
@@ -5149,7 +5149,7 @@ export default function EventDetailScreen() {
                 <View style={styles.premiumModalBackdrop}>
                   <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                     <LinearGradient
-                      colors={['#101010', '#050505']}
+                      colors={['#1B211F', '#13191F']}
                       style={styles.premiumModalContent}
                     >
                       {/* Header: Member Identity */}
@@ -5158,7 +5158,7 @@ export default function EventDetailScreen() {
                           {selectedGuestPhoto ? (
                             <Image source={{ uri: selectedGuestPhoto }} style={styles.memberInfoAvatarImage} />
                           ) : (
-                            <LinearGradient colors={[MidnightColors.gold, '#b8860b']} style={styles.avatarGradient}>
+                            <LinearGradient colors={[MidnightColors.gold, '#906D4B']} style={styles.avatarGradient}>
                               <Text style={styles.premiumAvatarText}>{selectedGuest?.name.charAt(0)}</Text>
                             </LinearGradient>
                           )}
@@ -5259,7 +5259,7 @@ export default function EventDetailScreen() {
                                 }
                               }}
                             >
-                              <View style={[styles.richPermIconBox, isActive && { backgroundColor: 'rgba(212, 175, 55, 0.15)' }]}>
+                              <View style={[styles.richPermIconBox, isActive && { backgroundColor: 'rgba(202, 156, 104, 0.15)' }]}>
                                 <IconSymbol name={perm.icon as any} size={26} color={isActive ? MidnightColors.gold : MidnightColors.slate400} />
                               </View>
 
@@ -5289,7 +5289,7 @@ export default function EventDetailScreen() {
                         onPress={() => setSelectedGuest(null)}
                       >
                         <LinearGradient
-                          colors={[MidnightColors.gold, '#b8860b']}
+                          colors={[MidnightColors.gold, '#906D4B']}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 0 }}
                           style={styles.premiumDoneGradient}
@@ -5307,7 +5307,7 @@ export default function EventDetailScreen() {
                 <View style={styles.premiumModalBackdrop}>
                   <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                     <LinearGradient
-                      colors={['#101010', '#050505']}
+                      colors={['#1B211F', '#13191F']}
                       style={styles.premiumModalContent}
                     >
                       {/* Header: Member Identity */}
@@ -5316,7 +5316,7 @@ export default function EventDetailScreen() {
                           {selectedRequestPhoto ? (
                             <Image source={{ uri: selectedRequestPhoto }} style={styles.memberInfoAvatarImage} />
                           ) : (
-                            <LinearGradient colors={[MidnightColors.gold, '#b8860b']} style={styles.avatarGradient}>
+                            <LinearGradient colors={[MidnightColors.gold, '#906D4B']} style={styles.avatarGradient}>
                               <Text style={styles.premiumAvatarText}>{selectedRequest?.name.charAt(0)}</Text>
                             </LinearGradient>
                           )}
@@ -5417,7 +5417,7 @@ export default function EventDetailScreen() {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.designCard, { marginTop: 12, backgroundColor: 'rgba(212, 175, 55, 0.08)', borderColor: 'rgba(212, 175, 55, 0.3)', borderWidth: 1 }]}
+                      style={[styles.designCard, { marginTop: 12, backgroundColor: 'rgba(202, 156, 104, 0.08)', borderColor: 'rgba(202, 156, 104, 0.3)', borderWidth: 1 }]}
                       onPress={() => setIsAdminViewActive(false)}
                     >
                       <View style={styles.designInfo}>
@@ -5470,7 +5470,7 @@ export default function EventDetailScreen() {
                         { title: "Partner Showcase", desc: "Highlight credited partners to your guests." }
                       ].map((item) => (
                         <View key={item.title} style={{
-                          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                          backgroundColor: 'rgba(27, 33, 31, 0.6)',
                           borderRadius: 14,
                           padding: 12,
                           borderWidth: 1,
@@ -6145,7 +6145,7 @@ export default function EventDetailScreen() {
                           {activeSubEvent ? activeSubEvent.title : 'Executive Highlights'}
                         </Text>
                       ) : isTechSleekTemplate ? (
-                        <Text style={{ color: '#f8fafc', fontFamily: Fonts.spaceGrotesk.bold }}>
+                        <Text style={{ color: '#FFF7EB', fontFamily: Fonts.spaceGrotesk.bold }}>
                           {activeSubEvent ? activeSubEvent.title : 'Featured Moments'}
                         </Text>
                       ) : isMuseumTemplate ? (
@@ -6214,7 +6214,7 @@ export default function EventDetailScreen() {
                   flexDirection: 'row',
                   marginTop: 18,
                   marginBottom: 8,
-                  backgroundColor: isSportsTemplate ? `${sportsTheme.darkControl}12` : 'rgba(15,23,42,0.08)',
+                  backgroundColor: isSportsTemplate ? `${sportsTheme.darkControl}12` : 'rgba(27, 33, 31,0.08)',
                   borderRadius: 16,
                   padding: 4,
                   borderWidth: 1,
@@ -6844,9 +6844,9 @@ export default function EventDetailScreen() {
                 width: '100%',
                 minHeight: 56,
                 borderRadius: 18,
-                backgroundColor: photoActionItemIsFavourite ? MidnightColors.gold : 'rgba(212, 175, 55, 0.12)',
+                backgroundColor: photoActionItemIsFavourite ? MidnightColors.gold : 'rgba(202, 156, 104, 0.12)',
                 borderWidth: photoActionItemIsFavourite ? 0 : 1,
-                borderColor: 'rgba(212, 175, 55, 0.28)',
+                borderColor: 'rgba(202, 156, 104, 0.28)',
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'flex-start',
@@ -6863,12 +6863,12 @@ export default function EventDetailScreen() {
               <IconSymbol
                 name={photoActionItemIsFavourite ? 'star.fill' : 'star'}
                 size={16}
-                color={photoActionItemIsFavourite ? '#050505' : MidnightColors.gold}
+                color={photoActionItemIsFavourite ? '#13191F' : MidnightColors.gold}
               />
               <Text
                 style={{
                   flex: 1,
-                  color: photoActionItemIsFavourite ? '#050505' : MidnightColors.gold,
+                  color: photoActionItemIsFavourite ? '#13191F' : MidnightColors.gold,
                   fontFamily: Fonts.outfit.bold,
                   fontSize: 15,
                 }}
@@ -6900,9 +6900,9 @@ export default function EventDetailScreen() {
                 handleSetGalleryPhotoAsCover(photoActionItem.url, activeGallery.id, "Gallery");
               }}
             >
-              <IconSymbol name="photo.fill" size={16} color="#050505" />
+              <IconSymbol name="photo.fill" size={16} color="#13191F" />
               <Text
-                style={{ flex: 1, color: '#050505', fontFamily: Fonts.outfit.bold, fontSize: 15 }}
+                style={{ flex: 1, color: '#13191F', fontFamily: Fonts.outfit.bold, fontSize: 15 }}
                 numberOfLines={2}
               >
                 Make Gallery Thumbnail
@@ -6915,8 +6915,8 @@ export default function EventDetailScreen() {
                 minHeight: 56,
                 borderRadius: 18,
                 borderWidth: 1,
-                borderColor: 'rgba(212, 175, 55, 0.28)',
-                backgroundColor: 'rgba(212, 175, 55, 0.12)',
+                borderColor: 'rgba(202, 156, 104, 0.28)',
+                backgroundColor: 'rgba(202, 156, 104, 0.12)',
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'flex-start',
@@ -7049,14 +7049,14 @@ export default function EventDetailScreen() {
               <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={{
                   fontSize: 18,
-                  color: '#ffffff',
+                  color: MidnightColors.white,
                   fontFamily: Fonts.outfit.bold,
                   textTransform: 'uppercase',
                   letterSpacing: 1.2
                 }}>Link a Partner</Text>
                 <Text style={{
                   fontSize: 12,
-                  color: '#94a3b8',
+                  color: MidnightColors.slate400,
                   fontFamily: Fonts.inter.regular,
                   marginTop: 4,
                   lineHeight: 18
@@ -7088,7 +7088,7 @@ export default function EventDetailScreen() {
                     paddingHorizontal: 16,
                     paddingVertical: 14,
                     borderWidth: 1,
-                    borderColor: 'rgba(204, 164, 59, 0.4)',
+                    borderColor: 'rgba(202, 156, 104, 0.4)',
                     marginBottom: 16,
                     textAlign: 'center',
                     fontFamily: Fonts.outfit.bold,
@@ -7097,7 +7097,7 @@ export default function EventDetailScreen() {
                   value={vendorCode}
                   onChangeText={(text) => setVendorCode(text.toUpperCase())}
                   placeholder="e.g. VEN-1234"
-                  placeholderTextColor={'#64748b'}
+                  placeholderTextColor={MidnightColors.slate700}
                   autoCapitalize="characters"
                 />
               </View>
@@ -7109,12 +7109,12 @@ export default function EventDetailScreen() {
                     paddingVertical: 12,
                     borderRadius: 20,
                     borderWidth: 1,
-                    borderColor: 'rgba(255, 255, 255, 0.15)',
+                    borderColor: MidnightColors.cardBorder,
                     alignItems: 'center'
                   }}
                   onPress={() => { setLinkingVendor(false); setVendorCode(''); }}
                 >
-                  <Text style={{ color: '#cbd5e1', fontFamily: Fonts.outfit.bold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 }}>Cancel</Text>
+                  <Text style={{ color: MidnightColors.slate400, fontFamily: Fonts.outfit.bold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 }}>Cancel</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -7151,7 +7151,7 @@ export default function EventDetailScreen() {
                     }
                   }}
                 >
-                  <Text style={{ color: '#000', fontFamily: Fonts.outfit.bold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 }}>Submit</Text>
+                  <Text style={{ color: MidnightColors.background, fontFamily: Fonts.outfit.bold, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5 }}>Submit</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -7167,7 +7167,9 @@ export default function EventDetailScreen() {
           left: 0,
           right: 0,
           height: 55 + insets.bottom,
-          backgroundColor: '#050505',
+          backgroundColor: MidnightColors.background,
+          borderTopWidth: 1,
+          borderTopColor: MidnightColors.cardBorder,
           flexDirection: 'row',
           paddingTop: 8,
           paddingBottom: insets.bottom > 0 ? insets.bottom - 5 : 10,
@@ -7178,8 +7180,8 @@ export default function EventDetailScreen() {
             style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
             activeOpacity={0.8}
           >
-            <IconSymbol size={28} name="calendar" color="#d4af37" />
-            <Text style={{ color: '#d4af37', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Host</Text>
+            <IconSymbol size={28} name="calendar" color={MidnightColors.gold} />
+            <Text style={{ color: MidnightColors.gold, fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Host</Text>
           </TouchableOpacity>
 
           {/* TAB 2: EB Business (Matches TabLayout Svg exactly) */}
@@ -7188,7 +7190,7 @@ export default function EventDetailScreen() {
             onPress={() => router.replace('/(tabs)/businesses')}
             activeOpacity={0.8}
           >
-            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={MidnightColors.slate400} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <Path d="m11 17 2 2a1 1 0 1 0 3-3"/>
               <Path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/>
               <Path d="m21 3 1 11h-2"/>
@@ -7198,7 +7200,7 @@ export default function EventDetailScreen() {
             <Text
               numberOfLines={2}
               style={{
-                color: '#94a3b8',
+                color: MidnightColors.slate400,
                 fontSize: 9,
                 lineHeight: 10,
                 fontFamily: Fonts.inter.medium,
@@ -7216,13 +7218,13 @@ export default function EventDetailScreen() {
             onPress={() => router.replace('/(tabs)/dashboard')}
             activeOpacity={0.8}
           >
-            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={MidnightColors.slate400} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <Rect width="7" height="9" x="3" y="3" rx="1" />
               <Rect width="7" height="5" x="14" y="3" rx="1" />
               <Rect width="7" height="9" x="14" y="12" rx="1" />
               <Rect width="7" height="5" x="3" y="16" rx="1" />
             </Svg>
-            <Text style={{ color: '#94a3b8', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Dashboard</Text>
+            <Text style={{ color: MidnightColors.slate400, fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Dashboard</Text>
           </TouchableOpacity>
 
           {/* TAB 4: EB Network */}
@@ -7231,12 +7233,12 @@ export default function EventDetailScreen() {
             onPress={() => router.replace('/(tabs)/explore-business')}
             activeOpacity={0.8}
           >
-            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={MidnightColors.slate400} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <Path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/>
               <Path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/>
               <Path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/>
             </Svg>
-            <Text style={{ color: '#94a3b8', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>EB Network</Text>
+            <Text style={{ color: MidnightColors.slate400, fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>EB Network</Text>
           </TouchableOpacity>
 
           {/* TAB 5: Profile */}
@@ -7245,8 +7247,8 @@ export default function EventDetailScreen() {
             onPress={() => router.replace('/(tabs)/profile')}
             activeOpacity={0.8}
           >
-            <IconSymbol size={28} name="person.fill" color="#94a3b8" />
-            <Text style={{ color: '#94a3b8', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Profile</Text>
+            <IconSymbol size={28} name="person.fill" color={MidnightColors.slate400} />
+            <Text style={{ color: MidnightColors.slate400, fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 4 }}>Profile</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -7359,8 +7361,8 @@ export default function EventDetailScreen() {
               padding: 24,
               borderRadius: 24,
               borderWidth: 1.5,
-              backgroundColor: selectedTemplate.panel || (isDark ? '#101010' : '#ffffff'),
-              borderColor: selectedTemplate.accentBg || 'rgba(212, 175, 55, 0.3)',
+              backgroundColor: selectedTemplate.panel || (isDark ? '#1B211F' : '#ffffff'),
+              borderColor: selectedTemplate.accentBg || 'rgba(202, 156, 104, 0.3)',
               alignItems: 'center',
               alignSelf: 'center',
               width: width * 0.8,
@@ -7415,7 +7417,7 @@ export default function EventDetailScreen() {
                 {mobileIndexingStatus.status === 'processing' && (
                   <Text style={{
                     fontSize: 11,
-                    color: isDark ? '#94a3b8' : '#64748b',
+                    color: isDark ? '#CDB89E' : '#64748b',
                     textAlign: 'center',
                     marginTop: 8,
                     fontStyle: 'italic',
@@ -7448,7 +7450,7 @@ export default function EventDetailScreen() {
               }}
               onPress={() => setShowUploadCompleteModal(false)}
             >
-              <Text style={{ color: isDark ? '#050505' : '#ffffff', fontWeight: 'bold', fontFamily: Fonts.outfit.semiBold }}>
+              <Text style={{ color: isDark ? '#13191F' : '#ffffff', fontWeight: 'bold', fontFamily: Fonts.outfit.semiBold }}>
                 Done
               </Text>
             </TouchableOpacity>
@@ -7471,7 +7473,7 @@ export default function EventDetailScreen() {
               padding: 24,
               borderRadius: 24,
               borderWidth: 1.5,
-              backgroundColor: selectedTemplate.panel || (isDark ? '#101010' : '#ffffff'),
+              backgroundColor: selectedTemplate.panel || (isDark ? '#1B211F' : '#ffffff'),
               borderColor: 'rgba(239, 68, 68, 0.3)',
               alignItems: 'center',
               alignSelf: 'center',
@@ -7524,7 +7526,7 @@ export default function EventDetailScreen() {
               }}
               onPress={() => setShowUploadFailedModal(false)}
             >
-              <Text style={{ color: isDark ? '#ffffff' : '#101010', fontWeight: 'bold', fontFamily: Fonts.outfit.semiBold }}>
+              <Text style={{ color: isDark ? '#ffffff' : '#1B211F', fontWeight: 'bold', fontFamily: Fonts.outfit.semiBold }}>
                 Close
               </Text>
             </TouchableOpacity>
@@ -7549,9 +7551,9 @@ const localStyles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 8,
     borderRadius: 12,
-    backgroundColor: 'rgba(2, 6, 23, 0.9)',
+    backgroundColor: 'rgba(19, 25, 31, 0.9)',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.75)',
+    borderColor: 'rgba(202, 156, 104, 0.75)',
   },
   expiredMediaThumbnailTitle: {
     color: '#f8d86a',
@@ -7560,7 +7562,7 @@ const localStyles = StyleSheet.create({
     textAlign: 'center',
   },
   expiredMediaThumbnailSubtitle: {
-    color: '#f8fafc',
+    color: '#FFF7EB',
     fontSize: 9,
     marginTop: 2,
     fontFamily: Fonts.inter.semiBold,
@@ -7572,7 +7574,7 @@ const localStyles = StyleSheet.create({
     elevation: 1200,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(2, 6, 23, 0.45)',
+    backgroundColor: 'rgba(19, 25, 31, 0.45)',
   },
   coverUploadCard: {
     minWidth: 230,
@@ -7584,9 +7586,9 @@ const localStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderRadius: 18,
-    backgroundColor: 'rgba(15, 23, 42, 0.94)',
+    backgroundColor: 'rgba(27, 33, 31, 0.94)',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.35)',
+    borderColor: 'rgba(202, 156, 104, 0.35)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.35,
@@ -7618,7 +7620,7 @@ const localStyles = StyleSheet.create({
     fontFamily: Fonts.inter.bold,
   },
   progressCardSubtitle: {
-    color: '#94a3b8',
+    color: '#CDB89E',
     fontSize: 12,
     marginTop: 4,
     fontFamily: Fonts.inter.regular,
