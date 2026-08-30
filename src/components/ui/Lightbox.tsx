@@ -504,7 +504,7 @@ export function Lightbox({
                                     }}
                                     className="flex flex-col items-center space-y-1"
                                 >
-                                    <MessageCircle size={32} className="drop-shadow-lg transition-colors" style={{ color: showComments ? viewerTheme.accent : viewerTheme.text }} />
+                                    <MessageCircle size={32} className="drop-shadow-lg transition-colors" style={{ color: viewerTheme.text }} />
                                     <span className="text-[10px] font-bold drop-shadow-md" style={{ color: viewerTheme.text }}>{comments.length}</span>
                                 </button>
                             </div>
@@ -513,21 +513,17 @@ export function Lightbox({
                         <div className="hidden md:flex flex-row items-center space-x-8 z-[60] pointer-events-auto">
                                 <button
                                     onClick={handleToggleLike}
-                                    className="group flex flex-col items-center space-y-2 pointer-events-auto"
+                                    className="group flex flex-col items-center space-y-1.5 pointer-events-auto px-2 py-1 transition-transform active:scale-95"
                                 >
-                                    <div className={cn(
-                                        "p-4 rounded-3xl border transition-all duration-400 ease-out transform group-active:scale-90 backdrop-blur-sm",
-                                        isLiked && "text-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.3)]"
-                                    )}
-                                        style={{
-                                            backgroundColor: isLiked ? "rgba(244,63,94,0.2)" : viewerTheme.panel,
-                                            borderColor: isLiked ? "rgba(244,63,94,0.5)" : viewerTheme.border,
-                                            color: isLiked ? "#f43f5e" : viewerTheme.muted,
-                                        }}
-                                    >
-                                        <Heart size={24} className={cn(isLiked && "fill-current")} />
-                                    </div>
-                                    <span className="text-[10px] font-bold tracking-[0.2em] drop-shadow-md" style={{ color: viewerTheme.muted }}>{likes.length} LIKES</span>
+                                    <Heart
+                                        size={20}
+                                        className={cn(
+                                            "drop-shadow-md transition-all duration-300 group-hover:scale-110",
+                                            isLiked && "fill-current"
+                                        )}
+                                        style={{ color: isLiked ? "#f43f5e" : viewerTheme.muted }}
+                                    />
+                                    <span className="text-[10px] font-bold tracking-[0.18em] drop-shadow-md" style={{ color: viewerTheme.muted }}>{likes.length} LIKES</span>
                                 </button>
 
                                 <button
@@ -537,21 +533,14 @@ export function Lightbox({
                                             commentsPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                                         }, 100);
                                     }}
-                                    className="group flex flex-col items-center space-y-2 pointer-events-auto"
+                                    className="group flex flex-col items-center space-y-1.5 pointer-events-auto px-2 py-1 transition-transform active:scale-95"
                                 >
-                                    <div className={cn(
-                                        "p-4 rounded-3xl border transition-all duration-400 ease-out transform group-active:scale-90 backdrop-blur-sm"
-                                    )}
-                                        style={{
-                                            backgroundColor: showComments ? viewerTheme.accentBg : viewerTheme.panel,
-                                            borderColor: showComments ? addAlpha(viewerTheme.accent, "80") : viewerTheme.border,
-                                            color: showComments ? viewerTheme.accent : viewerTheme.muted,
-                                            boxShadow: showComments ? `0 0 20px ${addAlpha(viewerTheme.accent, "44")}` : undefined,
-                                        }}
-                                    >
-                                        <MessageCircle size={24} />
-                                    </div>
-                                    <span className="text-[10px] font-bold tracking-[0.2em] drop-shadow-md" style={{ color: viewerTheme.muted }}>{comments.length} COMMENTS</span>
+                                    <MessageCircle
+                                        size={20}
+                                        className="drop-shadow-md transition-all duration-300 group-hover:scale-110"
+                                        style={{ color: viewerTheme.text }}
+                                    />
+                                    <span className="text-[10px] font-bold tracking-[0.18em] drop-shadow-md" style={{ color: viewerTheme.muted }}>{comments.length} COMMENTS</span>
                                 </button>
                             </div>
 

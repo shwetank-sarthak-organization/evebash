@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, Share, TextInput, Keyboard, Modal, ActivityIndicator, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, Share, TextInput, Keyboard, Modal, ActivityIndicator, StyleSheet, useWindowDimensions, type GestureResponderEvent } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
 import { VideoView, useVideoPlayer } from 'expo-video';
+import Svg, { Path } from 'react-native-svg';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, Event as DatabaseEvent } from '@/lib/database';
 import { getImageUrl } from '@/lib/imageUrl';
@@ -38,6 +39,50 @@ type ViewerPalette = {
   frameBorder: string;
   radius?: number;
 };
+
+type LucideIconProps = {
+  size?: number;
+  color: string;
+  fill?: string;
+  strokeWidth?: number;
+};
+
+function LucideHeartIcon({ size = 20, color, fill = 'none', strokeWidth = 2 }: LucideIconProps) {
+  return (
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <Path
+        d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"
+        fill={fill}
+      />
+    </Svg>
+  );
+}
+
+function LucideMessageCircleIcon({ size = 20, color, strokeWidth = 2 }: LucideIconProps) {
+  return (
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <Path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+    </Svg>
+  );
+}
 
 const VIEWER_TEMPLATE_PALETTES: Record<string, ViewerPalette> = {
   royal: { background: '#033026', panel: 'rgba(2,35,28,0.94)', text: '#fcfbf7', muted: '#a3b899', accent: '#cca43b', tileBg: '#02231c', overlay: ['rgba(3,48,38,0.1)', 'rgba(3,48,38,0.78)', '#02231c'], controlBg: 'rgba(2,35,28,0.84)', controlText: '#fcfbf7', frameBorder: 'rgba(204,164,59,0.62)', radius: 18 },
@@ -120,6 +165,7 @@ export default function PhotoViewer({
   onTogglePhotoFavourite,
   onRotatePhoto,
 }: PhotoViewerProps) {
+  const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(initialIndex);
   const [likes, setLikes] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
@@ -132,6 +178,7 @@ export default function PhotoViewer({
   const [isTogglingFavourite, setIsTogglingFavourite] = useState(false);
   const [rotatingDirection, setRotatingDirection] = useState<'left' | 'right' | null>(null);
   const [expandedProfileImage, setExpandedProfileImage] = useState<{ src: string; name: string } | null>(null);
+  const swipeStartXRef = useRef<number | null>(null);
 
   // Sync index when initialIndex changes
   useEffect(() => {
@@ -142,6 +189,42 @@ export default function PhotoViewer({
   const isLiked = useMemo(() => likes.some((like) => like.userId === viewerIdentity.id), [likes, viewerIdentity.id]);
   const isVideoMedia = currentPhoto?.mediaType === 'video' || currentPhoto?.resourceType === 'video';
   const showHostTopControls = keepBottomBarVisible;
+  const hostMediaAspectRatio = useMemo(() => {
+    const width = Number(currentPhoto?.width ?? currentPhoto?.metadata?.width ?? currentPhoto?.imageWidth);
+    const height = Number(currentPhoto?.height ?? currentPhoto?.metadata?.height ?? currentPhoto?.imageHeight);
+
+    if (width > 0 && height > 0) {
+      return width / height;
+    }
+
+    return isVideoMedia ? 16 / 9 : 3 / 4;
+  }, [currentPhoto, isVideoMedia]);
+  const hostCollapsedLayout = useMemo(() => {
+    const safeWidth = Math.max(1, viewportWidth);
+    const availableHeight = Math.max(1, viewportHeight - bottomBarOffset);
+    const safeAspectRatio = Math.max(0.2, hostMediaAspectRatio || 1);
+    const mediaTop = 104;
+    const actionGap = 20;
+    const actionHeight = 46;
+    const guestbookGap = 22;
+    const guestbookPeekHint = 58;
+    const bottomPadding = 10;
+    const reservedBelowMedia = actionGap + actionHeight + guestbookGap + guestbookPeekHint + bottomPadding;
+    const maxMediaHeight = Math.max(240, availableHeight - mediaTop - reservedBelowMedia);
+    const naturalMediaHeight = safeWidth / safeAspectRatio;
+    const mediaHeight = Math.min(naturalMediaHeight, maxMediaHeight);
+    const mediaWidth = Math.min(safeWidth, mediaHeight * safeAspectRatio);
+    const actionsTop = mediaTop + mediaHeight + actionGap;
+    const guestbookTop = actionsTop + actionHeight + guestbookGap;
+
+    return {
+      mediaTop,
+      mediaWidth,
+      mediaHeight,
+      actionsTop,
+      guestbookTop,
+    };
+  }, [bottomBarOffset, hostMediaAspectRatio, viewportHeight, viewportWidth]);
   const currentPhotoIsFavourite = useMemo(
     () => currentPhoto ? isPhotoFavourite?.(currentPhoto) ?? false : false,
     [currentPhoto, isPhotoFavourite]
@@ -206,6 +289,23 @@ export default function PhotoViewer({
     setShowComments(false);
     setReplyingTo(null);
     setNewComment('');
+  };
+
+  const handleViewerTouchStart = (event: GestureResponderEvent) => {
+    swipeStartXRef.current = event.nativeEvent.pageX;
+  };
+
+  const handleViewerTouchEnd = (event: GestureResponderEvent) => {
+    if (swipeStartXRef.current === null || photos.length < 2) {
+      swipeStartXRef.current = null;
+      return;
+    }
+
+    const deltaX = event.nativeEvent.pageX - swipeStartXRef.current;
+    swipeStartXRef.current = null;
+
+    if (Math.abs(deltaX) < 45) return;
+    navigateViewer(deltaX > 0 ? 'prev' : 'next');
   };
 
   useEffect(() => {
@@ -414,23 +514,32 @@ export default function PhotoViewer({
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity style={[styles.navBtnLeft, { backgroundColor: viewerTheme.controlBg, borderColor: viewerTheme.frameBorder, borderWidth: 1 }]} onPress={() => navigateViewer('prev')}>
-          <IconSymbol name="chevron.left" size={32} color={viewerTheme.controlText} />
-        </TouchableOpacity>
+        {!showHostTopControls && (
+          <TouchableOpacity style={[styles.navBtnLeft, { backgroundColor: viewerTheme.controlBg, borderColor: viewerTheme.frameBorder, borderWidth: 1 }]} onPress={() => navigateViewer('prev')}>
+            <IconSymbol name="chevron.left" size={32} color={viewerTheme.controlText} />
+          </TouchableOpacity>
+        )}
 
         {photos[currentPhotoIndex] && (
           <View
+            onTouchStart={handleViewerTouchStart}
+            onTouchEnd={handleViewerTouchEnd}
             style={[
               styles.fullImage,
               showComments && styles.fullImageWithComments,
-              showHostTopControls && (showComments ? localStyles.hostFullImageWithGuestbook : localStyles.hostFullImageWithPeek),
+              showHostTopControls && (showComments ? localStyles.hostFullImageWithGuestbook : {
+                position: 'absolute',
+                top: hostCollapsedLayout.mediaTop,
+                height: hostCollapsedLayout.mediaHeight,
+                marginBottom: 0,
+              }),
               {
-                backgroundColor: viewerTheme.tileBg,
+                backgroundColor: showHostTopControls && !showComments ? 'transparent' : viewerTheme.tileBg,
                 borderRadius: viewerTheme.radius,
                 borderWidth: keepBottomBarVisible ? 0 : 1,
                 borderColor: keepBottomBarVisible ? 'transparent' : viewerTheme.frameBorder,
                 overflow: 'hidden',
-                width: showHostTopControls ? '84%' : '92%',
+                width: showHostTopControls && !showComments ? hostCollapsedLayout.mediaWidth : (showHostTopControls ? '100%' : '92%'),
               },
             ]}
           >
@@ -454,39 +563,25 @@ export default function PhotoViewer({
           </View>
         )}
 
-        <TouchableOpacity style={[styles.navBtnRight, { backgroundColor: viewerTheme.controlBg, borderColor: viewerTheme.frameBorder, borderWidth: 1 }]} onPress={() => navigateViewer('next')}>
-          <IconSymbol name="chevron.right" size={32} color={viewerTheme.controlText} />
-        </TouchableOpacity>
+        {!showHostTopControls && (
+          <TouchableOpacity style={[styles.navBtnRight, { backgroundColor: viewerTheme.controlBg, borderColor: viewerTheme.frameBorder, borderWidth: 1 }]} onPress={() => navigateViewer('next')}>
+            <IconSymbol name="chevron.right" size={32} color={viewerTheme.controlText} />
+          </TouchableOpacity>
+        )}
 
-        <View style={showHostTopControls ? [localStyles.hostViewerActions, showComments ? localStyles.hostViewerActionsRaised : localStyles.hostViewerActionsDocked] : [styles.viewerActions, showComments ? styles.viewerActionsRaised : styles.viewerActionsDocked]}>
+        <View style={showHostTopControls ? [localStyles.hostViewerActions, showComments ? localStyles.hostViewerActionsRaised : { top: hostCollapsedLayout.actionsTop }] : [styles.viewerActions, showComments ? styles.viewerActionsRaised : styles.viewerActionsDocked]}>
           {showHostTopControls ? (
             <>
               <TouchableOpacity style={localStyles.hostViewerAction} onPress={handleToggleLike} disabled={isLiking}>
-                <View
-                  style={[
-                    localStyles.hostViewerActionButton,
-                    {
-                      backgroundColor: isLiked ? 'rgba(244,63,94,0.2)' : viewerTheme.panel,
-                      borderColor: isLiked ? 'rgba(244,63,94,0.5)' : viewerTheme.frameBorder,
-                    },
-                  ]}
-                >
-                  <IconSymbol name={isLiked ? "heart.fill" : "heart"} size={24} color={isLiked ? "#f43f5e" : viewerTheme.controlText} />
-                </View>
+                <LucideHeartIcon
+                  size={20}
+                  color={isLiked ? "#f43f5e" : viewerTheme.controlText}
+                  fill={isLiked ? "#f43f5e" : "none"}
+                />
                 <Text style={[localStyles.hostViewerActionLabel, { color: viewerTheme.muted }]}>{likes.length} LIKES</Text>
               </TouchableOpacity>
               <TouchableOpacity style={localStyles.hostViewerAction} onPress={() => setShowComments(true)}>
-                <View
-                  style={[
-                    localStyles.hostViewerActionButton,
-                    {
-                      backgroundColor: showComments ? `${viewerTheme.accent}24` : viewerTheme.panel,
-                      borderColor: showComments ? viewerTheme.accent : viewerTheme.frameBorder,
-                    },
-                  ]}
-                >
-                  <IconSymbol name="bubble.right" size={24} color={showComments ? viewerTheme.accent : viewerTheme.controlText} />
-                </View>
+                <LucideMessageCircleIcon size={20} color={viewerTheme.controlText} />
                 <Text style={[localStyles.hostViewerActionLabel, { color: viewerTheme.muted }]}>{comments.length} COMMENTS</Text>
               </TouchableOpacity>
             </>
@@ -529,6 +624,7 @@ export default function PhotoViewer({
                 backgroundColor: viewerTheme.panel,
                 borderColor: viewerTheme.frameBorder,
                 borderRadius: viewerTheme.radius + 10,
+                top: hostCollapsedLayout.guestbookTop,
               },
             ]}
             onPress={() => setShowComments(true)}
@@ -824,12 +920,12 @@ const localStyles = StyleSheet.create({
     opacity: 0.55,
   },
   hostFullImageWithPeek: {
-    height: '50%',
-    marginBottom: 176,
+    height: '54%',
+    marginBottom: 160,
   },
   hostFullImageWithGuestbook: {
-    height: '40%',
-    marginBottom: 278,
+    height: '42%',
+    marginBottom: 270,
   },
   hostViewerActions: {
     position: 'absolute',
@@ -850,16 +946,8 @@ const localStyles = StyleSheet.create({
   },
   hostViewerAction: {
     alignItems: 'center',
-    gap: 7,
-    minWidth: 86,
-  },
-  hostViewerActionButton: {
-    width: 58,
-    height: 58,
-    borderRadius: 22,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
+    minWidth: 76,
   },
   hostViewerActionLabel: {
     fontSize: 10,
@@ -916,7 +1004,6 @@ const localStyles = StyleSheet.create({
     position: 'absolute',
     left: 20,
     right: 20,
-    bottom: 12,
     height: 82,
     borderWidth: 1,
     paddingHorizontal: 22,
