@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
@@ -52,9 +52,38 @@ interface LightboxProps {
     compactMedia?: boolean;
 }
 
+type InteractionTimestamp = string | { seconds: number } | null;
+
+interface PhotoInteractionLike {
+    id: string;
+    userId: string;
+    userName: string;
+    profileImage?: string | null;
+    createdAt?: InteractionTimestamp;
+}
+
+interface PhotoInteractionComment {
+    id: string;
+    userId: string;
+    userName: string;
+    profileImage?: string | null;
+    text: string;
+    parentId?: string | null;
+    createdAt?: InteractionTimestamp;
+}
+
 function addAlpha(color: string, alpha: string) {
     if (/^#[0-9a-fA-F]{6}$/.test(color)) return `${color}${alpha}`;
     return color;
+}
+
+function formatInteractionTime(createdAt?: InteractionTimestamp) {
+    if (!createdAt) return "Now";
+
+    const date = typeof createdAt === "string" ? new Date(createdAt) : new Date(createdAt.seconds * 1000);
+    if (Number.isNaN(date.getTime())) return "Now";
+
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 export function Lightbox({
@@ -75,11 +104,11 @@ export function Lightbox({
     compactMedia = false
 }: LightboxProps) {
     const { user } = useAuth();
-    const [likes, setLikes] = useState<any[]>([]);
-    const [comments, setComments] = useState<any[]>([]);
+    const [likes, setLikes] = useState<PhotoInteractionLike[]>([]);
+    const [comments, setComments] = useState<PhotoInteractionComment[]>([]);
     const [showComments, setShowComments] = useState(true);
     const [newComment, setNewComment] = useState("");
-    const [replyingTo, setReplyingTo] = useState<any | null>(null);
+    const [replyingTo, setReplyingTo] = useState<PhotoInteractionComment | null>(null);
     const [isLiking, setIsLiking] = useState(false);
     const [isCommenting, setIsCommenting] = useState(false);
     const [imageLoading, setImageLoading] = useState(true);
@@ -105,6 +134,7 @@ export function Lightbox({
     const commentInputRef = useRef<HTMLInputElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const commentsPanelRef = useRef<HTMLDivElement>(null);
+    const videoRef = useRef<HTMLVideoElement | null>(null);
 
     // Get identifier and name
     const getIdentity = () => {
@@ -247,6 +277,34 @@ export function Lightbox({
         }
     };
 
+    const seekVideoBySeconds = useCallback((offsetSeconds: number) => {
+        const video = videoRef.current;
+        if (!video) return;
+
+        const duration = Number.isFinite(video.duration) ? video.duration : 0;
+        const maxTime = duration > 0 ? duration : Number.MAX_SAFE_INTEGER;
+        const nextTime = Math.min(maxTime, Math.max(0, video.currentTime + offsetSeconds));
+        video.currentTime = nextTime;
+    }, []);
+
+    const handlePreviousControl = useCallback(() => {
+        if (isVideo) {
+            seekVideoBySeconds(-5);
+            return;
+        }
+
+        onPrev?.();
+    }, [isVideo, onPrev, seekVideoBySeconds]);
+
+    const handleNextControl = useCallback(() => {
+        if (isVideo) {
+            seekVideoBySeconds(5);
+            return;
+        }
+
+        onNext?.();
+    }, [isVideo, onNext, seekVideoBySeconds]);
+
     // Handle Keyboard events
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -256,8 +314,14 @@ export function Lightbox({
             const isTyping = document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA";
             if (isTyping) return;
 
-            if (e.key === "ArrowRight") onNext?.();
-            if (e.key === "ArrowLeft") onPrev?.();
+            if (e.key === "ArrowRight") {
+                e.preventDefault();
+                handleNextControl();
+            }
+            if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                handlePreviousControl();
+            }
         };
 
         if (isOpen) {
@@ -275,7 +339,7 @@ export function Lightbox({
             document.body.removeAttribute("data-lightbox-open");
             document.body.removeAttribute("data-lightbox-keep-page-header");
         };
-    }, [isOpen, onClose, onNext, onPrev, showComments, keepPageHeaderVisible]);
+    }, [isOpen, onClose, handleNextControl, handlePreviousControl, keepPageHeaderVisible]);
 
     if (!photo) return null;
 
@@ -388,12 +452,14 @@ export function Lightbox({
                             {/* Navigation Buttons */}
                             {onPrev && (
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); onPrev(); }}
+                                    onClick={(e) => { e.stopPropagation(); handlePreviousControl(); }}
                                     className={cn(
                                         "fixed left-2 md:left-6 -translate-y-1/2 p-2 md:p-4 rounded-full transition-all z-[70] pointer-events-auto backdrop-blur-sm md:backdrop-blur-none border",
                                         keepPageHeaderVisible ? "top-[calc(50%+2.5rem)]" : "top-1/2"
                                     )}
                                     style={{ color: viewerTheme.muted, backgroundColor: viewerTheme.accentBg, borderColor: viewerTheme.border }}
+                                    title={isVideo ? "Rewind 5 seconds" : "Previous media"}
+                                    aria-label={isVideo ? "Rewind 5 seconds" : "Previous media"}
                                 >
                                     <ChevronLeft size={32} className="md:w-11 md:h-11" />
                                 </button>
@@ -401,12 +467,14 @@ export function Lightbox({
 
                             {onNext && (
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); onNext(); }}
+                                    onClick={(e) => { e.stopPropagation(); handleNextControl(); }}
                                     className={cn(
                                         "fixed right-2 md:right-6 -translate-y-1/2 p-2 md:p-4 rounded-full transition-all z-[70] pointer-events-auto backdrop-blur-sm md:backdrop-blur-none border",
                                         keepPageHeaderVisible ? "top-[calc(50%+2.5rem)]" : "top-1/2"
                                     )}
                                     style={{ color: viewerTheme.muted, backgroundColor: viewerTheme.accentBg, borderColor: viewerTheme.border }}
+                                    title={isVideo ? "Forward 5 seconds" : "Next media"}
+                                    aria-label={isVideo ? "Forward 5 seconds" : "Next media"}
                                 >
                                     <ChevronRight size={32} className="md:w-11 md:h-11" />
                                 </button>
@@ -422,6 +490,7 @@ export function Lightbox({
                             >
                                 {isVideo ? (
                                     <HLSVideoPlayer
+                                        ref={videoRef}
                                         mediaId={photo.id}
                                         src={photo.src}
                                         poster={photo.thumbnailUrl}
@@ -434,6 +503,8 @@ export function Lightbox({
                                         controls
                                         playsInline
                                         autoPlay
+                                        onPreviousMedia={onPrev}
+                                        onNextMedia={onNext}
                                     />
                                 ) : (
                                     <div
@@ -603,7 +674,7 @@ export function Lightbox({
                                                                 <div className="flex items-center justify-between">
                                                                     <span className="text-xs font-bold truncate pr-2" style={{ color: viewerTheme.text }}>{comment.userName}</span>
                                                                     <span className="text-[10px] font-medium whitespace-nowrap" style={{ color: viewerTheme.muted }}>
-                                                                        {comment.createdAt ? new Date(comment.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+                                                                        {formatInteractionTime(comment.createdAt)}
                                                                     </span>
                                                                 </div>
                                                                 <div className="p-4 rounded-2xl rounded-tl-none border shadow-sm group" style={{ backgroundColor: viewerTheme.tile, borderColor: viewerTheme.border }}>
@@ -649,7 +720,7 @@ export function Lightbox({
                                                                     <div className="flex items-center justify-between">
                                                                         <span className="text-[11px] font-bold truncate pr-2" style={{ color: viewerTheme.text }}>{reply.userName}</span>
                                                                         <span className="text-[9px] font-medium whitespace-nowrap" style={{ color: viewerTheme.muted }}>
-                                                                            {reply.createdAt ? new Date(reply.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+                                                                            {formatInteractionTime(reply.createdAt)}
                                                                         </span>
                                                                     </div>
                                                                     <div className="p-3 rounded-xl rounded-tl-none border shadow-sm group" style={{ backgroundColor: viewerTheme.tile, borderColor: viewerTheme.border }}>

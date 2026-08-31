@@ -2781,5 +2781,5 @@ export const getBusinessTypeColor = (type: string) => {
   if (match) {
     return BUSINESS_TYPE_COLORS[match];
   }
-  return { bg: 'rgba(212, 175, 55, 0.12)', border: 'rgba(212, 175, 55, 0.25)', text: '#d4af37' };
+  return { bg: 'rgba(202, 156, 104, 0.12)', border: 'rgba(202, 156, 104, 0.25)', text: '#CA9C68' };
 };

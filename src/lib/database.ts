@@ -1586,7 +1586,7 @@ export const BUSINESS_TYPE_COLORS: Record<string, { bg: string; border: string; 
 };
 
 export const getBusinessTypeColor = (type: string) => {
-    return BUSINESS_TYPE_COLORS[type] || { bg: 'rgba(212, 175, 55, 0.12)', border: 'rgba(212, 175, 55, 0.25)', text: '#d4af37' };
+    return BUSINESS_TYPE_COLORS[type] || { bg: 'rgba(202, 156, 104, 0.12)', border: 'rgba(202, 156, 104, 0.25)', text: '#CA9C68' };
 };
 
 export async function getTopRatedBusinesses(limitCount: number = 10): Promise<Business[]> {

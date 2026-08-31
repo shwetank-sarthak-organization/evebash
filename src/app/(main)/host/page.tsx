@@ -138,7 +138,7 @@ const GridMediaCell = ({
                     preload="metadata"
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/70 bg-slate-950/80 text-amber-300 shadow-xl">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#CA9C68]/70 bg-slate-950/80 text-[#CA9C68] shadow-xl">
                         <Play className="h-5 w-5 fill-current" />
                     </div>
                 </div>
@@ -788,7 +788,7 @@ function DashboardContent() {
     // Refs to keep track of currentEventPhotos and uploadQueue to avoid stale closure bugs in Supabase Realtime callbacks
     const currentEventPhotosRef = useRef<Photo[]>([]);
     const uploadQueueRef = useRef<UploadQueueItem[]>([]);
-    
+
     useEffect(() => {
         currentEventPhotosRef.current = currentEventPhotos;
     }, [currentEventPhotos]);
@@ -798,9 +798,9 @@ function DashboardContent() {
     }, [uploadQueue]);
 
     const handleThumbnailLoaded = useCallback((photoId: string, storageKey: string) => {
-        setUploadQueue(prev => prev.map(qItem => 
+        setUploadQueue(prev => prev.map(qItem =>
             (qItem.photoId === photoId || qItem.storageKey === storageKey) && qItem.status !== "success"
-                ? { ...qItem, status: "success", progress: 100 } 
+                ? { ...qItem, status: "success", progress: 100 }
                 : qItem
         ));
     }, []);
@@ -910,7 +910,7 @@ function DashboardContent() {
         // Allow all logged in users to access the dashboard
         // Plan roles: free (default), basic, standard, premium, elite, admin
         const isAuthorized = !!user;
-        
+
         if (!loading && user && !isAuthorized) {
             router.push("/profile");
         }
@@ -958,9 +958,9 @@ function DashboardContent() {
                     if (data.status === "complete" && !hasActiveUploads) {
                         clearInterval(pollInterval);
                         // Mark all processing/pending items in the queue as success
-                        setUploadQueue(prev => prev.map(item => 
+                        setUploadQueue(prev => prev.map(item =>
                             (item.status === "processing" || item.status === "pending" || item.status === "uploading")
-                                ? { ...item, status: "success", progress: 100 } 
+                                ? { ...item, status: "success", progress: 100 }
                                 : item
                         ));
                     }
@@ -1041,7 +1041,7 @@ function DashboardContent() {
                     }
                 }
             } else {
-                // If event events aren't loaded yet, we might need to rely on the ID alone 
+                // If event events aren't loaded yet, we might need to rely on the ID alone
                 // and let the fetch logic handle it, but for now we set the generic IDs
                 if (levelParam === "galleries") {
                     // We need the object for some UI, but ID is enough for fetching
@@ -1307,9 +1307,9 @@ function DashboardContent() {
 
     const fetchEventPhotos = async () => {
         if (!selectedEventId) return;
-        
+
         let currentEvent = userEvents.find(e => e.id === selectedEventId);
-        
+
         // Robust fetch: Ensure we have the full event object (especially legacyId and createdBy)
         // If we don't have it or it's missing the legacyId (common for migrated events in the list pool)
         // we fetch it deeply from Supabase database.
@@ -1464,7 +1464,7 @@ function DashboardContent() {
                 { event: '*', schema: 'public', table: 'photos' },
                 (payload) => {
                     console.log(`[Dashboard Realtime] Received DB change:`, payload);
-                    
+
                     if (payload.eventType === 'INSERT') {
                         // For INSERT events, event_id is always present in the payload
                         if (payload.new.event_id === selectedEventId) {
@@ -1494,12 +1494,12 @@ function DashboardContent() {
                         // Use currentEventPhotosRef and uploadQueueRef to avoid stale closure state snapshots
                         const isOurPhoto = currentEventPhotosRef.current.some(p => p.id === payload.new.id) ||
                                            uploadQueueRef.current.some(qItem => qItem.photoId === payload.new.id);
-                        
+
                         if (!isOurPhoto) return;
 
                         setCurrentEventPhotos(prev => {
                             const exists = prev.some(p => p.id === payload.new.id);
-                            
+
                             // 1. If it doesn't exist yet (UPDATE arrived before INSERT state re-rendered),
                             // we build the Photo record and insert it directly in its completed state.
                             if (!exists) {
@@ -1540,9 +1540,9 @@ function DashboardContent() {
                         });
 
                         if (payload.new.thumbnail_url) {
-                            setUploadQueue(prev => prev.map(qItem => 
+                            setUploadQueue(prev => prev.map(qItem =>
                                 (qItem.photoId === payload.new.id || qItem.storageKey === payload.new.storage_key)
-                                    ? { ...qItem, status: "success", progress: 100 } 
+                                    ? { ...qItem, status: "success", progress: 100 }
                                     : qItem
                             ));
                         }
@@ -1954,7 +1954,7 @@ function DashboardContent() {
             const eventCount = await getUserEventCount(creatorUid);
             const currentPlan = getPlanDetails(user.role);
             const maxEvents = currentPlan.eventLimit;
-            
+
             if (eventCount >= maxEvents) {
                 setMessage(`You've reached your ${currentPlan.eventLabel}-event limit for the ${currentPlan.name}. Upgrade your plan to create more events.`);
                 setStatus("error");
@@ -2055,7 +2055,7 @@ function DashboardContent() {
             if (user.phone) identifiers.push(user.phone);
             const currentUsage = await getUserTotalStorage(identifiers);
             const selectedUploadSize = selectedFiles.reduce((total, file) => total + file.size, 0);
-            
+
             if (currentUsage >= currentPlan.storageBytes) {
                 setMessage(`You've reached your ${currentPlan.storageLabel} storage limit. Upgrade your plan for more storage.`);
                 setStatus("error");
@@ -2164,24 +2164,24 @@ function DashboardContent() {
                         setUploadQueue(prev => prev.map(qItem => {
                             if (itemIds.has(qItem.id)) {
                                 const isVideo = qItem.mediaType === "video";
-                                return { 
-                                    ...qItem, 
-                                    status: isVideo ? "success" : "processing", 
-                                    progress: isVideo ? 100 : 90 
+                                return {
+                                    ...qItem,
+                                    status: isVideo ? "success" : "processing",
+                                    progress: isVideo ? 100 : 90
                                 };
                             }
                             return qItem;
                         }));
                     } else {
                         const itemIds = new Set(itemsToFlush.map(item => item.queueItemId));
-                        setUploadQueue(prev => prev.map(qItem => 
+                        setUploadQueue(prev => prev.map(qItem =>
                             itemIds.has(qItem.id) ? { ...qItem, status: "error", progress: 100, error: "Failed to save photo metadata" } : qItem
                         ));
                     }
                 } catch (e: any) {
                     console.error("[Dashboard] Batch flush error:", e);
                     const itemIds = new Set(itemsToFlush.map(item => item.queueItemId));
-                    setUploadQueue(prev => prev.map(qItem => 
+                    setUploadQueue(prev => prev.map(qItem =>
                         itemIds.has(qItem.id) ? { ...qItem, status: "error", progress: 100, error: e.message || "Failed to save photo metadata" } : qItem
                     ));
                 }
@@ -2236,9 +2236,9 @@ function DashboardContent() {
                     };
 
                     // Store storageKey and photoId in the queue item so Realtime updates can map to it
-                    setUploadQueue(prev => prev.map(item => 
-                        item.id === queueItemId 
-                            ? { ...item, storageKey: uploadResult.publicId, photoId: uniqueId } 
+                    setUploadQueue(prev => prev.map(item =>
+                        item.id === queueItemId
+                            ? { ...item, storageKey: uploadResult.publicId, photoId: uniqueId }
                             : item
                     ));
 
@@ -2257,12 +2257,12 @@ function DashboardContent() {
                 } finally {
                     activeCount--;
                     completedCount++;
-                    
+
                     // If this is the absolute last photo of the entire batch to complete (success or fail), flush any remaining items
                     if (completedCount === selectedFiles.length) {
                         flushChunkBuffer();
                     }
-                    
+
                     // Process next file in the queue
                     await runNext(workerId);
                 }
@@ -2809,7 +2809,7 @@ function DashboardContent() {
 
         const params = new URLSearchParams(searchParams);
         params.set("view", "manage");
-        // Maintain current level if valid, otherwise assume photos for this specific action context? 
+        // Maintain current level if valid, otherwise assume photos for this specific action context?
         // Actually, adding images usually implies looking at photos.
         params.set("level", "photos");
         params.set("mode", "add-image");
@@ -2987,7 +2987,7 @@ function DashboardContent() {
         try {
             const eventToDelete = userEvents.find(e => e.id === eventId) || eventDetailGalleries.find(e => e.id === eventId);
             const isGallery = eventToDelete?.type === "sub";
-            
+
             const success = await deleteEvent(eventId);
             if (success) {
                 setStatus("success");
@@ -3238,7 +3238,7 @@ function DashboardContent() {
                 ? [{ label: "Denied", icon: X, className: "border-rose-400/30 bg-rose-400/10 text-rose-300" }]
                 : [
                     { label: "View", icon: Eye, className: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" },
-                    ...(hasAdminAccess ? [{ label: "Admin", icon: ShieldCheck, className: "border-amber-400/30 bg-amber-400/10 text-amber-300" }] : []),
+                    ...(hasAdminAccess ? [{ label: "Admin", icon: ShieldCheck, className: "border-[#CA9C68]/30 bg-[#CA9C68]/10 text-[#CA9C68]" }] : []),
                     ...(hasUploadAccess ? [{ label: "Upload", icon: Camera, className: "border-purple-400/30 bg-purple-400/10 text-purple-300" }] : []),
                     ...(hasCommentAccess ? [{ label: "Comment", icon: MessageCircle, className: "border-cyan-400/30 bg-cyan-400/10 text-cyan-300" }] : []),
                 ];
@@ -3252,10 +3252,10 @@ function DashboardContent() {
                 onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") setSelectedGuestLog(log);
                 }}
-                className="flex cursor-pointer flex-col gap-3 rounded-[1.5rem] border border-slate-700 bg-slate-900/50 p-4 transition-colors hover:border-amber-400/50 hover:bg-slate-900 lg:flex-row lg:items-center"
+                className="flex cursor-pointer flex-col gap-3 rounded-[1.5rem] border border-slate-700 bg-slate-900/50 p-4 transition-colors hover:border-[#CA9C68]/50 hover:bg-slate-900 lg:flex-row lg:items-center"
             >
                 <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-400/10 text-sm font-black text-amber-300">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#CA9C68]/10 text-sm font-black text-[#CA9C68]">
                         {(log.name || "G").charAt(0)}
                     </div>
                     <div className="min-w-0">
@@ -3345,7 +3345,7 @@ function DashboardContent() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent transition-all" />
                 {evt.category && (
-                    <div className="absolute left-5 top-5 z-10 rounded-lg border border-amber-300/30 bg-black/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-amber-300 backdrop-blur-sm">
+                    <div className="absolute left-5 top-5 z-10 rounded-lg border border-[#CA9C68]/30 bg-black/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#CA9C68] backdrop-blur-sm">
                         {evt.category}
                     </div>
                 )}
@@ -3468,7 +3468,7 @@ function DashboardContent() {
                 )}
                 <h3 className="text-2xl font-bold italic tracking-tight mb-4">{evt.title}</h3>
                 <div className="mb-3 flex items-center text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                    <Calendar className="mr-2 h-3.5 w-3.5 text-amber-300" />
+                    <Calendar className="mr-2 h-3.5 w-3.5 text-[#CA9C68]" />
                     <span>{formatEventDate(evt.date)}</span>
                 </div>
                 <div className="flex items-center text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-y-3 group-hover:translate-y-0 duration-300">
@@ -3494,20 +3494,20 @@ function DashboardContent() {
         if (!user?.delegatedBy || !workspaceOwner) return null;
 
         return (
-            <div className="bg-amber-900/30 rounded-3xl p-6 border border-amber-500/30 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="bg-[#CA9C68]/30 rounded-3xl p-6 border border-[#CA9C68]/30 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
                 <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-amber-900/50 rounded-2xl flex items-center justify-center text-amber-400">
+                    <div className="w-12 h-12 bg-[#CA9C68]/50 rounded-2xl flex items-center justify-center text-[#CA9C68]">
                         <Users size={24} />
                     </div>
                     <div>
                         <h3 className="text-lg font-bold text-slate-200 font-serif">Managed Workspace</h3>
                         <p className="text-sm text-stone-700 font-sans">
-                            You are managing the account for <span className="text-amber-400 font-bold">{workspaceOwner.email}</span>
+                            You are managing the account for <span className="text-[#CA9C68] font-bold">{workspaceOwner.email}</span>
                         </p>
                     </div>
                 </div>
                 <div className="hidden sm:block">
-                    <span className="px-4 py-1.5 bg-slate-800 text-amber-400 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-500/50 shadow-sm">
+                    <span className="px-4 py-1.5 bg-slate-800 text-[#CA9C68] rounded-full text-[10px] font-black uppercase tracking-widest border border-[#CA9C68]/50 shadow-sm">
                         {user.roleType === 'primary' ? 'Full Manager' : 'Event Admin'}
                     </span>
                 </div>
@@ -3583,7 +3583,7 @@ function DashboardContent() {
                                                     fetchStorageStats();
                                                     setShowPlanDetailsModal(true);
                                                 }}
-                                                className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-400/30 bg-amber-400/10 text-amber-300 transition-colors hover:bg-amber-400/20"
+                                                className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#CA9C68]/30 bg-[#CA9C68]/10 text-[#CA9C68] transition-colors hover:bg-[#CA9C68]/20"
                                                 aria-label="Plan Details"
                                             >
                                                 <svg
@@ -3613,7 +3613,7 @@ function DashboardContent() {
                                     <div className="flex flex-wrap gap-2">
                                         <button
                                             onClick={() => setIsCreateModalOpen(true)}
-                                            className="flex items-center gap-2 rounded-2xl bg-amber-400 px-4 py-3 text-sm font-black text-slate-950 transition-colors hover:bg-amber-300"
+                                            className="flex items-center gap-2 rounded-2xl bg-[#CA9C68] px-4 py-3 text-sm font-black text-slate-950 transition-colors hover:bg-[#D7AE7D]"
                                         >
                                             <Plus className="w-4 h-4" />
                                             Create Event
@@ -3622,28 +3622,28 @@ function DashboardContent() {
                                 </div>
 
                                 <div className="flex w-full gap-2 overflow-x-auto rounded-2xl bg-slate-900/50 p-1 sm:w-fit">
-                                    <button 
-                                        onClick={() => setActiveTab('hosted')} 
-                                        className={`flex min-w-28 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'hosted' ? 'bg-slate-700 text-amber-300 shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                                    <button
+                                        onClick={() => setActiveTab('hosted')}
+                                        className={`flex min-w-28 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'hosted' ? 'bg-slate-700 text-[#CA9C68] shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
                                     >
                                         <Camera className="h-4 w-4" />
                                         Host
                                     </button>
-                                    <button 
-                                        onClick={() => setActiveTab('shared')} 
-                                        className={`flex min-w-28 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'shared' ? 'bg-slate-700 text-amber-300 shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                                    <button
+                                        onClick={() => setActiveTab('shared')}
+                                        className={`flex min-w-28 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'shared' ? 'bg-slate-700 text-[#CA9C68] shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
                                     >
                                         <Users className="h-4 w-4" />
                                         Shared
                                     </button>
-                                    <button 
-                                        onClick={() => setActiveTab('request')} 
-                                        className={`relative flex min-w-28 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'request' ? 'bg-slate-700 text-amber-300 shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                                    <button
+                                        onClick={() => setActiveTab('request')}
+                                        className={`relative flex min-w-28 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'request' ? 'bg-slate-700 text-[#CA9C68] shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
                                     >
                                         <UserPlus className="h-4 w-4" />
                                         Requests
                                         {pendingGuestRequests.length > 0 && (
-                                            <span className="ml-1 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-slate-950">
+                                            <span className="ml-1 rounded-full bg-[#CA9C68] px-2 py-0.5 text-[10px] font-black text-slate-950">
                                                 {pendingGuestRequests.length}
                                             </span>
                                         )}
@@ -3671,14 +3671,14 @@ function DashboardContent() {
                                                                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Event</p>
                                                                 <h3 className="truncate text-lg font-black text-white">{eventTitle}</h3>
                                                             </div>
-                                                            <span className="shrink-0 rounded-full bg-amber-400 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-950">
+                                                            <span className="shrink-0 rounded-full bg-[#CA9C68] px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-950">
                                                                 {logs.length} {logs.length === 1 ? "Request" : "Requests"}
                                                             </span>
                                                         </div>
                                                         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                                                             {logs.map((log) => (
                                                                 <div key={log.id} className="flex flex-col gap-4 rounded-[1.2rem] border border-white/10 bg-black p-4 sm:flex-row sm:items-center">
-                                                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-400 text-lg font-black text-slate-950">
+                                                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#CA9C68] text-lg font-black text-slate-950">
                                                                         {(log.name || "G").charAt(0).toUpperCase()}
                                                                     </div>
                                                                     <div className="min-w-0 flex-1">
@@ -3714,7 +3714,7 @@ function DashboardContent() {
                                         {(activeTab === 'hosted' ? userEvents : sharedEvents).map((event) => {
                                             const ownerDetails = getEventOwnerDetails(event);
                                             return (
-                                                <div 
+                                                <div
                                                     key={event.id}
                                                     onClick={() => {
                                                         router.push(`/host?view=manage&level=event-details&eventId=${event.id}`);
@@ -3725,14 +3725,14 @@ function DashboardContent() {
                                                     )}
                                                 >
                                                     <div className={cn("relative overflow-hidden", activeTab === "shared" ? "h-64" : "h-full")}>
-                                                        <img 
+                                                        <img
                                                             src={resolveEventCoverImage(event.coverImage, 'thumbnail')}
                                                             alt={event.title}
                                                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                                                         />
                                                         <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent"></div>
                                                         {event.category && (
-                                                            <div className="absolute left-4 top-4 rounded-lg border border-amber-300/30 bg-black/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-amber-300 backdrop-blur-sm">
+                                                            <div className="absolute left-4 top-4 rounded-lg border border-[#CA9C68]/30 bg-black/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#CA9C68] backdrop-blur-sm">
                                                                 {event.category}
                                                             </div>
                                                         )}
@@ -3741,7 +3741,7 @@ function DashboardContent() {
                                                     <div className="absolute bottom-0 left-0 right-0 bg-black p-5">
                                                         <h3 className="text-white font-bold text-lg leading-tight mb-1 truncate">{event.title}</h3>
                                                         <div className="mt-2 flex items-center text-xs font-bold text-slate-400">
-                                                            <Calendar className="w-3 h-3 mr-1.5 text-amber-300" />
+                                                            <Calendar className="w-3 h-3 mr-1.5 text-[#CA9C68]" />
                                                             <span>{event.date}</span>
                                                         </div>
                                                         {activeTab === "shared" && (
@@ -3759,7 +3759,7 @@ function DashboardContent() {
                                                 <p className="font-medium text-lg mb-2">{activeTab === 'hosted' ? 'No events yet' : 'Nothing shared'}</p>
                                                 <p className="text-sm text-center">{activeTab === 'hosted' ? 'Create your first album to see it here.' : 'Events shared with you will appear here.'}</p>
                                                 {activeTab === 'hosted' && (
-                                                    <button 
+                                                    <button
                                                         onClick={() => setIsCreateModalOpen(true)}
                                                         className="mt-4 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-full text-sm font-bold transition-colors"
                                                     >
@@ -3788,7 +3788,7 @@ function DashboardContent() {
                                         <h3 className="text-xl font-bold text-white mb-2">Stunning Galleries</h3>
                                         <p className="text-slate-400 text-sm">Create unlimited, high-resolution albums to preserve every beautiful memory.</p>
                                     </div>
-                                    
+
                                     {/* Benefit 2 */}
                                     <div className="bg-slate-900/50 rounded-2xl p-6 border border-slate-700/50">
                                         <div className="w-12 h-12 bg-sky-500/20 rounded-xl flex items-center justify-center mb-4">
@@ -3809,7 +3809,7 @@ function DashboardContent() {
                                 </div>
 
                                 {/* SECTION 4: HOW TO HOST (YouTube Card) */}
-                                <div 
+                                <div
                                     onClick={() => window.open('https://www.youtube.com/@EveBashApp', '_blank')}
                                     className="relative overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-indigo-900 to-indigo-950 p-6 cursor-pointer shadow-lg shadow-indigo-900/20 group border border-indigo-500/20"
                                 >
@@ -3974,7 +3974,7 @@ function DashboardContent() {
                                                 <h3 className="text-3xl font-bold text-white sm:text-4xl">{activeEventDetailEvent?.title || selectedMainEvent.title}</h3>
                                                 <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                                     <div className="flex items-center gap-2 text-sm font-bold text-slate-300">
-                                                        <Calendar className="h-4 w-4 text-amber-300" />
+                                                        <Calendar className="h-4 w-4 text-[#CA9C68]" />
                                                         <span>{formatEventDate(activeEventDetailEvent?.date || selectedMainEvent.date)}</span>
                                                     </div>
                                                     <div className="flex flex-wrap gap-2">
@@ -4012,7 +4012,7 @@ function DashboardContent() {
                                         >
                                             <span className={cn(
                                                 "flex h-10 w-10 items-center justify-center rounded-2xl",
-                                                activeEventDetailTab === "galleries" ? "bg-amber-400 text-slate-950" : "bg-amber-400/10 text-amber-300"
+                                                activeEventDetailTab === "galleries" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
                                             )}>
                                                 <Camera className="h-5 w-5" />
                                             </span>
@@ -4031,7 +4031,7 @@ function DashboardContent() {
                                         >
                                             <span className={cn(
                                                 "flex h-10 w-10 items-center justify-center rounded-2xl",
-                                                activeEventDetailTab === "permissions" ? "bg-amber-400 text-slate-950" : "bg-amber-400/10 text-amber-300"
+                                                activeEventDetailTab === "permissions" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
                                             )}>
                                                 <ShieldCheck className="h-5 w-5" />
                                             </span>
@@ -4040,7 +4040,7 @@ function DashboardContent() {
                                                 <span className="mt-1 block text-xs font-bold text-slate-400">Guest access</span>
                                             </span>
                                             {eventDetailLogs.filter(log => log.status === "pending").length > 0 && (
-                                                <span className="absolute right-4 top-4 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-slate-950">
+                                                <span className="absolute right-4 top-4 rounded-full bg-[#CA9C68] px-2 py-0.5 text-[10px] font-black text-slate-950">
                                                     {eventDetailLogs.filter(log => log.status === "pending").length}
                                                 </span>
                                             )}
@@ -4055,7 +4055,7 @@ function DashboardContent() {
                                         >
                                             <span className={cn(
                                                 "flex h-10 w-10 items-center justify-center rounded-2xl",
-                                                activeEventDetailTab === "design" ? "bg-amber-400 text-slate-950" : "bg-amber-400/10 text-amber-300"
+                                                activeEventDetailTab === "design" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
                                             )}>
                                                 <LayoutDashboard className="h-5 w-5" />
                                             </span>
@@ -4074,7 +4074,7 @@ function DashboardContent() {
                                         >
                                             <span className={cn(
                                                 "flex h-10 w-10 items-center justify-center rounded-2xl",
-                                                activeEventDetailTab === "partners" ? "bg-amber-400 text-slate-950" : "bg-amber-400/10 text-amber-300"
+                                                activeEventDetailTab === "partners" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
                                             )}>
                                                 <Users className="h-5 w-5" />
                                             </span>
@@ -4098,7 +4098,7 @@ function DashboardContent() {
                                                     </div>
                                                     <button
                                                         onClick={() => setIsCreateSubGalleryModalOpen(true)}
-                                                        className="flex items-center gap-2 rounded-full bg-amber-400 px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-950 transition-transform hover:-translate-y-0.5"
+                                                        className="flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-950 transition-transform hover:-translate-y-0.5"
                                                     >
                                                         <Plus className="h-4 w-4" />
                                                         <span>Add Sub-Gallery</span>
@@ -4107,13 +4107,13 @@ function DashboardContent() {
 
                                                 <div className="space-y-6">
                                                     <section className="space-y-3">
-                                                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">Primary Gallery</p>
+                                                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#CA9C68]">Primary Gallery</p>
                                                         <div className="flex flex-wrap gap-4">
-                                                            <div 
+                                                            <div
                                                                 className={cn(
-                                                                    "group relative overflow-hidden rounded-[1.5rem] border shadow-lg transition-all cursor-pointer hover:border-amber-400/50 w-full sm:w-[280px] aspect-square flex-shrink-0",
+                                                                    "group relative overflow-hidden rounded-[1.5rem] border shadow-lg transition-all cursor-pointer hover:border-[#CA9C68]/50 w-full sm:w-[280px] aspect-square flex-shrink-0",
                                                                     selectedEventId === selectedMainEvent.id && manageMode === "add-image"
-                                                                        ? "border-amber-400/70 shadow-amber-950/10"
+                                                                        ? "border-[#CA9C68]/70 shadow-[#13191F]/10"
                                                                         : "border-slate-700 shadow-slate-950/10"
                                                                 )}
                                                                 onClick={() => openUploadForEvent(selectedMainEvent.id, selectedMainEvent.title)}
@@ -4124,7 +4124,7 @@ function DashboardContent() {
                                                                     className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                                                                 />
                                                                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none" />
-                                                                
+
                                                                 <div className="absolute inset-0 p-3 flex flex-col justify-between">
                                                                     <div className="flex">
                                                                         <div className="flex items-center gap-1 rounded-lg bg-black/65 border border-white/20 px-2 py-1">
@@ -4132,7 +4132,7 @@ function DashboardContent() {
                                                                             <span className="text-[9px] font-bold tracking-wider text-white/90">PRIMARY</span>
                                                                         </div>
                                                                     </div>
-                                                                    
+
                                                                     <div className="flex items-end justify-between gap-2">
                                                                         <div className="min-w-0 flex-1">
                                                                             <h5 className="text-[13px] font-bold text-white drop-shadow-md line-clamp-2 leading-tight">{selectedMainEvent.title || 'Home'}</h5>
@@ -4148,7 +4148,7 @@ function DashboardContent() {
 
                                                     <section className="space-y-3">
                                                         <div className="flex items-center justify-between gap-3">
-                                                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">Sub-Galleries</p>
+                                                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#CA9C68]">Sub-Galleries</p>
                                                         </div>
 
                                                         {loadingEventDetail ? (
@@ -4162,9 +4162,9 @@ function DashboardContent() {
                                                                     <div
                                                                         key={gallery.id}
                                                                         className={cn(
-                                                                            "group relative aspect-square overflow-hidden rounded-[1.5rem] border shadow-lg transition-all cursor-pointer hover:border-amber-400/50",
+                                                                            "group relative aspect-square overflow-hidden rounded-[1.5rem] border shadow-lg transition-all cursor-pointer hover:border-[#CA9C68]/50",
                                                                             selectedEventId === gallery.id && manageMode === "add-image"
-                                                                                ? "border-amber-400/70 shadow-amber-950/10"
+                                                                                ? "border-[#CA9C68]/70 shadow-[#13191F]/10"
                                                                                 : "border-slate-700 shadow-slate-950/10"
                                                                         )}
                                                                         onClick={() => openUploadForEvent(gallery.id, gallery.title)}
@@ -4175,7 +4175,7 @@ function DashboardContent() {
                                                                             className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                                                                         />
                                                                         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none" />
-                                                                        
+
                                                                         <div className="absolute inset-0 p-3 flex flex-col justify-between">
                                                                             <div className="flex justify-between items-start">
                                                                                 <div className="flex items-center gap-1 rounded-lg bg-black/65 border border-white/20 px-2 py-1">
@@ -4191,7 +4191,7 @@ function DashboardContent() {
                                                                                     </button>
                                                                                 </div>
                                                                             </div>
-                                                                            
+
                                                                             <div className="flex items-end justify-between gap-2">
                                                                                 <div className="min-w-0 flex-1">
                                                                                     <h5 className="text-[13px] font-bold text-white drop-shadow-md line-clamp-2 leading-tight">{gallery.title}</h5>
@@ -4250,7 +4250,7 @@ function DashboardContent() {
 
                                                         {eventDetailAdminLogs.length > 0 && (
                                                             <section className="space-y-3">
-                                                                <h5 className="text-sm font-black uppercase tracking-[0.18em] text-amber-300">
+                                                                <h5 className="text-sm font-black uppercase tracking-[0.18em] text-[#CA9C68]">
                                                                     Admins ({eventDetailAdminLogs.length})
                                                                 </h5>
                                                                 {eventDetailAdminLogs.map(renderEventDetailPermissionCard)}
@@ -4278,23 +4278,23 @@ function DashboardContent() {
                                             <div className="space-y-4">
                                                 <h4 className="text-xl font-black text-white mb-2">Event Design</h4>
 
-                                                <div 
+                                                <div
                                                     onClick={() => setShowCategoryModal(true)}
-                                                    className="flex items-center justify-between rounded-[1.2rem] border border-slate-700 bg-slate-900/50 p-4 cursor-pointer hover:border-amber-400/50 transition-colors"
+                                                    className="flex items-center justify-between rounded-[1.2rem] border border-slate-700 bg-slate-900/50 p-4 cursor-pointer hover:border-[#CA9C68]/50 transition-colors"
                                                 >
                                                     <div>
                                                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Event Type</p>
                                                         <p className="text-base font-bold text-white">{selectedMainEvent.category || 'Select Type'}</p>
                                                     </div>
-                                                    <ChevronRight className="h-4 w-4 text-amber-400" />
+                                                    <ChevronRight className="h-4 w-4 text-[#CA9C68]" />
                                                 </div>
 
-                                                <div 
+                                                <div
                                                     onClick={() => {
                                                         setTemplateTargetEvent(selectedMainEvent);
                                                         setShowTemplateModal(true);
                                                     }}
-                                                    className="flex items-center justify-between rounded-[1.2rem] border border-slate-700 bg-slate-900/50 p-4 cursor-pointer hover:border-amber-400/50 transition-colors"
+                                                    className="flex items-center justify-between rounded-[1.2rem] border border-slate-700 bg-slate-900/50 p-4 cursor-pointer hover:border-[#CA9C68]/50 transition-colors"
                                                 >
                                                     <div>
                                                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Change Template</p>
@@ -4302,29 +4302,29 @@ function DashboardContent() {
                                                             {selectedMainEvent.templateId ? TEMPLATE_THEMES.find(t => t.id === selectedMainEvent.templateId)?.label : 'Hero (Default)'}
                                                         </p>
                                                     </div>
-                                                    <ChevronRight className="h-4 w-4 text-amber-400" />
+                                                    <ChevronRight className="h-4 w-4 text-[#CA9C68]" />
                                                 </div>
 
-                                                <div 
+                                                <div
                                                     onClick={() => window.open(`/event/${selectedMainEvent.id}`, '_blank')}
-                                                    className="flex items-center justify-between rounded-[1.2rem] border border-amber-500/30 bg-amber-500/10 p-4 cursor-pointer hover:bg-amber-500/20 transition-colors mt-2"
+                                                    className="flex items-center justify-between rounded-[1.2rem] border border-[#CA9C68]/30 bg-[#CA9C68]/10 p-4 cursor-pointer hover:bg-[#CA9C68]/20 transition-colors mt-2"
                                                 >
                                                     <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-amber-500 mb-1">Preview Guest Theme</p>
+                                                        <p className="text-[10px] font-black uppercase tracking-widest text-[#CA9C68] mb-1">Preview Guest Theme</p>
                                                         <p className="text-xs font-medium text-slate-300 mt-1">
                                                             See how guests view your {selectedMainEvent.templateId ? TEMPLATE_THEMES.find(t => t.id === selectedMainEvent.templateId)?.label : 'Hero'} theme
                                                         </p>
                                                     </div>
-                                                    <Eye className="h-4 w-4 text-amber-500" />
+                                                    <Eye className="h-4 w-4 text-[#CA9C68]" />
                                                 </div>
                                             </div>
                                         )}
 
                                         {activeEventDetailTab === "partners" && (
                                             <div className="space-y-6">
-                                                <div className="rounded-[1.8rem] border border-amber-400/20 bg-slate-900/60 p-6 text-left shadow-xl backdrop-blur-md sm:p-8">
-                                                    <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.2em] text-amber-300">
-                                                        <Users className="h-4 w-4 text-amber-400" />
+                                                <div className="rounded-[1.8rem] border border-[#CA9C68]/20 bg-slate-900/60 p-6 text-left shadow-xl backdrop-blur-md sm:p-8">
+                                                    <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#CA9C68]/30 bg-[#CA9C68]/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.2em] text-[#CA9C68]">
+                                                        <Users className="h-4 w-4 text-[#CA9C68]" />
                                                         <span>Event Partners · Phase 2</span>
                                                     </div>
                                                     <h4 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
@@ -4340,7 +4340,7 @@ function DashboardContent() {
                                                             { title: "Partner Showcase", desc: "Highlight credited partners to your guests on the event page.", icon: Star },
                                                         ].map(({ title, desc, icon: Icon }) => (
                                                             <div key={title} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-                                                                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400/10 text-amber-300">
+                                                                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-[#CA9C68]/10 text-[#CA9C68]">
                                                                     <Icon className="h-4 w-4" />
                                                                 </div>
                                                                 <h5 className="text-xs font-black uppercase tracking-wider text-white">{title}</h5>
@@ -4461,8 +4461,8 @@ function DashboardContent() {
                                                             className={cn(
                                                                 "flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-black transition-colors",
                                                                 isSelected
-                                                                    ? "border-amber-400 bg-amber-400 text-slate-950"
-                                                                    : "border-slate-700 bg-slate-900/50 text-slate-300 hover:border-amber-400/60"
+                                                                    ? "border-[#CA9C68] bg-[#CA9C68] text-slate-950"
+                                                                    : "border-slate-700 bg-slate-900/50 text-slate-300 hover:border-[#CA9C68]/60"
                                                             )}
                                                         >
                                                             <Icon className="h-4 w-4" />
@@ -4489,18 +4489,18 @@ function DashboardContent() {
                                                             style={{ borderColor: isActive ? template.accent : undefined }}
                                                         >
                                                             <div className="flex items-center gap-3 flex-1">
-                                                                <div 
+                                                                <div
                                                                     className="w-10 h-10 rounded-full flex items-center justify-center border border-slate-700 shadow-sm"
                                                                     style={{ backgroundColor: template.background?.light || '#fff' }}
                                                                 >
-                                                                    <div 
+                                                                    <div
                                                                         className="w-3.5 h-3.5 rounded-full shadow-sm"
                                                                         style={{ backgroundColor: template.accent || '#000' }}
                                                                     />
                                                                 </div>
-                                                                
+
                                                                 <div className="flex-1 mr-2">
-                                                                    <div 
+                                                                    <div
                                                                         className="text-sm font-bold font-outfit"
                                                                         style={{ color: isActive ? template.accent : '#334155' }}
                                                                     >
@@ -4513,7 +4513,7 @@ function DashboardContent() {
                                                             </div>
 
                                                             {isActive && (
-                                                                <div 
+                                                                <div
                                                                     className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 shadow-sm"
                                                                     style={{ backgroundColor: template.accent }}
                                                                 >
@@ -4580,14 +4580,14 @@ function DashboardContent() {
                                                 </button>
                                             </div>
 
-                                            <form 
+                                            <form
                                                 onSubmit={async (e) => {
                                                     // Pass true to skip the success modal
                                                     const success = await handleCreateEventOnly(e, true);
                                                     if (success) {
                                                         setIsCreateSubGalleryModalOpen(false);
                                                     }
-                                                }} 
+                                                }}
                                                 className="space-y-6"
                                             >
                                                 <div>
@@ -4596,7 +4596,7 @@ function DashboardContent() {
                                                         value={eventName}
                                                         onChange={(e) => setEventName(e.target.value)}
                                                         placeholder="Sub-gallery name"
-                                                        className="w-full px-5 py-4 bg-[#262626] border border-white/5 rounded-2xl focus:ring-1 focus:ring-amber-500 transition-all outline-none text-base text-white placeholder-slate-400"
+                                                        className="w-full px-5 py-4 bg-[#262626] border border-white/5 rounded-2xl focus:ring-1 focus:ring-[#CA9C68] transition-all outline-none text-base text-white placeholder-slate-400"
                                                         required
                                                         autoFocus
                                                     />
@@ -4609,10 +4609,10 @@ function DashboardContent() {
                                                     <button
                                                         type="button"
                                                         onClick={() => openDatePicker("create")}
-                                                        className="flex w-full items-center justify-between px-5 py-4 bg-[#262626] border border-white/5 rounded-2xl focus:ring-1 focus:ring-amber-500 transition-all outline-none text-base text-left"
+                                                        className="flex w-full items-center justify-between px-5 py-4 bg-[#262626] border border-white/5 rounded-2xl focus:ring-1 focus:ring-[#CA9C68] transition-all outline-none text-base text-left"
                                                     >
                                                         <div className="flex items-center">
-                                                            <Calendar className="w-5 h-5 text-amber-500 mr-3" />
+                                                            <Calendar className="w-5 h-5 text-[#CA9C68] mr-3" />
                                                             <span className={eventDate ? "text-white" : "text-slate-400"}>
                                                                 {eventDate || "Select event date"}
                                                             </span>
@@ -4626,8 +4626,8 @@ function DashboardContent() {
                                                     disabled={status === "uploading"}
                                                     className={cn(
                                                         "w-full py-4 mt-2 rounded-2xl font-bold text-[15px] transition-all flex items-center justify-center space-x-3 active:scale-95",
-                                                        status === "uploading" 
-                                                            ? "bg-[#806316]/50 text-black/50 cursor-not-allowed" 
+                                                        status === "uploading"
+                                                            ? "bg-[#806316]/50 text-black/50 cursor-not-allowed"
                                                             : "bg-[#806316] text-[#2c2203] hover:bg-[#96741b]"
                                                     )}
                                                 >
@@ -4669,14 +4669,14 @@ function DashboardContent() {
                                     onDrop={handleGalleryDrop}
                                     className={cn(
                                         "relative max-w-7xl mx-auto bg-slate-800 p-8 md:p-12 rounded-[2.5rem] shadow-xl border border-slate-700 transition-colors",
-                                        isDraggingPhotos && "border-amber-400 bg-slate-800/95",
+                                        isDraggingPhotos && "border-[#CA9C68] bg-slate-800/95",
                                         isInlineEventDetailGalleryEditor && "mt-8"
                                     )}
                                 >
                                     {isDraggingPhotos && (
-                                        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-[2.5rem] border-2 border-dashed border-amber-400 bg-slate-950/70 backdrop-blur-sm">
+                                        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-[2.5rem] border-2 border-dashed border-[#CA9C68] bg-slate-950/70 backdrop-blur-sm">
                                             <div className="flex flex-col items-center text-center">
-                                                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-400 text-slate-950 shadow-lg">
+                                                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#CA9C68] text-slate-950 shadow-lg">
                                                     <Upload className="h-8 w-8" />
                                                 </div>
                                                 <p className="text-lg font-black text-white">
@@ -4784,7 +4784,7 @@ function DashboardContent() {
                                                 type="button"
                                                 onClick={handleHostDownloadZip}
                                                 disabled={isHostZipping || currentEventPhotos.length === 0}
-                                                className="flex items-center gap-2 rounded-2xl border border-amber-400/40 bg-amber-400/10 px-4 py-2 text-xs font-bold uppercase tracking-wider text-amber-300 transition-all hover:bg-amber-400 hover:text-slate-950 disabled:opacity-40"
+                                                className="flex items-center gap-2 rounded-2xl border border-[#CA9C68]/40 bg-[#CA9C68]/10 px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#CA9C68] transition-all hover:bg-[#CA9C68] hover:text-slate-950 disabled:opacity-40"
                                             >
                                                 {isHostZipping ? (
                                                     <>
@@ -4865,7 +4865,7 @@ function DashboardContent() {
                                     )}
 
                                     {isInlineEventDetailGalleryEditor && activeEventDetailEvent && (
-                                        <div className="mb-8 rounded-3xl border border-amber-400/25 bg-white/[0.04] p-5">
+                                        <div className="mb-8 rounded-3xl border border-[#CA9C68]/25 bg-white/[0.04] p-5">
                                             <div className="mb-3 flex items-end justify-between gap-4">
                                                 <div>
                                                     <p className="text-sm font-black tracking-wide text-white">Welcome Message</p>
@@ -4885,7 +4885,7 @@ function DashboardContent() {
                                                 onChange={(event) => setGalleryMessageText(event.target.value.slice(0, 200))}
                                                 placeholder="Write a brief, elegant welcome note..."
                                                 maxLength={200}
-                                                className="min-h-24 w-full resize-none rounded-2xl border border-amber-400/20 bg-slate-950/50 p-4 text-sm font-semibold leading-6 text-white outline-none transition-colors placeholder:text-slate-500 focus:border-amber-400/60"
+                                                className="min-h-24 w-full resize-none rounded-2xl border border-[#CA9C68]/20 bg-slate-950/50 p-4 text-sm font-semibold leading-6 text-white outline-none transition-colors placeholder:text-slate-500 focus:border-[#CA9C68]/60"
                                             />
                                             <div className="mt-3 flex justify-end">
                                                 <button
@@ -4894,7 +4894,7 @@ function DashboardContent() {
                                                     className={cn(
                                                         "flex items-center gap-2 rounded-full px-4 py-2 text-xs font-black uppercase tracking-widest transition-all active:scale-95",
                                                         hasGalleryMessageChanges && status !== "uploading"
-                                                            ? "bg-amber-400 text-slate-950 hover:bg-amber-300"
+                                                            ? "bg-[#CA9C68] text-slate-950 hover:bg-[#D7AE7D]"
                                                             : "bg-slate-800 text-slate-500"
                                                     )}
                                                 >
@@ -4919,7 +4919,7 @@ function DashboardContent() {
                                                     onClick={() => setGalleryMediaTab(id)}
                                                     className={cn(
                                                         "inline-flex w-1/2 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-black transition-colors",
-                                                        active ? "bg-amber-400 text-slate-950" : "text-slate-300 hover:bg-slate-800"
+                                                        active ? "bg-[#CA9C68] text-slate-950" : "text-slate-300 hover:bg-slate-800"
                                                     )}
                                                 >
                                                     <Icon className="h-4 w-4" />
@@ -4972,7 +4972,7 @@ function DashboardContent() {
                                                     >
                                                         {/* Inner Clipping Container for Photo */}
                                                         <div className="absolute inset-0 overflow-hidden">
-                                                            <GridMediaCell 
+                                                            <GridMediaCell
                                                                 photo={photo}
                                                                 gridSrc={gridSrc}
                                                                 isVideo={isVideo}
@@ -4980,9 +4980,9 @@ function DashboardContent() {
                                                             />
                                                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
                                                             {shouldBlurMediaForPlan && (
-                                                                <div className="pointer-events-none absolute left-1/2 top-14 z-20 w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-2xl border border-amber-300/50 bg-slate-950/95 px-3 py-2 text-center text-[10px] font-black uppercase leading-4 tracking-[0.08em] text-amber-100 shadow-2xl shadow-black/50 backdrop-blur-md">
+                                                                <div className="pointer-events-none absolute left-1/2 top-14 z-20 w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-2xl border border-[#CA9C68]/50 bg-slate-950/95 px-3 py-2 text-center text-[10px] font-black uppercase leading-4 tracking-[0.08em] text-[#F5E7D4] shadow-2xl shadow-black/50 backdrop-blur-md">
                                                                     Plan expired<br />
-                                                                    <span className="text-[9px] text-amber-200/90">May be deleted after grace period</span>
+                                                                    <span className="text-[9px] text-[#D7AE7D]/90">May be deleted after grace period</span>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -5013,8 +5013,8 @@ function DashboardContent() {
                                                                         className={cn(
                                                                             "p-2.5 backdrop-blur-md rounded-xl shadow-lg transition-all active:scale-95",
                                                                             isFavourite
-                                                                                ? "bg-amber-400 text-slate-950 opacity-100"
-                                                                                : "bg-slate-800/90 text-white opacity-0 group-hover:opacity-100 hover:bg-amber-400 hover:text-slate-950"
+                                                                                ? "bg-[#CA9C68] text-slate-950 opacity-100"
+                                                                                : "bg-slate-800/90 text-white opacity-0 group-hover:opacity-100 hover:bg-[#CA9C68] hover:text-slate-950"
                                                                         )}
                                                                     >
                                                                         <Star className={cn("w-4 h-4", isFavourite && "fill-current")} />
@@ -5207,7 +5207,7 @@ function DashboardContent() {
                                                                                     });
                                                                                 }}
                                                                             >
-                                                                                <GridMediaCell 
+                                                                                <GridMediaCell
                                                                                     photo={photo}
                                                                                     gridSrc={gridSrc}
                                                                                     isVideo={isVideo}
@@ -5215,9 +5215,9 @@ function DashboardContent() {
                                                                                     onThumbnailLoaded={handleThumbnailLoaded}
                                                                                 />
                                                                                 {shouldBlurMediaForPlan && (
-                                                                                    <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 w-[calc(100%-1rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-amber-300/50 bg-slate-950/95 px-2 py-2 text-center text-[9px] font-black uppercase leading-4 tracking-[0.08em] text-amber-100 shadow-2xl shadow-black/50 backdrop-blur-md">
+                                                                                    <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 w-[calc(100%-1rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-[#CA9C68]/50 bg-slate-950/95 px-2 py-2 text-center text-[9px] font-black uppercase leading-4 tracking-[0.08em] text-[#F5E7D4] shadow-2xl shadow-black/50 backdrop-blur-md">
                                                                                         Plan expired<br />
-                                                                                        <span className="text-[8px] text-amber-200/90">May be deleted after grace period</span>
+                                                                                        <span className="text-[8px] text-[#D7AE7D]/90">May be deleted after grace period</span>
                                                                                     </div>
                                                                                 )}
                                                                             </div>
@@ -5301,8 +5301,8 @@ function DashboardContent() {
                                                                                             className={cn(
                                                                                                 "p-2.5 rounded-xl border transition-all active:scale-95",
                                                                                                 isFavourite
-                                                                                                    ? "border-amber-400 bg-amber-400 text-slate-950"
-                                                                                                    : "border-slate-700 bg-slate-800 text-slate-300 hover:bg-amber-400 hover:text-slate-950"
+                                                                                                    ? "border-[#CA9C68] bg-[#CA9C68] text-slate-950"
+                                                                                                    : "border-slate-700 bg-slate-800 text-slate-300 hover:bg-[#CA9C68] hover:text-slate-950"
                                                                                             )}
                                                                                         >
                                                                                             <Star className={cn("w-4 h-4", isFavourite && "fill-current")} />
@@ -5338,8 +5338,8 @@ function DashboardContent() {
 
                                     {hasMorePhotos && (
                                         <div className="flex justify-center mt-12 mb-8">
-                                            <button 
-                                                onClick={loadMorePhotos} 
+                                            <button
+                                                onClick={loadMorePhotos}
                                                 disabled={loadingPhotos}
                                                 className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-full font-bold shadow-lg flex items-center space-x-2 transition-all border border-slate-700"
                                             >
@@ -5480,7 +5480,7 @@ function DashboardContent() {
                                                                 {isMainExpanded && (eventAdmins.length > 0 || eventLogs.length > 0) && (
                                                                     <div className="absolute left-7 top-14 bottom-6 w-px bg-stone-100"></div>
                                                                 )}
-                                                                
+
                                                                 <div className="flex items-center justify-between gap-4 p-4 sm:p-5 bg-slate-900/50/50 hover:bg-slate-800/50 rounded-[1.5rem] transition-all border border-slate-700/50 group/event">
                                                                     <div className="flex items-center flex-1">
                                                                         <button
@@ -5510,7 +5510,7 @@ function DashboardContent() {
                                                                                     <span className="text-xs text-teal-600 font-bold">• {eventAdmins.length} Admin{eventAdmins.length > 1 ? "s" : ""}</span>
                                                                                 )}
                                                                                 {eventLogs.length > 0 && (
-                                                                                    <span className="text-xs text-amber-400 font-bold">• {eventLogs.length} Visit{eventLogs.length > 1 ? "s" : ""}</span>
+                                                                                    <span className="text-xs text-[#CA9C68] font-bold">• {eventLogs.length} Visit{eventLogs.length > 1 ? "s" : ""}</span>
                                                                                 )}
                                                                                 {pendingCount > 0 && (
                                                                                     <span className="text-xs text-rose-500 font-bold">• {pendingCount} Pending</span>
@@ -5542,7 +5542,7 @@ function DashboardContent() {
                                                                     <div className="pl-12 pr-4 py-3 space-y-5">
                                                                         {/* Event Admins */}
                                                                         <div className="mb-2">
-                                                                            <div 
+                                                                            <div
                                                                                 className="flex items-center space-x-1 text-xs font-bold text-teal-600 uppercase tracking-widest mb-2 px-1 cursor-pointer hover:text-teal-700 transition-colors w-fit"
                                                                                 onClick={() => toggleEventAdmins(event.id)}
                                                                             >
@@ -5589,8 +5589,8 @@ function DashboardContent() {
 
                                                                         {/* Event Guests */}
                                                                         <div className="mb-2">
-                                                                            <div 
-                                                                                className="flex items-center space-x-1 text-xs font-bold text-amber-400 uppercase tracking-widest mb-2 px-1 cursor-pointer hover:text-amber-400 transition-colors w-fit"
+                                                                            <div
+                                                                                className="flex items-center space-x-1 text-xs font-bold text-[#CA9C68] uppercase tracking-widest mb-2 px-1 cursor-pointer hover:text-[#CA9C68] transition-colors w-fit"
                                                                                 onClick={() => toggleEventGuests(event.id)}
                                                                             >
                                                                                 {expandedEventGuests.has(event.id) ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
@@ -5598,7 +5598,7 @@ function DashboardContent() {
                                                                                 <span>Guest Users ({eventLogs.length})</span>
                                                                             </div>
                                                                             {expandedEventGuests.has(event.id) && (
-                                                                                <div className="mt-2 space-y-2 pl-4 border-l border-amber-500/30 ml-2">
+                                                                                <div className="mt-2 space-y-2 pl-4 border-l border-[#CA9C68]/30 ml-2">
                                                                                     {eventLogs.length > 0 ? (
                                                                                         [...eventLogs].sort((a, b) => b.loginAt?.seconds - a.loginAt?.seconds).map(log => {
                                                                                             const loginDate = log.loginAt ? new Date(log.loginAt.seconds * 1000).toLocaleString('en-IN', {
@@ -5607,10 +5607,10 @@ function DashboardContent() {
 
                                                                                             const isEmailMethod = log.phone?.includes('@');
                                                                                             const displayMethod = isEmailMethod ? "Email" : "Mobile";
-                                                                                            
+
                                                                                             // Find matching registered user to allow admin promotion
-                                                                                            const matchingUser = allUsers.find(u => 
-                                                                                                (isEmailMethod && u.email === log.phone) || 
+                                                                                            const matchingUser = allUsers.find(u =>
+                                                                                                (isEmailMethod && u.email === log.phone) ||
                                                                                                 (!isEmailMethod && u.phone === log.phone)
                                                                                             );
 
@@ -5620,8 +5620,8 @@ function DashboardContent() {
 
                                                                                             return (
                                                                                                 <div key={log.id} className="flex items-center p-3 bg-slate-800 border border-slate-700 rounded-xl group/g hover:border-slate-700 transition-all">
-                                                                                                    <div className="w-10 h-10 rounded-lg bg-amber-900/30 flex items-center justify-center mr-3">
-                                                                                                        <span className="text-xs font-bold text-amber-400">{(log.name || 'G').charAt(0)}</span>
+                                                                                                    <div className="w-10 h-10 rounded-lg bg-[#CA9C68]/30 flex items-center justify-center mr-3">
+                                                                                                        <span className="text-xs font-bold text-[#CA9C68]">{(log.name || 'G').charAt(0)}</span>
                                                                                                     </div>
                                                                                                     <div>
                                                                                                         <p className="font-bold text-slate-200 text-sm">{log.name || 'Anonymous'}</p>
@@ -5668,7 +5668,7 @@ function DashboardContent() {
                                                                                                                                 Make Primary Admin
                                                                                                                             </button>
                                                                                                                         )}
-                                                                                                                        <button 
+                                                                                                                        <button
                                                                                                                             onClick={() => handleUpdateUserRole(matchingUser.id, "revoke")}
                                                                                                                             className="px-4 py-2 bg-rose-50 text-rose-600 text-xs font-bold uppercase rounded-lg hover:bg-rose-100 transition-all"
                                                                                                                         >
@@ -5677,13 +5677,13 @@ function DashboardContent() {
                                                                                                                     </>
                                                                                                                 ) : (
                                                                                                                     <>
-                                                                                                                        <button 
+                                                                                                                        <button
                                                                                                                             onClick={() => handleUpdateUserRole(matchingUser.id, "user", "event", [event.id])}
                                                                                                                             className="px-4 py-2 bg-slate-900 text-white text-xs font-bold uppercase rounded-lg hover:bg-slate-800 transition-all"
                                                                                                                         >
                                                                                                                             Make Event Admin
                                                                                                                         </button>
-                                                                                                                        <button 
+                                                                                                                        <button
                                                                                                                             onClick={() => handleUpdateUserRole(matchingUser.id, "user", "primary", [])}
                                                                                                                             className="px-4 py-2 bg-sky-500/10 text-sky-400 text-xs font-bold uppercase rounded-lg hover:bg-royal-gold/20 transition-all"
                                                                                                                         >
@@ -5695,7 +5695,7 @@ function DashboardContent() {
                                                                                                         )}
 
                                                                                                         <div className="h-4 w-px bg-stone-200 mx-1"></div>
-                                                                                                        <button 
+                                                                                                        <button
                                                                                                             onClick={() => handleGuestDelete(log.id)}
                                                                                                             className="p-1.5 text-stone-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
                                                                                                             title="Remove Guest"
@@ -5755,13 +5755,13 @@ function DashboardContent() {
                                 className="w-full max-w-md rounded-[2.5rem] bg-slate-900 border border-slate-800 p-6 shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh]"
                             >
                                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-royal-gold to-rose-400" />
-                                
+
                                 <div className="flex items-center justify-between mb-6 mt-2">
                                     <div>
                                         <h2 className="text-2xl font-black text-white">Event Type</h2>
                                         <p className="text-sm font-medium text-slate-400 mt-1">Choose a category for your gallery</p>
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={() => setShowCategoryModal(false)}
                                         className="rounded-full bg-slate-800 p-2 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
                                     >
@@ -5776,14 +5776,14 @@ function DashboardContent() {
                                         const getCatColor = (n: string) => {
                                             if (n === 'Wedding') return '#ff4b72';
                                             if (n === 'Birthday') return '#3b82f6';
-                                            if (n === 'Anniversary') return '#eab308';
+                                            if (n === 'Anniversary') return '#CA9C68';
                                             if (n === 'Corporate') return '#10b981';
                                             if (n === 'Sports') return '#06b6d4';
                                             if (n === 'College') return '#6366f1';
                                             return '#64748b'; // Other
                                         };
                                         const color = getCatColor(name);
-                                        
+
                                         return (
                                             <button
                                                 key={name}
@@ -5793,13 +5793,13 @@ function DashboardContent() {
                                                 }}
                                                 className={cn(
                                                     "w-full flex items-center justify-between p-4 rounded-2xl border transition-all",
-                                                    isActive 
-                                                        ? "border-amber-400 bg-amber-400/10" 
+                                                    isActive
+                                                        ? "border-[#CA9C68] bg-[#CA9C68]/10"
                                                         : "border-slate-800 bg-slate-800/50 hover:border-slate-700 hover:bg-slate-800"
                                                 )}
                                             >
                                                 <div className="flex items-center gap-4">
-                                                    <div 
+                                                    <div
                                                         className="flex h-10 w-10 items-center justify-center rounded-xl"
                                                         style={{ backgroundColor: `${color}20` }}
                                                     >
@@ -5807,13 +5807,13 @@ function DashboardContent() {
                                                     </div>
                                                     <span className={cn(
                                                         "text-base font-bold",
-                                                        isActive ? "text-amber-400" : "text-slate-200"
+                                                        isActive ? "text-[#CA9C68]" : "text-slate-200"
                                                     )}>
                                                         {name}
                                                     </span>
                                                 </div>
                                                 {isActive && (
-                                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-400 text-slate-950">
+                                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#CA9C68] text-slate-950">
                                                         <Check className="h-4 w-4" />
                                                     </div>
                                                 )}
@@ -5850,14 +5850,14 @@ function DashboardContent() {
                                         <h2 className="text-3xl font-serif text-white mb-2">Choose Style</h2>
                                         <p className="text-slate-700 font-sans">Select a design template for this event.</p>
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={() => {
                                             setShowTemplateModal(false);
                                             setTemplateTargetEvent(null);
                                         }}
                                         className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors shrink-0 mt-1"
                                     >
-                                        <X className="w-5 h-5 text-amber-400" />
+                                        <X className="w-5 h-5 text-[#CA9C68]" />
                                     </button>
                                 </div>
 
@@ -5875,18 +5875,18 @@ function DashboardContent() {
                                                 style={{ borderColor: isActive ? template.accent : undefined }}
                                             >
                                                 <div className="flex items-center gap-3 flex-1">
-                                                    <div 
+                                                    <div
                                                         className="w-10 h-10 rounded-full flex items-center justify-center border border-white/10"
                                                         style={{ backgroundColor: template.background?.dark || '#000' }}
                                                     >
-                                                        <div 
+                                                        <div
                                                             className="w-3.5 h-3.5 rounded-full"
                                                             style={{ backgroundColor: template.accent || '#fff' }}
                                                         />
                                                     </div>
-                                                    
+
                                                     <div className="flex-1 mr-2">
-                                                        <div 
+                                                        <div
                                                             className="text-sm font-bold font-outfit"
                                                             style={{ color: isActive ? template.accent : '#fff' }}
                                                         >
@@ -5899,7 +5899,7 @@ function DashboardContent() {
                                                 </div>
 
                                                 {isActive && (
-                                                    <div 
+                                                    <div
                                                         className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
                                                         style={{ backgroundColor: template.accent }}
                                                     >
@@ -6065,7 +6065,7 @@ function DashboardContent() {
                                                 "mt-5 rounded-2xl border p-4 text-sm font-semibold leading-6",
                                                 subscriptionStatus.tone === "danger"
                                                     ? "border-rose-400/25 bg-rose-400/10 text-rose-100"
-                                                    : "border-amber-400/25 bg-amber-400/10 text-amber-100"
+                                                    : "border-[#CA9C68]/25 bg-[#CA9C68]/10 text-[#F5E7D4]"
                                             )}
                                         >
                                             <div className="mb-1 text-[10px] font-black uppercase tracking-[0.16em]">
@@ -6080,7 +6080,7 @@ function DashboardContent() {
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between gap-3">
                                             <div className="flex items-center gap-2">
-                                                <span className="h-2 w-2 rounded-full bg-amber-300" />
+                                                <span className="h-2 w-2 rounded-full bg-[#D7AE7D]" />
                                                 <span className="text-sm font-black text-slate-100">Storage</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-sm">
@@ -6088,14 +6088,14 @@ function DashboardContent() {
                                                 <span className="font-semibold text-slate-500">
                                                     / {planDetails.storageLabel}
                                                 </span>
-                                                <span className="rounded-full bg-amber-400/10 px-2 py-1 text-[10px] font-black text-amber-300">
+                                                <span className="rounded-full bg-[#CA9C68]/10 px-2 py-1 text-[10px] font-black text-[#CA9C68]">
                                                     {planDetails.storageBytes === Infinity ? "∞" : `${Math.round(storagePercent)}%`}
                                                 </span>
                                             </div>
                                         </div>
                                         <div className="h-2 overflow-hidden rounded-full bg-slate-950">
                                             <div
-                                                className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-200"
+                                                className="h-full rounded-full bg-gradient-to-r from-[#CA9C68] to-[#D7AE7D]"
                                                 style={{ width: `${planDetails.storageBytes === Infinity ? 5 : storagePercent}%` }}
                                             />
                                         </div>
@@ -6133,7 +6133,7 @@ function DashboardContent() {
                                             setShowPlanDetailsModal(false);
                                             router.push("/pricing");
                                         }}
-                                        className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-400 px-5 py-4 text-sm font-black uppercase tracking-wide text-slate-950 transition-colors hover:bg-amber-300"
+                                        className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#CA9C68] px-5 py-4 text-sm font-black uppercase tracking-wide text-slate-950 transition-colors hover:bg-[#D7AE7D]"
                                     >
                                         Manage Plan
                                         <ArrowRight className="h-4 w-4" />
@@ -6158,7 +6158,7 @@ function DashboardContent() {
                                 initial={{ opacity: 0, scale: 0.92, y: 18 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.92, y: 18 }}
-                                className="relative w-full max-w-md rounded-[2rem] border border-amber-400/25 bg-slate-800 px-7 py-9 text-center shadow-2xl sm:px-10"
+                                className="relative w-full max-w-md rounded-[2rem] border border-[#CA9C68]/25 bg-slate-800 px-7 py-9 text-center shadow-2xl sm:px-10"
                             >
                                 <h3 className="text-3xl font-black tracking-tight text-white">Share Event</h3>
 
@@ -6174,15 +6174,15 @@ function DashboardContent() {
 
                                 <div className="mt-8">
                                     <p className="text-sm font-black uppercase tracking-widest text-slate-400">Unique Join ID</p>
-                                    <div className="mx-auto mt-4 inline-flex min-w-56 items-center justify-center rounded-2xl border border-amber-400/40 px-8 py-4">
-                                        <span className="text-3xl font-black uppercase tracking-[0.25em] text-amber-400">{shareModalJoinId}</span>
+                                    <div className="mx-auto mt-4 inline-flex min-w-56 items-center justify-center rounded-2xl border border-[#CA9C68]/40 px-8 py-4">
+                                        <span className="text-3xl font-black uppercase tracking-[0.25em] text-[#CA9C68]">{shareModalJoinId}</span>
                                     </div>
                                 </div>
 
                                 <button
                                     type="button"
                                     onClick={handleShareInvitation}
-                                    className="mt-8 flex w-full items-center justify-center gap-3 rounded-2xl bg-amber-400 px-6 py-5 text-sm font-black uppercase tracking-wide text-slate-950 shadow-lg transition-all hover:bg-amber-300 active:scale-[0.98]"
+                                    className="mt-8 flex w-full items-center justify-center gap-3 rounded-2xl bg-[#CA9C68] px-6 py-5 text-sm font-black uppercase tracking-wide text-slate-950 shadow-lg transition-all hover:bg-[#D7AE7D] active:scale-[0.98]"
                                 >
                                     <Share2 className="h-5 w-5" />
                                     <span>Share Invitation</span>
@@ -6210,7 +6210,7 @@ function DashboardContent() {
                             className="fixed left-1/2 top-24 z-[80] flex w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 flex-col gap-3 rounded-[1.5rem] border border-white/15 bg-slate-950/90 p-3 text-white shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between"
                         >
                             <div className="flex flex-col gap-1 px-2">
-                                <span className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">Drag image</span>
+                                <span className="text-xs font-black uppercase tracking-[0.2em] text-[#CA9C68]">Drag image</span>
                                 <span className="truncate text-sm font-bold text-slate-300">{coverPositionEvent.title}</span>
                             </div>
 
@@ -6247,7 +6247,7 @@ function DashboardContent() {
                                 <button
                                     type="button"
                                     onClick={handleSaveCoverPosition}
-                                    className="rounded-full bg-amber-400 px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-950 transition hover:bg-amber-300"
+                                    className="rounded-full bg-[#CA9C68] px-5 py-3 text-xs font-black uppercase tracking-widest text-slate-950 transition hover:bg-[#D7AE7D]"
                                 >
                                     Save
                                 </button>
@@ -6487,7 +6487,7 @@ function DashboardContent() {
                                             await handleSetAsCover(photoActionItem.url);
                                             setPhotoActionItem(null);
                                         }}
-                                        className="flex min-h-14 w-full items-center gap-3 rounded-2xl bg-amber-400 px-5 py-4 text-left font-black text-slate-950 transition-transform active:scale-[0.98]"
+                                        className="flex min-h-14 w-full items-center gap-3 rounded-2xl bg-[#CA9C68] px-5 py-4 text-left font-black text-slate-950 transition-transform active:scale-[0.98]"
                                     >
                                         <ImageIcon className="h-5 w-5 shrink-0" />
                                         <span>Make Gallery Thumbnail</span>
@@ -6498,7 +6498,7 @@ function DashboardContent() {
                                                 await handleSetAsCover(photoActionItem.url, selectedMainEvent.id, true);
                                                 setPhotoActionItem(null);
                                             }}
-                                            className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-5 py-4 text-left font-black text-amber-300 transition-transform active:scale-[0.98]"
+                                            className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-[#CA9C68]/30 bg-[#CA9C68]/10 px-5 py-4 text-left font-black text-[#CA9C68] transition-transform active:scale-[0.98]"
                                         >
                                             <Star className="h-5 w-5 shrink-0" />
                                             <span>Make Event Thumbnail</span>
@@ -6522,7 +6522,7 @@ function DashboardContent() {
                             >
                                 <div className="bg-gradient-to-b from-slate-900 to-slate-950 px-6 py-6">
                                     <div className="flex items-start gap-4">
-                                        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-amber-400 text-xl font-black text-slate-950">
+                                        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-[#CA9C68] text-xl font-black text-slate-950">
                                             {selectedGuestProfile?.profileImage ? (
                                                 // eslint-disable-next-line @next/next/no-img-element
                                                 <img src={selectedGuestProfile.profileImage} alt="" className="h-full w-full object-cover" />
@@ -6571,7 +6571,7 @@ function DashboardContent() {
                                     </div>
 
                                     <div>
-                                        <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">Member Privileges</p>
+                                        <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-[#CA9C68]">Member Privileges</p>
                                         <div className="space-y-3">
                                             {[
                                                 { key: "viewAccess", label: "View Access", desc: "Can open and view this event gallery", icon: Eye },
@@ -6598,12 +6598,12 @@ function DashboardContent() {
                                                         }}
                                                         className={cn(
                                                             "flex w-full items-center gap-4 rounded-[1.25rem] border p-4 text-left transition-colors",
-                                                            isActive ? "border-amber-400/45 bg-amber-400/10" : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
+                                                            isActive ? "border-[#CA9C68]/45 bg-[#CA9C68]/10" : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
                                                         )}
                                                     >
                                                         <span className={cn(
                                                             "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl",
-                                                            isActive ? "bg-amber-400/15 text-amber-300" : "bg-slate-800 text-slate-400"
+                                                            isActive ? "bg-[#CA9C68]/15 text-[#CA9C68]" : "bg-slate-800 text-slate-400"
                                                         )}>
                                                             <Icon className="h-5 w-5" />
                                                         </span>
@@ -6613,7 +6613,7 @@ function DashboardContent() {
                                                         </span>
                                                         <span className={cn(
                                                             "relative h-7 w-12 rounded-full transition-colors",
-                                                            isActive ? "bg-amber-400" : "bg-slate-700"
+                                                            isActive ? "bg-[#CA9C68]" : "bg-slate-700"
                                                         )}>
                                                             <span className={cn(
                                                                 "absolute top-1 h-5 w-5 rounded-full bg-white transition-transform",
@@ -6629,7 +6629,7 @@ function DashboardContent() {
                                     <button
                                         type="button"
                                         onClick={() => setSelectedGuestLog(null)}
-                                        className="w-full rounded-2xl bg-amber-400 px-5 py-4 text-sm font-black uppercase tracking-widest text-slate-950"
+                                        className="w-full rounded-2xl bg-[#CA9C68] px-5 py-4 text-sm font-black uppercase tracking-widest text-slate-950"
                                     >
                                         Save Permissions
                                     </button>
@@ -6660,7 +6660,7 @@ function DashboardContent() {
                                         setStatus("idle");
                                         setMessage("");
                                     }}
-                                    className="mt-7 w-full rounded-2xl bg-amber-400 px-5 py-4 text-sm font-black uppercase tracking-widest text-slate-950 transition-colors hover:bg-amber-300"
+                                    className="mt-7 w-full rounded-2xl bg-[#CA9C68] px-5 py-4 text-sm font-black uppercase tracking-widest text-slate-950 transition-colors hover:bg-[#D7AE7D]"
                                 >
                                     OK
                                 </button>
@@ -6680,10 +6680,10 @@ function DashboardContent() {
                                 className="bg-slate-800 rounded-[2.5rem] p-8 md:p-12 w-full max-w-lg shadow-2xl relative overflow-hidden my-8"
                             >
                                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-sky-400 via-sky-200 to-sky-400"></div>
-                                
+
                                 <div className="flex justify-between items-center mb-8">
                                     <h3 className="text-3xl font-bold tracking-tight text-white">Create Event</h3>
-                                    <button 
+                                    <button
                                         onClick={() => setIsCreateModalOpen(false)}
                                         className="p-2 hover:bg-slate-900/50 rounded-full transition-colors"
                                     >
@@ -6734,8 +6734,8 @@ function DashboardContent() {
                                                         className={cn(
                                                             "flex min-h-12 items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-sm font-black transition-colors",
                                                             isSelected
-                                                                ? "border-amber-400 bg-amber-400 text-slate-950"
-                                                                : "border-slate-700 bg-slate-900/50 text-slate-300 hover:border-amber-400/50 hover:text-white"
+                                                                ? "border-[#CA9C68] bg-[#CA9C68] text-slate-950"
+                                                                : "border-slate-700 bg-slate-900/50 text-slate-300 hover:border-[#CA9C68]/50 hover:text-white"
                                                         )}
                                                     >
                                                         <Icon className="h-4 w-4 shrink-0" />
@@ -6751,19 +6751,19 @@ function DashboardContent() {
                                         <button
                                             type="button"
                                             onClick={() => openDatePicker("create")}
-                                            className="flex w-full items-center justify-between rounded-2xl border border-slate-700 bg-slate-900/50 px-6 py-5 text-left text-lg font-medium text-white transition-colors hover:border-amber-400/50"
+                                            className="flex w-full items-center justify-between rounded-2xl border border-slate-700 bg-slate-900/50 px-6 py-5 text-left text-lg font-medium text-white transition-colors hover:border-[#CA9C68]/50"
                                         >
                                             <span className={eventDate ? "text-white" : "text-slate-500"}>
                                                 {eventDate || "Select event date"}
                                             </span>
-                                            <Calendar className="h-5 w-5 text-amber-300" />
+                                            <Calendar className="h-5 w-5 text-[#CA9C68]" />
                                         </button>
                                     </div>
 
                                     <button
                                         type="submit"
                                         disabled={status === "uploading"}
-                                        className="w-full py-5 bg-amber-400 text-slate-950 rounded-2xl font-black hover:bg-amber-300 transition-all shadow-xl active:scale-[0.98] disabled:bg-stone-200 disabled:shadow-none flex items-center justify-center gap-3 text-lg"
+                                        className="w-full py-5 bg-[#CA9C68] text-slate-950 rounded-2xl font-black hover:bg-[#D7AE7D] transition-all shadow-xl active:scale-[0.98] disabled:bg-stone-200 disabled:shadow-none flex items-center justify-center gap-3 text-lg"
                                     >
                                         {status === "uploading" ? (
                                             <>
@@ -6793,10 +6793,10 @@ function DashboardContent() {
                         >
                             <div className={cn(
                                 "px-6 py-4 rounded-2xl shadow-2xl font-bold text-sm text-center border backdrop-blur-xl",
-                                status === "success" 
-                                    ? "bg-emerald-500/20 text-emerald-100 border-emerald-500/30" 
-                                    : status === "error" 
-                                        ? "bg-rose-500/20 text-rose-100 border-rose-500/30" 
+                                status === "success"
+                                    ? "bg-emerald-500/20 text-emerald-100 border-emerald-500/30"
+                                    : status === "error"
+                                        ? "bg-rose-500/20 text-rose-100 border-rose-500/30"
                                         : "bg-sky-500/20 text-sky-100 border-sky-500/30"
                             )}>
                                 {message}
@@ -6819,7 +6819,7 @@ function DashboardContent() {
                             <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800">
                                 <div className="flex items-center gap-2 min-w-0">
                                     {(uploadingItems > 0 || processingItems > 0) ? (
-                                        <Loader2 className="w-4 h-4 animate-spin text-amber-400 shrink-0" />
+                                        <Loader2 className="w-4 h-4 animate-spin text-[#CA9C68] shrink-0" />
                                     ) : (
                                         <Check className="w-4 h-4 text-emerald-400 shrink-0" />
                                     )}
@@ -6860,14 +6860,14 @@ function DashboardContent() {
                             {/* Overall progress bar at the very bottom of minimized header */}
                             {isUploadPanelMinimized && (uploadingItems > 0 || processingItems > 0 || (indexingStatus && indexingStatus.status === "processing")) && (
                                 <div className="w-full h-1 bg-slate-900 overflow-hidden relative">
-                                    <div 
-                                        className="h-full bg-gradient-to-r from-amber-500 to-sky-500 transition-all duration-300"
-                                        style={{ 
+                                    <div
+                                        className="h-full bg-gradient-to-r from-[#CA9C68] to-sky-500 transition-all duration-300"
+                                        style={{
                                             width: `${
                                                 indexingStatus && indexingStatus.status === "processing"
                                                     ? indexingStatus.percentComplete
                                                     : (uploadQueue.reduce((acc, curr) => acc + curr.progress, 0) / (totalItems * 100)) * 100
-                                            }%` 
+                                            }%`
                                         }}
                                     ></div>
                                 </div>
@@ -6893,7 +6893,7 @@ function DashboardContent() {
                                                         {item.mediaType === "video" ? (
                                                             <Video className="w-5 h-5 text-sky-400" />
                                                         ) : (
-                                                            <ImageIcon className="w-5 h-5 text-amber-500" />
+                                                            <ImageIcon className="w-5 h-5 text-[#CA9C68]" />
                                                         )}
                                                     </div>
 
@@ -6909,7 +6909,7 @@ function DashboardContent() {
                                                                 </span>
                                                             )}
                                                             {item.status === "uploading" && (
-                                                                <span className="text-[10px] font-bold text-amber-400 shrink-0">
+                                                                <span className="text-[10px] font-bold text-[#CA9C68] shrink-0">
                                                                     {item.progress}%
                                                                 </span>
                                                             )}
@@ -6936,12 +6936,12 @@ function DashboardContent() {
                                                                 className={cn(
                                                                     "h-full rounded-full transition-all duration-300",
                                                                     item.status === "pending" ? "bg-slate-700" :
-                                                                    item.status === "uploading" ? "bg-amber-400" :
+                                                                    item.status === "uploading" ? "bg-[#CA9C68]" :
                                                                     item.status === "processing" ? "bg-sky-400 animate-pulse" :
                                                                     item.status === "success" ? "bg-emerald-400" : "bg-rose-400"
                                                                 )}
-                                                                style={{ 
-                                                                    width: item.status === "pending" ? "0%" : item.status === "processing" ? "90%" : `${item.progress}%` 
+                                                                style={{
+                                                                    width: item.status === "pending" ? "0%" : item.status === "processing" ? "90%" : `${item.progress}%`
                                                                 }}
                                                             ></div>
                                                         </div>
@@ -6950,7 +6950,7 @@ function DashboardContent() {
                                                     {/* Status Icon */}
                                                     <div className="shrink-0">
                                                         {item.status === "uploading" && (
-                                                            <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                                                            <Loader2 className="w-4 h-4 animate-spin text-[#CA9C68]" />
                                                         )}
                                                         {item.status === "processing" && (
                                                             <Loader2 className="w-4 h-4 animate-spin text-sky-400" />

@@ -14,6 +14,8 @@ import {
   Sliders,
   Play,
   Pause,
+  SkipBack,
+  SkipForward,
   Volume2,
   VolumeX,
   Maximize,
@@ -35,6 +37,8 @@ interface HLSVideoPlayerProps {
   style?: React.CSSProperties;
   onLoadedMetadata?: () => void;
   onError?: () => void;
+  onPreviousMedia?: () => void;
+  onNextMedia?: () => void;
 }
 
 /** True if the URL is an HLS manifest */
@@ -68,6 +72,8 @@ const PLAYBACK_SPEEDS = [
   { label: "2x", value: 2.0 },
 ];
 
+const VIDEO_CONTROL_ACCENT = "#CA9C68";
+
 function formatTime(seconds: number) {
   if (!Number.isFinite(seconds) || seconds <= 0) return "0:00";
 
@@ -96,6 +102,8 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
     style,
     onLoadedMetadata,
     onError,
+    onPreviousMedia,
+    onNextMedia,
   },
   ref
 ) => {
@@ -104,6 +112,8 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
   const hlsRef = useRef<Hls | null>(null);
   const controlsHideTimerRef = useRef<number | null>(null);
   const surfaceClickTimerRef = useRef<number | null>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
+  const settingsMenuRef = useRef<HTMLDivElement | null>(null);
   const [state, setState] = useState<PlayerState>("loading");
   const [activeSrc, setActiveSrc] = useState(src);
   const [errorMsg, setErrorMsg] = useState("");
@@ -162,6 +172,11 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
     }
   }, [clearControlsHideTimer, controls, isPlaying, menuOpen]);
 
+  const closeSettingsMenu = useCallback(() => {
+    setMenuOpen(false);
+    setMenuTab("main");
+  }, []);
+
   const handleSpeedChange = (speed: number) => {
     setPlaybackRate(speed);
     if (localVideoRef.current) {
@@ -188,7 +203,7 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
     } catch (err) {
       console.warn("[HLSVideoPlayer] Picture in Picture error:", err);
     }
-    setMenuOpen(false);
+    closeSettingsMenu();
   };
 
   const syncVideoTime = useCallback(() => {
@@ -215,9 +230,23 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
     video.pause();
   };
 
+  const handlePreviousMedia = () => {
+    closeSettingsMenu();
+    onPreviousMedia?.();
+  };
+
+  const handleNextMedia = () => {
+    closeSettingsMenu();
+    onNextMedia?.();
+  };
+
   const handleVideoSurfaceClick = (event: React.MouseEvent<HTMLVideoElement>) => {
     if (!controls) return;
     if (event.detail > 1) return;
+    if (menuOpen) {
+      closeSettingsMenu();
+      return;
+    }
 
     clearSurfaceClickTimer();
     surfaceClickTimerRef.current = window.setTimeout(() => {
@@ -361,6 +390,24 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
 
     return clearControlsHideTimer;
   }, [clearControlsHideTimer, controls, isPlaying, menuOpen, revealControls, state]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const handleDocumentPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+
+      if (settingsButtonRef.current?.contains(target) || settingsMenuRef.current?.contains(target)) {
+        return;
+      }
+
+      closeSettingsMenu();
+    };
+
+    document.addEventListener("pointerdown", handleDocumentPointerDown);
+    return () => document.removeEventListener("pointerdown", handleDocumentPointerDown);
+  }, [closeSettingsMenu, menuOpen]);
 
   useEffect(() => {
     return () => {
@@ -534,6 +581,7 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
 
   const seekPercent = duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
   const volumePercent = isMuted ? 0 : Math.min(100, Math.max(0, volume * 100));
+  const selectedMenuItemStyle: React.CSSProperties = { color: VIDEO_CONTROL_ACCENT };
 
   return (
     <div
@@ -643,7 +691,7 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
           height: 12px;
           margin-top: -4px;
           border-radius: 999px;
-          background: #fbbf24;
+          background: ${VIDEO_CONTROL_ACCENT};
           box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45);
         }
 
@@ -658,7 +706,7 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
           height: 12px;
           border: 0;
           border-radius: 999px;
-          background: #fbbf24;
+          background: ${VIDEO_CONTROL_ACCENT};
           box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45);
         }
 
@@ -690,23 +738,47 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
             onChange={handleSeek}
             className="hls-video-range h-1 w-full cursor-pointer appearance-none rounded-full"
             style={{
-              background: `linear-gradient(to right, #fbbf24 ${seekPercent}%, rgba(255,255,255,0.45) ${seekPercent}%)`,
+              background: `linear-gradient(to right, ${VIDEO_CONTROL_ACCENT} ${seekPercent}%, rgba(255,255,255,0.45) ${seekPercent}%)`,
             }}
             aria-label="Seek video"
           />
 
-          <div className="mt-2 flex items-center gap-2 sm:gap-3">
+          <div className="mt-2 flex items-center gap-1 sm:gap-3">
+            {onPreviousMedia && (
+              <button
+                type="button"
+                onClick={handlePreviousMedia}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-white/15 sm:h-9 sm:w-9"
+                title="Previous video"
+                aria-label="Previous video"
+              >
+                <SkipBack className="h-4 w-4 fill-current" />
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handleTogglePlayback}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors hover:bg-white/15"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-white/15 sm:h-9 sm:w-9"
               title={isPlaying ? "Pause" : "Play"}
               aria-label={isPlaying ? "Pause" : "Play"}
             >
               {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
             </button>
 
-            <span className="min-w-[92px] text-xs font-bold tabular-nums text-white/90">
+            {onNextMedia && (
+              <button
+                type="button"
+                onClick={handleNextMedia}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-white/15 sm:h-9 sm:w-9"
+                title="Next video"
+                aria-label="Next video"
+              >
+                <SkipForward className="h-4 w-4 fill-current" />
+              </button>
+            )}
+
+            <span className="min-w-[74px] text-[11px] font-bold tabular-nums text-white/90 sm:min-w-[92px] sm:text-xs">
               {formatTime(currentTime)} / {formatTime(duration)}
             </span>
 
@@ -730,7 +802,7 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
                   onChange={handleVolumeChange}
                   className="hls-video-range hls-volume-range h-1 w-0 cursor-pointer appearance-none rounded-full opacity-0 transition-[width,opacity] duration-150 group-hover/volume:w-20 group-hover/volume:opacity-100 group-focus-within/volume:w-20 group-focus-within/volume:opacity-100"
                   style={{
-                    background: `linear-gradient(to right, #fbbf24 ${volumePercent}%, rgba(255,255,255,0.36) ${volumePercent}%)`,
+                    background: `linear-gradient(to right, ${VIDEO_CONTROL_ACCENT} ${volumePercent}%, rgba(255,255,255,0.36) ${volumePercent}%)`,
                   }}
                   aria-label="Volume"
                 />
@@ -748,6 +820,7 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
 
               <div className="relative">
                 <button
+                  ref={settingsButtonRef}
                   type="button"
                   onClick={() => {
                     setMenuOpen((prev) => !prev);
@@ -755,9 +828,14 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
                   }}
                   className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-bold shadow-2xl backdrop-blur-md transition-all active:scale-95 ${
                     menuOpen
-                      ? "border-amber-400 bg-amber-400 text-slate-950 ring-2 ring-amber-400/40"
+                      ? "text-slate-950"
                       : "border-white/20 bg-black/55 text-white hover:bg-black/75"
                   }`}
+                  style={menuOpen ? {
+                    backgroundColor: VIDEO_CONTROL_ACCENT,
+                    borderColor: VIDEO_CONTROL_ACCENT,
+                    boxShadow: `0 0 0 2px ${VIDEO_CONTROL_ACCENT}66`,
+                  } : undefined}
                   title="Video Settings"
                   aria-label="Video Settings"
                   aria-expanded={menuOpen}
@@ -767,16 +845,16 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
                 </button>
 
                 {menuOpen && (
-                  <div className="fixed inset-0 z-20 cursor-default" onClick={() => setMenuOpen(false)} />
+                  <div className="fixed inset-0 z-20 cursor-default" onClick={closeSettingsMenu} />
                 )}
 
                 {menuOpen && (
-                  <div className="absolute bottom-full right-0 z-50 mb-3 flex w-56 origin-bottom-right flex-col divide-y divide-white/10 rounded-2xl border border-white/15 bg-neutral-950/95 py-2 font-sans text-white shadow-2xl backdrop-blur-xl">
+                  <div ref={settingsMenuRef} className="absolute bottom-full right-0 z-50 mb-3 flex w-56 origin-bottom-right flex-col divide-y divide-white/10 rounded-2xl border border-white/15 bg-neutral-950/95 py-2 font-sans text-white shadow-2xl backdrop-blur-xl">
                     {menuTab === "main" && (
                       <>
                         <div className="flex items-center justify-between px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
                           <span>Video Settings</span>
-                          <span className="text-[9px] font-bold text-amber-400">Custom</span>
+                          <span className="text-[9px] font-bold" style={selectedMenuItemStyle}>Custom</span>
                         </div>
 
                         <button
@@ -785,10 +863,10 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
                           className="flex w-full cursor-pointer items-center justify-between px-3.5 py-2.5 text-left text-xs font-medium text-white transition-colors hover:bg-white/10"
                         >
                           <div className="flex items-center gap-2">
-                            <Gauge className="h-4 w-4 text-amber-400" />
+                            <Gauge className="h-4 w-4" style={selectedMenuItemStyle} />
                             <span>Playback Speed</span>
                           </div>
-                          <div className="flex items-center gap-1 text-[11px] font-bold text-slate-400">
+                          <div className="flex items-center gap-1 text-[11px] font-bold text-slate-400" style={selectedMenuItemStyle}>
                             <span>{playbackRate === 1 ? "Normal" : `${playbackRate}x`}</span>
                             <ChevronRight className="h-3.5 w-3.5" />
                           </div>
@@ -801,10 +879,10 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
                             className="flex w-full cursor-pointer items-center justify-between px-3.5 py-2.5 text-left text-xs font-medium text-white transition-colors hover:bg-white/10"
                           >
                             <div className="flex items-center gap-2">
-                              <PictureInPicture className="h-4 w-4 text-sky-400" />
-                              <span>Picture-in-Picture</span>
+                              <PictureInPicture className="h-4 w-4" style={isPipActive ? selectedMenuItemStyle : undefined} />
+                              <span style={isPipActive ? selectedMenuItemStyle : undefined}>Picture-in-Picture</span>
                             </div>
-                            {isPipActive && <Check className="h-3.5 w-3.5 text-sky-400" />}
+                            {isPipActive && <Check className="h-3.5 w-3.5" style={selectedMenuItemStyle} />}
                           </button>
                         )}
 
@@ -815,10 +893,10 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
                             className="flex w-full cursor-pointer items-center justify-between px-3.5 py-2.5 text-left text-xs font-medium text-white transition-colors hover:bg-white/10"
                           >
                             <div className="flex items-center gap-2">
-                              <Sliders className="h-4 w-4 text-emerald-400" />
+                              <Sliders className="h-4 w-4" style={selectedMenuItemStyle} />
                               <span>Quality</span>
                             </div>
-                            <div className="flex items-center gap-1 text-[11px] font-bold text-slate-400">
+                            <div className="flex items-center gap-1 text-[11px] font-bold text-slate-400" style={selectedMenuItemStyle}>
                               <span>{getActiveHeightLabel()}</span>
                               <ChevronRight className="h-3.5 w-3.5" />
                             </div>
@@ -834,7 +912,7 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
                           onClick={() => setMenuTab("main")}
                           className="flex w-full cursor-pointer items-center gap-1.5 px-3.5 py-2 text-left text-xs font-bold text-slate-300 transition-colors hover:bg-white/10"
                         >
-                          <ChevronLeft className="h-4 w-4 text-amber-400" />
+                          <ChevronLeft className="h-4 w-4" style={selectedMenuItemStyle} />
                           <span>Playback Speed</span>
                         </button>
                         <div className="py-1">
@@ -844,9 +922,10 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
                               key={s.value}
                               onClick={() => handleSpeedChange(s.value)}
                               className="flex w-full cursor-pointer items-center justify-between px-3.5 py-2 text-left text-xs font-medium text-white transition-colors hover:bg-white/10"
+                              style={playbackRate === s.value ? selectedMenuItemStyle : undefined}
                             >
                               <span>{s.label}</span>
-                              {playbackRate === s.value && <Check className="h-3.5 w-3.5 text-amber-400" />}
+                              {playbackRate === s.value && <Check className="h-3.5 w-3.5" />}
                             </button>
                           ))}
                         </div>
@@ -860,7 +939,7 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
                           onClick={() => setMenuTab("main")}
                           className="flex w-full cursor-pointer items-center gap-1.5 px-3.5 py-2 text-left text-xs font-bold text-slate-300 transition-colors hover:bg-white/10"
                         >
-                          <ChevronLeft className="h-4 w-4 text-emerald-400" />
+                          <ChevronLeft className="h-4 w-4" style={selectedMenuItemStyle} />
                           <span>Quality</span>
                         </button>
                         <div className="py-1">
@@ -868,9 +947,10 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
                             type="button"
                             onClick={() => changeQuality(-1)}
                             className="flex w-full cursor-pointer items-center justify-between px-3.5 py-2 text-left text-xs font-medium text-white transition-colors hover:bg-white/10"
+                            style={selectedLevel === -1 ? selectedMenuItemStyle : undefined}
                           >
                             <span>Auto</span>
-                            {selectedLevel === -1 && <Check className="h-3.5 w-3.5 text-emerald-400" />}
+                            {selectedLevel === -1 && <Check className="h-3.5 w-3.5" />}
                           </button>
                           {[...levels]
                             .map((level, originalIndex) => ({ level, originalIndex }))
@@ -881,9 +961,10 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
                                 key={originalIndex}
                                 onClick={() => changeQuality(originalIndex)}
                                 className="flex w-full cursor-pointer items-center justify-between px-3.5 py-2 text-left text-xs font-medium text-white transition-colors hover:bg-white/10"
+                                style={selectedLevel === originalIndex ? selectedMenuItemStyle : undefined}
                               >
                                 <span>{level.height}p</span>
-                                {selectedLevel === originalIndex && <Check className="h-3.5 w-3.5 text-emerald-400" />}
+                                {selectedLevel === originalIndex && <Check className="h-3.5 w-3.5" />}
                               </button>
                             ))}
                         </div>

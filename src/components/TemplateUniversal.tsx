@@ -204,7 +204,7 @@ const PRESETS: Record<string, TemplatePreset> = {
     surface: "rgba(20,18,28,0.86)",
     text: "#fff8ee",
     muted: "#b9a88e",
-    accent: "#d4af37",
+    accent: "#CA9C68",
     accentAlt: "#7c3aed",
     border: "rgba(212,175,55,0.34)",
     glow: "rgba(124,58,237,0.24)",
