@@ -36,6 +36,7 @@ interface MasonryGridProps {
     lightboxTheme?: LightboxTheme;
     pageFlipTheme?: PageFlipTheme;
     viewerLayout?: ViewerLayout;
+    commentsMode?: "overlay" | "side-panel";
     templateId?: string;
     showPageFlipThumbnails?: boolean;
     onLikeChange?: () => void;
@@ -254,6 +255,7 @@ export function MasonryGrid({
     lightboxClassName,
     pageFlipTheme,
     viewerLayout,
+    commentsMode = "side-panel",
     templateId,
     showPageFlipThumbnails = true,
     onLikeChange
@@ -308,6 +310,7 @@ export function MasonryGrid({
                         showThumbnails={showPageFlipThumbnails}
                         showDownload={!disableDownload}
                         viewerLayout={resolvedViewerLayout}
+                        commentsMode={commentsMode}
                         onClose={() => setViewingPhoto(null)}
                         onIndexChange={(index) => setViewingPhoto(photos[index] || null)}
                     />

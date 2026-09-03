@@ -26,6 +26,8 @@ export interface PageFlipLayoutProps {
   onGoTo: (index: number) => void;
   reducedMotion?: boolean;
   immersive?: boolean;
+  commentsMode?: "overlay" | "side-panel";
+  commentsPanelOpen?: boolean;
 }
 
 function getNearbyNumberIndexes(currentIndex: number, total: number) {
@@ -258,6 +260,7 @@ function CoverFlowSideMedia({ item, config }: { item: GalleryMediaItem; config: 
 
 export function CoverFlowLayout(props: PageFlipLayoutProps) {
   const currentItem = props.items[props.currentIndex];
+  const sidePanelOpen = props.commentsMode === "side-panel" && props.commentsPanelOpen;
   const showImmersiveSidePreviews = Boolean(
     props.immersive &&
     currentItem?.width &&
@@ -270,13 +273,15 @@ export function CoverFlowLayout(props: PageFlipLayoutProps) {
 
   return (
     <div className={cn(
-      "relative z-10 flex h-full w-full flex-col items-center justify-center px-3 pb-28 pt-24 md:px-10 md:pb-32 md:pt-24",
-      props.immersive && "px-0 py-0 md:px-0 md:py-0"
+      "relative z-10 flex h-full w-full flex-col items-center justify-center px-3 pb-28 pt-24 transition-[padding] duration-300",
+      sidePanelOpen ? "md:items-center md:py-0 md:pl-8 md:pr-[452px]" : "md:px-10 md:pb-32 md:pt-24",
+      props.immersive && (sidePanelOpen ? "px-0 py-0" : "px-0 py-0 md:px-0 md:py-0")
     )}>
       {!props.immersive && <div className="pointer-events-none absolute inset-x-0 bottom-24 h-28 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.18),transparent_62%)] opacity-40 blur-2xl" />}
       <div
         className={cn(
-          "relative h-[min(72dvh,780px)] w-[min(98vw,1500px)] overflow-visible",
+          "relative h-[min(72dvh,780px)] w-[min(98vw,1500px)] overflow-visible transition-[width] duration-300",
+          sidePanelOpen && "md:w-[calc(100vw-500px)]",
           props.immersive && "h-[100dvh] w-screen"
         )}
         style={{ perspective: "1400px", transformStyle: "preserve-3d" }}
@@ -302,7 +307,8 @@ export function CoverFlowLayout(props: PageFlipLayoutProps) {
                 props.onGoTo(index);
               }}
               className={cn(
-                "absolute left-1/2 top-1/2 h-[min(70dvh,760px)] w-[min(88vw,1040px)] -translate-x-1/2 -translate-y-1/2 overflow-visible focus-visible:outline-none focus-visible:ring-2",
+                "absolute left-1/2 top-1/2 h-[min(70dvh,760px)] w-[min(88vw,1040px)] -translate-x-1/2 -translate-y-1/2 overflow-visible transition-[width,height] duration-300 focus-visible:outline-none focus-visible:ring-2",
+                sidePanelOpen && isActive && "md:w-[min(calc(100vw-560px),1040px)]",
                 props.immersive && isActive && "h-[100dvh] w-screen",
                 props.immersive && !isActive && "h-[min(72dvh,760px)] w-[min(28vw,360px)]",
                 isActive ? "cursor-default" : "cursor-pointer"

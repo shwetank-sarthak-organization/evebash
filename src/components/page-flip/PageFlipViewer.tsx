@@ -31,6 +31,7 @@ export interface PageFlipViewerProps {
   showComments?: boolean;
   showShare?: boolean;
   showFindYou?: boolean;
+  commentsMode?: "overlay" | "side-panel";
   onFindYou?: () => void;
   onClose?: () => void;
   onIndexChange?: (index: number) => void;
@@ -101,6 +102,7 @@ export function PageFlipViewer({
   showComments = true,
   showShare = true,
   showFindYou = false,
+  commentsMode = "overlay",
   onFindYou,
   onClose,
   onIndexChange,
@@ -126,6 +128,7 @@ export function PageFlipViewer({
   const [showImmersiveSocial, setShowImmersiveSocial] = useState(false);
   const [slideshow, setSlideshow] = useState(false);
   const [thumbnailDrawerOpen, setThumbnailDrawerOpen] = useState(false);
+  const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
   const supports3dTransforms = typeof CSS === "undefined" ? true : CSS.supports?.("transform-style", "preserve-3d") !== false;
   const prefersFade = reducedMotion || !supports3dTransforms;
   const effectiveMode: GalleryTransitionMode = prefersFade && config.transition === "page-flip" ? "fade" : config.transition;
@@ -280,7 +283,8 @@ export function PageFlipViewer({
     const handleFullscreenChange = () => {
       const active = Boolean(document.fullscreenElement);
       setFullscreen(active);
-      if (!active) setShowImmersiveSocial(false);
+      if (active) setCommentsPanelOpen(false);
+      else setShowImmersiveSocial(false);
     };
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
@@ -289,6 +293,8 @@ export function PageFlipViewer({
   const toggleFullscreen = async () => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
+      setCommentsPanelOpen(false);
+      setZoomed(false);
       await containerRef.current.requestFullscreen?.();
       setFullscreen(true);
       if (isCoverFlow) setShowImmersiveSocial(false);
@@ -365,8 +371,10 @@ export function PageFlipViewer({
         slideshow={slideshow}
         showArrows={showArrows}
         showDownload={showDownload && !isCoverFlow}
-        showFullscreen={showFullscreen && !isCoverFlow}
+        showFullscreen={showFullscreen && (!isCoverFlow || fullscreen)}
         showGridButton={shouldShowGridButton && items.length > 1}
+        commentsMode={commentsMode}
+        commentsPanelOpen={commentsPanelOpen && !fullscreen}
         onPrev={goPrev}
         onNext={goNext}
         onClose={() => onClose?.()}
@@ -394,6 +402,8 @@ export function PageFlipViewer({
         onGoTo={goTo}
         reducedMotion={Boolean(reducedMotion)}
         immersive={isImmersiveCoverFlow}
+        commentsMode={commentsMode}
+        commentsPanelOpen={commentsPanelOpen && !fullscreen}
       />
 
       {isCoverFlow && (
@@ -409,9 +419,17 @@ export function PageFlipViewer({
           showFindYou={showFindYou}
           visible={!isImmersiveCoverFlow || showImmersiveSocial}
           immersive={isImmersiveCoverFlow}
+          commentsMode={commentsMode}
+          zoomed={zoomed}
+          slideshow={slideshow}
+          commentsPanelSuppressed={fullscreen}
           onDownload={() => downloadItem(currentItem)}
           onFullscreen={toggleFullscreen}
           onFindYou={onFindYou}
+          onCloseViewer={onClose}
+          onToggleZoom={() => setZoomed((value) => !value)}
+          onToggleSlideshow={() => setSlideshow((value) => !value)}
+          onCommentsOpenChange={setCommentsPanelOpen}
         />
       )}
 
