@@ -384,8 +384,8 @@ export function Lightbox({
                                     onClick={handleToggleFavourite}
                                     disabled={isTogglingFavourite}
                                     className="p-2.5 rounded-full transition-all disabled:opacity-40"
-                                    style={{ color: isFavourite ? "#fbbf24" : viewerTheme.muted }}
-                                    title={isFavourite ? "Remove from Favourite" : "Add to Favourite"}
+                                    style={{ color: isFavourite ? "#CA9C68" : viewerTheme.muted }}
+                                    title={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}
                                 >
                                     {isTogglingFavourite ? (
                                         <Loader2 size={20} className="animate-spin" />

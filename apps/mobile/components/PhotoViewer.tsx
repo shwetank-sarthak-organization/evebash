@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, Share, TextInput, Keyboard, Modal, ActivityIndicator, StyleSheet, useWindowDimensions, type GestureResponderEvent } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, Share, TextInput, Keyboard, Modal, ActivityIndicator, StyleSheet, useWindowDimensions, type GestureResponderEvent, type NativeSyntheticEvent } from 'react-native';
+import { Image as ExpoImage, type ImageLoadEventData } from 'expo-image';
 import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
 import { VideoView, createVideoPlayer, type VideoPlayer } from 'expo-video';
@@ -47,6 +47,20 @@ type LucideIconProps = {
   strokeWidth?: number;
 };
 
+type ViewerVideoControls = {
+  seekBy: (seconds: number) => void;
+};
+
+function formatVideoClock(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '0:00';
+
+  const totalSeconds = Math.floor(seconds);
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainingSeconds = totalSeconds % 60;
+
+  return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+}
+
 function LucideHeartIcon({ size = 20, color, fill = 'none', strokeWidth = 2 }: LucideIconProps) {
   return (
     <Svg
@@ -85,9 +99,9 @@ function LucideMessageCircleIcon({ size = 20, color, strokeWidth = 2 }: LucideIc
 }
 
 const VIEWER_TEMPLATE_PALETTES: Record<string, ViewerPalette> = {
-  royal: { background: '#033026', panel: 'rgba(2,35,28,0.94)', text: '#fcfbf7', muted: '#a3b899', accent: '#cca43b', tileBg: '#02231c', overlay: ['rgba(3,48,38,0.1)', 'rgba(3,48,38,0.78)', '#02231c'], controlBg: 'rgba(2,35,28,0.84)', controlText: '#fcfbf7', frameBorder: 'rgba(204,164,59,0.62)', radius: 18 },
-  classic: { background: '#FAF9F6', panel: 'rgba(255,255,255,0.96)', text: '#1e293b', muted: '#64748b', accent: '#cca43b', tileBg: '#ffffff', overlay: ['rgba(250,249,246,0.95)', 'rgba(238,232,218,0.92)'], controlBg: 'rgba(255,255,255,0.9)', controlText: '#1e293b', frameBorder: 'rgba(204,164,59,0.42)', radius: 2 },
-  hero: { background: '#000000', panel: 'rgba(9,9,11,0.94)', text: '#ffffff', muted: '#94a3b8', accent: '#cca43b', tileBg: '#09090b', overlay: ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.96)'], controlBg: 'rgba(0,0,0,0.56)', controlText: '#ffffff', frameBorder: 'rgba(204,164,59,0.48)', radius: 12 },
+  royal: { background: '#033026', panel: 'rgba(2,35,28,0.94)', text: '#fcfbf7', muted: '#a3b899', accent: '#ca9c69', tileBg: '#02231c', overlay: ['rgba(3,48,38,0.1)', 'rgba(3,48,38,0.78)', '#02231c'], controlBg: 'rgba(2,35,28,0.84)', controlText: '#fcfbf7', frameBorder: 'rgba(202,156,105,0.62)', radius: 18 },
+  classic: { background: '#F7F2EB', panel: 'rgba(255,255,255,0.96)', text: '#2C352E', muted: '#6E7B6C', accent: '#8B9A6E', tileBg: '#ffffff', overlay: ['rgba(247,242,235,0.95)', 'rgba(234,226,214,0.92)'], controlBg: 'rgba(255,255,255,0.9)', controlText: '#2C352E', frameBorder: 'rgba(139,154,110,0.42)', radius: 2 },
+  hero: { background: '#000000', panel: 'rgba(9,9,11,0.94)', text: '#ffffff', muted: '#94a3b8', accent: '#ca9c69', tileBg: '#09090b', overlay: ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.96)'], controlBg: 'rgba(0,0,0,0.56)', controlText: '#ffffff', frameBorder: 'rgba(202,156,105,0.48)', radius: 12 },
   ethereal: { background: '#F8FAFC', panel: 'rgba(238,242,246,0.96)', text: '#1E293B', muted: '#64748B', accent: '#4A6984', tileBg: '#ffffff', overlay: ['rgba(248,250,252,0.9)', 'rgba(226,232,240,0.94)'], controlBg: 'rgba(255,255,255,0.88)', controlText: '#1E293B', frameBorder: 'rgba(74,105,132,0.36)', radius: 2 },
   scrapbook: { background: '#f8f5f0', panel: 'rgba(255,253,249,0.96)', text: '#263331', muted: '#74827d', accent: '#d9826b', tileBg: '#fffdf9', overlay: ['rgba(248,245,240,0.92)', 'rgba(217,130,107,0.14)', '#f8f5f0'], controlBg: 'rgba(255,253,249,0.9)', controlText: '#263331', frameBorder: 'rgba(217,130,107,0.42)', radius: 18 },
   neon: { background: '#070611', panel: 'rgba(18,16,35,0.94)', text: '#f8f7ff', muted: '#b9b1d9', accent: '#ff3df2', tileBg: '#111020', overlay: ['rgba(7,6,17,0.92)', 'rgba(102,232,255,0.16)', 'rgba(255,61,242,0.1)'], controlBg: 'rgba(18,16,35,0.82)', controlText: '#f8f7ff', frameBorder: 'rgba(102,232,255,0.58)', radius: 20 },
@@ -134,15 +148,41 @@ const SPORTS_VIEWER_PALETTES: Record<string, ViewerPalette> = {
   zen: { ...VIEWER_TEMPLATE_PALETTES.zen, background: '#f1eee6', accent: '#66785f', frameBorder: 'rgba(102,120,95,0.36)' },
 };
 
-function ViewerVideo({ uri, frameBg }: { uri: string; frameBg: string }) {
+function ViewerVideo({
+  uri,
+  frameBg,
+  controlText = '#ffffff',
+  accent = '#CA9C68',
+  customControls = false,
+  videoControlsRef,
+  onPreviousMedia,
+  onNextMedia,
+}: {
+  uri: string;
+  frameBg: string;
+  controlText?: string;
+  accent?: string;
+  customControls?: boolean;
+  videoControlsRef?: React.MutableRefObject<ViewerVideoControls | null>;
+  onPreviousMedia?: () => void;
+  onNextMedia?: () => void;
+}) {
   const [player, setPlayer] = useState<VideoPlayer | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const playerRef = useRef<VideoPlayer | null>(null);
   const sourceRef = useRef<string | null>(null);
+  const progressPercent = duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
 
   useEffect(() => {
-    const nextPlayer = createVideoPlayer(null);
+    const nextPlayer = createVideoPlayer(null, {
+      seekBackwardIncrement: 5,
+      seekForwardIncrement: 5,
+    });
     nextPlayer.loop = false;
     nextPlayer.muted = false;
+    nextPlayer.timeUpdateEventInterval = 0.25;
     playerRef.current = nextPlayer;
     setPlayer(nextPlayer);
 
@@ -150,6 +190,9 @@ function ViewerVideo({ uri, frameBg }: { uri: string; frameBg: string }) {
       const playerToRelease = nextPlayer;
       playerRef.current = null;
       sourceRef.current = null;
+      if (videoControlsRef) {
+        videoControlsRef.current = null;
+      }
       try {
         playerToRelease.pause();
       } catch {
@@ -164,7 +207,68 @@ function ViewerVideo({ uri, frameBg }: { uri: string; frameBg: string }) {
         }
       }, 250);
     };
+  }, [videoControlsRef]);
+
+  useEffect(() => {
+    if (!player) return;
+
+    const playingSubscription = player.addListener('playingChange', ({ isPlaying: nextIsPlaying }) => {
+      setIsPlaying(nextIsPlaying);
+    });
+    const timeSubscription = player.addListener('timeUpdate', ({ currentTime: nextCurrentTime }) => {
+      setCurrentTime(nextCurrentTime);
+
+      const nextDuration = Number(player.duration);
+      if (Number.isFinite(nextDuration) && nextDuration > 0) {
+        setDuration(nextDuration);
+      }
+    });
+    const sourceSubscription = player.addListener('sourceLoad', ({ duration: nextDuration }) => {
+      setCurrentTime(0);
+      setDuration(Number.isFinite(nextDuration) && nextDuration > 0 ? nextDuration : 0);
+    });
+    const endSubscription = player.addListener('playToEnd', () => {
+      setIsPlaying(false);
+      const finalDuration = Number(player.duration);
+      if (Number.isFinite(finalDuration) && finalDuration > 0) {
+        setCurrentTime(finalDuration);
+      }
+    });
+
+    return () => {
+      playingSubscription.remove();
+      timeSubscription.remove();
+      sourceSubscription.remove();
+      endSubscription.remove();
+    };
+  }, [player]);
+
+  const seekBySeconds = useCallback((seconds: number) => {
+    const activePlayer = playerRef.current;
+    if (!activePlayer) return;
+
+    try {
+      activePlayer.seekBy(seconds);
+      const nextCurrentTime = Number(activePlayer.currentTime);
+      if (Number.isFinite(nextCurrentTime)) {
+        setCurrentTime(Math.max(0, nextCurrentTime));
+      }
+    } catch (error) {
+      console.error('[PhotoViewer] Video seek failed:', error);
+    }
   }, []);
+
+  useEffect(() => {
+    if (!videoControlsRef) return;
+
+    videoControlsRef.current = { seekBy: seekBySeconds };
+
+    return () => {
+      if (videoControlsRef.current?.seekBy === seekBySeconds) {
+        videoControlsRef.current = null;
+      }
+    };
+  }, [seekBySeconds, videoControlsRef]);
 
   useEffect(() => {
     let cancelled = false;
@@ -172,24 +276,122 @@ function ViewerVideo({ uri, frameBg }: { uri: string; frameBg: string }) {
     if (!activePlayer || !uri || sourceRef.current === uri) return;
 
     sourceRef.current = uri;
-    activePlayer.replaceAsync(uri).catch((error) => {
-      if (!cancelled) {
-        console.error('[PhotoViewer] Video source replace failed:', error);
-      }
-    });
+    setCurrentTime(0);
+    setDuration(0);
+    setIsPlaying(false);
+    activePlayer.replaceAsync(uri)
+      .then(() => {
+        if (cancelled) return;
+
+        const nextDuration = Number(activePlayer.duration);
+        if (Number.isFinite(nextDuration) && nextDuration > 0) {
+          setDuration(nextDuration);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error('[PhotoViewer] Video source replace failed:', error);
+        }
+      });
 
     return () => {
       cancelled = true;
     };
   }, [uri]);
 
+  const handleTogglePlayback = useCallback(() => {
+    const activePlayer = playerRef.current;
+    if (!activePlayer) return;
+
+    try {
+      if (activePlayer.playing || isPlaying) {
+        activePlayer.pause();
+        setIsPlaying(false);
+      } else {
+        activePlayer.play();
+        setIsPlaying(true);
+      }
+    } catch (error) {
+      console.error('[PhotoViewer] Video playback toggle failed:', error);
+    }
+  }, [isPlaying]);
+
   return (
-    <VideoView
-      player={player}
-      nativeControls
-      contentFit="contain"
-      style={{ width: '100%', height: '100%', backgroundColor: frameBg }}
-    />
+    <View style={localStyles.videoPlayerFrame}>
+      <VideoView
+        player={player}
+        nativeControls={!customControls}
+        contentFit="contain"
+        style={{ width: '100%', height: '100%', backgroundColor: frameBg }}
+      />
+
+      {customControls && (
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.76)', 'rgba(0,0,0,0.92)']}
+          style={localStyles.dashboardVideoControlOverlay}
+          pointerEvents="box-none"
+        >
+          <View style={localStyles.dashboardVideoProgressTrack}>
+            <View
+              style={[
+                localStyles.dashboardVideoProgressFill,
+                { width: `${progressPercent}%`, backgroundColor: accent },
+              ]}
+            />
+          </View>
+
+          <View style={localStyles.dashboardVideoControlsRow}>
+            {onPreviousMedia && (
+              <TouchableOpacity
+                style={localStyles.dashboardVideoControlButton}
+                onPress={onPreviousMedia}
+                accessibilityLabel="Previous media"
+              >
+                <IconSymbol name="chevron.left" size={24} color={controlText} />
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={localStyles.dashboardVideoControlButton}
+              onPress={() => seekBySeconds(-5)}
+              accessibilityLabel="Rewind video 5 seconds"
+            >
+              <IconSymbol name="backward.fill" size={22} color={controlText} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[localStyles.dashboardVideoControlButton, localStyles.dashboardVideoPlayButton, { backgroundColor: accent }]}
+              onPress={handleTogglePlayback}
+              accessibilityLabel={isPlaying ? 'Pause video' : 'Play video'}
+            >
+              <IconSymbol name={isPlaying ? 'pause.fill' : 'play.fill'} size={24} color="#111111" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={localStyles.dashboardVideoControlButton}
+              onPress={() => seekBySeconds(5)}
+              accessibilityLabel="Forward video 5 seconds"
+            >
+              <IconSymbol name="forward.fill" size={22} color={controlText} />
+            </TouchableOpacity>
+
+            {onNextMedia && (
+              <TouchableOpacity
+                style={localStyles.dashboardVideoControlButton}
+                onPress={onNextMedia}
+                accessibilityLabel="Next media"
+              >
+                <IconSymbol name="chevron.right" size={24} color={controlText} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <Text style={[localStyles.dashboardVideoTime, { color: controlText }]}>
+            {formatVideoClock(currentTime)} / {formatVideoClock(duration)}
+          </Text>
+        </LinearGradient>
+      )}
+    </View>
   );
 }
 
@@ -220,7 +422,10 @@ export default function PhotoViewer({
   const [isTogglingFavourite, setIsTogglingFavourite] = useState(false);
   const [rotatingDirection, setRotatingDirection] = useState<'left' | 'right' | null>(null);
   const [expandedProfileImage, setExpandedProfileImage] = useState<{ src: string; name: string } | null>(null);
+  const [loadedImageSizes, setLoadedImageSizes] = useState<Record<string, { width: number; height: number }>>({});
   const swipeStartXRef = useRef<number | null>(null);
+  const hostScrollRef = useRef<ScrollView | null>(null);
+  const dashboardVideoControlsRef = useRef<ViewerVideoControls | null>(null);
 
   // Sync index when initialIndex changes
   useEffect(() => {
@@ -228,10 +433,23 @@ export default function PhotoViewer({
   }, [initialIndex]);
 
   const currentPhoto = photos[currentPhotoIndex];
+  const currentPhotoKey = String(currentPhoto?.id || currentPhoto?.url || currentPhotoIndex);
+  const loadedImageSize = loadedImageSizes[currentPhotoKey] || null;
   const isLiked = useMemo(() => likes.some((like) => like.userId === viewerIdentity.id), [likes, viewerIdentity.id]);
   const isVideoMedia = currentPhoto?.mediaType === 'video' || currentPhoto?.resourceType === 'video';
   const showHostTopControls = keepBottomBarVisible;
+  const hostDisplayImageUrl = useMemo(() => {
+    if (!currentPhoto) return '';
+    if (isVideoMedia) return currentPhoto.url || '';
+
+    return currentPhoto.previewUrl
+      || getImageUrl(currentPhoto.url, { width: 900, quality: 75, format: 'webp' }, currentPhoto.thumbnailUrl);
+  }, [currentPhoto, isVideoMedia]);
   const hostMediaAspectRatio = useMemo(() => {
+    if (loadedImageSize?.width && loadedImageSize?.height) {
+      return loadedImageSize.width / loadedImageSize.height;
+    }
+
     const width = Number(currentPhoto?.width ?? currentPhoto?.metadata?.width ?? currentPhoto?.imageWidth);
     const height = Number(currentPhoto?.height ?? currentPhoto?.metadata?.height ?? currentPhoto?.imageHeight);
 
@@ -240,41 +458,81 @@ export default function PhotoViewer({
     }
 
     return isVideoMedia ? 16 / 9 : 3 / 4;
-  }, [currentPhoto, isVideoMedia]);
+  }, [currentPhoto, isVideoMedia, loadedImageSize]);
   const hostCollapsedLayout = useMemo(() => {
     const safeWidth = Math.max(1, viewportWidth);
     const availableHeight = Math.max(1, viewportHeight - bottomBarOffset);
+    const horizontalInset = 0;
+    const minMediaHeight = 300;
+    const maxMediaHeight = 480;
+    const preferredMediaHeight = availableHeight * 0.58;
     const safeAspectRatio = Math.max(0.2, hostMediaAspectRatio || 1);
-    const mediaTop = 104;
-    const actionGap = 20;
-    const actionHeight = 46;
-    const guestbookGap = 22;
-    const guestbookPeekHint = 58;
-    const bottomPadding = 10;
-    const reservedBelowMedia = actionGap + actionHeight + guestbookGap + guestbookPeekHint + bottomPadding;
-    const maxMediaHeight = Math.max(240, availableHeight - mediaTop - reservedBelowMedia);
-    const naturalMediaHeight = safeWidth / safeAspectRatio;
-    const mediaHeight = Math.min(naturalMediaHeight, maxMediaHeight);
-    const mediaWidth = Math.min(safeWidth, mediaHeight * safeAspectRatio);
-    const actionsTop = mediaTop + mediaHeight + actionGap;
-    const guestbookTop = actionsTop + actionHeight + guestbookGap;
+    const isPortraitMedia = !isVideoMedia && safeAspectRatio < 1;
+    const mediaWidth = Math.max(1, safeWidth - horizontalInset * 2);
+    const landscapeStageHeight = Math.max(minMediaHeight, Math.min(preferredMediaHeight, maxMediaHeight));
+    const mediaHeight = isPortraitMedia ? mediaWidth / safeAspectRatio : landscapeStageHeight;
+    const guestbookScrollY = Math.max(0, mediaHeight + 104);
 
     return {
-      mediaTop,
       mediaWidth,
       mediaHeight,
-      actionsTop,
-      guestbookTop,
+      guestbookScrollY,
     };
-  }, [bottomBarOffset, hostMediaAspectRatio, viewportHeight, viewportWidth]);
+  }, [bottomBarOffset, hostMediaAspectRatio, isVideoMedia, viewportHeight, viewportWidth]);
+  const hostRenderedMediaSize = useMemo(() => {
+    const maxWidth = hostCollapsedLayout.mediaWidth;
+    const maxHeight = hostCollapsedLayout.mediaHeight;
+    const safeAspectRatio = Math.max(0.2, hostMediaAspectRatio || 1);
+    const isPortraitMedia = !isVideoMedia && safeAspectRatio < 1;
+
+    if (isPortraitMedia) {
+      return {
+        width: maxWidth,
+        height: Math.max(1, maxWidth / safeAspectRatio),
+      };
+    }
+
+    let width = maxWidth;
+    let height = width / safeAspectRatio;
+
+    if (height > maxHeight) {
+      height = maxHeight;
+      width = height * safeAspectRatio;
+    }
+
+    return {
+      width: Math.max(1, width),
+      height: Math.max(1, height),
+    };
+  }, [hostCollapsedLayout.mediaHeight, hostCollapsedLayout.mediaWidth, hostMediaAspectRatio, isVideoMedia]);
   const currentPhotoIsFavourite = useMemo(
     () => currentPhoto ? isPhotoFavourite?.(currentPhoto) ?? false : false,
     [currentPhoto, isPhotoFavourite]
   );
 
+  const handleHostImageLoad = (event: ImageLoadEventData | NativeSyntheticEvent<ImageLoadEventData>) => {
+    const payload = 'nativeEvent' in event ? event.nativeEvent : event;
+    const width = Number(payload?.source?.width);
+    const height = Number(payload?.source?.height);
+
+    if (!(width > 0 && height > 0)) return;
+
+    setLoadedImageSizes((prev) => {
+      const existing = prev[currentPhotoKey];
+      if (existing?.width === width && existing?.height === height) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [currentPhotoKey]: { width, height },
+      };
+    });
+  };
+
   useEffect(() => {
     if (visible && showHostTopControls) {
-      setShowComments(false);
+      setShowComments(true);
     }
   }, [visible, showHostTopControls, currentPhoto?.id]);
 
@@ -327,10 +585,43 @@ export default function PhotoViewer({
     } else {
       setCurrentPhotoIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
     }
-    // Reset commenting context on navigation
-    setShowComments(false);
+    // Dashboard keeps the compact viewer until comments are explicitly opened.
+    // Host keeps the Guestbook in the scroll flow so only the media changes.
+    if (!showHostTopControls) {
+      setShowComments(false);
+    }
     setReplyingTo(null);
     setNewComment('');
+  };
+
+  const handleOpenComments = () => {
+    setShowComments(true);
+    if (!showHostTopControls) return;
+
+    setTimeout(() => {
+      hostScrollRef.current?.scrollTo({
+        y: hostCollapsedLayout.guestbookScrollY,
+        animated: true,
+      });
+    }, 80);
+  };
+
+  const handlePreviousViewerControl = () => {
+    if (isVideoMedia && !showHostTopControls) {
+      dashboardVideoControlsRef.current?.seekBy(-5);
+      return;
+    }
+
+    navigateViewer('prev');
+  };
+
+  const handleNextViewerControl = () => {
+    if (isVideoMedia && !showHostTopControls) {
+      dashboardVideoControlsRef.current?.seekBy(5);
+      return;
+    }
+
+    navigateViewer('next');
   };
 
   const handleViewerTouchStart = (event: GestureResponderEvent) => {
@@ -423,8 +714,8 @@ export default function PhotoViewer({
     try {
       await onTogglePhotoFavourite(currentPhoto);
     } catch (error) {
-      console.error('[PhotoViewer] Favourite toggle failed:', error);
-      Alert.alert('Favourite Failed', 'Could not update this photo. Please try again.');
+      console.error('[PhotoViewer] Primary gallery toggle failed:', error);
+      Alert.alert('Primary Gallery Update Failed', 'Could not update this media. Please try again.');
     } finally {
       setIsTogglingFavourite(false);
     }
@@ -476,20 +767,217 @@ export default function PhotoViewer({
     return null;
   }
 
+  const renderGuestbookPanel = (hostFlow = false) => {
+    const hostGuestbook = showHostTopControls || hostFlow;
+
+    return (
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={[
+          hostFlow ? localStyles.hostGuestbookPanelFlow : styles.guestbookPanel,
+          !hostFlow && showHostTopControls && localStyles.hostGuestbookPanel,
+          {
+            backgroundColor: viewerTheme.panel,
+            borderRadius: viewerTheme.radius + 10,
+            borderWidth: 1,
+            borderColor: viewerTheme.frameBorder,
+          },
+        ]}
+      >
+        <View style={[styles.guestbookHeader, hostGuestbook && localStyles.hostGuestbookHeader, { backgroundColor: viewerTheme.panel, borderBottomColor: viewerTheme.frameBorder }]}>
+          <View>
+            <Text style={[
+              styles.guestbookTitle,
+              hostGuestbook && localStyles.hostGuestbookTitle,
+              { color: viewerTheme.text },
+              selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' }
+            ]}>Guestbook</Text>
+            <Text style={[
+              styles.guestbookSubtitle,
+              hostGuestbook && localStyles.hostGuestbookSubtitle,
+              { color: viewerTheme.muted },
+              selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic' }
+            ]}>{comments.length} Shared Thoughts</Text>
+          </View>
+          <TouchableOpacity style={[styles.closeGuestbookBtn, hostGuestbook && localStyles.hostCloseGuestbookBtn, { backgroundColor: viewerTheme.controlBg }]} onPress={() => setShowComments(false)}>
+            <IconSymbol name="xmark" size={18} color={viewerTheme.controlText} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView style={styles.guestbookList} contentContainerStyle={[styles.guestbookListContent, hostGuestbook && localStyles.hostGuestbookListContent]}>
+          {comments.length === 0 ? (
+            <View style={[styles.emptyGuestbook, hostGuestbook && localStyles.hostEmptyGuestbook]}>
+              <View style={[styles.emptyGuestbookIcon, hostGuestbook && localStyles.hostEmptyGuestbookIcon]}>
+                <IconSymbol name="bubble.right" size={hostGuestbook ? 24 : 30} color="#78716c" />
+              </View>
+              <Text style={[
+                styles.emptyGuestbookTitle,
+                hostGuestbook && localStyles.hostEmptyGuestbookTitle,
+                selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic', fontSize: hostGuestbook ? 16 : 18 }
+              ]}>No whispers yet...</Text>
+              <Text style={[
+                styles.emptyGuestbookText,
+                hostGuestbook && localStyles.hostEmptyGuestbookText,
+                selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic' }
+              ]}>Write the first beautiful word.</Text>
+            </View>
+          ) : (
+            comments.filter((comment) => !comment.parentId).map((comment) => {
+              const replies = comments.filter((reply) => reply.parentId === comment.id);
+              const commentProfileImage = comment.profileImage || null;
+              const commentName = comment.userName || 'Guest';
+              return (
+                <View key={comment.id} style={styles.commentThread}>
+                  <View style={styles.commentItem}>
+                    <TouchableOpacity
+                      disabled={!commentProfileImage}
+                      onPress={() => commentProfileImage && setExpandedProfileImage({ src: commentProfileImage, name: commentName })}
+                      style={[
+                      styles.commentAvatar,
+                        selectedTemplate.id === 'royal' && { backgroundColor: selectedTemplate.accentBg, borderWidth: 1, borderColor: selectedTemplate.accent }
+                      ]}
+                      activeOpacity={commentProfileImage ? 0.78 : 1}
+                    >
+                      {commentProfileImage ? (
+                        <ExpoImage source={{ uri: commentProfileImage }} style={styles.commentAvatarImage} contentFit="cover" />
+                      ) : (
+                        <Text style={[
+                          styles.commentAvatarText,
+                          selectedTemplate.id === 'royal' && { color: selectedTemplate.accent, fontFamily: Fonts.serif, fontWeight: 'bold' }
+                        ]}>{commentName.charAt(0)}</Text>
+                      )}
+                    </TouchableOpacity>
+                    <View style={styles.commentContent}>
+                      <View style={styles.commentRow}>
+                        <Text style={[
+                          styles.commentName,
+                          selectedTemplate.id === 'royal' && { fontFamily: Fonts.serif, color: selectedTemplate.text }
+                        ]} numberOfLines={1}>{commentName}</Text>
+                        <Text style={styles.commentTime}>
+                          {comment.createdAt ? new Date(comment.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+                        </Text>
+                      </View>
+                      <View style={[
+                        styles.commentBubble,
+                        selectedTemplate.id === 'royal' && { borderWidth: 1, borderColor: 'rgba(212,175,55,0.15)', backgroundColor: 'rgba(212,175,55,0.04)' }
+                      ]}>
+                        <Text style={[
+                          styles.commentText,
+                          selectedTemplate.id === 'royal' && { color: selectedTemplate.text, fontFamily: Fonts.serif }
+                        ]}>{comment.text}</Text>
+                        <View style={styles.commentActions}>
+                          <TouchableOpacity onPress={() => setReplyingTo(comment)}>
+                            <Text style={styles.replyBtnText}>REPLY</Text>
+                          </TouchableOpacity>
+                          {comment.userId === viewerIdentity.id && (
+                            <TouchableOpacity onPress={() => handleDeleteComment(comment.id)}>
+                              <Text style={styles.deleteBtnText}>DELETE</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+
+                  {replies.map((reply) => (
+                    (() => {
+                      const replyProfileImage = reply.profileImage || null;
+                      const replyName = reply.userName || 'Guest';
+                      return (
+                        <View key={reply.id} style={styles.replyItem}>
+                          <TouchableOpacity
+                            disabled={!replyProfileImage}
+                            onPress={() => replyProfileImage && setExpandedProfileImage({ src: replyProfileImage, name: replyName })}
+                            style={[
+                              styles.replyAvatar,
+                              selectedTemplate.id === 'royal' && { backgroundColor: selectedTemplate.accentBg, borderWidth: 1, borderColor: selectedTemplate.accent }
+                            ]}
+                            activeOpacity={replyProfileImage ? 0.78 : 1}
+                          >
+                            {replyProfileImage ? (
+                              <ExpoImage source={{ uri: replyProfileImage }} style={styles.replyAvatarImage} contentFit="cover" />
+                            ) : (
+                              <Text style={[
+                                styles.replyAvatarText,
+                                selectedTemplate.id === 'royal' && { color: selectedTemplate.accent, fontFamily: Fonts.serif, fontWeight: 'bold' }
+                              ]}>{replyName.charAt(0)}</Text>
+                            )}
+                          </TouchableOpacity>
+                          <View style={styles.commentContent}>
+                            <View style={styles.commentRow}>
+                              <Text style={[
+                                styles.replyName,
+                                selectedTemplate.id === 'royal' && { fontFamily: Fonts.serif, color: selectedTemplate.text }
+                              ]} numberOfLines={1}>{replyName}</Text>
+                              <Text style={styles.commentTime}>
+                                {reply.createdAt ? new Date(reply.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+                              </Text>
+                            </View>
+                            <View style={[
+                              styles.replyBubble,
+                              selectedTemplate.id === 'royal' && { borderWidth: 1, borderColor: 'rgba(212,175,55,0.15)', backgroundColor: 'rgba(212,175,55,0.04)' }
+                            ]}>
+                              <Text style={[
+                                styles.replyText,
+                                selectedTemplate.id === 'royal' && { color: selectedTemplate.text, fontFamily: Fonts.serif }
+                              ]}>{reply.text}</Text>
+                              {reply.userId === viewerIdentity.id && (
+                                <TouchableOpacity onPress={() => handleDeleteComment(reply.id)}>
+                                  <Text style={[styles.deleteBtnText, styles.replyDeleteText]}>DELETE</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    })()
+                  ))}
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+
+        <View style={[styles.commentComposer, hostGuestbook && localStyles.hostCommentComposer, { backgroundColor: viewerTheme.panel, borderTopColor: viewerTheme.frameBorder }]}>
+          {replyingTo && (
+            <View style={styles.replyingToBanner}>
+              <Text style={styles.replyingToText}>Replying to <Text style={styles.replyingToName}>{replyingTo.userName}</Text></Text>
+              <TouchableOpacity onPress={() => setReplyingTo(null)}>
+                <IconSymbol name="xmark" size={14} color="#78716c" />
+              </TouchableOpacity>
+            </View>
+          )}
+          <View style={styles.commentInputRow}>
+            <TextInput
+              style={styles.commentInput}
+              placeholder={replyingTo ? "Write a reply..." : "Share a wish..."}
+              placeholderTextColor="#78716c"
+              value={newComment}
+              onChangeText={setNewComment}
+            />
+            <TouchableOpacity style={[styles.commentSendBtn, (!newComment.trim() || isCommenting) && styles.commentSendBtnDisabled]} onPress={handleAddComment} disabled={!newComment.trim() || isCommenting}>
+              <IconSymbol name="paperplane.fill" size={18} color="#ffffff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    );
+  };
+
   const viewerContent = (
-    <View style={[styles.viewerContainer, { backgroundColor: viewerTheme.background }]}>
+    <View style={[styles.viewerContainer, showHostTopControls && localStyles.hostViewerContainer, { backgroundColor: viewerTheme.background }]}>
         <LinearGradient
           colors={viewerTheme.overlay as [string, string]}
           style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
         />
         {showHostTopControls ? (
           <View style={[localStyles.hostTopControls, { backgroundColor: viewerTheme.controlBg }]}>
-            {!!onTogglePhotoFavourite && !isVideoMedia && (
+            {!!onTogglePhotoFavourite && (
               <TouchableOpacity
                 style={[localStyles.hostToolbarButton, isTogglingFavourite && localStyles.hostToolbarButtonDisabled]}
                 onPress={handleToggleHostFavourite}
                 disabled={isTogglingFavourite}
-                accessibilityLabel={currentPhotoIsFavourite ? 'Remove from favourite' : 'Add to favourite'}
+                accessibilityLabel={currentPhotoIsFavourite ? 'Remove from Primary Gallery' : 'Add to Primary Gallery'}
               >
                 {isTogglingFavourite ? (
                   <ActivityIndicator size="small" color={viewerTheme.controlText} />
@@ -556,64 +1044,61 @@ export default function PhotoViewer({
           </TouchableOpacity>
         )}
 
-        {!showHostTopControls && (
-          <TouchableOpacity style={[styles.navBtnLeft, { backgroundColor: viewerTheme.controlBg, borderColor: viewerTheme.frameBorder, borderWidth: 1 }]} onPress={() => navigateViewer('prev')}>
-            <IconSymbol name="chevron.left" size={32} color={viewerTheme.controlText} />
-          </TouchableOpacity>
-        )}
-
-        {photos[currentPhotoIndex] && (
-          <View
-            onTouchStart={handleViewerTouchStart}
-            onTouchEnd={handleViewerTouchEnd}
-            style={[
-              styles.fullImage,
-              showComments && styles.fullImageWithComments,
-              showHostTopControls && (showComments ? localStyles.hostFullImageWithGuestbook : {
-                position: 'absolute',
-                top: hostCollapsedLayout.mediaTop,
-                height: hostCollapsedLayout.mediaHeight,
-                marginBottom: 0,
-              }),
-              {
-                backgroundColor: showHostTopControls && !showComments ? 'transparent' : viewerTheme.tileBg,
-                borderRadius: viewerTheme.radius,
-                borderWidth: keepBottomBarVisible ? 0 : 1,
-                borderColor: keepBottomBarVisible ? 'transparent' : viewerTheme.frameBorder,
-                overflow: 'hidden',
-                width: showHostTopControls && !showComments ? hostCollapsedLayout.mediaWidth : (showHostTopControls ? '100%' : '92%'),
-              },
-            ]}
+        {showHostTopControls ? (
+          <ScrollView
+            ref={hostScrollRef}
+            style={localStyles.hostViewerScroll}
+            contentContainerStyle={localStyles.hostViewerScrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            {isVideoMedia ? (
-              <ViewerVideo uri={photos[currentPhotoIndex].url} frameBg={viewerTheme.tileBg} />
-            ) : (
-              <ExpoImage
-                source={{ uri: getImageUrl(photos[currentPhotoIndex].url, { width: 900, quality: 75, format: 'webp' }, photos[currentPhotoIndex].thumbnailUrl) }}
-                style={{ width: '100%', height: '100%' }}
-                contentFit="contain"
-              />
-            )}
-            {(isDownloading || rotatingDirection) && (
-              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color="#fff" />
-                <Text style={{ color: '#fff', marginTop: 12, fontSize: 14, fontWeight: '600' }}>
-                  {rotatingDirection ? 'Saving rotation...' : 'Downloading original...'}
-                </Text>
+            {photos[currentPhotoIndex] && (
+              <View
+                onTouchStart={handleViewerTouchStart}
+                onTouchEnd={handleViewerTouchEnd}
+                style={[
+                  localStyles.hostScrollableMedia,
+                  {
+                    width: hostCollapsedLayout.mediaWidth,
+                    height: hostCollapsedLayout.mediaHeight,
+                    borderRadius: viewerTheme.radius,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    localStyles.hostMediaClip,
+                    {
+                      width: hostRenderedMediaSize.width,
+                      height: hostRenderedMediaSize.height,
+                      borderRadius: viewerTheme.radius,
+                    },
+                  ]}
+                >
+                  {isVideoMedia ? (
+                    <ViewerVideo uri={photos[currentPhotoIndex].url} frameBg={viewerTheme.tileBg} />
+                  ) : (
+                    <ExpoImage
+                      source={{ uri: hostDisplayImageUrl }}
+                      style={[localStyles.hostMediaImage, { borderRadius: viewerTheme.radius }]}
+                      contentFit="contain"
+                      cachePolicy="memory-disk"
+                      onLoad={handleHostImageLoad}
+                    />
+                  )}
+                </View>
+                {(isDownloading || rotatingDirection) && (
+                  <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }]}>
+                    <ActivityIndicator size="large" color="#fff" />
+                    <Text style={{ color: '#fff', marginTop: 12, fontSize: 14, fontWeight: '600' }}>
+                      {rotatingDirection ? 'Saving rotation...' : 'Downloading original...'}
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
-          </View>
-        )}
 
-        {!showHostTopControls && (
-          <TouchableOpacity style={[styles.navBtnRight, { backgroundColor: viewerTheme.controlBg, borderColor: viewerTheme.frameBorder, borderWidth: 1 }]} onPress={() => navigateViewer('next')}>
-            <IconSymbol name="chevron.right" size={32} color={viewerTheme.controlText} />
-          </TouchableOpacity>
-        )}
-
-        <View style={showHostTopControls ? [localStyles.hostViewerActions, showComments ? localStyles.hostViewerActionsRaised : { top: hostCollapsedLayout.actionsTop }] : [styles.viewerActions, showComments ? styles.viewerActionsRaised : styles.viewerActionsDocked]}>
-          {showHostTopControls ? (
-            <>
+            <View style={localStyles.hostViewerActionsFlow}>
               <TouchableOpacity style={localStyles.hostViewerAction} onPress={handleToggleLike} disabled={isLiking}>
                 <LucideHeartIcon
                   size={20}
@@ -622,18 +1107,126 @@ export default function PhotoViewer({
                 />
                 <Text style={[localStyles.hostViewerActionLabel, { color: viewerTheme.muted }]}>{likes.length} LIKES</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={localStyles.hostViewerAction} onPress={() => setShowComments(true)}>
+              <TouchableOpacity style={localStyles.hostViewerAction} onPress={handleOpenComments}>
                 <LucideMessageCircleIcon size={20} color={viewerTheme.controlText} />
                 <Text style={[localStyles.hostViewerActionLabel, { color: viewerTheme.muted }]}>{comments.length} COMMENTS</Text>
               </TouchableOpacity>
-            </>
-          ) : (
-            <>
+            </View>
+
+            {showComments ? (
+              renderGuestbookPanel(true)
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                style={[
+                  localStyles.hostGuestbookPeekFlow,
+                  {
+                    backgroundColor: viewerTheme.panel,
+                    borderColor: viewerTheme.frameBorder,
+                    borderRadius: viewerTheme.radius + 10,
+                  },
+                ]}
+                onPress={handleOpenComments}
+                accessibilityLabel="Open guestbook"
+              >
+                <View>
+                  <Text
+                    style={[
+                      styles.guestbookTitle,
+                      localStyles.hostGuestbookPeekTitle,
+                      { color: viewerTheme.text },
+                      selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' },
+                    ]}
+                  >
+                    Guestbook
+                  </Text>
+                  <Text
+                    style={[
+                      styles.guestbookSubtitle,
+                      localStyles.hostGuestbookPeekSubtitle,
+                      { color: viewerTheme.muted },
+                      selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic' },
+                    ]}
+                  >
+                    {comments.length} Shared Thoughts
+                  </Text>
+                </View>
+                <View style={[localStyles.hostGuestbookPeekButton, { backgroundColor: viewerTheme.controlBg }]}>
+                  <IconSymbol name="chevron.up" size={18} color={viewerTheme.controlText} />
+                </View>
+              </TouchableOpacity>
+            )}
+          </ScrollView>
+        ) : (
+          <>
+            <TouchableOpacity
+              style={[styles.navBtnLeft, { backgroundColor: viewerTheme.controlBg, borderColor: viewerTheme.frameBorder, borderWidth: 1 }]}
+              onPress={handlePreviousViewerControl}
+              accessibilityLabel={isVideoMedia ? 'Rewind video 5 seconds' : 'Previous media'}
+            >
+              <IconSymbol name="chevron.left" size={32} color={viewerTheme.controlText} />
+            </TouchableOpacity>
+
+            {photos[currentPhotoIndex] && (
+              <View
+                onTouchStart={handleViewerTouchStart}
+                onTouchEnd={handleViewerTouchEnd}
+                style={[
+                  styles.fullImage,
+                  showComments && styles.fullImageWithComments,
+                  {
+                    backgroundColor: viewerTheme.tileBg,
+                    borderRadius: viewerTheme.radius,
+                    borderWidth: 1,
+                    borderColor: viewerTheme.frameBorder,
+                    overflow: 'hidden',
+                    width: '92%',
+                  },
+                ]}
+              >
+                {isVideoMedia ? (
+                  <ViewerVideo
+                    uri={photos[currentPhotoIndex].url}
+                    frameBg={viewerTheme.tileBg}
+                    controlText={viewerTheme.controlText}
+                    accent={viewerTheme.accent}
+                    customControls
+                    videoControlsRef={dashboardVideoControlsRef}
+                    onPreviousMedia={() => navigateViewer('prev')}
+                    onNextMedia={() => navigateViewer('next')}
+                  />
+                ) : (
+                  <ExpoImage
+                    source={{ uri: getImageUrl(photos[currentPhotoIndex].url, { width: 900, quality: 75, format: 'webp' }, photos[currentPhotoIndex].thumbnailUrl) }}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="contain"
+                  />
+                )}
+                {(isDownloading || rotatingDirection) && (
+                  <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }]}>
+                    <ActivityIndicator size="large" color="#fff" />
+                    <Text style={{ color: '#fff', marginTop: 12, fontSize: 14, fontWeight: '600' }}>
+                      {rotatingDirection ? 'Saving rotation...' : 'Downloading original...'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[styles.navBtnRight, { backgroundColor: viewerTheme.controlBg, borderColor: viewerTheme.frameBorder, borderWidth: 1 }]}
+              onPress={handleNextViewerControl}
+              accessibilityLabel={isVideoMedia ? 'Forward video 5 seconds' : 'Next media'}
+            >
+              <IconSymbol name="chevron.right" size={32} color={viewerTheme.controlText} />
+            </TouchableOpacity>
+
+            <View style={[styles.viewerActions, showComments ? styles.viewerActionsRaised : styles.viewerActionsDocked]}>
               <TouchableOpacity style={styles.viewerAction} onPress={handleToggleLike} disabled={isLiking}>
                 <IconSymbol name={isLiked ? "heart.fill" : "heart"} size={30} color={isLiked ? "#f43f5e" : viewerTheme.controlText} />
                 <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{likes.length}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.viewerAction} onPress={() => setShowComments(true)}>
+              <TouchableOpacity style={styles.viewerAction} onPress={handleOpenComments}>
                 <IconSymbol name="bubble.right" size={30} color={showComments ? viewerTheme.accent : viewerTheme.controlText} />
                 <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{comments.length}</Text>
               </TouchableOpacity>
@@ -647,250 +1240,16 @@ export default function PhotoViewer({
                 <IconSymbol name="arrow.down.to.line.compact" size={30} color={viewerTheme.controlText} />
                 <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Download</Text>
               </TouchableOpacity>
-            </>
-          )}
-        </View>
-
-        {!showComments && !showHostTopControls && (
-          <View style={[styles.viewerFooter, { backgroundColor: viewerTheme.controlBg, borderRadius: 999, paddingVertical: 8 }]}>
-            <Text style={[styles.viewerText, { color: viewerTheme.controlText }]}>{currentPhotoIndex + 1} / {photos.length}</Text>
-          </View>
-        )}
-
-        {showHostTopControls && !showComments && (
-          <TouchableOpacity
-            activeOpacity={0.9}
-            style={[
-              localStyles.hostGuestbookPeek,
-              {
-                backgroundColor: viewerTheme.panel,
-                borderColor: viewerTheme.frameBorder,
-                borderRadius: viewerTheme.radius + 10,
-                top: hostCollapsedLayout.guestbookTop,
-              },
-            ]}
-            onPress={() => setShowComments(true)}
-            accessibilityLabel="Open guestbook"
-          >
-            <View>
-              <Text
-                style={[
-                  styles.guestbookTitle,
-                  localStyles.hostGuestbookPeekTitle,
-                  { color: viewerTheme.text },
-                  selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' },
-                ]}
-              >
-                Guestbook
-              </Text>
-              <Text
-                style={[
-                  styles.guestbookSubtitle,
-                  localStyles.hostGuestbookPeekSubtitle,
-                  { color: viewerTheme.muted },
-                  selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic' },
-                ]}
-              >
-                {comments.length} Shared Thoughts
-              </Text>
             </View>
-            <View style={[localStyles.hostGuestbookPeekButton, { backgroundColor: viewerTheme.controlBg }]}>
-              <IconSymbol name="chevron.up" size={18} color={viewerTheme.controlText} />
-            </View>
-          </TouchableOpacity>
-        )}
 
-        {showComments && (
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={[
-              styles.guestbookPanel,
-              showHostTopControls && localStyles.hostGuestbookPanel,
-              {
-                backgroundColor: viewerTheme.panel,
-                borderRadius: viewerTheme.radius + 10,
-                borderWidth: 1,
-                borderColor: viewerTheme.frameBorder,
-              },
-            ]}
-          >
-            <View style={[styles.guestbookHeader, showHostTopControls && localStyles.hostGuestbookHeader, { backgroundColor: viewerTheme.panel, borderBottomColor: viewerTheme.frameBorder }]}>
-              <View>
-                <Text style={[
-                  styles.guestbookTitle,
-                  showHostTopControls && localStyles.hostGuestbookTitle,
-                  { color: viewerTheme.text },
-                  selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontWeight: 'bold' }
-                ]}>Guestbook</Text>
-                <Text style={[
-                  styles.guestbookSubtitle,
-                  showHostTopControls && localStyles.hostGuestbookSubtitle,
-                  { color: viewerTheme.muted },
-                  selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic' }
-                ]}>{comments.length} Shared Thoughts</Text>
+            {!showComments && (
+              <View style={[styles.viewerFooter, { backgroundColor: viewerTheme.controlBg, borderRadius: 999, paddingVertical: 8 }]}>
+                <Text style={[styles.viewerText, { color: viewerTheme.controlText }]}>{currentPhotoIndex + 1} / {photos.length}</Text>
               </View>
-              <TouchableOpacity style={[styles.closeGuestbookBtn, showHostTopControls && localStyles.hostCloseGuestbookBtn, { backgroundColor: viewerTheme.controlBg }]} onPress={() => setShowComments(false)}>
-                <IconSymbol name="xmark" size={18} color={viewerTheme.controlText} />
-              </TouchableOpacity>
-            </View>
+            )}
 
-            <ScrollView style={styles.guestbookList} contentContainerStyle={[styles.guestbookListContent, showHostTopControls && localStyles.hostGuestbookListContent]}>
-              {comments.length === 0 ? (
-                <View style={[styles.emptyGuestbook, showHostTopControls && localStyles.hostEmptyGuestbook]}>
-                  <View style={[styles.emptyGuestbookIcon, showHostTopControls && localStyles.hostEmptyGuestbookIcon]}>
-                    <IconSymbol name="bubble.right" size={showHostTopControls ? 24 : 30} color="#78716c" />
-                  </View>
-                  <Text style={[
-                    styles.emptyGuestbookTitle,
-                    showHostTopControls && localStyles.hostEmptyGuestbookTitle,
-                    selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic', fontSize: showHostTopControls ? 16 : 18 }
-                  ]}>No whispers yet...</Text>
-                  <Text style={[
-                    styles.emptyGuestbookText,
-                    showHostTopControls && localStyles.hostEmptyGuestbookText,
-                    selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic' }
-                  ]}>Write the first beautiful word.</Text>
-                </View>
-              ) : (
-                comments.filter((comment) => !comment.parentId).map((comment) => {
-                  const replies = comments.filter((reply) => reply.parentId === comment.id);
-                  const commentProfileImage = comment.profileImage || null;
-                  const commentName = comment.userName || 'Guest';
-                  return (
-                    <View key={comment.id} style={styles.commentThread}>
-                      <View style={styles.commentItem}>
-                        <TouchableOpacity
-                          disabled={!commentProfileImage}
-                          onPress={() => commentProfileImage && setExpandedProfileImage({ src: commentProfileImage, name: commentName })}
-                          style={[
-                          styles.commentAvatar,
-                            selectedTemplate.id === 'royal' && { backgroundColor: selectedTemplate.accentBg, borderWidth: 1, borderColor: selectedTemplate.accent }
-                          ]}
-                          activeOpacity={commentProfileImage ? 0.78 : 1}
-                        >
-                          {commentProfileImage ? (
-                            <ExpoImage source={{ uri: commentProfileImage }} style={styles.commentAvatarImage} contentFit="cover" />
-                          ) : (
-                            <Text style={[
-                              styles.commentAvatarText,
-                              selectedTemplate.id === 'royal' && { color: selectedTemplate.accent, fontFamily: Fonts.serif, fontWeight: 'bold' }
-                            ]}>{commentName.charAt(0)}</Text>
-                          )}
-                        </TouchableOpacity>
-                        <View style={styles.commentContent}>
-                          <View style={styles.commentRow}>
-                            <Text style={[
-                              styles.commentName,
-                              selectedTemplate.id === 'royal' && { fontFamily: Fonts.serif, color: selectedTemplate.text }
-                            ]} numberOfLines={1}>{commentName}</Text>
-                            <Text style={styles.commentTime}>
-                              {comment.createdAt ? new Date(comment.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
-                            </Text>
-                          </View>
-                          <View style={[
-                            styles.commentBubble,
-                            selectedTemplate.id === 'royal' && { borderWidth: 1, borderColor: 'rgba(212,175,55,0.15)', backgroundColor: 'rgba(212,175,55,0.04)' }
-                          ]}>
-                            <Text style={[
-                              styles.commentText,
-                              selectedTemplate.id === 'royal' && { color: selectedTemplate.text, fontFamily: Fonts.serif }
-                            ]}>{comment.text}</Text>
-                            <View style={styles.commentActions}>
-                              <TouchableOpacity onPress={() => setReplyingTo(comment)}>
-                                <Text style={styles.replyBtnText}>REPLY</Text>
-                              </TouchableOpacity>
-                              {comment.userId === viewerIdentity.id && (
-                                <TouchableOpacity onPress={() => handleDeleteComment(comment.id)}>
-                                  <Text style={styles.deleteBtnText}>DELETE</Text>
-                                </TouchableOpacity>
-                              )}
-                            </View>
-                          </View>
-                        </View>
-                      </View>
-
-                      {replies.map((reply) => (
-                        (() => {
-                          const replyProfileImage = reply.profileImage || null;
-                          const replyName = reply.userName || 'Guest';
-                          return (
-                            <View key={reply.id} style={styles.replyItem}>
-                              <TouchableOpacity
-                                disabled={!replyProfileImage}
-                                onPress={() => replyProfileImage && setExpandedProfileImage({ src: replyProfileImage, name: replyName })}
-                                style={[
-                                  styles.replyAvatar,
-                                  selectedTemplate.id === 'royal' && { backgroundColor: selectedTemplate.accentBg, borderWidth: 1, borderColor: selectedTemplate.accent }
-                                ]}
-                                activeOpacity={replyProfileImage ? 0.78 : 1}
-                              >
-                                {replyProfileImage ? (
-                                  <ExpoImage source={{ uri: replyProfileImage }} style={styles.replyAvatarImage} contentFit="cover" />
-                                ) : (
-                                  <Text style={[
-                                    styles.replyAvatarText,
-                                    selectedTemplate.id === 'royal' && { color: selectedTemplate.accent, fontFamily: Fonts.serif, fontWeight: 'bold' }
-                                  ]}>{replyName.charAt(0)}</Text>
-                                )}
-                              </TouchableOpacity>
-                              <View style={styles.commentContent}>
-                                <View style={styles.commentRow}>
-                                  <Text style={[
-                                    styles.replyName,
-                                    selectedTemplate.id === 'royal' && { fontFamily: Fonts.serif, color: selectedTemplate.text }
-                                  ]} numberOfLines={1}>{replyName}</Text>
-                                  <Text style={styles.commentTime}>
-                                    {reply.createdAt ? new Date(reply.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
-                                  </Text>
-                                </View>
-                                <View style={[
-                                  styles.replyBubble,
-                                  selectedTemplate.id === 'royal' && { borderWidth: 1, borderColor: 'rgba(212,175,55,0.15)', backgroundColor: 'rgba(212,175,55,0.04)' }
-                                ]}>
-                                  <Text style={[
-                                    styles.replyText,
-                                    selectedTemplate.id === 'royal' && { color: selectedTemplate.text, fontFamily: Fonts.serif }
-                                  ]}>{reply.text}</Text>
-                                  {reply.userId === viewerIdentity.id && (
-                                    <TouchableOpacity onPress={() => handleDeleteComment(reply.id)}>
-                                      <Text style={[styles.deleteBtnText, styles.replyDeleteText]}>DELETE</Text>
-                                    </TouchableOpacity>
-                                  )}
-                                </View>
-                              </View>
-                            </View>
-                          );
-                        })()
-                      ))}
-                    </View>
-                  );
-                })
-              )}
-            </ScrollView>
-
-            <View style={[styles.commentComposer, showHostTopControls && localStyles.hostCommentComposer, { backgroundColor: viewerTheme.panel, borderTopColor: viewerTheme.frameBorder }]}>
-              {replyingTo && (
-                <View style={styles.replyingToBanner}>
-                  <Text style={styles.replyingToText}>Replying to <Text style={styles.replyingToName}>{replyingTo.userName}</Text></Text>
-                  <TouchableOpacity onPress={() => setReplyingTo(null)}>
-                    <IconSymbol name="xmark" size={14} color="#78716c" />
-                  </TouchableOpacity>
-                </View>
-              )}
-              <View style={styles.commentInputRow}>
-                <TextInput
-                  style={styles.commentInput}
-                  placeholder={replyingTo ? "Write a reply..." : "Share a wish..."}
-                  placeholderTextColor="#78716c"
-                  value={newComment}
-                  onChangeText={setNewComment}
-                />
-                <TouchableOpacity style={[styles.commentSendBtn, (!newComment.trim() || isCommenting) && styles.commentSendBtnDisabled]} onPress={handleAddComment} disabled={!newComment.trim() || isCommenting}>
-                  <IconSymbol name="paperplane.fill" size={18} color="#ffffff" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </KeyboardAvoidingView>
+            {showComments && renderGuestbookPanel(false)}
+          </>
         )}
 
         <Modal
@@ -938,6 +1297,61 @@ export default function PhotoViewer({
 }
 
 const localStyles = StyleSheet.create({
+  videoPlayerFrame: {
+    width: '100%',
+    height: '100%',
+    overflow: 'hidden',
+  },
+  dashboardVideoControlOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 12,
+    paddingTop: 38,
+    paddingBottom: 10,
+  },
+  dashboardVideoProgressTrack: {
+    height: 3,
+    width: '100%',
+    overflow: 'hidden',
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+  },
+  dashboardVideoProgressFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  dashboardVideoControlsRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  dashboardVideoControlButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  dashboardVideoPlayButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  dashboardVideoTime: {
+    marginTop: 4,
+    textAlign: 'center',
+    fontSize: 10,
+    fontFamily: Fonts.inter.bold,
+  },
+  hostViewerContainer: {
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
+  },
   hostTopControls: {
     position: 'absolute',
     top: 50,
@@ -960,6 +1374,29 @@ const localStyles = StyleSheet.create({
   },
   hostToolbarButtonDisabled: {
     opacity: 0.55,
+  },
+  hostViewerScroll: {
+    flex: 1,
+    width: '100%',
+  },
+  hostViewerScrollContent: {
+    alignItems: 'center',
+    paddingTop: 112,
+    paddingBottom: 28,
+  },
+  hostScrollableMedia: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
+  },
+  hostMediaClip: {
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
+  },
+  hostMediaImage: {
+    width: '100%',
+    height: '100%',
   },
   hostFullImageWithPeek: {
     height: '54%',
@@ -986,6 +1423,16 @@ const localStyles = StyleSheet.create({
   hostViewerActionsDocked: {
     bottom: 116,
   },
+  hostViewerActionsFlow: {
+    flexDirection: 'row',
+    gap: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 24,
+    marginBottom: 28,
+    zIndex: 20,
+    elevation: 20,
+  },
   hostViewerAction: {
     alignItems: 'center',
     gap: 6,
@@ -1002,6 +1449,12 @@ const localStyles = StyleSheet.create({
     right: 20,
     bottom: 12,
     height: 290,
+  },
+  hostGuestbookPanelFlow: {
+    alignSelf: 'stretch',
+    marginHorizontal: 20,
+    height: 330,
+    overflow: 'hidden',
   },
   hostGuestbookHeader: {
     paddingHorizontal: 20,
@@ -1046,6 +1499,19 @@ const localStyles = StyleSheet.create({
     position: 'absolute',
     left: 20,
     right: 20,
+    height: 82,
+    borderWidth: 1,
+    paddingHorizontal: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+    zIndex: 18,
+    elevation: 18,
+  },
+  hostGuestbookPeekFlow: {
+    alignSelf: 'stretch',
+    marginHorizontal: 20,
     height: 82,
     borderWidth: 1,
     paddingHorizontal: 22,

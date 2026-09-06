@@ -22,9 +22,6 @@ interface EventNavbarProps {
     onDownloadZip?: () => void;
     isZipping?: boolean;
     zipProgress?: number;
-    showFavouriteGallery?: boolean;
-    favouriteGalleryActive?: boolean;
-    onSelectFavouriteGallery?: () => void;
     chromeBackgroundColor?: string;
     chromeTextColor?: string;
     chromeAccentColor?: string;
@@ -37,7 +34,6 @@ type EventNavLink = {
     gallery: Event | null;
     isGallery: boolean;
     isFindYou?: boolean;
-    isFavourite?: boolean;
     isEventPartners?: boolean;
 };
 
@@ -54,9 +50,6 @@ export function EventNavbar({
     onDownloadZip,
     isZipping,
     zipProgress,
-    showFavouriteGallery,
-    favouriteGalleryActive,
-    onSelectFavouriteGallery,
     chromeBackgroundColor,
     chromeTextColor,
     chromeAccentColor,
@@ -112,13 +105,6 @@ export function EventNavbar({
 
     const primaryDesktopLinks: EventNavLink[] = [
         { name: "Home", href: `${basePath}${sharedQuery}`, gallery: null, isGallery: true },
-        ...(showFavouriteGallery ? [{
-            name: "Favourite",
-            href: `${basePath}${sharedQuery}#favourite`,
-            gallery: null,
-            isGallery: true,
-            isFavourite: true
-        }] : []),
     ];
 
     const collectionLinks: EventNavLink[] = subEvents.map(sub => ({
@@ -157,9 +143,7 @@ export function EventNavbar({
     const isCollectionsActive = collectionLinks.some((link) => isGalleryActive(link.gallery));
 
     const renderDesktopNavItem = (link: EventNavLink) => {
-        const isActive = link.isFavourite
-            ? !!favouriteGalleryActive
-            : link.isGallery && onSelectGallery
+        const isActive = link.isGallery && onSelectGallery
                 ? isGalleryActive(link.gallery)
                 : isLinkActive(link.href, link.isFindYou);
         const className = cn(
@@ -174,20 +158,6 @@ export function EventNavbar({
             backgroundColor: isActive ? navAccentColor : "transparent",
             color: isActive ? activeTextColor : navTextColor,
         } : undefined;
-
-        if (link.isFavourite && onSelectFavouriteGallery) {
-            return (
-                <button
-                    key={link.name}
-                    type="button"
-                    onClick={onSelectFavouriteGallery}
-                    className={className}
-                    style={style}
-                >
-                    {link.name}
-                </button>
-            );
-        }
 
         if (link.isFindYou && onFindYou) {
             return (
@@ -369,8 +339,16 @@ export function EventNavbar({
                                 onClick={onDownloadZip}
                                 disabled={isZipping}
                                 className={cn(
-                                    "px-3.5 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 border border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400 hover:text-slate-950 disabled:opacity-50"
+                                    "px-3.5 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 border disabled:opacity-50",
+                                    hasTemplateChrome
+                                        ? "hover:opacity-85 hover:shadow-sm"
+                                        : "border-slate-300 bg-slate-100 text-slate-800 hover:bg-slate-900 hover:text-white"
                                 )}
+                                style={hasTemplateChrome ? {
+                                    borderColor: `${navAccentColor}80`,
+                                    backgroundColor: `${navAccentColor}18`,
+                                    color: navTextColor,
+                                } : undefined}
                             >
                                 {isZipping ? (
                                     <>
@@ -486,9 +464,7 @@ export function EventNavbar({
                                 </p>
                                 <div className="space-y-4">
                                     {navLinks.map((link) => {
-                                        const isActive = link.isFavourite
-                                            ? !!favouriteGalleryActive
-                                            : link.isGallery && onSelectGallery
+                                        const isActive = link.isGallery && onSelectGallery
                                                 ? isGalleryActive(link.gallery)
                                                 : isLinkActive(link.href, link.isFindYou);
                                         const className = cn(
@@ -503,23 +479,6 @@ export function EventNavbar({
                                             backgroundColor: isActive ? navAccentColor : "transparent",
                                             color: isActive ? activeTextColor : navTextColor,
                                         } : undefined;
-
-                                        if (link.isFavourite && onSelectFavouriteGallery) {
-                                            return (
-                                                <button
-                                                    key={link.name}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        onSelectFavouriteGallery();
-                                                        setMobileMenuOpen(false);
-                                                    }}
-                                                    className={className}
-                                                    style={style}
-                                                >
-                                                    {link.name}
-                                                </button>
-                                            );
-                                        }
 
                                         if (link.isFindYou && onFindYou) {
                                             return (

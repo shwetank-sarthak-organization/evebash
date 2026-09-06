@@ -355,12 +355,18 @@ export function PageFlipViewer({
       role="dialog"
       aria-modal="true"
       aria-label="Page flip media viewer"
-      className={cn("fixed inset-0 z-[9999] overflow-hidden text-white", config.backgroundClass, isImmersiveCoverFlow && "bg-black")}
+      className={cn("fixed inset-0 z-[9999] overflow-hidden text-white transition-colors duration-300", config.backgroundClass)}
       {...swipeHandlers}
     >
       <div className="absolute inset-0 cursor-pointer bg-black/10" onClick={onClose} />
 
       {showProgress && resolvedLayout !== "story" && !isImmersiveCoverFlow && <PageFlipProgress index={navigation.currentIndex} total={items.length} config={config} />}
+
+      {fullscreen && isCoverFlow && (
+        <div className={cn("fixed left-4 top-4 z-[116] rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.16em] backdrop-blur-md md:left-6 md:top-6", config.controlClass)}>
+          {navigation.currentIndex + 1} of {items.length}
+        </div>
+      )}
 
       <PageFlipControls
         config={config}

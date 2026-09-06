@@ -10,9 +10,9 @@ import { useAuth } from "@/context/AuthContext";
 const DEFAULT_PORTFOLIO_COVER_IMAGE = "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop";
 const PORTFOLIO_TYPES = ["Wedding", "Birthday", "Corporate", "Sports", "Other"];
 const PORTFOLIO_TEMPLATE_THEMES = [
-  { id: "royal", category: "Wedding", label: "Royal Emerald", desc: "Deep imperial emerald & palace gold", background: { dark: "#02231c" }, accent: "#cca43b" },
-  { id: "classic", category: "Wedding", label: "Classic White", desc: "Timeless and elegant design", background: { dark: "#FAF9F6" }, accent: "#cca43b" },
-  { id: "hero", category: "Wedding", label: "Midnight Hero", desc: "Big impact cinematic dark aesthetic", background: { dark: "#000000" }, accent: "#cca43b" },
+  { id: "royal", category: "Wedding", label: "Royal Emerald", desc: "Deep imperial emerald & palace gold", background: { dark: "#02231c" }, accent: "#ca9c69" },
+  { id: "classic", category: "Wedding", label: "Classic White", desc: "Vintage sage & warm silk ivory elegance", background: { dark: "#F7F2EB" }, accent: "#8B9A6E" },
+  { id: "hero", category: "Wedding", label: "Midnight Hero", desc: "Big impact cinematic dark aesthetic", background: { dark: "#000000" }, accent: "#ca9c69" },
   { id: "ethereal", category: "Wedding", label: "Ethereal Mist", desc: "Vintage fine-art album & steel blue", background: { dark: "#F8FAFC" }, accent: "#4A6984" },
   { id: "scrapbook", category: "Birthday", label: "Playful Scrapbook", desc: "Soft modern keepsake aesthetic", background: { dark: "#151c1b" }, accent: "#d9826b" },
   { id: "neon", category: "Birthday", label: "Neon Party", desc: "Premium neon birthday album", background: { dark: "#070611" }, accent: "#ff3df2" },

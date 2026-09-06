@@ -209,8 +209,6 @@ export default function FindYouPage({ params }: { params: Promise<{ slug: string
                     basePath={`/events/${navEvent.id}`}
                     activeGalleryId={navEvent.id}
                     activePage="find-you"
-                    showFavouriteGallery
-                    favouriteGalleryActive={false}
                     chromeBackgroundColor={templateChrome.background}
                     chromeTextColor={templateChrome.text}
                     chromeAccentColor={templateChrome.accent}

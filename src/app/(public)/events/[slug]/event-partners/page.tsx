@@ -137,8 +137,6 @@ function EventPartnersContent({ slug }: { slug: string }) {
                 basePath={`/events/${navEvent.id}`}
                 activeGalleryId={navEvent.id}
                 activePage="event-partners"
-                showFavouriteGallery
-                favouriteGalleryActive={false}
                 chromeBackgroundColor={templateChrome.background}
                 chromeTextColor={templateChrome.text}
                 chromeAccentColor={templateChrome.accent}

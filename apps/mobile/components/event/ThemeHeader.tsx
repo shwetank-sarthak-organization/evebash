@@ -265,13 +265,12 @@ export function ThemeHeader({
 
   const isPartnersActive = activeSubEvent?.id === 'event-partners';
   const isFindYouActive = activeSubEvent?.id === 'find-you';
-  const isFavouriteActive = activeSubEvent?.id === 'favourite';
 
   return (
     <View style={[
       styles.visitorHeaderContainer,
       isRoyal && { height: 70, marginTop: 12, marginBottom: 0 },
-      isClassic && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', backgroundColor: '#FAF9F6' },
+      isClassic && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)', backgroundColor: '#F7F2EB' },
       isHero && { height: 64, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', backgroundColor: '#000000' },
       isEthereal && { height: 60, marginTop: 16, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: selectedTemplate.accent + '26', backgroundColor: selectedTemplate.background },
       isAcademicEditorial && { height: 52, marginTop: 12, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: selectedTemplate.text + '1a', backgroundColor: selectedTemplate.background },
@@ -328,12 +327,9 @@ export function ThemeHeader({
         {/* Home Tab */}
         {renderTab(null, !activeSubEvent)}
 
-        {/* Favourite Tab */}
-        {renderTab({ id: 'favourite', title: 'Favourite' }, isFavouriteActive, 0)}
-
         {/* Sub-event Tabs */}
         {subEvents.map((sub, idx) =>
-          renderTab(sub, activeSubEvent?.id === sub.id, idx + 1)
+          renderTab(sub, activeSubEvent?.id === sub.id, idx)
         )}
 
         {/* Event Partners Tab */}

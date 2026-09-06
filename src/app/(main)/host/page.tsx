@@ -211,18 +211,18 @@ const TEMPLATE_THEMES = [
             "light": "#033026",
             "dark": "#02231c"
         },
-        "accent": "#cca43b"
+        "accent": "#ca9c69"
     },
     {
         "id": "classic",
         "category": "Wedding",
         "label": "Classic White",
-        "desc": "Timeless and elegant design",
+        "desc": "Vintage sage & warm silk ivory elegance",
         "background": {
-            "light": "#FAF9F6",
-            "dark": "#FAF9F6"
+            "light": "#F7F2EB",
+            "dark": "#F7F2EB"
         },
-        "accent": "#cca43b"
+        "accent": "#8B9A6E"
     },
     {
         "id": "hero",
@@ -233,7 +233,7 @@ const TEMPLATE_THEMES = [
             "light": "#000000",
             "dark": "#000000"
         },
-        "accent": "#cca43b"
+        "accent": "#ca9c69"
     },
     {
         "id": "ethereal",
@@ -1325,15 +1325,24 @@ function DashboardContent() {
         setLoadingPhotos(true);
         try {
             if (selectedEventId === selectedMainEventId) {
-                const groupEventIds = Array.from(new Set([selectedMainEventId, ...eventDetailGalleries.map(g => g.id)].filter(Boolean)));
+                const groupEventIds = Array.from(new Set([
+                    selectedMainEventId,
+                    selectedMainEventLegacyId,
+                    currentEvent?.legacyId,
+                    ...eventDetailGalleries.flatMap(g => [g.id, g.legacyId]),
+                ].filter(Boolean) as string[]));
                 if (groupEventIds.length > 0) {
                     const favPhotos = await getFavouritePhotosForEvents(groupEventIds);
                     if (favPhotos.length > 0) {
+                        const favouriteIds = favPhotos.map(p => p.id).filter(Boolean);
                         setCurrentEventPhotos(favPhotos as Photo[]);
                         const photoCount = favPhotos.filter(p => p.mediaType !== "video" && p.resourceType !== "video").length;
                         const videoCount = favPhotos.filter(p => p.mediaType === "video" || p.resourceType === "video").length;
                         setCurrentEventMediaCounts({ photos: photoCount, videos: videoCount });
-                        setCurrentEventRetainedMediaIds(new Set(favPhotos.map(p => p.id)));
+                        setCurrentEventRetainedMediaIds(new Set(favouriteIds));
+                        setEventFavouritePhotoIds(new Set(favouriteIds));
+                        setEventFavouriteCount(favouriteIds.length);
+                        setEventFavouritePreview((favPhotos[0] || null) as Photo | null);
                         setPhotoPage(0);
                         setHasMorePhotos(false);
                         return;
@@ -3088,13 +3097,13 @@ function DashboardContent() {
                 return next;
             });
             setStatus("success");
-            setMessage(result.favourited ? "Added to Favourite gallery." : "Removed from Favourite gallery.");
+            setMessage(result.favourited ? "Added to Primary Gallery." : "Removed from Primary Gallery.");
             await refreshEventFavourites(selectedMainEventId);
             setTimeout(() => { setStatus("idle"); setMessage(""); }, 2000);
         } catch (error) {
             console.warn("Error updating favourite photo:", error);
             setStatus("error");
-            setMessage("Failed to update Favourite gallery.");
+            setMessage("Failed to update Primary Gallery.");
         }
     };
 
@@ -5002,9 +5011,8 @@ function DashboardContent() {
                                                             </Tooltip>
                                                         </div>
                                                         )}
-                                                        {!isVideo && (
-                                                            <div className="absolute top-3 right-14 z-10">
-                                                                <Tooltip text={isFavourite ? "Remove from Favourite" : "Add to Favourite"}>
+                                                        <div className="absolute top-3 right-14 z-10">
+                                                            <Tooltip text={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}>
                                                                     <button
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
@@ -5019,9 +5027,8 @@ function DashboardContent() {
                                                                     >
                                                                         <Star className={cn("w-4 h-4", isFavourite && "fill-current")} />
                                                                     </button>
-                                                                </Tooltip>
-                                                            </div>
-                                                        )}
+                                                            </Tooltip>
+                                                        </div>
                                                         <div className="absolute top-3 right-3 z-10">
                                                             <Tooltip text={isVideo ? "Delete Video" : "Delete Image"}>
                                                                 <button
@@ -5294,8 +5301,7 @@ function DashboardContent() {
                                                                                     </button>
                                                                                 </Tooltip>
                                                                                 )}
-                                                                                {!isVideo && (
-                                                                                    <Tooltip text={isFavourite ? "Remove from Favourite" : "Add to Favourite"}>
+                                                                                <Tooltip text={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}>
                                                                                         <button
                                                                                             onClick={() => handleToggleEventFavourite(photo.id)}
                                                                                             className={cn(
@@ -5307,9 +5313,8 @@ function DashboardContent() {
                                                                                         >
                                                                                             <Star className={cn("w-4 h-4", isFavourite && "fill-current")} />
                                                                                         </button>
-                                                                                    </Tooltip>
-                                                                                )}
-                                                                                <Tooltip text="Delete Image">
+                                                                                </Tooltip>
+                                                                                <Tooltip text={isVideo ? "Delete Video" : "Delete Image"}>
                                                                                     <button
                                                                                         onClick={() => handleDeletePhoto(photo.id)}
                                                                                         className="p-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-400 transition-all active:scale-95 hover:bg-red-50 hover:text-red-500"

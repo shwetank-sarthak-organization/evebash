@@ -1215,32 +1215,6 @@ export default function EventDetailScreen() {
     }
   };
 
-  const getFavouriteEventIds = () => {
-    return getPrimaryFavouriteEventIds();
-  };
-
-  const loadFavouritePhotos = async () => {
-    setLoadingPhotos(true);
-    try {
-      const favouritePhotos = await getFavouritePhotosForEvents(getFavouriteEventIds());
-      const favouritePhotoCount = favouritePhotos.filter(isPhotoMedia).length;
-      const favouriteVideoCount = favouritePhotos.filter(isVideoMedia).length;
-      setPhotos(favouritePhotos);
-      setMediaTotals({ photos: favouritePhotoCount, videos: favouriteVideoCount });
-      setEventFavouritePhotoIds(new Set(favouritePhotos.map((photo: any) => photo.id)));
-      setPhotoPage(0);
-      setHasMorePhotos(false);
-    } catch (err) {
-      console.error('[EventDetail] Favourite photos load error:', err);
-      setPhotos([]);
-      setMediaTotals({ photos: 0, videos: 0 });
-      setHasMorePhotos(false);
-      setEventFavouritePhotoIds(new Set());
-    } finally {
-      setLoadingPhotos(false);
-    }
-  };
-
   const loadPrimaryGalleryPhotos = useCallback(async () => {
     if (!event) return;
     setLoadingPhotos(true);
@@ -1309,14 +1283,6 @@ export default function EventDetailScreen() {
 
   const handleSubEventChange = (sub: DatabaseEvent | null) => {
     setGalleryMediaTab('photos');
-    if (sub?.id === 'favourite') {
-      setActiveSubEvent({
-        ...sub,
-        description: `Your favourite photos from ${event?.title || 'this event'}.`,
-      } as any);
-      loadFavouritePhotos();
-      return;
-    }
     setActiveSubEvent(sub);
     if (sub?.id === 'event-partners' || sub?.id === 'find-you') {
       return;
@@ -1455,8 +1421,6 @@ export default function EventDetailScreen() {
   };
 
   const moveGalleryMedia = async (mediaId: string, direction: -1 | 1) => {
-    if (selectedAdminGallery === undefined && activeSubEvent?.id === 'favourite') return;
-
     const visibleItems = galleryMediaTab === 'videos' ? videoItems : photoItems;
     const currentIndex = visibleItems.findIndex(item => item.id === mediaId);
     const targetIndex = currentIndex + direction;
@@ -1481,7 +1445,7 @@ export default function EventDetailScreen() {
   };
 
   const getEditableGalleryForActions = () => {
-    if (!event || (selectedAdminGallery === undefined && activeSubEvent?.id === 'favourite')) return null;
+    if (!event) return null;
     return selectedAdminGallery === undefined
       ? (activeSubEvent || event)
       : (selectedAdminGallery || event);
@@ -1527,7 +1491,7 @@ export default function EventDetailScreen() {
       return next;
     });
 
-    if ((activeSubEvent?.id === 'favourite' || selectedAdminGallery === null) && !result.favourited) {
+    if (selectedAdminGallery === null && !result.favourited) {
       setPhotos(prev => prev.filter(photo => photo.id !== photoId));
     }
   };
@@ -4817,10 +4781,11 @@ export default function EventDetailScreen() {
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                           {videoItems.map((video, idx) => {
                             const shouldBlurVideo = shouldBlurMediaForPlan(video);
+                            const isFavouriteVideo = eventFavouritePhotoIds.has(video.id);
                             const canMoveVideoUp = idx > 0;
                             const canMoveVideoDown = idx < videoItems.length - 1;
                             return (
-                            <View key={video.id} style={{ position: 'relative', width: '31.5%', aspectRatio: 1 }}>
+                              <View key={video.id} style={{ position: 'relative', width: '31.5%', aspectRatio: 1 }}>
                               <GalleryVideoCard
                                 video={video}
                                 accent={MidnightColors.gold}
@@ -4828,6 +4793,32 @@ export default function EventDetailScreen() {
                                 blurred={shouldBlurVideo}
                                 onOpen={() => openViewer(idx)}
                               />
+                              <TouchableOpacity
+                                style={{
+                                  position: 'absolute',
+                                  top: 4,
+                                  right: 30,
+                                  width: 22,
+                                  height: 22,
+                                  borderRadius: 11,
+                                  backgroundColor: isFavouriteVideo ? MidnightColors.gold : 'rgba(27, 33, 31,0.85)',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderWidth: 1,
+                                  borderColor: isFavouriteVideo ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)',
+                                }}
+                                onPress={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleEventFavourite(video.id);
+                                }}
+                                activeOpacity={0.75}
+                              >
+                                <IconSymbol
+                                  name={isFavouriteVideo ? 'star.fill' : 'star'}
+                                  size={11}
+                                  color={isFavouriteVideo ? '#13191F' : '#fff'}
+                                />
+                              </TouchableOpacity>
                               <TouchableOpacity
                                 style={{
                                   position: 'absolute',
@@ -4892,7 +4883,7 @@ export default function EventDetailScreen() {
                                   </TouchableOpacity>
                                 </View>
                               )}
-                            </View>
+                              </View>
                           );
                           })}
                         </View>
@@ -6874,7 +6865,7 @@ export default function EventDetailScreen() {
                 }}
                 numberOfLines={2}
               >
-                {photoActionItemIsFavourite ? 'Remove from Favourite' : 'Add to Favourite'}
+                {photoActionItemIsFavourite ? 'Remove from Primary Gallery' : 'Add to Primary Gallery'}
               </Text>
             </TouchableOpacity>
 

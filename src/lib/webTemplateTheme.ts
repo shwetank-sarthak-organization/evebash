@@ -1,9 +1,9 @@
 import type { LightboxTheme } from "@/components/ui/Lightbox";
 
 export const WEB_LIGHTBOX_THEMES: Record<string, LightboxTheme> = {
-    royal: { background: "#02231c", panel: "rgba(2,35,28,0.82)", tile: "#021a15", text: "#fcfbf7", muted: "#a3b899", accent: "#cca43b", accentBg: "rgba(204,164,59,0.18)", border: "rgba(204,164,59,0.28)", radius: 18, useSerif: true },
-    classic: { background: "#FAF9F6", panel: "#ffffff", tile: "#ffffff", text: "#1e293b", muted: "#64748b", accent: "#cca43b", accentBg: "rgba(204,164,59,0.08)", border: "rgba(30,41,59,0.12)", radius: 0, useSerif: true },
-    hero: { background: "#000000", panel: "rgba(255,255,255,0.04)", tile: "#09090b", text: "#ffffff", muted: "#94a3b8", accent: "#cca43b", accentBg: "rgba(204,164,59,0.12)", border: "rgba(204,164,59,0.22)", radius: 12, useSerif: true },
+    royal: { background: "#02231c", panel: "rgba(2,35,28,0.82)", tile: "#021a15", text: "#fcfbf7", muted: "#a3b899", accent: "#ca9c69", accentBg: "rgba(202,156,105,0.18)", border: "rgba(202,156,105,0.28)", radius: 18, useSerif: true },
+    classic: { background: "#F7F2EB", panel: "#ffffff", tile: "#ffffff", text: "#2C352E", muted: "#6E7B6C", accent: "#8B9A6E", accentBg: "rgba(139,154,110,0.12)", border: "#EAE2D6", radius: 0, useSerif: true },
+    hero: { background: "#000000", panel: "rgba(255,255,255,0.04)", tile: "#09090b", text: "#ffffff", muted: "#94a3b8", accent: "#ca9c69", accentBg: "rgba(202,156,105,0.12)", border: "rgba(202,156,105,0.22)", radius: 12, useSerif: true },
     ethereal: { background: "#F8FAFC", panel: "#EEF2F6", tile: "#ffffff", text: "#1E293B", muted: "#64748B", accent: "#4A6984", accentBg: "#E2E8F0", border: "rgba(74,105,132,0.18)", radius: 2, useSerif: true },
     scrapbook: { background: "#151c1b", panel: "rgba(246,241,232,0.08)", tile: "#1d2826", text: "#f8f5f0", muted: "#aab8b1", accent: "#d9826b", accentBg: "rgba(217,130,107,0.18)", border: "rgba(217,130,107,0.28)", radius: 18 },
     neon: { background: "#070611", panel: "rgba(18,16,35,0.72)", tile: "rgba(17,16,32,0.82)", text: "#f8f7ff", muted: "#b9b1d9", accent: "#ff3df2", accentBg: "rgba(102,232,255,0.2)", border: "rgba(255,61,242,0.32)", radius: 20 },

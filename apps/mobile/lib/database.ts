@@ -1154,14 +1154,14 @@ export async function toggleEventFavouritePhoto(eventId: string, photoId: string
         if (isEventFavouriteTableUnavailable(error)) {
             return {
                 favourited: false,
-                error: 'Favourite gallery is not ready yet. Apply the Supabase migration for event_favourite_photos.'
+                error: 'Primary Gallery selection is not ready yet. Apply the Supabase migration for event_favourite_photos.'
             };
         }
 
         if (isEventFavouritePolicyBlocked(error)) {
             return {
                 favourited: false,
-                error: 'Favourite gallery table exists, but Supabase RLS policies are not allowing access yet.'
+                error: 'Primary Gallery selection exists, but Supabase RLS policies are not allowing access yet.'
             };
         }
 
@@ -1172,7 +1172,7 @@ export async function toggleEventFavouritePhoto(eventId: string, photoId: string
             : '';
         return {
             favourited: false,
-            error: message || 'Failed to update Favourite gallery.'
+            error: message || 'Failed to update Primary Gallery.'
         };
     }
 }

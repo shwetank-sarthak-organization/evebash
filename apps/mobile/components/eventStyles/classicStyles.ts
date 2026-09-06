@@ -49,7 +49,7 @@ export const classicStyles = {
     borderRadius: 2,
     overflow: 'hidden',
     borderWidth: 1.5, // Thicker, luxurious outer frame
-    borderColor: '#cca43b', // Elegantly gilded warm gold frame holding the white-matted photo!
+    borderColor: '#8B9A6E', // Elegant vintage sage green frame holding the white-matted photo!
     backgroundColor: '#ffffff', // Crisp white internal gallery matte frame
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },

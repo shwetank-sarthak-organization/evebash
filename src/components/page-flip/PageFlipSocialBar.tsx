@@ -231,7 +231,7 @@ export function PageFlipSocialBar({
       <div className={cn(
         "fixed inset-x-3 bottom-5 z-[116] flex justify-center transition-all duration-300 md:bottom-8",
         !visible && "pointer-events-none translate-y-8 opacity-0",
-        useSidePanelComments && commentDrawerVisible && "md:pointer-events-none md:translate-y-8 md:opacity-0",
+        useSidePanelComments && "md:pointer-events-none md:translate-y-8 md:opacity-0",
         immersive && "bottom-6 md:bottom-7"
       )}>
         <div className={cn("flex max-w-[min(94vw,980px)] flex-wrap items-center justify-center gap-2 rounded-2xl border px-3 py-3 shadow-2xl backdrop-blur-2xl", config.pageClass)}>
@@ -302,6 +302,12 @@ export function PageFlipSocialBar({
 
             {useSidePanelComments && (
               <div className="hidden flex-wrap gap-2 border-b border-current/10 px-5 py-3 md:flex">
+                {showLikes && (
+                  <button type="button" onClick={handleToggleLike} disabled={likePending} className={cn(panelActionClass, "w-auto gap-2 px-3", isLiked && "text-rose-300")} aria-pressed={isLiked} aria-label={isLiked ? "Unlike media" : "Like media"} title={isLiked ? "Unlike" : "Like"}>
+                    {likePending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Heart className={cn("h-4 w-4", isLiked && "fill-current")} />}
+                    <span className="text-xs font-black">{likes.length}</span>
+                  </button>
+                )}
                 {showFullscreen && (
                   <button type="button" onClick={onFullscreen} className={panelActionClass} aria-label="Open fullscreen" title="Fullscreen">
                     <Maximize2 className="h-4 w-4" />
