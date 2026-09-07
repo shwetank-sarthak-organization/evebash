@@ -39,6 +39,7 @@ interface HLSVideoPlayerProps {
   onError?: () => void;
   onPreviousMedia?: () => void;
   onNextMedia?: () => void;
+  onToggleFullscreen?: () => void | Promise<void>;
 }
 
 /** True if the URL is an HLS manifest */
@@ -104,6 +105,7 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
     onError,
     onPreviousMedia,
     onNextMedia,
+    onToggleFullscreen,
   },
   ref
 ) => {
@@ -314,6 +316,11 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
 
   const handleToggleFullscreen = async () => {
     try {
+      if (onToggleFullscreen) {
+        await onToggleFullscreen();
+        return;
+      }
+
       if (document.fullscreenElement) {
         await document.exitFullscreen();
         return;

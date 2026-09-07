@@ -102,6 +102,8 @@ const MAPPING = {
   'fork.knife': 'restaurant',
   'tshirt.fill': 'checkroom',
   'pause.fill': 'pause',
+  'backward.end.fill': 'skip-previous',
+  'forward.end.fill': 'skip-next',
   'backward.fill': 'fast-rewind',
   'forward.fill': 'fast-forward',
 } as const;

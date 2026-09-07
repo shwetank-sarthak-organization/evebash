@@ -347,17 +347,9 @@ function ViewerVideo({
                 onPress={onPreviousMedia}
                 accessibilityLabel="Previous media"
               >
-                <IconSymbol name="chevron.left" size={24} color={controlText} />
+                <IconSymbol name="backward.end.fill" size={22} color={controlText} />
               </TouchableOpacity>
             )}
-
-            <TouchableOpacity
-              style={localStyles.dashboardVideoControlButton}
-              onPress={() => seekBySeconds(-5)}
-              accessibilityLabel="Rewind video 5 seconds"
-            >
-              <IconSymbol name="backward.fill" size={22} color={controlText} />
-            </TouchableOpacity>
 
             <TouchableOpacity
               style={[localStyles.dashboardVideoControlButton, localStyles.dashboardVideoPlayButton, { backgroundColor: accent }]}
@@ -367,21 +359,13 @@ function ViewerVideo({
               <IconSymbol name={isPlaying ? 'pause.fill' : 'play.fill'} size={24} color="#111111" />
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={localStyles.dashboardVideoControlButton}
-              onPress={() => seekBySeconds(5)}
-              accessibilityLabel="Forward video 5 seconds"
-            >
-              <IconSymbol name="forward.fill" size={22} color={controlText} />
-            </TouchableOpacity>
-
             {onNextMedia && (
               <TouchableOpacity
                 style={localStyles.dashboardVideoControlButton}
                 onPress={onNextMedia}
                 accessibilityLabel="Next media"
               >
-                <IconSymbol name="chevron.right" size={24} color={controlText} />
+                <IconSymbol name="forward.end.fill" size={22} color={controlText} />
               </TouchableOpacity>
             )}
           </View>

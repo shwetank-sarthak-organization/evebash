@@ -120,6 +120,7 @@ export function PageFlipViewer({
   }), [resolvedLayout, showThumbnails, themeConfig, transitionMode]);
   const reducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const activeVideoRef = useRef<HTMLVideoElement | null>(null);
   const lastFocusedRef = useRef<HTMLElement | null>(null);
   const lastWheelRef = useRef(0);
   const socialRevealTimerRef = useRef<number | null>(null);
@@ -128,14 +129,20 @@ export function PageFlipViewer({
   const [showImmersiveSocial, setShowImmersiveSocial] = useState(false);
   const [slideshow, setSlideshow] = useState(false);
   const [thumbnailDrawerOpen, setThumbnailDrawerOpen] = useState(false);
-  const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
+  const [commentsPanelOpen, setCommentsPanelOpen] = useState(() => (
+    commentsMode === "side-panel" &&
+    typeof window !== "undefined" &&
+    window.matchMedia("(min-width: 768px)").matches
+  ));
   const supports3dTransforms = typeof CSS === "undefined" ? true : CSS.supports?.("transform-style", "preserve-3d") !== false;
   const prefersFade = reducedMotion || !supports3dTransforms;
   const effectiveMode: GalleryTransitionMode = prefersFade && config.transition === "page-flip" ? "fade" : config.transition;
   const isCoverFlow = resolvedLayout === "cover-flow";
   const isImmersiveCoverFlow = isCoverFlow;
+  const coverFlowFullscreen = fullscreen && isCoverFlow;
   const navigation = usePageFlipNavigation({ initialIndex, itemCount: items.length, loop, onIndexChange });
   const currentItem = items[navigation.currentIndex];
+  const isCurrentVideo = currentItem?.type === "video";
   const visibleIndexes = useMemo(() => getVisiblePageFlipIndexes(navigation.currentIndex, items.length, isCoverFlow && !isImmersiveCoverFlow ? 2 : 1), [items.length, navigation.currentIndex, isCoverFlow, isImmersiveCoverFlow]);
   const transition = getTransitionVariants(effectiveMode, navigation.direction, Boolean(reducedMotion));
   const LayoutComponent = VIEWER_LAYOUT_COMPONENTS[resolvedLayout] || VIEWER_LAYOUT_COMPONENTS["bottom-filmstrip"];
@@ -164,6 +171,33 @@ export function PageFlipViewer({
     setZoomed(false);
     navigation.goTo(index);
   }, [navigation, pauseVideos]);
+  const setActiveVideoElement = useCallback((node: HTMLVideoElement | null) => {
+    activeVideoRef.current = node;
+  }, []);
+  const seekActiveVideoBySeconds = useCallback((offsetSeconds: number) => {
+    const video = activeVideoRef.current;
+    if (!video) return;
+
+    const duration = Number.isFinite(video.duration) ? video.duration : 0;
+    const maxTime = duration > 0 ? duration : Number.MAX_SAFE_INTEGER;
+    video.currentTime = Math.min(maxTime, Math.max(0, video.currentTime + offsetSeconds));
+  }, []);
+  const handlePreviousKeyboardControl = useCallback(() => {
+    if (isCurrentVideo) {
+      seekActiveVideoBySeconds(-5);
+      return;
+    }
+
+    goPrev();
+  }, [goPrev, isCurrentVideo, seekActiveVideoBySeconds]);
+  const handleNextKeyboardControl = useCallback(() => {
+    if (isCurrentVideo) {
+      seekActiveVideoBySeconds(5);
+      return;
+    }
+
+    goNext();
+  }, [goNext, isCurrentVideo, seekActiveVideoBySeconds]);
   const swipeHandlers = useSwipeNavigation(goPrev, goNext, 48, resolvedLayout === "cover-flow");
 
   useEffect(() => {
@@ -189,8 +223,14 @@ export function PageFlipViewer({
         if (thumbnailDrawerOpen) setThumbnailDrawerOpen(false);
         else onClose?.();
       }
-      if (!isTyping && event.key === "ArrowRight") goNext();
-      if (!isTyping && event.key === "ArrowLeft") goPrev();
+      if (!isTyping && event.key === "ArrowRight") {
+        event.preventDefault();
+        handleNextKeyboardControl();
+      }
+      if (!isTyping && event.key === "ArrowLeft") {
+        event.preventDefault();
+        handlePreviousKeyboardControl();
+      }
       if (!isTyping && event.key === "Home") goTo(0);
       if (!isTyping && event.key === "End") goTo(items.length - 1);
       if (event.key !== "Tab" || !containerRef.current) return;
@@ -219,7 +259,7 @@ export function PageFlipViewer({
       document.body.removeAttribute("data-lightbox-open");
       lastFocusedRef.current?.focus();
     };
-    }, [goNext, goPrev, goTo, items.length, onClose, thumbnailDrawerOpen]);
+    }, [goTo, handleNextKeyboardControl, handlePreviousKeyboardControl, items.length, onClose, thumbnailDrawerOpen]);
 
   useEffect(() => {
     if (!slideshow || navigation.isTurning) return;
@@ -294,10 +334,11 @@ export function PageFlipViewer({
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
       setCommentsPanelOpen(false);
+      setThumbnailDrawerOpen(false);
+      setShowImmersiveSocial(false);
       setZoomed(false);
       await containerRef.current.requestFullscreen?.();
       setFullscreen(true);
-      if (isCoverFlow) setShowImmersiveSocial(false);
     } else {
       await document.exitFullscreen?.();
       setFullscreen(false);
@@ -340,6 +381,11 @@ export function PageFlipViewer({
           isTurning={navigation.isTurning && effectiveMode === "page-flip"}
           direction={navigation.direction}
           zoomed={zoomed}
+          onPreviousMedia={navigation.canPrev ? goPrev : undefined}
+          onNextMedia={navigation.canNext ? goNext : undefined}
+          onToggleFullscreen={toggleFullscreen}
+          onVideoElementChange={setActiveVideoElement}
+          videoControls={!coverFlowFullscreen}
         />
       </motion.div>
     </AnimatePresence>
@@ -368,28 +414,30 @@ export function PageFlipViewer({
         </div>
       )}
 
-      <PageFlipControls
-        config={config}
-        canPrev={navigation.canPrev}
-        canNext={navigation.canNext}
-        zoomed={zoomed}
-        fullscreen={fullscreen}
-        slideshow={slideshow}
-        showArrows={showArrows}
-        showDownload={showDownload && !isCoverFlow}
-        showFullscreen={showFullscreen && (!isCoverFlow || fullscreen)}
-        showGridButton={shouldShowGridButton && items.length > 1}
-        commentsMode={commentsMode}
-        commentsPanelOpen={commentsPanelOpen && !fullscreen}
-        onPrev={goPrev}
-        onNext={goNext}
-        onClose={() => onClose?.()}
-        onDownload={() => downloadItem(currentItem)}
-        onOpenGrid={() => setThumbnailDrawerOpen(true)}
-        onToggleZoom={() => setZoomed((value) => !value)}
-        onToggleFullscreen={toggleFullscreen}
-        onToggleSlideshow={() => setSlideshow((value) => !value)}
-      />
+      {!coverFlowFullscreen && (
+        <PageFlipControls
+          config={config}
+          canPrev={navigation.canPrev}
+          canNext={navigation.canNext}
+          zoomed={zoomed}
+          fullscreen={fullscreen}
+          slideshow={slideshow}
+          showArrows={showArrows}
+          showDownload={showDownload && !isCoverFlow}
+          showFullscreen={showFullscreen && (!isCoverFlow || fullscreen)}
+          showGridButton={shouldShowGridButton && items.length > 1}
+          commentsMode={commentsMode}
+          commentsPanelOpen={commentsPanelOpen && !fullscreen}
+          onPrev={goPrev}
+          onNext={goNext}
+          onClose={() => onClose?.()}
+          onDownload={() => downloadItem(currentItem)}
+          onOpenGrid={() => setThumbnailDrawerOpen(true)}
+          onToggleZoom={() => setZoomed((value) => !value)}
+          onToggleFullscreen={toggleFullscreen}
+          onToggleSlideshow={() => setSlideshow((value) => !value)}
+        />
+      )}
 
       <LayoutComponent
         items={items}
@@ -412,7 +460,7 @@ export function PageFlipViewer({
         commentsPanelOpen={commentsPanelOpen && !fullscreen}
       />
 
-      {isCoverFlow && (
+      {isCoverFlow && !coverFlowFullscreen && (
         <PageFlipSocialBar
           item={currentItem}
           config={config}

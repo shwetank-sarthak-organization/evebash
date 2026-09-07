@@ -97,14 +97,18 @@ export function PageFlipSocialBar({
   }, [user]);
   const [likes, setLikes] = useState<PhotoInteraction[]>([]);
   const [comments, setComments] = useState<PhotoInteraction[]>([]);
-  const [commentDrawerOpen, setCommentDrawerOpen] = useState(false);
+  const [commentDrawerOpen, setCommentDrawerOpen] = useState(() => (
+    commentsMode === "side-panel" &&
+    typeof window !== "undefined" &&
+    window.matchMedia("(min-width: 768px)").matches
+  ));
   const [commentText, setCommentText] = useState("");
   const [likePending, setLikePending] = useState(false);
   const [commentPending, setCommentPending] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [expandedProfileImage, setExpandedProfileImage] = useState<{ src: string; name: string } | null>(null);
   const commentInputRef = useRef<HTMLTextAreaElement | null>(null);
-  const initializedSidePanelRef = useRef(false);
+  const initializedSidePanelRef = useRef(commentDrawerOpen);
   const isLiked = likes.some((like) => like.userId === identity.id);
   const useSidePanelComments = commentsMode === "side-panel";
   const commentDrawerVisible = commentDrawerOpen && !(useSidePanelComments && commentsPanelSuppressed);

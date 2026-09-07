@@ -287,7 +287,7 @@ export function Lightbox({
         video.currentTime = nextTime;
     }, []);
 
-    const handlePreviousControl = useCallback(() => {
+    const handlePreviousKeyboardControl = useCallback(() => {
         if (isVideo) {
             seekVideoBySeconds(-5);
             return;
@@ -296,7 +296,7 @@ export function Lightbox({
         onPrev?.();
     }, [isVideo, onPrev, seekVideoBySeconds]);
 
-    const handleNextControl = useCallback(() => {
+    const handleNextKeyboardControl = useCallback(() => {
         if (isVideo) {
             seekVideoBySeconds(5);
             return;
@@ -316,11 +316,11 @@ export function Lightbox({
 
             if (e.key === "ArrowRight") {
                 e.preventDefault();
-                handleNextControl();
+                handleNextKeyboardControl();
             }
             if (e.key === "ArrowLeft") {
                 e.preventDefault();
-                handlePreviousControl();
+                handlePreviousKeyboardControl();
             }
         };
 
@@ -339,7 +339,7 @@ export function Lightbox({
             document.body.removeAttribute("data-lightbox-open");
             document.body.removeAttribute("data-lightbox-keep-page-header");
         };
-    }, [isOpen, onClose, handleNextControl, handlePreviousControl, keepPageHeaderVisible]);
+    }, [isOpen, onClose, handleNextKeyboardControl, handlePreviousKeyboardControl, keepPageHeaderVisible]);
 
     if (!photo) return null;
 
@@ -452,14 +452,14 @@ export function Lightbox({
                             {/* Navigation Buttons */}
                             {onPrev && (
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); handlePreviousControl(); }}
+                                    onClick={(e) => { e.stopPropagation(); onPrev(); }}
                                     className={cn(
                                         "fixed left-2 md:left-6 -translate-y-1/2 p-2 md:p-4 rounded-full transition-all z-[70] pointer-events-auto backdrop-blur-sm md:backdrop-blur-none border",
                                         keepPageHeaderVisible ? "top-[calc(50%+2.5rem)]" : "top-1/2"
                                     )}
                                     style={{ color: viewerTheme.muted, backgroundColor: viewerTheme.accentBg, borderColor: viewerTheme.border }}
-                                    title={isVideo ? "Rewind 5 seconds" : "Previous media"}
-                                    aria-label={isVideo ? "Rewind 5 seconds" : "Previous media"}
+                                    title="Previous media"
+                                    aria-label="Previous media"
                                 >
                                     <ChevronLeft size={32} className="md:w-11 md:h-11" />
                                 </button>
@@ -467,14 +467,14 @@ export function Lightbox({
 
                             {onNext && (
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); handleNextControl(); }}
+                                    onClick={(e) => { e.stopPropagation(); onNext(); }}
                                     className={cn(
                                         "fixed right-2 md:right-6 -translate-y-1/2 p-2 md:p-4 rounded-full transition-all z-[70] pointer-events-auto backdrop-blur-sm md:backdrop-blur-none border",
                                         keepPageHeaderVisible ? "top-[calc(50%+2.5rem)]" : "top-1/2"
                                     )}
                                     style={{ color: viewerTheme.muted, backgroundColor: viewerTheme.accentBg, borderColor: viewerTheme.border }}
-                                    title={isVideo ? "Forward 5 seconds" : "Next media"}
-                                    aria-label={isVideo ? "Forward 5 seconds" : "Next media"}
+                                    title="Next media"
+                                    aria-label="Next media"
                                 >
                                     <ChevronRight size={32} className="md:w-11 md:h-11" />
                                 </button>
@@ -502,7 +502,6 @@ export function Lightbox({
                                         style={{ borderRadius: viewerTheme.radius }}
                                         controls
                                         playsInline
-                                        autoPlay
                                         onPreviousMedia={onPrev}
                                         onNextMedia={onNext}
                                     />

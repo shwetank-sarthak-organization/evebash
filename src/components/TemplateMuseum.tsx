@@ -46,11 +46,6 @@ export function TemplateMuseum({ event, children }: TemplateMuseumProps) {
             {children && (
                 <main className="px-4 md:px-12 pb-32">
                     <div className="max-w-[90rem] mx-auto">
-                        {/* Gallery Label */}
-                        <div className="sticky top-24 z-10 py-4 bg-[#fcfcfc]/90 backdrop-blur mb-8 border-b border-dashed border-slate-200">
-                            <span className="text-[10px] font-mono uppercase text-slate-600">Viewing Floor</span>
-                        </div>
-
                         <div className="museum-grid">
                             {children}
                         </div>

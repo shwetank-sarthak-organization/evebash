@@ -294,12 +294,12 @@ const TEMPLATE_THEMES = [
         "id": "golden_years",
         "category": "Anniversary",
         "label": "Golden Years",
-        "desc": "Champagne legacy celebration",
+        "desc": "Rich dark amber & chocolate golden legacy journal",
         "background": {
             "light": "#fbf4e6",
-            "dark": "#1f1710"
+            "dark": "#160f09"
         },
-        "accent": "#c99a2e"
+        "accent": "#e5a93c"
     },
     {
         "id": "vintage",
@@ -316,23 +316,23 @@ const TEMPLATE_THEMES = [
         "id": "rose",
         "category": "Anniversary",
         "label": "Rose Garden",
-        "desc": "Romantic floral memory journal",
+        "desc": "Luxurious velvet burgundy & rose gold editorial journal",
         "background": {
             "light": "#fff9f5",
-            "dark": "#30151d"
+            "dark": "#280a14"
         },
-        "accent": "#b76578"
+        "accent": "#d8a47f"
     },
     {
         "id": "minimal_love",
         "category": "Anniversary",
         "label": "Minimal Love",
-        "desc": "Minimal romantic editorial journal",
+        "desc": "Minimal romantic dark editorial journal",
         "background": {
             "light": "#f7efe4",
-            "dark": "#17120d"
+            "dark": "#1f1d1d"
         },
-        "accent": "#6d4b34"
+        "accent": "#ff5252"
     },
     {
         "id": "bohemian",
