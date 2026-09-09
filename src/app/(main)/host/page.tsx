@@ -3179,6 +3179,11 @@ function DashboardContent() {
             return groups;
         }, {})
     );
+    const hostConsoleMetrics = [
+        { label: "Hosted", value: userEvents.length, icon: Calendar },
+        { label: "Shared", value: sharedEvents.length, icon: Users },
+        { label: "Requests", value: pendingGuestRequests.length, icon: UserPlus },
+    ];
     const eventDetailPendingLogs = eventDetailLogs.filter(log => log.status === "pending");
     const eventDetailAdminLogs = eventDetailLogs.filter(log => log.status === "approved" && !!log.canAdmin);
     const eventDetailMemberLogs = eventDetailLogs.filter(log => log.status === "approved" && !log.canAdmin);
@@ -3583,7 +3588,7 @@ function DashboardContent() {
                             exit={{ opacity: 0, y: -10 }}
                             className="space-y-8"
                         >
-                            <div className="bg-slate-800/80 rounded-[2rem] p-5 sm:p-8 shadow-xl border border-slate-700/50 backdrop-blur-sm">
+                            <div className="relative overflow-hidden rounded-3xl border border-[#2B2F2E] bg-[#13191F] p-5 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-8">
                                 <div className="flex flex-col gap-5 mb-6 lg:flex-row lg:items-center lg:justify-between">
                                     <div className="flex items-center gap-4">
                                         <Tooltip text="Plan Details">
@@ -3592,7 +3597,7 @@ function DashboardContent() {
                                                     fetchStorageStats();
                                                     setShowPlanDetailsModal(true);
                                                 }}
-                                                className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#CA9C68]/30 bg-[#CA9C68]/10 text-[#CA9C68] transition-colors hover:bg-[#CA9C68]/20"
+                                                className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#CA9C68]/35 bg-[#CA9C68]/10 text-[#CA9C68] transition-colors hover:bg-[#CA9C68]/20"
                                                 aria-label="Plan Details"
                                             >
                                                 <svg
@@ -3614,15 +3619,16 @@ function DashboardContent() {
                                             </button>
                                         </Tooltip>
                                         <div>
-                                            <h2 className="text-3xl font-bold text-white">Host Event</h2>
-                                            <p className="text-slate-400 text-sm font-sans">Manage events and guests</p>
+                                            <p className="mb-1 font-sans text-[10px] font-black uppercase tracking-[0.24em] text-[#CA9C68]">Control Room</p>
+                                            <h2 className="text-3xl font-bold text-white">Host Console</h2>
+                                            <p className="text-sm text-slate-400 font-sans">Event operations</p>
                                         </div>
                                     </div>
 
                                     <div className="flex flex-wrap gap-2">
                                         <button
                                             onClick={() => setIsCreateModalOpen(true)}
-                                            className="flex items-center gap-2 rounded-2xl bg-[#CA9C68] px-4 py-3 text-sm font-black text-slate-950 transition-colors hover:bg-[#D7AE7D]"
+                                            className="flex items-center gap-2 rounded-xl bg-[#CA9C68] px-4 py-3 text-sm font-black text-slate-950 transition-colors hover:bg-[#D7AE7D]"
                                         >
                                             <Plus className="w-4 h-4" />
                                             Create Event
@@ -3630,24 +3636,38 @@ function DashboardContent() {
                                     </div>
                                 </div>
 
-                                <div className="flex w-full gap-2 overflow-x-auto rounded-2xl bg-slate-900/50 p-1 sm:w-fit">
+                                <div className="mb-6 grid gap-3 sm:grid-cols-3">
+                                    {hostConsoleMetrics.map(({ label, value, icon: MetricIcon }) => (
+                                        <div key={label} className="flex items-center justify-between rounded-xl border border-[#2B2F2E] bg-[#0D1318]/80 px-4 py-3">
+                                            <div>
+                                                <p className="font-sans text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{label}</p>
+                                                <p className="mt-1 font-sans text-2xl font-black text-white">{value}</p>
+                                            </div>
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#CA9C68]/25 bg-[#CA9C68]/10 text-[#CA9C68]">
+                                                <MetricIcon className="h-4 w-4" />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="flex w-full gap-2 overflow-x-auto rounded-xl border border-[#2B2F2E] bg-[#0D1318]/80 p-1 sm:w-fit">
                                     <button
                                         onClick={() => setActiveTab('hosted')}
-                                        className={`flex min-w-28 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'hosted' ? 'bg-slate-700 text-[#CA9C68] shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                                        className={`flex min-w-28 items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'hosted' ? 'border-[#CA9C68]/40 bg-[#CA9C68]/10 text-[#CA9C68]' : 'border-transparent text-slate-400 hover:bg-[#1B211F] hover:text-white'}`}
                                     >
                                         <Camera className="h-4 w-4" />
                                         Host
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('shared')}
-                                        className={`flex min-w-28 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'shared' ? 'bg-slate-700 text-[#CA9C68] shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                                        className={`flex min-w-28 items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'shared' ? 'border-[#CA9C68]/40 bg-[#CA9C68]/10 text-[#CA9C68]' : 'border-transparent text-slate-400 hover:bg-[#1B211F] hover:text-white'}`}
                                     >
                                         <Users className="h-4 w-4" />
                                         Shared
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('request')}
-                                        className={`relative flex min-w-28 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'request' ? 'bg-slate-700 text-[#CA9C68] shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                                        className={`relative flex min-w-28 items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'request' ? 'border-[#CA9C68]/40 bg-[#CA9C68]/10 text-[#CA9C68]' : 'border-transparent text-slate-400 hover:bg-[#1B211F] hover:text-white'}`}
                                     >
                                         <UserPlus className="h-4 w-4" />
                                         Requests
@@ -3719,7 +3739,7 @@ function DashboardContent() {
                                         )}
                                     </div>
                                 ) : (
-                                    <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                                    <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
                                         {(activeTab === 'hosted' ? userEvents : sharedEvents).map((event) => {
                                             const ownerDetails = getEventOwnerDetails(event);
                                             return (
@@ -3729,7 +3749,7 @@ function DashboardContent() {
                                                         router.push(`/host?view=manage&level=event-details&eventId=${event.id}`);
                                                     }}
                                                     className={cn(
-                                                        "group relative cursor-pointer overflow-hidden rounded-[1.5rem] bg-black",
+                                                        "group relative cursor-pointer overflow-hidden rounded-2xl border border-[#2B2F2E] bg-[#0D1318]",
                                                         activeTab === "shared" ? "h-80" : "h-64"
                                                     )}
                                                 >
@@ -3747,7 +3767,7 @@ function DashboardContent() {
                                                         )}
                                                     </div>
 
-                                                    <div className="absolute bottom-0 left-0 right-0 bg-black p-5">
+                                                    <div className="absolute bottom-0 left-0 right-0 border-t border-[#2B2F2E] bg-[#0D1318]/95 p-5 backdrop-blur-sm">
                                                         <h3 className="text-white font-bold text-lg leading-tight mb-1 truncate">{event.title}</h3>
                                                         <div className="mt-2 flex items-center text-xs font-bold text-slate-400">
                                                             <Calendar className="w-3 h-3 mr-1.5 text-[#CA9C68]" />
@@ -3782,7 +3802,7 @@ function DashboardContent() {
                             </div>
 
 {/* HOST GUIDE SECTION */}
-                            <div className="mt-16 bg-slate-800/80 rounded-[2rem] p-6 sm:p-8 shadow-xl border border-slate-700/50 backdrop-blur-sm">
+                            <div className="mt-16 rounded-3xl border border-[#2B2F2E] bg-[#10171C]/90 p-6 shadow-xl shadow-black/25 backdrop-blur-sm sm:p-8">
                                 <div className="mb-8">
                                     <h2 className="text-3xl font-bold text-white">Host Your Perfect Event</h2>
                                     <p className="text-slate-400 mt-2">Everything you need to capture memories flawlessly.</p>
@@ -3790,27 +3810,27 @@ function DashboardContent() {
 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                                     {/* Benefit 1 */}
-                                    <div className="bg-slate-900/50 rounded-2xl p-6 border border-slate-700/50">
-                                        <div className="w-12 h-12 bg-sky-500/20 rounded-xl flex items-center justify-center mb-4">
-                                            <ImageIcon className="w-6 h-6 text-sky-400" />
+                                    <div className="rounded-xl border border-[#2B2F2E] bg-[#0D1318] p-6">
+                                        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-[#CA9C68]/20 bg-[#CA9C68]/10">
+                                            <ImageIcon className="h-6 w-6 text-[#CA9C68]" />
                                         </div>
                                         <h3 className="text-xl font-bold text-white mb-2">Stunning Galleries</h3>
                                         <p className="text-slate-400 text-sm">Create unlimited, high-resolution albums to preserve every beautiful memory.</p>
                                     </div>
 
                                     {/* Benefit 2 */}
-                                    <div className="bg-slate-900/50 rounded-2xl p-6 border border-slate-700/50">
-                                        <div className="w-12 h-12 bg-sky-500/20 rounded-xl flex items-center justify-center mb-4">
-                                            <Users className="w-6 h-6 text-sky-400" />
+                                    <div className="rounded-xl border border-[#2B2F2E] bg-[#0D1318] p-6">
+                                        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-[#CA9C68]/20 bg-[#CA9C68]/10">
+                                            <Users className="h-6 w-6 text-[#CA9C68]" />
                                         </div>
                                         <h3 className="text-xl font-bold text-white mb-2">Guest Sharing</h3>
                                         <p className="text-slate-400 text-sm">Easily invite guests via QR codes and securely share photos directly with them.</p>
                                     </div>
 
                                     {/* Benefit 3 */}
-                                    <div className="bg-slate-900/50 rounded-2xl p-6 border border-slate-700/50">
-                                        <div className="w-12 h-12 bg-sky-500/20 rounded-xl flex items-center justify-center mb-4">
-                                            <Video className="w-6 h-6 text-sky-400" />
+                                    <div className="rounded-xl border border-[#2B2F2E] bg-[#0D1318] p-6">
+                                        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-[#CA9C68]/20 bg-[#CA9C68]/10">
+                                            <Video className="h-6 w-6 text-[#CA9C68]" />
                                         </div>
                                         <h3 className="text-xl font-bold text-white mb-2">Live Streaming</h3>
                                         <p className="text-slate-400 text-sm">Broadcast your special moments live to loved ones who could not attend in person.</p>

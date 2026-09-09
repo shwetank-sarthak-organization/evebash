@@ -487,6 +487,11 @@ export default function PortfolioTabScreen() {
       return groups;
     }, {})
   );
+  const hostConsoleMetrics = [
+    { label: 'Hosted', value: events.length, icon: 'calendar' },
+    { label: 'Shared', value: sharedEvents.length, icon: 'person.2.fill' },
+    { label: 'Requests', value: pendingGuestRequests.length, icon: 'envelope.fill' },
+  ];
 
   const renderEventCard = (event: DatabaseEvent, index: number) => {
     const coverImage = resolveEventCoverImage(event.coverImage);
@@ -558,7 +563,7 @@ export default function PortfolioTabScreen() {
       >
         {/* ── HEADER ── */}
         <LinearGradient
-          colors={isDark ? ['#1B211F', '#13191F'] : [colors.deepSlate, colors.background]}
+          colors={isDark ? ['#10161C', '#13191F'] : [colors.deepSlate, colors.background]}
           style={[styles.header, { paddingTop: insets.top + 4 }]}
         >
           <View style={styles.headerLeft}>
@@ -578,7 +583,7 @@ export default function PortfolioTabScreen() {
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <View style={styles.headingLogoRow}>
               <EveBashLogoBadge onPress={() => router.replace('/(tabs)' as any)} />
-              <Text style={styles.headerName}>Host Event</Text>
+              <Text style={styles.headerName}>Host</Text>
             </View>
           </View>
           <View style={styles.headerRight}>
@@ -640,6 +645,18 @@ export default function PortfolioTabScreen() {
                 </View>
               )}
             </TouchableOpacity>
+        </View>
+
+        <View style={styles.opsStrip}>
+          {hostConsoleMetrics.map((metric) => (
+            <View key={metric.label} style={styles.opsMetric}>
+              <View style={styles.opsMetricIcon}>
+                <IconSymbol name={metric.icon as any} size={13} color={colors.gold} />
+              </View>
+              <Text style={styles.opsMetricValue}>{metric.value}</Text>
+              <Text style={styles.opsMetricLabel}>{metric.label}</Text>
+            </View>
+          ))}
         </View>
 
         {loading && !refreshing ? (
@@ -1447,7 +1464,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 12,
-    paddingBottom: 24,
+    paddingBottom: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(202, 156, 104, 0.12)',
   },
   headerLeft: {
     width: 48,
@@ -1495,9 +1514,12 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   tabContainer: {
     flexDirection: 'row',
     marginHorizontal: 20,
-    marginTop: 2,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
+    marginTop: 14,
+    padding: 4,
+    borderRadius: 14,
+    backgroundColor: '#0D1318',
+    borderWidth: 1,
+    borderColor: 'rgba(202, 156, 104, 0.14)',
   },
   tabButton: {
     flex: 1,
@@ -1505,30 +1527,70 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 12,
-    paddingBottom: 14,
+    paddingVertical: 10,
     position: 'relative',
-    overflow: 'visible'
+    overflow: 'visible',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   tabBadge: { position: 'absolute', top: 4, right: 8, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: colors.background },
   tabBadgeText: { color: colors.white, fontSize: 9, fontFamily: Fonts.inter.bold },
   tabButtonActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: colors.gold,
+    backgroundColor: 'rgba(202, 156, 104, 0.1)',
+    borderColor: 'rgba(202, 156, 104, 0.32)',
   },
   tabText: { fontSize: 13, color: colors.slate400, fontFamily: Fonts.inter.medium },
   tabTextActive: { color: colors.gold, fontFamily: Fonts.inter.bold },
+  opsStrip: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  opsMetric: {
+    flex: 1,
+    minHeight: 70,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(202, 156, 104, 0.14)',
+    backgroundColor: '#0D1318',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    justifyContent: 'space-between',
+  },
+  opsMetricIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    backgroundColor: 'rgba(202, 156, 104, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  opsMetricValue: {
+    color: colors.white,
+    fontSize: 18,
+    fontFamily: Fonts.outfit.extraBold,
+    lineHeight: 22,
+  },
+  opsMetricLabel: {
+    color: colors.slate400,
+    fontSize: 9,
+    fontFamily: Fonts.inter.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.9,
+  },
 
   // Grid
   grid: { paddingHorizontal: 16, paddingTop: 16, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start' },
   eventCard: {
     width: (width - 44) / 2,
     height: 185,
-    borderRadius: 20,
+    borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(202, 156, 104,0.1)',
-    backgroundColor: isDark ? '#1B211F' : '#ffffff',
+    borderColor: 'rgba(202, 156, 104,0.14)',
+    backgroundColor: isDark ? '#0D1318' : '#ffffff',
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
@@ -1542,7 +1604,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   cardImageWrap: {
     width: '100%',
     height: 115,
-    backgroundColor: isDark ? '#13191F' : '#f1f5f9',
+    backgroundColor: isDark ? '#10161C' : '#f1f5f9',
     position: 'relative',
     overflow: 'hidden',
   },
@@ -1571,7 +1633,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingVertical: 10,
     justifyContent: 'center',
     flex: 1,
-    backgroundColor: isDark ? '#000000' : '#ffffff',
+    backgroundColor: isDark ? '#0D1318' : '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(202, 156, 104, 0.08)',
   },
   cardTitle: {
     fontSize: 14,

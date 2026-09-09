@@ -14,6 +14,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { initUploadQueue } from '@/lib/uploadQueue';
 import { registerDeviceForPushNotifications } from '@/lib/notifications';
 import * as Notifications from 'expo-notifications';
+import { SCREEN_ORIENTATION_LOCK, lockScreenOrientation } from '@/lib/screenOrientation';
 import { useFonts } from 'expo-font';
 import { 
   Inter_400Regular, 
@@ -135,6 +136,12 @@ function RootLayoutContent() {
 
   useEffect(() => {
     initUploadQueue().catch(err => console.error('[RootLayout] Queue init failed:', err));
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    void lockScreenOrientation(SCREEN_ORIENTATION_LOCK.PORTRAIT_UP);
   }, []);
 
   const customTheme = {

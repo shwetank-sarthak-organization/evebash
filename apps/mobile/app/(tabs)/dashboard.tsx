@@ -584,7 +584,7 @@ export default function DashboardScreen() {
       >
         {/* ── HEADER ── */}
         <LinearGradient
-          colors={isDark ? ['#1B211F', '#13191F'] : [colors.deepSlate, colors.background]}
+          colors={isDark ? ['#151C22', '#22302F', '#13191F'] : [colors.deepSlate, colors.background]}
           style={[styles.header, { paddingTop: insets.top + 4 }]}
         >
           <View style={styles.headerLeft}>
@@ -623,10 +623,10 @@ export default function DashboardScreen() {
           ? <ActivityIndicator color="#CA9C68" style={{ marginTop: 60 }} />
           : <>
               {/* ── SECTION 1: EVENTS (Deep Midnight) ── */}
-              <View style={[styles.section, { backgroundColor: colors.background }]}>
+              <View style={styles.collectionSection}>
                 <View style={styles.sectionHead}>
                   <View>
-                    <Text style={styles.sectionLabel}>Events</Text>
+                    <Text style={styles.sectionLabel}>Event Gallery</Text>
                     <Text style={styles.sectionSub}>Memories curated for you</Text>
                   </View>
                   <TouchableOpacity
@@ -718,7 +718,7 @@ export default function DashboardScreen() {
                 onPress={() => router.push('/(tabs)/gallery')}
               >
                 <LinearGradient
-                  colors={['rgba(202, 156, 104, 0.95)', 'rgba(184, 134, 11, 1)']}
+                  colors={['#151B21', '#10161C']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.heroGradient}
@@ -737,7 +737,7 @@ export default function DashboardScreen() {
                     </View>
                   </View>
                   <View style={styles.heroIconContainer}>
-                    <IconSymbol name="calendar.badge.plus" size={60} color="rgba(255,255,255,0.2)" />
+                    <IconSymbol name="calendar.badge.plus" size={60} color="rgba(202,156,104,0.22)" />
                   </View>
                 </LinearGradient>
               </TouchableOpacity>
@@ -1411,7 +1411,7 @@ export default function DashboardScreen() {
 
 const CARD_W = width * 0.55;
 const CARD_H = 155;
-const GRID_ITEM_W = (width - 48 - 12) / 2;
+const GRID_ITEM_W = (width - 92) / 2;
 
 const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
@@ -1433,6 +1433,8 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 10,
     elevation: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(202, 156, 104, 0.12)',
   },
   greetingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   greeting: { fontSize: 13, color: colors.slate400, fontFamily: 'Inter_500Medium', textTransform: 'uppercase', letterSpacing: 1.2 },
@@ -1493,11 +1495,28 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
 
   // ── Sections ──
   section: { paddingTop: 8, paddingBottom: 16 },
+  collectionSection: {
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 18,
+    paddingTop: 18,
+    paddingBottom: 18,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: 'rgba(202, 156, 104, 0.16)',
+    backgroundColor: '#151B21',
+  },
   sectionHead: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', paddingHorizontal: 24, marginBottom: 18,
   },
-  sectionLabel: { fontSize: 22, color: colors.white, fontFamily: 'Outfit_800ExtraBold', letterSpacing: -0.3 },
+  sectionLabel: {
+    fontSize: 11,
+    color: colors.gold,
+    fontFamily: 'Outfit_800ExtraBold',
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+  },
   sectionSub: { fontSize: 13, color: colors.slate400, fontFamily: 'Inter_400Regular', marginTop: -2 },
   viewAllPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -1587,6 +1606,8 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(202, 156, 104, 0.16)',
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -1603,15 +1624,17 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     flex: 1,
   },
   heroBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(202, 156, 104,0.1)',
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 6,
     alignSelf: 'flex-start',
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(202, 156, 104, 0.18)',
   },
   heroBadgeText: {
-    color: isDark ? '#ffffff' : '#1B211F',
+    color: colors.gold,
     fontSize: 9,
     fontFamily: 'Outfit_800ExtraBold',
     letterSpacing: 0.8,
@@ -1633,7 +1656,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.slate900,
+    backgroundColor: 'rgba(202, 156, 104, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(202, 156, 104, 0.18)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -1994,11 +2019,11 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   aestheticEventCard: {
     width: GRID_ITEM_W,
     height: 185,
-    borderRadius: 20,
+    borderRadius: 22,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: isDark ? '#1B211F' : '#ffffff',
+    borderColor: 'rgba(202, 156, 104, 0.16)',
+    backgroundColor: isDark ? '#10161C' : '#ffffff',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: isDark ? 0.3 : 0.05,
@@ -2008,7 +2033,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   aestheticImageContainer: {
     width: '100%',
     height: 115,
-    backgroundColor: colors.slate900,
+    backgroundColor: '#0E141A',
     position: 'relative',
   },
   aestheticTextContainer: {
@@ -2016,6 +2041,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingVertical: 10,
     justifyContent: 'center',
     flex: 1,
+    backgroundColor: isDark ? 'rgba(14, 20, 26, 0.96)' : '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(202, 156, 104, 0.08)',
   },
   aestheticEventTitle: {
     fontSize: 14,
@@ -2038,11 +2066,11 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   aestheticExploreCard: {
     width: GRID_ITEM_W,
     height: 185,
-    borderRadius: 20,
+    borderRadius: 22,
     overflow: 'hidden',
     borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.slate900,
+    borderColor: 'rgba(202, 156, 104, 0.2)',
+    backgroundColor: '#10161C',
     shadowColor: colors.gold,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: isDark ? 0.15 : 0.03,

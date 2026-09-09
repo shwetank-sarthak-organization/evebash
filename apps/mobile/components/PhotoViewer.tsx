@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, Share, TextInput, Keyboard, Modal, ActivityIndicator, StyleSheet, useWindowDimensions, type GestureResponderEvent, type NativeSyntheticEvent } from 'react-native';
+import { View, Text, TouchableOpacity, Pressable, ScrollView, KeyboardAvoidingView, Platform, Alert, Share, TextInput, Keyboard, Modal, ActivityIndicator, StyleSheet, StatusBar as RNStatusBar, useWindowDimensions, type GestureResponderEvent, type NativeSyntheticEvent } from 'react-native';
 import { Image as ExpoImage, type ImageLoadEventData } from 'expo-image';
 import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
-import { VideoView, createVideoPlayer, type VideoPlayer } from 'expo-video';
+import { VideoView, createVideoPlayer, type FullscreenOptions, type VideoPlayer } from 'expo-video';
 import Svg, { Path } from 'react-native-svg';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, Event as DatabaseEvent } from '@/lib/database';
 import { getImageUrl } from '@/lib/imageUrl';
+import { SCREEN_ORIENTATION_LOCK, canLockScreenOrientation, lockScreenOrientation } from '@/lib/screenOrientation';
 import { MidnightColors, Fonts } from '../constants/theme';
 import { styles } from './eventStyles';
 
@@ -50,6 +51,14 @@ type LucideIconProps = {
 type ViewerVideoControls = {
   seekBy: (seconds: number) => void;
 };
+
+const VIDEO_VOLUME_SLIDER_WIDTH = 54;
+const VIDEO_CONTROLS_HIDE_DELAY_MS = 2500;
+const VIDEO_NATIVE_FULLSCREEN_OPTIONS: FullscreenOptions =
+  Platform.OS === 'web'
+    ? { enable: true }
+    : { enable: true, orientation: 'landscape' };
+const VIDEO_CUSTOM_FULLSCREEN_OPTIONS: FullscreenOptions = { enable: false };
 
 function formatVideoClock(seconds: number) {
   if (!Number.isFinite(seconds) || seconds <= 0) return '0:00';
@@ -167,13 +176,41 @@ function ViewerVideo({
   onPreviousMedia?: () => void;
   onNextMedia?: () => void;
 }) {
+  const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
   const [player, setPlayer] = useState<VideoPlayer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showVolume, setShowVolume] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [volumeLevel, setVolumeLevel] = useState(1);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const [controlsInteractionKey, setControlsInteractionKey] = useState(0);
+  const [isCustomFullscreen, setIsCustomFullscreen] = useState(false);
   const playerRef = useRef<VideoPlayer | null>(null);
+  const videoViewRef = useRef<VideoView | null>(null);
   const sourceRef = useRef<string | null>(null);
+  const controlsHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progressPercent = duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
+  const shouldUseCustomFullscreen = customControls && Platform.OS !== 'web';
+  const canUseOrientationLock = canLockScreenOrientation();
+  const shouldUseCustomFullscreenOverlay = shouldUseCustomFullscreen;
+  const shouldRotateFullscreenManually = shouldUseCustomFullscreen && !canUseOrientationLock && viewportHeight >= viewportWidth;
+  const fullscreenLandscapeWidth = Math.max(viewportWidth, viewportHeight);
+  const fullscreenLandscapeHeight = Math.min(viewportWidth, viewportHeight);
+
+  const clearControlsHideTimeout = useCallback(() => {
+    if (controlsHideTimeoutRef.current) {
+      clearTimeout(controlsHideTimeoutRef.current);
+      controlsHideTimeoutRef.current = null;
+    }
+  }, []);
+
+  const revealVideoControls = useCallback(() => {
+    setControlsVisible(true);
+    setControlsInteractionKey(key => key + 1);
+  }, []);
 
   useEffect(() => {
     const nextPlayer = createVideoPlayer(null, {
@@ -193,6 +230,7 @@ function ViewerVideo({
       if (videoControlsRef) {
         videoControlsRef.current = null;
       }
+      clearControlsHideTimeout();
       try {
         playerToRelease.pause();
       } catch {
@@ -207,7 +245,55 @@ function ViewerVideo({
         }
       }, 250);
     };
-  }, [videoControlsRef]);
+  }, [clearControlsHideTimeout, videoControlsRef]);
+
+  useEffect(() => {
+    return () => {
+      clearControlsHideTimeout();
+    };
+  }, [clearControlsHideTimeout]);
+
+  useEffect(() => {
+    if (!shouldUseCustomFullscreenOverlay || !isCustomFullscreen) return;
+
+    RNStatusBar.setHidden(true, 'fade');
+
+    return () => {
+      RNStatusBar.setHidden(false, 'fade');
+      if (canUseOrientationLock) {
+        void lockScreenOrientation(SCREEN_ORIENTATION_LOCK.PORTRAIT_UP);
+      }
+    };
+  }, [canUseOrientationLock, isCustomFullscreen, shouldUseCustomFullscreenOverlay]);
+
+  useEffect(() => {
+    if (!customControls) return;
+
+    clearControlsHideTimeout();
+
+    if (!isPlaying || showSettings || showVolume) {
+      setControlsVisible(true);
+      return;
+    }
+
+    if (!controlsVisible) return;
+
+    controlsHideTimeoutRef.current = setTimeout(() => {
+      setControlsVisible(false);
+    }, VIDEO_CONTROLS_HIDE_DELAY_MS);
+
+    return () => {
+      clearControlsHideTimeout();
+    };
+  }, [
+    clearControlsHideTimeout,
+    controlsInteractionKey,
+    controlsVisible,
+    customControls,
+    isPlaying,
+    showSettings,
+    showVolume,
+  ]);
 
   useEffect(() => {
     if (!player) return;
@@ -279,6 +365,14 @@ function ViewerVideo({
     setCurrentTime(0);
     setDuration(0);
     setIsPlaying(false);
+    setShowSettings(false);
+    setShowVolume(false);
+    setIsMuted(false);
+    setVolumeLevel(1);
+    setControlsVisible(true);
+    setControlsInteractionKey(key => key + 1);
+    activePlayer.muted = false;
+    activePlayer.volume = 1;
     activePlayer.replaceAsync(uri)
       .then(() => {
         if (cancelled) return;
@@ -303,6 +397,8 @@ function ViewerVideo({
     const activePlayer = playerRef.current;
     if (!activePlayer) return;
 
+    revealVideoControls();
+
     try {
       if (activePlayer.playing || isPlaying) {
         activePlayer.pause();
@@ -314,66 +410,270 @@ function ViewerVideo({
     } catch (error) {
       console.error('[PhotoViewer] Video playback toggle failed:', error);
     }
-  }, [isPlaying]);
+  }, [isPlaying, revealVideoControls]);
 
-  return (
-    <View style={localStyles.videoPlayerFrame}>
-      <VideoView
-        player={player}
-        nativeControls={!customControls}
-        contentFit="contain"
-        style={{ width: '100%', height: '100%', backgroundColor: frameBg }}
-      />
+  const handleToggleVolumePanel = useCallback(() => {
+    revealVideoControls();
+    setShowVolume(prev => !prev);
+    setShowSettings(false);
+  }, [revealVideoControls]);
 
-      {customControls && (
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.76)', 'rgba(0,0,0,0.92)']}
-          style={localStyles.dashboardVideoControlOverlay}
-          pointerEvents="box-none"
-        >
-          <View style={localStyles.dashboardVideoProgressTrack}>
-            <View
-              style={[
-                localStyles.dashboardVideoProgressFill,
-                { width: `${progressPercent}%`, backgroundColor: accent },
-              ]}
-            />
-          </View>
+  const handleExitFullscreen = useCallback(() => {
+    revealVideoControls();
+    setShowSettings(false);
+    setShowVolume(false);
+    setIsCustomFullscreen(false);
+  }, [revealVideoControls]);
 
-          <View style={localStyles.dashboardVideoControlsRow}>
-            {onPreviousMedia && (
-              <TouchableOpacity
-                style={localStyles.dashboardVideoControlButton}
-                onPress={onPreviousMedia}
-                accessibilityLabel="Previous media"
-              >
-                <IconSymbol name="backward.end.fill" size={22} color={controlText} />
-              </TouchableOpacity>
-            )}
+  const handleEnterFullscreen = useCallback(async () => {
+    revealVideoControls();
+    setShowSettings(false);
+    setShowVolume(false);
 
+    if (shouldUseCustomFullscreen) {
+      if (canUseOrientationLock) {
+        await lockScreenOrientation(SCREEN_ORIENTATION_LOCK.LANDSCAPE);
+      }
+      setIsCustomFullscreen(true);
+      return;
+    }
+
+    videoViewRef.current?.enterFullscreen().catch((error) => {
+      console.error('[PhotoViewer] Video fullscreen failed:', error);
+    });
+  }, [canUseOrientationLock, revealVideoControls, shouldUseCustomFullscreen]);
+
+  const handleToggleFullscreen = useCallback(() => {
+    if (isCustomFullscreen) {
+      handleExitFullscreen();
+    } else {
+      handleEnterFullscreen();
+    }
+  }, [handleEnterFullscreen, handleExitFullscreen, isCustomFullscreen]);
+
+  const handleVolumeGesture = useCallback((event: GestureResponderEvent) => {
+    const activePlayer = playerRef.current;
+    if (!activePlayer) return;
+
+    revealVideoControls();
+
+    const nextVolume = Math.min(1, Math.max(0, event.nativeEvent.locationX / VIDEO_VOLUME_SLIDER_WIDTH));
+
+    try {
+      activePlayer.volume = nextVolume;
+      activePlayer.muted = nextVolume <= 0.01;
+      setVolumeLevel(nextVolume);
+      setIsMuted(nextVolume <= 0.01);
+    } catch (error) {
+      console.error('[PhotoViewer] Video volume update failed:', error);
+    }
+  }, [revealVideoControls]);
+
+  const renderCustomControls = (fullscreen = false) => (
+    <LinearGradient
+      colors={['transparent', 'rgba(0,0,0,0.76)', 'rgba(0,0,0,0.92)']}
+      style={[
+        localStyles.dashboardVideoControlOverlay,
+        fullscreen && localStyles.mobileVideoFullscreenControlOverlay,
+      ]}
+      pointerEvents="box-none"
+    >
+      <View style={localStyles.dashboardVideoProgressTrack}>
+        <View
+          style={[
+            localStyles.dashboardVideoProgressFill,
+            { width: `${progressPercent}%`, backgroundColor: accent },
+          ]}
+        />
+      </View>
+
+      <View style={localStyles.dashboardVideoControlsRow}>
+        <View style={localStyles.dashboardVideoLeftControls}>
+          {onPreviousMedia && (
             <TouchableOpacity
-              style={[localStyles.dashboardVideoControlButton, localStyles.dashboardVideoPlayButton, { backgroundColor: accent }]}
-              onPress={handleTogglePlayback}
-              accessibilityLabel={isPlaying ? 'Pause video' : 'Play video'}
+              style={localStyles.dashboardVideoControlButton}
+              onPress={() => {
+                revealVideoControls();
+                onPreviousMedia();
+              }}
+              accessibilityLabel="Previous media"
             >
-              <IconSymbol name={isPlaying ? 'pause.fill' : 'play.fill'} size={24} color="#111111" />
+              <IconSymbol name="backward.end.fill" size={18} color={controlText} />
             </TouchableOpacity>
+          )}
 
-            {onNextMedia && (
-              <TouchableOpacity
-                style={localStyles.dashboardVideoControlButton}
-                onPress={onNextMedia}
-                accessibilityLabel="Next media"
-              >
-                <IconSymbol name="forward.end.fill" size={22} color={controlText} />
-              </TouchableOpacity>
-            )}
-          </View>
+          <TouchableOpacity
+            style={[localStyles.dashboardVideoControlButton, localStyles.dashboardVideoPlayButton]}
+            onPress={handleTogglePlayback}
+            accessibilityLabel={isPlaying ? 'Pause video' : 'Play video'}
+          >
+            <IconSymbol name={isPlaying ? 'pause.fill' : 'play.fill'} size={22} color={controlText} />
+          </TouchableOpacity>
+
+          {onNextMedia && (
+            <TouchableOpacity
+              style={localStyles.dashboardVideoControlButton}
+              onPress={() => {
+                revealVideoControls();
+                onNextMedia();
+              }}
+              accessibilityLabel="Next media"
+            >
+              <IconSymbol name="forward.end.fill" size={18} color={controlText} />
+            </TouchableOpacity>
+          )}
 
           <Text style={[localStyles.dashboardVideoTime, { color: controlText }]}>
             {formatVideoClock(currentTime)} / {formatVideoClock(duration)}
           </Text>
-        </LinearGradient>
+        </View>
+
+        <View style={localStyles.dashboardVideoRightControls}>
+          <View style={localStyles.dashboardVideoVolumeGroup}>
+            <TouchableOpacity
+              style={localStyles.dashboardVideoIconButton}
+              onPress={handleToggleVolumePanel}
+              accessibilityLabel="Video volume"
+              activeOpacity={0.75}
+            >
+              <IconSymbol name={isMuted ? 'speaker.slash.fill' : 'speaker.wave.2.fill'} size={19} color={showVolume ? accent : controlText} />
+            </TouchableOpacity>
+
+            {showVolume && (
+              <View style={localStyles.dashboardVideoVolumeInline}>
+                <View
+                  style={localStyles.dashboardVideoVolumeTouch}
+                  onStartShouldSetResponder={() => true}
+                  onMoveShouldSetResponder={() => true}
+                  onResponderGrant={handleVolumeGesture}
+                  onResponderMove={handleVolumeGesture}
+                >
+                  <View style={localStyles.dashboardVideoVolumeTrack}>
+                    <View
+                      style={[
+                        localStyles.dashboardVideoVolumeFill,
+                        { width: `${volumeLevel * 100}%`, backgroundColor: accent },
+                      ]}
+                    />
+                    <View
+                      style={[
+                        localStyles.dashboardVideoVolumeThumb,
+                        {
+                          left: `${volumeLevel * 100}%`,
+                          backgroundColor: accent,
+                        },
+                      ]}
+                    />
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={localStyles.dashboardVideoIconButton}
+            onPress={() => {
+              revealVideoControls();
+              setShowSettings(prev => !prev);
+              setShowVolume(false);
+            }}
+            accessibilityLabel="Video settings"
+            activeOpacity={0.75}
+          >
+            <IconSymbol name="gearshape.fill" size={20} color={controlText} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={localStyles.dashboardVideoIconButton}
+            onPress={handleToggleFullscreen}
+            accessibilityLabel={isCustomFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+            activeOpacity={0.75}
+          >
+            <IconSymbol
+              name={isCustomFullscreen ? 'arrow.down.right.and.arrow.up.left' : 'arrow.up.left.and.arrow.down.right'}
+              size={20}
+              color={controlText}
+            />
+          </TouchableOpacity>
+        </View>
+
+        {showSettings && (
+          <View style={[localStyles.dashboardVideoSettingsPopover, { borderColor: accent }]}>
+            <Text style={[localStyles.dashboardVideoSettingsLabel, { color: controlText }]}>Quality</Text>
+            <Text style={[localStyles.dashboardVideoSettingsValue, { color: accent }]}>Auto</Text>
+          </View>
+        )}
+      </View>
+    </LinearGradient>
+  );
+
+  const videoSurface = (
+    <VideoView
+      ref={videoViewRef}
+      player={player}
+      nativeControls={!customControls}
+      fullscreenOptions={shouldUseCustomFullscreenOverlay ? VIDEO_CUSTOM_FULLSCREEN_OPTIONS : VIDEO_NATIVE_FULLSCREEN_OPTIONS}
+      contentFit="contain"
+      style={{ width: '100%', height: '100%', backgroundColor: frameBg }}
+    />
+  );
+
+  return (
+    <View style={localStyles.videoPlayerFrame}>
+      {!isCustomFullscreen && videoSurface}
+
+      {customControls && !isCustomFullscreen && (
+        <Pressable
+          style={localStyles.dashboardVideoTapSurface}
+          onPress={revealVideoControls}
+          accessible={false}
+        />
+      )}
+
+      {customControls && !isCustomFullscreen && controlsVisible && renderCustomControls()}
+
+      {shouldUseCustomFullscreenOverlay && isCustomFullscreen && (
+        <Modal
+          visible
+          animationType="fade"
+          presentationStyle="fullScreen"
+          statusBarTranslucent
+          navigationBarTranslucent
+          supportedOrientations={['portrait', 'landscape', 'landscape-left', 'landscape-right']}
+          onRequestClose={handleExitFullscreen}
+        >
+          <View style={localStyles.mobileVideoFullscreenModal}>
+            <View
+              style={[
+                localStyles.mobileVideoFullscreenStage,
+                shouldRotateFullscreenManually && {
+                  width: fullscreenLandscapeWidth,
+                  height: fullscreenLandscapeHeight,
+                  flex: 0,
+                  alignSelf: 'center',
+                  transform: [{ rotate: '90deg' }],
+                },
+              ]}
+            >
+              <VideoView
+                player={player}
+                nativeControls={false}
+                fullscreenOptions={VIDEO_CUSTOM_FULLSCREEN_OPTIONS}
+                contentFit="contain"
+                surfaceType={Platform.OS === 'android' ? 'textureView' : undefined}
+                style={{ width: '100%', height: '100%', backgroundColor: '#000000' }}
+              />
+
+              <Pressable
+                style={localStyles.dashboardVideoTapSurface}
+                onPress={revealVideoControls}
+                accessible={false}
+              />
+
+              {controlsVisible && renderCustomControls(true)}
+            </View>
+          </View>
+        </Modal>
       )}
     </View>
   );
@@ -1060,7 +1360,15 @@ export default function PhotoViewer({
                   ]}
                 >
                   {isVideoMedia ? (
-                    <ViewerVideo uri={photos[currentPhotoIndex].url} frameBg={viewerTheme.tileBg} />
+                    <ViewerVideo
+                      uri={photos[currentPhotoIndex].url}
+                      frameBg={viewerTheme.tileBg}
+                      controlText={viewerTheme.controlText}
+                      accent={viewerTheme.accent}
+                      customControls
+                      onPreviousMedia={() => navigateViewer('prev')}
+                      onNextMedia={() => navigateViewer('next')}
+                    />
                   ) : (
                     <ExpoImage
                       source={{ uri: hostDisplayImageUrl }}
@@ -1291,9 +1599,30 @@ const localStyles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    zIndex: 2,
     paddingHorizontal: 12,
-    paddingTop: 38,
+    paddingTop: 34,
     paddingBottom: 10,
+  },
+  dashboardVideoTapSurface: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+  },
+  mobileVideoFullscreenModal: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#000000',
+  },
+  mobileVideoFullscreenStage: {
+    flex: 1,
+    alignSelf: 'stretch',
+    overflow: 'hidden',
+    backgroundColor: '#000000',
+  },
+  mobileVideoFullscreenControlOverlay: {
+    paddingHorizontal: 18,
+    paddingBottom: 14,
   },
   dashboardVideoProgressTrack: {
     height: 3,
@@ -1310,26 +1639,97 @@ const localStyles = StyleSheet.create({
     marginTop: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     gap: 6,
   },
+  dashboardVideoLeftControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 1,
+  },
   dashboardVideoControlButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   dashboardVideoPlayButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
   },
   dashboardVideoTime: {
-    marginTop: 4,
-    textAlign: 'center',
-    fontSize: 10,
+    fontSize: 11,
+    fontFamily: Fonts.inter.bold,
+  },
+  dashboardVideoRightControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  dashboardVideoVolumeGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  dashboardVideoIconButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dashboardVideoVolumeInline: {
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+  },
+  dashboardVideoVolumeTouch: {
+    width: VIDEO_VOLUME_SLIDER_WIDTH,
+    height: 18,
+    justifyContent: 'center',
+  },
+  dashboardVideoVolumeTrack: {
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.34)',
+  },
+  dashboardVideoVolumeFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  dashboardVideoVolumeThumb: {
+    position: 'absolute',
+    top: -4,
+    width: 11,
+    height: 11,
+    borderRadius: 5.5,
+    transform: [{ translateX: -5.5 }],
+  },
+  dashboardVideoSettingsPopover: {
+    position: 'absolute',
+    right: 0,
+    bottom: 36,
+    minWidth: 104,
+    borderRadius: 12,
+    borderWidth: 1,
+    backgroundColor: 'rgba(0,0,0,0.82)',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  dashboardVideoSettingsLabel: {
+    fontSize: 9,
+    fontFamily: Fonts.inter.bold,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    opacity: 0.72,
+  },
+  dashboardVideoSettingsValue: {
+    marginTop: 3,
+    fontSize: 12,
     fontFamily: Fonts.inter.bold,
   },
   hostViewerContainer: {
