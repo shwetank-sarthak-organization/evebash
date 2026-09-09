@@ -385,7 +385,7 @@ export function PageFlipViewer({
           onNextMedia={navigation.canNext ? goNext : undefined}
           onToggleFullscreen={toggleFullscreen}
           onVideoElementChange={setActiveVideoElement}
-          videoControls={!coverFlowFullscreen}
+          videoControls={!coverFlowFullscreen || isCurrentVideo}
         />
       </motion.div>
     </AnimatePresence>

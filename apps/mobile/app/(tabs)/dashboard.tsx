@@ -1411,7 +1411,8 @@ export default function DashboardScreen() {
 
 const CARD_W = width * 0.55;
 const CARD_H = 155;
-const GRID_ITEM_W = (width - 92) / 2;
+const DASHBOARD_GRID_SIDE_PADDING = 24;
+const DASHBOARD_GRID_ITEM_WIDTH = '48%' as const;
 
 const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
@@ -1859,8 +1860,9 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   eventsGridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 24,
-    gap: 12,
+    alignSelf: 'stretch',
+    paddingHorizontal: DASHBOARD_GRID_SIDE_PADDING,
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     paddingBottom: 10,
   },
@@ -2017,9 +2019,10 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: colors.gold || '#CA9C68',
   },
   aestheticEventCard: {
-    width: GRID_ITEM_W,
-    height: 185,
-    borderRadius: 22,
+    width: DASHBOARD_GRID_ITEM_WIDTH,
+    height: 168,
+    borderRadius: 18,
+    marginBottom: 14,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(202, 156, 104, 0.16)',
@@ -2032,13 +2035,13 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   aestheticImageContainer: {
     width: '100%',
-    height: 115,
+    height: 100,
     backgroundColor: '#0E141A',
     position: 'relative',
   },
   aestheticTextContainer: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     justifyContent: 'center',
     flex: 1,
     backgroundColor: isDark ? 'rgba(14, 20, 26, 0.96)' : '#ffffff',
@@ -2046,7 +2049,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderTopColor: 'rgba(202, 156, 104, 0.08)',
   },
   aestheticEventTitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.white,
     fontFamily: 'Outfit_700Bold',
   },
@@ -2057,16 +2060,17 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     marginTop: 4,
   },
   aestheticEventDate: {
-    fontSize: 11,
+    fontSize: 10,
     color: colors.slate400,
     fontFamily: 'Inter_500Medium',
   },
 
   // Explore Card
   aestheticExploreCard: {
-    width: GRID_ITEM_W,
-    height: 185,
-    borderRadius: 22,
+    width: DASHBOARD_GRID_ITEM_WIDTH,
+    height: 168,
+    borderRadius: 18,
+    marginBottom: 14,
     overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: 'rgba(202, 156, 104, 0.2)',

@@ -358,12 +358,14 @@ function GalleryVideoCard({
   accent = '#CA9C68',
   onOpen,
   compact = false,
+  minimalPreview = false,
   blurred = false,
 }: {
   video: any;
   accent?: string;
   onOpen?: () => void;
   compact?: boolean;
+  minimalPreview?: boolean;
   blurred?: boolean;
 }) {
   const posterUri = video.thumbnailUrl || video.thumbnail_url || video.posterUrl || video.previewUrl || '';
@@ -416,45 +418,51 @@ function GalleryVideoCard({
             </LinearGradient>
           )}
         </View>
-        <LinearGradient
-          pointerEvents="none"
-          colors={['rgba(19, 25, 31,0)', 'rgba(19, 25, 31,0.44)']}
-          style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: compact ? '50%' : '42%' }}
-        />
+        {!minimalPreview && (
+          <LinearGradient
+            pointerEvents="none"
+            colors={['rgba(19, 25, 31,0)', 'rgba(19, 25, 31,0.44)']}
+            style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: compact ? '50%' : '42%' }}
+          />
+        )}
         {onOpen && (
           <TouchableOpacity
             activeOpacity={0.88}
             onPress={onOpen}
             style={{
               position: 'absolute',
-              top: compact ? 0 : 10,
-              right: compact ? 0 : 10,
-              bottom: compact ? 0 : undefined,
-              left: compact ? 0 : undefined,
-              minHeight: compact ? undefined : 34,
-              borderRadius: compact ? 0 : 17,
-              paddingHorizontal: compact ? 0 : 12,
-              backgroundColor: compact ? 'rgba(19, 25, 31, 0.26)' : 'rgba(19, 25, 31, 0.78)',
+              top: compact || minimalPreview ? 0 : 10,
+              right: compact || minimalPreview ? 0 : 10,
+              bottom: compact || minimalPreview ? 0 : undefined,
+              left: compact || minimalPreview ? 0 : undefined,
+              minHeight: compact || minimalPreview ? undefined : 34,
+              borderRadius: compact || minimalPreview ? 0 : 17,
+              paddingHorizontal: compact || minimalPreview ? 0 : 12,
+              backgroundColor: compact
+                ? 'rgba(19, 25, 31, 0.26)'
+                : minimalPreview
+                  ? 'rgba(19, 25, 31, 0.16)'
+                  : 'rgba(19, 25, 31, 0.78)',
               alignItems: 'center',
               justifyContent: 'center',
               flexDirection: 'row',
               gap: 6,
-              borderWidth: compact ? 0 : 1,
+              borderWidth: compact || minimalPreview ? 0 : 1,
               borderColor: `${accent}88`,
             }}
           >
-            {compact ? (
+            {compact || minimalPreview ? (
               <View style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
+                width: minimalPreview ? 52 : 36,
+                height: minimalPreview ? 52 : 36,
+                borderRadius: minimalPreview ? 26 : 18,
                 backgroundColor: 'rgba(19, 25, 31, 0.82)',
                 borderWidth: 1,
                 borderColor: `${accent}99`,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}>
-                <IconSymbol name="play.fill" size={16} color={accent} />
+                <IconSymbol name="play.fill" size={minimalPreview ? 22 : 16} color={accent} />
               </View>
             ) : (
               <>
@@ -468,7 +476,7 @@ function GalleryVideoCard({
         )}
         {blurred && <ExpiredMediaThumbnailNotice />}
       </View>
-      {!compact && (
+      {!compact && !minimalPreview && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10 }}>
           <IconSymbol name="play.fill" size={15} color={accent} />
           <Text style={{ flex: 1, color: '#e2e8f0', fontSize: 12, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>
@@ -6258,6 +6266,7 @@ export default function EventDetailScreen() {
                             key={video.id}
                             video={video}
                             accent={isSportsTemplate ? sportsTheme.accent : selectedTemplate.accent}
+                            minimalPreview
                             blurred={shouldBlurMediaForPlan(video)}
                             onOpen={() => openViewer(idx)}
                           />
@@ -6804,6 +6813,7 @@ export default function EventDetailScreen() {
         selectedTemplate={selectedTemplate}
         keepBottomBarVisible={showAdminView}
         bottomBarOffset={showAdminView ? 55 + insets.bottom : 0}
+        dashboardImageScrollReveal={!showAdminView}
         isPhotoFavourite={showAdminView ? ((photo) => !!photo?.id && eventFavouritePhotoIds.has(photo.id)) : undefined}
         onTogglePhotoFavourite={showAdminView ? ((photo) => photo?.id ? handleToggleEventFavourite(photo.id) : undefined) : undefined}
         onRotatePhoto={showAdminView ? ((photo, direction) => photo?.id ? handleRotateGalleryPhoto(photo.id, direction) : undefined) : undefined}

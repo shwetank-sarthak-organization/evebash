@@ -22,6 +22,7 @@ interface PhotoViewerProps {
   selectedTemplate: any;
   keepBottomBarVisible?: boolean;
   bottomBarOffset?: number;
+  dashboardImageScrollReveal?: boolean;
   isPhotoFavourite?: (photo: any) => boolean;
   onTogglePhotoFavourite?: (photo: any) => Promise<void> | void;
   onRotatePhoto?: (photo: any, direction: 'left' | 'right') => Promise<void> | void;
@@ -689,6 +690,7 @@ export default function PhotoViewer({
   selectedTemplate,
   keepBottomBarVisible = false,
   bottomBarOffset = 0,
+  dashboardImageScrollReveal = false,
   isPhotoFavourite,
   onTogglePhotoFavourite,
   onRotatePhoto,
@@ -709,6 +711,7 @@ export default function PhotoViewer({
   const [loadedImageSizes, setLoadedImageSizes] = useState<Record<string, { width: number; height: number }>>({});
   const swipeStartXRef = useRef<number | null>(null);
   const hostScrollRef = useRef<ScrollView | null>(null);
+  const dashboardImageScrollRef = useRef<ScrollView | null>(null);
   const dashboardVideoControlsRef = useRef<ViewerVideoControls | null>(null);
 
   // Sync index when initialIndex changes
@@ -722,6 +725,7 @@ export default function PhotoViewer({
   const isLiked = useMemo(() => likes.some((like) => like.userId === viewerIdentity.id), [likes, viewerIdentity.id]);
   const isVideoMedia = currentPhoto?.mediaType === 'video' || currentPhoto?.resourceType === 'video';
   const showHostTopControls = keepBottomBarVisible;
+  const shouldUseDashboardImageScrollReveal = dashboardImageScrollReveal && !showHostTopControls;
   const hostDisplayImageUrl = useMemo(() => {
     if (!currentPhoto) return '';
     if (isVideoMedia) return currentPhoto.url || '';
@@ -820,6 +824,12 @@ export default function PhotoViewer({
     }
   }, [visible, showHostTopControls, currentPhoto?.id]);
 
+  useEffect(() => {
+    if (!visible || !shouldUseDashboardImageScrollReveal) return;
+
+    dashboardImageScrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [currentPhoto?.id, shouldUseDashboardImageScrollReveal, visible]);
+
   const isScrapbookTemplate = event?.templateId === 'scrapbook';
   const isNeonTemplate = event?.templateId === 'neon';
   const isPopTemplate = event?.templateId === 'pop';
@@ -888,24 +898,6 @@ export default function PhotoViewer({
         animated: true,
       });
     }, 80);
-  };
-
-  const handlePreviousViewerControl = () => {
-    if (isVideoMedia && !showHostTopControls) {
-      dashboardVideoControlsRef.current?.seekBy(-5);
-      return;
-    }
-
-    navigateViewer('prev');
-  };
-
-  const handleNextViewerControl = () => {
-    if (isVideoMedia && !showHostTopControls) {
-      dashboardVideoControlsRef.current?.seekBy(5);
-      return;
-    }
-
-    navigateViewer('next');
   };
 
   const handleViewerTouchStart = (event: GestureResponderEvent) => {
@@ -1327,6 +1319,22 @@ export default function PhotoViewer({
             <IconSymbol name="xmark" size={26} color={viewerTheme.controlText} />
           </TouchableOpacity>
         )}
+        {shouldUseDashboardImageScrollReveal && (
+          <View
+            pointerEvents="none"
+            style={[
+              localStyles.dashboardImageTopCounter,
+              {
+                backgroundColor: viewerTheme.controlBg,
+                borderColor: viewerTheme.frameBorder,
+              },
+            ]}
+          >
+            <Text style={[styles.viewerText, localStyles.dashboardImageTopCounterText, { color: viewerTheme.controlText }]}>
+              {currentPhotoIndex + 1} / {photos.length}
+            </Text>
+          </View>
+        )}
 
         {showHostTopControls ? (
           <ScrollView
@@ -1449,16 +1457,84 @@ export default function PhotoViewer({
               </TouchableOpacity>
             )}
           </ScrollView>
+        ) : shouldUseDashboardImageScrollReveal ? (
+          <>
+            <ScrollView
+              ref={dashboardImageScrollRef}
+              style={localStyles.dashboardImageViewerScroll}
+              contentContainerStyle={localStyles.dashboardImageViewerScrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {photos[currentPhotoIndex] && (
+                <View
+                  onTouchStart={handleViewerTouchStart}
+                  onTouchEnd={handleViewerTouchEnd}
+                  style={[
+                    localStyles.dashboardFullscreenImageFrame,
+                    {
+                      height: viewportHeight,
+                      backgroundColor: viewerTheme.tileBg,
+                    },
+                  ]}
+                >
+                  {isVideoMedia ? (
+                    <ViewerVideo
+                      uri={photos[currentPhotoIndex].url}
+                      frameBg={viewerTheme.tileBg}
+                      controlText={viewerTheme.controlText}
+                      accent={viewerTheme.accent}
+                      customControls
+                      videoControlsRef={dashboardVideoControlsRef}
+                      onPreviousMedia={() => navigateViewer('prev')}
+                      onNextMedia={() => navigateViewer('next')}
+                    />
+                  ) : (
+                    <ExpoImage
+                      source={{ uri: getImageUrl(photos[currentPhotoIndex].url, { width: 1200, quality: 82, format: 'webp' }, photos[currentPhotoIndex].thumbnailUrl) }}
+                      style={localStyles.dashboardFullscreenImage}
+                      contentFit="contain"
+                      cachePolicy="memory-disk"
+                    />
+                  )}
+                  {(isDownloading || rotatingDirection) && (
+                    <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }]}>
+                      <ActivityIndicator size="large" color="#fff" />
+                      <Text style={{ color: '#fff', marginTop: 12, fontSize: 14, fontWeight: '600' }}>
+                        {rotatingDirection ? 'Saving rotation...' : 'Downloading original...'}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              <View style={localStyles.dashboardImageDetails}>
+                <View style={localStyles.dashboardImageActionsFlow}>
+                  <TouchableOpacity style={styles.viewerAction} onPress={handleToggleLike} disabled={isLiking}>
+                    <IconSymbol name={isLiked ? "heart.fill" : "heart"} size={30} color={isLiked ? "#f43f5e" : viewerTheme.controlText} />
+                    <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{likes.length}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.viewerAction} onPress={handleOpenComments}>
+                    <IconSymbol name="bubble.right" size={30} color={showComments ? viewerTheme.accent : viewerTheme.controlText} />
+                    <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{comments.length}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.viewerAction} onPress={handleSharePhoto}>
+                    <IconSymbol name="square.and.arrow.up" size={28} color={viewerTheme.controlText} />
+                    <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Share</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.viewerAction} onPress={handleDownloadPhoto} disabled={isDownloading}>
+                    <IconSymbol name="arrow.down.to.line.compact" size={30} color={viewerTheme.controlText} />
+                    <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Download</Text>
+                  </TouchableOpacity>
+                </View>
+
+              </View>
+            </ScrollView>
+
+            {showComments && renderGuestbookPanel(false)}
+          </>
         ) : (
           <>
-            <TouchableOpacity
-              style={[styles.navBtnLeft, { backgroundColor: viewerTheme.controlBg, borderColor: viewerTheme.frameBorder, borderWidth: 1 }]}
-              onPress={handlePreviousViewerControl}
-              accessibilityLabel={isVideoMedia ? 'Rewind video 5 seconds' : 'Previous media'}
-            >
-              <IconSymbol name="chevron.left" size={32} color={viewerTheme.controlText} />
-            </TouchableOpacity>
-
             {photos[currentPhotoIndex] && (
               <View
                 onTouchStart={handleViewerTouchStart}
@@ -1472,7 +1548,7 @@ export default function PhotoViewer({
                     borderWidth: 1,
                     borderColor: viewerTheme.frameBorder,
                     overflow: 'hidden',
-                    width: '92%',
+                    width: isVideoMedia ? '100%' : '92%',
                   },
                 ]}
               >
@@ -1504,14 +1580,6 @@ export default function PhotoViewer({
                 )}
               </View>
             )}
-
-            <TouchableOpacity
-              style={[styles.navBtnRight, { backgroundColor: viewerTheme.controlBg, borderColor: viewerTheme.frameBorder, borderWidth: 1 }]}
-              onPress={handleNextViewerControl}
-              accessibilityLabel={isVideoMedia ? 'Forward video 5 seconds' : 'Next media'}
-            >
-              <IconSymbol name="chevron.right" size={32} color={viewerTheme.controlText} />
-            </TouchableOpacity>
 
             <View style={[styles.viewerActions, showComments ? styles.viewerActionsRaised : styles.viewerActionsDocked]}>
               <TouchableOpacity style={styles.viewerAction} onPress={handleToggleLike} disabled={isLiking}>
@@ -1731,6 +1799,52 @@ const localStyles = StyleSheet.create({
     marginTop: 3,
     fontSize: 12,
     fontFamily: Fonts.inter.bold,
+  },
+  dashboardImageViewerScroll: {
+    flex: 1,
+    width: '100%',
+  },
+  dashboardImageViewerScrollContent: {
+    alignItems: 'center',
+    paddingBottom: 52,
+  },
+  dashboardFullscreenImageFrame: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  dashboardFullscreenImage: {
+    width: '100%',
+    height: '100%',
+  },
+  dashboardImageDetails: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    paddingHorizontal: 22,
+    paddingTop: 22,
+    paddingBottom: 30,
+  },
+  dashboardImageActionsFlow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    alignSelf: 'stretch',
+    gap: 18,
+  },
+  dashboardImageTopCounter: {
+    position: 'absolute',
+    top: 58,
+    left: 20,
+    zIndex: 12,
+    elevation: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  dashboardImageTopCounterText: {
+    fontSize: 13,
   },
   hostViewerContainer: {
     justifyContent: 'flex-start',
