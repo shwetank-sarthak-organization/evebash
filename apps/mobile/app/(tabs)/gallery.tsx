@@ -1490,7 +1490,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: colors.gold,
   },
   headerGreeting: { fontSize: 15, color: colors.slate400, fontFamily: 'AkayaKanadaka_400Regular', textAlign: 'center', marginTop: -18 },
-  headerName: { fontSize: 28, lineHeight: 38, color: colors.white, fontFamily: 'AkayaKanadaka_400Regular', letterSpacing: 0.5, textAlign: 'center', includeFontPadding: false },
+  headerName: { fontSize: 28, lineHeight: 38, color: colors.white, fontFamily: 'AkayaKanadakaHeader_400Regular', letterSpacing: 0.5, textAlign: 'center', includeFontPadding: false },
   headingLogoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 38 },
   createBtnHeader: {
     paddingHorizontal: 16,

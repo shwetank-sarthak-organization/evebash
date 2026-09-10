@@ -4,7 +4,7 @@ import { Image as ExpoImage, type ImageLoadEventData } from 'expo-image';
 import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
 import { VideoView, createVideoPlayer, type FullscreenOptions, type VideoPlayer } from 'expo-video';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, Event as DatabaseEvent } from '@/lib/database';
 import { getImageUrl } from '@/lib/imageUrl';
@@ -104,6 +104,46 @@ function LucideMessageCircleIcon({ size = 20, color, strokeWidth = 2 }: LucideIc
       strokeLinejoin="round"
     >
       <Path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+    </Svg>
+  );
+}
+
+function LucideShare2Icon({ size = 20, color, strokeWidth = 2 }: LucideIconProps) {
+  return (
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <Circle cx="18" cy="5" r="3" />
+      <Circle cx="6" cy="12" r="3" />
+      <Circle cx="18" cy="19" r="3" />
+      <Path d="M8.59 13.51 15.42 17.49" />
+      <Path d="M15.41 6.51 8.59 10.49" />
+    </Svg>
+  );
+}
+
+function LucideDownloadIcon({ size = 20, color, strokeWidth = 2 }: LucideIconProps) {
+  return (
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <Path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <Path d="M7 10l5 5 5-5" />
+      <Path d="M12 15V3" />
     </Svg>
   );
 }
@@ -1511,19 +1551,24 @@ export default function PhotoViewer({
               <View style={localStyles.dashboardImageDetails}>
                 <View style={localStyles.dashboardImageActionsFlow}>
                   <TouchableOpacity style={styles.viewerAction} onPress={handleToggleLike} disabled={isLiking}>
-                    <IconSymbol name={isLiked ? "heart.fill" : "heart"} size={30} color={isLiked ? "#f43f5e" : viewerTheme.controlText} />
+                    <LucideHeartIcon
+                      size={30}
+                      color={isLiked ? "#f43f5e" : viewerTheme.controlText}
+                      fill={isLiked ? "#f43f5e" : "none"}
+                      strokeWidth={2}
+                    />
                     <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{likes.length}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.viewerAction} onPress={handleOpenComments}>
-                    <IconSymbol name="bubble.right" size={30} color={showComments ? viewerTheme.accent : viewerTheme.controlText} />
+                    <LucideMessageCircleIcon size={30} color={showComments ? viewerTheme.accent : viewerTheme.controlText} strokeWidth={2} />
                     <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{comments.length}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.viewerAction} onPress={handleSharePhoto}>
-                    <IconSymbol name="square.and.arrow.up" size={28} color={viewerTheme.controlText} />
+                    <LucideShare2Icon size={28} color={viewerTheme.controlText} strokeWidth={2} />
                     <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Share</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.viewerAction} onPress={handleDownloadPhoto} disabled={isDownloading}>
-                    <IconSymbol name="arrow.down.to.line.compact" size={30} color={viewerTheme.controlText} />
+                    <LucideDownloadIcon size={30} color={viewerTheme.controlText} strokeWidth={2} />
                     <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Download</Text>
                   </TouchableOpacity>
                 </View>

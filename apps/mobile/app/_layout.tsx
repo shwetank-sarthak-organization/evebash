@@ -223,6 +223,7 @@ export default function RootLayout() {
     SpaceGrotesk_500Medium: Inter_500Medium,
     SpaceGrotesk_600SemiBold: Inter_600SemiBold,
     SpaceGrotesk_700Bold: Inter_700Bold,
+    AkayaKanadakaHeader_400Regular: require('../assets/fonts/AkayaKanadaka-Regular.ttf'),
     AkayaKanadaka_400Regular: Inter_400Regular,
     Monofett_400Regular: Inter_400Regular,
     BubblegumSans_400Regular: Inter_400Regular,

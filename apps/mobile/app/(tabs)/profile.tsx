@@ -1096,7 +1096,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     lineHeight: 38,
-    fontFamily: 'AkayaKanadaka_400Regular',
+    fontFamily: 'AkayaKanadakaHeader_400Regular',
     color: colors.white,
     letterSpacing: 0.5,
     textAlign: 'center',

@@ -712,7 +712,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     fontSize: 28,
     lineHeight: 38,
     color: colors.white,
-    fontFamily: 'AkayaKanadaka_400Regular',
+    fontFamily: 'AkayaKanadakaHeader_400Regular',
     letterSpacing: 0.5,
     textAlign: 'center',
     includeFontPadding: false,
