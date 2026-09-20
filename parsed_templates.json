@@ -223,34 +223,34 @@
     "id": "museum",
     "category": "Corporate",
     "label": "Museum Gallery",
-    "desc": "Luxury corporate exhibition",
+    "desc": "Luxury dark mood blue exhibition",
     "background": {
-      "light": "#f3f0ea",
-      "dark": "#0b1118"
+      "light": "#121820",
+      "dark": "#0D1117"
     },
-    "accent": "#9b7a44"
+    "accent": "#3D5F8A"
   },
   {
     "id": "brutalist",
     "category": "Corporate",
     "label": "Brutalist Grid",
-    "desc": "Modern architectural editorial grid",
+    "desc": "Modern architectural olive earth grid",
     "background": {
-      "light": "#efede7",
-      "dark": "#111113"
+      "light": "#272921",
+      "dark": "#171914"
     },
-    "accent": "#1a1a1c"
+    "accent": "#988B71"
   },
   {
     "id": "tech_sleek",
     "category": "Corporate",
     "label": "Tech Sleek",
-    "desc": "Futuristic and clean",
+    "desc": "Deep ocean navy & electric cyan blue theme",
     "background": {
-      "light": "#050b17",
-      "dark": "#050b17"
+      "light": "#0a182b",
+      "dark": "#040c1a"
     },
-    "accent": "#22d3ee"
+    "accent": "#00a2ff"
   },
   {
     "id": "executive",
