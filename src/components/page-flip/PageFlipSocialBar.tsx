@@ -395,7 +395,7 @@ export function PageFlipSocialBar({
               )}
             </div>
 
-            <form onSubmit={handleAddComment} className="border-t border-current/10 p-4">
+            <form onSubmit={handleAddComment} className="border-t border-current/10 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <div className="flex gap-2">
                 <textarea
                   ref={commentInputRef}

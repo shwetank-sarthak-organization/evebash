@@ -34,7 +34,7 @@ const SPORTS_HEADER_THEMES: Record<string, any> = {
   blush: { background: '#fff3ee', text: '#4a2725', muted: '#9a6b64', accent: '#d9796f', activeText: '#ffffff', tabBg: 'rgba(255,250,246,0.8)', border: 'rgba(217,121,111,0.25)' },
   garden: { background: '#e8eee5', text: '#1a3322', muted: '#526b50', accent: '#587c43', activeText: '#fdfbf7', tabBg: 'rgba(253,251,247,0.82)', border: 'rgba(88,124,67,0.25)' },
   midnight_glam: { background: '#050508', text: '#fff7e6', muted: '#d6bf94', accent: '#cca43b', activeText: '#0a0a0c', tabBg: 'rgba(255,247,230,0.08)', border: 'rgba(204,164,59,0.32)' },
-  cinematic: { background: '#0d0d0d', text: '#f4f4f4', muted: '#b8b8b8', accent: '#d9d9d9', activeText: '#121212', tabBg: 'rgba(245,245,245,0.08)', border: 'rgba(217,217,217,0.26)' },
+  cinematic: { background: '#0d0d0d', text: '#f4f4f4', muted: '#b8b8b8', accent: '#ef4444', activeText: '#ffffff', tabBg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.3)' },
   modern_lounge: { background: '#efe7dc', text: '#2b211b', muted: '#756353', accent: '#7a563b', activeText: '#fffaf2', tabBg: 'rgba(255,250,242,0.82)', border: 'rgba(122,86,59,0.24)' },
   elegant_night: { background: '#07101f', text: '#f5eddc', muted: '#d4b474', accent: '#d4b474', activeText: '#07101f', tabBg: 'rgba(245,237,220,0.08)', border: 'rgba(212,180,116,0.3)' },
   polaroid: { background: '#f7efe1', text: '#3f2a1e', muted: '#806653', accent: '#b45309', activeText: '#fffaf0', tabBg: 'rgba(255,250,240,0.82)', border: 'rgba(180,83,9,0.24)' },

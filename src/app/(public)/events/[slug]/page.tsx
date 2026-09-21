@@ -7,18 +7,15 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { notFound, useParams, useRouter, useSearchParams } from "next/navigation";
 import LoadingScreen from "@/components/LoadingScreen";
 import { getEvent } from "@/lib/events"; // Static Data
-import { getEventPhotosPaginated, getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event, Photo as DatabasePhoto, getFavouritePhotosForEvents } from "@/lib/database"; // Live Data
-import { EventNavbar } from "@/components/EventNavbar";
+import { getEventPhotosPaginated, getEventById, getSubEvents, logGuestLogin, onGuestStatusChange, Event, Photo as DatabasePhoto, getFavouritePhotosForEvents, getEventFavouritePhotos } from "@/lib/database"; // Live Data
 import { useAuth } from "@/context/AuthContext";
-import { Loader2, Image as ImageIcon, ChevronLeft, ChevronDown, Share2, Check } from "lucide-react";
+import { Loader2, Image as ImageIcon, ChevronLeft, ChevronDown, Share2, Check, Star, Layers3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRef } from "react";
 import { getWebTemplateComponent } from "@/components/templateRegistry";
 import { getWebLightboxTheme, getWebTemplateChrome } from "@/lib/webTemplateTheme";
-import { FindYouSection } from "@/components/FindYouSection";
 import { supabase } from "@/lib/supabase";
-import { downloadGalleryAsZip } from "@/lib/zipDownload";
 
 function EventPageContent() {
     const params = useParams();
@@ -34,12 +31,12 @@ function EventPageContent() {
     const [mediaTotals, setMediaTotals] = useState({ photos: 0, videos: 0 });
     const [activeGallery, setActiveGallery] = useState<Event | null>(null);
     const [galleryMediaTab, setGalleryMediaTab] = useState<"photos" | "videos">("photos");
-    const [activePage, setActivePage] = useState<"gallery" | "find-you">("gallery");
+    const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
+    const [favouriteMediaIds, setFavouriteMediaIds] = useState<Set<string>>(new Set());
+    const [sourceGalleryFilter, setSourceGalleryFilter] = useState("all");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
-    const [isZipping, setIsZipping] = useState(false);
-    const [zipProgress, setZipProgress] = useState(0);
 
     // Pagination State
     const [photoPage, setPhotoPage] = useState(0);
@@ -70,31 +67,6 @@ function EventPageContent() {
             loadEventData();
         }
     }, [authLoading, slug]);
-
-    const activeTemplateId = (activeGallery || event)?.templateId || event?.templateId;
-
-    useEffect(() => {
-        if (!activeTemplateId || typeof document === "undefined") return;
-
-        const chrome = getWebTemplateChrome(activeTemplateId);
-        const root = document.documentElement;
-
-        root.dataset.eventTemplateChrome = "true";
-        root.style.setProperty("--event-template-primary", chrome.background);
-        root.style.setProperty("--event-template-text", chrome.text);
-        root.style.setProperty("--event-template-muted", chrome.muted);
-        root.style.setProperty("--event-template-accent", chrome.accent);
-        root.style.setProperty("--event-template-border", chrome.border);
-
-        return () => {
-            delete root.dataset.eventTemplateChrome;
-            root.style.removeProperty("--event-template-primary");
-            root.style.removeProperty("--event-template-text");
-            root.style.removeProperty("--event-template-muted");
-            root.style.removeProperty("--event-template-accent");
-            root.style.removeProperty("--event-template-border");
-        };
-    }, [activeTemplateId]);
 
     // Initial session check
     useEffect(() => {
@@ -324,12 +296,9 @@ function EventPageContent() {
         }
     };
 
-    const [parentEvent, setParentEvent] = useState<Event | null>(null);
-
-    // ... (keep existing state)
-
     const transformPhotos = (databasePhotos: DatabasePhoto[]) => databasePhotos.map(p => ({
         id: p.id,
+        eventId: p.eventId,
         src: p.url || "",
         storageKey: p.storageKey || "",
         width: p.width || 800,
@@ -341,6 +310,10 @@ function EventPageContent() {
     }));
 
     const loadGalleryPhotos = async (gallery: Event, page = 0, append = false, overrideSubEvents?: Event[]) => {
+        if (!append) {
+            const favouriteRows = await getEventFavouritePhotos(gallery.id);
+            setFavouriteMediaIds(new Set(favouriteRows.map(row => row.photoId)));
+        }
         const currentMainEvent = gallery.type === 'main' ? gallery : event;
         const subEventList = overrideSubEvents || subEvents;
 
@@ -356,6 +329,7 @@ function EventPageContent() {
                 const favPhotos = await getFavouritePhotosForEvents(eventIds);
                 if (favPhotos.length > 0) {
                     const transformedFavs = transformPhotos(favPhotos as DatabasePhoto[]);
+                    setFavouriteMediaIds(new Set(transformedFavs.map(photo => photo.id).filter(Boolean)));
                     setPhotos(prev => append ? [...prev, ...transformedFavs] : transformedFavs);
                     const photoCount = transformedFavs.filter(p => p.mediaType !== "video" && p.resourceType !== "video").length;
                     const videoCount = transformedFavs.filter(p => p.mediaType === "video" || p.resourceType === "video").length;
@@ -373,24 +347,6 @@ function EventPageContent() {
         setMediaTotals({ photos: totalPhotos, videos: totalVideos });
         setPhotoPage(page);
         setHasMorePhotos(hasMore);
-    };
-
-    const selectGallery = async (gallery: Event | null) => {
-        const targetGallery = gallery || event;
-        if (!targetGallery) return;
-
-        setActiveGallery(gallery);
-        setGalleryMediaTab("photos");
-        setLoadingMorePhotos(false);
-
-        try {
-            await loadGalleryPhotos(targetGallery, 0, false);
-        } catch (err) {
-            console.error("Error loading gallery photos:", err);
-            setPhotos([]);
-            setMediaTotals({ photos: 0, videos: 0 });
-            setHasMorePhotos(false);
-        }
     };
 
     const loadEventData = async () => {
@@ -436,7 +392,6 @@ function EventPageContent() {
                     coverImage: resolveEventCoverImage(sub.coverImage, 'thumbnail')
                 }));
                 setSubEvents(resolvedSubEvents);
-                setParentEvent(null);
                 setActiveGallery(null);
                 setGalleryMediaTab("photos");
                 await loadGalleryPhotos(eventData, 0, false, resolvedSubEvents);
@@ -450,7 +405,6 @@ function EventPageContent() {
                         const pEvent = await getEventById(eventData.parentId);
                         if (pEvent) {
                             pEvent.coverImage = resolveEventCoverImage(pEvent.coverImage, 'preview');
-                            setParentEvent(pEvent);
                             const siblings = await getSubEvents(pEvent.id, pEvent.legacyId);
                             const resolvedSiblings = siblings.map(sub => ({
                                 ...sub,
@@ -528,11 +482,34 @@ function EventPageContent() {
 
     const photoItems = photos.filter(photo => photo.mediaType !== "video" && photo.resourceType !== "video" && !!(photo.thumbnailUrl || photo.src));
     const videoItems = photos.filter(photo => photo.mediaType === "video" || photo.resourceType === "video");
-    const activeGalleryItems = galleryMediaTab === "videos" ? videoItems : photoItems;
+    const selectedMediaItems = galleryMediaTab === "videos" ? videoItems : photoItems;
+    const isPrimaryGalleryView = !activeGallery;
+    const sourceGalleryOptions = [event, ...subEvents]
+        .filter((gallery): gallery is Event => !!gallery)
+        .map(gallery => ({
+            id: gallery.id,
+            label: gallery.id === event.id ? "Main event" : gallery.title,
+            legacyId: gallery.legacyId,
+            count: selectedMediaItems.filter(photo => photo.eventId === gallery.id || (!!gallery.legacyId && photo.eventId === gallery.legacyId)).length,
+        }))
+        .filter(option => option.count > 0);
+    const effectiveSourceGalleryFilter = sourceGalleryOptions.some(option => option.id === sourceGalleryFilter)
+        ? sourceGalleryFilter
+        : "all";
+    const isFavouriteFilterActive = !isPrimaryGalleryView && showOnlyFavourites;
+    const sourceFilteredMediaItems = isPrimaryGalleryView && effectiveSourceGalleryFilter !== "all"
+        ? selectedMediaItems.filter(photo => {
+            const source = sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter);
+            return photo.eventId === source?.id || (!!source?.legacyId && photo.eventId === source.legacyId);
+        })
+        : selectedMediaItems;
+    const activeGalleryItems = isFavouriteFilterActive
+        ? sourceFilteredMediaItems.filter(photo => favouriteMediaIds.has(photo.id))
+        : sourceFilteredMediaItems;
+    const activeFavouriteCount = selectedMediaItems.filter(photo => favouriteMediaIds.has(photo.id)).length;
     const displayedPhotoCount = mediaTotals.photos || photoItems.length;
     const displayedVideoCount = mediaTotals.videos || videoItems.length;
     const activeGalleryTitle = activeGallery?.title || event.title || "Home";
-    const activeGalleryId = activeGallery?.id || event.id;
     const displayEvent = activeGallery
         ? {
             ...event,
@@ -625,6 +602,54 @@ function EventPageContent() {
                         </button>
                     ))}
                 </div>
+                <div className="mt-4">
+                    {isPrimaryGalleryView ? (
+                    <label className="flex w-full max-w-md items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3 text-left shadow-sm">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-stone-100 text-stone-700">
+                            <Layers3 className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-bold text-stone-800">Source gallery</span>
+                            <span className="mt-0.5 block text-xs text-stone-500">Show media selected from</span>
+                        </span>
+                        <select
+                            value={effectiveSourceGalleryFilter}
+                            onChange={(event) => setSourceGalleryFilter(event.target.value)}
+                            className="max-w-[13rem] rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-semibold text-stone-800 outline-none focus:border-slate-700"
+                            aria-label="Filter by source gallery"
+                        >
+                            <option value="all">All galleries ({selectedMediaItems.length})</option>
+                            {sourceGalleryOptions.map(option => (
+                                <option key={option.id} value={option.id}>{option.label} ({option.count})</option>
+                            ))}
+                        </select>
+                    </label>
+                    ) : (
+                    <button
+                        type="button"
+                        role="switch"
+                        aria-checked={showOnlyFavourites}
+                        onClick={() => setShowOnlyFavourites(current => !current)}
+                        className={cn(
+                            "flex w-full max-w-md items-center gap-3 rounded-xl border px-4 py-3 text-left shadow-sm transition-colors",
+                            showOnlyFavourites
+                                ? "border-slate-900 bg-slate-900"
+                                : "border-stone-200 bg-white hover:border-stone-400"
+                        )}
+                    >
+                        <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-lg", showOnlyFavourites ? "bg-white text-slate-900" : "bg-stone-100 text-stone-600")}>
+                            <Star className={cn("h-4 w-4", showOnlyFavourites && "fill-current")} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                            <span className={cn("block text-sm font-bold", showOnlyFavourites ? "text-white" : "text-stone-800")}>Favourites only</span>
+                            <span className={cn("mt-0.5 block text-xs", showOnlyFavourites ? "text-slate-300" : "text-stone-500")}>{activeFavouriteCount} in {galleryMediaTab === "videos" ? "Videos" : "Photos"}</span>
+                        </span>
+                        <span className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", showOnlyFavourites ? "bg-white/35" : "bg-stone-200")}>
+                            <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform", showOnlyFavourites ? "translate-x-5" : "translate-x-0.5")} />
+                        </span>
+                    </button>
+                    )}
+                </div>
 
                 {activeGalleryItems.length > 0 ? (
                     <div className="mt-8">
@@ -647,7 +672,9 @@ function EventPageContent() {
                         ) : (
                             <>
                                 <h2 className="text-2xl font-serif italic text-stone-600 mb-2">
-                                    {galleryMediaTab === "videos" ? "No videos yet." : "No photos yet."}
+                                    {isFavouriteFilterActive
+                                        ? `No favourite ${galleryMediaTab === "videos" ? "videos" : "photos"} in this gallery yet.`
+                                        : galleryMediaTab === "videos" ? "No videos yet." : "No photos yet."}
                                 </h2>
                                 <p className="font-sans text-stone-600 text-sm">Check back soon to see the captured memories.</p>
                             </>
@@ -681,42 +708,6 @@ function EventPageContent() {
     const TemplateComponent = getWebTemplateComponent(displayEvent.templateId);
     const templateChrome = getWebTemplateChrome(displayEvent.templateId);
 
-    // Determine Navbar Props
-    const navMainTitle = parentEvent ? parentEvent.title : event.title;
-    const navMainId = event.parentId || event.id;
-
-    // Build Find You event IDs (current event + parent if sub-event)
-    const findYouEventIds = [event.id];
-    if (event.parentId) findYouEventIds.push(event.parentId);
-
-    const handleDownloadZip = async () => {
-        if (!photos || photos.length === 0) {
-            alert("No photos or videos to download in this gallery.");
-            return;
-        }
-        setIsZipping(true);
-        setZipProgress(0);
-        try {
-            const title = activeGallery?.title || event?.title || "Gallery";
-            await downloadGalleryAsZip(
-                title,
-                photos.map(p => ({
-                    id: p.id,
-                    url: p.src || p.url,
-                    filename: p.filename,
-                    mediaType: p.mediaType,
-                    resourceType: p.resourceType,
-                })),
-                (percent) => setZipProgress(percent)
-            );
-        } catch (err: any) {
-            alert(err.message || "Failed to generate zip file.");
-        } finally {
-            setIsZipping(false);
-            setZipProgress(0);
-        }
-    };
-
     return (
         <main
             className="event-template-shell min-h-screen relative"
@@ -729,27 +720,6 @@ function EventPageContent() {
                 "--event-template-border": templateChrome.border,
             } as React.CSSProperties}
         >
-            <EventNavbar
-                mainEventTitle={navMainTitle}
-                mainEventId={navMainId}
-                subEvents={subEvents}
-                isShared={isShared}
-                basePath={`/events/${navMainId}`}
-                activeGalleryId={activeGalleryId}
-                activePage={activePage}
-                onSelectGallery={(gallery) => {
-                    setActivePage("gallery");
-                    selectGallery(gallery || parentEvent || null);
-                }}
-                onFindYou={() => router.push(`/events/${navMainId}/find-you${isShared ? "?shared=true" : ""}`)}
-                onDownloadZip={handleDownloadZip}
-                isZipping={isZipping}
-                zipProgress={zipProgress}
-                chromeBackgroundColor={templateChrome.background}
-                chromeTextColor={templateChrome.text}
-                chromeAccentColor={templateChrome.accent}
-                chromeBorderColor={templateChrome.border}
-            />
             <TemplateComponent
                 event={displayEvent}
                 subEvents={[]}
@@ -766,25 +736,7 @@ function EventPageContent() {
                 copied={copied}
                 error={error}
             >
-                {activePage === "find-you" ? (
-                    <div className="py-12 px-4">
-                        <div className="text-center mb-10">
-                            <p className="text-xs font-black uppercase tracking-widest text-stone-500 mb-2">AI Photo Search</p>
-                            <h2 className="text-3xl md:text-4xl font-serif italic text-stone-900 mb-3">Find You</h2>
-                            <p className="text-stone-500 text-sm">Upload a selfie to find all your photos from this event</p>
-                        </div>
-                        <FindYouSection
-                            eventId={event.id}
-                            legacyId={event.legacyId}
-                            parentId={event.parentId}
-                            subEventIds={subEvents.map(s => s.id)}
-                            eventSlug={slug}
-                            lightboxTheme={getWebLightboxTheme(event.templateId)}
-                        />
-                    </div>
-                ) : (
-                    renderContent()
-                )}
+                {renderContent()}
             </TemplateComponent>
             {/* Guest Entry Modal */}
             <AnimatePresence>

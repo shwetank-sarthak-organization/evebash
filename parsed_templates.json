@@ -135,12 +135,12 @@
     "id": "bohemian",
     "category": "Other",
     "label": "Bohemian Rhapsody",
-    "desc": "Sunset acoustic & festival theme",
+    "desc": "Vintage retro cream & olive green festival theme",
     "background": {
-      "light": "#fff7ed",
-      "dark": "#2f241d"
+      "light": "#f3e8d3",
+      "dark": "#2f1b12"
     },
-    "accent": "#fb923c"
+    "accent": "#73863a"
   },
   {
     "id": "diamond",
@@ -157,56 +157,56 @@
     "id": "blush",
     "category": "Other",
     "label": "Blush & Bashful",
-    "desc": "Soft pink champagne",
+    "desc": "Velvet burgundy & rose gold luxury editorial journal",
     "background": {
-      "light": "#fff7ed",
-      "dark": "#431407"
+      "light": "#f5dfdb",
+      "dark": "#230a12"
     },
-    "accent": "#ea580c"
+    "accent": "#d89c8a"
   },
   {
     "id": "garden",
     "category": "Other",
     "label": "Garden Path",
-    "desc": "Natural greens and ivory",
+    "desc": "Misty botanical sage & leaf green natural theme",
     "background": {
-      "light": "#E5ECE9",
-      "dark": "#112217"
+      "light": "#e4ebe3",
+      "dark": "#3f4f40"
     },
-    "accent": "#2E6F40"
+    "accent": "#7a9a6b"
   },
   {
     "id": "midnight_glam",
     "category": "Other",
     "label": "Midnight Glam",
-    "desc": "Dark blue and silver",
+    "desc": "Twilight indigo & deep violet nocturnal theme",
     "background": {
-      "light": "#eff6ff",
-      "dark": "#020617"
+      "light": "#EFEBFB",
+      "dark": "#1A1035"
     },
-    "accent": "#3b82f6"
+    "accent": "#6B5BBF"
   },
   {
     "id": "cinematic",
     "category": "Other",
     "label": "Cinematic Noir",
-    "desc": "Dramatic and immersive",
+    "desc": "Vintage biker & dramatic crimson cinematic theme",
     "background": {
       "light": "#f5f5f5",
-      "dark": "#000000"
+      "dark": "#0f0f12"
     },
-    "accent": "#ef4444"
+    "accent": "#e62b3a"
   },
   {
     "id": "modern_lounge",
     "category": "Other",
     "label": "Modern Lounge",
-    "desc": "Sleek and contemporary",
+    "desc": "Dark mood blue & sleek steel architecture",
     "background": {
-      "light": "#f8fafc",
-      "dark": "#0f172a"
+      "light": "#F0F4F8",
+      "dark": "#0D1117"
     },
-    "accent": "#818cf8"
+    "accent": "#3D5F8A"
   },
   {
     "id": "elegant_night",

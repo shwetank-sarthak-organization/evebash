@@ -101,7 +101,8 @@ export function EventNavbar({
     const navTextColor = chromeTextColor || "#0f172a";
     const navAccentColor = chromeAccentColor || "#0f172a";
     const navBorderColor = chromeBorderColor || "rgba(255,255,255,0.16)";
-    const activeTextColor = navAccentColor.toLowerCase() === "#ffffff" ? "#0f172a" : "#050505";
+    const activeTextColor = "#ffffff";
+    const activeBgColor = (navAccentColor.toLowerCase() === "#ffffff" || navAccentColor.toLowerCase() === "#fafafa") ? "#111827" : navAccentColor;
 
     const primaryDesktopLinks: EventNavLink[] = [
         { name: "Home", href: `${basePath}${sharedQuery}`, gallery: null, isGallery: true },
@@ -155,7 +156,7 @@ export function EventNavbar({
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
         );
         const style = hasTemplateChrome ? {
-            backgroundColor: isActive ? navAccentColor : "transparent",
+            backgroundColor: isActive ? activeBgColor : "transparent",
             color: isActive ? activeTextColor : navTextColor,
         } : undefined;
 
@@ -255,7 +256,7 @@ export function EventNavbar({
                                                 : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                                     )}
                                     style={hasTemplateChrome ? {
-                                        backgroundColor: isCollectionsActive ? navAccentColor : "transparent",
+                                        backgroundColor: isCollectionsActive ? activeBgColor : "transparent",
                                         color: isCollectionsActive ? activeTextColor : navTextColor,
                                     } : undefined}
                                     aria-expanded={collectionsOpen}
@@ -292,7 +293,7 @@ export function EventNavbar({
                                                             : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                                                 );
                                                 const style = hasTemplateChrome ? {
-                                                    backgroundColor: isActive ? navAccentColor : "transparent",
+                                                    backgroundColor: isActive ? activeBgColor : "transparent",
                                                     color: isActive ? activeTextColor : navTextColor,
                                                 } : undefined;
 
@@ -476,7 +477,7 @@ export function EventNavbar({
                                                     : "hover:bg-stone-50 text-slate-600"
                                         );
                                         const style = hasTemplateChrome ? {
-                                            backgroundColor: isActive ? navAccentColor : "transparent",
+                                            backgroundColor: isActive ? activeBgColor : "transparent",
                                             color: isActive ? activeTextColor : navTextColor,
                                         } : undefined;
 

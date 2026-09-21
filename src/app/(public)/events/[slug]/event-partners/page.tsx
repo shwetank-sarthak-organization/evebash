@@ -2,25 +2,17 @@
 
 import React, { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Briefcase, ChevronRight, MapPin, Star, Users, Store } from "lucide-react";
+import { ChevronRight, MapPin, Star, Users, Store } from "lucide-react";
 import LoadingScreen from "@/components/LoadingScreen";
-import { EventNavbar } from "@/components/EventNavbar";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import { Business, Event, getBusinessById, getEventById, getSubEvents } from "@/lib/database";
-import { getWebTemplateChrome } from "@/lib/webTemplateTheme";
+import { Business, Event, getBusinessById, getEventById } from "@/lib/database";
 
 function getVendorLocation(business: Business) {
     return business.location?.address || "Location not listed";
 }
 
 function EventPartnersContent({ slug }: { slug: string }) {
-    const searchParams = useSearchParams();
-    const isShared = searchParams.get("shared") === "true";
-
     const [event, setEvent] = useState<Event | null>(null);
-    const [parentEvent, setParentEvent] = useState<Event | null>(null);
-    const [subEvents, setSubEvents] = useState<Event[]>([]);
     const [vendors, setVendors] = useState<Business[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -40,14 +32,6 @@ function EventPartnersContent({ slug }: { slug: string }) {
 
                 const navRoot = eventData.parentId ? await getEventById(eventData.parentId) : eventData;
                 if (!active) return;
-
-                setParentEvent(eventData.parentId ? navRoot : null);
-
-                if (navRoot) {
-                    const siblings = await getSubEvents(navRoot.id, navRoot.legacyId);
-                    if (!active) return;
-                    setSubEvents(siblings);
-                }
 
                 const partnerSource = navRoot || eventData;
                 const vendorIds = partnerSource.vendors || [];
@@ -75,31 +59,6 @@ function EventPartnersContent({ slug }: { slug: string }) {
         };
     }, [slug]);
 
-    const chromeTemplateId = (parentEvent || event)?.templateId || event?.templateId;
-
-    useEffect(() => {
-        if (!chromeTemplateId || typeof document === "undefined") return;
-
-        const chrome = getWebTemplateChrome(chromeTemplateId);
-        const root = document.documentElement;
-
-        root.dataset.eventTemplateChrome = "true";
-        root.style.setProperty("--event-template-primary", chrome.background);
-        root.style.setProperty("--event-template-text", chrome.text);
-        root.style.setProperty("--event-template-muted", chrome.muted);
-        root.style.setProperty("--event-template-accent", chrome.accent);
-        root.style.setProperty("--event-template-border", chrome.border);
-
-        return () => {
-            delete root.dataset.eventTemplateChrome;
-            root.style.removeProperty("--event-template-primary");
-            root.style.removeProperty("--event-template-text");
-            root.style.removeProperty("--event-template-muted");
-            root.style.removeProperty("--event-template-accent");
-            root.style.removeProperty("--event-template-border");
-        };
-    }, [chromeTemplateId]);
-
     if (loading) {
         return <LoadingScreen message="Loading event partners" />;
     }
@@ -115,34 +74,8 @@ function EventPartnersContent({ slug }: { slug: string }) {
         );
     }
 
-    const navEvent = parentEvent || event;
-    const templateChrome = getWebTemplateChrome(navEvent.templateId || event.templateId);
-
     return (
-        <main
-            className="event-template-shell min-h-screen bg-stone-50 pb-24"
-            style={{
-                "--event-template-primary": templateChrome.background,
-                "--event-template-text": templateChrome.text,
-                "--event-template-muted": templateChrome.muted,
-                "--event-template-accent": templateChrome.accent,
-                "--event-template-border": templateChrome.border,
-            } as React.CSSProperties}
-        >
-            <EventNavbar
-                mainEventTitle={navEvent.title}
-                mainEventId={navEvent.id}
-                subEvents={subEvents}
-                isShared={isShared}
-                basePath={`/events/${navEvent.id}`}
-                activeGalleryId={navEvent.id}
-                activePage="event-partners"
-                chromeBackgroundColor={templateChrome.background}
-                chromeTextColor={templateChrome.text}
-                chromeAccentColor={templateChrome.accent}
-                chromeBorderColor={templateChrome.border}
-            />
-
+        <main className="min-h-screen bg-stone-50 pb-24">
             <section className="mx-auto max-w-6xl px-4 pt-32 sm:px-6 lg:px-8">
                 <SectionHeader
                     title="The Dream Team"

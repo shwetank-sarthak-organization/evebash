@@ -155,8 +155,8 @@ const SPORTS_TEMPLATE_THEMES: Record<string, any> = {
     card: 'rgba(245, 245, 245, 0.93)',
     text: '#121212',
     muted: '#5e5e5e',
-    accent: '#d9d9d9',
-    accentAlt: '#ef4444',
+    accent: '#ef4444',
+    accentAlt: '#d9d9d9',
     imageFrame: '#f2f2f2',
     darkControl: '#121212',
     headingFont: Fonts.spaceGrotesk.bold,
@@ -1007,9 +1007,48 @@ export default function EventDetailScreen() {
   const [photoPage, setPhotoPage] = useState(0);
   const [hasMorePhotos, setHasMorePhotos] = useState(false);
   const [loadingMorePhotos, setLoadingMorePhotos] = useState(false);
+  // undefined = gallery list, null = Primary Gallery, event = sub-gallery
+  const [selectedAdminGallery, setSelectedAdminGallery] = useState<DatabaseEvent | null | undefined>(undefined);
   const [galleryMediaTab, setGalleryMediaTab] = useState<'photos' | 'videos'>('photos');
+  const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
+  const [sourceGalleryFilter, setSourceGalleryFilter] = useState('all');
+  const [sourceGalleryMenuVisible, setSourceGalleryMenuVisible] = useState(false);
   const photoItems = React.useMemo(() => photos.filter(isPhotoMedia), [photos]);
   const videoItems = React.useMemo(() => photos.filter(isVideoMedia), [photos]);
+  const selectedMediaItems = galleryMediaTab === 'photos' ? photoItems : videoItems;
+  const isPrimaryGalleryView = showAdminView ? selectedAdminGallery === null : !activeSubEvent;
+  const sourceGalleryOptions = React.useMemo(() => {
+    return [event, ...subEvents]
+      .filter((gallery): gallery is DatabaseEvent => !!gallery)
+      .map(gallery => ({
+        id: gallery.id,
+        label: gallery.id === event?.id ? 'Main event' : gallery.title,
+        legacyId: gallery.legacyId,
+        count: selectedMediaItems.filter(item => item.eventId === gallery.id || (!!gallery.legacyId && item.eventId === gallery.legacyId)).length,
+      }))
+      .filter(option => option.count > 0);
+  }, [event, selectedMediaItems, subEvents]);
+  const effectiveSourceGalleryFilter = sourceGalleryOptions.some(option => option.id === sourceGalleryFilter)
+    ? sourceGalleryFilter
+    : 'all';
+  const isFavouriteFilterActive = !isPrimaryGalleryView && showOnlyFavourites;
+  const sourceFilteredMediaItems = React.useMemo(() => {
+    if (!isPrimaryGalleryView || effectiveSourceGalleryFilter === 'all') return selectedMediaItems;
+    const source = sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter);
+    return selectedMediaItems.filter(item => item.eventId === source?.id || (!!source?.legacyId && item.eventId === source.legacyId));
+  }, [effectiveSourceGalleryFilter, isPrimaryGalleryView, selectedMediaItems, sourceGalleryOptions]);
+  const filteredPhotoItems = React.useMemo(
+    () => galleryMediaTab === 'photos' && isFavouriteFilterActive
+      ? sourceFilteredMediaItems.filter(item => eventFavouritePhotoIds.has(item.id))
+      : galleryMediaTab === 'photos' ? sourceFilteredMediaItems : photoItems,
+    [eventFavouritePhotoIds, galleryMediaTab, isFavouriteFilterActive, photoItems, sourceFilteredMediaItems],
+  );
+  const filteredVideoItems = React.useMemo(
+    () => galleryMediaTab === 'videos' && isFavouriteFilterActive
+      ? sourceFilteredMediaItems.filter(item => eventFavouritePhotoIds.has(item.id))
+      : galleryMediaTab === 'videos' ? sourceFilteredMediaItems : videoItems,
+    [eventFavouritePhotoIds, galleryMediaTab, isFavouriteFilterActive, sourceFilteredMediaItems, videoItems],
+  );
   const displayedPhotoCount = mediaTotals.photos || photoItems.length;
   const displayedVideoCount = mediaTotals.videos || videoItems.length;
   const mediaTabs = React.useMemo<{ id: 'photos' | 'videos'; label: string }[]>(() => {
@@ -1018,7 +1057,10 @@ export default function EventDetailScreen() {
       { id: 'videos', label: `Videos (${displayedVideoCount})` },
     ];
   }, [displayedPhotoCount, displayedVideoCount]);
-  const activeGalleryItems = galleryMediaTab === 'photos' ? photoItems : videoItems;
+  const activeGalleryItems = galleryMediaTab === 'photos' ? filteredPhotoItems : filteredVideoItems;
+  const activeFavouriteCount = galleryMediaTab === 'photos'
+    ? photoItems.filter(item => eventFavouritePhotoIds.has(item.id)).length
+    : videoItems.filter(item => eventFavouritePhotoIds.has(item.id)).length;
   const shouldWarnExpiredPlanMedia = subscriptionStatus.status === 'grace' && retainedMediaIds.size > 0;
   const shouldBlurMediaForPlan = useCallback((media: any) => {
     return shouldWarnExpiredPlanMedia && !!media?.id && !retainedMediaIds.has(media.id);
@@ -1029,8 +1071,6 @@ export default function EventDetailScreen() {
   const [galleryDescText, setGalleryDescText] = useState('');
 
   // Admin Gallery Manager — which gallery is the host currently managing
-  // null = Home gallery, DatabaseEvent = a sub-event gallery
-  const [selectedAdminGallery, setSelectedAdminGallery] = useState<DatabaseEvent | null | undefined>(undefined);
 
   const currentActiveEvent = selectedAdminGallery !== undefined
     ? (selectedAdminGallery || event)
@@ -4747,7 +4787,7 @@ export default function EventDetailScreen() {
                           <Text style={styles.sectionTitle}>
                             Gallery Media
                           </Text>
-                          <TouchableOpacity
+                          {!isFavouriteFilterActive && <TouchableOpacity
                             style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(204,164,59,0.12)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: MidnightColors.gold }}
                             onPress={galleryMediaTab === 'videos' ? handleUploadGalleryVideo : handleUploadGalleryPhoto}
                           >
@@ -4755,7 +4795,7 @@ export default function EventDetailScreen() {
                             <Text style={{ color: MidnightColors.gold, fontSize: 12, fontWeight: '600' }}>
                               {galleryMediaTab === 'videos' ? 'Add Video' : 'Add Photo'}
                             </Text>
-                          </TouchableOpacity>
+                          </TouchableOpacity>}
                         </View>
                         <View style={{ flexDirection: 'row', backgroundColor: 'rgba(27, 33, 31,0.9)', borderRadius: 16, padding: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
                           {mediaTabs.map((item) => {
@@ -4773,6 +4813,44 @@ export default function EventDetailScreen() {
                             );
                           })}
                         </View>
+                        {isPrimaryGalleryView ? (
+                        <TouchableOpacity
+                          accessibilityRole="button"
+                          onPress={() => setSourceGalleryMenuVisible(true)}
+                          style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(27,33,31,0.72)', paddingHorizontal: 12, paddingVertical: 10 }}
+                        >
+                          <View style={{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(204,164,59,0.14)' }}>
+                            <IconSymbol name="square.grid.2x2.fill" size={16} color={MidnightColors.gold} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ color: '#f8fafc', fontSize: 13, fontFamily: Fonts.inter.bold }}>Source gallery</Text>
+                            <Text style={{ color: '#94a3b8', fontSize: 11, marginTop: 2 }} numberOfLines={1}>
+                              {effectiveSourceGalleryFilter === 'all'
+                                ? `All galleries · ${selectedMediaItems.length}`
+                                : `${sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter)?.label || 'All galleries'} · ${activeGalleryItems.length}`}
+                            </Text>
+                          </View>
+                          <IconSymbol name="chevron.down" size={16} color="#94a3b8" />
+                        </TouchableOpacity>
+                        ) : (
+                        <TouchableOpacity
+                          accessibilityRole="switch"
+                          accessibilityState={{ checked: showOnlyFavourites }}
+                          onPress={() => setShowOnlyFavourites(current => !current)}
+                          style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: showOnlyFavourites ? MidnightColors.gold : 'rgba(255,255,255,0.12)', backgroundColor: showOnlyFavourites ? 'rgba(204,164,59,0.12)' : 'rgba(27,33,31,0.72)', paddingHorizontal: 12, paddingVertical: 10 }}
+                        >
+                          <View style={{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: showOnlyFavourites ? MidnightColors.gold : 'rgba(255,255,255,0.08)' }}>
+                            <IconSymbol name={showOnlyFavourites ? 'star.fill' : 'star'} size={16} color={showOnlyFavourites ? '#13191F' : '#cbd5e1'} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ color: showOnlyFavourites ? MidnightColors.gold : '#f8fafc', fontSize: 13, fontFamily: Fonts.inter.bold }}>Favourites only</Text>
+                            <Text style={{ color: '#94a3b8', fontSize: 11, marginTop: 2 }}>{activeFavouriteCount} in {galleryMediaTab === 'videos' ? 'Videos' : 'Photos'}</Text>
+                          </View>
+                          <View style={{ width: 44, height: 24, borderRadius: 12, padding: 2, backgroundColor: showOnlyFavourites ? MidnightColors.gold : '#475569' }}>
+                            <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', alignSelf: showOnlyFavourites ? 'flex-end' : 'flex-start' }} />
+                          </View>
+                        </TouchableOpacity>
+                        )}
                       </View>
 
                       {/* Media Grid */}
@@ -4782,16 +4860,18 @@ export default function EventDetailScreen() {
                         <View style={{ alignItems: 'center', paddingVertical: 32 }}>
                           <IconSymbol name={galleryMediaTab === 'videos' ? 'play.fill' : 'photo.on.rectangle'} size={36} color={MidnightColors.slate700} />
                           <Text style={{ color: MidnightColors.slate400, marginTop: 10, fontSize: 14 }}>
-                            {galleryMediaTab === 'videos' ? 'No videos yet. Tap Add Video!' : 'No photos yet. Tap Add Photo!'}
+                            {isFavouriteFilterActive
+                              ? `No favourite ${galleryMediaTab === 'videos' ? 'videos' : 'photos'} in this gallery yet.`
+                              : galleryMediaTab === 'videos' ? 'No videos yet. Tap Add Video!' : 'No photos yet. Tap Add Photo!'}
                           </Text>
                         </View>
                       ) : galleryMediaTab === 'videos' ? (
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                          {videoItems.map((video, idx) => {
+                          {filteredVideoItems.map((video, idx) => {
                             const shouldBlurVideo = shouldBlurMediaForPlan(video);
                             const isFavouriteVideo = eventFavouritePhotoIds.has(video.id);
                             const canMoveVideoUp = idx > 0;
-                            const canMoveVideoDown = idx < videoItems.length - 1;
+                            const canMoveVideoDown = idx < filteredVideoItems.length - 1;
                             return (
                               <View key={video.id} style={{ position: 'relative', width: '31.5%', aspectRatio: 1 }}>
                               <GalleryVideoCard
@@ -4843,7 +4923,7 @@ export default function EventDetailScreen() {
                               >
                                 <IconSymbol name="trash.fill" size={10} color="#fff" />
                               </TouchableOpacity>
-                              {videoItems.length > 1 && (
+                              {!isFavouriteFilterActive && filteredVideoItems.length > 1 && (
                                 <View
                                   style={{
                                     position: 'absolute',
@@ -4897,28 +4977,29 @@ export default function EventDetailScreen() {
                         </View>
                       ) : (
                         <View>
-                          <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginBottom: 8, letterSpacing: 0.4 }}>
+                          {!isFavouriteFilterActive && <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginBottom: 8, letterSpacing: 0.4 }}>
                             ✦ Hold & drag a photo to reorder
-                          </Text>
+                          </Text>}
                           <Sortable.Grid
-                            data={photoItems}
+                            data={filteredPhotoItems}
                             keyExtractor={(item: any) => item.id}
                             columns={3}
                             columnGap={8}
                             rowGap={8}
+                            sortEnabled={!isFavouriteFilterActive}
                             onDragEnd={({ data: newData }: { data: any[] }) => handleReorderPhotos(newData)}
 	                            renderItem={({ item }: { item: any }) => {
 	                              const shouldBlurPhoto = shouldBlurMediaForPlan(item);
-                              const itemIndex = photoItems.findIndex(photo => photo.id === item.id);
+                              const itemIndex = filteredPhotoItems.findIndex(photo => photo.id === item.id);
                               const isFavouritePhoto = eventFavouritePhotoIds.has(item.id);
                               const canMovePhotoUp = itemIndex > 0;
-                              const canMovePhotoDown = itemIndex >= 0 && itemIndex < photoItems.length - 1;
+                              const canMovePhotoDown = itemIndex >= 0 && itemIndex < filteredPhotoItems.length - 1;
 	                              return (
 	                              <View style={{ position: 'relative', borderRadius: 10, overflow: 'hidden' }}>
 	                                <TouchableOpacity
                                   activeOpacity={0.9}
                                   onPress={() => {
-                                    const photoIndex = photoItems.findIndex(photo => photo.id === item.id);
+                                    const photoIndex = filteredPhotoItems.findIndex(photo => photo.id === item.id);
                                     openViewer(photoIndex >= 0 ? photoIndex : 0);
                                   }}
                                 >
@@ -4998,7 +5079,7 @@ export default function EventDetailScreen() {
 	                                >
 	                                  <IconSymbol name="trash.fill" size={10} color="#fff" />
 	                                </TouchableOpacity>
-                                {photoItems.length > 1 && (
+                                {!isFavouriteFilterActive && filteredPhotoItems.length > 1 && (
                                   <View
                                     style={{
                                       position: 'absolute',
@@ -6245,6 +6326,44 @@ export default function EventDetailScreen() {
                     );
                   })}
                 </View>
+                {isPrimaryGalleryView ? (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  onPress={() => setSourceGalleryMenuVisible(true)}
+                  style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4, marginBottom: 14, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(148,163,184,0.22)', backgroundColor: 'rgba(27,33,31,0.06)', paddingHorizontal: 12, paddingVertical: 10 }}
+                >
+                  <View style={{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: selectedTemplate.accentBg }}>
+                    <IconSymbol name="square.grid.2x2.fill" size={16} color={selectedTemplate.accent} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: selectedTemplate.text, fontSize: 13, fontFamily: Fonts.inter.bold }}>Source gallery</Text>
+                    <Text style={{ color: selectedTemplate.muted, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
+                      {effectiveSourceGalleryFilter === 'all'
+                        ? `All galleries · ${selectedMediaItems.length}`
+                        : `${sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter)?.label || 'All galleries'} · ${activeGalleryItems.length}`}
+                    </Text>
+                  </View>
+                  <IconSymbol name="chevron.down" size={16} color={selectedTemplate.muted} />
+                </TouchableOpacity>
+                ) : (
+                <TouchableOpacity
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: showOnlyFavourites }}
+                  onPress={() => setShowOnlyFavourites(current => !current)}
+                  style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4, marginBottom: 14, borderRadius: 12, borderWidth: 1, borderColor: showOnlyFavourites ? selectedTemplate.accent : 'rgba(148,163,184,0.22)', backgroundColor: showOnlyFavourites ? selectedTemplate.accentBg : 'rgba(27,33,31,0.06)', paddingHorizontal: 12, paddingVertical: 10 }}
+                >
+                  <View style={{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: showOnlyFavourites ? selectedTemplate.accent : 'rgba(100,116,139,0.12)' }}>
+                    <IconSymbol name={showOnlyFavourites ? 'star.fill' : 'star'} size={16} color={showOnlyFavourites ? '#ffffff' : selectedTemplate.muted} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: showOnlyFavourites ? selectedTemplate.accent : selectedTemplate.text, fontSize: 13, fontFamily: Fonts.inter.bold }}>Favourites only</Text>
+                    <Text style={{ color: selectedTemplate.muted, fontSize: 11, marginTop: 2 }}>{activeFavouriteCount} in {galleryMediaTab === 'videos' ? 'Videos' : 'Photos'}</Text>
+                  </View>
+                  <View style={{ width: 44, height: 24, borderRadius: 12, padding: 2, backgroundColor: showOnlyFavourites ? selectedTemplate.accent : 'rgba(100,116,139,0.55)' }}>
+                    <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', alignSelf: showOnlyFavourites ? 'flex-end' : 'flex-start' }} />
+                  </View>
+                </TouchableOpacity>
+                )}
 
                 {loadingPhotos ? (
                   <View style={styles.photoLoading}>
@@ -6256,12 +6375,14 @@ export default function EventDetailScreen() {
                       <View style={styles.emptyGallery}>
                         <IconSymbol name={galleryMediaTab === 'videos' ? 'play.fill' : 'photo.on.rectangle'} size={40} color={isCyberTechTemplate ? 'rgba(0, 240, 255, 0.15)' : 'rgba(255,255,255,0.05)'} />
                         <Text style={[styles.emptyText, isCyberTechTemplate && styles.cyberEmptyText]}>
-                          {isCyberTechTemplate ? '// NO_DATA_AVAILABLE' : (galleryMediaTab === 'videos' ? 'No videos yet.' : 'No photos yet.')}
+                          {isFavouriteFilterActive
+                            ? `No favourite ${galleryMediaTab === 'videos' ? 'videos' : 'photos'} in this gallery yet.`
+                            : isCyberTechTemplate ? '// NO_DATA_AVAILABLE' : (galleryMediaTab === 'videos' ? 'No videos yet.' : 'No photos yet.')}
                         </Text>
                       </View>
                     ) : galleryMediaTab === 'videos' ? (
                       <View>
-                        {videoItems.map((video, idx) => (
+                        {filteredVideoItems.map((video, idx) => (
                           <GalleryVideoCard
                             key={video.id}
                             video={video}
@@ -6279,7 +6400,7 @@ export default function EventDetailScreen() {
                         let leftHeight = 0;
                         let rightHeight = 0;
 
-                        photoItems.forEach((photo, idx) => {
+                        filteredPhotoItems.forEach((photo, idx) => {
                           const ratio = photo.width && photo.height
                             ? photo.height / photo.width
                             : (idx % 3 === 0 ? 1.25 : (idx % 3 === 1 ? 0.95 : 1.45));
@@ -6798,6 +6919,46 @@ export default function EventDetailScreen() {
                 );
               })}
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={sourceGalleryMenuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSourceGalleryMenuVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setSourceGalleryMenuVisible(false)} />
+          <View style={[styles.modalContent, { gap: 8, maxHeight: '70%' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <View>
+                <Text style={styles.modalTitle}>Source gallery</Text>
+                <Text style={{ color: MidnightColors.slate400, fontSize: 12, marginTop: 4 }}>Show media selected from</Text>
+              </View>
+              <TouchableOpacity onPress={() => setSourceGalleryMenuVisible(false)} style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' }}>
+                <IconSymbol name="xmark" size={17} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            {[{ id: 'all', label: 'All galleries', count: selectedMediaItems.length }, ...sourceGalleryOptions].map(option => {
+              const selected = effectiveSourceGalleryFilter === option.id;
+              return (
+                <TouchableOpacity
+                  key={option.id}
+                  onPress={() => {
+                    setSourceGalleryFilter(option.id);
+                    setSourceGalleryMenuVisible(false);
+                  }}
+                  style={{ minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, borderWidth: 1, borderColor: selected ? MidnightColors.gold : 'rgba(255,255,255,0.08)', backgroundColor: selected ? 'rgba(204,164,59,0.12)' : 'rgba(255,255,255,0.035)', paddingHorizontal: 14, paddingVertical: 10 }}
+                >
+                  <IconSymbol name={option.id === 'all' ? 'square.grid.2x2.fill' : 'folder'} size={17} color={selected ? MidnightColors.gold : MidnightColors.slate400} />
+                  <Text style={{ flex: 1, color: selected ? MidnightColors.gold : '#f8fafc', fontSize: 14, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>{option.label}</Text>
+                  <Text style={{ color: selected ? MidnightColors.gold : MidnightColors.slate400, fontSize: 12 }}>{option.count}</Text>
+                  {selected && <IconSymbol name="checkmark" size={15} color={MidnightColors.gold} />}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
       </Modal>

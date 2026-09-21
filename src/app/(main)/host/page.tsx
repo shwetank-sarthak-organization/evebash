@@ -50,7 +50,8 @@ import {
     Gift,
     Briefcase,
     GraduationCap,
-    Download
+    Download,
+    Layers3
 } from "lucide-react";
 import { cn, formatEventDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -338,12 +339,12 @@ const TEMPLATE_THEMES = [
         "id": "bohemian",
         "category": "Other",
         "label": "Bohemian Rhapsody",
-        "desc": "Sunset acoustic & festival theme",
+        "desc": "Vintage retro cream & olive green festival theme",
         "background": {
-            "light": "#fff7ed",
-            "dark": "#2f241d"
+            "light": "#f3e8d3",
+            "dark": "#2f1b12"
         },
-        "accent": "#fb923c"
+        "accent": "#73863a"
     },
     {
         "id": "diamond",
@@ -360,56 +361,56 @@ const TEMPLATE_THEMES = [
         "id": "blush",
         "category": "Other",
         "label": "Blush & Bashful",
-        "desc": "Soft pink champagne",
+        "desc": "Velvet burgundy & rose gold luxury editorial journal",
         "background": {
-            "light": "#fff7ed",
-            "dark": "#431407"
+            "light": "#f5dfdb",
+            "dark": "#230a12"
         },
-        "accent": "#ea580c"
+        "accent": "#d89c8a"
     },
     {
         "id": "garden",
         "category": "Other",
         "label": "Garden Path",
-        "desc": "Natural greens and ivory",
+        "desc": "Misty botanical sage & leaf green natural theme",
         "background": {
-            "light": "#E5ECE9",
-            "dark": "#112217"
+            "light": "#e4ebe3",
+            "dark": "#3f4f40"
         },
-        "accent": "#2E6F40"
+        "accent": "#7a9a6b"
     },
     {
         "id": "midnight_glam",
         "category": "Other",
         "label": "Midnight Glam",
-        "desc": "Dark blue and silver",
+        "desc": "Twilight indigo & deep violet nocturnal theme",
         "background": {
-            "light": "#eff6ff",
-            "dark": "#050505"
+            "light": "#EFEBFB",
+            "dark": "#1A1035"
         },
-        "accent": "#3b82f6"
+        "accent": "#6B5BBF"
     },
     {
         "id": "cinematic",
         "category": "Other",
         "label": "Cinematic Noir",
-        "desc": "Dramatic and immersive",
+        "desc": "Vintage biker & dramatic crimson cinematic theme",
         "background": {
             "light": "#f5f5f5",
-            "dark": "#000000"
+            "dark": "#0f0f12"
         },
-        "accent": "#ef4444"
+        "accent": "#e62b3a"
     },
     {
         "id": "modern_lounge",
         "category": "Other",
         "label": "Modern Lounge",
-        "desc": "Sleek and contemporary",
+        "desc": "Dark mood blue & sleek steel architecture",
         "background": {
-            "light": "#f8fafc",
-            "dark": "#101010"
+            "light": "#F0F4F8",
+            "dark": "#0D1117"
         },
-        "accent": "#818cf8"
+        "accent": "#3D5F8A"
     },
     {
         "id": "elegant_night",
@@ -689,6 +690,8 @@ function DashboardContent() {
     const [photoActionItem, setPhotoActionItem] = useState<Photo | null>(null);
     const [galleryViewMode, setGalleryViewMode] = useState<"grid" | "list">("grid");
     const [galleryMediaTab, setGalleryMediaTab] = useState<"photos" | "videos">("photos");
+    const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
+    const [sourceGalleryFilter, setSourceGalleryFilter] = useState("all");
     const [isDraggingPhotos, setIsDraggingPhotos] = useState(false);
     const [galleryMessageText, setGalleryMessageText] = useState("");
     const [isNavigating, setIsNavigating] = useState(false);
@@ -3162,7 +3165,31 @@ function DashboardContent() {
     const hasGalleryMessageChanges = galleryMessageText !== activeGalleryOriginalMessage;
     const photoItems = currentEventPhotos.filter(photo => photo.mediaType !== "video" && photo.resourceType !== "video");
     const videoItems = currentEventPhotos.filter(photo => photo.mediaType === "video" || photo.resourceType === "video");
-    const activeGalleryItems = galleryMediaTab === "videos" ? videoItems : photoItems;
+    const selectedMediaItems = galleryMediaTab === "videos" ? videoItems : photoItems;
+    const isPrimaryGalleryView = !!selectedMainEvent && selectedEventId === selectedMainEvent.id;
+    const sourceGalleryOptions = [selectedMainEvent, ...eventDetailGalleries]
+        .filter((gallery): gallery is Event => !!gallery)
+        .map(gallery => ({
+            id: gallery.id,
+            label: gallery.id === selectedMainEvent?.id ? "Main event" : gallery.title,
+            legacyId: gallery.legacyId,
+            count: selectedMediaItems.filter(photo => photo.eventId === gallery.id || (!!gallery.legacyId && photo.eventId === gallery.legacyId)).length,
+        }))
+        .filter(option => option.count > 0);
+    const effectiveSourceGalleryFilter = sourceGalleryOptions.some(option => option.id === sourceGalleryFilter)
+        ? sourceGalleryFilter
+        : "all";
+    const isFavouriteFilterActive = !isPrimaryGalleryView && showOnlyFavourites;
+    const sourceFilteredMediaItems = isPrimaryGalleryView && effectiveSourceGalleryFilter !== "all"
+        ? selectedMediaItems.filter(photo => {
+            const source = sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter);
+            return photo.eventId === source?.id || (!!source?.legacyId && photo.eventId === source.legacyId);
+        })
+        : selectedMediaItems;
+    const activeGalleryItems = isFavouriteFilterActive
+        ? sourceFilteredMediaItems.filter(photo => eventFavouritePhotoIds.has(photo.id))
+        : sourceFilteredMediaItems;
+    const activeFavouriteCount = selectedMediaItems.filter(photo => eventFavouritePhotoIds.has(photo.id)).length;
     const stripUrlQuery = (value?: string | null) => (value || "").split("?")[0];
     const createdEvents = userEvents.filter(evt => evt.createdBy && ownEventIdentifiers.has(evt.createdBy));
     const legacySharedEvents = userEvents.filter(evt => !evt.createdBy || !ownEventIdentifiers.has(evt.createdBy));
@@ -4957,6 +4984,52 @@ function DashboardContent() {
                                             );
                                         })}
                                     </div>
+                                    {isPrimaryGalleryView ? (
+                                    <label className="mb-6 flex w-full items-center gap-3 rounded-xl border border-slate-700 bg-slate-900/45 px-4 py-3">
+                                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-800 text-[#CA9C68]">
+                                            <Layers3 className="h-4 w-4" />
+                                        </span>
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block text-sm font-bold text-slate-200">Source gallery</span>
+                                            <span className="mt-0.5 block text-xs text-slate-400">Filter Primary Gallery media by origin</span>
+                                        </span>
+                                        <select
+                                            value={effectiveSourceGalleryFilter}
+                                            onChange={(event) => setSourceGalleryFilter(event.target.value)}
+                                            className="max-w-[14rem] rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-sm font-semibold text-white outline-none focus:border-[#CA9C68]"
+                                            aria-label="Filter by source gallery"
+                                        >
+                                            <option value="all">All galleries ({selectedMediaItems.length})</option>
+                                            {sourceGalleryOptions.map(option => (
+                                                <option key={option.id} value={option.id}>{option.label} ({option.count})</option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                    ) : (
+                                    <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={showOnlyFavourites}
+                                        onClick={() => setShowOnlyFavourites(current => !current)}
+                                        className={cn(
+                                            "mb-6 flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors",
+                                            showOnlyFavourites
+                                                ? "border-[#CA9C68]/70 bg-[#CA9C68]/10"
+                                                : "border-slate-700 bg-slate-900/45 hover:border-slate-500 hover:bg-slate-900/70"
+                                        )}
+                                    >
+                                        <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-lg", showOnlyFavourites ? "bg-[#CA9C68] text-slate-950" : "bg-slate-800 text-slate-300")}>
+                                            <Star className={cn("h-4 w-4", showOnlyFavourites && "fill-current")} />
+                                        </span>
+                                        <span className="min-w-0 flex-1">
+                                            <span className={cn("block text-sm font-bold", showOnlyFavourites ? "text-[#E2B77F]" : "text-slate-200")}>Favourites only</span>
+                                            <span className="mt-0.5 block text-xs text-slate-400">{activeFavouriteCount} in {galleryMediaTab === "videos" ? "Videos" : "Photos"}</span>
+                                        </span>
+                                        <span className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", showOnlyFavourites ? "bg-[#CA9C68]" : "bg-slate-700")}>
+                                            <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform", showOnlyFavourites ? "translate-x-5" : "translate-x-0.5")} />
+                                        </span>
+                                    </button>
+                                    )}
 
                                     {isInlineEventDetailGalleryEditor && activeEventDetailEvent && activeEventDetailEvent.id !== selectedMainEvent?.id && (
                                         <div className="mb-6 flex justify-end">
@@ -5062,7 +5135,7 @@ function DashboardContent() {
                                                                 </button>
                                                             </Tooltip>
                                                         </div>
-                                                        {activeGalleryItems.length > 1 && (
+                                                        {!isFavouriteFilterActive && activeGalleryItems.length > 1 && (
                                                             <div className="absolute bottom-3 left-3 z-10 flex overflow-hidden rounded-full border border-slate-700 bg-slate-950/80 text-white shadow-lg backdrop-blur-md">
                                                                 <button
                                                                     type="button"
@@ -5103,7 +5176,7 @@ function DashboardContent() {
                                             )}
 
                                             {/* Add Image Button */}
-                                            <motion.label
+                                            {!isFavouriteFilterActive && <motion.label
                                                 layout
                                                 className={cn(
                                                     "relative aspect-square rounded-[2rem] border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all hover:bg-slate-900/50 group",
@@ -5134,12 +5207,12 @@ function DashboardContent() {
                                                         </span>
                                                     </div>
                                                 )}
-                                            </motion.label>
+                                            </motion.label>}
                                         </div>
                                     ) : (
                                         <div className="space-y-4">
                                             {/* Add Image Option as List Item */}
-                                            <motion.label
+                                            {!isFavouriteFilterActive && <motion.label
                                                 className={cn(
                                                     "flex items-center p-6 border-2 border-dashed rounded-3xl cursor-pointer transition-all hover:bg-slate-900/50 group",
                                                     status === "uploading" ? "border-sky-500/50 bg-sky-500/5" : "border-slate-700"
@@ -5168,7 +5241,7 @@ function DashboardContent() {
                                                         {galleryMediaTab === "videos" ? "Click to upload videos, or drag them here" : "Click to upload memories, or drag images here"}
                                                     </p>
                                                 </div>
-                                            </motion.label>
+                                            </motion.label>}
 
                                             <div className="bg-slate-800 rounded-[2.5rem] border border-slate-700 overflow-hidden shadow-sm">
                                                 <div className="overflow-x-auto">
@@ -5289,7 +5362,7 @@ function DashboardContent() {
                                                                         </td>
                                                                         <td className="px-8 py-6 text-right">
                                                                             <div className="flex items-center justify-end space-x-2">
-                                                                                {activeGalleryItems.length > 1 && (
+                                                                                {!isFavouriteFilterActive && activeGalleryItems.length > 1 && (
                                                                                     <div className="flex overflow-hidden rounded-xl border border-slate-700 bg-slate-800">
                                                                                         <button
                                                                                             type="button"
@@ -5353,7 +5426,9 @@ function DashboardContent() {
                                                 {activeGalleryItems.length === 0 && !loadingPhotos && (
                                                     <div className="p-12 text-center">
                                                         <p className="text-slate-400 italic">
-                                                            {galleryMediaTab === "videos" ? "No videos in this gallery yet." : "No photos in this gallery yet."}
+                                                            {isFavouriteFilterActive
+                                                                ? `No favourite ${galleryMediaTab === "videos" ? "videos" : "photos"} in this gallery yet.`
+                                                                : galleryMediaTab === "videos" ? "No videos in this gallery yet." : "No photos in this gallery yet."}
                                                         </p>
                                                     </div>
                                                 )}
