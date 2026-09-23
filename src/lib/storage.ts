@@ -62,6 +62,69 @@ function uploadWithXhr(
     });
 }
 
+// ─── Pre-Upload Video Validation ───────────────────────────────────────────────
+
+/** Supported video MIME types — files with any of these will pass the MIME check. */
+const SUPPORTED_VIDEO_MIME_TYPES = new Set([
+    "video/mp4", "video/quicktime", "video/x-msvideo", "video/x-matroska",
+    "video/webm", "video/x-m4v", "video/3gpp", "video/x-flv",
+    "video/x-ms-wmv", "video/mp2t", "video/ogg",
+]);
+
+/** Supported video extensions (used as fallback when the MIME type is generic or absent). */
+export const VIDEO_EXTENSIONS = new Set([
+    "mp4", "mov", "avi", "mkv", "webm", "m4v", "3gp", "flv", "wmv", "mts", "m2ts", "ts", "ogv",
+]);
+
+export interface VideoValidationResult {
+    valid: boolean;
+    error?: string;
+}
+
+/**
+ * Validates a video File before any network request is made.
+ * Checks: non-empty, minimum size, MIME type, and extension/MIME consistency.
+ * Safe to call in browser context — uses no Node.js APIs.
+ */
+export function validateVideoFile(file: File): VideoValidationResult {
+    // 1. Empty file check
+    if (file.size === 0) {
+        return { valid: false, error: "The selected video file is empty (0 bytes). Please choose a valid video." };
+    }
+
+    // 2. Minimum size sanity check — a valid video must be at least 10 KB
+    if (file.size < 10 * 1024) {
+        return { valid: false, error: "The selected file is too small to be a valid video. Please choose a real video file." };
+    }
+
+    // 3. MIME type / extension check
+    const mimeIsVideo = file.type.startsWith("video/");
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    const extIsVideo = VIDEO_EXTENSIONS.has(ext);
+
+    if (!mimeIsVideo && !extIsVideo) {
+        return {
+            valid: false,
+            error: `"${file.name}" does not appear to be a video file (detected type: ${file.type || "unknown"}). Please select an MP4, MOV, MKV, or WebM file.`,
+        };
+    }
+
+    // 4. MIME/extension mismatch — likely a corrupt or misnamed file
+    if (mimeIsVideo && ext && !extIsVideo) {
+        return {
+            valid: false,
+            error: `"${file.name}" has a video MIME type but an unrecognized extension ".${ext}". Please rename the file or choose a supported format.`,
+        };
+    }
+
+    // 5. Uncommon but valid MIME — allow, but log for debugging
+    if (file.type && !SUPPORTED_VIDEO_MIME_TYPES.has(file.type) && mimeIsVideo) {
+        console.warn(`[Storage] Uploading video with uncommon MIME type: ${file.type} — proceeding anyway.`);
+    }
+
+    return { valid: true };
+}
+
 // ─── Resume State ──────────────────────────────────────────────────────────────
 // Persisted in localStorage so uploads survive page reloads / lost connections.
 
@@ -184,6 +247,7 @@ async function uploadLargeFileInChunks(
             body: JSON.stringify({
                 eventId,
                 fileName: file.name,
+                fileSize: file.size,
                 contentType: file.type || "application/octet-stream",
                 resourceType,
             }),
@@ -195,6 +259,15 @@ async function uploadLargeFileInChunks(
         fileId = initiateData.fileId;
         storageKey = initiateData.storageKey;
         completedParts = {};
+
+        // ── Check if server returned server-side resumed parts ───────────────────────
+        if (initiateData.resumed && Array.isArray(initiateData.completedParts)) {
+            for (const part of initiateData.completedParts) {
+                completedParts[part.partNumber] = part.sha1;
+            }
+            const doneCount = Object.keys(completedParts).length;
+            console.log(`[Storage] Server-side resume active! ${doneCount}/${totalChunks} chunks already on Backblaze.`);
+        }
 
         // Persist the fresh state immediately so we have the fileId saved
         saveResumeState({
@@ -401,9 +474,21 @@ export async function uploadEventImage(
     skipSaveMetadata = false,
     onProgress?: (percent: number) => void
 ) {
+    // Pre-upload validation for video files — catches empty, corrupt, or mistyped files
+    // before any network request is made.
+    const isVideoFile = file.type?.startsWith("video/") ||
+        VIDEO_EXTENSIONS.has(file.name.split(".").pop()?.toLowerCase() || "");
+    if (isVideoFile) {
+        const validation = validateVideoFile(file);
+        if (!validation.valid) {
+            throw new Error(validation.error);
+        }
+    }
+
     if (file.size > 100 * 1024 * 1024) { // > 100 MB (any video or large image)
         return uploadLargeFileInChunks(file, eventId, onProgress);
     }
+
 
     try {
         console.log(`[Storage] Starting direct B2 upload for: ${file.name} to event: ${eventId} (lane: ${laneIndex})`);

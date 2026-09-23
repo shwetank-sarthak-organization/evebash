@@ -94,6 +94,9 @@ export interface Photo {
     order?: number;
     thumbnailUrl?: string;
     tags?: string[];
+    status?: 'uploading' | 'processing' | 'processed' | 'failed';
+    processingError?: string | null;
+    transcodeAttempts?: number;
 }
 
 export interface EventFavouritePhoto {
@@ -335,7 +338,10 @@ function mapSqlToPhoto(p: any): Photo {
         format: p.format,
         order: p.order,
         thumbnailUrl: p.thumbnail_url,
-        tags: p.tags || []
+        tags: p.tags || [],
+        status: p.status,
+        processingError: p.processing_error,
+        transcodeAttempts: p.transcode_attempts
     };
 }
 
@@ -993,7 +999,7 @@ export async function getEventPhotos(eventId: string, legacyId?: string): Promis
             .in('event_id', ids);
 
         if (error) throw error;
-        const photos = (data || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo));
+        const photos = (data || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo) && photo.status !== 'uploading');
         const visiblePhotos = await filterPhotosForPlanExpiry(photos, ids);
         return visiblePhotos.sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999));
     } catch (error) {
@@ -1014,12 +1020,12 @@ export async function getEventPhotosPaginated(
 
         const { data: countData, error: countError } = await supabase
             .from('photos')
-            .select('id,event_id,storage_key,url,media_type,resource_type')
+            .select('id,event_id,storage_key,url,media_type,resource_type,status')
             .in('event_id', ids);
 
         if (countError) throw countError;
 
-        const countedMedia = (countData || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo));
+        const countedMedia = (countData || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo) && photo.status !== 'uploading');
         const totalVideos = countedMedia.filter(photo => photo.mediaType === 'video' || photo.resourceType === 'video').length;
         const totalPhotos = countedMedia.length - totalVideos;
 
@@ -1034,7 +1040,7 @@ export async function getEventPhotosPaginated(
 
         if (error) throw error;
 
-        const rawPhotos = (data || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo));
+        const rawPhotos = (data || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo) && photo.status !== 'uploading');
         const hasMore = rawPhotos.length > limit;
         const photosToReturn = hasMore ? rawPhotos.slice(0, limit) : rawPhotos;
 

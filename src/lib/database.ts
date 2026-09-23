@@ -56,6 +56,9 @@ export interface Photo {
     mediaType?: 'photo' | 'video';
     resourceType?: 'image' | 'video' | string;
     order?: number;
+    status?: 'uploading' | 'processing' | 'processed' | 'failed';
+    processingError?: string | null;
+    transcodeAttempts?: number;
 }
 
 export interface Business {
@@ -291,7 +294,10 @@ function mapSqlToPhoto(p: any): Photo {
         thumbnailUrl: p.thumbnail_url,
         mediaType: p.media_type,
         resourceType: p.resource_type,
-        order: p.order
+        order: p.order,
+        status: p.status,
+        processingError: p.processing_error,
+        transcodeAttempts: p.transcode_attempts
     };
 }
 
@@ -696,7 +702,7 @@ export async function getEventPhotos(eventId: string, legacyId?: string): Promis
             .in('event_id', ids);
 
         if (error) throw error;
-        const photos = (data || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo));
+        const photos = (data || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo) && photo.status !== 'uploading');
         const visiblePhotos = await filterPhotosForPlanExpiry(photos, ids);
         return visiblePhotos.sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999));
     } catch (error) {
@@ -744,7 +750,7 @@ export async function getEventPhotosPaginated(
 
             if (error) throw error;
 
-            const rawPhotos = (data || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo));
+            const rawPhotos = (data || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo) && photo.status !== 'uploading');
             let visibleIds = new Set<string>();
             try {
                 visibleIds = ownerProfile ? await getVisiblePhotoIdsForExpiredOwner(ownerProfile) : new Set<string>();
@@ -768,12 +774,12 @@ export async function getEventPhotosPaginated(
 
         const { data: countData, error: countError } = await supabase
             .from('photos')
-            .select('id,event_id,storage_key,url,uploaded_at,tags,media_type,resource_type')
+            .select('id,event_id,storage_key,url,uploaded_at,tags,media_type,resource_type,status')
             .in('event_id', ids);
 
         if (countError) throw countError;
 
-        const countedPhotos = (countData || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo));
+        const countedPhotos = (countData || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo) && photo.status !== 'uploading');
         const mediaCounts = getMediaCounts(countedPhotos);
         let retainedMediaIds = countedPhotos.map(photo => photo.id);
 
@@ -796,7 +802,7 @@ export async function getEventPhotosPaginated(
 
         if (error) throw error;
 
-        const rawPhotos = (data || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo));
+        const rawPhotos = (data || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo) && photo.status !== 'uploading');
         const hasMore = rawPhotos.length > limit;
         const photosToReturn = hasMore ? rawPhotos.slice(0, limit) : rawPhotos;
 

@@ -562,7 +562,14 @@ def transcode_cloud_segment(task: dict) -> dict:
                 "-hls_segment_filename", str(out_dir / f"seg_s{seg_index:03d}_%03d.ts"),
                 str(out_dir / "playlist.m3u8")
             ]
-            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            # ── BUG-2 FIX: Check exit code & capture stderr on error ───────
+            ffmpeg_res = subprocess.run(cmd, capture_output=True, text=True)
+            if ffmpeg_res.returncode != 0:
+                err_snippet = ffmpeg_res.stderr[-1000:] if ffmpeg_res.stderr else "Unknown FFmpeg error"
+                raise RuntimeError(
+                    f"FFmpeg transcode failed for segment {seg_index} ({qname}, exit code {ffmpeg_res.returncode}): {err_snippet}"
+                )
 
             quality_entries[qname] = []
             playlist_file = out_dir / "playlist.m3u8"
@@ -579,9 +586,23 @@ def transcode_cloud_segment(task: dict) -> dict:
                         })
                         current_extinf = None
 
+            uploaded_count = 0
             for out_seg in sorted(out_dir.glob("*.ts")):
                 b2_key = f"{hls_prefix}/{qname}/{out_seg.name}"
-                b2_client.upload_file(str(out_seg), bucket_name, b2_key, ExtraArgs={"ContentType": "video/MP2T"})
+                b2_client.upload_file(
+                    str(out_seg),
+                    bucket_name,
+                    b2_key,
+                    ExtraArgs={
+                        "ContentType": "video/MP2T",
+                        # ── Cache permanently at Cloudflare Edge (1 year, immutable) ──
+                        "CacheControl": "public, max-age=31536000, immutable"
+                    }
+                )
+                uploaded_count += 1
+
+            if uploaded_count == 0:
+                raise RuntimeError(f"FFmpeg exited with code 0 but produced 0 .ts chunks for {qname} (segment {seg_index})")
 
     return {"segment_index": seg_index, "quality_entries": quality_entries, "status": "done"}
 
@@ -597,25 +618,33 @@ def transcode_cloud_segment(task: dict) -> dict:
 def assemble_fmp4_manifest(request: dict):
     """
     YouTube-Style Cloud Fan-Out Coordinator:
-    1. Downloads raw video from B2 (works for any size: 10MB to 50GB).
-    2. Slices raw video in cloud in 2 seconds into 15s keyframe-aligned segments.
-    3. Fans out to parallel Modal containers: transcode_cloud_segment.map(tasks).
-    4. Generates poster.jpg, individual quality playlists with exact #EXTINF timestamps, and master.m3u8.
-    5. Updates Supabase record to status: "processed".
+    1. Validates storage_key and photo_id.
+    2. Downloads raw video from B2.
+    3. Slices raw video into 15s keyframe-aligned segments.
+    4. Fans out to parallel Modal containers: transcode_cloud_segment.map(tasks).
+    5. Generates poster.jpg and master.m3u8 playlists.
+    6. Updates Supabase record to status: "processed".
     """
     import boto3
     import tempfile
     import pathlib
     import subprocess
     import time
+    import fastapi
     from supabase import create_client, Client
 
     start_time = time.time()
     storage_key = request.get("storage_key") or request.get("object_key")
     photo_id = request.get("photo_id") or request.get("id")
 
-    if not storage_key:
-        return {"error": "Missing storage_key", "status": "failed"}
+    # ── BUG-6 FIX: Fallback to deriving photo_id from storage_key if not sent ──
+    if not photo_id and storage_key:
+        photo_id = storage_key.replace("/", "_")
+        print(f"[CloudFanOut] photo_id was missing; derived from storage_key: {photo_id}")
+
+    if not storage_key or not photo_id:
+        print(f"[CloudFanOut] Missing parameters: storage_key={storage_key}, photo_id={photo_id}")
+        raise fastapi.HTTPException(status_code=400, detail="Missing required storage_key or photo_id")
 
     print(f"[CloudFanOut] Processing video {storage_key} (ID: {photo_id})")
 
@@ -648,8 +677,12 @@ def assemble_fmp4_manifest(request: dict):
             # 1. Download raw video from B2
             print(f"[CloudFanOut] Downloading raw video from B2: {storage_key}...")
             b2_client.download_file(bucket_name, storage_key, str(raw_video_path))
-            raw_size_mb = raw_video_path.stat().st_size // (1024 * 1024)
+            raw_size_bytes = raw_video_path.stat().st_size
+            raw_size_mb = raw_size_bytes // (1024 * 1024)
             print(f"[CloudFanOut] Downloaded {raw_size_mb} MB in {time.time() - start_time:.1f}s")
+
+            if raw_size_bytes == 0:
+                raise RuntimeError("Downloaded video file is 0 bytes.")
 
             # 2. Check for audio stream
             has_audio = False
@@ -672,22 +705,52 @@ def assemble_fmp4_manifest(request: dict):
                 "-segment_time", "15", "-reset_timestamps", "1",
                 str(segs_dir / "seg_%03d.ts")
             ]
-            subprocess.run(slice_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            slice_res = subprocess.run(slice_cmd, capture_output=True, text=True)
 
             segment_files = sorted(segs_dir.glob("seg_*.ts"))
-            if not segment_files:
-                # If segment copy failed (e.g. non-TS compatible), fallback to 1 whole segment
-                segment_files = [raw_video_path]
+
+            # ── BUG-11 FIX: Guard against fallback loading full 2GB into RAM ──
+            if not segment_files or slice_res.returncode != 0:
+                print(f"[CloudFanOut] Stream-copy slicing failed (code {slice_res.returncode}). Attempting fast re-encode slicing fallback...")
+                reencode_cmd = [
+                    "ffmpeg", "-y", "-i", str(raw_video_path),
+                    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "22",
+                    "-c:a", "aac" if has_audio else "none",
+                    "-f", "segment", "-segment_time", "15", "-reset_timestamps", "1",
+                    str(segs_dir / "seg_%03d.ts")
+                ]
+                re_res = subprocess.run(reencode_cmd, capture_output=True, text=True)
+                segment_files = sorted(segs_dir.glob("seg_*.ts"))
+
+                if not segment_files:
+                    err_msg = re_res.stderr[-1000:] if re_res.stderr else "FFmpeg produced 0 segments"
+                    raise RuntimeError(f"Video slicing failed: Unable to segment input video ({err_msg})")
 
             print(f"[CloudFanOut] Sliced into {len(segment_files)} segments. Launching parallel cloud workers...")
 
             # 4. Extract poster.jpg from original
-            subprocess.run([
+            poster_res = subprocess.run([
                 "ffmpeg", "-y", "-i", str(raw_video_path),
                 "-ss", "00:00:01", "-vframes", "1", "-q:v", "2", str(poster_path)
-            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            if poster_path.exists():
-                b2_client.upload_file(str(poster_path), bucket_name, f"{hls_prefix}/poster.jpg", ExtraArgs={"ContentType": "image/jpeg"})
+            ], capture_output=True, text=True)
+
+            # Fallback to frame 0 if 1 second seek failed (short clip)
+            if not poster_path.exists() or poster_path.stat().st_size == 0:
+                subprocess.run([
+                    "ffmpeg", "-y", "-i", str(raw_video_path),
+                    "-vframes", "1", "-q:v", "2", str(poster_path)
+                ], capture_output=True, text=True)
+
+            if poster_path.exists() and poster_path.stat().st_size > 0:
+                b2_client.upload_file(
+                    str(poster_path),
+                    bucket_name,
+                    f"{hls_prefix}/poster.jpg",
+                    ExtraArgs={
+                        "ContentType": "image/jpeg",
+                        "CacheControl": "public, max-age=604800, stale-while-revalidate=86400"
+                    }
+                )
 
             # 5. Fan-out transcoding across parallel Modal container workers
             tasks = [
@@ -720,6 +783,7 @@ def assemble_fmp4_manifest(request: dict):
                     "#EXT-X-TARGETDURATION:16",
                     "#EXT-X-MEDIA-SEQUENCE:0",
                     "#EXT-X-PLAYLIST-TYPE:VOD",
+                    "#EXT-X-INDEPENDENT-SEGMENTS",  # Enables fast keyframe seeking
                 ]
                 for entry in q_entries:
                     q_lines.append(entry["extinf"])
@@ -730,7 +794,8 @@ def assemble_fmp4_manifest(request: dict):
                     Bucket=bucket_name,
                     Key=f"{hls_prefix}/{qname}/playlist.m3u8",
                     Body=("\n".join(q_lines) + "\n").encode("utf-8"),
-                    ContentType="application/x-mpegURL"
+                    ContentType="application/x-mpegURL",
+                    CacheControl="public, max-age=3600"
                 )
 
             # 7. Write master.m3u8
@@ -738,6 +803,7 @@ def assemble_fmp4_manifest(request: dict):
             master_content = "\n".join([
                 "#EXTM3U",
                 "#EXT-X-VERSION:3",
+                "#EXT-X-INDEPENDENT-SEGMENTS",  # Enables instant ABR quality switching
                 f'#EXT-X-STREAM-INF:BANDWIDTH=4000000,RESOLUTION=1920x1080,{codecs_tag}',
                 "1080p/playlist.m3u8",
                 f'#EXT-X-STREAM-INF:BANDWIDTH=2500000,RESOLUTION=1280x720,{codecs_tag}',
@@ -750,36 +816,45 @@ def assemble_fmp4_manifest(request: dict):
                 Bucket=bucket_name,
                 Key=f"{hls_prefix}/master.m3u8",
                 Body=master_content.encode("utf-8"),
-                ContentType="application/x-mpegURL"
+                ContentType="application/x-mpegURL",
+                CacheControl="public, max-age=3600"
             )
 
-        # 8. Update Supabase record
+        # 8. Update Supabase record to status: 'processed'
         update_data = {
             "url": hls_master_url,
             "thumbnail_url": poster_url,
             "resource_type": "video",
             "media_type": "video",
-            "status": "processed"
+            "status": "processed",
+            "processing_error": None,
         }
-        if photo_id:
-            try:
-                supabase.table("photos").update(update_data).eq("id", photo_id).execute()
-            except Exception:
-                update_data.pop("status", None)
-                supabase.table("photos").update(update_data).eq("id", photo_id).execute()
+        supabase.table("photos").update(update_data).eq("id", photo_id).execute()
 
         duration = time.time() - start_time
         print(f"[CloudFanOut] Video transcoding completed in {duration:.1f}s — {hls_master_url}")
-        return {"status": "success", "hls_master_url": hls_master_url, "raw_url": raw_url, "duration_seconds": duration}
+        return {
+            "status": "success",
+            "hls_master_url": hls_master_url,
+            "raw_url": raw_url,
+            "duration_seconds": duration
+        }
 
     except Exception as e:
-        print(f"[CloudFanOut] ERROR: {e}")
-        if photo_id:
-            try:
-                supabase.table("photos").update({"status": "failed"}).eq("id", photo_id).execute()
-            except Exception:
-                pass
-        return {"status": "failed", "error": str(e)}
+        error_details = str(e)
+        print(f"[CloudFanOut] ERROR processing {photo_id}: {error_details}")
+
+        # Update Supabase record with explicit failed status and exact error reason
+        try:
+            supabase.table("photos").update({
+                "status": "failed",
+                "processing_error": error_details[:1000]
+            }).eq("id", photo_id).execute()
+        except Exception as db_err:
+            print(f"[CloudFanOut] Could not update failed status in database: {db_err}")
+
+        # ── Raise HTTP 500 so QStash knows the job failed and can retry ──────
+        raise fastapi.HTTPException(status_code=500, detail=f"Transcoding failed: {error_details}")
 
 
 

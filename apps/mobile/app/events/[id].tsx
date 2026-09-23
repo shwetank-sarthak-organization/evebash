@@ -17,6 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { uploadEventImage, uploadEventMedia } from '@/lib/storage';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { subscribeToUploadQueue, addToUploadQueue, retryUploadItem, cancelUploadItem, clearFinishedUploads, resetUploadQueue, UploadQueueItem } from '@/lib/uploadQueue';
+import { validateVideoAsset } from '@/lib/videoValidation';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import Sortable from 'react-native-sortables';
@@ -475,6 +476,45 @@ function GalleryVideoCard({
           </TouchableOpacity>
         )}
         {blurred && <ExpiredMediaThumbnailNotice />}
+        {video?.status === 'processing' && (
+          <View style={{
+            position: 'absolute',
+            top: 6,
+            left: 6,
+            backgroundColor: 'rgba(217, 119, 6, 0.92)',
+            borderRadius: 12,
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            zIndex: 10,
+          }}>
+            <ActivityIndicator size="small" color="#fff" />
+            <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700' }}>
+              Processing HLS...
+            </Text>
+          </View>
+        )}
+        {video?.status === 'failed' && (
+          <View style={{
+            position: 'absolute',
+            top: 6,
+            left: 6,
+            backgroundColor: 'rgba(220, 38, 38, 0.92)',
+            borderRadius: 12,
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            zIndex: 10,
+          }}>
+            <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700' }}>
+              ⚠️ Processing Failed
+            </Text>
+          </View>
+        )}
       </View>
       {!compact && !minimalPreview && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10 }}>
@@ -1013,8 +1053,8 @@ export default function EventDetailScreen() {
   const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
   const [sourceGalleryFilter, setSourceGalleryFilter] = useState('all');
   const [sourceGalleryMenuVisible, setSourceGalleryMenuVisible] = useState(false);
-  const photoItems = React.useMemo(() => photos.filter(isPhotoMedia), [photos]);
-  const videoItems = React.useMemo(() => photos.filter(isVideoMedia), [photos]);
+  const photoItems = React.useMemo(() => photos.filter(item => isPhotoMedia(item) && item?.status !== 'uploading'), [photos]);
+  const videoItems = React.useMemo(() => photos.filter(item => isVideoMedia(item) && item?.status !== 'uploading'), [photos]);
   const selectedMediaItems = galleryMediaTab === 'photos' ? photoItems : videoItems;
   const isPrimaryGalleryView = showAdminView ? selectedAdminGallery === null : !activeSubEvent;
   const sourceGalleryOptions = React.useMemo(() => {
@@ -1436,6 +1476,28 @@ export default function EventDetailScreen() {
             return;
           }
         }
+
+        // ── Pre-upload validation for video files ────────────────────────────
+        if (mediaType === 'video') {
+          for (const asset of result.assets) {
+            const validation = await validateVideoAsset({
+              uri: asset.uri,
+              mimeType: asset.mimeType,
+              fileName: asset.fileName,
+              fileSize: asset.fileSize,
+              duration: asset.duration,
+            });
+            if (!validation.valid) {
+              Alert.alert(
+                "Invalid Video",
+                validation.error || "This file cannot be uploaded as a video.",
+                [{ text: "OK" }]
+              );
+              return;
+            }
+          }
+        }
+        // ── End pre-upload validation ────────────────────────────────────────
 
         const files = result.assets.map(asset => {
           const fallbackType = mediaType === 'video' ? 'video/mp4' : 'image/jpeg';
@@ -2068,7 +2130,7 @@ export default function EventDetailScreen() {
           height: upload.height,
           size: upload.bytes,
           format: upload.format,
-          mediaType: upload.mediaType || 'photo',
+          mediaType: (upload.mediaType as 'photo' | 'video') || 'photo',
           resourceType: upload.resourceType || 'image',
         });
 

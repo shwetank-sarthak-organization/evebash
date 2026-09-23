@@ -167,21 +167,24 @@ export async function publishDelayedModalTrigger(eventId: string, origin?: strin
 }
 
 export async function publishVideoTranscodeTask(
-  payload: PhotoPayload,
+  payload: PhotoPayload & { fileSize?: number },
   fileSize?: number,
 ): Promise<boolean> {
   return publishManifestAssemblyTask({
     id: payload.id,
+    photo_id: payload.id,
     storage_key: payload.storage_key,
     event_id: payload.event_id,
+    url: payload.url,
   });
 }
 
-
 export async function publishManifestAssemblyTask(payload: {
   id: string;
+  photo_id?: string;
   storage_key: string;
   event_id: string;
+  url?: string;
   total_segments?: number;
 }): Promise<boolean> {
   const qstashToken = process.env.QSTASH_TOKEN;
@@ -190,13 +193,21 @@ export async function publishManifestAssemblyTask(payload: {
     "https://shwetank-sarthak--wedding-media-engine-assemble-fmp4-manifest.modal.run"
   ).trim();
 
+  // Ensure both `id` and `photo_id` are populated
+  const normalizedPayload = {
+    ...payload,
+    id: payload.id,
+    photo_id: payload.photo_id || payload.id,
+  };
+
+  // Direct invocation fallback if QStash is not configured
   if (!qstashToken) {
     console.warn("[QStash] QSTASH_TOKEN is not configured. Invoking assemble_fmp4_manifest directly...");
     try {
       const response = await fetch(targetUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(normalizedPayload),
       });
       return response.ok;
     } catch (directErr) {
@@ -205,7 +216,11 @@ export async function publishManifestAssemblyTask(payload: {
     }
   }
 
-  console.log(`[QStash] Publishing assemble_fmp4_manifest task for ${payload.storage_key}`);
+  // Sanitize key for QStash deduplication ID (alphanumeric, -, _)
+  const cleanKey = (payload.storage_key || payload.id).replace(/[^a-zA-Z0-9_-]/g, "-");
+  const deduplicationId = `video-transcode-${cleanKey}`;
+
+  console.log(`[QStash] Publishing assemble_fmp4_manifest task for ${payload.storage_key} (dedup: ${deduplicationId})`);
 
   try {
     const response = await fetch(`https://qstash-us-east-1.upstash.io/v2/publish/${targetUrl}`, {
@@ -213,15 +228,30 @@ export async function publishManifestAssemblyTask(payload: {
       headers: {
         Authorization: `Bearer ${qstashToken}`,
         "Content-Type": "application/json",
+        // ── 1. Match Modal's 900s execution timeout (BUG-3 fix) ───────────
+        "Upstash-Timeout": "900s",
+        // ── 2. Deduplicate: prevent duplicate concurrent runs (BUG-4 fix) ─
+        "Upstash-Deduplication-Id": deduplicationId,
+        // ── 3. Retry on 5xx or network drop with exponential backoff ─────
+        "Upstash-Retries": "3",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(normalizedPayload),
     });
 
-    return response.ok;
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      console.error(`[QStash] Publish returned status ${response.status}: ${errText}`);
+      return false;
+    }
+
+    const result = await response.json().catch(() => ({}));
+    console.log(`[QStash] Task published successfully. Message ID: ${result.messageId || "ok"}`);
+    return true;
   } catch (error) {
     console.error("[QStash] Error publishing assemble_fmp4_manifest task:", error);
     return false;
   }
 }
+
 
 

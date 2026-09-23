@@ -89,7 +89,7 @@ import {
 	    generateEventJoinId,
 	    setEventSampleGalleryStatus,
 	} from "@/lib/database";
-import { uploadEventImage } from "@/lib/storage";
+import { uploadEventImage, validateVideoFile } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 import { getApiUrl } from "@/lib/apiBase";
 import { Tooltip } from "@/components/Tooltip";
@@ -143,6 +143,20 @@ const GridMediaCell = ({
                         <Play className="h-5 w-5 fill-current" />
                     </div>
                 </div>
+                {photo.status === 'processing' && (
+                    <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/90 text-slate-950 text-[10px] font-bold shadow-lg backdrop-blur-md">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Processing HLS...</span>
+                    </div>
+                )}
+                {photo.status === 'failed' && (
+                    <div 
+                        className="absolute top-2 left-2 z-20 flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-600/90 text-white text-[10px] font-bold shadow-lg backdrop-blur-md"
+                        title={photo.processingError || "Transcoding failed"}
+                    >
+                        <span>⚠️ Processing Failed</span>
+                    </div>
+                )}
             </div>
         );
     }
@@ -2059,6 +2073,19 @@ function DashboardContent() {
             }
         }
 
+        // Pre-upload format validation for video files
+        if (galleryMediaTab === "videos") {
+            for (const file of selectedFiles) {
+                const validation = validateVideoFile(file);
+                if (!validation.valid) {
+                    setMessage(validation.error ?? "Invalid video file.");
+                    setStatus("error");
+                    setTimeout(() => setStatus("idle"), 6000);
+                    return;
+                }
+            }
+        }
+
         // --- ROLE-BASED LIMITS: Storage Cap ---
         if (user.role !== "admin" && !user.delegatedBy) {
             const currentPlan = getPlanDetails(user.role);
@@ -3163,8 +3190,8 @@ function DashboardContent() {
     const activeEventDetailEvent = isInlineEventDetailGalleryEditor ? (activeSubEvent || selectedMainEvent) : selectedMainEvent;
     const activeGalleryOriginalMessage = activeEventDetailEvent?.description || "";
     const hasGalleryMessageChanges = galleryMessageText !== activeGalleryOriginalMessage;
-    const photoItems = currentEventPhotos.filter(photo => photo.mediaType !== "video" && photo.resourceType !== "video");
-    const videoItems = currentEventPhotos.filter(photo => photo.mediaType === "video" || photo.resourceType === "video");
+    const photoItems = currentEventPhotos.filter(photo => photo.mediaType !== "video" && photo.resourceType !== "video" && photo.status !== "uploading");
+    const videoItems = currentEventPhotos.filter(photo => (photo.mediaType === "video" || photo.resourceType === "video") && photo.status !== "uploading");
     const selectedMediaItems = galleryMediaTab === "videos" ? videoItems : photoItems;
     const isPrimaryGalleryView = !!selectedMainEvent && selectedEventId === selectedMainEvent.id;
     const sourceGalleryOptions = [selectedMainEvent, ...eventDetailGalleries]
@@ -6506,6 +6533,7 @@ function DashboardContent() {
                         return {
                             ...viewingPhoto,
                             src: livePhoto?.url || viewingPhoto.src,
+                            raw_url: (livePhoto as any)?.raw_url || (viewingPhoto as any)?.raw_url,
                             thumbnailUrl: livePhoto?.thumbnailUrl || viewingPhoto.thumbnailUrl,
                         };
                     })() : null}

@@ -27,6 +27,7 @@ import { supabase } from "@/lib/supabase";
 
 interface HLSVideoPlayerProps {
   src: string;
+  rawSrc?: string;
   mediaId?: string;
   poster?: string;
   className?: string;
@@ -40,6 +41,16 @@ interface HLSVideoPlayerProps {
   onPreviousMedia?: () => void;
   onNextMedia?: () => void;
   onToggleFullscreen?: () => void | Promise<void>;
+}
+
+/** Derive raw MP4 URL if activeSrc is an HLS URL */
+function deriveRawFallbackUrl(hlsUrl: string): string {
+  // If URL is https://media.evebash.com/events/.../video.mp4/hls/master.m3u8
+  // The raw URL is https://media.evebash.com/events/.../video.mp4
+  if (hlsUrl.includes('/hls/master.m3u8')) {
+    return hlsUrl.replace(/\/hls\/master\.m3u8.*$/, '');
+  }
+  return hlsUrl;
 }
 
 /** True if the URL is an HLS manifest */
@@ -93,6 +104,7 @@ function formatTime(seconds: number) {
 export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>((
   {
     src,
+    rawSrc,
     mediaId,
     poster,
     className = "",
@@ -127,6 +139,12 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
   const [isMuted, setIsMuted] = useState(muted);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [pipSupported, setPipSupported] = useState(false);
+
+  // Seamless transition & resilience state
+  const savedPlaybackTimeRef = useRef<number>(0);
+  const wasPlayingBeforeSwitchRef = useRef<boolean>(false);
+  const [isOptimizingInBackground, setIsOptimizingInBackground] = useState<boolean>(false);
+  const [hasAttemptedHlsFallback, setHasAttemptedHlsFallback] = useState<boolean>(false);
 
   // Quality selector states
   const [levels, setLevels] = useState<Level[]>([]);
@@ -333,10 +351,16 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
   };
 
   // When parent passes a new src (e.g. via Realtime subscription updating the photo URL),
-  // pick it up so we can transition from "processing" → playing once HLS is ready
+  // pick it up so we can transition from raw → playing once HLS is ready
   useEffect(() => {
-    setActiveSrc(src);
-  }, [src]);
+    if (src !== activeSrc) {
+      if (localVideoRef.current && isRawVideoUrl(activeSrc) && isHLSUrl(src)) {
+        savedPlaybackTimeRef.current = localVideoRef.current.currentTime || 0;
+        wasPlayingBeforeSwitchRef.current = !localVideoRef.current.paused;
+      }
+      setActiveSrc(src);
+    }
+  }, [src, activeSrc]);
 
   useEffect(() => {
     const video = localVideoRef.current;
@@ -424,41 +448,78 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
   }, [clearControlsHideTimer, clearSurfaceClickTimer]);
 
   useEffect(() => {
-    if (!mediaId || !activeSrc || !isRawVideoUrl(activeSrc)) return;
+    if (!mediaId || !activeSrc || !isRawVideoUrl(activeSrc)) {
+      setIsOptimizingInBackground(false);
+      return;
+    }
 
-    let cancelled = false;
-    let requestInFlight = false;
+    setIsOptimizingInBackground(true);
+    let isCancelled = false;
 
-    const refreshProcessedUrl = async () => {
-      if (cancelled || requestInFlight) return;
-      requestInFlight = true;
+    // 1. Supabase Realtime channel for instant push notification
+    const channel = supabase
+      .channel(`photo-status-${mediaId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'photos',
+          filter: `id=eq.${mediaId}`,
+        },
+        (payload: { new?: { status?: string; url?: string } }) => {
+          if (isCancelled) return;
+          const newStatus = payload.new?.status;
+          const newUrl = payload.new?.url;
+
+          if (newStatus === 'processed' && newUrl && isHLSUrl(newUrl)) {
+            console.log('[HLSVideoPlayer] Realtime update: Video processed into HLS:', newUrl);
+            // Save current playback position before switching
+            if (localVideoRef.current) {
+              savedPlaybackTimeRef.current = localVideoRef.current.currentTime || 0;
+              wasPlayingBeforeSwitchRef.current = !localVideoRef.current.paused;
+            }
+            setActiveSrc(newUrl);
+            setIsOptimizingInBackground(false);
+          }
+        }
+      )
+      .subscribe();
+
+    // 2. Periodic poll fallback (in case Realtime socket disconnects or missed event)
+    let pollCount = 0;
+    const maxPolls = 30; // 5 minutes max (30 * 10s)
+    const intervalId = setInterval(async () => {
+      if (isCancelled || pollCount >= maxPolls) return;
+      pollCount++;
 
       try {
         const { data, error } = await supabase
-          .from("photos")
-          .select("url")
-          .eq("id", mediaId)
+          .from('photos')
+          .select('url, status')
+          .eq('id', mediaId)
           .maybeSingle();
 
-        if (error) {
-          console.warn("[HLSVideoPlayer] Unable to refresh processed video URL", error);
-          return;
-        }
+        if (error || !data) return;
 
-        const processedUrl = typeof data?.url === "string" ? data.url : "";
-        if (!cancelled && processedUrl && !isRawVideoUrl(processedUrl)) {
-          setActiveSrc(processedUrl);
+        if (data.status === 'processed' && data.url && isHLSUrl(data.url)) {
+          if (isCancelled) return;
+          if (localVideoRef.current) {
+            savedPlaybackTimeRef.current = localVideoRef.current.currentTime || 0;
+            wasPlayingBeforeSwitchRef.current = !localVideoRef.current.paused;
+          }
+          setActiveSrc(data.url);
+          setIsOptimizingInBackground(false);
+          clearInterval(intervalId);
         }
       } catch (err) {
-        console.warn("[HLSVideoPlayer] Unexpected error polling processed URL", err);
-      } finally {
-        requestInFlight = false;
+        console.warn('[HLSVideoPlayer] Polling check error:', err);
       }
-    };
+    }, 10000);
 
-    const intervalId = setInterval(refreshProcessedUrl, 5000);
     return () => {
-      cancelled = true;
+      isCancelled = true;
+      supabase.removeChannel(channel);
       clearInterval(intervalId);
     };
   }, [mediaId, activeSrc]);
@@ -482,8 +543,13 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
     if (!isHLSUrl(activeSrc)) {
       if (video) {
         video.src = activeSrc;
-        if (autoPlay) {
+        if (savedPlaybackTimeRef.current > 0) {
+          video.currentTime = savedPlaybackTimeRef.current;
+          savedPlaybackTimeRef.current = 0;
+        }
+        if (autoPlay || wasPlayingBeforeSwitchRef.current) {
           video.play().catch(() => {});
+          wasPlayingBeforeSwitchRef.current = false;
         }
       }
       setState("playing");
@@ -514,8 +580,16 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
         hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
           setLevels(data.levels || []);
           setState("playing");
-          if (autoPlay && video) {
+
+          // Restore seamless playback position if switching from raw
+          if (video && savedPlaybackTimeRef.current > 0) {
+            video.currentTime = savedPlaybackTimeRef.current;
+            savedPlaybackTimeRef.current = 0;
+          }
+
+          if (video && (autoPlay || wasPlayingBeforeSwitchRef.current)) {
             video.play().catch(() => {});
+            wasPlayingBeforeSwitchRef.current = false;
           }
         });
 
@@ -527,6 +601,17 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
+                // Check if this was a 404 on the master playlist or variant
+                if (data.response?.code === 404 && !hasAttemptedHlsFallback) {
+                  console.warn("[HLSVideoPlayer] HLS manifest 404. Falling back to raw video URL.");
+                  setHasAttemptedHlsFallback(true);
+                  hls.destroy();
+                  const fallback = rawSrc || deriveRawFallbackUrl(activeSrc);
+                  if (fallback && fallback !== activeSrc) {
+                    setActiveSrc(fallback);
+                    return;
+                  }
+                }
                 hls.startLoad();
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
@@ -534,6 +619,16 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
                 break;
               default:
                 hls.destroy();
+                // Attempt raw fallback before giving up to an error screen
+                if (!hasAttemptedHlsFallback) {
+                  setHasAttemptedHlsFallback(true);
+                  const fallback = rawSrc || deriveRawFallbackUrl(activeSrc);
+                  if (fallback && fallback !== activeSrc) {
+                    console.warn("[HLSVideoPlayer] Unrecoverable HLS error. Falling back to raw MP4:", fallback);
+                    setActiveSrc(fallback);
+                    return;
+                  }
+                }
                 setState("error");
                 setErrorMsg("Video playback error.");
                 onError?.();
@@ -544,12 +639,27 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
       } else if (video && video.canPlayType("application/vnd.apple.mpegurl")) {
         // Native HLS support (Safari / iOS)
         video.src = activeSrc;
-        if (autoPlay) {
-          video.play().catch(() => {});
-        }
+        const handleLoadedMetadata = () => {
+          if (savedPlaybackTimeRef.current > 0) {
+            video.currentTime = savedPlaybackTimeRef.current;
+            savedPlaybackTimeRef.current = 0;
+          }
+          if (autoPlay || wasPlayingBeforeSwitchRef.current) {
+            video.play().catch(() => {});
+            wasPlayingBeforeSwitchRef.current = false;
+          }
+        };
+        video.addEventListener("loadedmetadata", handleLoadedMetadata, { once: true });
         setState("playing");
         setLevels([]);
       } else {
+        // If HLS is not supported in this browser, try raw fallback
+        const fallback = rawSrc || deriveRawFallbackUrl(activeSrc);
+        if (fallback && fallback !== activeSrc) {
+          console.warn("[HLSVideoPlayer] HLS unsupported in browser. Falling back to raw MP4:", fallback);
+          setActiveSrc(fallback);
+          return;
+        }
         setState("error");
         setErrorMsg("HLS playback not supported in this browser.");
       }
@@ -563,7 +673,7 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
         hlsRef.current = null;
       }
     };
-  }, [activeSrc, autoPlay, onError]);
+  }, [activeSrc, autoPlay, onError, rawSrc, hasAttemptedHlsFallback]);
 
   const changeQuality = (levelIndex: number) => {
     setSelectedLevel(levelIndex);
@@ -599,23 +709,15 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
       onPointerLeave={handlePointerLeave}
       onFocusCapture={controls ? revealControls : undefined}
     >
-      {/* State Overlay Screens */}
-      {state === "processing" && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 p-6 text-center z-10">
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-400/10 text-amber-300 shadow-xl border border-amber-400/20">
-            <Film className="h-7 w-7 animate-pulse" />
-          </div>
-          <h4 className="text-base font-black text-white">Optimizing Video Quality...</h4>
-          <p className="mt-2 max-w-xs text-xs font-semibold text-slate-400 leading-relaxed">
-            Your video is currently being processed into high-definition multi-resolution streams. It will automatically load momentarily!
-          </p>
-          <div className="mt-4 flex items-center gap-2 rounded-full bg-slate-900 border border-slate-800 px-3 py-1 text-[11px] font-bold text-amber-300">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            <span>Processing HLS Renditions</span>
-          </div>
+      {/* Non-blocking background optimization indicator */}
+      {isOptimizingInBackground && (
+        <div className="absolute top-3 left-3 z-30 flex items-center gap-2 rounded-full bg-slate-950/80 backdrop-blur-md border border-amber-500/30 px-3 py-1 text-[11px] font-semibold text-amber-300 shadow-lg pointer-events-none transition-opacity duration-300">
+          <Loader2 className="h-3 w-3 animate-spin text-amber-400" />
+          <span>Optimizing video quality in background</span>
         </div>
       )}
 
+      {/* State Overlay Screens */}
       {state === "error" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 p-6 text-center z-10">
           <AlertCircle className="h-10 w-10 text-rose-500 mb-2" />
@@ -666,6 +768,15 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
           setIsMuted(video.muted || video.volume === 0);
         }}
         onError={() => {
+          if (isHLSUrl(activeSrc) && !hasAttemptedHlsFallback) {
+            console.warn("[HLSVideoPlayer] Video element error on HLS. Falling back to raw video URL.");
+            setHasAttemptedHlsFallback(true);
+            const fallback = rawSrc || deriveRawFallbackUrl(activeSrc);
+            if (fallback && fallback !== activeSrc) {
+              setActiveSrc(fallback);
+              return;
+            }
+          }
           setState("error");
           setErrorMsg("Failed to load video.");
           onError?.();

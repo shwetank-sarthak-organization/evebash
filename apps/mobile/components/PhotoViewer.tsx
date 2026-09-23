@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, Pressable, ScrollView, KeyboardAvoidingVi
 import { Image as ExpoImage, type ImageLoadEventData } from 'expo-image';
 import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
-import { VideoView, createVideoPlayer, type FullscreenOptions, type VideoPlayer } from 'expo-video';
+import { VideoView, createVideoPlayer, type VideoPlayer } from 'expo-video';
+import type { FullscreenOptions } from 'expo-video/build/VideoView.types';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, Event as DatabaseEvent } from '@/lib/database';
@@ -200,6 +201,7 @@ const SPORTS_VIEWER_PALETTES: Record<string, ViewerPalette> = {
 
 function ViewerVideo({
   uri,
+  rawUri,
   frameBg,
   controlText = '#ffffff',
   accent = '#CA9C68',
@@ -209,6 +211,7 @@ function ViewerVideo({
   onNextMedia,
 }: {
   uri: string;
+  rawUri?: string;
   frameBg: string;
   controlText?: string;
   accent?: string;
@@ -219,6 +222,14 @@ function ViewerVideo({
 }) {
   const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
   const [player, setPlayer] = useState<VideoPlayer | null>(null);
+  const [currentPlayUri, setCurrentPlayUri] = useState<string>(uri);
+  const [hasFallenBack, setHasFallenBack] = useState<boolean>(false);
+
+  useEffect(() => {
+    setCurrentPlayUri(uri);
+    setHasFallenBack(false);
+  }, [uri]);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -361,14 +372,25 @@ function ViewerVideo({
         setCurrentTime(finalDuration);
       }
     });
+    const statusSubscription = player.addListener('statusChange', ({ status, error }) => {
+      if (status === 'error') {
+        console.warn('[PhotoViewer] Player status error:', error);
+        if (!hasFallenBack && rawUri && rawUri !== currentPlayUri) {
+          console.log('[PhotoViewer] Runtime error: Falling back to raw video URL:', rawUri);
+          setHasFallenBack(true);
+          setCurrentPlayUri(rawUri);
+        }
+      }
+    });
 
     return () => {
       playingSubscription.remove();
       timeSubscription.remove();
       sourceSubscription.remove();
       endSubscription.remove();
+      statusSubscription.remove();
     };
-  }, [player]);
+  }, [player, hasFallenBack, rawUri, currentPlayUri]);
 
   const seekBySeconds = useCallback((seconds: number) => {
     const activePlayer = playerRef.current;
@@ -400,9 +422,9 @@ function ViewerVideo({
   useEffect(() => {
     let cancelled = false;
     const activePlayer = playerRef.current;
-    if (!activePlayer || !uri || sourceRef.current === uri) return;
+    if (!activePlayer || !currentPlayUri || sourceRef.current === currentPlayUri) return;
 
-    sourceRef.current = uri;
+    sourceRef.current = currentPlayUri;
     setCurrentTime(0);
     setDuration(0);
     setIsPlaying(false);
@@ -414,7 +436,8 @@ function ViewerVideo({
     setControlsInteractionKey(key => key + 1);
     activePlayer.muted = false;
     activePlayer.volume = 1;
-    activePlayer.replaceAsync(uri)
+
+    activePlayer.replaceAsync(currentPlayUri)
       .then(() => {
         if (cancelled) return;
 
@@ -424,15 +447,21 @@ function ViewerVideo({
         }
       })
       .catch((error) => {
-        if (!cancelled) {
-          console.error('[PhotoViewer] Video source replace failed:', error);
+        if (cancelled) return;
+        console.warn('[PhotoViewer] Video source load failed:', error);
+
+        // Fallback to raw video URL if HLS .m3u8 failed
+        if (!hasFallenBack && rawUri && rawUri !== currentPlayUri) {
+          console.log('[PhotoViewer] Falling back to raw video URL:', rawUri);
+          setHasFallenBack(true);
+          setCurrentPlayUri(rawUri);
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [uri]);
+  }, [currentPlayUri, rawUri, hasFallenBack]);
 
   const handleTogglePlayback = useCallback(() => {
     const activePlayer = playerRef.current;
@@ -662,6 +691,13 @@ function ViewerVideo({
   return (
     <View style={localStyles.videoPlayerFrame}>
       {!isCustomFullscreen && videoSurface}
+
+      {!currentPlayUri.includes('.m3u8') && (
+        <View style={localStyles.optimizingBadge}>
+          <ActivityIndicator size="small" color="#F59E0B" style={{ marginRight: 6 }} />
+          <Text style={localStyles.optimizingText}>Optimizing video quality...</Text>
+        </View>
+      )}
 
       {customControls && !isCustomFullscreen && (
         <Pressable
@@ -1410,6 +1446,7 @@ export default function PhotoViewer({
                   {isVideoMedia ? (
                     <ViewerVideo
                       uri={photos[currentPhotoIndex].url}
+                      rawUri={photos[currentPhotoIndex].raw_url || photos[currentPhotoIndex].rawUrl}
                       frameBg={viewerTheme.tileBg}
                       controlText={viewerTheme.controlText}
                       accent={viewerTheme.accent}
@@ -1521,6 +1558,7 @@ export default function PhotoViewer({
                   {isVideoMedia ? (
                     <ViewerVideo
                       uri={photos[currentPhotoIndex].url}
+                      rawUri={photos[currentPhotoIndex].raw_url || photos[currentPhotoIndex].rawUrl}
                       frameBg={viewerTheme.tileBg}
                       controlText={viewerTheme.controlText}
                       accent={viewerTheme.accent}
@@ -1600,6 +1638,7 @@ export default function PhotoViewer({
                 {isVideoMedia ? (
                   <ViewerVideo
                     uri={photos[currentPhotoIndex].url}
+                    rawUri={photos[currentPhotoIndex].raw_url || photos[currentPhotoIndex].rawUrl}
                     frameBg={viewerTheme.tileBg}
                     controlText={viewerTheme.controlText}
                     accent={viewerTheme.accent}
@@ -2087,5 +2126,24 @@ const localStyles = StyleSheet.create({
     right: 0,
     zIndex: 900,
     elevation: 900,
+  },
+  optimizingBadge: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    zIndex: 20,
+  },
+  optimizingText: {
+    color: '#FCD34D',
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

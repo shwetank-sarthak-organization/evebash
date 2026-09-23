@@ -14,6 +14,7 @@ import { subscriptionRouter } from "./routes/subscription.js";
 import { paymentsRouter } from "./routes/payments.js";
 import { tenantAuthRouter } from "./routes/tenantAuth.js";
 import { permissionsRouter } from "./routes/permissions.js";
+import { runMediaWatchdog } from "./services/watchdog.js";
 
 const app = express();
 
@@ -74,6 +75,50 @@ app.use((_request, response) => {
   response.status(404).json({ success: false, error: "Route not found." });
 });
 
-app.listen(PORT, () => {
+// ── Graceful Shutdown Handling ───────────────────────────────────────────────
+const server = app.listen(PORT, () => {
   console.log(`[EveBashBackend] Listening on port ${PORT}`);
 });
+
+let isShuttingDown = false;
+
+// Start background self-healing watchdog (runs every 10 minutes)
+const WATCHDOG_INTERVAL_MS = 10 * 60 * 1000;
+const watchdogInterval = setInterval(() => {
+  runMediaWatchdog().catch((err) => {
+    console.error("[WatchdogRunner] Background watchdog cycle failed:", err);
+  });
+}, WATCHDOG_INTERVAL_MS);
+
+// Also run once 30 seconds after server startup
+const startupWatchdogTimeout = setTimeout(() => {
+  runMediaWatchdog().catch((err) => {
+    console.error("[WatchdogRunner] Startup watchdog cycle failed:", err);
+  });
+}, 30 * 1000);
+
+function handleShutdown(signal: string) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log(`[EveBashBackend] Received ${signal}. Starting graceful shutdown...`);
+
+  clearInterval(watchdogInterval);
+  clearTimeout(startupWatchdogTimeout);
+
+  // Stop accepting new connections
+  server.close(() => {
+    console.log("[EveBashBackend] All active connections closed. Exiting process.");
+    process.exit(0);
+  });
+
+  // Force exit if connections don't drain within 10 seconds
+  setTimeout(() => {
+    console.error("[EveBashBackend] Forced exit after shutdown timeout.");
+    process.exit(1);
+  }, 10000).unref();
+}
+
+process.on("SIGTERM", () => handleShutdown("SIGTERM"));
+process.on("SIGINT", () => handleShutdown("SIGINT"));
+
+

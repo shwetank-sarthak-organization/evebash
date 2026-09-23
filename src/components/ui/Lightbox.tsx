@@ -28,6 +28,8 @@ interface LightboxProps {
     photo: {
         id: string;
         src: string;
+        raw_url?: string;
+        rawUrl?: string;
         storageKey?: string;
         alt?: string;
         width?: number;
@@ -481,7 +483,7 @@ export function Lightbox({
                             )}
 
                             <motion.div
-                                key={photo.src}
+                                key={photo.id || photo.src}
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 1.05 }}
@@ -493,6 +495,7 @@ export function Lightbox({
                                         ref={videoRef}
                                         mediaId={photo.id}
                                         src={photo.src}
+                                        rawSrc={photo.raw_url || photo.rawUrl}
                                         poster={photo.thumbnailUrl}
                                         className={cn(
                                             "shadow-2xl pointer-events-auto",
