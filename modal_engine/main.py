@@ -547,10 +547,14 @@ def _transcode_video_core(request: dict, hardware="cpu"):
             raw_video_path = tmp_path / "input.mp4"
             poster_path = tmp_path / "poster.jpg"
 
-            # 1. Direct Stream: Read directly from the public CDN URL instead of downloading
-            # The bucket is public via the Media Domain, so we don't need presigned URLs.
-            print(f"[TranscodeVideo-{hardware.upper()}] Direct streaming from {raw_url} (No local download)")
-            input_path = raw_url
+            # 1. Direct Stream: Generate a temporary B2 presigned URL to bypass Cloudflare Bot Protection
+            # and stream the video byte-by-byte straight into FFmpeg.
+            input_path = b2_client.generate_presigned_url(
+                'get_object',
+                Params={'Bucket': bucket_name, 'Key': storage_key},
+                ExpiresIn=3600
+            )
+            print(f"[TranscodeVideo-{hardware.upper()}] Direct streaming via B2 presigned URL (No local download)")
 
             # 2. Check for audio stream via local file
             has_audio = False
