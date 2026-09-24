@@ -1111,14 +1111,27 @@ adminRouter.post("/", async (request: Request, response: ExpressResponse) => {
         if (!eventId || !Number.isSafeInteger(offset) || offset < 0) {
           return jsonResponse(response, { success: false, error: "Invalid gallery or page" }, 400);
         }
+        const mediaType = payload.mediaType;
+        if (mediaType !== undefined && mediaType !== "images" && mediaType !== "videos") {
+          return jsonResponse(response, { success: false, error: "Invalid media type" }, 400);
+        }
         response.setHeader("Cache-Control", "no-store");
         const { data: gallery, error: galleryError } = await supabaseAdmin
           .from("events").select("id, title, parent_id").eq("id", eventId).maybeSingle();
         if (galleryError) throw new Error(galleryError.message);
         if (!gallery) return jsonResponse(response, { success: false, error: "Gallery no longer exists" }, 404);
-        const { data: media, error: mediaError } = await supabaseAdmin
+        let mediaQuery = supabaseAdmin
           .from("photos").select("id, url, thumbnail_url, media_type, resource_type")
-          .eq("event_id", eventId).order("id").range(offset, offset + 48);
+          .eq("event_id", eventId);
+        if (mediaType === "videos") {
+          mediaQuery = mediaQuery.or("media_type.eq.video,resource_type.eq.video");
+        } else if (mediaType === "images") {
+          // Include legacy images with null type fields, excluding either video marker.
+          mediaQuery = mediaQuery
+            .or("media_type.is.null,media_type.neq.video")
+            .or("resource_type.is.null,resource_type.neq.video");
+        }
+        const { data: media, error: mediaError } = await mediaQuery.order("id").range(offset, offset + 48);
         if (mediaError) throw new Error(mediaError.message);
         return jsonResponse(response, {
           success: true, gallery, media: (media || []).slice(0, 48), hasMore: (media || []).length > 48,

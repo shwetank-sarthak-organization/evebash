@@ -13,6 +13,7 @@ export function GalleryViewer({ initialGallery, events, onClose }: {
   const [gallery, setGallery] = useState(initialGallery);
   const [media, setMedia] = useState<GalleryMedia[]>([]);
   const [page, setPage] = useState(0);
+  const [mediaType, setMediaType] = useState<'images' | 'videos'>('images');
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -31,7 +32,7 @@ export function GalleryViewer({ initialGallery, events, onClose }: {
     setSelected(null);
     async function load() {
       try {
-        const result = await runAdminAction('viewGallery', { eventId: gallery.id, offset: page * 48 });
+        const result = await runAdminAction('viewGallery', { eventId: gallery.id, offset: page * 48, mediaType });
         if (!active) return;
         if (!result.success) throw new Error(result.error || 'Unable to load gallery');
         setMedia(result.media || []);
@@ -44,7 +45,7 @@ export function GalleryViewer({ initialGallery, events, onClose }: {
     }
     void load();
     return () => { active = false; };
-  }, [gallery.id, page, retry]);
+  }, [gallery.id, page, mediaType, retry]);
 
   useEffect(() => {
     if (selected !== null) dialog.current?.showModal();
@@ -64,9 +65,18 @@ export function GalleryViewer({ initialGallery, events, onClose }: {
     {children.length > 0 && <nav aria-label="Sub-galleries" className="flex flex-wrap gap-2">
       {children.map(child => <button key={child.id} type="button" onClick={() => navigate(child)} className={buttonClass}>{child.title || 'Untitled Sub-gallery'}</button>)}
     </nav>}
+    <div role="group" aria-label="Media type" className="flex gap-2">
+      {(['images', 'videos'] as const).map(type => <button
+        key={type}
+        type="button"
+        aria-pressed={mediaType === type}
+        onClick={() => { setMediaType(type); setPage(0); setSelected(null); }}
+        className={`${buttonClass} ${mediaType === type ? 'border-violet-400 bg-violet-600 text-white' : ''}`}
+      >{type === 'images' ? 'Images' : 'Videos'}</button>)}
+    </div>
     {loading && <p role="status" className="text-slate-400">Loading gallery…</p>}
     {error && <div role="alert" className="space-y-3 text-rose-300"><p>{error}</p><button type="button" onClick={() => setRetry(value => value + 1)} className={buttonClass}>Retry</button></div>}
-    {!loading && !error && media.length === 0 && <p className="text-slate-400">No media in this section. Select a sub-gallery above if available.</p>}
+    {!loading && !error && media.length === 0 && <p className="text-slate-400">No {mediaType} in this section. Select a sub-gallery above if available.</p>}
     <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
       {media.map((item, index) => <button key={item.id} type="button" onClick={() => setSelected(index)} aria-label={`Open ${isVideo(item) ? 'video' : 'photo'} ${page * 48 + index + 1}`} className="overflow-hidden rounded-xl border border-slate-700 bg-slate-900 text-left text-slate-300">
         {isVideo(item) ? <div className="relative flex aspect-square items-center justify-center bg-black">
