@@ -222,8 +222,11 @@ export async function publishManifestAssemblyTask(payload: {
 
   console.log(`[QStash] Publishing assemble_fmp4_manifest task for ${payload.storage_key} (dedup: ${deduplicationId})`);
 
+  const queueName = (process.env.QSTASH_QUEUE_NAME || "EveBash").trim();
+  const enqueueEndpoint = `https://qstash-us-east-1.upstash.io/v2/enqueue/${queueName}/${targetUrl}`;
+
   try {
-    const response = await fetch(`https://qstash-us-east-1.upstash.io/v2/publish/${targetUrl}`, {
+    const response = await fetch(enqueueEndpoint, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${qstashToken}`,
