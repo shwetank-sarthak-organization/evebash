@@ -167,7 +167,7 @@ export async function publishDelayedModalTrigger(eventId: string, origin?: strin
 }
 
 export async function publishVideoTranscodeTask(
-  payload: PhotoPayload & { fileSize?: number },
+  payload: PhotoPayload & { fileSize?: number; duration?: number },
   fileSize?: number,
 ): Promise<boolean> {
   return publishManifestAssemblyTask({
@@ -176,6 +176,7 @@ export async function publishVideoTranscodeTask(
     storage_key: payload.storage_key,
     event_id: payload.event_id,
     url: payload.url,
+    duration: payload.duration,
   });
 }
 
@@ -186,12 +187,14 @@ export async function publishManifestAssemblyTask(payload: {
   event_id: string;
   url?: string;
   total_segments?: number;
+  duration?: number;
 }): Promise<boolean> {
   const qstashToken = process.env.QSTASH_TOKEN;
-  const targetUrl = (
-    process.env.MODAL_FMP4_MANIFEST_URL ||
-    "https://shwetank-sarthak--wedding-media-engine-assemble-fmp4-manifest.modal.run"
-  ).trim();
+  
+  const isLongVideo = (payload.duration || 0) > 300; // 5 minutes
+  const targetUrl = isLongVideo
+    ? (process.env.MODAL_GPU_WEBHOOK_URL || "https://shwetank-sarthak--wedding-media-engine-process-video-gpu.modal.run").trim()
+    : (process.env.MODAL_CPU_WEBHOOK_URL || "https://shwetank-sarthak--wedding-media-engine-process-video-cpu.modal.run").trim();
 
   // Ensure both `id` and `photo_id` are populated
   const normalizedPayload = {

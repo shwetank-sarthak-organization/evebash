@@ -492,24 +492,12 @@ def find_matching_photos(request: dict):
 # Cloud Video Transcoding & HLS Manifest Assembly
 # ---------------------------------------------------------------------------
 
-@app.function(
-    image=image,
-    cpu=4.0,
-    memory=8192,
-    timeout=900,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+transcode_image = (
+    modal.Image.from_registry("jrottenberg/ffmpeg:7.0-nvidia2204", add_python="3.11")
+    .pip_install("boto3", "supabase", "fastapi[standard]")
 )
-@modal.fastapi_endpoint(method="POST")
-def assemble_fmp4_manifest(request: dict):
-    """
-    Direct Multi-Bitrate HLS Transcoding Coordinator:
-    1. Downloads raw video from B2.
-    2. Probes audio and video streams.
-    3. Extracts poster.jpg at 1.0s.
-    4. Transcodes 1080p, 720p, and 480p HLS streams directly from source (0 frame loss, perfect A/V sync).
-    5. Uploads TS segments, renditions playlists, and master.m3u8 to B2.
-    6. Updates Supabase photos record to status: 'processed'.
-    """
+
+def _transcode_video_core(request: dict, hardware="cpu"):
     import boto3
     import tempfile
     import pathlib
@@ -525,13 +513,9 @@ def assemble_fmp4_manifest(request: dict):
 
     if not photo_id and storage_key:
         photo_id = storage_key.replace("/", "_")
-        print(f"[TranscodeVideo] photo_id was missing; derived from storage_key: {photo_id}")
 
     if not storage_key or not photo_id:
-        print(f"[TranscodeVideo] Missing parameters: storage_key={storage_key}, photo_id={photo_id}")
         raise fastapi.HTTPException(status_code=400, detail="Missing required storage_key or photo_id")
-
-    print(f"[TranscodeVideo] Processing video {storage_key} (ID: {photo_id})")
 
     supabase: Client = create_client(
         os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
@@ -551,46 +535,38 @@ def assemble_fmp4_manifest(request: dict):
     poster_url = f"https://{media_domain}/{hls_prefix}/poster.jpg"
     raw_url = f"https://{media_domain}/{storage_key}"
 
+    print(f"[TranscodeVideo-{hardware.upper()}] Processing video {storage_key}")
+
     try:
+        # 1. Generate Presigned URL for Direct Stream (skips the 70s download wait)
+        input_url = b2_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': bucket_name, 'Key': storage_key},
+            ExpiresIn=3600 * 4
+        )
+
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = pathlib.Path(tmp_dir)
-            raw_video_path = tmp_path / "input.mp4"
             poster_path = tmp_path / "poster.jpg"
 
-            # 1. Download raw video from B2
-            print(f"[TranscodeVideo] Downloading raw video from B2: {storage_key}...")
-            b2_client.download_file(bucket_name, storage_key, str(raw_video_path))
-            raw_size_bytes = raw_video_path.stat().st_size
-            raw_size_mb = raw_size_bytes // (1024 * 1024)
-            print(f"[TranscodeVideo] Downloaded {raw_size_mb} MB in {time.time() - start_time:.1f}s")
-
-            if raw_size_bytes == 0:
-                raise RuntimeError("Downloaded video file is 0 bytes.")
-
-            # 2. Check for audio stream
+            # 2. Check for audio stream via direct stream URL
             has_audio = False
             try:
                 probe_audio = subprocess.run([
                     "ffprobe", "-v", "error", "-select_streams", "a",
                     "-show_entries", "stream=index", "-of", "csv=p=0",
-                    str(raw_video_path)
+                    input_url
                 ], capture_output=True, text=True)
                 if probe_audio.stdout.strip():
                     has_audio = True
             except Exception:
                 has_audio = True
 
-            # 3. Extract poster.jpg from original at 1.0s (or fallback to frame 0 for short clips)
+            # 3. Extract poster.jpg from original at 1.0s
             subprocess.run([
-                "ffmpeg", "-y", "-i", str(raw_video_path),
+                "ffmpeg", "-y", "-i", input_url,
                 "-ss", "00:00:01", "-vframes", "1", "-q:v", "2", str(poster_path)
             ], capture_output=True, text=True)
-
-            if not poster_path.exists() or poster_path.stat().st_size == 0:
-                subprocess.run([
-                    "ffmpeg", "-y", "-i", str(raw_video_path),
-                    "-vframes", "1", "-q:v", "2", str(poster_path)
-                ], capture_output=True, text=True)
 
             if poster_path.exists() and poster_path.stat().st_size > 0:
                 b2_client.upload_file(
@@ -603,9 +579,6 @@ def assemble_fmp4_manifest(request: dict):
                     }
                 )
 
-            # 4. Continuous Direct Multi-Bitrate HLS Transcoding (Zero Frame Loss)
-            # Transcoding directly from the un-cut source avoids keyframe cuts, missing PPS/SPS headers,
-            # decode slice header errors, and dropped frames at boundaries.
             resolutions = [
                 {
                     "name": "1080p",
@@ -642,70 +615,61 @@ def assemble_fmp4_manifest(request: dict):
                 out_dir.mkdir(parents=True, exist_ok=True)
                 playlist_file = out_dir / "playlist.m3u8"
 
-                cmd = [
-                    "ffmpeg", "-y", "-i", str(raw_video_path),
-                    "-vf", res["scale"],
-                    "-c:v", "libx264", "-preset", "veryfast",
+                # Direct stream from input_url
+                cmd = ["ffmpeg", "-y", "-i", input_url, "-vf", res["scale"]]
+                
+                # Hardware selection
+                if hardware == "gpu":
+                    cmd += ["-c:v", "h264_nvenc", "-preset", "p4", "-cq", "28"]
+                else:
+                    cmd += ["-c:v", "libx264", "-preset", "veryfast"]
+
+                cmd += [
                     "-b:v", res["vbitrate"], "-maxrate", res["maxrate"], "-bufsize", res["bufsize"],
                     "-g", "48", "-keyint_min", "48", "-sc_threshold", "0",
                     "-flags", "+cgop",
                 ]
+
                 if has_audio:
-                    cmd += [
-                        "-c:a", "aac", "-b:a", "128k",
-                        "-ar", "48000", "-ac", "2",
-                        "-af", "aresample=async=1000:first_pts=0",
-                    ]
+                    cmd += ["-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2", "-af", "aresample=async=1000:first_pts=0"]
                 else:
                     cmd += ["-an"]
 
                 cmd += [
-                    "-f", "hls",
-                    "-hls_time", "6",
-                    "-hls_playlist_type", "vod",
+                    "-f", "hls", "-hls_time", "6", "-hls_playlist_type", "vod",
                     "-hls_flags", "independent_segments",
                     "-hls_segment_filename", str(out_dir / "seg_%03d.ts"),
                     str(playlist_file)
                 ]
 
-                print(f"[TranscodeVideo] Transcoding {qname} directly from source...")
                 proc = subprocess.run(cmd, capture_output=True, text=True)
+                
+                # If NVENC fails, fallback to libx264
+                if proc.returncode != 0 and hardware == "gpu" and "nvenc" in proc.stderr.lower():
+                    print(f"[{qname}] NVENC failed, falling back to libx264. Error: {proc.stderr[-500:]}")
+                    # Re-run with libx264
+                    cmd_fallback = [arg if arg != "h264_nvenc" else "libx264" for arg in cmd]
+                    cmd_fallback = [arg if arg != "p4" else "veryfast" for arg in cmd_fallback]
+                    proc = subprocess.run(cmd_fallback, capture_output=True, text=True)
+
                 if proc.returncode != 0:
                     err = proc.stderr[-800:] if proc.stderr else f"Exit code {proc.returncode}"
                     raise RuntimeError(f"FFmpeg failed for {qname}: {err}")
 
-                # Upload segments for this quality to B2
+                # Upload segments
                 seg_count = 0
                 for seg_path in sorted(out_dir.glob("seg_*.ts")):
                     b2_key = f"{hls_prefix}/{qname}/{seg_path.name}"
-                    b2_client.upload_file(
-                        str(seg_path),
-                        bucket_name,
-                        b2_key,
-                        ExtraArgs={
-                            "ContentType": "video/MP2T",
-                            "CacheControl": "public, max-age=31536000, immutable"
-                        }
-                    )
+                    b2_client.upload_file(str(seg_path), bucket_name, b2_key, ExtraArgs={"ContentType": "video/MP2T", "CacheControl": "public, max-age=31536000, immutable"})
                     seg_count += 1
 
                 if seg_count == 0 or not playlist_file.exists():
                     raise RuntimeError(f"Transcoding produced 0 segments for {qname}")
 
-                # Upload playlist for this quality to B2
-                b2_client.upload_file(
-                    str(playlist_file),
-                    bucket_name,
-                    f"{hls_prefix}/{qname}/playlist.m3u8",
-                    ExtraArgs={
-                        "ContentType": "application/x-mpegURL",
-                        "CacheControl": "public, max-age=3600"
-                    }
-                )
-                print(f"[TranscodeVideo] Rendition {qname} completed and uploaded ({seg_count} segments)")
+                b2_client.upload_file(str(playlist_file), bucket_name, f"{hls_prefix}/{qname}/playlist.m3u8", ExtraArgs={"ContentType": "application/x-mpegURL", "CacheControl": "public, max-age=3600"})
                 return qname
 
-            # Transcode all 3 renditions concurrently using 4 container vCPUs
+            # Transcode renditions concurrently
             with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
                 futures = [executor.submit(transcode_and_upload_quality, res) for res in resolutions]
                 for fut in concurrent.futures.as_completed(futures):
@@ -731,7 +695,7 @@ def assemble_fmp4_manifest(request: dict):
                 CacheControl="public, max-age=3600"
             )
 
-        # 6. Update Supabase record to status: 'processed'
+        # 6. Update Supabase record
         update_data = {
             "url": hls_master_url,
             "thumbnail_url": poster_url,
@@ -743,29 +707,40 @@ def assemble_fmp4_manifest(request: dict):
         supabase.table("photos").update(update_data).eq("id", photo_id).execute()
 
         duration = time.time() - start_time
-        print(f"[TranscodeVideo] Video transcoding completed with 0 frame loss in {duration:.1f}s — {hls_master_url}")
-        return {
-            "status": "success",
-            "hls_master_url": hls_master_url,
-            "raw_url": raw_url,
-            "duration_seconds": duration
-        }
+        print(f"[TranscodeVideo-{hardware.upper()}] completed in {duration:.1f}s")
+        return {"status": "success", "hls_master_url": hls_master_url}
 
     except Exception as e:
         error_details = str(e)
-        print(f"[TranscodeVideo] ERROR processing {photo_id}: {error_details}")
-
-        # Update Supabase record with explicit failed status and exact error reason
         try:
-            supabase.table("photos").update({
-                "status": "failed",
-                "processing_error": error_details[:1000]
-            }).eq("id", photo_id).execute()
-        except Exception as db_err:
-            print(f"[TranscodeVideo] Could not update failed status in database: {db_err}")
-
-        # Raise HTTP 500 so QStash knows the job failed and can retry
+            supabase.table("photos").update({"status": "failed", "processing_error": error_details[:1000]}).eq("id", photo_id).execute()
+        except Exception:
+            pass
         raise fastapi.HTTPException(status_code=500, detail=f"Transcoding failed: {error_details}")
+
+@app.function(
+    image=transcode_image,
+    cpu=4.0,
+    memory=4096,
+    timeout=3600,
+    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+)
+@modal.fastapi_endpoint(method="POST")
+def process_video_cpu(request: dict):
+    return _transcode_video_core(request, hardware="cpu")
+
+@app.function(
+    image=transcode_image,
+    gpu="l4",
+    cpu=4.0,
+    memory=8192,
+    timeout=3600,
+    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+)
+@modal.fastapi_endpoint(method="POST")
+def process_video_gpu(request: dict):
+    return _transcode_video_core(request, hardware="gpu")
+
 
 
 

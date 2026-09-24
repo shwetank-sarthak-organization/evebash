@@ -424,6 +424,17 @@ async function uploadLargeFileInChunks(
 
     console.log(`[Storage] All ${totalChunks} chunks uploaded. Completing large file...`);
 
+    let videoDuration = 0;
+    if (resourceType === "video" && typeof document !== "undefined") {
+        videoDuration = await new Promise<number>((resolve) => {
+            const video = document.createElement("video");
+            video.preload = "metadata";
+            video.onloadedmetadata = () => { URL.revokeObjectURL(video.src); resolve(video.duration); };
+            video.onerror = () => { URL.revokeObjectURL(video.src); resolve(0); };
+            video.src = URL.createObjectURL(file);
+        });
+    }
+
     // Refresh auth token (long uploads may expire it)
     const { data: freshSession } = await supabase.auth.getSession();
     const freshToken = freshSession.session?.access_token;
@@ -442,6 +453,7 @@ async function uploadLargeFileInChunks(
             fileSize: file.size,
             resourceType,
             partSha1Array,
+            duration: videoDuration,
         }),
     });
 

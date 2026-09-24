@@ -750,6 +750,7 @@ mediaRouter.post("/upload/chunk/complete", asyncRoute(async (request, response) 
         storage_key: storageKey,
         event_id: eventId,
         url,
+        duration: Number(body.duration || 0),
       });
     } catch (err) {
       console.error(`[CompleteChunkedUpload] QStash dispatch error for ${photoId}:`, err);

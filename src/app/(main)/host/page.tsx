@@ -1524,8 +1524,10 @@ function DashboardContent() {
                             });
                         }
                     } else if (payload.eventType === 'UPDATE') {
-                        // Use currentEventPhotosRef and uploadQueueRef to avoid stale closure state snapshots
-                        const isOurPhoto = currentEventPhotosRef.current.some(p => p.id === payload.new.id) ||
+                        // Use currentEventPhotosRef and uploadQueueRef to avoid stale closure state snapshots,
+                        // and fallback to checking the event_id directly if React state hasn't flushed yet.
+                        const isOurPhoto = (payload.new.event_id === selectedEventId) ||
+                                           currentEventPhotosRef.current.some(p => p.id === payload.new.id) ||
                                            uploadQueueRef.current.some(qItem => qItem.photoId === payload.new.id);
 
                         if (!isOurPhoto) return;
@@ -2217,6 +2219,7 @@ function DashboardContent() {
                         const itemIds = new Set(itemsToFlush.map(item => item.queueItemId));
                         setUploadQueue(prev => prev.map(qItem => {
                             if (itemIds.has(qItem.id)) {
+                                if (qItem.status === "success" || qItem.status === "error") return qItem;
                                 const isVideo = qItem.mediaType === "video";
                                 return {
                                     ...qItem,
