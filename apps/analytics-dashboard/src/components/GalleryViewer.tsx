@@ -1,3 +1,4 @@
+import { LoaderCircle, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { Event } from '../lib/analytics';
 import { runAdminAction, type GalleryMedia } from '../lib/adminApi';
@@ -103,15 +104,15 @@ export function GalleryViewer({ initialGallery, events, onClose }: {
     {error && <div role="alert" className="space-y-3 text-rose-300"><p>{error}</p><button type="button" onClick={() => setRetry(value => value + 1)} className={buttonClass}>Retry</button></div>}
     {!loading && !error && media.length === 0 && <p className="text-slate-400">No {mediaType} in this section. Select a sub-gallery above if available.</p>}
     <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
-      {media.map((item, index) => <div key={item.id} className="overflow-hidden rounded-xl border border-slate-700 bg-slate-900">
-      <button type="button" onClick={() => setSelected(index)} aria-label={`Open ${isVideo(item) ? 'video' : 'photo'} ${page * 48 + index + 1}`} className="overflow-hidden rounded-xl border border-slate-700 bg-slate-900 text-left text-slate-300">
+      {media.map((item, index) => <div key={item.id} className="relative overflow-hidden rounded-xl border border-slate-700 bg-slate-900">
+      <button type="button" onClick={() => setSelected(index)} aria-label={`Open ${isVideo(item) ? 'video' : 'photo'} ${page * 48 + index + 1}`} className="block w-full overflow-hidden text-left text-slate-300">
         {isVideo(item) ? <div className="relative flex aspect-square items-center justify-center bg-black">
           {item.thumbnail_url && <img src={item.thumbnail_url} alt="" loading="lazy" className="absolute h-full w-full object-cover" />}
           <span className="relative rounded bg-black/70 px-3 py-2">▶ Video</span>
         </div> : <img src={item.thumbnail_url || item.preview_url || item.url} alt={`Photo ${page * 48 + index + 1}`} loading="lazy" className="aspect-square w-full object-cover" onError={event => { if (event.currentTarget.getAttribute('src') !== item.url) event.currentTarget.src = item.url; }} />}
         <span className="block px-3 py-2 text-xs">{isVideo(item) ? 'Video' : 'Photo'} {page * 48 + index + 1}</span>
       </button>
-      <button type="button" onClick={() => void deleteMedia(item)} aria-label={`Delete ${isVideo(item) ? 'video' : 'image'} ${page * 48 + index + 1}`} className="m-2 rounded-lg border border-rose-500/40 px-3 py-2 text-sm text-rose-300 hover:bg-rose-500/10 disabled:opacity-40">{deletingId === item.id ? 'Deleting…' : 'Delete'}</button>
+      <button type="button" onClick={() => void deleteMedia(item)} aria-label={`Delete ${isVideo(item) ? 'video' : 'image'} ${page * 48 + index + 1}`} title={isVideo(item) ? 'Delete video' : 'Delete image'} className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/70 text-white shadow-md transition-colors hover:bg-rose-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-40">{deletingId === item.id ? <LoaderCircle aria-hidden="true" className="h-5 w-5 animate-spin" /> : <Trash2 aria-hidden="true" className="h-5 w-5" />}</button>
       </div>)}
     </div>
     <div className="flex items-center gap-3">
