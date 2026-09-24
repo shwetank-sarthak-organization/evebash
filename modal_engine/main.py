@@ -538,33 +538,40 @@ def _transcode_video_core(request: dict, hardware="cpu"):
     print(f"[TranscodeVideo-{hardware.upper()}] Processing video {storage_key}")
 
     try:
-        # 1. Generate Presigned URL for Direct Stream (skips the 70s download wait)
-        input_url = b2_client.generate_presigned_url(
-            'get_object',
-            Params={'Bucket': bucket_name, 'Key': storage_key},
-            ExpiresIn=3600 * 4
-        )
-
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = pathlib.Path(tmp_dir)
+            raw_video_path = tmp_path / "input.mp4"
             poster_path = tmp_path / "poster.jpg"
 
-            # 2. Check for audio stream via direct stream URL
+            # 1. Download raw video from B2 to local NVMe SSD
+            # (Presigned URLs passed directly to FFmpeg fail because & in query strings
+            #  are misinterpreted as separate CLI arguments — e.g. 'Unrecognized option u')
+            print(f"[TranscodeVideo-{hardware.upper()}] Downloading {storage_key} to local SSD...")
+            b2_client.download_file(bucket_name, storage_key, str(raw_video_path))
+            raw_size_mb = raw_video_path.stat().st_size // (1024 * 1024)
+            print(f"[TranscodeVideo-{hardware.upper()}] Downloaded {raw_size_mb} MB in {time.time() - start_time:.1f}s")
+
+            if raw_video_path.stat().st_size == 0:
+                raise RuntimeError("Downloaded video file is 0 bytes.")
+
+            input_path = str(raw_video_path)
+
+            # 2. Check for audio stream via local file
             has_audio = False
             try:
                 probe_audio = subprocess.run([
                     "ffprobe", "-v", "error", "-select_streams", "a",
                     "-show_entries", "stream=index", "-of", "csv=p=0",
-                    input_url
+                    input_path
                 ], capture_output=True, text=True)
                 if probe_audio.stdout.strip():
                     has_audio = True
             except Exception:
                 has_audio = True
 
-            # 3. Extract poster.jpg from original at 1.0s
+            # 3. Extract poster.jpg from local file at 1.0s
             subprocess.run([
-                "ffmpeg", "-y", "-i", input_url,
+                "ffmpeg", "-y", "-i", input_path,
                 "-ss", "00:00:01", "-vframes", "1", "-q:v", "2", str(poster_path)
             ], capture_output=True, text=True)
 
@@ -615,8 +622,8 @@ def _transcode_video_core(request: dict, hardware="cpu"):
                 out_dir.mkdir(parents=True, exist_ok=True)
                 playlist_file = out_dir / "playlist.m3u8"
 
-                # Direct stream from input_url
-                cmd = ["ffmpeg", "-y", "-i", input_url, "-vf", res["scale"]]
+                # Transcode from local file (presigned URLs with & break FFmpeg arg parser)
+                cmd = ["ffmpeg", "-y", "-i", input_path, "-vf", res["scale"]]
                 
                 # Hardware selection
                 if hardware == "gpu":
