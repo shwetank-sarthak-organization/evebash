@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Event } from '../lib/analytics';
 import { runAdminAction, type GalleryMedia } from '../lib/adminApi';
+import { loadGalleryPage, isGalleryVideo as isVideo } from '../lib/galleryMedia';
 
 const buttonClass = 'rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-40';
-const isVideo = (media: GalleryMedia) => media.media_type === 'video' || media.resource_type === 'video';
 
 export function GalleryViewer({ initialGallery, events, onClose }: {
   initialGallery: Event;
@@ -32,9 +32,11 @@ export function GalleryViewer({ initialGallery, events, onClose }: {
     setSelected(null);
     async function load() {
       try {
-        const result = await runAdminAction('viewGallery', { eventId: gallery.id, offset: page * 48, mediaType });
+        const result = await loadGalleryPage(
+          offset => runAdminAction('viewGallery', { eventId: gallery.id, offset, mediaType }),
+          mediaType, page, () => active,
+        );
         if (!active) return;
-        if (!result.success) throw new Error(result.error || 'Unable to load gallery');
         setMedia(result.media || []);
         setHasMore(!!result.hasMore);
       } catch (err) {
@@ -70,7 +72,7 @@ export function GalleryViewer({ initialGallery, events, onClose }: {
         key={type}
         type="button"
         aria-pressed={mediaType === type}
-        onClick={() => { setMediaType(type); setPage(0); setSelected(null); }}
+        onClick={() => { if (type !== mediaType) { setMedia([]); setHasMore(false); setLoading(true); setMediaType(type); setPage(0); setSelected(null); } }}
         className={`${buttonClass} ${mediaType === type ? 'border-violet-400 bg-violet-600 text-white' : ''}`}
       >{type === 'images' ? 'Images' : 'Videos'}</button>)}
     </div>

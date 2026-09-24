@@ -1134,7 +1134,7 @@ adminRouter.post("/", async (request: Request, response: ExpressResponse) => {
         const { data: media, error: mediaError } = await mediaQuery.order("id").range(offset, offset + 48);
         if (mediaError) throw new Error(mediaError.message);
         return jsonResponse(response, {
-          success: true, gallery, media: (media || []).slice(0, 48), hasMore: (media || []).length > 48,
+          success: true, gallery, appliedMediaType: mediaType || null, media: (media || []).slice(0, 48), hasMore: (media || []).length > 48,
         });
       }
       case "syncUsers": {
