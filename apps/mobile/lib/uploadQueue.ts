@@ -708,7 +708,10 @@ async function uploadWorker(item: UploadQueueItem) {
       console.warn('[UploadQueue] Could not get file size info:', infoErr);
     }
 
-    if (fileSize > 100 * 1024 * 1024) { // > 100 MB (videos and large photos)
+    const isVideo = item.mediaType === 'video' ||
+      /\.(mp4|mov|avi|mkv|webm|m4v|3gp|flv|wmv|mts|m2ts|ts|ogv)$/i.test(item.fileName || '');
+
+    if (isVideo || fileSize >= 5 * 1024 * 1024) { // All videos and files >= 5MB use resilient chunking
       await uploadWorkerLargeFileInChunks(item, accessToken, fileSize);
       return;
     }

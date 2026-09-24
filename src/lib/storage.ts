@@ -485,7 +485,10 @@ export async function uploadEventImage(
         }
     }
 
-    if (file.size > 100 * 1024 * 1024) { // > 100 MB (any video or large image)
+    // Use resilient chunked upload for all videos and media >= 5MB
+    // Backblaze B2 minimum part size is 5MB. Chunked upload provides multi-part parallelism,
+    // exponential backoff retry on network drops, and session resumption across tab refreshes.
+    if (isVideoFile || file.size >= 5 * 1024 * 1024) {
         return uploadLargeFileInChunks(file, eventId, onProgress);
     }
 

@@ -1054,7 +1054,7 @@ export default function EventDetailScreen() {
   const [sourceGalleryFilter, setSourceGalleryFilter] = useState('all');
   const [sourceGalleryMenuVisible, setSourceGalleryMenuVisible] = useState(false);
   const photoItems = React.useMemo(() => photos.filter(item => isPhotoMedia(item) && item?.status !== 'uploading'), [photos]);
-  const videoItems = React.useMemo(() => photos.filter(item => isVideoMedia(item) && item?.status !== 'uploading'), [photos]);
+  const videoItems = React.useMemo(() => photos.filter(item => isVideoMedia(item) && item?.status === 'processed'), [photos]);
   const selectedMediaItems = galleryMediaTab === 'photos' ? photoItems : videoItems;
   const isPrimaryGalleryView = showAdminView ? selectedAdminGallery === null : !activeSubEvent;
   const sourceGalleryOptions = React.useMemo(() => {

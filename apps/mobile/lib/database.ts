@@ -349,6 +349,15 @@ function isCoverUsagePhoto(photo: Photo): boolean {
     return Boolean(photo.tags?.includes(COVER_USAGE_TAG));
 }
 
+function isMediaVisibleInGallery(photo: Photo): boolean {
+    if (isCoverUsagePhoto(photo)) return false;
+    if (photo.status === 'uploading') return false;
+    const isVideo = photo.mediaType === "video" || photo.resourceType === "video";
+    // Strict requirement: Videos must NOT show until 100% processed and fully available
+    if (isVideo && photo.status !== "processed") return false;
+    return true;
+}
+
 function mapSqlToEventFavouritePhoto(row: any): EventFavouritePhoto {
     return {
         id: row.id,
@@ -999,7 +1008,7 @@ export async function getEventPhotos(eventId: string, legacyId?: string): Promis
             .in('event_id', ids);
 
         if (error) throw error;
-        const photos = (data || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo) && photo.status !== 'uploading');
+        const photos = (data || []).map(mapSqlToPhoto).filter(isMediaVisibleInGallery);
         const visiblePhotos = await filterPhotosForPlanExpiry(photos, ids);
         return visiblePhotos.sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999));
     } catch (error) {
@@ -1025,7 +1034,7 @@ export async function getEventPhotosPaginated(
 
         if (countError) throw countError;
 
-        const countedMedia = (countData || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo) && photo.status !== 'uploading');
+        const countedMedia = (countData || []).map(mapSqlToPhoto).filter(isMediaVisibleInGallery);
         const totalVideos = countedMedia.filter(photo => photo.mediaType === 'video' || photo.resourceType === 'video').length;
         const totalPhotos = countedMedia.length - totalVideos;
 
@@ -1040,7 +1049,7 @@ export async function getEventPhotosPaginated(
 
         if (error) throw error;
 
-        const rawPhotos = (data || []).map(mapSqlToPhoto).filter(photo => !isCoverUsagePhoto(photo) && photo.status !== 'uploading');
+        const rawPhotos = (data || []).map(mapSqlToPhoto).filter(isMediaVisibleInGallery);
         const hasMore = rawPhotos.length > limit;
         const photosToReturn = hasMore ? rawPhotos.slice(0, limit) : rawPhotos;
 

@@ -1494,6 +1494,12 @@ function DashboardContent() {
                     if (payload.eventType === 'INSERT') {
                         // For INSERT events, event_id is always present in the payload
                         if (payload.new.event_id === selectedEventId) {
+                            const isVideo = payload.new.media_type === 'video' || payload.new.resource_type === 'video';
+                            // Strict requirement: Videos must NOT show on host/dashboard until 100% processed
+                            if (isVideo && payload.new.status !== 'processed') {
+                                return;
+                            }
+
                             const newPhoto: Photo = {
                                 id: payload.new.id,
                                 eventId: payload.new.event_id,
@@ -1507,7 +1513,8 @@ function DashboardContent() {
                                 size: payload.new.size,
                                 format: payload.new.format,
                                 mediaType: payload.new.media_type,
-                                resourceType: payload.new.resource_type
+                                resourceType: payload.new.resource_type,
+                                status: payload.new.status
                             };
 
                             // Add to grid state directly in real-time so it shows immediately!
@@ -1526,35 +1533,39 @@ function DashboardContent() {
                         setCurrentEventPhotos(prev => {
                             const exists = prev.some(p => p.id === payload.new.id);
 
-                            // 1. If it doesn't exist yet (UPDATE arrived before INSERT state re-rendered),
-                            // we build the Photo record and insert it directly in its completed state.
+                            // 1. If it doesn't exist yet (e.g. video finished transcoding),
+                            // we build the Photo record and insert it once status is 'processed'.
                             if (!exists) {
-                                const queueItem = uploadQueueRef.current.find(q => q.photoId === payload.new.id);
-                                if (queueItem) {
-                                    const mediaDomain = process.env.NEXT_PUBLIC_MEDIA_DOMAIN || 'media.evebash.com';
-                                    const resolvedStorageKey = payload.new.storage_key || queueItem.storageKey || "";
-                                    const completedPhoto: Photo = {
-                                        id: payload.new.id,
-                                        eventId: selectedEventId,
-                                        storageKey: resolvedStorageKey,
-                                        url: payload.new.url || `https://${mediaDomain}/${resolvedStorageKey}`,
-                                        thumbnailUrl: payload.new.thumbnail_url ?? `https://${mediaDomain}/${resolvedStorageKey}-thumbnail.webp`,
-                                        width: payload.new.width,
-                                        height: payload.new.height,
-                                        uploadedAt: payload.new.uploaded_at || new Date().toISOString(),
-                                        mediaType: payload.new.media_type || "photo",
-                                        resourceType: payload.new.resource_type || "image"
-                                    };
-                                    return [completedPhoto, ...prev];
+                                const isVideo = payload.new.media_type === 'video' || payload.new.resource_type === 'video';
+                                if (isVideo && payload.new.status !== 'processed') {
+                                    return prev;
                                 }
-                                return prev;
+
+                                const queueItem = uploadQueueRef.current.find(q => q.photoId === payload.new.id);
+                                const mediaDomain = process.env.NEXT_PUBLIC_MEDIA_DOMAIN || 'media.evebash.com';
+                                const resolvedStorageKey = payload.new.storage_key || queueItem?.storageKey || "";
+                                const completedPhoto: Photo = {
+                                    id: payload.new.id,
+                                    eventId: selectedEventId,
+                                    storageKey: resolvedStorageKey,
+                                    url: payload.new.url || `https://${mediaDomain}/${resolvedStorageKey}`,
+                                    thumbnailUrl: payload.new.thumbnail_url ?? `https://${mediaDomain}/${resolvedStorageKey}-thumbnail.webp`,
+                                    width: payload.new.width,
+                                    height: payload.new.height,
+                                    uploadedAt: payload.new.uploaded_at || new Date().toISOString(),
+                                    mediaType: payload.new.media_type || (isVideo ? "video" : "photo"),
+                                    resourceType: payload.new.resource_type || (isVideo ? "video" : "image"),
+                                    status: payload.new.status || "processed"
+                                };
+                                return [completedPhoto, ...prev];
                             }
 
-                            // 2. If it already exists in the grid, update its thumbnail and sizes
+                            // 2. If it already exists in the grid, update its thumbnail, url, and status
                             return prev.map(p => {
                                 if (p.id === payload.new.id) {
                                     return {
                                         ...p,
+                                        status: payload.new.status ?? p.status,
                                         thumbnailUrl: payload.new.thumbnail_url ?? p.thumbnailUrl,
                                         width: payload.new.width || p.width,
                                         height: payload.new.height || p.height,
@@ -1565,7 +1576,7 @@ function DashboardContent() {
                             });
                         });
 
-                        if (payload.new.thumbnail_url) {
+                        if (payload.new.status === 'processed' || payload.new.thumbnail_url) {
                             setUploadQueue(prev => prev.map(qItem =>
                                 (qItem.photoId === payload.new.id || qItem.storageKey === payload.new.storage_key)
                                     ? { ...qItem, status: "success", progress: 100 }
@@ -2191,9 +2202,13 @@ function DashboardContent() {
                     }
 
                     if (res.ok) {
-                        // Immediately prepend new photos to grid state so they render instantly
+                        // Immediately prepend new photos to grid state (videos stay hidden until backend transcode completes)
                         setCurrentEventPhotos(prev => {
                             const newPhotos = itemsToFlush
+                                .filter(item => {
+                                    const isVideo = item.photo.mediaType === "video" || item.photo.resourceType === "video";
+                                    return !isVideo || item.photo.status === "processed";
+                                })
                                 .map(item => item.photo)
                                 .filter(p => !prev.some(existing => existing.id === p.id));
                             return [...newPhotos, ...prev];
@@ -2205,8 +2220,8 @@ function DashboardContent() {
                                 const isVideo = qItem.mediaType === "video";
                                 return {
                                     ...qItem,
-                                    status: isVideo ? "success" : "processing",
-                                    progress: isVideo ? 100 : 90
+                                    status: "processing",
+                                    progress: isVideo ? 90 : 90
                                 };
                             }
                             return qItem;
@@ -2281,9 +2296,9 @@ function DashboardContent() {
                             : item
                     ));
 
-                    // If this was a chunked upload (>100MB) AND a video, upload/chunk/complete
-                    // already triggered the transcode — skip it in save-photo-batch
-                    const transcodeTriggered = isVideoFile && file.size > 100 * 1024 * 1024;
+                    // If this was a video (routed via uploadLargeFileInChunks), upload/chunk/complete
+                    // already dispatched the transcode task — skip duplicate trigger in save-photo-batch
+                    const transcodeTriggered = isVideoFile;
                     chunkBuffer.push({ photo, queueItemId, transcodeTriggered });
                     // Flush immediately after each upload so resizing starts right away (non-blocking)
                     flushChunkBuffer();
@@ -3191,7 +3206,7 @@ function DashboardContent() {
     const activeGalleryOriginalMessage = activeEventDetailEvent?.description || "";
     const hasGalleryMessageChanges = galleryMessageText !== activeGalleryOriginalMessage;
     const photoItems = currentEventPhotos.filter(photo => photo.mediaType !== "video" && photo.resourceType !== "video" && photo.status !== "uploading");
-    const videoItems = currentEventPhotos.filter(photo => (photo.mediaType === "video" || photo.resourceType === "video") && photo.status !== "uploading");
+    const videoItems = currentEventPhotos.filter(photo => (photo.mediaType === "video" || photo.resourceType === "video") && photo.status === "processed");
     const selectedMediaItems = galleryMediaTab === "videos" ? videoItems : photoItems;
     const isPrimaryGalleryView = !!selectedMainEvent && selectedEventId === selectedMainEvent.id;
     const sourceGalleryOptions = [selectedMainEvent, ...eventDetailGalleries]
