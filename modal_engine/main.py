@@ -535,7 +535,7 @@ def _transcode_video_core(request: dict, hardware="cpu"):
         aws_access_key_id=os.environ.get('B2_KEY_ID'),
         aws_secret_access_key=os.environ.get('B2_APPLICATION_KEY'),
         region_name=region,
-        config=Config(signature_version='s3v4')
+        config=Config(signature_version='s3v4', max_pool_connections=30)
     )
     bucket_name = os.environ.get('B2_BUCKET_NAME')
     media_domain = (os.environ.get("MEDIA_DOMAIN") or "media.evebash.com").replace("https://", "").strip("/")
@@ -564,8 +564,9 @@ def _transcode_video_core(request: dict, hardware="cpu"):
 
             input_path = str(raw_video_path)
 
-            # 2. Check for audio stream via local file
+            # 2. Check for audio stream and video height via local file
             has_audio = False
+            src_height = 1080  # default
             try:
                 probe_audio = subprocess.run([
                     "ffprobe", "-v", "error", "-select_streams", "a",
@@ -574,8 +575,17 @@ def _transcode_video_core(request: dict, hardware="cpu"):
                 ], capture_output=True, text=True)
                 if probe_audio.stdout.strip():
                     has_audio = True
+
+                probe_vid = subprocess.run([
+                    "ffprobe", "-v", "error", "-select_streams", "v:0",
+                    "-show_entries", "stream=height", "-of", "csv=p=0",
+                    input_path
+                ], capture_output=True, text=True)
+                if probe_vid.stdout.strip():
+                    src_height = int(probe_vid.stdout.strip())
             except Exception:
                 has_audio = True
+                src_height = 1080
 
             # 3. Extract poster.jpg from local file at 1.0s
             subprocess.run([
@@ -595,7 +605,12 @@ def _transcode_video_core(request: dict, hardware="cpu"):
                 )
 
             # 4. Single-Pass Multi-Output FFmpeg Generation
-            out_dirs = ["1080p", "720p", "480p"]
+            # Dynamic tiers based on source height (Don't upscale)
+            out_dirs = []
+            if src_height >= 1080: out_dirs.append("1080p")
+            if src_height >= 720:  out_dirs.append("720p")
+            out_dirs.append("480p") # Always generate at least 480p
+            
             if has_audio:
                 out_dirs.append("audio")
                 
@@ -604,48 +619,75 @@ def _transcode_video_core(request: dict, hardware="cpu"):
 
             print(f"[TranscodeVideo-{hardware.upper()}] Starting single-pass multi-output FFmpeg...")
             
-            cmd = [
-                "ffmpeg", "-y", "-i", input_path,
-                "-filter_complex", 
-                "[0:v]split=3[v1][v2][v3];"
-                "[v1]scale=w=1920:h=1080:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v1out];"
-                "[v2]scale=w=1280:h=720:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v2out];"
-                "[v3]scale=w=854:h=480:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v3out]"
-            ]
+            cmd = ["ffmpeg", "-y"]
+            
+            if hardware == "gpu":
+                cmd += ["-hwaccel", "cuda", "-hwaccel_output_format", "cuda"]
+                
+            cmd += ["-i", input_path]
+            
+            # Build filter complex dynamically
+            split_count = len([d for d in out_dirs if d != "audio"])
+            filter_str = f"[0:v]split={split_count}"
+            for i in range(split_count):
+                filter_str += f"[v{i+1}];"
+                
+            idx = 1
+            if "1080p" in out_dirs:
+                if hardware == "gpu":
+                    filter_str += f"[v{idx}]scale_cuda=w=1920:h=-2:passthrough=0[v{idx}out];"
+                else:
+                    filter_str += f"[v{idx}]scale=w=1920:h=1080:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
+                idx += 1
+                
+            if "720p" in out_dirs:
+                if hardware == "gpu":
+                    filter_str += f"[v{idx}]scale_cuda=w=1280:h=-2:passthrough=0[v{idx}out];"
+                else:
+                    filter_str += f"[v{idx}]scale=w=1280:h=720:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
+                idx += 1
+                
+            if "480p" in out_dirs:
+                if hardware == "gpu":
+                    filter_str += f"[v{idx}]scale_cuda=w=854:h=-2:passthrough=0[v{idx}out];"
+                else:
+                    filter_str += f"[v{idx}]scale=w=854:h=480:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
+
+            cmd += ["-filter_complex", filter_str.rstrip(";")]
 
             vcodec = "h264_nvenc" if hardware == "gpu" else "libx264"
             vpreset = "p4" if hardware == "gpu" else "veryfast"
             
-            # 1080p
-            cmd += ["-map", "[v1out]", "-c:v:0", vcodec, "-preset", vpreset]
-            if hardware == "gpu":
-                cmd += ["-cq", "28"]
-            else:
-                cmd += ["-g", "48", "-keyint_min", "48", "-sc_threshold", "0"]
-            cmd += ["-b:v:0", "4000k", "-maxrate:0", "4500k", "-bufsize:0", "8000k"]
-                
-            # 720p
-            cmd += ["-map", "[v2out]", "-c:v:1", vcodec, "-preset", vpreset]
-            if hardware == "gpu":
-                cmd += ["-cq", "28"]
-            else:
-                cmd += ["-g", "48", "-keyint_min", "48", "-sc_threshold", "0"]
-            cmd += ["-b:v:1", "2500k", "-maxrate:1", "3000k", "-bufsize:1", "5000k"]
+            idx = 1
+            map_idx = 0
+            var_stream_parts = []
+            
+            # Codec settings injected into each map
+            def add_video_map(out_name, bitrate, maxrate, bufsize):
+                nonlocal cmd, idx, map_idx, var_stream_parts
+                cmd += ["-map", f"[v{idx}out]", f"-c:v:{map_idx}", vcodec, "-preset", vpreset]
+                if hardware == "gpu":
+                    cmd += ["-cq", "28", "-force_key_frames", "expr:gte(t,n_forced*6)"]
+                else:
+                    cmd += ["-g", "48", "-keyint_min", "48", "-sc_threshold", "0", "-force_key_frames", "expr:gte(t,n_forced*6)"]
+                cmd += [f"-b:v:{map_idx}", bitrate, f"-maxrate:{map_idx}", maxrate, f"-bufsize:{map_idx}", bufsize]
+                if has_audio:
+                    var_stream_parts.append(f"v:{map_idx},agroup:audio,name:{out_name}")
+                else:
+                    var_stream_parts.append(f"v:{map_idx},name:{out_name}")
+                idx += 1
+                map_idx += 1
 
-            # 480p
-            cmd += ["-map", "[v3out]", "-c:v:2", vcodec, "-preset", vpreset]
-            if hardware == "gpu":
-                cmd += ["-cq", "28"]
-            else:
-                cmd += ["-g", "48", "-keyint_min", "48", "-sc_threshold", "0"]
-            cmd += ["-b:v:2", "1000k", "-maxrate:2", "1200k", "-bufsize:2", "2000k"]
+            if "1080p" in out_dirs: add_video_map("1080p", "4000k", "4500k", "8000k")
+            if "720p" in out_dirs: add_video_map("720p", "2500k", "3000k", "5000k")
+            if "480p" in out_dirs: add_video_map("480p", "1000k", "1200k", "2000k")
 
             # Audio
             if has_audio:
                 cmd += ["-map", "0:a?", "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2"]
-                var_stream = "a:0,agroup:audio,default:yes,name:audio v:0,agroup:audio,name:1080p v:1,agroup:audio,name:720p v:2,agroup:audio,name:480p"
-            else:
-                var_stream = "v:0,name:1080p v:1,name:720p v:2,name:480p"
+                var_stream_parts.insert(0, "a:0,agroup:audio,default:yes,name:audio")
+
+            var_stream = " ".join(var_stream_parts)
 
             # Global HLS Settings
             cmd += [
@@ -659,56 +701,100 @@ def _transcode_video_core(request: dict, hardware="cpu"):
 
             proc = subprocess.run(cmd, capture_output=True, text=True)
             
-            # NVENC Fallback
-            if proc.returncode != 0 and hardware == "gpu" and "nvenc" in proc.stderr.lower():
-                print(f"[TranscodeVideo-GPU] NVENC failed, falling back to libx264. Error: {proc.stderr[-500:]}")
-                cmd_fallback = []
-                skip_next = False
-                for arg in cmd:
-                    if skip_next:
-                        skip_next = False
-                        continue
-                    if arg == "h264_nvenc":
-                        cmd_fallback.append("libx264")
-                    elif arg == "p4":
-                        cmd_fallback.append("veryfast")
-                    elif arg == "-cq":
-                        skip_next = True
-                    else:
-                        cmd_fallback.append(arg)
-                proc = subprocess.run(cmd_fallback, capture_output=True, text=True)
+            # GPU Fallback to CPU if hardware acceleration fails
+            if proc.returncode != 0 and hardware == "gpu":
+                print(f"[TranscodeVideo-GPU] Hardware pipeline failed. Error: {proc.stderr[-500:]}")
+                print(f"[TranscodeVideo-GPU] Falling back to CPU software pipeline...")
+                
+                # Rebuild cmd for CPU
+                cmd = ["ffmpeg", "-y", "-i", input_path]
+                
+                filter_str = f"[0:v]split={split_count}"
+                for i in range(split_count): filter_str += f"[v{i+1}];"
+                    
+                idx = 1
+                if "1080p" in out_dirs:
+                    filter_str += f"[v{idx}]scale=w=1920:h=1080:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
+                    idx += 1
+                if "720p" in out_dirs:
+                    filter_str += f"[v{idx}]scale=w=1280:h=720:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
+                    idx += 1
+                if "480p" in out_dirs:
+                    filter_str += f"[v{idx}]scale=w=854:h=480:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
+                    
+                cmd += ["-filter_complex", filter_str.rstrip(";")]
+                
+                idx = 1
+                map_idx = 0
+                def add_video_map_fallback(bitrate, maxrate, bufsize):
+                    nonlocal cmd, idx, map_idx
+                    cmd += ["-map", f"[v{idx}out]", f"-c:v:{map_idx}", "libx264", "-preset", "veryfast"]
+                    cmd += ["-g", "48", "-keyint_min", "48", "-sc_threshold", "0", "-force_key_frames", "expr:gte(t,n_forced*6)"]
+                    cmd += [f"-b:v:{map_idx}", bitrate, f"-maxrate:{map_idx}", maxrate, f"-bufsize:{map_idx}", bufsize]
+                    idx += 1; map_idx += 1
+
+                if "1080p" in out_dirs: add_video_map_fallback("4000k", "4500k", "8000k")
+                if "720p" in out_dirs: add_video_map_fallback("2500k", "3000k", "5000k")
+                if "480p" in out_dirs: add_video_map_fallback("1000k", "1200k", "2000k")
+
+                if has_audio:
+                    cmd += ["-map", "0:a?", "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2"]
+                    
+                cmd += [
+                    "-f", "hls", "-hls_time", "6", "-hls_playlist_type", "vod",
+                    "-hls_flags", "independent_segments",
+                    "-hls_segment_filename", str(tmp_path / "%v/seg_%03d.ts"),
+                    "-master_pl_name", "master.m3u8",
+                    "-var_stream_map", var_stream,
+                    str(tmp_path / "%v/playlist.m3u8")
+                ]
+                proc = subprocess.run(cmd, capture_output=True, text=True)
 
             if proc.returncode != 0:
                 err = proc.stderr[-1000:] if proc.stderr else f"Exit code {proc.returncode}"
                 raise RuntimeError(f"FFmpeg failed: {err}")
 
-            # 5. Parallel Upload Fleet
-            print(f"[TranscodeVideo-{hardware.upper()}] Transcode complete. Starting parallel B2 uploads...")
-            def upload_file_worker(file_path, s3_key, content_type):
+            # 5. Atomic Parallel Upload Fleet
+            print(f"[TranscodeVideo-{hardware.upper()}] Transcode complete. Starting strict-order atomic B2 uploads...")
+            def upload_file_worker(args):
+                file_path, s3_key, content_type = args
                 b2_client.upload_file(
                     str(file_path), bucket_name, s3_key,
                     ExtraArgs={"ContentType": content_type, "CacheControl": "public, max-age=31536000, immutable"}
                 )
 
-            upload_tasks = []
-            
-            # Add Master Playlist
+            # Phase 1: Upload all .ts chunks
+            chunk_tasks = []
+            for out_dir in out_dirs:
+                res_path = tmp_path / out_dir
+                for seg_path in res_path.glob("seg_*.ts"):
+                    chunk_tasks.append((seg_path, f"{hls_prefix}/{out_dir}/{seg_path.name}", "video/MP2T"))
+
+            print(f"[TranscodeVideo-{hardware.upper()}] -> Uploading {len(chunk_tasks)} video chunks...")
+            with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
+                list(executor.map(upload_file_worker, chunk_tasks))
+
+            # Phase 2: Upload all Variant Playlists
+            playlist_tasks = []
+            for out_dir in out_dirs:
+                pl_file = (tmp_path / out_dir) / "playlist.m3u8"
+                if pl_file.exists():
+                    playlist_tasks.append((pl_file, f"{hls_prefix}/{out_dir}/playlist.m3u8", "application/x-mpegURL"))
+                    
+            print(f"[TranscodeVideo-{hardware.upper()}] -> Uploading {len(playlist_tasks)} variant playlists...")
+            with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
+                list(executor.map(upload_file_worker, playlist_tasks))
+                
+            # Phase 3: Upload Master Playlist Last (Atomic swap)
             master_file = tmp_path / "master.m3u8"
             if not master_file.exists():
                 raise RuntimeError("FFmpeg did not generate master.m3u8")
-            upload_tasks.append((master_file, f"{hls_prefix}/master.m3u8", "application/x-mpegURL"))
                 
-            # Add Variant Playlists and Segments
-            for out_dir in out_dirs:
-                res_path = tmp_path / out_dir
-                pl_file = res_path / "playlist.m3u8"
-                if pl_file.exists():
-                    upload_tasks.append((pl_file, f"{hls_prefix}/{out_dir}/playlist.m3u8", "application/x-mpegURL"))
-                for seg_path in res_path.glob("seg_*.ts"):
-                    upload_tasks.append((seg_path, f"{hls_prefix}/{out_dir}/{seg_path.name}", "video/MP2T"))
-
-            with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
-                list(executor.map(lambda args: upload_file_worker(*args), upload_tasks))
+            print(f"[TranscodeVideo-{hardware.upper()}] -> Uploading master playlist (Atomic swap)...")
+            b2_client.upload_file(
+                str(master_file), bucket_name, f"{hls_prefix}/master.m3u8",
+                ExtraArgs={"ContentType": "application/x-mpegURL", "CacheControl": "public, max-age=3600"}
+            )
 
         # 6. Update Supabase record
         update_data = {
