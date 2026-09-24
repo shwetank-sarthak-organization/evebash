@@ -628,9 +628,7 @@ def _transcode_video_core(request: dict, hardware="cpu"):
             
             # Build filter complex dynamically
             split_count = len([d for d in out_dirs if d != "audio"])
-            filter_str = f"[0:v]split={split_count}"
-            for i in range(split_count):
-                filter_str += f"[v{i+1}];"
+            filter_str = f"[0:v]split={split_count}" + "".join(f"[v{i+1}]" for i in range(split_count)) + ";"
                 
             idx = 1
             if "1080p" in out_dirs:
@@ -709,8 +707,7 @@ def _transcode_video_core(request: dict, hardware="cpu"):
                 # Rebuild cmd for CPU
                 cmd = ["ffmpeg", "-y", "-i", input_path]
                 
-                filter_str = f"[0:v]split={split_count}"
-                for i in range(split_count): filter_str += f"[v{i+1}];"
+                filter_str = f"[0:v]split={split_count}" + "".join(f"[v{i+1}]" for i in range(split_count)) + ";"
                     
                 idx = 1
                 if "1080p" in out_dirs:
