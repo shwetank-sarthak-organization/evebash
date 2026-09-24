@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import { GalleryViewer } from './GalleryViewer';
+import React, { useState, useMemo, useRef } from 'react';
 import type { Event, Photo, UserProfile } from '../lib/analytics';
 import { Search, Mail, Phone, Calendar, Clock, Filter, Users, ShieldCheck, CreditCard, Activity, ChevronDown, RotateCcw, Trash2, UserX, Star } from 'lucide-react';
 
@@ -116,6 +117,18 @@ const openDatePicker = (event: React.MouseEvent<HTMLInputElement>) => {
 };
 
 export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onPlanChange, onDurationChange, onPlanDatesChange, onPromoteSuperAdmin, onRevokeSuperAdmin, onResetUserData, onDeleteUser, onDeleteEvent, onToggleSampleGallery, currentAdminId }) => {
+  const [viewingGallery, setViewingGallery] = useState<Event | null>(null);
+  const accountScroll = useRef(0);
+  const openGallery = (gallery: Event) => {
+    accountScroll.current = window.scrollY;
+    setViewingGallery(gallery);
+    window.scrollTo(0, 0);
+  };
+  const closeGallery = () => {
+    setViewingGallery(null);
+    requestAnimationFrame(() => window.scrollTo(0, accountScroll.current));
+  };
+
   const [search, setSearch] = useState('');
   const [planFilter, setPlanFilter] = useState('all');
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
@@ -445,7 +458,9 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
   }, [users, events, photos]);
 
   return (
-    <div className="space-y-8 animate-fadeIn">
+    <>
+    {viewingGallery && <GalleryViewer key={viewingGallery.id} initialGallery={viewingGallery} events={events} onClose={closeGallery} />}
+    <div hidden={!!viewingGallery} className="space-y-8 animate-fadeIn">
       {/* Quick Analytics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Card 1: Total Registered */}
@@ -901,7 +916,8 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
                                   <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-slate-600">
                                     ID: {event.id}
                                   </p>
-                                  <div className="flex shrink-0 items-center gap-2">
+                                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                    <button type="button" onClick={() => openGallery(event)} className="rounded-lg border border-sky-500/30 px-2 py-1 text-xs text-sky-300">View Gallery</button>
                                     <button
                                       type="button"
                                       disabled={!onToggleSampleGallery || sampleUpdatingEventId === event.id}
@@ -991,6 +1007,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
                                           <p className="truncate text-[9px] font-semibold uppercase tracking-wider text-slate-600">
                                             ID: {subGallery.id}
                                           </p>
+                                          <button type="button" onClick={() => openGallery(subGallery)} className="shrink-0 rounded-lg border border-sky-500/30 px-2 py-1 text-xs text-sky-300">View Gallery</button>
                                           <button
                                             type="button"
                                             disabled={!onDeleteEvent || deletingEventId === subGallery.id}
@@ -1031,5 +1048,6 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], onP
       </div>
     </div>
   </div>
+    </>
   );
 };

@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 
 export type AdminAction =
+  | 'viewGallery'
   | 'syncUsers'
   | 'updateUserRole'
   | 'promoteSuperAdmin'
@@ -16,7 +17,19 @@ export type AdminAction =
   | 'deleteBackblazeOrphans'
   | 'updatePricingPlans';
 
+export interface GalleryMedia {
+  id: string;
+  url: string;
+  thumbnail_url?: string | null;
+  preview_url?: string | null;
+  media_type?: string | null;
+  resource_type?: string | null;
+}
+
 export interface AdminActionResult {
+  gallery?: { id: string; title: string; parent_id?: string | null };
+  media?: GalleryMedia[];
+  hasMore?: boolean;
   success: boolean;
   error?: string;
   count?: number;

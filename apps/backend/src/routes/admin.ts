@@ -1105,6 +1105,25 @@ adminRouter.post("/", async (request: Request, response: ExpressResponse) => {
     const { supabaseAdmin, user } = verification;
 
     switch (action) {
+      case "viewGallery": {
+        const eventId = typeof payload.eventId === "string" ? payload.eventId.trim() : "";
+        const offset = payload.offset === undefined ? 0 : Number(payload.offset);
+        if (!eventId || !Number.isSafeInteger(offset) || offset < 0) {
+          return jsonResponse(response, { success: false, error: "Invalid gallery or page" }, 400);
+        }
+        response.setHeader("Cache-Control", "no-store");
+        const { data: gallery, error: galleryError } = await supabaseAdmin
+          .from("events").select("id, title, parent_id").eq("id", eventId).maybeSingle();
+        if (galleryError) throw galleryError;
+        if (!gallery) return jsonResponse(response, { success: false, error: "Gallery no longer exists" }, 404);
+        const { data: media, error: mediaError } = await supabaseAdmin
+          .from("photos").select("id, url, thumbnail_url, preview_url, media_type, resource_type")
+          .eq("event_id", eventId).order("id").range(offset, offset + 48);
+        if (mediaError) throw mediaError;
+        return jsonResponse(response, {
+          success: true, gallery, media: (media || []).slice(0, 48), hasMore: (media || []).length > 48,
+        });
+      }
       case "syncUsers": {
         const result = await syncAllAuthUsers(supabaseAdmin);
         return jsonResponse(response, { success: true, ...result });
