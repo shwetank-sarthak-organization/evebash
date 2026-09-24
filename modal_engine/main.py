@@ -547,18 +547,10 @@ def _transcode_video_core(request: dict, hardware="cpu"):
             raw_video_path = tmp_path / "input.mp4"
             poster_path = tmp_path / "poster.jpg"
 
-            # 1. Download raw video from B2 to local NVMe SSD
-            # (Presigned URLs passed directly to FFmpeg fail because & in query strings
-            #  are misinterpreted as separate CLI arguments — e.g. 'Unrecognized option u')
-            print(f"[TranscodeVideo-{hardware.upper()}] Downloading {storage_key} to local SSD...")
-            b2_client.download_file(bucket_name, storage_key, str(raw_video_path))
-            raw_size_mb = raw_video_path.stat().st_size // (1024 * 1024)
-            print(f"[TranscodeVideo-{hardware.upper()}] Downloaded {raw_size_mb} MB in {time.time() - start_time:.1f}s")
-
-            if raw_video_path.stat().st_size == 0:
-                raise RuntimeError("Downloaded video file is 0 bytes.")
-
-            input_path = str(raw_video_path)
+            # 1. Direct Stream: Read directly from the public CDN URL instead of downloading
+            # The bucket is public via the Media Domain, so we don't need presigned URLs.
+            print(f"[TranscodeVideo-{hardware.upper()}] Direct streaming from {raw_url} (No local download)")
+            input_path = raw_url
 
             # 2. Check for audio stream via local file
             has_audio = False
