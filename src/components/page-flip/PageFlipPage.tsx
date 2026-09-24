@@ -40,6 +40,7 @@ export const PageFlipPage = memo(function PageFlipPage({
 }: PageFlipPageProps) {
   const [loading, setLoading] = useState(item.type === "image");
   const [error, setError] = useState(false);
+  const handleVideoError = useCallback(() => setError(true), []);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const setVideoRefs = useCallback((node: HTMLVideoElement | null) => {
     localVideoRef.current = node;
@@ -99,7 +100,7 @@ export const PageFlipPage = memo(function PageFlipPage({
             playsInline
             className={cn("h-full max-h-full w-full max-w-full", coverMode ? "object-cover" : "object-contain")}
             onLoadedMetadata={onMediaReady}
-            onError={() => setError(true)}
+            onError={handleVideoError}
             onPreviousMedia={onPreviousMedia}
             onNextMedia={onNextMedia}
             onToggleFullscreen={onToggleFullscreen}

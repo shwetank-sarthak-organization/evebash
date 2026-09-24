@@ -124,6 +124,10 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
   const containerRef = useRef<HTMLDivElement | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const onErrorRef = useRef(onError);
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
   const controlsHideTimerRef = useRef<number | null>(null);
   const surfaceClickTimerRef = useRef<number | null>(null);
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -631,7 +635,7 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
                 }
                 setState("error");
                 setErrorMsg("Video playback error.");
-                onError?.();
+                onErrorRef.current?.();
                 break;
             }
           }
@@ -673,7 +677,7 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
         hlsRef.current = null;
       }
     };
-  }, [activeSrc, autoPlay, onError, rawSrc, hasAttemptedHlsFallback]);
+  }, [activeSrc, autoPlay, rawSrc, hasAttemptedHlsFallback]);
 
   const changeQuality = (levelIndex: number) => {
     setSelectedLevel(levelIndex);
@@ -779,7 +783,7 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
           }
           setState("error");
           setErrorMsg("Failed to load video.");
-          onError?.();
+          onErrorRef.current?.();
         }}
       />
 
