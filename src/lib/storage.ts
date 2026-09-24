@@ -145,13 +145,13 @@ function getOptimalConcurrency(): number {
     const nav = navigator as any;
     const conn = nav.connection || nav.mozConnection || nav.webkitConnection;
 
-    // Default target for desktop devices: 8 parallel upload streams (Google Drive behavior)
-    let concurrency = 8;
+    // Default target for desktop devices: 4 parallel upload streams (prevents socket exhaustion)
+    let concurrency = 4;
 
     // Detect mobile device to avoid RAM/battery strain
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     if (isMobile) {
-        concurrency = 4;
+        concurrency = 2;
     }
 
     // Inspect real-time network conditions if supported by the browser
@@ -318,19 +318,11 @@ async function uploadLargeFileInChunks(
         for (let attempt = 1; attempt <= MAX_CHUNK_RETRIES; attempt++) {
             try {
                 // Fresh upload URL per attempt (URLs are single-use)
-                const partUrlCtrl = new AbortController();
-                const partUrlTimer = setTimeout(() => partUrlCtrl.abort(), 20000);
-                let partUrlRes: Response;
-                try {
-                    partUrlRes = await fetch(getApiUrl("/api/media/upload/chunk/part-url"), {
-                        method: "POST",
-                        headers,
-                        body: JSON.stringify({ fileId }),
-                        signal: partUrlCtrl.signal,
-                    });
-                } finally {
-                    clearTimeout(partUrlTimer);
-                }
+                let partUrlRes = await fetch(getApiUrl("/api/media/upload/chunk/part-url"), {
+                    method: "POST",
+                    headers,
+                    body: JSON.stringify({ fileId }),
+                });
 
                 if (partUrlRes.status === 401) {
                     const { data: refreshed } = await supabase.auth.refreshSession();
@@ -351,25 +343,17 @@ async function uploadLargeFileInChunks(
 
                 const { uploadUrl, authorizationToken } = partUrlData;
 
-                const uploadCtrl = new AbortController();
-                const uploadTimer = setTimeout(() => uploadCtrl.abort(), 90000);
-                let res: Response;
-                try {
-                    res = await fetch(uploadUrl, {
-                        method: "POST",
-                        headers: {
-                            Authorization: authorizationToken,
-                            "Content-Type": "application/octet-stream",
-                            "X-Bz-Part-Number": String(partNumber),
-                            "X-Bz-Content-Sha1": chunkSha1,
-                            "Content-Length": String(chunkBlob.size),
-                        },
-                        body: chunkBlob,
-                        signal: uploadCtrl.signal,
-                    });
-                } finally {
-                    clearTimeout(uploadTimer);
-                }
+                const res = await fetch(uploadUrl, {
+                    method: "POST",
+                    headers: {
+                        Authorization: authorizationToken,
+                        "Content-Type": "application/octet-stream",
+                        "X-Bz-Part-Number": String(partNumber),
+                        "X-Bz-Content-Sha1": chunkSha1,
+                        "Content-Length": String(chunkBlob.size),
+                    },
+                    body: chunkBlob,
+                });
 
                 if (!res.ok) {
                     const errText = await res.text().catch(() => "");
