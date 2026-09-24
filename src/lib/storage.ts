@@ -129,24 +129,23 @@ export function validateVideoFile(file: File): VideoValidationResult {
 // Persisted in localStorage so uploads survive page reloads / lost connections.
 
 const CHUNK_SIZE = 10 * 1024 * 1024;       // 10 MB per chunk
-const MAX_CHUNK_RETRIES = 4;               // attempts per chunk before giving up
+const MAX_CHUNK_RETRIES = 6;               // attempts per chunk before giving up
 const RESUME_EXPIRY_MS = 23 * 60 * 60 * 1000; // 23 h (B2 large-file sessions last 24 h)
 const RESUME_KEY_PREFIX = "evebash_upload_v1_";
 
 /**
  * Google Drive-style Dynamic Adaptive Upload Concurrency.
  * Automatically inspects the browser's Network Information API (5G, 4G, 3G, Wi-Fi)
- * and hardware specs to pick the ideal concurrency (8 on fast desktop Wi-Fi/LAN,
- * 4 on mobile, 2 on 3G) preventing RAM overload and socket congestion.
+ * and hardware specs to pick the ideal concurrency (preventing socket congestion).
  */
 function getOptimalConcurrency(): number {
-    if (typeof window === "undefined") return 4;
+    if (typeof window === "undefined") return 2;
 
     const nav = navigator as any;
     const conn = nav.connection || nav.mozConnection || nav.webkitConnection;
 
-    // Default target for desktop devices: 4 parallel upload streams (prevents socket exhaustion)
-    let concurrency = 4;
+    // Default target: 2 parallel upload streams (prevents socket starvation and bandwidth choke)
+    let concurrency = 2;
 
     // Detect mobile device to avoid RAM/battery strain
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -356,7 +355,7 @@ async function uploadLargeFileInChunks(
                         "Content-Length": String(chunkBlob.size),
                     },
                     body: chunkBlob,
-                    signal: AbortSignal.timeout(60_000),
+                    signal: AbortSignal.timeout(180_000),
                 });
 
                 if (!res.ok) {
