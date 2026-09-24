@@ -338,6 +338,9 @@ async function uploadLargeFileInChunks(
 
                 const partUrlData = await partUrlRes.json().catch(() => ({}));
                 if (!partUrlRes.ok) {
+                    if (partUrlRes.status === 410 || partUrlData.code === "SESSION_EXPIRED" || partUrlData.error?.includes("No active upload") || partUrlData.error?.includes("status 400")) {
+                        clearResumeState(file.name, file.size);
+                    }
                     throw new Error(partUrlData.error || `Failed to get chunk URL (status: ${partUrlRes.status})`);
                 }
 
@@ -353,6 +356,7 @@ async function uploadLargeFileInChunks(
                         "Content-Length": String(chunkBlob.size),
                     },
                     body: chunkBlob,
+                    signal: AbortSignal.timeout(60_000),
                 });
 
                 if (!res.ok) {
@@ -396,8 +400,12 @@ async function uploadLargeFileInChunks(
 
                 return; // success — exit retry loop
 
-            } catch (err) {
+            } catch (err: any) {
                 lastErr = err;
+                if (err?.message?.includes("expired") || err?.message?.includes("No active upload")) {
+                    clearResumeState(file.name, file.size);
+                    throw err;
+                }
                 const wait = Math.min(1000 * 2 ** attempt, 30_000); // 2 s, 4 s, 8 s, max 30 s
                 console.warn(`[Storage] Chunk ${partNumber} attempt ${attempt}/${MAX_CHUNK_RETRIES} failed. Retrying in ${wait / 1000}s...`, err);
                 if (attempt < MAX_CHUNK_RETRIES) {
@@ -405,8 +413,8 @@ async function uploadLargeFileInChunks(
                 }
             }
         }
-        // If we reach here all retries are exhausted — state is already saved to localStorage
-        // so the upload can be resumed on the next attempt.
+        // If we reach here all retries are exhausted — clear stale state so next attempt is fresh
+        clearResumeState(file.name, file.size);
         throw new Error(`Chunk ${partNumber} failed after ${MAX_CHUNK_RETRIES} attempts: ${lastErr instanceof Error ? lastErr.message : String(lastErr)}`);
     };
 

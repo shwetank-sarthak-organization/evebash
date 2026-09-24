@@ -667,6 +667,8 @@ mediaRouter.post("/upload/chunk/part-url", asyncRoute(async (request, response) 
       invalidateBackblazeAuth();
       backblazeAuth = await getCachedBackblazeAuth();
       partUrlData = await getUploadPartUrl(backblazeAuth, fileId);
+    } else if (err?.message?.includes("No active upload") || err?.message?.includes("status 400")) {
+      return jsonError(response, 410, "Upload session has expired on storage provider. Please start fresh.");
     } else {
       throw err;
     }

@@ -195,7 +195,36 @@ export async function getUploadPartUrl(
   auth: BackblazeAuth,
   fileId: string,
 ): Promise<BackblazeUploadUrl> {
-  const response = await fetch(`${auth.apiUrl}/b2api/v3/b2_get_upload_part_url`, {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const response = await fetch(`${auth.apiUrl}/b2api/v3/b2_get_upload_part_url`, {
+      method: "POST",
+      headers: {
+        Authorization: auth.authorizationToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ fileId }),
+    });
+
+    if (response.status === 401) {
+      invalidateBackblazeAuth();
+    }
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      throw new Error(`b2_get_upload_part_url failed with status ${response.status}: ${errText}`);
+    }
+
+    const data: BackblazeUploadUrl = await response.json();
+    // Intercept known broken/refusing storage pod so browser never gets ERR_CONNECTION_REFUSED
+    if (data.uploadUrl && data.uploadUrl.includes("pod-060-1002-05.backblaze.com")) {
+      console.warn(`[Backblaze] Intercepted down pod URL (${data.uploadUrl}). Requesting healthy pod retry ${attempt + 1}/3...`);
+      continue;
+    }
+
+    return data;
+  }
+
+  const finalRes = await fetch(`${auth.apiUrl}/b2api/v3/b2_get_upload_part_url`, {
     method: "POST",
     headers: {
       Authorization: auth.authorizationToken,
@@ -203,17 +232,7 @@ export async function getUploadPartUrl(
     },
     body: JSON.stringify({ fileId }),
   });
-
-  if (response.status === 401) {
-    invalidateBackblazeAuth();
-  }
-
-  if (!response.ok) {
-    const errText = await response.text().catch(() => "");
-    throw new Error(`b2_get_upload_part_url failed with status ${response.status}: ${errText}`);
-  }
-
-  return response.json();
+  return finalRes.json();
 }
 
 export async function finishLargeFile(
