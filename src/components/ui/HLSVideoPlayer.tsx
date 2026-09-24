@@ -134,6 +134,7 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
   const settingsMenuRef = useRef<HTMLDivElement | null>(null);
   const [state, setState] = useState<PlayerState>("loading");
   const [activeSrc, setActiveSrc] = useState(src);
+  const lastSourcePropRef = useRef({ src, mediaId });
   const [errorMsg, setErrorMsg] = useState("");
   const [isPlaying, setIsPlaying] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -357,14 +358,22 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
   // When parent passes a new src (e.g. via Realtime subscription updating the photo URL),
   // pick it up so we can transition from raw → playing once HLS is ready
   useEffect(() => {
+    const previous = lastSourcePropRef.current;
+    if (previous.src === src && previous.mediaId === mediaId) return;
+    lastSourcePropRef.current = { src, mediaId };
+    if (previous.mediaId !== mediaId) {
+      savedPlaybackTimeRef.current = 0;
+      wasPlayingBeforeSwitchRef.current = false;
+      setHasAttemptedHlsFallback(false);
+    }
     if (src !== activeSrc) {
-      if (localVideoRef.current && isRawVideoUrl(activeSrc) && isHLSUrl(src)) {
+      if (previous.mediaId === mediaId && localVideoRef.current) {
         savedPlaybackTimeRef.current = localVideoRef.current.currentTime || 0;
         wasPlayingBeforeSwitchRef.current = !localVideoRef.current.paused;
       }
       setActiveSrc(src);
     }
-  }, [src, activeSrc]);
+  }, [src, mediaId, activeSrc]);
 
   useEffect(() => {
     const video = localVideoRef.current;
@@ -452,7 +461,7 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
   }, [clearControlsHideTimer, clearSurfaceClickTimer]);
 
   useEffect(() => {
-    if (!mediaId || !activeSrc || !isRawVideoUrl(activeSrc)) {
+    if (!mediaId || !activeSrc || !isRawVideoUrl(activeSrc) || hasAttemptedHlsFallback) {
       setIsOptimizingInBackground(false);
       return;
     }
@@ -526,7 +535,7 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
       supabase.removeChannel(channel);
       clearInterval(intervalId);
     };
-  }, [mediaId, activeSrc]);
+  }, [mediaId, activeSrc, hasAttemptedHlsFallback]);
 
   // Clean up HLS on unmount or src change
   useEffect(() => {
@@ -543,10 +552,10 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
       return;
     }
 
-    // Direct MP4 / fallback HTML5 playback
+    // Wait for metadata before restoring a fallback's playback position.
     if (!isHLSUrl(activeSrc)) {
-      if (video) {
-        video.src = activeSrc;
+      const restorePlayback = () => {
+        if (!video) return;
         if (savedPlaybackTimeRef.current > 0) {
           video.currentTime = savedPlaybackTimeRef.current;
           savedPlaybackTimeRef.current = 0;
@@ -555,17 +564,23 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
           video.play().catch(() => {});
           wasPlayingBeforeSwitchRef.current = false;
         }
+      };
+      if (video) {
+        video.addEventListener("loadedmetadata", restorePlayback, { once: true });
+        video.src = activeSrc;
       }
       setState("playing");
       setLevels([]);
-      return;
+      return () => video?.removeEventListener("loadedmetadata", restorePlayback);
     }
 
     // HLS .m3u8 stream playback logic
     setState("loading");
 
+    let cancelled = false;
     const setupHls = async () => {
       const Hls = (await import("hls.js")).default;
+      if (cancelled) return;
 
       if (Hls.isSupported()) {
         const hls = new Hls({
@@ -612,6 +627,10 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
                   hls.destroy();
                   const fallback = rawSrc || deriveRawFallbackUrl(activeSrc);
                   if (fallback && fallback !== activeSrc) {
+                    if (localVideoRef.current) {
+                      savedPlaybackTimeRef.current = localVideoRef.current.currentTime || 0;
+                      wasPlayingBeforeSwitchRef.current = !localVideoRef.current.paused;
+                    }
                     setActiveSrc(fallback);
                     return;
                   }
@@ -629,6 +648,10 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
                   const fallback = rawSrc || deriveRawFallbackUrl(activeSrc);
                   if (fallback && fallback !== activeSrc) {
                     console.warn("[HLSVideoPlayer] Unrecoverable HLS error. Falling back to raw MP4:", fallback);
+                    if (localVideoRef.current) {
+                      savedPlaybackTimeRef.current = localVideoRef.current.currentTime || 0;
+                      wasPlayingBeforeSwitchRef.current = !localVideoRef.current.paused;
+                    }
                     setActiveSrc(fallback);
                     return;
                   }
@@ -661,7 +684,11 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
         const fallback = rawSrc || deriveRawFallbackUrl(activeSrc);
         if (fallback && fallback !== activeSrc) {
           console.warn("[HLSVideoPlayer] HLS unsupported in browser. Falling back to raw MP4:", fallback);
-          setActiveSrc(fallback);
+          if (localVideoRef.current) {
+                      savedPlaybackTimeRef.current = localVideoRef.current.currentTime || 0;
+                      wasPlayingBeforeSwitchRef.current = !localVideoRef.current.paused;
+                    }
+                    setActiveSrc(fallback);
           return;
         }
         setState("error");
@@ -672,6 +699,7 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
     setupHls();
 
     return () => {
+      cancelled = true;
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
@@ -777,7 +805,11 @@ export const HLSVideoPlayer = forwardRef<HTMLVideoElement, HLSVideoPlayerProps>(
             setHasAttemptedHlsFallback(true);
             const fallback = rawSrc || deriveRawFallbackUrl(activeSrc);
             if (fallback && fallback !== activeSrc) {
-              setActiveSrc(fallback);
+              if (localVideoRef.current) {
+                      savedPlaybackTimeRef.current = localVideoRef.current.currentTime || 0;
+                      wasPlayingBeforeSwitchRef.current = !localVideoRef.current.paused;
+                    }
+                    setActiveSrc(fallback);
               return;
             }
           }
