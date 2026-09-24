@@ -494,6 +494,10 @@ def find_matching_photos(request: dict):
 
 transcode_image = (
     modal.Image.from_registry("jrottenberg/ffmpeg:7.0-nvidia2204", add_python="3.11")
+    # jrottenberg/ffmpeg images have ENTRYPOINT ["ffmpeg"] which intercepts Modal's
+    # `python -u worker.py` startup — FFmpeg sees `-u` as an unknown flag and crashes.
+    # Clear it so Modal can launch its Python runtime normally.
+    .dockerfile_commands(["ENTRYPOINT []", "CMD []"])
     .pip_install("boto3", "supabase", "fastapi[standard]")
 )
 
