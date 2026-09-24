@@ -816,7 +816,7 @@ function DashboardContent() {
 
     const handleThumbnailLoaded = useCallback((photoId: string, storageKey: string) => {
         setUploadQueue(prev => prev.map(qItem =>
-            (qItem.photoId === photoId || qItem.storageKey === storageKey) && qItem.status !== "success"
+            (qItem.photoId === photoId || qItem.storageKey === storageKey) && qItem.mediaType !== "video" && qItem.status !== "success"
                 ? { ...qItem, status: "success", progress: 100 }
                 : qItem
         ));
@@ -952,6 +952,51 @@ function DashboardContent() {
         };
     }, [uploadQueue]);
 
+    // Video readiness comes from its processing record, never thumbnail or face-index completion.
+    const pendingVideoIds = uploadQueue.filter(item => item.mediaType === "video" && item.status === "processing" && item.photoId).map(item => item.photoId!).join(",");
+    useEffect(() => {
+        if (!pendingVideoIds) return;
+        let cancelled = false;
+        let timer: ReturnType<typeof setTimeout>;
+        const checkVideos = async () => {
+            try {
+                const ids = pendingVideoIds.split(",");
+                const records: any[] = [];
+                for (let start = 0; start < ids.length; start += 50) {
+                    const { data, error } = await supabase.from("photos").select("*").in("id", ids.slice(start, start + 50));
+                    if (error) throw error;
+                    records.push(...(data || []));
+                }
+                if (cancelled) return;
+                const byId = new Map(records.map(row => [row.id, row]));
+                setUploadQueue(previous => previous.map(item => {
+                    if (item.mediaType !== "video" || item.status !== "processing") return item;
+                    const row = byId.get(item.photoId);
+                    if (row?.status === "failed") return { ...item, status: "error", progress: 90, error: row.processing_error || "Video processing failed" };
+                    if (row?.status === "processed" && row.url) return { ...item, status: "success", progress: 100 };
+                    return item;
+                }));
+                const ready = records.filter(row => row.status === "processed" && row.url && row.event_id === selectedEventId);
+                if (ready.length) setCurrentEventPhotos(previous => {
+                    const updates = ready.map(row => ({
+                        id: row.id, eventId: row.event_id, storageKey: row.storage_key,
+                        url: row.url, thumbnailUrl: row.thumbnail_url, width: row.width, height: row.height,
+                        mediaType: "video" as const, resourceType: "video" as const, status: "processed" as const,
+                        uploadedAt: row.uploaded_at, size: row.size, tags: row.tags || [], userId: row.user_id,
+                    }));
+                    const updatedIds = new Set(updates.map(row => row.id));
+                    return [...updates, ...previous.filter(row => !updatedIds.has(row.id))];
+                });
+            } catch (error) {
+                console.warn("[VideoProcessing] Waiting for processing status", error);
+            } finally {
+                if (!cancelled) timer = setTimeout(checkVideos, 5000);
+            }
+        };
+        void checkVideos();
+        return () => { cancelled = true; clearTimeout(timer); };
+    }, [pendingVideoIds, selectedEventId]);
+
     // Poll face indexing status when items are in queue
     useEffect(() => {
         if (!selectedEventId || uploadQueue.length === 0) {
@@ -976,7 +1021,7 @@ function DashboardContent() {
                         clearInterval(pollInterval);
                         // Mark all processing/pending items in the queue as success
                         setUploadQueue(prev => prev.map(item =>
-                            (item.status === "processing" || item.status === "pending" || item.status === "uploading")
+                            item.mediaType !== "video" && (item.status === "processing" || item.status === "pending" || item.status === "uploading")
                                 ? { ...item, status: "success", progress: 100 }
                                 : item
                         ));
@@ -1580,7 +1625,7 @@ function DashboardContent() {
 
                         if (payload.new.status === 'processed' || payload.new.thumbnail_url) {
                             setUploadQueue(prev => prev.map(qItem =>
-                                (qItem.photoId === payload.new.id || qItem.storageKey === payload.new.storage_key)
+                                (qItem.photoId === payload.new.id || qItem.storageKey === payload.new.storage_key) && qItem.mediaType !== "video"
                                     ? { ...qItem, status: "success", progress: 100 }
                                     : qItem
                             ));
@@ -2220,11 +2265,10 @@ function DashboardContent() {
                         setUploadQueue(prev => prev.map(qItem => {
                             if (itemIds.has(qItem.id)) {
                                 if (qItem.status === "success" || qItem.status === "error") return qItem;
-                                const isVideo = qItem.mediaType === "video";
                                 return {
                                     ...qItem,
                                     status: "processing",
-                                    progress: isVideo ? 90 : 90
+                                    progress: 90
                                 };
                             }
                             return qItem;
@@ -2267,7 +2311,7 @@ function DashboardContent() {
                         (percent) => {
                             setUploadQueue(prev => prev.map(item =>
                                 item.id === queueItemId && item.status === "uploading"
-                                    ? { ...item, progress: Math.min(99, Math.round(percent)) }
+                                    ? { ...item, progress: Math.min(90, Math.round(percent * 0.9)) }
                                     : item
                             ));
                         }
@@ -3629,15 +3673,14 @@ function DashboardContent() {
     if (uploadingItems > 0) {
         overallStatusText = `Uploading ${uploadingItems} of ${totalItems} ${uploadingItems === 1 ? 'file' : 'files'}...`;
     } else if (processingItems > 0) {
-        overallStatusText = `Resizing ${processingItems} ${processingItems === 1 ? 'file' : 'files'}...`;
+        overallStatusText = `Processing ${processingItems} ${processingItems === 1 ? 'file' : 'files'}...`;
     } else if (indexingStatus && indexingStatus.status === "processing") {
         overallStatusText = `AI Indexing: ${indexingStatus.indexed}/${indexingStatus.total} (${indexingStatus.percentComplete}%)`;
-    } else if (completedItems === totalItems || (indexingStatus && indexingStatus.status === "complete")) {
-        const withoutFaces = indexingStatus?.photosWithoutFaces || 0;
-        const withFaces = indexingStatus?.photosWithFaces || 0;
-        overallStatusText = withoutFaces > 0
-            ? `✓ AI Indexing complete! ${indexingStatus?.total || totalItems} photos (${withFaces} with faces, ${withoutFaces} without faces)`
-            : `✓ AI Indexing complete! ${totalItems} photos searchable`;
+    } else if (completedItems === totalItems) {
+        const failedItems = uploadQueue.filter(item => item.status === "error").length;
+        overallStatusText = failedItems > 0
+            ? `${totalItems - failedItems} ready · ${failedItems} failed`
+            : `✓ 100% complete · ${totalItems} files ready`;
     } else {
         overallStatusText = "Upload status";
     }
@@ -7010,7 +7053,7 @@ function DashboardContent() {
                                         className="h-full bg-gradient-to-r from-[#CA9C68] to-sky-500 transition-all duration-300"
                                         style={{
                                             width: `${
-                                                indexingStatus && indexingStatus.status === "processing"
+                                                processingItems === 0 && uploadingItems === 0 && indexingStatus && indexingStatus.status === "processing"
                                                     ? indexingStatus.percentComplete
                                                     : (uploadQueue.reduce((acc, curr) => acc + curr.progress, 0) / (totalItems * 100)) * 100
                                             }%`
@@ -7061,12 +7104,12 @@ function DashboardContent() {
                                                             )}
                                                             {item.status === "processing" && (
                                                                 <span className="text-[10px] font-bold text-sky-400 shrink-0 animate-pulse">
-                                                                    {indexingStatus && indexingStatus.status === "processing" ? "Indexing..." : "Resizing..."}
+                                                                    {item.mediaType === "video" ? "Processing video..." : indexingStatus && indexingStatus.status === "processing" ? "Indexing..." : "Resizing..."}
                                                                 </span>
                                                             )}
                                                             {item.status === "success" && (
                                                                 <span className="text-[10px] font-bold text-emerald-400 shrink-0">
-                                                                    Done
+                                                                    {item.mediaType === "video" ? "100% · Ready" : "Done"}
                                                                 </span>
                                                             )}
                                                             {item.status === "error" && (
