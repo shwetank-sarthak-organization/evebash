@@ -2412,11 +2412,21 @@ function DashboardContent() {
                 syncCoverImageForEvent(selectedEventId, firstUploadedUrl);
             }
 
-            setStatus("success");
-            setMessage(galleryMediaTab === "videos" ? "Videos added! ✨" : "Gallery updated! ✨");
+            const hasVideoUploads = uploadResults.some(item => item.photo.mediaType === "video" || item.photo.resourceType === "video");
+            if (hasVideoUploads) {
+                // Transfer completion is not video completion. Keep the queue visible
+                // until the processing poll marks each video ready or failed.
+                setIsUploadPanelOpen(true);
+                setIsUploadPanelMinimized(false);
+                setStatus("idle");
+                setMessage("");
+            } else {
+                setStatus("success");
+                setMessage("Gallery updated! ✨");
+                setTimeout(() => setStatus("idle"), 2000);
+            }
             fetchUserEvents();
             fetchEventPhotos();
-            setTimeout(() => setStatus("idle"), 2000);
         } catch (err: any) {
             console.error("[Dashboard] Auto-upload error:", err);
             setStatus("error");
@@ -3664,6 +3674,7 @@ function DashboardContent() {
 
 
 
+    const hasUnfinishedUploads = uploadQueue.some(item => item.status === "pending" || item.status === "uploading" || item.status === "processing");
     const totalItems = uploadQueue.length;
     const completedItems = uploadQueue.filter(item => item.status === "success" || item.status === "error").length;
     const processingItems = uploadQueue.filter(item => item.status === "processing").length;
@@ -6996,7 +7007,7 @@ function DashboardContent() {
 
                 {/* Floating Upload Queue Panel (Google Drive style) */}
                 <AnimatePresence>
-                    {isUploadPanelOpen && uploadQueue.length > 0 && (
+                    {(isUploadPanelOpen || hasUnfinishedUploads) && uploadQueue.length > 0 && (
                         <motion.div
                             initial={{ opacity: 0, y: 50, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -7038,8 +7049,9 @@ function DashboardContent() {
                                     </button>
                                     <button
                                         onClick={() => setIsUploadPanelOpen(false)}
-                                        className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors"
-                                        title="Close"
+                                        disabled={hasUnfinishedUploads}
+                                        className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                        title={hasUnfinishedUploads ? "Video uploads and processing must finish before closing" : "Close"}
                                     >
                                         <X className="w-4 h-4" />
                                     </button>
