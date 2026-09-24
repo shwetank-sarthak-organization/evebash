@@ -525,11 +525,17 @@ def _transcode_video_core(request: dict, hardware="cpu"):
         os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
         os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
     )
+    from botocore.config import Config
+    endpoint = os.environ.get('B2_ENDPOINT')
+    region = endpoint.split(".")[1] if endpoint and "." in endpoint else "us-east-005"
+
     b2_client = boto3.client(
         's3',
-        endpoint_url=f"https://{os.environ.get('B2_ENDPOINT')}",
+        endpoint_url=f"https://{endpoint}",
         aws_access_key_id=os.environ.get('B2_KEY_ID'),
-        aws_secret_access_key=os.environ.get('B2_APPLICATION_KEY')
+        aws_secret_access_key=os.environ.get('B2_APPLICATION_KEY'),
+        region_name=region,
+        config=Config(signature_version='s3v4')
     )
     bucket_name = os.environ.get('B2_BUCKET_NAME')
     media_domain = (os.environ.get("MEDIA_DOMAIN") or "media.evebash.com").replace("https://", "").strip("/")
