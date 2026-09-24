@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 
 export type AdminAction =
+  | 'deleteGalleryMedia'
   | 'viewGallery'
   | 'syncUsers'
   | 'updateUserRole'

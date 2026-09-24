@@ -1,3 +1,4 @@
+import { deleteGalleryMedia } from "../deleteGalleryMedia.js";
 import type { Request, Response as ExpressResponse } from "express";
 import { Router } from "express";
 import { getCachedBackblazeAuth, type BackblazeAuth } from "../backblaze.js";
@@ -1105,6 +1106,16 @@ adminRouter.post("/", async (request: Request, response: ExpressResponse) => {
     const { supabaseAdmin, user } = verification;
 
     switch (action) {
+      case "deleteGalleryMedia": {
+        const photoId = typeof payload.photoId === "string" ? payload.photoId.trim() : "";
+        const eventId = typeof payload.eventId === "string" ? payload.eventId.trim() : "";
+        if (!photoId || !eventId || payload.confirm !== "DELETE_MEDIA") {
+          return jsonResponse(response, { success: false, error: "Media, gallery and deletion confirmation are required" }, 400);
+        }
+        const deleted = await deleteGalleryMedia(supabaseAdmin, photoId, eventId);
+        if (!deleted) return jsonResponse(response, { success: false, error: "Media no longer exists in this gallery" }, 404);
+        return jsonResponse(response, { success: true });
+      }
       case "viewGallery": {
         const eventId = typeof payload.eventId === "string" ? payload.eventId.trim() : "";
         const offset = payload.offset === undefined ? 0 : Number(payload.offset);
