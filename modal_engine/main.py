@@ -553,14 +553,16 @@ def _transcode_video_core(request: dict, hardware="cpu"):
             raw_video_path = tmp_path / "input.mp4"
             poster_path = tmp_path / "poster.jpg"
 
-            # 1. Direct Stream: Generate a temporary B2 presigned URL to bypass Cloudflare Bot Protection
-            # and stream the video byte-by-byte straight into FFmpeg.
-            input_path = b2_client.generate_presigned_url(
-                'get_object',
-                Params={'Bucket': bucket_name, 'Key': storage_key},
-                ExpiresIn=3600
-            )
-            print(f"[TranscodeVideo-{hardware.upper()}] Direct streaming via B2 presigned URL (No local download)")
+            # 1. Download raw video from B2 to local NVMe SSD
+            print(f"[TranscodeVideo-{hardware.upper()}] Downloading {storage_key} to local SSD...")
+            b2_client.download_file(bucket_name, storage_key, str(raw_video_path))
+            raw_size_mb = raw_video_path.stat().st_size // (1024 * 1024)
+            print(f"[TranscodeVideo-{hardware.upper()}] Downloaded {raw_size_mb} MB in {time.time() - start_time:.1f}s")
+
+            if raw_video_path.stat().st_size == 0:
+                raise RuntimeError("Downloaded video file is 0 bytes.")
+
+            input_path = str(raw_video_path)
 
             # 2. Check for audio stream via local file
             has_audio = False
@@ -628,7 +630,6 @@ def _transcode_video_core(request: dict, hardware="cpu"):
                 out_dir.mkdir(parents=True, exist_ok=True)
                 playlist_file = out_dir / "playlist.m3u8"
 
-                # Transcode from local file (presigned URLs with & break FFmpeg arg parser)
                 cmd = ["ffmpeg", "-y", "-i", input_path, "-vf", res["scale"]]
                 
                 # Hardware selection
@@ -660,7 +661,6 @@ def _transcode_video_core(request: dict, hardware="cpu"):
                 # If NVENC fails, fallback to libx264
                 if proc.returncode != 0 and hardware == "gpu" and "nvenc" in proc.stderr.lower():
                     print(f"[{qname}] NVENC failed, falling back to libx264. Error: {proc.stderr[-500:]}")
-                    # Re-run with libx264
                     cmd_fallback = [arg if arg != "h264_nvenc" else "libx264" for arg in cmd]
                     cmd_fallback = [arg if arg != "p4" else "veryfast" for arg in cmd_fallback]
                     proc = subprocess.run(cmd_fallback, capture_output=True, text=True)
@@ -669,24 +669,34 @@ def _transcode_video_core(request: dict, hardware="cpu"):
                     err = proc.stderr[-800:] if proc.stderr else f"Exit code {proc.returncode}"
                     raise RuntimeError(f"FFmpeg failed for {qname}: {err}")
 
-                # Upload segments
-                seg_count = 0
-                for seg_path in sorted(out_dir.glob("seg_*.ts")):
-                    b2_key = f"{hls_prefix}/{qname}/{seg_path.name}"
-                    b2_client.upload_file(str(seg_path), bucket_name, b2_key, ExtraArgs={"ContentType": "video/MP2T", "CacheControl": "public, max-age=31536000, immutable"})
-                    seg_count += 1
-
-                if seg_count == 0 or not playlist_file.exists():
+                seg_files = sorted(out_dir.glob("seg_*.ts"))
+                if not seg_files or not playlist_file.exists():
                     raise RuntimeError(f"Transcoding produced 0 segments for {qname}")
 
-                b2_client.upload_file(str(playlist_file), bucket_name, f"{hls_prefix}/{qname}/playlist.m3u8", ExtraArgs={"ContentType": "application/x-mpegURL", "CacheControl": "public, max-age=3600"})
+                # Parallel chunk uploading with 20 workers
+                def upload_single_segment(seg_path):
+                    b2_key = f"{hls_prefix}/{qname}/{seg_path.name}"
+                    b2_client.upload_file(
+                        str(seg_path),
+                        bucket_name,
+                        b2_key,
+                        ExtraArgs={"ContentType": "video/MP2T", "CacheControl": "public, max-age=31536000, immutable"}
+                    )
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=20) as uploader:
+                    list(uploader.map(upload_single_segment, seg_files))
+
+                b2_client.upload_file(
+                    str(playlist_file),
+                    bucket_name,
+                    f"{hls_prefix}/{qname}/playlist.m3u8",
+                    ExtraArgs={"ContentType": "application/x-mpegURL", "CacheControl": "public, max-age=3600"}
+                )
                 return qname
 
-            # Transcode renditions concurrently
-            with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-                futures = [executor.submit(transcode_and_upload_quality, res) for res in resolutions]
-                for fut in concurrent.futures.as_completed(futures):
-                    fut.result()
+            # 4. Sequential encoding (avoids CPU thrashing across 4 vCPU cores)
+            for res in resolutions:
+                transcode_and_upload_quality(res)
 
             # 5. Write master.m3u8
             codecs_tag = 'CODECS="avc1.640028,mp4a.40.2"' if has_audio else 'CODECS="avc1.640028"'
