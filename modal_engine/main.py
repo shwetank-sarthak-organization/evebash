@@ -594,129 +594,121 @@ def _transcode_video_core(request: dict, hardware="cpu"):
                     }
                 )
 
-            resolutions = [
-                {
-                    "name": "1080p",
-                    "scale": "scale=w=1920:h=1080:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2",
-                    "vbitrate": "4000k",
-                    "maxrate": "4500k",
-                    "bufsize": "8000k",
-                    "bandwidth": 4000000,
-                    "res_tag": "1920x1080"
-                },
-                {
-                    "name": "720p",
-                    "scale": "scale=w=1280:h=720:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2",
-                    "vbitrate": "2500k",
-                    "maxrate": "3000k",
-                    "bufsize": "5000k",
-                    "bandwidth": 2500000,
-                    "res_tag": "1280x720"
-                },
-                {
-                    "name": "480p",
-                    "scale": "scale=w=854:h=480:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2",
-                    "vbitrate": "1000k",
-                    "maxrate": "1200k",
-                    "bufsize": "2000k",
-                    "bandwidth": 1000000,
-                    "res_tag": "854x480"
-                },
+            # 4. Single-Pass Multi-Output FFmpeg Generation
+            out_dirs = ["1080p", "720p", "480p"]
+            if has_audio:
+                out_dirs.append("audio")
+                
+            for out_dir in out_dirs:
+                (tmp_path / out_dir).mkdir(parents=True, exist_ok=True)
+
+            print(f"[TranscodeVideo-{hardware.upper()}] Starting single-pass multi-output FFmpeg...")
+            
+            cmd = [
+                "ffmpeg", "-y", "-i", input_path,
+                "-filter_complex", 
+                "[0:v]split=3[v1][v2][v3];"
+                "[v1]scale=w=1920:h=1080:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v1out];"
+                "[v2]scale=w=1280:h=720:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v2out];"
+                "[v3]scale=w=854:h=480:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v3out]"
             ]
 
-            def transcode_and_upload_quality(res):
-                qname = res["name"]
-                out_dir = tmp_path / qname
-                out_dir.mkdir(parents=True, exist_ok=True)
-                playlist_file = out_dir / "playlist.m3u8"
-
-                cmd = ["ffmpeg", "-y", "-i", input_path, "-vf", res["scale"]]
+            vcodec = "h264_nvenc" if hardware == "gpu" else "libx264"
+            vpreset = "p4" if hardware == "gpu" else "veryfast"
+            
+            # 1080p
+            cmd += ["-map", "[v1out]", "-c:v:0", vcodec, "-preset", vpreset]
+            if hardware == "gpu":
+                cmd += ["-cq", "28"]
+            else:
+                cmd += ["-g", "48", "-keyint_min", "48", "-sc_threshold", "0"]
+            cmd += ["-b:v:0", "4000k", "-maxrate:0", "4500k", "-bufsize:0", "8000k"]
                 
-                # Hardware selection
-                if hardware == "gpu":
-                    cmd += ["-c:v", "h264_nvenc", "-preset", "p4", "-cq", "28"]
-                else:
-                    cmd += ["-c:v", "libx264", "-preset", "veryfast"]
+            # 720p
+            cmd += ["-map", "[v2out]", "-c:v:1", vcodec, "-preset", vpreset]
+            if hardware == "gpu":
+                cmd += ["-cq", "28"]
+            else:
+                cmd += ["-g", "48", "-keyint_min", "48", "-sc_threshold", "0"]
+            cmd += ["-b:v:1", "2500k", "-maxrate:1", "3000k", "-bufsize:1", "5000k"]
 
-                cmd += [
-                    "-b:v", res["vbitrate"], "-maxrate", res["maxrate"], "-bufsize", res["bufsize"],
-                    "-g", "48", "-keyint_min", "48", "-sc_threshold", "0",
-                    "-flags", "+cgop",
-                ]
+            # 480p
+            cmd += ["-map", "[v3out]", "-c:v:2", vcodec, "-preset", vpreset]
+            if hardware == "gpu":
+                cmd += ["-cq", "28"]
+            else:
+                cmd += ["-g", "48", "-keyint_min", "48", "-sc_threshold", "0"]
+            cmd += ["-b:v:2", "1000k", "-maxrate:2", "1200k", "-bufsize:2", "2000k"]
 
-                if has_audio:
-                    cmd += ["-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2", "-af", "aresample=async=1000:first_pts=0"]
-                else:
-                    cmd += ["-an"]
+            # Audio
+            if has_audio:
+                cmd += ["-map", "0:a?", "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2"]
+                var_stream = "a:0,agroup:audio,default:yes,name:audio v:0,agroup:audio,name:1080p v:1,agroup:audio,name:720p v:2,agroup:audio,name:480p"
+            else:
+                var_stream = "v:0,name:1080p v:1,name:720p v:2,name:480p"
 
-                cmd += [
-                    "-f", "hls", "-hls_time", "6", "-hls_playlist_type", "vod",
-                    "-hls_flags", "independent_segments",
-                    "-hls_segment_filename", str(out_dir / "seg_%03d.ts"),
-                    str(playlist_file)
-                ]
+            # Global HLS Settings
+            cmd += [
+                "-f", "hls", "-hls_time", "6", "-hls_playlist_type", "vod",
+                "-hls_flags", "independent_segments",
+                "-hls_segment_filename", str(tmp_path / "%v/seg_%03d.ts"),
+                "-master_pl_name", "master.m3u8",
+                "-var_stream_map", var_stream,
+                str(tmp_path / "%v/playlist.m3u8")
+            ]
 
-                proc = subprocess.run(cmd, capture_output=True, text=True)
-                
-                # If NVENC fails, fallback to libx264
-                if proc.returncode != 0 and hardware == "gpu" and "nvenc" in proc.stderr.lower():
-                    print(f"[{qname}] NVENC failed, falling back to libx264. Error: {proc.stderr[-500:]}")
-                    cmd_fallback = [arg if arg != "h264_nvenc" else "libx264" for arg in cmd]
-                    cmd_fallback = [arg if arg != "p4" else "veryfast" for arg in cmd_fallback]
-                    proc = subprocess.run(cmd_fallback, capture_output=True, text=True)
+            proc = subprocess.run(cmd, capture_output=True, text=True)
+            
+            # NVENC Fallback
+            if proc.returncode != 0 and hardware == "gpu" and "nvenc" in proc.stderr.lower():
+                print(f"[TranscodeVideo-GPU] NVENC failed, falling back to libx264. Error: {proc.stderr[-500:]}")
+                cmd_fallback = []
+                skip_next = False
+                for arg in cmd:
+                    if skip_next:
+                        skip_next = False
+                        continue
+                    if arg == "h264_nvenc":
+                        cmd_fallback.append("libx264")
+                    elif arg == "p4":
+                        cmd_fallback.append("veryfast")
+                    elif arg == "-cq":
+                        skip_next = True
+                    else:
+                        cmd_fallback.append(arg)
+                proc = subprocess.run(cmd_fallback, capture_output=True, text=True)
 
-                if proc.returncode != 0:
-                    err = proc.stderr[-800:] if proc.stderr else f"Exit code {proc.returncode}"
-                    raise RuntimeError(f"FFmpeg failed for {qname}: {err}")
+            if proc.returncode != 0:
+                err = proc.stderr[-1000:] if proc.stderr else f"Exit code {proc.returncode}"
+                raise RuntimeError(f"FFmpeg failed: {err}")
 
-                seg_files = sorted(out_dir.glob("seg_*.ts"))
-                if not seg_files or not playlist_file.exists():
-                    raise RuntimeError(f"Transcoding produced 0 segments for {qname}")
-
-                # Parallel chunk uploading with 20 workers
-                def upload_single_segment(seg_path):
-                    b2_key = f"{hls_prefix}/{qname}/{seg_path.name}"
-                    b2_client.upload_file(
-                        str(seg_path),
-                        bucket_name,
-                        b2_key,
-                        ExtraArgs={"ContentType": "video/MP2T", "CacheControl": "public, max-age=31536000, immutable"}
-                    )
-
-                with concurrent.futures.ThreadPoolExecutor(max_workers=20) as uploader:
-                    list(uploader.map(upload_single_segment, seg_files))
-
+            # 5. Parallel Upload Fleet
+            print(f"[TranscodeVideo-{hardware.upper()}] Transcode complete. Starting parallel B2 uploads...")
+            def upload_file_worker(file_path, s3_key, content_type):
                 b2_client.upload_file(
-                    str(playlist_file),
-                    bucket_name,
-                    f"{hls_prefix}/{qname}/playlist.m3u8",
-                    ExtraArgs={"ContentType": "application/x-mpegURL", "CacheControl": "public, max-age=3600"}
+                    str(file_path), bucket_name, s3_key,
+                    ExtraArgs={"ContentType": content_type, "CacheControl": "public, max-age=31536000, immutable"}
                 )
-                return qname
 
-            # 4. Sequential encoding (avoids CPU thrashing across 4 vCPU cores)
-            for res in resolutions:
-                transcode_and_upload_quality(res)
+            upload_tasks = []
+            
+            # Add Master Playlist
+            master_file = tmp_path / "master.m3u8"
+            if not master_file.exists():
+                raise RuntimeError("FFmpeg did not generate master.m3u8")
+            upload_tasks.append((master_file, f"{hls_prefix}/master.m3u8", "application/x-mpegURL"))
+                
+            # Add Variant Playlists and Segments
+            for out_dir in out_dirs:
+                res_path = tmp_path / out_dir
+                pl_file = res_path / "playlist.m3u8"
+                if pl_file.exists():
+                    upload_tasks.append((pl_file, f"{hls_prefix}/{out_dir}/playlist.m3u8", "application/x-mpegURL"))
+                for seg_path in res_path.glob("seg_*.ts"):
+                    upload_tasks.append((seg_path, f"{hls_prefix}/{out_dir}/{seg_path.name}", "video/MP2T"))
 
-            # 5. Write master.m3u8
-            codecs_tag = 'CODECS="avc1.640028,mp4a.40.2"' if has_audio else 'CODECS="avc1.640028"'
-            master_lines = [
-                "#EXTM3U",
-                "#EXT-X-VERSION:3",
-                "#EXT-X-INDEPENDENT-SEGMENTS",
-            ]
-            for res in resolutions:
-                master_lines.append(f'#EXT-X-STREAM-INF:BANDWIDTH={res["bandwidth"]},RESOLUTION={res["res_tag"]},{codecs_tag}')
-                master_lines.append(f'{res["name"]}/playlist.m3u8')
-            master_lines.append("")
-
-            b2_client.put_object(
-                Bucket=bucket_name,
-                Key=f"{hls_prefix}/master.m3u8",
-                Body="\n".join(master_lines).encode("utf-8"),
-                ContentType="application/x-mpegURL",
-                CacheControl="public, max-age=3600"
-            )
+            with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
+                list(executor.map(lambda args: upload_file_worker(*args), upload_tasks))
 
         # 6. Update Supabase record
         update_data = {
