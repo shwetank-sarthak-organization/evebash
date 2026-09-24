@@ -318,11 +318,32 @@ async function uploadLargeFileInChunks(
         for (let attempt = 1; attempt <= MAX_CHUNK_RETRIES; attempt++) {
             try {
                 // Fresh upload URL per attempt (URLs are single-use)
-                const partUrlRes = await fetch(getApiUrl("/api/media/upload/chunk/part-url"), {
-                    method: "POST",
-                    headers,
-                    body: JSON.stringify({ fileId }),
-                });
+                const partUrlCtrl = new AbortController();
+                const partUrlTimer = setTimeout(() => partUrlCtrl.abort(), 20000);
+                let partUrlRes: Response;
+                try {
+                    partUrlRes = await fetch(getApiUrl("/api/media/upload/chunk/part-url"), {
+                        method: "POST",
+                        headers,
+                        body: JSON.stringify({ fileId }),
+                        signal: partUrlCtrl.signal,
+                    });
+                } finally {
+                    clearTimeout(partUrlTimer);
+                }
+
+                if (partUrlRes.status === 401) {
+                    const { data: refreshed } = await supabase.auth.refreshSession();
+                    if (refreshed.session?.access_token) {
+                        headers["Authorization"] = `Bearer ${refreshed.session.access_token}`;
+                        partUrlRes = await fetch(getApiUrl("/api/media/upload/chunk/part-url"), {
+                            method: "POST",
+                            headers,
+                            body: JSON.stringify({ fileId }),
+                        });
+                    }
+                }
+
                 const partUrlData = await partUrlRes.json().catch(() => ({}));
                 if (!partUrlRes.ok) {
                     throw new Error(partUrlData.error || `Failed to get chunk URL (status: ${partUrlRes.status})`);
@@ -330,17 +351,25 @@ async function uploadLargeFileInChunks(
 
                 const { uploadUrl, authorizationToken } = partUrlData;
 
-                const res = await fetch(uploadUrl, {
-                    method: "POST",
-                    headers: {
-                        Authorization: authorizationToken,
-                        "Content-Type": "application/octet-stream",
-                        "X-Bz-Part-Number": String(partNumber),
-                        "X-Bz-Content-Sha1": chunkSha1,
-                        "Content-Length": String(chunkBlob.size),
-                    },
-                    body: chunkBlob,
-                });
+                const uploadCtrl = new AbortController();
+                const uploadTimer = setTimeout(() => uploadCtrl.abort(), 90000);
+                let res: Response;
+                try {
+                    res = await fetch(uploadUrl, {
+                        method: "POST",
+                        headers: {
+                            Authorization: authorizationToken,
+                            "Content-Type": "application/octet-stream",
+                            "X-Bz-Part-Number": String(partNumber),
+                            "X-Bz-Content-Sha1": chunkSha1,
+                            "Content-Length": String(chunkBlob.size),
+                        },
+                        body: chunkBlob,
+                        signal: uploadCtrl.signal,
+                    });
+                } finally {
+                    clearTimeout(uploadTimer);
+                }
 
                 if (!res.ok) {
                     const errText = await res.text().catch(() => "");
@@ -427,11 +456,51 @@ async function uploadLargeFileInChunks(
     let videoDuration = 0;
     if (resourceType === "video" && typeof document !== "undefined") {
         videoDuration = await new Promise<number>((resolve) => {
-            const video = document.createElement("video");
-            video.preload = "metadata";
-            video.onloadedmetadata = () => { URL.revokeObjectURL(video.src); resolve(video.duration); };
-            video.onerror = () => { URL.revokeObjectURL(video.src); resolve(0); };
-            video.src = URL.createObjectURL(file);
+            let settled = false;
+            let blobUrl = "";
+            const timer = setTimeout(() => {
+                if (!settled) {
+                    settled = true;
+                    if (blobUrl) {
+                        try { URL.revokeObjectURL(blobUrl); } catch (_) {}
+                    }
+                    resolve(0);
+                }
+            }, 2000);
+
+            try {
+                const video = document.createElement("video");
+                video.preload = "metadata";
+                video.onloadedmetadata = () => {
+                    if (!settled) {
+                        settled = true;
+                        clearTimeout(timer);
+                        const dur = Number(video.duration) || 0;
+                        if (blobUrl) {
+                            try { URL.revokeObjectURL(blobUrl); } catch (_) {}
+                        }
+                        resolve(dur);
+                    }
+                };
+                video.onerror = () => {
+                    if (!settled) {
+                        settled = true;
+                        clearTimeout(timer);
+                        if (blobUrl) {
+                            try { URL.revokeObjectURL(blobUrl); } catch (_) {}
+                        }
+                        resolve(0);
+                    }
+                };
+                blobUrl = URL.createObjectURL(file);
+                video.src = blobUrl;
+            } catch (_) {
+                if (!settled) {
+                    settled = true;
+                    clearTimeout(timer);
+                    resolve(0);
+                }
+            }
         });
     }
 
