@@ -715,7 +715,7 @@ function DashboardContent() {
     interface UploadQueueItem {
         id: string;
         fileName: string;
-        status: "pending" | "uploading" | "processing" | "success" | "error";
+        status: "pending" | "uploading" | "finalizing" | "cancelling" | "cancelled" | "processing" | "success" | "error";
         progress: number; // 0 to 100
         error?: string;
         mediaType?: "photo" | "video";
@@ -723,6 +723,16 @@ function DashboardContent() {
         photoId?: string;
     }
     const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
+    const uploadControllers = useRef(new Map<string, AbortController>());
+    const cancelUpload = (id: string) => {
+        const controller = uploadControllers.current.get(id);
+        if (!controller || controller.signal.aborted) return;
+        controller.abort();
+        setUploadQueue(previous => previous.map(item => item.id === id ? { ...item, status: "cancelling" } : item));
+    };
+    const cancelAllUploads = () => {
+        for (const id of uploadControllers.current.keys()) cancelUpload(id);
+    };
     const [isUploadPanelOpen, setIsUploadPanelOpen] = useState(false);
     const [isUploadPanelMinimized, setIsUploadPanelMinimized] = useState(false);
     const [indexingStatus, setIndexingStatus] = useState<{
@@ -937,7 +947,7 @@ function DashboardContent() {
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
             const hasActiveUploads = uploadQueue.some(
-                item => item.status === "uploading" || item.status === "pending" || item.status === "processing"
+                item => item.status === "uploading" || item.status === "pending" || item.status === "processing" || item.status === "finalizing" || item.status === "cancelling"
             );
             if (hasActiveUploads) {
                 e.preventDefault();
@@ -2177,11 +2187,12 @@ function DashboardContent() {
             return {
                 id: `${Date.now()}-${idx}-${Math.random()}`,
                 fileName: file.name,
-                status: "uploading" as const,
+                status: "pending" as const,
                 progress: 0,
                 mediaType: isVideo ? ("video" as const) : ("photo" as const),
             };
         });
+        newQueueItems.forEach(item => uploadControllers.current.set(item.id, new AbortController()));
         setUploadQueue(prev => [...prev, ...newQueueItems]);
         setIsUploadPanelOpen(true);
         setIsUploadPanelMinimized(false);
@@ -2295,11 +2306,13 @@ function DashboardContent() {
                 const file = selectedFiles[index];
                 const queueItemId = newQueueItems[index].id;
 
+                const controller = uploadControllers.current.get(queueItemId)!;
                 activeCount++;
                 // Update status to uploading in UI when task actually starts
-                setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "uploading" } : item));
+                setUploadQueue(prev => prev.map(item => item.id === queueItemId && !controller.signal.aborted ? { ...item, status: "uploading" } : item));
 
                 try {
+                    controller.signal.throwIfAborted();
                     console.log(`[Dashboard] Uploading file ${index + 1}/${selectedFiles.length}: ${file.name} (lane: ${workerId})`);
                     // Upload the original file — skip single-save so we can chunk it
                     const uploadResult = await uploadEventImage(
@@ -2314,6 +2327,11 @@ function DashboardContent() {
                                     ? { ...item, progress: Math.min(90, Math.round(percent * 0.9)) }
                                     : item
                             ));
+                        },
+                        controller.signal,
+                        () => {
+                            uploadControllers.current.delete(queueItemId);
+                            setUploadQueue(previous => previous.map(item => item.id === queueItemId ? { ...item, status: "finalizing" } : item));
                         }
                     );
 
@@ -2354,8 +2372,9 @@ function DashboardContent() {
                     uploadResults.push({ file, photo });
                 } catch (fileErr: any) {
                     console.error(`[Dashboard] File upload error for ${file.name}:`, fileErr);
-                    setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: "error", progress: 100, error: fileErr.message || "Failed" } : item));
+                    setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: fileErr.name === "AbortError" ? "cancelled" : "error", progress: 0, error: fileErr.name === "AbortError" ? undefined : fileErr.message || "Failed" } : item));
                 } finally {
+                    uploadControllers.current.delete(queueItemId);
                     activeCount--;
                     completedCount++;
 
@@ -3674,11 +3693,11 @@ function DashboardContent() {
 
 
 
-    const hasUnfinishedUploads = uploadQueue.some(item => item.status === "pending" || item.status === "uploading" || item.status === "processing");
+    const hasUnfinishedUploads = uploadQueue.some(item => item.status === "pending" || item.status === "uploading" || item.status === "processing" || item.status === "finalizing" || item.status === "cancelling");
     const totalItems = uploadQueue.length;
-    const completedItems = uploadQueue.filter(item => item.status === "success" || item.status === "error").length;
+    const completedItems = uploadQueue.filter(item => item.status === "success" || item.status === "error" || item.status === "cancelled").length;
     const processingItems = uploadQueue.filter(item => item.status === "processing").length;
-    const uploadingItems = uploadQueue.filter(item => item.status === "uploading").length;
+    const uploadingItems = uploadQueue.filter(item => item.status === "uploading" || item.status === "pending" || item.status === "finalizing" || item.status === "cancelling").length;
 
     let overallStatusText = "";
     if (uploadingItems > 0) {
@@ -3689,8 +3708,9 @@ function DashboardContent() {
         overallStatusText = `AI Indexing: ${indexingStatus.indexed}/${indexingStatus.total} (${indexingStatus.percentComplete}%)`;
     } else if (completedItems === totalItems) {
         const failedItems = uploadQueue.filter(item => item.status === "error").length;
-        overallStatusText = failedItems > 0
-            ? `${totalItems - failedItems} ready · ${failedItems} failed`
+        const cancelledItems = uploadQueue.filter(item => item.status === "cancelled").length;
+        overallStatusText = failedItems > 0 || cancelledItems > 0
+            ? `${totalItems - failedItems - cancelledItems} ready · ${failedItems} failed · ${cancelledItems} cancelled`
             : `✓ 100% complete · ${totalItems} files ready`;
     } else {
         overallStatusText = "Upload status";
@@ -7028,6 +7048,9 @@ function DashboardContent() {
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
+                                    {uploadQueue.some(item => item.status === "pending" || item.status === "uploading") && (
+                                        <button type="button" onClick={cancelAllUploads} className="px-2 py-1 text-xs text-rose-300 hover:text-white">Cancel all uploads</button>
+                                    )}
                                     {completedItems === totalItems && (
                                         <button
                                             onClick={() => setUploadQueue([])}
@@ -7114,6 +7137,9 @@ function DashboardContent() {
                                                                     {item.progress}%
                                                                 </span>
                                                             )}
+                                                            {(item.status === "finalizing" || item.status === "cancelling" || item.status === "cancelled") && (
+                                                                <span className="text-[10px] text-slate-300">{item.status === "finalizing" ? "Finalizing..." : item.status === "cancelling" ? "Cancelling..." : "Cancelled"}</span>
+                                                            )}
                                                             {item.status === "processing" && (
                                                                 <span className="text-[10px] font-bold text-sky-400 shrink-0 animate-pulse">
                                                                     {item.mediaType === "video" ? "Processing video..." : indexingStatus && indexingStatus.status === "processing" ? "Indexing..." : "Resizing..."}
@@ -7148,6 +7174,9 @@ function DashboardContent() {
                                                         </div>
                                                     </div>
 
+                                                    {(item.status === "pending" || item.status === "uploading") && (
+                                                        <button type="button" onClick={() => cancelUpload(item.id)} title={`Cancel upload: ${item.fileName}`} aria-label={`Cancel upload: ${item.fileName}`} className="rounded p-2 text-rose-300 hover:bg-rose-500/10"><X className="h-4 w-4" /></button>
+                                                    )}
                                                     {/* Status Icon */}
                                                     <div className="shrink-0">
                                                         {item.status === "uploading" && (

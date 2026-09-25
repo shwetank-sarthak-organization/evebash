@@ -684,16 +684,22 @@ mediaRouter.post("/upload/chunk/complete-part", asyncRoute(async (request, respo
 
 
 mediaRouter.post("/upload/chunk/abort", asyncRoute(async (request, response) => {
+  const user = await requireUser(request, response);
+  if (!user) return;
   const fileId = String(request.body?.fileId || "");
   if (!fileId.trim()) return jsonError(response, 400, "Missing fileId");
-
-  const backblazeAuth = await getCachedBackblazeAuth();
-  await cancelLargeFile(backblazeAuth, fileId).catch(() => {});
-
-  // Remove the uploading session from photos
   const supabaseAdmin = getSupabaseAdminClient();
-  await supabaseAdmin.from("photos").delete().eq("b2_file_id", fileId);
-
+  const { data: photo, error } = await supabaseAdmin.from("photos")
+    .select("id,user_id,status").eq("b2_file_id", fileId).maybeSingle();
+  if (error) throw error;
+  if (!photo) return jsonError(response, 404, "Upload session was not found");
+  if (photo.user_id !== user.id) return jsonError(response, 403, "Only the uploader can cancel this upload");
+  if (photo.status !== "uploading") return jsonError(response, 409, "Upload has already finished; processing cannot be cancelled here");
+  const backblazeAuth = await getCachedBackblazeAuth();
+  await cancelLargeFile(backblazeAuth, fileId);
+  const { error: deleteError } = await supabaseAdmin.from("photos").delete()
+    .eq("id", photo.id).eq("user_id", user.id).eq("status", "uploading");
+  if (deleteError) throw deleteError;
   response.json({ success: true });
 }));
 

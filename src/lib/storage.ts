@@ -214,8 +214,11 @@ function clearResumeState(fileName: string, fileSize: number) {
 async function uploadLargeFileInChunks(
     file: File,
     eventId: string,
-    onProgress?: (percent: number) => void
+    onProgress?: (percent: number) => void,
+    signal?: AbortSignal,
+    onFinalizing?: () => void
 ) {
+    signal?.throwIfAborted();
     console.log(`[Storage] Starting chunk-wise direct B2 upload for large file: ${file.name} (${file.size} bytes)`);
 
     const resourceType = (file.type?.startsWith("video/") || ["mp4", "mov", "avi", "mkv", "webm", "m4v", "3gp", "flv", "wmv", "mts", "m2ts", "ts", "ogv"].includes(file.name.split('.').pop()?.toLowerCase() || "")) ? "video" : "image";
@@ -280,6 +283,8 @@ async function uploadLargeFileInChunks(
         });
     }
 
+    try {
+    signal?.throwIfAborted();
     // ── 2. Build the queue of pending part indices (0-indexed) ─────────────────
     // Parts already completed are skipped — this is the resume magic.
     const pendingIndices = Array.from({ length: totalChunks }, (_, i) => i)
@@ -303,6 +308,7 @@ async function uploadLargeFileInChunks(
 
 
     const uploadChunk = async (partIndex: number): Promise<void> => {
+        signal?.throwIfAborted();
         const partNumber = partIndex + 1;
         const start = partIndex * CHUNK_SIZE;
         const end = Math.min(start + CHUNK_SIZE, file.size);
@@ -316,11 +322,13 @@ async function uploadLargeFileInChunks(
         let lastErr: unknown;
         for (let attempt = 1; attempt <= MAX_CHUNK_RETRIES; attempt++) {
             try {
+                signal?.throwIfAborted();
                 // Fresh upload URL per attempt (URLs are single-use)
                 let partUrlRes = await fetch(getApiUrl("/api/media/upload/chunk/part-url"), {
                     method: "POST",
                     headers,
                     body: JSON.stringify({ fileId }),
+                    signal,
                 });
 
                 if (partUrlRes.status === 401) {
@@ -331,6 +339,7 @@ async function uploadLargeFileInChunks(
                             method: "POST",
                             headers,
                             body: JSON.stringify({ fileId }),
+                    signal,
                         });
                     }
                 }
@@ -355,7 +364,7 @@ async function uploadLargeFileInChunks(
                         "Content-Length": String(chunkBlob.size),
                     },
                     body: chunkBlob,
-                    signal: AbortSignal.timeout(180_000),
+                    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(180_000)]) : AbortSignal.timeout(180_000),
                 });
 
                 if (!res.ok) {
@@ -367,6 +376,7 @@ async function uploadLargeFileInChunks(
                 const b2Sha1Raw = res.headers.get("x-bz-content-sha1") || "";
                 const sha1 = (b2Sha1Raw.startsWith("unverified:") ? b2Sha1Raw.split(":")[1] : b2Sha1Raw) || chunkSha1;
 
+                signal?.throwIfAborted();
                 // Mark complete and persist to localStorage immediately
                 completedParts[partNumber] = sha1;
                 saveResumeState({
@@ -400,6 +410,7 @@ async function uploadLargeFileInChunks(
                 return; // success — exit retry loop
 
             } catch (err: any) {
+                signal?.throwIfAborted();
                 lastErr = err;
                 if (err?.message?.includes("expired") || err?.message?.includes("No active upload")) {
                     clearResumeState(file.name, file.size);
@@ -408,7 +419,12 @@ async function uploadLargeFileInChunks(
                 const wait = Math.min(1000 * 2 ** attempt, 30_000); // 2 s, 4 s, 8 s, max 30 s
                 console.warn(`[Storage] Chunk ${partNumber} attempt ${attempt}/${MAX_CHUNK_RETRIES} failed. Retrying in ${wait / 1000}s...`, err);
                 if (attempt < MAX_CHUNK_RETRIES) {
-                    await new Promise(r => setTimeout(r, wait));
+                    await new Promise<void>((resolve, reject) => {
+                        const abort = () => { clearTimeout(timer); reject(signal?.reason || new DOMException("Upload cancelled", "AbortError")); };
+                        const timer = setTimeout(() => { signal?.removeEventListener("abort", abort); resolve(); }, wait);
+                        signal?.addEventListener("abort", abort, { once: true });
+                        if (signal?.aborted) abort();
+                    });
                 }
             }
         }
@@ -432,7 +448,10 @@ async function uploadLargeFileInChunks(
     console.log(`[Storage] Launching ${actualConcurrency} adaptive parallel upload workers (target: ${targetConcurrency}) for ${pendingIndices.length} pending chunks...`);
 
     try {
-        await Promise.all(Array.from({ length: actualConcurrency }, () => worker()));
+        const results = await Promise.allSettled(Array.from({ length: actualConcurrency }, () => worker()));
+        signal?.throwIfAborted();
+        const failed = results.find(result => result.status === "rejected");
+        if (failed?.status === "rejected") throw failed.reason;
     } catch (err) {
         // One or more chunks failed permanently — state is saved, user can retry
         throw new Error(`Upload interrupted: ${err instanceof Error ? err.message : String(err)}. Your progress has been saved — retry to resume from where it stopped.`);
@@ -502,6 +521,8 @@ async function uploadLargeFileInChunks(
     if (freshToken) saveHeaders["Authorization"] = `Bearer ${freshToken}`;
     else if (headers["Authorization"]) saveHeaders["Authorization"] = headers["Authorization"];
 
+    signal?.throwIfAborted();
+    onFinalizing?.();
     const completeRes = await fetch(getApiUrl("/api/media/upload/chunk/complete"), {
         method: "POST",
         headers: saveHeaders,
@@ -535,6 +556,21 @@ async function uploadLargeFileInChunks(
         bytes: file.size,
         format: file.name.split(".").pop() || "mp4",
     };
+    } catch (error) {
+        if (signal?.aborted) {
+            const cleanup = await fetch(getApiUrl("/api/media/upload/chunk/abort"), {
+                method: "POST", headers, body: JSON.stringify({ fileId }),
+            });
+            if (!cleanup.ok) {
+                const result = await cleanup.json().catch(() => ({}));
+                throw new Error(result.error || "Transfer stopped, but upload cleanup failed. The unfinished upload needs cleanup.");
+            }
+            clearResumeState(file.name, file.size);
+            throw new DOMException("Upload cancelled", "AbortError");
+        }
+        throw error;
+    }
+
 }
 
 
@@ -544,8 +580,11 @@ export async function uploadEventImage(
     userId?: string, 
     laneIndex = 0, 
     skipSaveMetadata = false,
-    onProgress?: (percent: number) => void
+    onProgress?: (percent: number) => void,
+    signal?: AbortSignal,
+    onFinalizing?: () => void
 ) {
+    signal?.throwIfAborted();
     // Pre-upload validation for video files — catches empty, corrupt, or mistyped files
     // before any network request is made.
     const isVideoFile = file.type?.startsWith("video/") ||
@@ -560,8 +599,8 @@ export async function uploadEventImage(
     // Use resilient chunked upload for all videos and media >= 5MB
     // Backblaze B2 minimum part size is 5MB. Chunked upload provides multi-part parallelism,
     // exponential backoff retry on network drops, and session resumption across tab refreshes.
-    if (isVideoFile || file.size >= 5 * 1024 * 1024) {
-        return uploadLargeFileInChunks(file, eventId, onProgress);
+    if (signal || isVideoFile || file.size >= 5 * 1024 * 1024) {
+        return uploadLargeFileInChunks(file, eventId, onProgress, signal, onFinalizing);
     }
 
 
