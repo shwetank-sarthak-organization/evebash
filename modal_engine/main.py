@@ -619,12 +619,7 @@ def _transcode_video_core(request: dict, hardware="cpu"):
 
             print(f"[TranscodeVideo-{hardware.upper()}] Starting single-pass multi-output FFmpeg...")
             
-            cmd = ["ffmpeg", "-y"]
-            
-            if hardware == "gpu":
-                cmd += ["-hwaccel", "cuda", "-hwaccel_output_format", "cuda"]
-                
-            cmd += ["-i", input_path]
+            cmd = ["ffmpeg", "-y", "-i", input_path]
             
             # Build filter complex dynamically
             split_count = len([d for d in out_dirs if d != "audio"])
@@ -632,24 +627,15 @@ def _transcode_video_core(request: dict, hardware="cpu"):
                 
             idx = 1
             if "1080p" in out_dirs:
-                if hardware == "gpu":
-                    filter_str += f"[v{idx}]scale_cuda=w=1920:h=-2:passthrough=0[v{idx}out];"
-                else:
-                    filter_str += f"[v{idx}]scale=w=1920:h=1080:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
+                filter_str += f"[v{idx}]scale=w=1920:h=1080:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
                 idx += 1
                 
             if "720p" in out_dirs:
-                if hardware == "gpu":
-                    filter_str += f"[v{idx}]scale_cuda=w=1280:h=-2:passthrough=0[v{idx}out];"
-                else:
-                    filter_str += f"[v{idx}]scale=w=1280:h=720:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
+                filter_str += f"[v{idx}]scale=w=1280:h=720:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
                 idx += 1
                 
             if "480p" in out_dirs:
-                if hardware == "gpu":
-                    filter_str += f"[v{idx}]scale_cuda=w=854:h=-2:passthrough=0[v{idx}out];"
-                else:
-                    filter_str += f"[v{idx}]scale=w=854:h=480:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
+                filter_str += f"[v{idx}]scale=w=854:h=480:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v{idx}out];"
 
             cmd += ["-filter_complex", filter_str.rstrip(";")]
 
