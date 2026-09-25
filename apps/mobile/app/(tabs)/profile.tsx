@@ -193,7 +193,7 @@ export default function ProfileScreen() {
       return;
     }
 
-    // Check syntax format (3-30 chars; lowercase letters/numbers with internal dot/underscore)
+    // Check syntax format (3-12 chars; lowercase letters/numbers with internal dot/underscore)
     if (!isValidUsername(normalized)) {
       setUsernameStatus('invalid');
       setIsUsernameValid(false);
@@ -842,6 +842,7 @@ export default function ProfileScreen() {
                       placeholderTextColor="#475569"
                       autoCapitalize="none"
                       autoCorrect={false}
+                      maxLength={12}
                       editable={!saving}
                     />
                     {usernameStatus === 'checking' && (
@@ -853,19 +854,19 @@ export default function ProfileScreen() {
                   {editUsername.trim().toLowerCase() !== user?.username?.toLowerCase() && (
                     <View style={styles.feedbackContainer}>
                       {usernameStatus === 'available' && (
-                        <Text style={[styles.feedbackText, styles.feedbackAvailable]}>
-                          ✓ Username is available
-                        </Text>
+                         <Text style={[styles.feedbackText, styles.feedbackAvailable]}>
+                           ✓ Username is available
+                         </Text>
                       )}
                       {usernameStatus === 'taken' && (
-                        <Text style={[styles.feedbackText, styles.feedbackTaken]}>
-                          ✗ Username is already taken
-                        </Text>
+                         <Text style={[styles.feedbackText, styles.feedbackTaken]}>
+                           ✗ Username is already taken
+                         </Text>
                       )}
                       {usernameStatus === 'invalid' && (
-                        <Text style={[styles.feedbackText, styles.feedbackInvalid]}>
-                          ⚠ 3-30 lowercase letters/numbers. Dots/underscores only inside, not repeated.
-                        </Text>
+                         <Text style={[styles.feedbackText, styles.feedbackInvalid]}>
+                           ⚠ 3-12 lowercase letters/numbers. Dots/underscores only inside, not repeated.
+                         </Text>
                       )}
                     </View>
                   )}

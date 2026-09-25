@@ -2,8 +2,13 @@ import { deleteSelectedMedia } from '../lib/deleteSelectedMedia';
 import { LoaderCircle, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { Event } from '../lib/analytics';
-import { runAdminAction, type GalleryMedia } from '../lib/adminApi';
-import { loadGalleryPage, isGalleryVideo as isVideo } from '../lib/galleryMedia';
+import type { GalleryMedia } from '../lib/adminApi';
+import {
+  directFetchGalleryMedia,
+  directDeleteGalleryMedia,
+  loadGalleryPage,
+  isGalleryVideo as isVideo,
+} from '../lib/galleryMedia';
 
 const buttonClass = 'rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-40';
 
@@ -47,7 +52,7 @@ export function GalleryViewer({ initialGallery, events, onClose }: {
     async function load() {
       try {
         const result = await loadGalleryPage(
-          offset => runAdminAction('viewGallery', { eventId: gallery.id, offset, mediaType }),
+          offset => directFetchGalleryMedia(gallery.id, offset, mediaType),
           mediaType, page, () => active,
         );
         if (!active) return;
@@ -73,7 +78,7 @@ export function GalleryViewer({ initialGallery, events, onClose }: {
     setDeletingId(item.id);
     setDeleteError('');
     try {
-      const result = await runAdminAction('deleteGalleryMedia', { photoId: item.id, eventId: gallery.id, confirm: 'DELETE_MEDIA' });
+      const result = await directDeleteGalleryMedia(item.id, gallery.id);
       if (!result.success) throw new Error(result.error || 'Unable to delete media');
       setChecked(previous => { const next = new Map(previous); next.delete(item.id); return next; });
       setSelected(null);
@@ -95,7 +100,7 @@ export function GalleryViewer({ initialGallery, events, onClose }: {
     try {
       const result = await deleteSelectedMedia(
         [...selection.keys()],
-        photoId => runAdminAction('deleteGalleryMedia', { photoId, eventId: gallery.id, confirm: 'DELETE_MEDIA' }),
+        photoId => directDeleteGalleryMedia(photoId, gallery.id),
         (completed, total) => setBulkProgress({ completed, total }),
       );
       setChecked(new Map(result.failed.map(item => [item.id, selection.get(item.id) || item.id])));

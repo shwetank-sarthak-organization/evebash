@@ -45,6 +45,7 @@ export async function deleteGalleryMedia(db: ReturnType<typeof getAdminClient>, 
     }
     throw new Error('Unable to refresh the storage session. Please retry.');
   };
+
   for (const target of targets) {
     let startFileName: string | undefined;
     let startFileId: string | undefined;
@@ -66,3 +67,4 @@ export async function deleteGalleryMedia(db: ReturnType<typeof getAdminClient>, 
   if (deleteError) throw new Error(deleteError.message);
   return true;
 }
+

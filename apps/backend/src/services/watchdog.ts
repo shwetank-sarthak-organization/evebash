@@ -34,7 +34,7 @@ export async function runMediaWatchdog(): Promise<WatchdogReport> {
   try {
     const { data: stuckVideos, error: queryError } = await supabase
       .from("photos")
-      .select("id, storage_key, event_id, transcode_attempts, uploaded_at")
+      .select("id, storage_key, event_id, transcode_attempts, uploaded_at, user_id, size, duration")
       .eq("resource_type", "video")
       .eq("status", "processing")
       .lt("uploaded_at", fifteenMinutesAgo)
@@ -77,8 +77,12 @@ export async function runMediaWatchdog(): Promise<WatchdogReport> {
 
           await publishManifestAssemblyTask({
             id: video.id,
+            photo_id: video.id,
             storage_key: video.storage_key,
             event_id: video.event_id,
+            user_id: video.user_id,
+            duration: Number(video.duration || 0),
+            fileSize: Number(video.size || 0),
           }).catch((err: any) => {
             console.error(`[Watchdog] Failed to publish transcode task for ${video.id}:`, err);
             report.errors.push(`QStash publish failed for ${video.id}: ${err?.message || err}`);

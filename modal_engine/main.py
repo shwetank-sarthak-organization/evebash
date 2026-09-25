@@ -98,6 +98,8 @@ def process_media_batch(request: dict):
         )
         supabase.table("modal_cost_logs").insert({
             "function_name":           "process_media_batch",
+            "worker_type":             "Modal Batch Dispatcher (0.125 vCPU • 1GB RAM)",
+            "media_type":              "batch",
             "cpu_cores":               cpu_cores,
             "memory_gb":               memory_gb,
             "execution_time_seconds":  duration,
@@ -265,17 +267,45 @@ def process_single_photo(photo_data: dict):
         cpu_cores = 1.0
         memory_gb = 1.0
         estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
+        user_id = photo_data.get("user_id")
+
+        # Resolve user_id if missing from photo_data
+        if not user_id and photo_id:
+            try:
+                p_res = supabase.table("photos").select("user_id, event_id").eq("id", photo_id).maybe_single().execute()
+                if p_res and p_res.data:
+                    user_id = p_res.data.get("user_id")
+                    if not event_id:
+                        event_id = p_res.data.get("event_id")
+            except Exception:
+                pass
+        if not user_id and event_id:
+            try:
+                e_res = supabase.table("events").select("created_by").eq("id", event_id).maybe_single().execute()
+                if e_res and e_res.data:
+                    user_id = e_res.data.get("created_by")
+            except Exception:
+                pass
+
+        photo_size = len(image_bytes) if 'image_bytes' in locals() and image_bytes else photo_data.get("size")
         try:
-            supabase.table("modal_cost_logs").insert({
+            log_payload = {
                 "photo_id":                photo_id,
                 "event_id":                event_id,
                 "function_name":           "process_single_photo",
+                "worker_type":             "Modal Photo Worker (1 vCPU • 1GB RAM)",
+                "media_type":              "photo",
+                "media_size":              photo_size,
                 "cpu_cores":               cpu_cores,
                 "memory_gb":               memory_gb,
+                "gpu_type":                "None",
                 "execution_time_seconds":  duration,
                 "estimated_cost_inr":      estimated_cost_inr,
                 "faces_detected":          len(face_encodings)
-            }).execute()
+            }
+            if user_id:
+                log_payload["user_id"] = user_id
+            supabase.table("modal_cost_logs").insert(log_payload).execute()
             print(f"[{photo_id}] Cost logged: {duration:.2f}s, ₹{estimated_cost_inr:.5f}")
         except Exception as log_err:
             print(f"[{photo_id}] Cost log failed: {log_err}")
@@ -338,14 +368,21 @@ def find_matching_photos(request: dict):
                     os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
                     os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
                 )
-                supabase.table("modal_cost_logs").insert({
+                log_p = {
                     "function_name":           "find_matching_photos",
+                    "worker_type":             "Modal Selfie Worker (0.125 vCPU • 1GB RAM)",
+                    "media_type":              "selfie",
+                    "media_size":              len(selfie_bytes) if 'selfie_bytes' in locals() and selfie_bytes else None,
                     "cpu_cores":               cpu_cores,
                     "memory_gb":               memory_gb,
+                    "gpu_type":                "None",
                     "execution_time_seconds":  duration,
                     "estimated_cost_inr":      estimated_cost_inr,
                     "faces_detected":          0
-                }).execute()
+                }
+                if request.get("user_id"): log_p["user_id"] = request.get("user_id")
+                if event_ids and len(event_ids) == 1: log_p["event_id"] = event_ids[0]
+                supabase.table("modal_cost_logs").insert(log_p).execute()
             except Exception as log_err:
                 print(f"[Selfie] Cost log failed: {log_err}")
             return {"error": "No face detected in selfie", "matches": []}
@@ -365,14 +402,21 @@ def find_matching_photos(request: dict):
                     os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
                     os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
                 )
-                supabase.table("modal_cost_logs").insert({
+                log_p = {
                     "function_name":           "find_matching_photos",
+                    "worker_type":             "Modal Selfie Worker (0.125 vCPU • 1GB RAM)",
+                    "media_type":              "selfie",
+                    "media_size":              len(selfie_bytes) if 'selfie_bytes' in locals() and selfie_bytes else None,
                     "cpu_cores":               cpu_cores,
                     "memory_gb":               memory_gb,
+                    "gpu_type":                "None",
                     "execution_time_seconds":  duration,
                     "estimated_cost_inr":      estimated_cost_inr,
                     "faces_detected":          0
-                }).execute()
+                }
+                if request.get("user_id"): log_p["user_id"] = request.get("user_id")
+                if event_ids and len(event_ids) == 1: log_p["event_id"] = event_ids[0]
+                supabase.table("modal_cost_logs").insert(log_p).execute()
             except Exception as log_err:
                 print(f"[Selfie] Cost log failed: {log_err}")
             return {"error": "Failed to generate face vector", "matches": []}
@@ -441,14 +485,21 @@ def find_matching_photos(request: dict):
         memory_gb = 1.0
         estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
         try:
-            supabase.table("modal_cost_logs").insert({
+            log_p = {
                 "function_name":           "find_matching_photos",
+                "worker_type":             "Modal Selfie Worker (0.125 vCPU • 1GB RAM)",
+                "media_type":              "selfie",
+                "media_size":              len(selfie_bytes) if 'selfie_bytes' in locals() and selfie_bytes else None,
                 "cpu_cores":               cpu_cores,
                 "memory_gb":               memory_gb,
+                "gpu_type":                "None",
                 "execution_time_seconds":  duration,
                 "estimated_cost_inr":      estimated_cost_inr,
                 "faces_detected":          len(selfie_faces)
-            }).execute()
+            }
+            if request.get("user_id"): log_p["user_id"] = request.get("user_id")
+            if event_ids and len(event_ids) == 1: log_p["event_id"] = event_ids[0]
+            supabase.table("modal_cost_logs").insert(log_p).execute()
             print(f"[Selfie] Cost logged: {duration:.2f}s, ₹{estimated_cost_inr:.5f}")
         except Exception as log_err:
             print(f"[Selfie] Cost log failed: {log_err}")
@@ -475,14 +526,21 @@ def find_matching_photos(request: dict):
                 os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
                 os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
             )
-            supabase.table("modal_cost_logs").insert({
+            log_p = {
                 "function_name":           "find_matching_photos",
+                "worker_type":             "Modal Selfie Worker (0.125 vCPU • 1GB RAM)",
+                "media_type":              "selfie",
+                "media_size":              len(selfie_bytes) if 'selfie_bytes' in locals() and selfie_bytes else None,
                 "cpu_cores":               cpu_cores,
                 "memory_gb":               memory_gb,
+                "gpu_type":                "None",
                 "execution_time_seconds":  duration,
                 "estimated_cost_inr":      estimated_cost_inr,
                 "faces_detected":          0
-            }).execute()
+            }
+            if request.get("user_id"): log_p["user_id"] = request.get("user_id")
+            if event_ids and len(event_ids) == 1: log_p["event_id"] = event_ids[0]
+            supabase.table("modal_cost_logs").insert(log_p).execute()
         except Exception as log_err:
             print(f"[Selfie] Cost log failed: {log_err}")
         return {"error": str(e), "matches": []}
@@ -586,6 +644,22 @@ def _transcode_video_core(request: dict, hardware="cpu"):
             except Exception:
                 has_audio = True
                 src_height = 1080
+
+            video_duration_seconds = None
+            try:
+                probe_dur = subprocess.run([
+                    "ffprobe", "-v", "error", "-show_entries", "format=duration",
+                    "-of", "csv=p=0", input_path
+                ], capture_output=True, text=True)
+                if probe_dur.stdout.strip():
+                    video_duration_seconds = float(probe_dur.stdout.strip())
+            except Exception:
+                pass
+            if not video_duration_seconds and request.get("duration"):
+                try:
+                    video_duration_seconds = float(request.get("duration"))
+                except Exception:
+                    pass
 
             # 3. Extract poster.jpg from local file at 1.0s
             subprocess.run([
@@ -788,9 +862,64 @@ def _transcode_video_core(request: dict, hardware="cpu"):
             "status": "processed",
             "processing_error": None,
         }
+        if video_duration_seconds:
+            update_data["duration"] = round(video_duration_seconds, 2)
         supabase.table("photos").update(update_data).eq("id", photo_id).execute()
 
+        # 7. Log infrastructure cost
         duration = time.time() - start_time
+        cpu_cores = 4.0
+        memory_gb = 8.0 if hardware == "gpu" else 4.0
+        gpu_type = "l4" if hardware == "gpu" else "None"
+        gpu_cost_rate = 0.0222 if hardware == "gpu" else 0.0
+        estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222) + gpu_cost_rate)
+        event_id = request.get("event_id")
+        user_id = request.get("user_id")
+
+        # Resolve user_id if missing from request
+        if not user_id and photo_id:
+            try:
+                p_res = supabase.table("photos").select("user_id, event_id").eq("id", photo_id).maybe_single().execute()
+                if p_res and p_res.data:
+                    user_id = p_res.data.get("user_id")
+                    if not event_id:
+                        event_id = p_res.data.get("event_id")
+            except Exception:
+                pass
+        if not user_id and event_id:
+            try:
+                e_res = supabase.table("events").select("created_by").eq("id", event_id).maybe_single().execute()
+                if e_res and e_res.data:
+                    user_id = e_res.data.get("created_by")
+            except Exception:
+                pass
+
+        video_size = raw_video_path.stat().st_size if raw_video_path.exists() else None
+        worker_desc = f"Modal {'GPU' if hardware == 'gpu' else 'CPU'} Worker ({'NVIDIA L4 • 4 vCPU • 8GB RAM' if hardware == 'gpu' else '4 vCPU • 4GB RAM'})"
+
+        try:
+            video_log_payload = {
+                "photo_id":                photo_id,
+                "event_id":                event_id,
+                "function_name":           f"process_video_{hardware}",
+                "worker_type":             worker_desc,
+                "media_type":              "video",
+                "media_size":              video_size,
+                "video_duration_seconds":  video_duration_seconds,
+                "cpu_cores":               cpu_cores,
+                "memory_gb":               memory_gb,
+                "gpu_type":                gpu_type,
+                "execution_time_seconds":  duration,
+                "estimated_cost_inr":      estimated_cost_inr,
+                "faces_detected":          0
+            }
+            if user_id:
+                video_log_payload["user_id"] = user_id
+            supabase.table("modal_cost_logs").insert(video_log_payload).execute()
+            print(f"[TranscodeVideo-{hardware.upper()}] Cost logged: {duration:.2f}s, ₹{estimated_cost_inr:.5f}")
+        except Exception as log_err:
+            print(f"[TranscodeVideo-{hardware.upper()}] Cost log failed: {log_err}")
+
         print(f"[TranscodeVideo-{hardware.upper()}] completed in {duration:.1f}s")
         return {"status": "success", "hls_master_url": hls_master_url}
 

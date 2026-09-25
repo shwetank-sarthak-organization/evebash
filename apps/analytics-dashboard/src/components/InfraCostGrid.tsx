@@ -18,7 +18,12 @@ import {
   Trash2,
   Cpu,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  User,
+  Video,
+  Image as ImageIcon,
+  Clock,
+  Layers
 } from 'lucide-react';
 import { getAccessToken, getApiBaseUrl, runAdminAction, type AdminActionResult } from '../lib/adminApi';
 import { supabase } from '../lib/supabase';
@@ -70,6 +75,44 @@ const formatNumber = (num: number) => {
   return new Intl.NumberFormat().format(num);
 };
 
+const formatDuration = (seconds: number | null | undefined) => {
+  if (seconds == null || isNaN(seconds) || seconds <= 0) return '-';
+  const totalSec = Math.round(seconds);
+  const mins = Math.floor(totalSec / 60);
+  const secs = totalSec % 60;
+  if (mins > 0) {
+    return `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
+  }
+  return `${secs}s`;
+};
+
+const computeModalLogCostUsd = (log: any): number => {
+  const duration = Number(log.execution_time_seconds) || 0;
+  const cpu = Number(log.cpu_cores) || 1.0;
+  const mem = Number(log.memory_gb) || 1.0;
+  const fn = log.function_name || '';
+  const gpuType = (log.gpu_type || '').toLowerCase();
+
+  let gpuRateUsd = 0;
+  if (gpuType === 'l4' || fn === 'process_video_gpu') {
+    gpuRateUsd = 0.0002222; // $0.80 / hr = $0.0002222 / sec
+  } else if (gpuType === 'a10g') {
+    gpuRateUsd = 0.0002778; // $1.00 / hr
+  } else if (gpuType === 't4') {
+    gpuRateUsd = 0.0001639; // $0.59 / hr
+  }
+
+  return duration * ((cpu * 0.0000131) + (mem * 0.00000222) + gpuRateUsd);
+};
+
+const computeModalLogCostInr = (log: any, usdToInrRate: number): number => {
+  if (typeof log.estimated_cost_inr === 'number' && !isNaN(log.estimated_cost_inr) && log.estimated_cost_inr > 0) {
+    if (usdToInrRate === 100) return log.estimated_cost_inr;
+    return (log.estimated_cost_inr / 100) * usdToInrRate;
+  }
+  return computeModalLogCostUsd(log) * usdToInrRate;
+};
+
 export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, photos }) => {
   const [activeSubTab, setActiveSubTab] = useState<'total' | 'supabase' | 'backblaze' | 'cloudflare' | 'modal' | 'railway'>('total');
   const [costChartMode, setCostChartMode] = useState<'actual' | 'simulated'>('actual');
@@ -112,23 +155,169 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   }, [usdToInrRateInput]);
 
   // Timeframe Filter States
-  const [timeFilter, setTimeFilter] = useState<'1d' | '1w' | '1m' | '1y' | 'custom'>('1m');
+  const [timeFilter, setTimeFilter] = useState<'1d' | '1w' | '1m' | '30d' | '1y' | 'all' | 'custom'>('1m');
+
+  // Modal Search & Filter States
+  const [modalSearchTerm, setModalSearchTerm] = useState<string>('');
+  const [modalUserFilter, setModalUserFilter] = useState<string>('all');
+  const [modalWorkerFilter, setModalWorkerFilter] = useState<string>('all');
+  const [loadingModalLogs, setLoadingModalLogs] = useState<boolean>(false);
+
+  // Fast entity lookup maps for dynamic metadata resolution
+  const usersMap = useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
+  const eventsMap = useMemo(() => new Map(events.map(e => [e.id, e])), [events]);
+  const photosMap = useMemo(() => new Map(photos.map(p => [p.id, p])), [photos]);
+
+  // Helper to resolve user, event, media, and worker metadata for any log row (historical or new)
+  const resolveLogDetails = useMemo(() => {
+    return (log: any) => {
+      const photo = log.photo_id ? photosMap.get(log.photo_id) : undefined;
+      const eventId = log.event_id || photo?.eventId || '';
+      const event = eventId ? eventsMap.get(eventId) : undefined;
+
+      // Resolve user
+      const resolvedUserId = log.user_id || photo?.userId || event?.createdById || event?.createdBy || '';
+      const resolvedUser = resolvedUserId ? usersMap.get(resolvedUserId) : undefined;
+
+      // Resolve media type
+      const fn = log.function_name || 'process_single_photo';
+      let mediaType: 'photo' | 'video' | 'selfie' | 'batch' = 'photo';
+      if (log.media_type) {
+        mediaType = log.media_type;
+      } else if (fn.includes('video') || photo?.mediaType === 'video' || photo?.resourceType === 'video') {
+        mediaType = 'video';
+      } else if (fn === 'find_matching_photos') {
+        mediaType = 'selfie';
+      } else if (fn === 'process_media_batch') {
+        mediaType = 'batch';
+      }
+
+      // Resolve media size (bytes)
+      const mediaSize: number | null = log.media_size != null ? Number(log.media_size) : (photo?.size ? Number(photo.size) : null);
+
+      // Resolve video duration (seconds)
+      const videoDuration: number | null = log.video_duration_seconds != null
+        ? Number(log.video_duration_seconds)
+        : (photo?.duration != null ? Number(photo.duration) : null);
+
+      // Resolve worker classification & specs
+      let workerTitle = 'Modal Photo Worker';
+      let workerSpecs = '1 vCPU • 1GB RAM';
+      let workerBadge = 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
+      let isGpu = false;
+
+      if (log.worker_type) {
+        workerTitle = log.worker_type;
+        if (log.worker_type.includes('GPU') || log.gpu_type === 'l4') {
+          workerSpecs = 'NVIDIA L4 • 4 vCPU • 8GB RAM';
+          workerBadge = 'bg-amber-500/10 border-amber-500/20 text-amber-400';
+          isGpu = true;
+        } else if (log.worker_type.includes('Batch')) {
+          workerSpecs = '0.125 vCPU • 1GB RAM';
+          workerBadge = 'bg-blue-500/10 border-blue-500/20 text-blue-400';
+        } else if (log.worker_type.includes('Selfie')) {
+          workerSpecs = '0.125 vCPU • 1GB RAM';
+          workerBadge = 'bg-purple-500/10 border-purple-500/20 text-purple-400';
+        } else if (log.worker_type.includes('CPU') && fn.includes('video')) {
+          workerSpecs = '4 vCPU • 4GB RAM';
+          workerBadge = 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400';
+        }
+      } else if (fn === 'process_video_gpu' || log.gpu_type === 'l4') {
+        workerTitle = 'Modal GPU Worker';
+        workerSpecs = 'NVIDIA L4 • 4 vCPU • 8GB RAM';
+        workerBadge = 'bg-amber-500/10 border-amber-500/20 text-amber-400';
+        isGpu = true;
+      } else if (fn === 'process_video_cpu' || fn.includes('video')) {
+        workerTitle = 'Modal CPU Worker';
+        workerSpecs = '4 vCPU • 4GB RAM';
+        workerBadge = 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400';
+      } else if (fn === 'find_matching_photos') {
+        workerTitle = 'Modal Selfie Worker';
+        workerSpecs = '0.125 vCPU • 1GB RAM';
+        workerBadge = 'bg-purple-500/10 border-purple-500/20 text-purple-400';
+      } else if (fn === 'process_media_batch') {
+        workerTitle = 'Modal Batch Dispatcher';
+        workerSpecs = '0.125 vCPU • 1GB RAM';
+        workerBadge = 'bg-blue-500/10 border-blue-500/20 text-blue-400';
+      }
+
+      return {
+        photo,
+        event,
+        eventId,
+        resolvedUserId,
+        resolvedUser,
+        mediaType,
+        mediaSize,
+        videoDuration,
+        workerTitle,
+        workerSpecs,
+        workerBadge,
+        isGpu,
+      };
+    };
+  }, [photosMap, eventsMap, usersMap]);
+
+  // Filtered Modal logs based on user, worker, and search query
+  const filteredModalLogs = useMemo(() => {
+    return modalLogs.filter(log => {
+      const details = resolveLogDetails(log);
+
+      // Filter by User
+      if (modalUserFilter !== 'all') {
+        if (details.resolvedUserId !== modalUserFilter) return false;
+      }
+
+      // Filter by Worker
+      if (modalWorkerFilter !== 'all') {
+        if (modalWorkerFilter === 'gpu' && !details.isGpu) return false;
+        if (modalWorkerFilter === 'cpu' && (details.isGpu || !log.function_name?.includes('video'))) return false;
+        if (modalWorkerFilter === 'photo' && log.function_name !== 'process_single_photo') return false;
+        if (modalWorkerFilter === 'selfie' && log.function_name !== 'find_matching_photos') return false;
+        if (modalWorkerFilter === 'batch' && log.function_name !== 'process_media_batch') return false;
+      }
+
+      // Filter by Search Query
+      if (modalSearchTerm.trim()) {
+        const query = modalSearchTerm.toLowerCase();
+        const userName = (details.resolvedUser?.name || '').toLowerCase();
+        const userEmail = (details.resolvedUser?.email || '').toLowerCase();
+        const eventTitle = (details.event?.title || '').toLowerCase();
+        const eventId = (details.eventId || '').toLowerCase();
+        const photoId = (log.photo_id || '').toLowerCase();
+        const fn = (log.function_name || '').toLowerCase();
+        const worker = (details.workerTitle || '').toLowerCase();
+
+        return (
+          userName.includes(query) ||
+          userEmail.includes(query) ||
+          eventTitle.includes(query) ||
+          eventId.includes(query) ||
+          photoId.includes(query) ||
+          fn.includes(query) ||
+          worker.includes(query)
+        );
+      }
+
+      return true;
+    });
+  }, [modalLogs, modalSearchTerm, modalUserFilter, modalWorkerFilter, resolveLogDetails]);
 
   // Pagination States
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 10;
 
-  // Reset page when logs change
+  // Reset page when logs or filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [modalLogs.length]);
+  }, [filteredModalLogs.length, modalSearchTerm, modalUserFilter, modalWorkerFilter]);
 
   const paginatedLogs = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
-    return modalLogs.slice(startIndex, startIndex + itemsPerPage);
-  }, [modalLogs, currentPage]);
+    return filteredModalLogs.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredModalLogs, currentPage]);
 
-  const totalPages = Math.ceil(modalLogs.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredModalLogs.length / itemsPerPage);
 
   const pageNumbers = useMemo(() => {
     const range: number[] = [];
@@ -172,10 +361,16 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
       return { timeframeFactor: 7 / 30, timeframeSuffix: '/ wk', timeframeLabel: 'Running Week' };
     }
     if (timeFilter === '1m') {
-      return { timeframeFactor: 1, timeframeSuffix: '/ mo', timeframeLabel: 'Running Month' };
+      return { timeframeFactor: 1, timeframeSuffix: '/ mo', timeframeLabel: 'Month to Date' };
+    }
+    if (timeFilter === '30d') {
+      return { timeframeFactor: 1, timeframeSuffix: '/ 30d', timeframeLabel: 'Last 30 Days' };
     }
     if (timeFilter === '1y') {
-      return { timeframeFactor: 12, timeframeSuffix: '/ yr', timeframeLabel: 'Running Year' };
+      return { timeframeFactor: 12, timeframeSuffix: '/ yr', timeframeLabel: 'Year to Date' };
+    }
+    if (timeFilter === 'all') {
+      return { timeframeFactor: 1, timeframeSuffix: '', timeframeLabel: 'All Time' };
     }
     if (timeFilter === 'custom') {
       const s = new Date(customStart).getTime();
@@ -185,7 +380,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
       const suffix = diffDays < 1 ? `/ ${Math.round(diffDays * 24)}h` : `/ ${Math.round(diffDays)}d`;
       return { timeframeFactor: factor, timeframeSuffix: suffix, timeframeLabel: 'Custom Period' };
     }
-    return { timeframeFactor: 1, timeframeSuffix: '/ mo', timeframeLabel: 'Running Month' };
+    return { timeframeFactor: 1, timeframeSuffix: '/ mo', timeframeLabel: 'Month to Date' };
   }, [timeFilter, customStart, customEnd]);
 
   const dateRange = useMemo(() => {
@@ -209,11 +404,15 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
       start = startOfMonth;
+    } else if (timeFilter === '30d') {
+      start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     } else if (timeFilter === '1y') {
       const startOfYear = new Date();
       startOfYear.setMonth(0, 1);
       startOfYear.setHours(0, 0, 0, 0);
       start = startOfYear;
+    } else if (timeFilter === 'all') {
+      start = new Date(0);
     } else { // 'custom'
       start = customStart ? new Date(customStart) : new Date(now.getFullYear(), now.getMonth(), 1);
       end = customEnd ? new Date(customEnd) : now;
@@ -329,27 +528,53 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
 
   // Fetch Modal logs for the selected range when dateRange or billingRefreshKey changes
   useEffect(() => {
+    let isCancelled = false;
     const fetchModalLogs = async () => {
+      setLoadingModalLogs(true);
       try {
-        const { data: logs, error: logsErr } = await supabase
-          .from('modal_cost_logs')
-          .select('*')
-          .gte('created_at', dateRange.start.toISOString())
-          .lte('created_at', dateRange.end.toISOString())
-          .order('created_at', { ascending: false });
-        
-        if (logsErr) {
-          console.error('[Modal] modal_cost_logs fetch error:', logsErr);
-        } else if (logs) {
-          setModalLogs(logs);
+        let allLogs: any[] = [];
+        let from = 0;
+        const batchSize = 1000;
+
+        while (true) {
+          let query = supabase.from('modal_cost_logs').select('*');
+          if (timeFilter !== 'all') {
+            query = query
+              .gte('created_at', dateRange.start.toISOString())
+              .lte('created_at', dateRange.end.toISOString());
+          }
+          query = query
+            .order('created_at', { ascending: false })
+            .range(from, from + batchSize - 1);
+
+          const { data: pageLogs, error: logsErr } = await query;
+          if (logsErr) {
+            console.error('[Modal] modal_cost_logs fetch error:', logsErr);
+            break;
+          }
+          if (!pageLogs || pageLogs.length === 0) break;
+          allLogs = allLogs.concat(pageLogs);
+          if (pageLogs.length < batchSize || allLogs.length >= 20000) break;
+          from += batchSize;
+        }
+
+        if (!isCancelled) {
+          setModalLogs(allLogs);
         }
       } catch (err) {
         console.error('Failed to fetch modal logs:', err);
+      } finally {
+        if (!isCancelled) {
+          setLoadingModalLogs(false);
+        }
       }
     };
-    
+
     fetchModalLogs();
-  }, [dateRange.start.toISOString(), dateRange.end.toISOString(), billingRefreshKey]);
+    return () => {
+      isCancelled = true;
+    };
+  }, [timeFilter, dateRange.start.toISOString(), dateRange.end.toISOString(), billingRefreshKey]);
   
   
   // Extract and default simulated storage
@@ -548,15 +773,16 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   // 3b. Modal.com actual costs
   const actualModalCostInfo = useMemo(() => {
     let totalUsd = 0;
+    let totalInr = 0;
     modalLogs.forEach(log => {
-      const duration = Number(log.execution_time_seconds) || 0;
-      const cpu = Number(log.cpu_cores) || 1.0;
-      const mem = Number(log.memory_gb) || 1.0;
-      totalUsd += duration * ((cpu * 0.0000131) + (mem * 0.00000222));
+      const usd = computeModalLogCostUsd(log);
+      const inr = computeModalLogCostInr(log, usdToInrRate);
+      totalUsd += usd;
+      totalInr += inr;
     });
     return {
       usd: totalUsd,
-      inr: totalUsd * usdToInrRate
+      inr: totalInr
     };
   }, [modalLogs, usdToInrRate]);
 
@@ -565,33 +791,53 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   // Modal.com metrics breakdown
   const modalStats = useMemo(() => {
     let photosCount = 0;
+    let videosCount = 0;
+    let videoGpuCount = 0;
+    let videoCpuCount = 0;
     let selfiesCount = 0;
     let batchesCount = 0;
     let totalFaces = 0;
     let totalDuration = 0;
+    let totalMediaBytes = 0;
 
     modalLogs.forEach(log => {
       const fn = log.function_name || 'process_single_photo';
+      const isVideo = fn.includes('video') || log.media_type === 'video';
       if (fn === 'process_single_photo') {
         photosCount++;
       } else if (fn === 'find_matching_photos') {
         selfiesCount++;
       } else if (fn === 'process_media_batch') {
         batchesCount++;
+      } else if (isVideo) {
+        videosCount++;
+        if (fn === 'process_video_gpu' || log.gpu_type === 'l4') {
+          videoGpuCount++;
+        } else {
+          videoCpuCount++;
+        }
       }
 
       totalFaces += Number(log.faces_detected) || 0;
       totalDuration += Number(log.execution_time_seconds) || 0;
+
+      const photo = log.photo_id ? photosMap.get(log.photo_id) : undefined;
+      const size = Number(log.media_size) || Number(photo?.size) || 0;
+      totalMediaBytes += size;
     });
 
     return {
       photosCount,
+      videosCount,
+      videoGpuCount,
+      videoCpuCount,
       selfiesCount,
       batchesCount,
       totalFaces,
+      totalMediaBytes,
       avgDuration: modalLogs.length > 0 ? totalDuration / modalLogs.length : 0,
     };
-  }, [modalLogs]);
+  }, [modalLogs, photosMap]);
 
   // 3c. Railway.app actual/simulated costs
   // Railway bills per SECOND: CPU @ $0.00000772/vCPU/sec, RAM @ $0.00000386/GB/sec, Egress @ $0.05/GB
@@ -703,12 +949,15 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
           </div>
 
           {/* Presets */}
-          <div className="bg-slate-900/60 p-1 border border-slate-800 rounded-xl flex gap-1">
-            {(['1d', '1w', '1m', 'custom'] as const).map(preset => {
+          <div className="bg-slate-900/60 p-1 border border-slate-800 rounded-xl flex flex-wrap gap-1">
+            {(['1d', '1w', '1m', '30d', '1y', 'all', 'custom'] as const).map(preset => {
               const labelMap: Record<string, string> = {
                 '1d': 'Running Day',
                 '1w': 'Running Week',
-                '1m': 'Running Month',
+                '1m': 'Month to Date',
+                '30d': 'Last 30 Days',
+                '1y': 'Year to Date',
+                'all': 'All Time',
                 'custom': 'Custom'
               };
               const isActive = timeFilter === preset;
@@ -2398,13 +2647,13 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
             <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg">
               <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-                Total Cost ({timeFilter === '1d' ? 'Running Day' : timeFilter === '1w' ? 'Running Week' : timeFilter === '1m' ? 'Running Month' : 'Custom'})
+                Total Cost ({timeframeLabel})
               </p>
               <h3 className="text-2xl font-black text-indigo-455 mt-1">
                 ₹{actualModalCostInfo.inr.toFixed(2)} <span className="text-xs font-semibold text-slate-400">(${actualModalCostInfo.usd.toFixed(4)})</span>
               </h3>
               <p className="text-[10px] text-slate-500 mt-2">
-                Estimated for {modalLogs.length} execution runs
+                Actual compute cost for {modalLogs.length} execution runs
               </p>
             </div>
 
@@ -2414,109 +2663,283 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                 {modalLogs.length}
               </h3>
               <p className="text-[10px] text-slate-500 mt-2">
-                {modalStats.photosCount} Photos | {modalStats.selfiesCount} Selfies | {modalStats.batchesCount} Batches
+                {modalStats.photosCount} Photos | {modalStats.videosCount} Videos ({modalStats.videoGpuCount} GPU) | {modalStats.selfiesCount} Selfies
               </p>
             </div>
 
             <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg">
-              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Avg Process Time</p>
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Media Volume Processed</p>
               <h3 className="text-2xl font-black text-white mt-1">
-                {modalStats.avgDuration.toFixed(2)}s
+                {formatSize(modalStats.totalMediaBytes)}
               </h3>
               <p className="text-[10px] text-slate-500 mt-2">
-                Per execution average
+                Across {modalStats.photosCount + modalStats.videosCount} media uploads
               </p>
             </div>
 
             <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg">
-              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Faces Detected</p>
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Faces & Avg Time</p>
               <h3 className="text-2xl font-black text-white mt-1">
-                {modalStats.totalFaces}
+                {modalStats.totalFaces} <span className="text-xs font-normal text-slate-400">({modalStats.avgDuration.toFixed(2)}s avg)</span>
               </h3>
               <p className="text-[10px] text-slate-500 mt-2">
-                Found and index mapped in database
+                Face vector embeddings indexed
               </p>
             </div>
           </div>
 
           {/* Cost Logs Table */}
           <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl">
-            <h4 className="text-md font-bold text-white mb-1.5 flex items-center">
-              <Cpu className="w-5 h-5 mr-2 text-indigo-400" />
-              Recent Indexing Cost Logs (Last 30 Days)
-            </h4>
-            <p className="text-slate-400 text-xs mb-6">
-              Track real-time face indexing executions, detected faces, and billing cost calculations per upload.
-            </p>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+              <div>
+                <h4 className="text-md font-bold text-white mb-1.5 flex items-center">
+                  <Cpu className="w-5 h-5 mr-2 text-indigo-400" />
+                  Modal.com Execution & Infrastructure Cost Logs ({timeframeLabel})
+                </h4>
+                <p className="text-slate-400 text-xs">
+                  Track real-time face indexing and video transcoding, attributed photographers, file sizes, video duration, worker hardware, and actual costs.
+                </p>
+              </div>
+              {loadingModalLogs && (
+                <div className="flex items-center text-xs text-indigo-400 space-x-2 animate-pulse bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-xl">
+                  <Activity className="w-3.5 h-3.5 animate-spin" />
+                  <span>Loading compute logs...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-3">
+              {/* Search input */}
+              <div className="relative flex-1 min-w-[220px]">
+                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search user, event, photo ID, worker..."
+                  value={modalSearchTerm}
+                  onChange={e => setModalSearchTerm(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              {/* User filter */}
+              <div className="flex items-center space-x-1.5 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1">
+                <User className="w-3.5 h-3.5 text-slate-500" />
+                <select
+                  value={modalUserFilter}
+                  onChange={e => setModalUserFilter(e.target.value)}
+                  className="bg-transparent text-white text-xs border-0 outline-none cursor-pointer pr-1"
+                >
+                  <option value="all" className="bg-slate-900 text-white">All Photographers ({users.length})</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id} className="bg-slate-900 text-white">
+                      {u.name || u.email || u.id.slice(0, 8)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Worker Fleet filter */}
+              <div className="flex items-center space-x-1.5 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1">
+                <Cpu className="w-3.5 h-3.5 text-slate-500" />
+                <select
+                  value={modalWorkerFilter}
+                  onChange={e => setModalWorkerFilter(e.target.value)}
+                  className="bg-transparent text-white text-xs border-0 outline-none cursor-pointer pr-1"
+                >
+                  <option value="all" className="bg-slate-900 text-white">All Worker Fleets</option>
+                  <option value="gpu" className="bg-slate-900 text-white">GPU Fleet (NVIDIA L4)</option>
+                  <option value="cpu" className="bg-slate-900 text-white">CPU Video Transcoders</option>
+                  <option value="photo" className="bg-slate-900 text-white">Photo Face Indexers</option>
+                  <option value="selfie" className="bg-slate-900 text-white">Selfie Matchers</option>
+                  <option value="batch" className="bg-slate-900 text-white">Batch Dispatchers</option>
+                </select>
+              </div>
+
+              {/* Reset button */}
+              {(modalSearchTerm || modalUserFilter !== 'all' || modalWorkerFilter !== 'all') && (
+                <button
+                  onClick={() => {
+                    setModalSearchTerm('');
+                    setModalUserFilter('all');
+                    setModalWorkerFilter('all');
+                  }}
+                  className="text-xs text-indigo-400 hover:text-indigo-300 px-2 py-1 rounded cursor-pointer font-semibold"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
 
             <div className="overflow-x-auto border border-slate-800/60 rounded-2xl">
               <table className="w-full text-left text-xs text-slate-400">
                 <thead className="text-[10px] text-slate-500 uppercase bg-slate-900/30 border-b border-slate-800">
                   <tr>
                     <th className="py-3 px-4">Timestamp</th>
-                    <th className="py-3 px-4">Function</th>
-                    <th className="py-3 px-4">Resources</th>
-                    <th className="py-3 px-4">Event ID</th>
-                    <th className="py-3 px-4">Execution Time</th>
+                    <th className="py-3 px-4">Photographer / User</th>
+                    <th className="py-3 px-4">Media Asset & Size</th>
+                    <th className="py-3 px-4">Gallery / Event</th>
+                    <th className="py-3 px-4">Worker & Hardware Fleet</th>
+                    <th className="py-3 px-4">Exec Time</th>
                     <th className="py-3 px-4">Faces</th>
-                    <th className="py-3 px-4">Estimated Cost</th>
+                    <th className="py-3 px-4">Actual Cost Endured</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/40 text-slate-350">
                   {paginatedLogs.length > 0 ? (
                     paginatedLogs.map(log => {
-                      const functionName = log.function_name || 'process_single_photo';
-                      
+                      const details = resolveLogDetails(log);
+                      const costUsd = computeModalLogCostUsd(log);
+                      const costInr = computeModalLogCostInr(log, usdToInrRate);
                       const duration = Number(log.execution_time_seconds) || 0;
-                      const cpu = log.cpu_cores || 1.0;
-                      const mem = log.memory_gb || 1.0;
-                      
-                      const costUsd = duration * ((cpu * 0.0000131) + (mem * 0.00000222));
-                      const costInr = costUsd * usdToInrRate;
-                      
-                      let badgeColor = 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
-                      if (functionName === 'find_matching_photos') {
-                        badgeColor = 'bg-purple-500/10 border-purple-500/20 text-purple-400';
-                      } else if (functionName === 'process_media_batch') {
-                        badgeColor = 'bg-blue-500/10 border-blue-500/20 text-blue-400';
-                      }
-                      
+
                       return (
                         <tr key={log.id} className="hover:bg-slate-800/10 transition-colors">
+                          {/* Timestamp */}
                           <td className="py-3 px-4 text-[11px] font-mono">
-                            {new Date(log.created_at).toLocaleString()}
+                            <div className="font-semibold text-white">
+                              {new Date(log.created_at).toLocaleDateString()}
+                            </div>
+                            <div className="text-[10px] text-slate-500">
+                              {new Date(log.created_at).toLocaleTimeString()}
+                            </div>
                           </td>
+
+                          {/* Photographer / User */}
                           <td className="py-3 px-4">
-                            <span className={`px-2 py-0.5 text-[9px] font-bold border rounded-full ${badgeColor}`}>
-                              {functionName}
-                            </span>
+                            <div className="flex items-center space-x-2.5">
+                              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-[11px] font-bold text-white shrink-0">
+                                {(details.resolvedUser?.name || details.resolvedUser?.email || 'U').charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0 max-w-[170px]">
+                                <p className="text-xs font-semibold text-white truncate" title={details.resolvedUser?.name || 'Guest / Attendee'}>
+                                  {details.resolvedUser?.name || details.resolvedUser?.username || (details.resolvedUserId ? 'User' : 'Guest / Attendee')}
+                                </p>
+                                <p className="text-[10px] text-slate-400 truncate" title={details.resolvedUser?.email || details.resolvedUser?.phone || details.resolvedUserId || ''}>
+                                  {details.resolvedUser?.email || details.resolvedUser?.phone || (details.resolvedUserId ? `ID: ${details.resolvedUserId.slice(0, 8)}…` : 'Anonymous Guest')}
+                                </p>
+                              </div>
+                            </div>
                           </td>
-                          <td className="py-3 px-4 font-mono text-[10px] text-slate-400">
-                            {cpu} CPU | {mem} GB
+
+                          {/* Media Asset & Size */}
+                          <td className="py-3 px-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center space-x-1.5 flex-wrap gap-1">
+                                {details.mediaType === 'video' ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+                                    <Video className="w-2.5 h-2.5 mr-1" />
+                                    Video
+                                  </span>
+                                ) : details.mediaType === 'selfie' ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-purple-500/10 border border-purple-500/30 text-purple-400">
+                                    <User className="w-2.5 h-2.5 mr-1" />
+                                    Selfie
+                                  </span>
+                                ) : details.mediaType === 'batch' ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/10 border border-blue-500/30 text-blue-400">
+                                    <Layers className="w-2.5 h-2.5 mr-1" />
+                                    Batch
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                                    <ImageIcon className="w-2.5 h-2.5 mr-1" />
+                                    Photo
+                                  </span>
+                                )}
+
+                                {/* Media File Size */}
+                                {details.mediaSize != null && details.mediaSize > 0 && (
+                                  <span className="text-[10px] font-mono font-medium text-slate-300">
+                                    {formatSize(details.mediaSize)}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Video duration if video */}
+                              {details.mediaType === 'video' && details.videoDuration != null && (
+                                <div className="flex items-center text-[10px] font-mono text-cyan-300">
+                                  <Clock className="w-2.5 h-2.5 mr-1 text-cyan-400" />
+                                  <span>Length: {formatDuration(details.videoDuration)}</span>
+                                </div>
+                              )}
+
+                              {log.photo_id && (
+                                <p className="text-[9px] font-mono text-slate-500 truncate max-w-[140px]" title={log.photo_id}>
+                                  {log.photo_id}
+                                </p>
+                              )}
+                            </div>
                           </td>
-                          <td className="py-3 px-4 font-mono text-[11px] text-slate-400">
-                            {log.event_id ? (
-                              <span>📅 {log.event_id}</span>
+
+                          {/* Gallery / Event */}
+                          <td className="py-3 px-4">
+                            {details.event ? (
+                              <div className="max-w-[150px]">
+                                <p className="text-xs font-medium text-slate-200 truncate" title={details.event.title}>
+                                  📅 {details.event.title}
+                                </p>
+                                <p className="text-[9px] font-mono text-slate-500 truncate">
+                                  ID: {details.event.id.slice(0, 10)}…
+                                </p>
+                              </div>
+                            ) : details.eventId ? (
+                              <span className="text-[10px] font-mono text-slate-400 truncate block max-w-[130px]" title={details.eventId}>
+                                📅 {details.eventId.slice(0, 12)}…
+                              </span>
                             ) : (
-                              <span>-</span>
+                              <span className="text-slate-600">-</span>
                             )}
                           </td>
+
+                          {/* Worker & Compute Fleet */}
+                          <td className="py-3 px-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center space-x-1.5 flex-wrap gap-1">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold border ${details.workerBadge}`}>
+                                  <Cpu className="w-2.5 h-2.5 mr-1" />
+                                  {details.workerTitle}
+                                </span>
+                                {details.isGpu && (
+                                  <span className="px-1.5 py-0.5 text-[8px] font-bold rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                    NVIDIA L4
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] font-mono text-slate-400">
+                                {details.workerSpecs}
+                              </p>
+                            </div>
+                          </td>
+
+                          {/* Execution Time */}
                           <td className="py-3 px-4 font-mono">
-                            {duration.toFixed(2)}s
+                            <span className="font-semibold text-white">{duration.toFixed(2)}s</span>
                           </td>
-                          <td className="py-3 px-4 font-semibold text-white">
-                            {log.faces_detected}
+
+                          {/* Faces Detected */}
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-slate-800 text-slate-200 border border-slate-700">
+                              {log.faces_detected ?? 0}
+                            </span>
                           </td>
+
+                          {/* Actual Cost Endured */}
                           <td className="py-3 px-4 font-mono font-bold text-indigo-400">
-                            ₹{costInr.toFixed(5)} <span className="text-[10px] text-slate-400">(${costUsd.toFixed(6)})</span>
+                            <div className="text-sm font-black text-indigo-300">
+                              ₹{costInr.toFixed(5)}
+                            </div>
+                            <div className="text-[10px] font-medium text-slate-400">
+                              (${costUsd.toFixed(6)})
+                            </div>
                           </td>
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-500">
-                        No face indexing runs logged in the last 30 days.
+                      <td colSpan={8} className="py-12 text-center text-slate-500">
+                        No Modal compute logs match the selected timeframe and filters.
                       </td>
                     </tr>
                   )}
@@ -2545,9 +2968,9 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                   <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
                     <div>
                       <p className="text-xs text-slate-400">
-                        Showing <span className="font-semibold text-white">{Math.min(modalLogs.length, (currentPage - 1) * itemsPerPage + 1)}</span> to{' '}
-                        <span className="font-semibold text-white">{Math.min(modalLogs.length, currentPage * itemsPerPage)}</span> of{' '}
-                        <span className="font-semibold text-white">{modalLogs.length}</span> entries
+                        Showing <span className="font-semibold text-white">{Math.min(filteredModalLogs.length, (currentPage - 1) * itemsPerPage + 1)}</span> to{' '}
+                        <span className="font-semibold text-white">{Math.min(filteredModalLogs.length, currentPage * itemsPerPage)}</span> of{' '}
+                        <span className="font-semibold text-white">{filteredModalLogs.length}</span> entries
                       </p>
                     </div>
                     <div>

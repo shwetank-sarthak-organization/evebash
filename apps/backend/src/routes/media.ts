@@ -39,6 +39,9 @@ type PhotoPayload = {
   url: string;
   width?: number | null;
   height?: number | null;
+  user_id?: string;
+  fileSize?: number;
+  duration?: number;
 };
 
 type SavedPhoto = {
@@ -235,6 +238,7 @@ function toPhotoRow(params: {
   fileSize?: number;
   userId: string;
   resourceType?: string;
+  duration?: number;
 }) {
   const isVideo = isVideoResource(params.resourceType, params.fileName, params.storageKey);
   const mediaDomain = getMediaDomain();
@@ -253,6 +257,7 @@ function toPhotoRow(params: {
       tags: [] as string[],
       user_id: params.userId,
       size: Number(params.fileSize) || 0,
+      duration: params.duration ? Number(params.duration) : null,
       format: params.fileName.split(".").pop()?.toLowerCase() || (isVideo ? "mp4" : "jpg"),
       media_type: isVideo ? "video" : "photo",
       resource_type: isVideo ? "video" : "image",
@@ -732,6 +737,7 @@ mediaRouter.post("/upload/chunk/complete", asyncRoute(async (request, response) 
     }
   }
 
+  const duration = Number(body.duration || 0);
   const { row, url, photoId, isVideo } = toPhotoRow({
     storageKey,
     eventId,
@@ -739,6 +745,7 @@ mediaRouter.post("/upload/chunk/complete", asyncRoute(async (request, response) 
     fileSize: fileSize || finishResult.contentLength || 0,
     userId,
     resourceType: body.resourceType,
+    duration,
   });
 
   // Explicit status transition: clear b2_file_id and mark processing
@@ -759,6 +766,8 @@ mediaRouter.post("/upload/chunk/complete", asyncRoute(async (request, response) 
         event_id: eventId,
         url,
         duration: Number(body.duration || 0),
+        fileSize: Number(fileSize || finishResult.contentLength || body.fileSize || 0),
+        user_id: userId,
       });
     } catch (err) {
       console.error(`[CompleteChunkedUpload] QStash dispatch error for ${photoId}:`, err);
@@ -806,7 +815,8 @@ mediaRouter.post("/save-photo", asyncRoute(async (request, response) => {
     return jsonError(response, 401, "Invalid event or unauthorized access");
   }
 
-  const { row, url, photoId, isVideo } = toPhotoRow({ storageKey, eventId, fileName, fileSize, userId, resourceType: body.resourceType });
+  const duration = Number(body.duration || 0);
+  const { row, url, photoId, isVideo } = toPhotoRow({ storageKey, eventId, fileName, fileSize, userId, resourceType: body.resourceType, duration });
   const supabaseAdmin = getSupabaseAdminClient();
   const { error: dbError } = await supabaseAdmin.from("photos").upsert(row);
 
@@ -822,12 +832,12 @@ mediaRouter.post("/save-photo", asyncRoute(async (request, response) => {
   if (isVideo) {
     // Await transcode dispatch before responding
     try {
-      await publishVideoTranscodeTask({ id: photoId, storage_key: storageKey, event_id: eventId, url }, fileSize);
+      await publishVideoTranscodeTask({ id: photoId, storage_key: storageKey, event_id: eventId, url, user_id: userId, fileSize, duration }, fileSize);
     } catch (err) {
       console.error(`[SavePhoto] QStash dispatch error for ${photoId}:`, err);
     }
   } else {
-    background("SavePhotoModalTrigger", () => publishModalBatchTask([{ id: photoId, storage_key: storageKey, event_id: eventId, url }]));
+    background("SavePhotoModalTrigger", () => publishModalBatchTask([{ id: photoId, storage_key: storageKey, event_id: eventId, url, user_id: userId, fileSize }]));
   }
 
   response.json({ success: true, url, photoId });
@@ -840,7 +850,7 @@ mediaRouter.post("/save-photo-batch", asyncRoute(async (request, response) => {
   const userId = await getUploadUserId(request);
   const upsertRows: unknown[] = [];
   const imagePayloads: PhotoPayload[] = [];
-  const videoPayloads: Array<PhotoPayload & { fileSize?: number }> = [];
+  const videoPayloads: Array<PhotoPayload & { fileSize?: number; duration?: number }> = [];
   let firstEventId = "";
 
   for (const photo of photos) {
@@ -848,15 +858,16 @@ mediaRouter.post("/save-photo-batch", asyncRoute(async (request, response) => {
     const eventId = String(photo.eventId || "");
     const fileName = String(photo.fileName || "");
     const fileSize = Number(photo.fileSize || 0);
+    const duration = Number(photo.duration || 0);
     if (!storageKey || !eventId || !fileName) continue;
     if (!firstEventId) firstEventId = eventId;
 
-    const { row, url, photoId, isVideo } = toPhotoRow({ storageKey, eventId, fileName, fileSize, userId, resourceType: photo.resourceType });
+    const { row, url, photoId, isVideo } = toPhotoRow({ storageKey, eventId, fileName, fileSize, userId, resourceType: photo.resourceType, duration });
     upsertRows.push(row);
     if (isVideo && !photo.skipTranscode) {
-      videoPayloads.push({ id: photoId, storage_key: storageKey, event_id: eventId, url, fileSize });
+      videoPayloads.push({ id: photoId, storage_key: storageKey, event_id: eventId, url, fileSize, duration, user_id: userId });
     } else if (!isVideo) {
-      imagePayloads.push({ id: photoId, storage_key: storageKey, event_id: eventId, url, width: null, height: null });
+      imagePayloads.push({ id: photoId, storage_key: storageKey, event_id: eventId, url, width: null, height: null, user_id: userId, fileSize });
     }
   }
 
@@ -919,7 +930,7 @@ mediaRouter.post("/trigger-modal-batch", asyncRoute(async (request, response) =>
 
   let query = supabaseAdmin
     .from("photos")
-    .select("id, storage_key, event_id, preview_url, thumbnail_url, url")
+    .select("id, storage_key, event_id, preview_url, thumbnail_url, url, user_id")
     .eq("media_type", "photo")
     .eq("face_indexed", false)
     .limit(100);
@@ -933,6 +944,7 @@ mediaRouter.post("/trigger-modal-batch", asyncRoute(async (request, response) =>
     storage_key: photo.storage_key,
     event_id: photo.event_id,
     url: photo.preview_url || photo.thumbnail_url || photo.url,
+    user_id: photo.user_id,
   }));
 
   if (payload.length > 0) {
@@ -1018,6 +1030,7 @@ mediaRouter.post("/delete", asyncRoute(async (request, response) => {
 
   response.json({ success: true });
 }));
+
 
 mediaRouter.post("/profile-image", asyncRoute(async (request, response) => {
   const user = await requireUser(request, response);

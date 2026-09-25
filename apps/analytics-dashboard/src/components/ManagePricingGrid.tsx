@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check, CircleOff, RotateCcw, Save, Search, ToggleLeft, ToggleRight } from 'lucide-react';
 import { runAdminAction } from '../lib/adminApi';
+import { directUpdatePricingPlans } from '../lib/analytics';
 
 type PlanDraft = {
   id: string;
@@ -311,7 +312,16 @@ export const ManagePricingGrid: React.FC = () => {
 
     setStatus('loading');
     setMessage('Saving pricing changes...');
-    const result = await runAdminAction('updatePricingPlans', { plans });
+    let result: { success: boolean; error?: string } = { success: false };
+    try {
+      result = await directUpdatePricingPlans(plans);
+    } catch (err: any) {
+      try {
+        result = await runAdminAction('updatePricingPlans', { plans });
+      } catch {
+        result = { success: false, error: err?.message || 'Could not save pricing plans.' };
+      }
+    }
 
     if (!result.success) {
       setStatus('error');

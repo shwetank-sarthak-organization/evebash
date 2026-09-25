@@ -1,3 +1,5 @@
+import { getSupabaseAdminClient } from "./supabase.js";
+
 type PhotoPayload = {
   id: string;
   storage_key: string;
@@ -5,6 +7,10 @@ type PhotoPayload = {
   url: string;
   width?: number | null;
   height?: number | null;
+  user_id?: string;
+  fileSize?: number;
+  size?: number;
+  duration?: number;
 };
 
 type QStashPublishOptions = {
@@ -49,7 +55,7 @@ function getBackendBaseUrl(origin?: string) {
 }
 
 export async function publishModalBatchTask(
-  photos: { id: string; storage_key: string; event_id: string; url: string }[],
+  photos: (PhotoPayload & { fileSize?: number; size?: number })[],
 ): Promise<boolean> {
   const qstashToken = process.env.QSTASH_TOKEN;
   if (!qstashToken) {
@@ -167,7 +173,7 @@ export async function publishDelayedModalTrigger(eventId: string, origin?: strin
 }
 
 export async function publishVideoTranscodeTask(
-  payload: PhotoPayload & { fileSize?: number; duration?: number },
+  payload: PhotoPayload & { fileSize?: number; duration?: number; user_id?: string },
   fileSize?: number,
 ): Promise<boolean> {
   return publishManifestAssemblyTask({
@@ -177,6 +183,8 @@ export async function publishVideoTranscodeTask(
     event_id: payload.event_id,
     url: payload.url,
     duration: payload.duration,
+    fileSize: payload.fileSize ?? fileSize,
+    user_id: payload.user_id,
   });
 }
 
@@ -188,19 +196,71 @@ export async function publishManifestAssemblyTask(payload: {
   url?: string;
   total_segments?: number;
   duration?: number;
+  fileSize?: number;
+  user_id?: string;
 }): Promise<boolean> {
   const qstashToken = process.env.QSTASH_TOKEN;
-  
-  const isLongVideo = (payload.duration || 0) > 300; // 5 minutes
+  const photoId = payload.photo_id || payload.id;
+
+  let duration = payload.duration;
+  let fileSize = payload.fileSize;
+  let userId = payload.user_id;
+
+  // If duration, fileSize, or userId is missing, fetch latest metadata from database
+  if ((!duration || duration <= 0 || !fileSize || !userId) && photoId) {
+    try {
+      const supabaseAdmin = getSupabaseAdminClient();
+      const { data } = await supabaseAdmin
+        .from("photos")
+        .select("duration, size, user_id")
+        .eq("id", photoId)
+        .maybeSingle();
+      if (data) {
+        if ((!duration || duration <= 0) && data.duration) {
+          duration = Number(data.duration);
+        }
+        if (!fileSize && data.size) {
+          fileSize = Number(data.size);
+        }
+        if (!userId && data.user_id) {
+          userId = data.user_id;
+        }
+      }
+    } catch {
+      // Non-blocking lookup
+    }
+  }
+
+  // Exact Routing Rule:
+  // - Video <= 10 min (600 seconds) -> CPU worker (process_video_cpu)
+  // - Video > 10 min (600 seconds) -> GPU worker (process_video_gpu)
+  let isLongVideo = false;
+  if (duration && duration > 0) {
+    isLongVideo = duration > 600; // strictly > 10 minutes (600 seconds)
+  } else if (fileSize && fileSize > 0) {
+    // Fallback if duration is unknown before extraction:
+    // At standard 1080p video bitrate (~4.5 Mbps), 10 minutes is ~340 MB
+    isLongVideo = fileSize > 350 * 1024 * 1024;
+  }
+
   const targetUrl = isLongVideo
     ? (process.env.MODAL_GPU_WEBHOOK_URL || "https://shwetank-sarthak--wedding-media-engine-process-video-gpu.modal.run").trim()
     : (process.env.MODAL_CPU_WEBHOOK_URL || "https://shwetank-sarthak--wedding-media-engine-process-video-cpu.modal.run").trim();
+
+  console.log(
+    `[VideoRouting] ${photoId}: duration=${duration ? `${duration}s` : 'unknown'}, size=${fileSize ? `${(fileSize / (1024 * 1024)).toFixed(1)}MB` : 'unknown'} -> ${
+      isLongVideo ? 'GPU worker (process_video_gpu > 10m)' : 'CPU worker (process_video_cpu <= 10m)'
+    }`
+  );
 
   // Ensure both `id` and `photo_id` are populated
   const normalizedPayload = {
     ...payload,
     id: payload.id,
-    photo_id: payload.photo_id || payload.id,
+    photo_id: photoId,
+    user_id: userId,
+    fileSize: fileSize,
+    duration: duration,
   };
 
   // Direct invocation fallback if QStash is not configured

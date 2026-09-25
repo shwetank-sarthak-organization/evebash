@@ -89,7 +89,7 @@ async function postAdminAction(action: AdminAction, payload: Record<string, unkn
     });
   } catch {
     throw new Error(
-      `Unable to reach the backend API at ${apiBaseUrl}. Check VITE_API_BASE_URL and the backend service.`
+      `Unable to reach the backend API at ${apiBaseUrl}. Please ensure the backend server is running (run 'npm run backend' in the project root).`
     );
   }
 

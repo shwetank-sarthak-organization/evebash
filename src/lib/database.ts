@@ -1688,7 +1688,7 @@ export async function denyRequest(phone: string) {
 /**
  * Checks if a username is unique.
  */
-const USERNAME_PATTERN = /^(?!.*[._]{2})[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])$/;
+const USERNAME_PATTERN = /^(?!.*[._]{2})[a-z0-9](?:[a-z0-9._]{1,10}[a-z0-9])$/;
 
 export function isValidUsername(username: string): boolean {
     return USERNAME_PATTERN.test(username.trim().toLowerCase());
@@ -1728,9 +1728,12 @@ export async function generateUniqueUsername(base: string): Promise<string> {
     if (username.length < 3) {
         username = username ? `user_${username}` : "user";
     }
-    if (username.length > 30) {
-        username = username.substring(0, 30);
+    if (username.length > 12) {
+        username = username.substring(0, 12);
         username = username.replace(/[_.]+$/g, "");
+    }
+    if (username.length < 3) {
+        username = username.padEnd(3, "0");
     }
     
     let candidate = username;
@@ -1744,13 +1747,15 @@ export async function generateUniqueUsername(base: string): Promise<string> {
                 isUnique = true;
             } else {
                 const suffixStr = suffix.toString();
-                const maxBaseLen = 30 - suffixStr.length;
-                candidate = `${username.substring(0, maxBaseLen)}${suffixStr}`;
+                const maxBaseLen = 12 - suffixStr.length;
+                let trimmedBase = username.substring(0, maxBaseLen).replace(/[_.]+$/g, "");
+                if (trimmedBase.length < 2) trimmedBase = "u";
+                candidate = `${trimmedBase}${suffixStr}`;
                 suffix++;
             }
         } catch (error) {
             console.error("Failed to check username uniqueness, breaking loop:", error);
-            candidate = `${username.substring(0, 15)}_${Date.now()}`;
+            candidate = `${username.substring(0, 5)}_${Date.now().toString().slice(-6)}`;
             break;
         }
     }
@@ -2336,8 +2341,10 @@ export async function deleteEvent(eventId: string): Promise<boolean> {
             }
         }
 
-        // 2. Fetch and delete B2 assets for all photos associated with this event
-        const { data: photos } = await supabase.from('photos').select('id').eq('event_id', eventId);
+        // 2. Fetch photos metadata and delete B2 assets for all photos associated with this event
+        const { data: photos } = await supabase.from('photos').select('id, size, media_type, uploaded_at').eq('event_id', eventId);
+        const { data: eventData } = await supabase.from('events').select('title, created_by, created_at').eq('id', eventId).maybeSingle();
+
         if (photos && photos.length > 0) {
             console.log(`[deleteEvent] Cleaning up B2 files for ${photos.length} photos under event ${eventId}`);
             // Run deletions in chunks of 4 to prevent network socket exhaustion and 502 Bad Gateway timeouts on the server
@@ -2348,10 +2355,42 @@ export async function deleteEvent(eventId: string): Promise<boolean> {
             }
         }
 
-        // 3. Explicitly delete facial indexes associated with this event (for guest privacy)
+        // 3. Record compact 1-row financial ledger entry so Backblaze byte-hours and transactions can be accurately billed
+        try {
+            const totalBytes = (photos || []).reduce((s: number, p: any) => s + (Number(p.size) || 0), 0);
+            const photosCount = (photos || []).filter((p: any) => String(p.media_type || '').toLowerCase() !== 'video').length;
+            const videosCount = (photos || []).filter((p: any) => String(p.media_type || '').toLowerCase() === 'video').length;
+            const earliestUpload = photos && photos.length > 0
+                ? photos.map((p: any) => p.uploaded_at).filter(Boolean).sort()[0]
+                : null;
+            const eventCreatedAt = eventData?.created_at || earliestUpload || new Date().toISOString();
+
+            const ledgerPayload: Record<string, any> = {
+                event_id: eventId,
+                user_id: eventData?.created_by || null,
+                event_title: eventData?.title || 'Untitled Gallery',
+                photos_count: photosCount,
+                videos_count: videosCount,
+                total_bytes: totalBytes,
+                estimated_modal_cost_inr: 0,
+                deleted_by: 'user_web',
+                event_created_at: eventCreatedAt,
+            };
+
+            const { error: insErr } = await supabase.from('deleted_events_archive').insert(ledgerPayload);
+            if (insErr) {
+                // Fallback without event_created_at if column not yet migrated
+                delete ledgerPayload.event_created_at;
+                await supabase.from('deleted_events_archive').insert(ledgerPayload);
+            }
+        } catch (archiveErr) {
+            console.warn('[deleteEvent] Could not record deletion ledger (non-blocking):', archiveErr);
+        }
+
+        // 4. Explicitly delete facial indexes associated with this event (for guest privacy)
         await supabase.from('faces').delete().eq('event_id', eventId);
 
-        // 4. Delete the parent event (Cascading foreign key triggers automatically delete associated photos, likes, & comments!)
+        // 5. Delete the parent event (Cascading foreign key triggers automatically delete associated photos, likes, & comments!)
         const { error } = await supabase.from('events').delete().eq('id', eventId);
         if (error) throw error;
 

@@ -425,11 +425,24 @@ async function updateUserRole(
   if (role !== null) {
     const { data: targetProfile, error: targetProfileError } = await supabaseAdmin
       .from("profiles")
-      .select("role, delegated_by")
+      .select("role, delegated_by, email, username")
       .eq("id", uid)
       .maybeSingle();
 
     if (targetProfileError) throw targetProfileError;
+
+    const email = String(targetProfile?.email || "").toLowerCase();
+    const username = String(targetProfile?.username || "").toLowerCase();
+    const isProtected =
+      email.includes("code4sarthak") ||
+      email.includes("shwetank.chauhan17") ||
+      username.includes("code4sarthak") ||
+      username.includes("shwetank.chauhan17") ||
+      username.includes("shwetank.cha");
+
+    if (isProtected && (role !== "admin" || !!delegatedBy)) {
+      throw new AdminActionError("This Super Admin account is permanently protected and cannot be modified or demoted", 403);
+    }
 
     const targetIsGlobalSuperAdmin = targetProfile?.role === "admin" && !targetProfile.delegated_by;
     const wouldRemoveGlobalSuperAdmin = targetIsGlobalSuperAdmin && (role !== "admin" || !!delegatedBy);
@@ -565,13 +578,28 @@ async function revokeSuperAdmin(
 
   const { data: profile, error: profileError } = await supabaseAdmin
     .from("profiles")
-    .select("id, role, delegated_by")
+    .select("id, role, delegated_by, email, username")
     .eq("id", uid)
     .maybeSingle();
 
   if (profileError) throw profileError;
   if (!profile) {
     throw new AdminActionError("User profile was not found", 404);
+  }
+
+  const email = String(profile.email || "").toLowerCase();
+  const username = String(profile.username || "").toLowerCase();
+  const isProtected =
+    email.includes("code4sarthak") ||
+    email.includes("shwetank.chauhan17") ||
+    username.includes("code4sarthak") ||
+    username.includes("shwetank.chauhan17") ||
+    username.includes("shwetank.cha") ||
+    uid.includes("code4sarthak") ||
+    uid.includes("shwetank.chauhan17");
+
+  if (isProtected) {
+    throw new AdminActionError("This Super Admin account is permanently protected and cannot be removed", 403);
   }
 
   if (profile.role !== "admin" || profile.delegated_by) {
@@ -945,15 +973,78 @@ async function deleteEventTree(
     await deleteEventTree(supabaseAdmin, child.id);
   }
 
+  const { data: eventData } = await supabaseAdmin
+    .from("events")
+    .select("id, title, created_by")
+    .eq("id", eventId)
+    .maybeSingle();
+
   const { data: photos, error: photosSelectError } = await supabaseAdmin
     .from("photos")
-    .select("id, storage_key")
+    .select("id, storage_key, media_type, resource_type, size, user_id")
     .eq("event_id", eventId);
 
   if (photosSelectError) throw photosSelectError;
 
   const photoRows = photos || [];
   const photoIds = photoRows.map(photo => photo.id).filter(Boolean);
+
+  const imageCount = photoRows.filter(p => (p.media_type || p.resource_type) !== "video").length;
+  const videoCount = photoRows.filter(p => (p.media_type || p.resource_type) === "video").length;
+  const totalBytes = photoRows.reduce((sum, p) => sum + (Number(p.size) || 0), 0);
+  const userId = eventData?.created_by || photoRows[0]?.user_id || "unknown";
+
+  // Fetch actual per-second compute cost logged in modal_cost_logs
+  const { data: eventLogs } = await supabaseAdmin
+    .from("modal_cost_logs")
+    .select("execution_time_seconds, estimated_cost_inr, cpu_cores, memory_gb, gpu_type")
+    .eq("event_id", eventId);
+
+  let actualModalCost = 0;
+  if (eventLogs && eventLogs.length > 0) {
+    actualModalCost = eventLogs.reduce((sum, log) => {
+      if (typeof log.estimated_cost_inr === "number" && !isNaN(log.estimated_cost_inr)) {
+        return sum + log.estimated_cost_inr;
+      }
+      const dur = Number(log.execution_time_seconds) || 0;
+      const cpu = Number(log.cpu_cores) || 1.0;
+      const mem = Number(log.memory_gb) || 1.0;
+      const gpuRate = log.gpu_type === "l4" ? 0.0222 : 0;
+      return sum + (dur * ((cpu * 0.00131) + (mem * 0.000222) + gpuRate));
+    }, 0);
+  } else {
+    // Fallback baseline for older media uploaded prior to granular logging
+    actualModalCost = (imageCount * 0.0082) + (videoCount * 0.35);
+  }
+
+  // Snapshot into deleted_events_archive so compute cost is permanently retained
+  if (eventData) {
+    try {
+      await supabaseAdmin.from("deleted_events_archive").insert({
+        event_id: eventId,
+        user_id: userId,
+        event_title: eventData.title || "Untitled Gallery",
+        photos_count: imageCount,
+        videos_count: videoCount,
+        total_bytes: totalBytes,
+        estimated_modal_cost_inr: actualModalCost,
+        deleted_by: "admin",
+      });
+    } catch (archiveErr) {
+      console.warn(`[admin/deleteEventTree] Could not archive deleted event ${eventId}:`, archiveErr);
+    }
+  }
+
+  // Ensure modal_cost_logs retains user_id for this event
+  try {
+    await supabaseAdmin
+      .from("modal_cost_logs")
+      .update({ user_id: userId })
+      .eq("event_id", eventId)
+      .is("user_id", null);
+  } catch (logErr) {
+    console.warn(`[admin/deleteEventTree] Could not update modal_cost_logs user_id for ${eventId}:`, logErr);
+  }
 
   if (photoRows.length > 0) {
     const auth = await getCachedBackblazeAuth();

@@ -850,7 +850,7 @@ export async function updateUserProfileImage(uid: string, imageUrl: string) {
     }
 }
 
-const USERNAME_PATTERN = /^(?!.*[._]{2})[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])$/;
+const USERNAME_PATTERN = /^(?!.*[._]{2})[a-z0-9](?:[a-z0-9._]{1,10}[a-z0-9])$/;
 
 export function isValidUsername(username: string): boolean {
     return USERNAME_PATTERN.test(username.trim().toLowerCase());
@@ -1874,11 +1874,44 @@ export async function rotatePhoto(
 
 export async function deleteEvent(eventId: string) {
     try {
-        // Fetch and delete B2 assets for all photos associated with this event
-        const { data: photos } = await supabase.from('photos').select('id').eq('event_id', eventId);
+        // Fetch photos metadata and delete B2 assets for all photos associated with this event
+        const { data: photos } = await supabase.from('photos').select('id, size, media_type, uploaded_at').eq('event_id', eventId);
+        const { data: eventData } = await supabase.from('events').select('title, created_by, created_at').eq('id', eventId).maybeSingle();
+
         if (photos && photos.length > 0) {
             console.log(`[deleteEvent] Cleaning up B2 files for ${photos.length} photos under event ${eventId}`);
             await Promise.all(photos.map(photo => deletePhoto(photo.id)));
+        }
+
+        // Record compact 1-row financial ledger entry so Backblaze byte-hours and transactions can be accurately billed
+        try {
+            const totalBytes = (photos || []).reduce((s: number, p: any) => s + (Number(p.size) || 0), 0);
+            const photosCount = (photos || []).filter((p: any) => String(p.media_type || '').toLowerCase() !== 'video').length;
+            const videosCount = (photos || []).filter((p: any) => String(p.media_type || '').toLowerCase() === 'video').length;
+            const earliestUpload = photos && photos.length > 0
+                ? photos.map((p: any) => p.uploaded_at).filter(Boolean).sort()[0]
+                : null;
+            const eventCreatedAt = eventData?.created_at || earliestUpload || new Date().toISOString();
+
+            const ledgerPayload: Record<string, any> = {
+                event_id: eventId,
+                user_id: eventData?.created_by || null,
+                event_title: eventData?.title || 'Untitled Gallery',
+                photos_count: photosCount,
+                videos_count: videosCount,
+                total_bytes: totalBytes,
+                estimated_modal_cost_inr: 0,
+                deleted_by: 'user_mobile',
+                event_created_at: eventCreatedAt,
+            };
+
+            const { error: insErr } = await supabase.from('deleted_events_archive').insert(ledgerPayload);
+            if (insErr) {
+                delete ledgerPayload.event_created_at;
+                await supabase.from('deleted_events_archive').insert(ledgerPayload);
+            }
+        } catch (archiveErr) {
+            console.warn('[deleteEvent] Could not record deletion ledger (non-blocking):', archiveErr);
         }
 
         const { error } = await supabase.from('events').delete().eq('id', eventId);
