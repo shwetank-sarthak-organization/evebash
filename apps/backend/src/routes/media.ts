@@ -272,6 +272,39 @@ function toPhotoRow(params: {
   };
 }
 
+async function safeUpsertPhoto(supabaseAdmin: any, row: any) {
+  const { error } = await supabaseAdmin.from("photos").upsert(row);
+  if (!error) return { error: null };
+
+  if (error.message?.includes("column") || error.code === "PGRST204") {
+    console.warn(`[Photos] Upsert encountered schema issue (${error.message}), retrying with sanitized row...`);
+    const sanitized = { ...row };
+    delete sanitized.duration;
+    delete sanitized.transcode_attempts;
+    delete sanitized.b2_file_id;
+    return await supabaseAdmin.from("photos").upsert(sanitized);
+  }
+  return { error };
+}
+
+async function safeUpsertPhotosBatch(supabaseAdmin: any, rows: any[]) {
+  const { error } = await supabaseAdmin.from("photos").upsert(rows);
+  if (!error) return { error: null };
+
+  if (error.message?.includes("column") || error.code === "PGRST204") {
+    console.warn(`[Photos] Batch upsert encountered schema issue (${error.message}), retrying with sanitized rows...`);
+    const sanitized = rows.map((r: any) => {
+      const s = { ...r };
+      delete s.duration;
+      delete s.transcode_attempts;
+      delete s.b2_file_id;
+      return s;
+    });
+    return await supabaseAdmin.from("photos").upsert(sanitized);
+  }
+  return { error };
+}
+
 function background(label: string, task: () => Promise<unknown>) {
   setTimeout(() => {
     task().catch((error) => console.error(`[${label}] Background task failed:`, error));
@@ -753,7 +786,7 @@ mediaRouter.post("/upload/chunk/complete", asyncRoute(async (request, response) 
   row.b2_file_id = null;
 
   const supabaseAdmin = getSupabaseAdminClient();
-  const { error: dbError } = await supabaseAdmin.from("photos").upsert(row);
+  const { error: dbError } = await safeUpsertPhoto(supabaseAdmin, row);
   if (dbError) return jsonError(response, 500, `Upload succeeded to storage but failed to save database record: ${dbError.message}`);
 
   if (isVideo) {
@@ -818,7 +851,7 @@ mediaRouter.post("/save-photo", asyncRoute(async (request, response) => {
   const duration = Number(body.duration || 0);
   const { row, url, photoId, isVideo } = toPhotoRow({ storageKey, eventId, fileName, fileSize, userId, resourceType: body.resourceType, duration });
   const supabaseAdmin = getSupabaseAdminClient();
-  const { error: dbError } = await supabaseAdmin.from("photos").upsert(row);
+  const { error: dbError } = await safeUpsertPhoto(supabaseAdmin, row);
 
   if (dbError) {
     background("UploadRollback", () => rollbackB2Upload(storageKey, isVideo ? "video" : "image"));
@@ -874,7 +907,7 @@ mediaRouter.post("/save-photo-batch", asyncRoute(async (request, response) => {
   if (upsertRows.length === 0) return jsonError(response, 400, "No valid photos in batch");
 
   const supabaseAdmin = getSupabaseAdminClient();
-  const { error: dbError } = await supabaseAdmin.from("photos").upsert(upsertRows);
+  const { error: dbError } = await safeUpsertPhotosBatch(supabaseAdmin, upsertRows);
   if (dbError) return jsonError(response, 500, `Failed to save database records: ${dbError.message}`);
 
   if (videoPayloads.length > 0) {

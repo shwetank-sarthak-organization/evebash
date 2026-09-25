@@ -3147,7 +3147,6 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                     <thead className="bg-slate-950/90 text-slate-400 uppercase tracking-wider border-b border-slate-800 text-[10px]">
                       <tr className="divide-x divide-slate-800">
                         <th className="py-3 px-3.5 font-bold whitespace-nowrap">Media Metered</th>
-                        <th className="py-3 px-3 text-right font-bold whitespace-nowrap">Data Stored</th>
                         <th className="py-3 px-3 text-right font-bold whitespace-nowrap">Byte-Hours (GB-h)</th>
                         <th className="py-3 px-3 text-right font-bold whitespace-nowrap">Storage Cost</th>
                         <th className="py-3 px-3 text-right font-bold whitespace-nowrap">Class C</th>
@@ -3163,12 +3162,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                           <span className="text-white font-bold">{b2MeteringData.totalMediaCount} files</span>
                         </td>
 
-                        {/* 2. Data Stored */}
-                        <td className="py-3.5 px-3 text-right font-mono tabular-nums whitespace-nowrap">
-                          <span className="text-sky-400 font-bold">{formatBytes(b2MeteringData.totalBytes)}</span>
-                        </td>
-
-                        {/* 3. Byte-Hours (GB-h) */}
+                        {/* 2. Byte-Hours (GB-h) */}
                         <td className="py-3.5 px-3 text-right font-mono tabular-nums whitespace-nowrap">
                           <span className="text-slate-200 font-bold">{b2MeteringData.totalGbHours.toFixed(2)} GB-h</span>
                         </td>
