@@ -2371,7 +2371,9 @@ function DashboardContent() {
                     // Store for background indexing
                     uploadResults.push({ file, photo });
                 } catch (fileErr: any) {
-                    console.error(`[Dashboard] File upload error for ${file.name}:`, fileErr);
+                    if (fileErr.name !== "AbortError") {
+                        console.error(`[Dashboard] File upload error for ${file.name}:`, fileErr);
+                    }
                     setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: fileErr.name === "AbortError" ? "cancelled" : "error", progress: 0, error: fileErr.name === "AbortError" ? undefined : fileErr.message || "Failed" } : item));
                 } finally {
                     uploadControllers.current.delete(queueItemId);
