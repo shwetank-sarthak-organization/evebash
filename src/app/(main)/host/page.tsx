@@ -920,6 +920,22 @@ function DashboardContent() {
     const [renamingEvent, setRenamingEvent] = useState<Event | null>(null);
     const [editDetailsMode, setEditDetailsMode] = useState<"title" | "date">("title");
     const [shareModalEvent, setShareModalEvent] = useState<Event | null>(null);
+    const [savingVisibility, setSavingVisibility] = useState(false);
+    const [visibilityError, setVisibilityError] = useState("");
+    const changeEventVisibility = async (isPublic: boolean) => {
+        if (!shareModalEvent || savingVisibility) return;
+        if (isPublic && !window.confirm("Anyone with the link will be able to view this event and its sub-galleries without approval. Make public?")) return;
+        setSavingVisibility(true); setVisibilityError("");
+        try {
+            const { error } = await supabase.rpc("set_event_public_viewing", { event_id: shareModalEvent.id, public_viewing: isPublic });
+            if (error) throw error;
+            setShareModalEvent(previous => previous ? { ...previous, isPublic } : previous);
+            setUserEvents(previous => previous.map(item => item.id === shareModalEvent.id ? { ...item, isPublic } : item));
+        } catch (error: any) {
+            setVisibilityError(error.message || "Unable to change event visibility");
+        } finally { setSavingVisibility(false); }
+    };
+
     const [showPlanDetailsModal, setShowPlanDetailsModal] = useState(false);
     const [newTitle, setNewTitle] = useState("");
     const [newDate, setNewDate] = useState("");
@@ -6382,6 +6398,20 @@ function DashboardContent() {
                                 className="relative w-full max-w-md rounded-[2rem] border border-[#CA9C68]/25 bg-slate-800 px-7 py-9 text-center shadow-2xl sm:px-10"
                             >
                                 <h3 className="text-3xl font-black tracking-tight text-white">Share Event</h3>
+                                {!shareModalEvent.parentId && (shareModalEvent.createdBy === user?.uid || shareModalEvent.createdBy === user?.email) && (
+                                    <div className="mt-5 rounded-xl border border-slate-600 p-4 text-left">
+                                        <label className="flex items-center justify-between gap-3 text-sm font-bold text-white">
+                                            Event visibility
+                                            <select aria-label="Event visibility" value={shareModalEvent.isPublic ? "public" : "private"} disabled={savingVisibility} onChange={event => void changeEventVisibility(event.target.value === "public")} className="rounded-lg bg-slate-900 p-2 disabled:opacity-50">
+                                                <option value="private">Private</option><option value="public">Public</option>
+                                            </select>
+                                        </label>
+                                        <p className="mt-2 text-xs text-slate-300">{shareModalEvent.isPublic ? "Anyone with the link can view this event and its sub-galleries. Viewing does not grant upload or editing access." : "Guests need approval to view this event through its shared link."}</p>
+                                        {savingVisibility && <p role="status" className="mt-2 text-xs text-slate-300">Saving…</p>}
+                                        {visibilityError && <p role="alert" className="mt-2 text-xs text-rose-300">{visibilityError}</p>}
+                                    </div>
+                                )}
+
 
                                 <div className="mx-auto mt-7 w-full max-w-[250px] rounded-[2rem] bg-white p-6 shadow-xl">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}

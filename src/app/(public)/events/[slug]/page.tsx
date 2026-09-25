@@ -125,10 +125,28 @@ function EventPageContent() {
         };
     }, [event?.id, subEvents, activeGallery]);
 
+    useEffect(() => {
+        const ownerEventId = event?.parentId || event?.id;
+        if (!ownerEventId) return;
+        const channel = supabase.channel(`event-visibility-${ownerEventId}`)
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'events', filter: `id=eq.${ownerEventId}` }, payload => {
+                const isPublic = payload.new.is_public === true;
+                setEvent((previous: Event | null) => previous ? { ...previous, isPublic } : previous);
+                if (!isPublic) setGuestStatus('idle');
+            }).subscribe();
+        return () => { void supabase.removeChannel(channel); };
+    }, [event?.id, event?.parentId]);
+
     // Check for guest details or user approval if shared link
     useEffect(() => {
         let unsubscribe: (() => void) | undefined;
 
+        if (!event || loading) return;
+        if (event.isPublic) {
+            setGuestStatus('approved');
+            setShowGuestModal(false);
+            return;
+        }
         if (isShared && !authLoading && hasCheckedSession) {
             // --- VIP BYPASS CHECK ---
             const isVIP = user && event && (
@@ -200,7 +218,7 @@ function EventPageContent() {
         return () => {
             if (unsubscribe) unsubscribe();
         };
-    }, [isShared, user, authLoading, slug, event?.id, loading, hasCheckedSession, event?.parentId, stableIdentifier]);
+    }, [isShared, user, authLoading, slug, event?.id, loading, hasCheckedSession, event?.parentId, event?.isPublic, stableIdentifier]);
 
     const logGuestAccess = async (name: string, identifier: string) => {
         if (!slug || !event) return;
@@ -357,7 +375,7 @@ function EventPageContent() {
             // 1. Get Event Details
             let eventData: Event | null = null;
             try {
-                eventData = await getEventById(slug);
+                eventData = await getEventById(slug, true);
             } catch (e: any) {
                 console.error("[EventPage] Error fetching from Supabase database:", e);
                 if (e.message?.includes("permissions")) {
@@ -375,6 +393,12 @@ function EventPageContent() {
                 setEvent(null);
                 setLoading(false);
                 return;
+            }
+
+            // Sub-gallery links inherit the parent event's current visibility.
+            if (eventData.parentId) {
+                const parentEvent = await getEventById(eventData.parentId, true);
+                eventData.isPublic = !!parentEvent?.isPublic;
             }
 
             // Resolve event cover image to preview format
@@ -740,7 +764,7 @@ function EventPageContent() {
             </TemplateComponent>
             {/* Guest Entry Modal */}
             <AnimatePresence>
-                {showGuestModal && (
+                {showGuestModal && !event?.isPublic && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}

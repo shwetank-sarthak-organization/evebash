@@ -16,6 +16,7 @@ let photoInteractionChannelCounter = 0;
 // --- Types ---
 
 export interface Event {
+    isPublic?: boolean;
     id: string; // "haldi", "wedding", etc.
     title: string;
     date: string;
@@ -271,6 +272,7 @@ function mapSqlToEvent(e: any): Event {
         coverScale: e.cover_scale,
         coverMode: e.cover_mode,
         order: e.order,
+        isPublic: !!e.is_public,
         isSampleGallery: !!e.is_sample_gallery,
         sampleGalleryOrder: e.sample_gallery_order,
         createdAt: e.created_at
@@ -2139,9 +2141,9 @@ export async function createEvent(event: Event): Promise<{ success: boolean; err
 /**
  * Fetches a single event by ID with fallback support.
  */
-export async function getEventById(eventId: string): Promise<Event | null> {
+export async function getEventById(eventId: string, refresh = false): Promise<Event | null> {
     const decodedId = decodeURIComponent(eventId);
-    if (eventCache[decodedId]) {
+    if (!refresh && eventCache[decodedId]) {
         return eventCache[decodedId];
     }
     try {
