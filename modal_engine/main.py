@@ -182,18 +182,18 @@ def process_single_photo(photo_data: dict):
             return {"status": "error", "photo_id": photo_id, "error": str(decode_err)}
 
         # ── 4. Resizing & Thumbnail WebP Generation ────────────────────────
-        # Generate 1080p Preview WebP
+        # Generate 1600p Preview WebP (Fast, high-fidelity sweet spot)
         preview_img = pil_img.copy()
-        preview_img.thumbnail((1920, 1920), Image.Resampling.LANCZOS)
+        preview_img.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
         preview_buf = io.BytesIO()
-        preview_img.save(preview_buf, format="WEBP", quality=75)
+        preview_img.save(preview_buf, format="WEBP", quality=70, method=4)
         preview_bytes = preview_buf.getvalue()
 
-        # Generate 480p Thumbnail WebP
+        # Generate 480p Thumbnail WebP (Optimized for Retina feeds)
         thumb_img = pil_img.copy()
         thumb_img.thumbnail((480, 480), Image.Resampling.LANCZOS)
         thumb_buf = io.BytesIO()
-        thumb_img.save(thumb_buf, format="WEBP", quality=75)
+        thumb_img.save(thumb_buf, format="WEBP", quality=68, method=4)
         thumb_bytes = thumb_buf.getvalue()
 
         # Upload WebP variants directly to Backblaze B2
