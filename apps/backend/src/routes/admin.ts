@@ -747,6 +747,75 @@ async function deleteUser(
   if (profileError) throw profileError;
 }
 
+async function recordPayment(
+  supabaseAdmin: ReturnType<typeof getAdminClient>,
+  payload: Record<string, unknown>
+) {
+  const uid = String(payload.uid || "");
+  const amount = Number(payload.amount);
+  const planId = String(payload.planId || "custom");
+  const billingDuration = String(payload.billingDuration || "yearly");
+  const paymentGateway = String(payload.paymentGateway || "manual_upi");
+  const notes = String(payload.notes || "");
+  const updateRole = Boolean(payload.updateRole);
+
+  if (!uid) throw new Error("User id is required");
+  if (!amount || isNaN(amount) || amount <= 0) throw new Error("Valid payment amount is required");
+
+  const { data: paymentRow, error: insertError } = await supabaseAdmin
+    .from("payments")
+    .insert({
+      user_id: uid,
+      amount: amount,
+      currency: "INR",
+      status: "manual_offline",
+      plan_id: planId,
+      billing_duration: billingDuration,
+      payment_gateway: paymentGateway,
+      notes: notes || "Manual payment recorded by admin",
+      created_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (insertError) throw insertError;
+
+  if (updateRole && isPaidPlanRole(planId)) {
+    const today = new Date();
+    const startDate = toDateOnly(today);
+    const normalizedDur = normalizeSubscriptionDuration(billingDuration);
+    const endDate = addDurationToDate(startDate, normalizedDur);
+
+    await supabaseAdmin
+      .from("profiles")
+      .update({
+        role: planId,
+        role_type: "primary",
+        subscription_duration: billingDuration,
+        plan_start_date: startDate,
+        plan_end_date: endDate,
+      })
+      .eq("id", uid);
+  }
+
+  return paymentRow;
+}
+
+async function deletePayment(
+  supabaseAdmin: ReturnType<typeof getAdminClient>,
+  payload: Record<string, unknown>
+) {
+  const paymentId = String(payload.paymentId || "");
+  if (!paymentId) throw new Error("Payment id is required");
+
+  const { error } = await supabaseAdmin
+    .from("payments")
+    .delete()
+    .eq("id", paymentId);
+
+  if (error) throw error;
+}
+
 async function collectEventTreeIds(
   supabaseAdmin: ReturnType<typeof getAdminClient>,
   rootIds: string[]
@@ -1311,6 +1380,14 @@ adminRouter.post("/", async (request: Request, response: ExpressResponse) => {
       case "updatePricingPlans": {
         const result = await updatePricingPlans(supabaseAdmin, payload);
         return jsonResponse(response, { success: true, ...result });
+      }
+      case "recordPayment": {
+        const result = await recordPayment(supabaseAdmin, payload);
+        return jsonResponse(response, { success: true, payment: result });
+      }
+      case "deletePayment": {
+        await deletePayment(supabaseAdmin, payload);
+        return jsonResponse(response, { success: true });
       }
       default:
         return jsonResponse(response, { success: false, error: "Unsupported admin action" }, 400);

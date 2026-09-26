@@ -34,8 +34,9 @@ import { ManagePricingGrid } from './components/ManagePricingGrid';
 import { InfraCostGrid } from './components/InfraCostGrid';
 import { SuperAdminPanel } from './components/SuperAdminPanel';
 import { ContactMessagesGrid } from './components/ContactMessagesGrid';
+import { PaymentsGrid } from './components/PaymentsGrid';
 import { runAdminAction, type AdminAction } from './lib/adminApi';
-import { BarChart3, Users, Folder, LogOut, Key, Mail, AlertTriangle, ShieldCheck, Layers, DollarSign, Settings2, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { BarChart3, Users, Folder, LogOut, Key, Mail, AlertTriangle, ShieldCheck, Layers, DollarSign, Settings2, CheckCircle2, ArrowLeft, CreditCard } from 'lucide-react';
 
 const isPasswordRecoveryUrl = () => {
   if (typeof window === 'undefined') return false;
@@ -71,11 +72,11 @@ export default function App() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [contactMessages, setContactMessages] = useState<ContactMessage[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'events' | 'plans' | 'pricing' | 'infra' | 'messages' | 'superadmin'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'events' | 'plans' | 'pricing' | 'infra' | 'payments' | 'messages' | 'superadmin'>('overview');
   const [usersResetTrigger, setUsersResetTrigger] = useState(0);
   const mainScrollRef = useRef<HTMLDivElement>(null);
 
-  const handleNavClick = (tab: 'overview' | 'users' | 'events' | 'plans' | 'pricing' | 'infra' | 'messages' | 'superadmin') => {
+  const handleNavClick = (tab: 'overview' | 'users' | 'events' | 'plans' | 'pricing' | 'infra' | 'payments' | 'messages' | 'superadmin') => {
     setActiveTab(tab);
     if (tab === 'users') {
       setUsersResetTrigger(prev => prev + 1);
@@ -685,6 +686,18 @@ export default function App() {
             </button>
 
             <button
+              onClick={() => handleNavClick('payments')}
+              className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                activeTab === 'payments'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
+                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+              }`}
+            >
+              <CreditCard className="w-4 h-4 mr-3" />
+              Payments
+            </button>
+
+            <button
               onClick={() => handleNavClick('messages')}
               className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
                 activeTab === 'messages'
@@ -742,6 +755,7 @@ export default function App() {
              activeTab === 'plans' ? 'Subscription Plans Details' :
              activeTab === 'pricing' ? 'Manage Pricing' :
              activeTab === 'infra' ? 'Infrastructure Cost Hub' :
+             activeTab === 'payments' ? 'Customer Payments & Ledger' :
              activeTab === 'messages' ? 'Contact Messages' :
              'Super Admin Control'}
           </h2>
@@ -817,6 +831,44 @@ export default function App() {
               {activeTab === 'plans' && <PlanDetailsGrid users={users} />}
               {activeTab === 'pricing' && <ManagePricingGrid />}
               {activeTab === 'infra' && <InfraCostGrid stats={stats} users={users} events={events} guests={guests} photos={photos} />}
+              {activeTab === 'payments' && (
+                <PaymentsGrid
+                  users={users}
+                  events={events}
+                  photos={photos}
+                  onPlanChange={(userId, role) =>
+                    handleAdminAction(
+                      'updateUserRole',
+                      { uid: userId, role },
+                      'User plan updated.'
+                    )
+                  }
+                  onDurationChange={(userId, duration) =>
+                    handleAdminAction(
+                      'updateUserDuration',
+                      { uid: userId, duration },
+                      'User duration updated.'
+                    )
+                  }
+                  onPlanDatesChange={(userId, planStartDate, planEndDate) =>
+                    handleAdminAction(
+                      'updateUserPlanDates',
+                      { uid: userId, planStartDate, planEndDate },
+                      ''
+                    )
+                  }
+                  onDeleteEvent={eventId =>
+                    handleAdminAction('deleteEvent', { eventId }, 'Event deleted.')
+                  }
+                  onToggleSampleGallery={(eventId, isSampleGallery) =>
+                    handleAdminAction(
+                      'toggleSampleGallery',
+                      { eventId, isSampleGallery },
+                      isSampleGallery ? 'Event added to Sample Galleries.' : 'Event removed from Sample Galleries.'
+                    )
+                  }
+                />
+              )}
               {activeTab === 'messages' && (
                 <ContactMessagesGrid
                   messages={contactMessages}

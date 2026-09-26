@@ -493,12 +493,34 @@ export default function Pricing() {
                 },
             });
 
-            checkout.on("payment.failed", (response) => {
+            checkout.on("payment.failed", async (response) => {
+                const failureText = response.error?.description || "Payment failed. Please try again.";
                 setCheckoutMessage({
                     type: "error",
-                    text: response.error?.description || "Payment failed. Please try again.",
+                    text: failureText,
                 });
                 setCheckoutPlanId(null);
+
+                try {
+                    const { data: sessionData } = await supabase.auth.getSession();
+                    const token = sessionData.session?.access_token;
+                    fetch("/api/log-payment-failure", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                        },
+                        body: JSON.stringify({
+                            orderId: orderResult.order_id,
+                            paymentId: (response.error as any)?.metadata?.payment_id || null,
+                            planId: plan.id,
+                            duration: billingCycle,
+                            failureReason: `${response.error?.code || 'error'}: ${failureText}`,
+                        }),
+                    }).catch(() => {});
+                } catch {
+                    // Non-blocking telemetry
+                }
             });
 
             checkout.open();

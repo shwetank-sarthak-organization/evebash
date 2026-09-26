@@ -16,7 +16,9 @@ export type AdminAction =
   | 'deleteGuest'
   | 'scanBackblazeOrphans'
   | 'deleteBackblazeOrphans'
-  | 'updatePricingPlans';
+  | 'updatePricingPlans'
+  | 'recordPayment'
+  | 'deletePayment';
 
 export interface GalleryMedia {
   id: string;

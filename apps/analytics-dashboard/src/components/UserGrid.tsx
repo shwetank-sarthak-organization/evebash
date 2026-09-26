@@ -1,5 +1,6 @@
 import { UserDetailPage, type UserDetailTabType } from './UserDetailPage';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import {
   fetchAllModalCostLogs,
   fetchDeletedEvents,
@@ -11,7 +12,7 @@ import {
   type ModalCostLogRow,
   type UserEveBashCostMetrics
 } from '../lib/analytics';
-import { Search, Calendar, Clock, Filter, Users, CreditCard, Activity, X, Check, HardDrive, IndianRupee } from 'lucide-react';
+import { Search, Calendar, Clock, Filter, Users, CreditCard, Activity, X, Check, HardDrive, IndianRupee, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 const RefreshCcwIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg
@@ -256,11 +257,112 @@ const openDatePicker = (event: React.MouseEvent<HTMLInputElement>) => {
   }
 };
 
+export type SortColumn =
+  | 'name'
+  | 'email'
+  | 'joinDate'
+  | 'lastActive'
+  | 'storage'
+  | 'images'
+  | 'videos'
+  | 'totalGb'
+  | 'cost'
+  | 'paid'
+  | 'duration'
+  | 'planStart'
+  | 'planEnd';
+
+export type SortDirection = 'asc' | 'desc';
+
+const getStorageQuotaGb = (role?: string): number => {
+  const clean = (role || 'free').toLowerCase();
+  switch (clean) {
+    case 'admin':
+      return 999999;
+    case 'ultimate':
+      return 1000;
+    case 'elite':
+      return 500;
+    case 'pro':
+      return 200;
+    case 'premium':
+      return 100;
+    case 'standard':
+      return 50;
+    case 'basic':
+      return 25;
+    case 'starter':
+      return 10;
+    case 'free':
+    case 'freemium':
+    case 'user':
+    default:
+      return 1;
+  }
+};
+
+const getDurationWeight = (user: UserProfile): number => {
+  if (!isPaidPlan(user.role)) return 0;
+  const norm = normalizeDurationValue(user.subscriptionDuration);
+  switch (norm) {
+    case 'monthly':
+      return 1;
+    case 'quarterly':
+      return 2;
+    case 'half_yearly':
+      return 3;
+    case 'yearly':
+      return 4;
+    default:
+      return 0;
+  }
+};
+
+const sortColumnLabelMap: Record<SortColumn, string> = {
+  name: 'Name',
+  email: 'Email',
+  joinDate: 'Joined Date',
+  lastActive: 'Last Active',
+  storage: 'Storage Plan',
+  images: 'Images GB',
+  videos: 'Videos GB',
+  totalGb: 'Total GB',
+  cost: 'Cost',
+  paid: 'Paid',
+  duration: 'Duration',
+  planStart: 'Plan Start Date',
+  planEnd: 'Plan End Date',
+};
+
 export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], resetTrigger, onPlanChange, onDurationChange, onPlanDatesChange, onResetUserData, onDeleteUser, onDeleteEvent, onToggleSampleGallery }) => {
   const accountScroll = useRef(0);
 
   const [search, setSearch] = useState('');
   const [planFilter, setPlanFilter] = useState('all');
+  const [sortColumn, setSortColumn] = useState<SortColumn>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(column);
+      const descFirstColumns: SortColumn[] = [
+        'joinDate',
+        'lastActive',
+        'storage',
+        'images',
+        'videos',
+        'totalGb',
+        'cost',
+        'paid',
+        'duration',
+        'planStart',
+        'planEnd',
+      ];
+      setSortDirection(descFirstColumns.includes(column) ? 'desc' : 'asc');
+    }
+  };
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [savingDurationUserId, setSavingDurationUserId] = useState<string | null>(null);
   const [savingDatesUserId, setSavingDatesUserId] = useState<string | null>(null);
@@ -273,6 +375,36 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
   const [selectedDetailUserId, setSelectedDetailUserId] = useState<string | null>(null);
   const [detailInitialTab, setDetailInitialTab] = useState<UserDetailTabType>('info');
   const [deletedEvents, setDeletedEvents] = useState<DeletedEventArchive[]>([]);
+  const [userPaymentsMap, setUserPaymentsMap] = useState<Map<string, { totalPaid: number; count: number }>>(new Map());
+
+  useEffect(() => {
+    let active = true;
+    async function loadAllPayments() {
+      try {
+        const { data, error } = await supabase
+          .from('payments')
+          .select('user_id, amount, status');
+        if (!error && data && active) {
+          const map = new Map<string, { totalPaid: number; count: number }>();
+          data.forEach((p: any) => {
+            const uid = (p.user_id || '').toLowerCase().trim();
+            if (!uid) return;
+            const prev = map.get(uid) || { totalPaid: 0, count: 0 };
+            if (p.status === 'captured' || p.status === 'manual_offline') {
+              prev.totalPaid += Number(p.amount) || 0;
+            }
+            prev.count += 1;
+            map.set(uid, prev);
+          });
+          setUserPaymentsMap(map);
+        }
+      } catch (err) {
+        console.warn('[UserGrid] payments load error:', err);
+      }
+    }
+    loadAllPayments();
+    return () => { active = false; };
+  }, [resetTrigger]);
 
   useEffect(() => {
     if (resetTrigger) {
@@ -447,27 +579,6 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
 
     return { total, active24h, paid, admins };
   }, [users]);
-
-  const filteredUsers = useMemo(() => {
-    return users.filter(user => {
-      const query = search.toLowerCase();
-      const matchesSearch = 
-        (user.name || '').toLowerCase().includes(query) ||
-        (user.email || '').toLowerCase().includes(query) ||
-        (user.username && user.username.toLowerCase().includes(query)) ||
-        (user.phone && user.phone.includes(search));
-      
-      const matchesPlan = 
-        planFilter === 'all' || 
-        (user.role || 'free').toLowerCase() === planFilter.toLowerCase();
-
-      return matchesSearch && matchesPlan;
-    }).sort((a, b) => {
-      const aLabel = (a.name || a.email || '').trim().toLowerCase();
-      const bLabel = (b.name || b.email || '').trim().toLowerCase();
-      return aLabel.localeCompare(bLabel);
-    });
-  }, [users, search, planFilter]);
 
   const userUsageMetrics = useMemo(() => {
     const metrics = new Map<string, {
@@ -750,6 +861,178 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
     };
   }, [userCostMetrics]);
 
+  const filteredUsers = useMemo(() => {
+    const query = search.toLowerCase();
+    const filtered = users.filter(user => {
+      const matchesSearch =
+        (user.name || '').toLowerCase().includes(query) ||
+        (user.email || '').toLowerCase().includes(query) ||
+        (user.username && user.username.toLowerCase().includes(query)) ||
+        (user.phone && user.phone.includes(search));
+
+      const matchesPlan =
+        planFilter === 'all' ||
+        (user.role || 'free').toLowerCase() === planFilter.toLowerCase();
+
+      return matchesSearch && matchesPlan;
+    });
+
+    return filtered.sort((a, b) => {
+      let cmp = 0;
+
+      switch (sortColumn) {
+        case 'name': {
+          const aName = (a.name || a.email || '').trim().toLowerCase();
+          const bName = (b.name || b.email || '').trim().toLowerCase();
+          cmp = aName.localeCompare(bName);
+          break;
+        }
+
+        case 'email': {
+          const aEmail = (a.email || '').trim().toLowerCase();
+          const bEmail = (b.email || '').trim().toLowerCase();
+          cmp = aEmail.localeCompare(bEmail);
+          break;
+        }
+
+        case 'joinDate': {
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          cmp = aTime - bTime;
+          break;
+        }
+
+        case 'lastActive': {
+          const aTime = a.lastLogin ? new Date(a.lastLogin).getTime() : 0;
+          const bTime = b.lastLogin ? new Date(b.lastLogin).getTime() : 0;
+          if (aTime === 0 && bTime === 0) {
+            cmp = 0;
+          } else if (aTime === 0) {
+            return 1;
+          } else if (bTime === 0) {
+            return -1;
+          } else {
+            cmp = aTime - bTime;
+          }
+          break;
+        }
+
+        case 'storage': {
+          const aStorage = getStorageQuotaGb(a.role);
+          const bStorage = getStorageQuotaGb(b.role);
+          cmp = aStorage - bStorage;
+          break;
+        }
+
+        case 'images': {
+          const aImages = userUsageMetrics.get(a.id)?.imageBytes || 0;
+          const bImages = userUsageMetrics.get(b.id)?.imageBytes || 0;
+          cmp = aImages - bImages;
+          break;
+        }
+
+        case 'videos': {
+          const aVideos = userUsageMetrics.get(a.id)?.videoBytes || 0;
+          const bVideos = userUsageMetrics.get(b.id)?.videoBytes || 0;
+          cmp = aVideos - bVideos;
+          break;
+        }
+
+        case 'totalGb': {
+          const aUsage = userUsageMetrics.get(a.id);
+          const aTotal = (aUsage?.imageBytes || 0) + (aUsage?.videoBytes || 0);
+          const bUsage = userUsageMetrics.get(b.id);
+          const bTotal = (bUsage?.imageBytes || 0) + (bUsage?.videoBytes || 0);
+          cmp = aTotal - bTotal;
+          break;
+        }
+
+        case 'cost': {
+          const aCost = userCostMetrics.get(a.id)?.totalLifetimeCostInr || 0;
+          const bCost = userCostMetrics.get(b.id)?.totalLifetimeCostInr || 0;
+          cmp = aCost - bCost;
+          break;
+        }
+
+        case 'paid': {
+          const aPaid = userPaymentsMap.get((a.id || '').toLowerCase().trim())?.totalPaid || 0;
+          const bPaid = userPaymentsMap.get((b.id || '').toLowerCase().trim())?.totalPaid || 0;
+          cmp = aPaid - bPaid;
+          break;
+        }
+
+        case 'duration': {
+          const aDur = getDurationWeight(a);
+          const bDur = getDurationWeight(b);
+          if (aDur === 0 && bDur === 0) {
+            cmp = 0;
+          } else if (aDur === 0) {
+            return 1;
+          } else if (bDur === 0) {
+            return -1;
+          } else {
+            cmp = aDur - bDur;
+          }
+          break;
+        }
+
+        case 'planStart': {
+          const aPaid = isPaidPlan(a.role);
+          const bPaid = isPaidPlan(b.role);
+          const aTime = aPaid && a.planStartDate ? new Date(a.planStartDate).getTime() : 0;
+          const bTime = bPaid && b.planStartDate ? new Date(b.planStartDate).getTime() : 0;
+          if (aTime === 0 && bTime === 0) {
+            cmp = 0;
+          } else if (aTime === 0) {
+            return 1;
+          } else if (bTime === 0) {
+            return -1;
+          } else {
+            cmp = aTime - bTime;
+          }
+          break;
+        }
+
+        case 'planEnd': {
+          const aPaid = isPaidPlan(a.role);
+          const bPaid = isPaidPlan(b.role);
+          const aTime = aPaid && a.planEndDate ? new Date(a.planEndDate).getTime() : 0;
+          const bTime = bPaid && b.planEndDate ? new Date(b.planEndDate).getTime() : 0;
+          if (aTime === 0 && bTime === 0) {
+            cmp = 0;
+          } else if (aTime === 0) {
+            return 1;
+          } else if (bTime === 0) {
+            return -1;
+          } else {
+            cmp = aTime - bTime;
+          }
+          break;
+        }
+
+        default:
+          cmp = 0;
+      }
+
+      if (cmp !== 0) {
+        return sortDirection === 'asc' ? cmp : -cmp;
+      }
+
+      const aName = (a.name || a.email || '').trim().toLowerCase();
+      const bName = (b.name || b.email || '').trim().toLowerCase();
+      return aName.localeCompare(bName);
+    });
+  }, [
+    users,
+    search,
+    planFilter,
+    sortColumn,
+    sortDirection,
+    userUsageMetrics,
+    userCostMetrics,
+    userPaymentsMap,
+  ]);
+
   const detailUser = useMemo(() => {
     if (!selectedDetailUserId) return null;
     return users.find(u => u.id === selectedDetailUserId) || null;
@@ -771,6 +1054,41 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
       />
     );
   }
+
+  const renderSortableHeader = (
+    column: SortColumn,
+    label: string,
+    extraThClass: string = ''
+  ) => {
+    const isSorted = sortColumn === column;
+    return (
+      <th
+        scope="col"
+        onClick={() => handleSort(column)}
+        className={`py-2.5 px-2.5 whitespace-nowrap border-b border-slate-800 cursor-pointer select-none group/col transition-colors ${
+          isSorted
+            ? 'text-indigo-400 bg-slate-800/60 font-bold'
+            : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+        } ${extraThClass}`}
+        title={`Sort by ${label} (${isSorted ? (sortDirection === 'asc' ? 'Ascending - click to reverse' : 'Descending - click to reverse') : 'Click to sort'})`}
+      >
+        <div className="flex items-center gap-1.5 justify-between">
+          <span>{label}</span>
+          <span className="shrink-0 transition-all inline-flex items-center">
+            {isSorted ? (
+              sortDirection === 'asc' ? (
+                <ArrowUp className="w-3.5 h-3.5 text-indigo-400" />
+              ) : (
+                <ArrowDown className="w-3.5 h-3.5 text-indigo-400" />
+              )
+            ) : (
+              <ArrowUpDown className="w-3 h-3 text-slate-600 opacity-40 group-hover/col:opacity-100 group-hover/col:text-slate-300 transition-opacity" />
+            )}
+          </span>
+        </div>
+      </th>
+    );
+  };
 
   return (
     <>
@@ -883,7 +1201,9 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
         <div>
           <h4 className="text-lg font-bold text-white">Registered Accounts</h4>
           <p className="text-slate-400 text-xs mt-0.5">
-            Showing {filteredUsers.length} of {users.length} users
+            Showing {filteredUsers.length} of {users.length} users &bull; Sorted by{' '}
+            <span className="text-indigo-400 font-semibold">{sortColumnLabelMap[sortColumn]}</span>{' '}
+            <span className="text-slate-500 font-mono">({sortDirection === 'asc' ? 'Ascending ↑' : 'Descending ↓'})</span>
           </p>
         </div>
         
@@ -925,24 +1245,96 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
         <table className="w-full min-w-[1920px] text-left text-sm text-slate-400 border-separate border-spacing-0">
           <thead className="text-xs text-slate-500 uppercase bg-slate-900">
             <tr>
-              <th scope="col" className="sticky left-0 z-20 bg-slate-900 py-2.5 px-2 whitespace-nowrap w-12 min-w-[48px] max-w-[48px] text-center border-b border-slate-800 border-r border-slate-700/80">Sr. No.</th>
-              <th scope="col" className="sticky left-[48px] z-20 bg-slate-900 py-2.5 px-2.5 whitespace-nowrap min-w-[210px] max-w-[210px] border-b border-slate-800 border-r border-slate-700 shadow-[4px_0_10px_-2px_rgba(0,0,0,0.5)]">Email</th>
-              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[160px] border-b border-slate-800">Name</th>
-              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[120px] border-b border-slate-800">Username</th>
-              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[110px] border-b border-slate-800">Phone</th>
-              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[105px] border-b border-slate-800">Joined Date</th>
-              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[105px] border-b border-slate-800">Last Active</th>
-              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[85px] border-b border-slate-800">Role</th>
-              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[95px] border-b border-slate-800">Storage Plan</th>
-              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[115px] border-b border-slate-800">#events</th>
-              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[85px] border-b border-slate-800">Images GB</th>
-              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[85px] border-b border-slate-800">Videos GB</th>
-              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[85px] border-b border-slate-800">Total GB</th>
-              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[95px] border-b border-slate-800">Cost</th>
-              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[115px] border-b border-slate-800">Duration</th>
-              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[135px] border-b border-slate-800">Plan Start Date</th>
-              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[135px] border-b border-slate-800">Plan End Date</th>
-              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[85px] border-b border-slate-800">Manage User</th>
+              {/* Sr. No. (Fixed) */}
+              <th scope="col" className="sticky left-0 z-20 bg-slate-900 py-2.5 px-2 whitespace-nowrap w-12 min-w-[48px] max-w-[48px] text-center border-b border-slate-800 border-r border-slate-700/80">
+                Sr. No.
+              </th>
+
+              {/* 1. Email (Sticky + Sortable) */}
+              <th
+                scope="col"
+                onClick={() => handleSort('email')}
+                className={`sticky left-[48px] z-20 bg-slate-900 py-2.5 px-2.5 whitespace-nowrap min-w-[210px] max-w-[210px] border-b border-slate-800 border-r border-slate-700 shadow-[4px_0_10px_-2px_rgba(0,0,0,0.5)] cursor-pointer select-none group/col transition-colors ${
+                  sortColumn === 'email' ? 'text-indigo-400 font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+                title={`Sort by Email (${sortColumn === 'email' ? (sortDirection === 'asc' ? 'Ascending - click to reverse' : 'Descending - click to reverse') : 'Click to sort'})`}
+              >
+                <div className="flex items-center gap-1.5 justify-between">
+                  <span>Email</span>
+                  <span className="shrink-0 transition-all inline-flex items-center">
+                    {sortColumn === 'email' ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3.5 h-3.5 text-indigo-400" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5 text-indigo-400" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-600 opacity-40 group-hover/col:opacity-100 group-hover/col:text-slate-300 transition-opacity" />
+                    )}
+                  </span>
+                </div>
+              </th>
+
+              {/* 2. Name (Sortable) */}
+              {renderSortableHeader('name', 'Name', 'min-w-[160px]')}
+
+              {/* Username (Non-sortable) */}
+              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[120px] border-b border-slate-800">
+                Username
+              </th>
+
+              {/* Phone (Non-sortable) */}
+              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[110px] border-b border-slate-800">
+                Phone
+              </th>
+
+              {/* 3. Joined Date (Sortable) */}
+              {renderSortableHeader('joinDate', 'Joined Date', 'min-w-[105px]')}
+
+              {/* 4. Last Active (Sortable) */}
+              {renderSortableHeader('lastActive', 'Last Active', 'min-w-[105px]')}
+
+              {/* Role (Non-sortable) */}
+              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[85px] border-b border-slate-800">
+                Role
+              </th>
+
+              {/* 5. Storage Plan (Sortable) */}
+              {renderSortableHeader('storage', 'Storage Plan', 'min-w-[95px]')}
+
+              {/* #events (Non-sortable) */}
+              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[115px] border-b border-slate-800">
+                #events
+              </th>
+
+              {/* 6. Images GB (Sortable) */}
+              {renderSortableHeader('images', 'Images GB', 'min-w-[85px]')}
+
+              {/* 7. Videos GB (Sortable) */}
+              {renderSortableHeader('videos', 'Videos GB', 'min-w-[85px]')}
+
+              {/* 8. Total GB (Sortable) */}
+              {renderSortableHeader('totalGb', 'Total GB', 'min-w-[85px]')}
+
+              {/* 9. Cost (Sortable) */}
+              {renderSortableHeader('cost', 'Cost', 'min-w-[95px]')}
+
+              {/* 10. Paid (Sortable) */}
+              {renderSortableHeader('paid', 'Paid', 'min-w-[100px]')}
+
+              {/* 11. Duration (Sortable) */}
+              {renderSortableHeader('duration', 'Duration', 'min-w-[115px]')}
+
+              {/* 12. Plan Start Date (Sortable) */}
+              {renderSortableHeader('planStart', 'Plan Start Date', 'min-w-[135px]')}
+
+              {/* 13. Plan End Date (Sortable) */}
+              {renderSortableHeader('planEnd', 'Plan End Date', 'min-w-[135px]')}
+
+              {/* Manage User (Non-sortable) */}
+              <th scope="col" className="py-2.5 px-2.5 whitespace-nowrap min-w-[85px] border-b border-slate-800">
+                Manage User
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -1126,6 +1518,21 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
                       </button>
                     </td>
 
+                    {/* Paid */}
+                    <td className="py-2 px-2.5 min-w-[100px] whitespace-nowrap border-b border-slate-700">
+                      <button
+                        type="button"
+                        onClick={() => openUserDetail(user.id, 'cost')}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-400 text-emerald-300 transition-all cursor-pointer group shadow-sm"
+                        title={`Click to view Payment Ledger & Economics for ${user.email || user.name || user.id}`}
+                      >
+                        <CreditCard className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+                        <span className="font-bold text-white group-hover:text-emerald-200 transition-colors">
+                          ₹{(userPaymentsMap.get((user.id || '').toLowerCase().trim())?.totalPaid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </button>
+                    </td>
+
                     {/* Duration */}
                     <td className="py-2 px-2.5 min-w-[115px] whitespace-nowrap border-b border-slate-700">
                       {paidPlan ? (
@@ -1221,7 +1628,7 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
             
             {filteredUsers.length === 0 && (
               <tr>
-                <td colSpan={18} className="py-12 text-center text-slate-500 bg-slate-900/10 border-b border-slate-700">
+                <td colSpan={19} className="py-12 text-center text-slate-500 bg-slate-900/10 border-b border-slate-700">
                   <p className="text-base font-semibold">No accounts found</p>
                   <p className="text-xs text-slate-600 mt-1">Try adjusting your filters or search query.</p>
                 </td>

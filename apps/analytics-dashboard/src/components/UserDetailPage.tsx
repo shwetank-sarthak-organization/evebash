@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import type { Event, Photo, UserProfile, DeletedEventArchive } from '../lib/analytics';
 import { isProtectedSuperAdmin, fetchDeletedEvents } from '../lib/analytics';
 import { supabase } from '../lib/supabase';
+import { runAdminAction } from '../lib/adminApi';
 import { GalleryViewer } from './GalleryViewer';
 import {
   ArrowLeft,
@@ -19,7 +20,6 @@ import {
   Video as VideoIcon,
   Sparkles,
   Zap,
-  Server,
   Layers,
   Eye,
   Star,
@@ -30,6 +30,11 @@ import {
   Search,
   Filter,
   RefreshCw,
+  PlusCircle,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  Banknote,
 } from 'lucide-react';
 
 export type UserDetailTabType = 'info' | 'events' | 'storage' | 'plan' | 'cost';
@@ -122,6 +127,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
   useEffect(() => {
     if (activeTab === 'cost') {
       setCostRefreshKey(k => k + 1);
+      setPaymentRefreshKey(k => k + 1);
     }
   }, [activeTab]);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -140,14 +146,14 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
   const [sampleUpdatingEventId, setSampleUpdatingEventId] = useState<string | null>(null);
   const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
 
-  // Backblaze B2 Cost Matrix & Metering state
-  const [b2TimeFilter, setB2TimeFilter] = useState<'1d' | '1w' | '1m' | 'custom' | 'all'>('all');
-  const [b2CustomStartDate, setB2CustomStartDate] = useState<string>(() => {
+  // Global Economics Timeframe Filter & Metering state
+  const [economicsTimeFilter, setEconomicsTimeFilter] = useState<'1d' | '1w' | '1m' | 'custom' | 'all'>('all');
+  const [economicsCustomStartDate, setEconomicsCustomStartDate] = useState<string>(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
     return d.toISOString().split('T')[0];
   });
-  const [b2CustomEndDate, setB2CustomEndDate] = useState<string>(() => {
+  const [economicsCustomEndDate, setEconomicsCustomEndDate] = useState<string>(() => {
     return new Date().toISOString().split('T')[0];
   });
 
@@ -156,6 +162,95 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
   const [savingDates, setSavingDates] = useState(false);
   const [editStartDate, setEditStartDate] = useState(user.planStartDate || '');
   const [editEndDate, setEditEndDate] = useState(user.planEndDate || '');
+
+  // Payments ledger state
+  const [payments, setPayments] = useState<any[]>([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+  const [paymentRefreshKey, setPaymentRefreshKey] = useState(0);
+  const [showRecordPaymentModal, setShowRecordPaymentModal] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentPlanId, setPaymentPlanId] = useState('starter');
+  const [paymentBillingDuration, setPaymentBillingDuration] = useState('yearly');
+  const [paymentGateway, setPaymentGateway] = useState('manual_upi');
+  const [paymentNotes, setPaymentNotes] = useState('');
+  const [paymentUpdateRole, setPaymentUpdateRole] = useState(true);
+  const [recordingPayment, setRecordingPayment] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadPayments() {
+      setLoadingPayments(true);
+      try {
+        const { data, error } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (!error && data && mounted) {
+          setPayments(data);
+        }
+      } catch (err) {
+        console.warn('[Payments] fetch error:', err);
+      } finally {
+        if (mounted) setLoadingPayments(false);
+      }
+    }
+    loadPayments();
+    return () => { mounted = false; };
+  }, [user.id, paymentRefreshKey]);
+
+  const handleRecordPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseFloat(paymentAmount);
+    if (isNaN(amt) || amt <= 0) {
+      alert('Please enter a valid payment amount in INR');
+      return;
+    }
+
+    setRecordingPayment(true);
+    try {
+      const res = await runAdminAction('recordPayment', {
+        uid: user.id,
+        amount: amt,
+        planId: paymentPlanId,
+        billingDuration: paymentBillingDuration,
+        paymentGateway,
+        notes: paymentNotes,
+        updateRole: paymentUpdateRole,
+      });
+
+      if (res.success) {
+        setShowRecordPaymentModal(false);
+        setPaymentAmount('');
+        setPaymentNotes('');
+        setPaymentRefreshKey(k => k + 1);
+        if (paymentUpdateRole && onPlanChange) {
+          await onPlanChange(user.id, paymentPlanId);
+        }
+      } else {
+        alert(res.error || 'Failed to record payment');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error recording payment');
+    } finally {
+      setRecordingPayment(false);
+    }
+  };
+
+  const handleDeletePayment = async (paymentId: string) => {
+    if (!confirm('Are you sure you want to delete this payment record?')) return;
+    try {
+      const res = await runAdminAction('deletePayment', { paymentId });
+      if (res.success) {
+        setPaymentRefreshKey(k => k + 1);
+      } else {
+        alert(res.error || 'Failed to delete payment');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error deleting payment');
+    }
+  };
 
   const isProtected = isProtectedSuperAdmin(user);
   const cleanRole = (user.role || 'free').toLowerCase();
@@ -567,6 +662,98 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     };
   }, [user.id, user.email, user.phone, userEventMetrics.allUserEvents, costRefreshKey]);
 
+  // ── Unified Economics Timeframe Window & Helper Functions ─────────────────
+  const formatDurationHours = (hours: number | null | undefined): string => {
+    if (!hours || hours <= 0 || isNaN(hours)) return '0h';
+    if (hours < 24) return `${hours.toFixed(1)}h`;
+    const days = hours / 24;
+    return `${days.toFixed(1)}d (${hours.toFixed(0)}h)`;
+  };
+
+  const economicsWindow = useMemo(() => {
+    const now = Date.now();
+    const nowDate = new Date();
+    let windowStartMs = now - 30 * 24 * 3600 * 1000;
+    let windowEndMs = now;
+    let isAllTime = false;
+
+    if (economicsTimeFilter === '1d') {
+      // Running calendar day starting at 12:00 AM to 11:59:59.999 PM
+      const startOfDay = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate(), 0, 0, 0, 0);
+      const endOfDay = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate(), 23, 59, 59, 999);
+      windowStartMs = startOfDay.getTime();
+      windowEndMs = endOfDay.getTime();
+    } else if (economicsTimeFilter === '1w') {
+      // Running calendar week: Sunday 12:00 AM to Saturday 11:59:59.999 PM
+      const dayOfWeek = nowDate.getDay(); // 0 is Sunday, 6 is Saturday
+      const sunday = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() - dayOfWeek, 0, 0, 0, 0);
+      const saturday = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() + (6 - dayOfWeek), 23, 59, 59, 999);
+      windowStartMs = sunday.getTime();
+      windowEndMs = saturday.getTime();
+    } else if (economicsTimeFilter === '1m') {
+      // Running calendar month: 1st of month 12:00 AM to last day of month 11:59:59.999 PM (28, 29, 30, or 31)
+      const startOfMonth = new Date(nowDate.getFullYear(), nowDate.getMonth(), 1, 0, 0, 0, 0);
+      const endOfMonth = new Date(nowDate.getFullYear(), nowDate.getMonth() + 1, 0, 23, 59, 59, 999);
+      windowStartMs = startOfMonth.getTime();
+      windowEndMs = endOfMonth.getTime();
+    } else if (economicsTimeFilter === 'custom') {
+      const s = new Date(economicsCustomStartDate + 'T00:00:00').getTime();
+      const e = new Date(economicsCustomEndDate + 'T23:59:59.999').getTime();
+      windowStartMs = !isNaN(s) ? s : (now - 30 * 86400000);
+      windowEndMs = !isNaN(e) ? e : now;
+      if (windowStartMs > windowEndMs) {
+        const t = windowStartMs;
+        windowStartMs = windowEndMs;
+        windowEndMs = t;
+      }
+    } else if (economicsTimeFilter === 'all') {
+      isAllTime = true;
+      const uCreated = user.createdAt ? new Date(user.createdAt).getTime() : 0;
+      windowStartMs = (uCreated > 0 && uCreated <= now) ? uCreated : (now - 365 * 86400000);
+      windowEndMs = now;
+    }
+
+    const windowDurationHours = Math.max(0.1, (windowEndMs - windowStartMs) / 3600000);
+    const windowDurationDays = windowDurationHours / 24;
+
+    const startDateObj = new Date(windowStartMs);
+    const endDateObj = new Date(windowEndMs);
+    const formattedRange = startDateObj.toDateString() === endDateObj.toDateString()
+      ? startDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : `${startDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} – ${endDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    const durationLabel = formatDurationHours(windowDurationHours);
+
+    return {
+      windowStartMs,
+      windowEndMs,
+      isAllTime,
+      windowDurationHours,
+      windowDurationDays,
+      formattedRange,
+      durationLabel,
+    };
+  }, [economicsTimeFilter, economicsCustomStartDate, economicsCustomEndDate, user.createdAt]);
+
+  // Modal logs filtered by selected timeframe window
+  const windowModalLogs = useMemo(() => {
+    if (economicsWindow.isAllTime) return modalLogs;
+    return modalLogs.filter(log => {
+      if (!log.created_at) return false;
+      const t = new Date(log.created_at).getTime();
+      return !isNaN(t) && t >= economicsWindow.windowStartMs && t <= economicsWindow.windowEndMs;
+    });
+  }, [modalLogs, economicsWindow]);
+
+  // Payments filtered by selected timeframe window
+  const windowPayments = useMemo(() => {
+    if (economicsWindow.isAllTime) return payments;
+    return payments.filter(p => {
+      if (!p.created_at) return false;
+      const t = new Date(p.created_at).getTime();
+      return !isNaN(t) && t >= economicsWindow.windowStartMs && t <= economicsWindow.windowEndMs;
+    });
+  }, [payments, economicsWindow]);
+
   // ── High-Precision Actual Compute Metrics from modal_cost_logs ────────────
   const actualComputeMetrics = useMemo(() => {
     let totalPhotoActualInr = 0;
@@ -622,7 +809,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
       return stats;
     };
 
-    modalLogs.forEach(log => {
+    windowModalLogs.forEach(log => {
       const dur = Number(log.execution_time_seconds) || 0;
       const cpu = Number(log.cpu_cores) || 1.0;
       const mem = Number(log.memory_gb) || 1.0;
@@ -717,14 +904,33 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     const avgObservedVideoGpuCost = totalVideoGpuRuns > 0 ? (totalVideoGpuActualInr / totalVideoGpuRuns) : 1.75;
     const avgObservedVideoCost = totalVideoRuns > 0 ? (totalVideoActualInr / totalVideoRuns) : 0.35;
 
-    const deletedArchivePhotoCount = deletedEvents.reduce((s, d) => s + (Number(d.photosCount) || 0), 0);
-    const deletedArchiveVideoCount = deletedEvents.reduce((s, d) => s + (Number(d.videosCount) || 0), 0);
+    let lifetimePhotosCount = totalPhotoRuns;
+    let lifetimeVideosCount = totalVideoRuns;
+    let unloggedPhotos = 0;
+    let unloggedVideos = 0;
 
-    const lifetimePhotosCount = Math.max(activePhotos + deletedArchivePhotoCount, totalPhotoRuns);
-    const lifetimeVideosCount = Math.max(activeVideos + deletedArchiveVideoCount, totalVideoRuns);
-
-    const unloggedPhotos = Math.max(0, lifetimePhotosCount - totalPhotoRuns);
-    const unloggedVideos = Math.max(0, lifetimeVideosCount - totalVideoRuns);
+    if (economicsWindow.isAllTime) {
+      const deletedArchivePhotoCount = deletedEvents.reduce((s, d) => s + (Number(d.photosCount) || 0), 0);
+      const deletedArchiveVideoCount = deletedEvents.reduce((s, d) => s + (Number(d.videosCount) || 0), 0);
+      lifetimePhotosCount = Math.max(activePhotos + deletedArchivePhotoCount, totalPhotoRuns);
+      lifetimeVideosCount = Math.max(activeVideos + deletedArchiveVideoCount, totalVideoRuns);
+      unloggedPhotos = Math.max(0, lifetimePhotosCount - totalPhotoRuns);
+      unloggedVideos = Math.max(0, lifetimeVideosCount - totalVideoRuns);
+    } else {
+      const uploadsInWindow = photos.filter(p => {
+        const rawTime = p.uploadedAt ? new Date(p.uploadedAt).getTime() : 0;
+        return rawTime >= economicsWindow.windowStartMs && rawTime <= economicsWindow.windowEndMs;
+      });
+      const windowImgCount = uploadsInWindow.filter(p => {
+        const isVid = p.mediaType === 'video' || p.resourceType === 'video' || (p.duration != null && Number(p.duration) > 0);
+        return !isVid;
+      }).length;
+      const windowVidCount = uploadsInWindow.length - windowImgCount;
+      lifetimePhotosCount = Math.max(windowImgCount, totalPhotoRuns);
+      lifetimeVideosCount = Math.max(windowVidCount, totalVideoRuns);
+      unloggedPhotos = Math.max(0, lifetimePhotosCount - totalPhotoRuns);
+      unloggedVideos = Math.max(0, lifetimeVideosCount - totalVideoRuns);
+    }
 
     // Inspect user's actual videos to see how many qualify as GPU candidates (>10m or >350MB)
     let activeGpuVideosCandidateCount = 0;
@@ -795,7 +1001,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
       avgObservedVideoCpuCost,
       avgObservedVideoGpuCost,
     };
-  }, [modalLogs, userEventMetrics.imageCount, userEventMetrics.videoCount, userEventMetrics.userPhotos, deletedEvents]);
+  }, [windowModalLogs, userEventMetrics.imageCount, userEventMetrics.videoCount, userEventMetrics.userPhotos, deletedEvents, economicsWindow, photos]);
 
   // Formatted helpers
   const formatBytes = (bytes: number | null | undefined): string => {
@@ -820,351 +1026,10 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     return diffDays;
   }, [user.planEndDate]);
 
-  // Cost calculations strictly adhering to COST_ANALYSIS.md ($1 = ₹100)
-  // Actual per-second hardware billing for Compute; State-based for B2 Storage
-  const costBreakdown = useMemo(() => {
-    // 1. Backblaze B2 Storage (State-Based / Monthly Recurring):
-    // Only ACTIVE media currently occupying B2 disk space is billed recurringly monthly.
-    // Rate: ₹600 / TB / month ($0.006 / GB / month = ₹0.60 / GB / month)
-    const b2MonthlyInr = usedGb * 0.60;
-    const b2YearlyInr = b2MonthlyInr * 12;
-
-    // 2. Modal.com Serverless Compute Workers (Actual Per-Second Hardware Consumption):
-    const modalPhotoInr = actualComputeMetrics.effectivePhotoInr;
-    const modalVideoCpuInr = actualComputeMetrics.effectiveVideoCpuInr;
-    const modalVideoGpuInr = actualComputeMetrics.effectiveVideoGpuInr;
-    const modalVideoInr = actualComputeMetrics.effectiveVideoInr;
-    const modalSelfieInr = actualComputeMetrics.effectiveSelfieInr;
-    const modalTotalInr = actualComputeMetrics.totalModalInr;
-
-    // 3. Upstash QStash (Historical Queue Ingestion):
-    // Rate: ₹100 / 100,000 messages (~₹0.001 / photo or video message dispatched)
-    const qstashInr = actualComputeMetrics.totalLifetimeMedia * 0.001;
-
-    // 4. Supabase DB: Metadata & Auth share (~₹0.003 / active media row)
-    const totalActiveMedia = userEventMetrics.imageCount + userEventMetrics.videoCount;
-    const supabaseMonthlyInr = totalActiveMedia > 0 ? Math.max(0.5, totalActiveMedia * 0.003) : 0;
-    const supabaseYearlyInr = supabaseMonthlyInr * 12;
-
-    // Calculate duration user has been registered (in fractional months)
-    let monthsActive = 1;
-    if (user.createdAt) {
-      const createdTime = new Date(user.createdAt).getTime();
-      if (!isNaN(createdTime) && createdTime > 0) {
-        const now = Date.now();
-        const diffDays = Math.max(0, (now - createdTime) / (1000 * 60 * 60 * 24));
-        monthsActive = Math.max(0.01, diffDays / 30.4375);
-      }
-    }
-
-    // High-Precision Continuous Byte-Hour Integration for Lifetime B2 Storage Endured:
-    const now = Date.now();
-    const allUserEventIds = new Set(userEventMetrics.allUserEvents.map(e => e.id));
-    const userPhotos = photos.filter(p => p.eventId && allUserEventIds.has(p.eventId));
-    let lifetimeGbHours = 0;
-
-    userPhotos.forEach(p => {
-      const pBytes = Number(p.size) || 0;
-      const pGb = pBytes / (1024 * 1024 * 1024);
-      const rawTime = p.uploadedAt ? new Date(p.uploadedAt).getTime() : (user.createdAt ? new Date(user.createdAt).getTime() : now);
-      const pStart = !isNaN(rawTime) && rawTime > 0 ? rawTime : (now - 30 * 86400000);
-      const hours = Math.max(1, (now - pStart) / 3600000);
-      lifetimeGbHours += pGb * hours;
-    });
-
-    deletedEvents.forEach(del => {
-      const delBytes = Number(del.totalBytes) || 0;
-      const delGb = delBytes / (1024 * 1024 * 1024);
-      const delAtMs = new Date(del.deletedAt).getTime();
-      const cLogs = modalLogs.filter(l => l.event_id === del.eventId);
-      const earliestLogMs = cLogs.length > 0 
-        ? Math.min(...cLogs.map(l => new Date(l.created_at).getTime()).filter(t => !isNaN(t) && t > 0))
-        : (delAtMs - 14 * 86400000);
-      const delStartMs = !isNaN(earliestLogMs) && earliestLogMs > 0 ? earliestLogMs : (delAtMs - 14 * 86400000);
-      const hours = Math.max(1, (delAtMs - delStartMs) / 3600000);
-      lifetimeGbHours += delGb * hours;
-    });
-
-    // Also include historical orphaned deleted events from modal_cost_logs
-    const allDeletedEventIds = new Set(deletedEvents.map(d => d.eventId));
-    Array.from(actualComputeMetrics.eventComputeMap.keys()).forEach(orphanedId => {
-      if (!orphanedId || allUserEventIds.has(orphanedId) || allDeletedEventIds.has(orphanedId)) return;
-      const oStats = actualComputeMetrics.eventComputeMap.get(orphanedId);
-      if (!oStats || (oStats.photoRuns === 0 && oStats.videoCpuRuns === 0 && oStats.videoGpuRuns === 0)) return;
-
-      const orphanedLogs = modalLogs.filter(l => l.event_id === orphanedId);
-      const knownBytes = orphanedLogs.reduce((s, l) => s + (Number(l.media_size) || 0), 0);
-      const totalPhotos = oStats.photoRuns;
-      const totalVideos = oStats.videoCpuRuns + oStats.videoGpuRuns;
-      const estimatedBytes = (totalPhotos * 4.5 * 1024 * 1024) + (totalVideos * 45 * 1024 * 1024);
-      const delBytes = knownBytes > 0 ? knownBytes : estimatedBytes;
-      const delGb = delBytes / (1024 * 1024 * 1024);
-
-      // Assume standard 30-day (720h) gallery existence before deletion
-      lifetimeGbHours += delGb * 720;
-    });
-
-    const lifetimeStorageCostInr = (lifetimeGbHours / 720) * 0.60;
-    const lifetimeTxCostInr = ((actualComputeMetrics.totalLifetimeMedia + deletedEvents.reduce((s, d) => s + (Number(d.photosCount) || 0) + (Number(d.videosCount) || 0), 0)) / 1000) * 0.40;
-    const b2CostTillNowInr = Math.max(b2MonthlyInr * monthsActive, lifetimeStorageCostInr + lifetimeTxCostInr);
-    const supabaseCostTillNowInr = supabaseMonthlyInr * monthsActive;
-
-    // Total Monthly Cost to EveBash (Active recurring only: B2 Storage + Supabase)
-    const totalMonthlyCostInr = b2MonthlyInr + supabaseMonthlyInr;
-
-    // Cumulative Cost to EveBash ENDURED TILL NOW (Historical compute + actual storage endured to date)
-    const totalLifetimeCostInr = modalTotalInr + qstashInr + b2CostTillNowInr + supabaseCostTillNowInr;
-
-    // User Subscription Revenue
-    const monthlyRevenueInr = currentPlan.monthlyPriceInr;
-    const yearlyRevenueInr = monthlyRevenueInr * 12;
-
-    const monthlyGrossMarginInr = monthlyRevenueInr - totalMonthlyCostInr;
-    const monthlyMarginPercentage = monthlyRevenueInr > 0
-      ? Math.round((monthlyGrossMarginInr / monthlyRevenueInr) * 100)
-      : null;
-
-    return {
-      b2MonthlyInr,
-      b2YearlyInr,
-      b2CostTillNowInr,
-      b2MonthlyCostInr: b2MonthlyInr,
-      b2YearlyCostInr: b2YearlyInr,
-      modalPhotoInr,
-      modalVideoCpuInr,
-      modalVideoGpuInr,
-      modalVideoInr,
-      modalSelfieInr,
-      modalTotalInr,
-      modalInr: modalTotalInr, // backwards-compatible alias
-      qstashInr,
-      supabaseMonthlyInr,
-      supabaseYearlyInr,
-      supabaseCostTillNowInr,
-      totalMonthlyCostInr,
-      totalLifetimeCostInr,
-      totalCostTillNowInr: totalLifetimeCostInr,
-      totalYearlyCostInr: totalLifetimeCostInr, // backwards-compatible alias
-      monthsActive,
-      monthlyRevenueInr,
-      yearlyRevenueInr,
-      monthlyGrossMarginInr,
-      monthlyMarginPercentage,
-    };
-  }, [usedGb, actualComputeMetrics, userEventMetrics, photos, deletedEvents, modalLogs, currentPlan, user.createdAt]);
-
-  // Unified cost table gallery row representation
-  interface CostGalleryRowActive {
-    type: 'active';
-    id: string;
-    title: string;
-    searchableText: string;
-    event: Event;
-    children: Array<{
-      event: Event;
-      stats: {
-        imageCount: number;
-        imageBytes: number;
-        videoCount: number;
-        videoBytes: number;
-        totalCount: number;
-        totalBytes: number;
-      };
-    }>;
-    combined: {
-      imageCount: number;
-      imageBytes: number;
-      videoCount: number;
-      videoBytes: number;
-      totalCount: number;
-      totalBytes: number;
-    };
-  }
-
-  interface CostGalleryRowDeleted {
-    type: 'deleted';
-    id: string;
-    title: string;
-    searchableText: string;
-    deleted: DeletedEventArchive;
-  }
-
-  interface CostGalleryRowOrphanedLog {
-    type: 'orphaned_log';
-    id: string;
-    title: string;
-    searchableText: string;
-    orphanedId: string;
-    stats: {
-      photoInr: number;
-      photoSeconds: number;
-      photoRuns: number;
-      videoCpuInr: number;
-      videoCpuSeconds: number;
-      videoCpuRuns: number;
-      videoGpuInr: number;
-      videoGpuSeconds: number;
-      videoGpuRuns: number;
-      totalInr: number;
-      totalSeconds: number;
-    };
-  }
-
-  type CostGalleryRow = CostGalleryRowActive | CostGalleryRowDeleted | CostGalleryRowOrphanedLog;
-
-  const allCostRows = useMemo<CostGalleryRow[]>(() => {
-    const rows: CostGalleryRow[] = [];
-
-    // 1. Active Main Events (with children sub-galleries)
-    userEventMetrics.mainEventBreakdown.forEach(({ event, children, combined }) => {
-      const title = event.title || 'Untitled Event';
-      const searchTerms = [
-        title,
-        event.id,
-        event.type || '',
-        ...children.map(c => `${c.event.title || ''} ${c.event.id}`),
-      ].join(' ').toLowerCase();
-
-      rows.push({
-        type: 'active',
-        id: event.id,
-        title,
-        searchableText: searchTerms,
-        event,
-        children,
-        combined,
-      });
-    });
-
-    // 2. Orphan Sub-events (if any exist without parent)
-    userEventMetrics.orphanSubEvents.forEach(({ event, stats }) => {
-      const title = event.title || 'Untitled Sub-Gallery';
-      rows.push({
-        type: 'active',
-        id: event.id,
-        title,
-        searchableText: `${title} ${event.id}`.toLowerCase(),
-        event,
-        children: [],
-        combined: stats,
-      });
-    });
-
-    // 3. Deleted / Archived Events from Audit Ledger
-    deletedEvents.forEach(del => {
-      const title = del.eventTitle || 'Untitled Gallery';
-      rows.push({
-        type: 'deleted',
-        id: `deleted-${del.id}`,
-        title,
-        searchableText: `${title} ${del.eventId} ${del.id}`.toLowerCase(),
-        deleted: del,
-      });
-    });
-
-    // 4. Orphaned historical deleted event logs in modal_cost_logs
-    const allUserEventIds = new Set(userEventMetrics.allUserEvents.map(e => e.id));
-    const allDeletedEventIds = new Set(deletedEvents.map(d => d.eventId));
-
-    Array.from(actualComputeMetrics.eventComputeMap.keys()).forEach(orphanedId => {
-      if (!orphanedId || allUserEventIds.has(orphanedId) || allDeletedEventIds.has(orphanedId)) return;
-      const oStats = actualComputeMetrics.eventComputeMap.get(orphanedId);
-      if (!oStats || (oStats.photoRuns === 0 && oStats.videoCpuRuns === 0 && oStats.videoGpuRuns === 0)) return;
-
-      rows.push({
-        type: 'orphaned_log',
-        id: `orphaned-${orphanedId}`,
-        title: 'Historical Gallery',
-        searchableText: `historical gallery ${orphanedId}`.toLowerCase(),
-        orphanedId,
-        stats: oStats,
-      });
-    });
-
-    return rows;
-  }, [userEventMetrics, deletedEvents, actualComputeMetrics]);
-
-  const filteredCostRows = useMemo(() => {
-    const query = costTableSearch.toLowerCase().trim();
-    return allCostRows.filter(row => {
-      if (costTableFilter === 'active' && row.type !== 'active') return false;
-      if (costTableFilter === 'deleted' && row.type !== 'deleted' && row.type !== 'orphaned_log') return false;
-      if (query && !row.searchableText.includes(query)) return false;
-      return true;
-    });
-  }, [allCostRows, costTableFilter, costTableSearch]);
-
-  const totalCostPages = Math.max(1, Math.ceil(filteredCostRows.length / costTablePerPage));
-
-  // Reset to page 1 whenever search, filter, or perPage changes
-  useEffect(() => {
-    setCostTablePage(1);
-  }, [costTableSearch, costTableFilter, costTablePerPage]);
-
-  const paginatedCostRows = useMemo(() => {
-    const start = (costTablePage - 1) * costTablePerPage;
-    return filteredCostRows.slice(start, start + costTablePerPage);
-  }, [filteredCostRows, costTablePage, costTablePerPage]);
-
-  const costPageNumbers = useMemo(() => {
-    const range: number[] = [];
-    const maxVisible = 5;
-    let start = Math.max(1, costTablePage - 2);
-    let end = Math.min(totalCostPages, start + maxVisible - 1);
-    if (end - start + 1 < maxVisible) {
-      start = Math.max(1, end - maxVisible + 1);
-    }
-    for (let i = start; i <= end; i++) {
-      range.push(i);
-    }
-    return range;
-  }, [costTablePage, totalCostPages]);
-
-  // ── Backblaze B2 Metering Helper Functions ────────────────────────────────
-  const formatDurationHours = (hours: number | null | undefined): string => {
-    if (!hours || hours <= 0 || isNaN(hours)) return '0h';
-    if (hours < 24) return `${hours.toFixed(1)}h`;
-    const days = hours / 24;
-    return `${days.toFixed(1)}d (${hours.toFixed(0)}h)`;
-  };
-
+  // ── Backblaze B2 Metering Matrix (Window-Aware) ───────────────────────────
   const b2MeteringData = useMemo(() => {
     const now = Date.now();
-    let windowStartMs = now - 30 * 24 * 3600 * 1000;
-    let windowEndMs = now;
-
-    if (b2TimeFilter === '1d') {
-      windowStartMs = now - 24 * 3600 * 1000;
-      windowEndMs = now;
-    } else if (b2TimeFilter === '1w') {
-      windowStartMs = now - 7 * 24 * 3600 * 1000;
-      windowEndMs = now;
-    } else if (b2TimeFilter === '1m') {
-      windowStartMs = now - 30 * 24 * 3600 * 1000;
-      windowEndMs = now;
-    } else if (b2TimeFilter === 'custom') {
-      const s = new Date(b2CustomStartDate + 'T00:00:00Z').getTime();
-      const e = new Date(b2CustomEndDate + 'T23:59:59Z').getTime();
-      windowStartMs = !isNaN(s) ? s : (now - 30 * 86400000);
-      windowEndMs = !isNaN(e) ? e : now;
-      if (windowStartMs > windowEndMs) {
-        const t = windowStartMs;
-        windowStartMs = windowEndMs;
-        windowEndMs = t;
-      }
-    } else if (b2TimeFilter === 'all') {
-      const uCreated = user.createdAt ? new Date(user.createdAt).getTime() : 0;
-      windowStartMs = (uCreated > 0 && uCreated <= now) ? uCreated : (now - 365 * 86400000);
-      windowEndMs = now;
-    }
-
-    const windowDurationHours = Math.max(0.1, (windowEndMs - windowStartMs) / 3600000);
-    const windowDurationDays = windowDurationHours / 24;
-
-    const startDateObj = new Date(windowStartMs);
-    const endDateObj = new Date(windowEndMs);
-    const formattedRange = `${startDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} – ${endDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-    const durationLabel = formatDurationHours(windowDurationHours);
+    const { windowStartMs, windowEndMs, windowDurationHours, windowDurationDays, formattedRange, durationLabel } = economicsWindow;
 
     const rows: BackblazeRow[] = [];
     const meteredPhotoIds = new Set<string>();
@@ -1642,9 +1507,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
       netBilledB2CostInr,
     };
   }, [
-    b2TimeFilter,
-    b2CustomStartDate,
-    b2CustomEndDate,
+    economicsWindow,
     userEventMetrics,
     actualComputeMetrics,
     photos,
@@ -1652,6 +1515,348 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     modalLogs,
     user.createdAt
   ]);
+
+  // Cost calculations strictly adhering to COST_ANALYSIS.md ($1 = ₹100)
+  // Actual per-second hardware billing for Compute; State-based for B2 Storage
+  const costBreakdown = useMemo(() => {
+    // 1. Backblaze B2 Storage (State-Based / Monthly Recurring):
+    // Only ACTIVE media currently occupying B2 disk space is billed recurringly monthly.
+    // Rate: ₹600 / TB / month ($0.006 / GB / month = ₹0.60 / GB / month)
+    const b2MonthlyInr = usedGb * 0.60;
+    const b2YearlyInr = b2MonthlyInr * 12;
+
+    // 2. Modal.com Serverless Compute Workers (Actual Per-Second Hardware Consumption in window):
+    const modalPhotoInr = actualComputeMetrics.effectivePhotoInr;
+    const modalVideoCpuInr = actualComputeMetrics.effectiveVideoCpuInr;
+    const modalVideoGpuInr = actualComputeMetrics.effectiveVideoGpuInr;
+    const modalVideoInr = actualComputeMetrics.effectiveVideoInr;
+    const modalSelfieInr = actualComputeMetrics.effectiveSelfieInr;
+    const modalTotalInr = actualComputeMetrics.totalModalInr;
+
+    // Platform-level fixed infrastructure (Supabase DB & Upstash Queue) excluded from per-user unit economics
+
+    // Calculate duration user has been registered (in fractional months)
+    let monthsActive = 1;
+    if (user.createdAt) {
+      const createdTime = new Date(user.createdAt).getTime();
+      if (!isNaN(createdTime) && createdTime > 0) {
+        const now = Date.now();
+        const diffDays = Math.max(0, (now - createdTime) / (1000 * 60 * 60 * 24));
+        monthsActive = Math.max(0.01, diffDays / 30.4375);
+      }
+    }
+
+    // High-Precision Continuous Byte-Hour Integration for Lifetime B2 Storage Endured:
+    const now = Date.now();
+    const allUserEventIds = new Set(userEventMetrics.allUserEvents.map(e => e.id));
+    const userPhotos = photos.filter(p => p.eventId && allUserEventIds.has(p.eventId));
+    let lifetimeGbHours = 0;
+
+    userPhotos.forEach(p => {
+      const pBytes = Number(p.size) || 0;
+      const pGb = pBytes / (1024 * 1024 * 1024);
+      const rawTime = p.uploadedAt ? new Date(p.uploadedAt).getTime() : (user.createdAt ? new Date(user.createdAt).getTime() : now);
+      const pStart = !isNaN(rawTime) && rawTime > 0 ? rawTime : (now - 30 * 86400000);
+      const hours = Math.max(1, (now - pStart) / 3600000);
+      lifetimeGbHours += pGb * hours;
+    });
+
+    deletedEvents.forEach(del => {
+      const delBytes = Number(del.totalBytes) || 0;
+      const delGb = delBytes / (1024 * 1024 * 1024);
+      const delAtMs = new Date(del.deletedAt).getTime();
+      const cLogs = modalLogs.filter(l => l.event_id === del.eventId);
+      const earliestLogMs = cLogs.length > 0 
+        ? Math.min(...cLogs.map(l => new Date(l.created_at).getTime()).filter(t => !isNaN(t) && t > 0))
+        : (delAtMs - 14 * 86400000);
+      const delStartMs = !isNaN(earliestLogMs) && earliestLogMs > 0 ? earliestLogMs : (delAtMs - 14 * 86400000);
+      const hours = Math.max(1, (delAtMs - delStartMs) / 3600000);
+      lifetimeGbHours += delGb * hours;
+    });
+
+    // Also include historical orphaned deleted events from modal_cost_logs
+    const allDeletedEventIds = new Set(deletedEvents.map(d => d.eventId));
+    Array.from(actualComputeMetrics.eventComputeMap.keys()).forEach(orphanedId => {
+      if (!orphanedId || allUserEventIds.has(orphanedId) || allDeletedEventIds.has(orphanedId)) return;
+      const oStats = actualComputeMetrics.eventComputeMap.get(orphanedId);
+      if (!oStats || (oStats.photoRuns === 0 && oStats.videoCpuRuns === 0 && oStats.videoGpuRuns === 0)) return;
+
+      const orphanedLogs = modalLogs.filter(l => l.event_id === orphanedId);
+      const knownBytes = orphanedLogs.reduce((s, l) => s + (Number(l.media_size) || 0), 0);
+      const totalPhotos = oStats.photoRuns;
+      const totalVideos = oStats.videoCpuRuns + oStats.videoGpuRuns;
+      const estimatedBytes = (totalPhotos * 4.5 * 1024 * 1024) + (totalVideos * 45 * 1024 * 1024);
+      const delBytes = knownBytes > 0 ? knownBytes : estimatedBytes;
+      const delGb = delBytes / (1024 * 1024 * 1024);
+
+      // Assume standard 30-day (720h) gallery existence before deletion
+      lifetimeGbHours += delGb * 720;
+    });
+
+    const lifetimeStorageCostInr = (lifetimeGbHours / 720) * 0.60;
+    const lifetimeTxCostInr = ((actualComputeMetrics.totalLifetimeMedia + deletedEvents.reduce((s, d) => s + (Number(d.photosCount) || 0) + (Number(d.videosCount) || 0), 0)) / 1000) * 0.40;
+    const b2CostTillNowInr = Math.max(b2MonthlyInr * monthsActive, lifetimeStorageCostInr + lifetimeTxCostInr);
+
+    // Total Monthly Cost to EveBash (Active recurring storage only: Backblaze B2)
+    const totalMonthlyCostInr = b2MonthlyInr;
+
+    // Cumulative Cost to EveBash ENDURED TILL NOW (Direct user costs: Modal compute + B2 storage endured)
+    const totalLifetimeCostInr = modalTotalInr + b2CostTillNowInr;
+
+    // Real captured / offline revenue from payments ledger
+    const capturedPayments = payments.filter(p => p.status === 'captured' || p.status === 'manual_offline');
+    const totalCollectedRevenueInr = capturedPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const hasRecordedPayments = capturedPayments.length > 0;
+
+    // Actual Net Profit: Cash collected minus actual infrastructure cost endured
+    const actualNetProfitInr = totalCollectedRevenueInr - totalLifetimeCostInr;
+    const actualMarginPercentage = totalCollectedRevenueInr > 0
+      ? Math.round((actualNetProfitInr / totalCollectedRevenueInr) * 100)
+      : null;
+
+    // Windowed calculations (for the selected global timeframe filter)
+    const windowCapturedPayments = windowPayments.filter(p => p.status === 'captured' || p.status === 'manual_offline');
+    const windowCollectedRevenueInr = windowCapturedPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const windowHasRecordedPayments = windowCapturedPayments.length > 0;
+
+    // Window Infrastructure Cost (B2 Storage & Tx + Modal Compute):
+    const currentB2InWindow = economicsWindow.isAllTime ? b2CostTillNowInr : b2MeteringData.grandTotalB2CostInr;
+    const currentModalInWindow = modalTotalInr;
+
+    const windowInfraCostInr = economicsWindow.isAllTime
+      ? totalLifetimeCostInr
+      : (b2MeteringData.grandTotalB2CostInr + modalTotalInr);
+
+    const windowNetProfitInr = windowCollectedRevenueInr - windowInfraCostInr;
+    const windowMarginPercentage = windowCollectedRevenueInr > 0
+      ? Math.round((windowNetProfitInr / windowCollectedRevenueInr) * 100)
+      : null;
+
+    // User Subscription Theoretical Revenue
+    const monthlyRevenueInr = currentPlan.monthlyPriceInr;
+    const yearlyRevenueInr = monthlyRevenueInr * 12;
+
+    const monthlyGrossMarginInr = monthlyRevenueInr - totalMonthlyCostInr;
+    const monthlyMarginPercentage = monthlyRevenueInr > 0
+      ? Math.round((monthlyGrossMarginInr / monthlyRevenueInr) * 100)
+      : null;
+
+    return {
+      b2MonthlyInr,
+      b2YearlyInr,
+      b2CostTillNowInr,
+      b2MonthlyCostInr: b2MonthlyInr,
+      b2YearlyCostInr: b2YearlyInr,
+      modalPhotoInr,
+      modalVideoCpuInr,
+      modalVideoGpuInr,
+      modalVideoInr,
+      modalSelfieInr,
+      modalTotalInr,
+      modalInr: modalTotalInr, // backwards-compatible alias
+      qstashInr: 0,
+      supabaseMonthlyInr: 0,
+      supabaseYearlyInr: 0,
+      supabaseCostTillNowInr: 0,
+      supabaseWindowInr: 0,
+      totalMonthlyCostInr,
+      totalLifetimeCostInr,
+      totalCostTillNowInr: totalLifetimeCostInr,
+      totalYearlyCostInr: totalLifetimeCostInr, // backwards-compatible alias
+      monthsActive,
+      monthlyRevenueInr,
+      yearlyRevenueInr,
+      monthlyGrossMarginInr,
+      monthlyMarginPercentage,
+      totalCollectedRevenueInr,
+      hasRecordedPayments,
+      actualNetProfitInr,
+      actualMarginPercentage,
+      totalPaymentsCount: payments.length,
+      capturedPaymentsCount: capturedPayments.length,
+      failedPaymentsCount: payments.filter(p => p.status === 'failed').length,
+      // Windowed properties
+      windowInfraCostInr,
+      windowB2Inr: currentB2InWindow,
+      windowModalInr: currentModalInWindow,
+      windowQstashInr: 0,
+      windowSupabaseInr: 0,
+      windowCollectedRevenueInr,
+      windowHasRecordedPayments,
+      windowNetProfitInr,
+      windowMarginPercentage,
+      windowPaymentsCount: windowPayments.length,
+      windowCapturedPaymentsCount: windowCapturedPayments.length,
+      windowFailedPaymentsCount: windowPayments.filter(p => p.status === 'failed').length,
+    };
+  }, [usedGb, actualComputeMetrics, userEventMetrics, photos, deletedEvents, modalLogs, currentPlan, user.createdAt, payments, windowPayments, economicsWindow, b2MeteringData.grandTotalB2CostInr]);
+
+  // Unified cost table gallery row representation
+  interface CostGalleryRowActive {
+    type: 'active';
+    id: string;
+    title: string;
+    searchableText: string;
+    event: Event;
+    children: Array<{
+      event: Event;
+      stats: {
+        imageCount: number;
+        imageBytes: number;
+        videoCount: number;
+        videoBytes: number;
+        totalCount: number;
+        totalBytes: number;
+      };
+    }>;
+    combined: {
+      imageCount: number;
+      imageBytes: number;
+      videoCount: number;
+      videoBytes: number;
+      totalCount: number;
+      totalBytes: number;
+    };
+  }
+
+  interface CostGalleryRowDeleted {
+    type: 'deleted';
+    id: string;
+    title: string;
+    searchableText: string;
+    deleted: DeletedEventArchive;
+  }
+
+  interface CostGalleryRowOrphanedLog {
+    type: 'orphaned_log';
+    id: string;
+    title: string;
+    searchableText: string;
+    orphanedId: string;
+    stats: {
+      photoInr: number;
+      photoSeconds: number;
+      photoRuns: number;
+      videoCpuInr: number;
+      videoCpuSeconds: number;
+      videoCpuRuns: number;
+      videoGpuInr: number;
+      videoGpuSeconds: number;
+      videoGpuRuns: number;
+      totalInr: number;
+      totalSeconds: number;
+    };
+  }
+
+  type CostGalleryRow = CostGalleryRowActive | CostGalleryRowDeleted | CostGalleryRowOrphanedLog;
+
+  const allCostRows = useMemo<CostGalleryRow[]>(() => {
+    const rows: CostGalleryRow[] = [];
+
+    // 1. Active Main Events (with children sub-galleries)
+    userEventMetrics.mainEventBreakdown.forEach(({ event, children, combined }) => {
+      const title = event.title || 'Untitled Event';
+      const searchTerms = [
+        title,
+        event.id,
+        event.type || '',
+        ...children.map(c => `${c.event.title || ''} ${c.event.id}`),
+      ].join(' ').toLowerCase();
+
+      rows.push({
+        type: 'active',
+        id: event.id,
+        title,
+        searchableText: searchTerms,
+        event,
+        children,
+        combined,
+      });
+    });
+
+    // 2. Orphan Sub-events (if any exist without parent)
+    userEventMetrics.orphanSubEvents.forEach(({ event, stats }) => {
+      const title = event.title || 'Untitled Sub-Gallery';
+      rows.push({
+        type: 'active',
+        id: event.id,
+        title,
+        searchableText: `${title} ${event.id}`.toLowerCase(),
+        event,
+        children: [],
+        combined: stats,
+      });
+    });
+
+    // 3. Deleted / Archived Events from Audit Ledger
+    deletedEvents.forEach(del => {
+      const title = del.eventTitle || 'Untitled Gallery';
+      rows.push({
+        type: 'deleted',
+        id: `deleted-${del.id}`,
+        title,
+        searchableText: `${title} ${del.eventId} ${del.id}`.toLowerCase(),
+        deleted: del,
+      });
+    });
+
+    // 4. Orphaned historical deleted event logs in modal_cost_logs
+    const allUserEventIds = new Set(userEventMetrics.allUserEvents.map(e => e.id));
+    const allDeletedEventIds = new Set(deletedEvents.map(d => d.eventId));
+
+    Array.from(actualComputeMetrics.eventComputeMap.keys()).forEach(orphanedId => {
+      if (!orphanedId || allUserEventIds.has(orphanedId) || allDeletedEventIds.has(orphanedId)) return;
+      const oStats = actualComputeMetrics.eventComputeMap.get(orphanedId);
+      if (!oStats || (oStats.photoRuns === 0 && oStats.videoCpuRuns === 0 && oStats.videoGpuRuns === 0)) return;
+
+      rows.push({
+        type: 'orphaned_log',
+        id: `orphaned-${orphanedId}`,
+        title: 'Historical Gallery',
+        searchableText: `historical gallery ${orphanedId}`.toLowerCase(),
+        orphanedId,
+        stats: oStats,
+      });
+    });
+
+    return rows;
+  }, [userEventMetrics, deletedEvents, actualComputeMetrics]);
+
+  const filteredCostRows = useMemo(() => {
+    const query = costTableSearch.toLowerCase().trim();
+    return allCostRows.filter(row => {
+      if (costTableFilter === 'active' && row.type !== 'active') return false;
+      if (costTableFilter === 'deleted' && row.type !== 'deleted' && row.type !== 'orphaned_log') return false;
+      if (query && !row.searchableText.includes(query)) return false;
+      return true;
+    });
+  }, [allCostRows, costTableFilter, costTableSearch]);
+
+  const totalCostPages = Math.max(1, Math.ceil(filteredCostRows.length / costTablePerPage));
+
+  // Reset to page 1 whenever search, filter, or perPage changes
+  useEffect(() => {
+    setCostTablePage(1);
+  }, [costTableSearch, costTableFilter, costTablePerPage]);
+
+  const paginatedCostRows = useMemo(() => {
+    const start = (costTablePage - 1) * costTablePerPage;
+    return filteredCostRows.slice(start, start + costTablePerPage);
+  }, [filteredCostRows, costTablePage, costTablePerPage]);
+
+  const costPageNumbers = useMemo(() => {
+    const range: number[] = [];
+    const maxVisible = 5;
+    let start = Math.max(1, costTablePage - 2);
+    let end = Math.min(totalCostPages, start + maxVisible - 1);
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    for (let i = start; i <= end; i++) {
+      range.push(i);
+    }
+    return range;
+  }, [costTablePage, totalCostPages]);
 
   const initials = (user.name || user.email || 'U')
     .trim()
@@ -1730,6 +1935,252 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
       </div>
     );
   }
+
+  const renderUserPaymentsSection = () => {
+    return (
+      <div className="space-y-6">
+
+        {/* Customer Payments & Invoices Ledger Table Container */}
+        <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-5 sm:p-6 shadow-xl space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                <CreditCard className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2.5 flex-wrap">
+                  <span>Customer Payment Ledger</span>
+                  <span className="text-xs font-mono font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-0.5 rounded-full">
+                    {windowPayments.length} {windowPayments.length === 1 ? 'record' : 'records'}
+                  </span>
+                  <span className="text-xs font-mono text-slate-400 bg-slate-800/80 border border-slate-700/80 px-2.5 py-0.5 rounded-full">
+                    {economicsWindow.formattedRange}
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Historical online Razorpay transactions, bank transfers, failed checkout drop-offs, and manual offline receipts.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setShowRecordPaymentModal(true)}
+                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm shadow-emerald-950"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>Record Offline Payment</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentRefreshKey(k => k + 1)}
+                disabled={loadingPayments}
+                className="p-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-slate-500 text-slate-400 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+                title="Reload payments"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingPayments ? 'animate-spin text-emerald-400' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Payments Table - Always visible with full headers */}
+          <div className="overflow-x-auto rounded-2xl border border-slate-800/80 bg-slate-950/60">
+            <table className="w-full min-w-[1100px] text-xs text-left text-slate-300 border-separate border-spacing-0">
+              <thead className="bg-slate-900 text-slate-400 uppercase text-[10px] tracking-wider font-semibold border-b border-slate-800">
+                <tr>
+                  <th scope="col" className="py-2.5 px-3 w-12 text-center border-b border-slate-800 border-r border-slate-800/80">
+                    Sr.
+                  </th>
+                  <th scope="col" className="py-2.5 px-3 min-w-[140px] border-b border-slate-800">
+                    Date & Time
+                  </th>
+                  <th scope="col" className="py-2.5 px-3 min-w-[140px] border-b border-slate-800">
+                    Plan & Duration
+                  </th>
+                  <th scope="col" className="py-2.5 px-3 min-w-[120px] border-b border-slate-800">
+                    Amount
+                  </th>
+                  <th scope="col" className="py-2.5 px-3 min-w-[130px] border-b border-slate-800">
+                    Status
+                  </th>
+                  <th scope="col" className="py-2.5 px-3 min-w-[120px] border-b border-slate-800">
+                    Gateway
+                  </th>
+                  <th scope="col" className="py-2.5 px-3 min-w-[200px] border-b border-slate-800">
+                    Payment / Order ID
+                  </th>
+                  <th scope="col" className="py-2.5 px-3 min-w-[200px] border-b border-slate-800">
+                    Reference / Error Reason
+                  </th>
+                  <th scope="col" className="py-2.5 px-3 w-20 text-right border-b border-slate-800 pr-4">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {windowPayments.map((p, idx) => {
+                  const isCaptured = p.status === 'captured';
+                  const isManual = p.status === 'manual_offline';
+                  const isFailed = p.status === 'failed';
+                  const isRefunded = p.status === 'refunded';
+                  const rowBg = idx % 2 === 0 ? 'bg-[#111827]' : 'bg-[#0c1322]';
+
+                  return (
+                    <tr key={p.id} className={`hover:bg-slate-800/50 transition-colors ${rowBg}`}>
+                      {/* Sr. No. */}
+                      <td className="py-2.5 px-3 whitespace-nowrap text-center font-mono text-slate-400 border-r border-slate-800/80">
+                        {idx + 1}
+                      </td>
+
+                      {/* Date */}
+                      <td className="py-2.5 px-3 whitespace-nowrap font-mono text-slate-300">
+                        {p.created_at
+                          ? new Date(p.created_at).toLocaleDateString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+                          : '—'}
+                      </td>
+
+                      {/* Plan & Duration */}
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-slate-800 border border-slate-700 text-slate-200 capitalize">
+                          {p.plan_id || 'Starter'}
+                          <span className="text-[10px] text-slate-400 font-normal">
+                            ({p.billing_duration || 'yearly'})
+                          </span>
+                        </span>
+                      </td>
+
+                      {/* Amount */}
+                      <td className="py-2.5 px-3 font-mono font-bold whitespace-nowrap text-sm">
+                        {isFailed ? (
+                          <span className="text-slate-500 line-through">₹{Number(p.amount || 0).toFixed(2)}</span>
+                        ) : (
+                          <span className="text-emerald-400">
+                            ₹{Number(p.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        {isCaptured && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
+                            <CheckCircle2 className="w-3 h-3" /> Paid (Online)
+                          </span>
+                        )}
+                        {isManual && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/10 text-sky-400 border border-sky-500/25">
+                            <Banknote className="w-3 h-3" /> Manual Offline
+                          </span>
+                        )}
+                        {isFailed && (
+                          <span
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/25"
+                            title={p.failure_reason || 'Checkout dropped off or failed'}
+                          >
+                            <XCircle className="w-3 h-3" /> Failed
+                          </span>
+                        )}
+                        {isRefunded && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/25">
+                            <AlertCircle className="w-3 h-3" /> Refunded
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Gateway */}
+                      <td className="py-2.5 px-3 capitalize font-mono text-slate-300">
+                        {p.payment_gateway ? p.payment_gateway.replace('_', ' ') : 'Razorpay'}
+                      </td>
+
+                      {/* Payment / Order IDs */}
+                      <td className="py-2.5 px-3 font-mono text-[11px] whitespace-nowrap">
+                        {p.razorpay_payment_id ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-slate-300 truncate max-w-[130px]" title={p.razorpay_payment_id}>
+                              {p.razorpay_payment_id}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(p.razorpay_payment_id, `pay-${p.id}`)}
+                              className="text-slate-500 hover:text-white p-0.5 rounded cursor-pointer"
+                              title="Copy Payment ID"
+                            >
+                              {copiedField === `pay-${p.id}` ? (
+                                <Check className="w-3 h-3 text-emerald-400" />
+                              ) : (
+                                <Copy className="w-3 h-3" />
+                              )}
+                            </button>
+                          </div>
+                        ) : p.razorpay_order_id ? (
+                          <span className="text-slate-400 truncate max-w-[130px]" title={p.razorpay_order_id}>
+                            {p.razorpay_order_id}
+                          </span>
+                        ) : (
+                          <span className="text-slate-600">—</span>
+                        )}
+                      </td>
+
+                      {/* Notes / Reason */}
+                      <td className="py-2.5 px-3 max-w-[220px] truncate" title={p.failure_reason || p.notes || ''}>
+                        {p.failure_reason ? (
+                          <span className="text-rose-400 font-mono text-[11px]">{p.failure_reason}</span>
+                        ) : p.notes ? (
+                          <span className="text-slate-300">{p.notes}</span>
+                        ) : (
+                          <span className="text-slate-600">—</span>
+                        )}
+                      </td>
+
+                      {/* Action */}
+                      <td className="py-2.5 px-3 text-right pr-4">
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePayment(p.id)}
+                          className="p-1.5 rounded-lg hover:bg-rose-500/10 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
+                          title="Delete payment record"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {/* Empty State row when zero payments exist */}
+                {windowPayments.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="py-16 text-center text-slate-500 bg-[#0f1422]/60 border-b border-slate-800">
+                      <CreditCard className="w-10 h-10 mx-auto mb-3 text-slate-600 opacity-60" />
+                      <h5 className="text-base font-bold text-slate-300">
+                        {economicsWindow.isAllTime
+                          ? 'No Payment Records Found for This User'
+                          : 'No Payment Records in Selected Timeframe'}
+                      </h5>
+                      <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+                        {economicsWindow.isAllTime
+                          ? (cleanRole !== 'free' && cleanRole !== 'freemium'
+                              ? 'This user is on a paid plan tier without a recorded transaction (e.g. promotional access). Click "Record Offline Payment" above if they paid offline.'
+                              : 'Transactions will appear here automatically when this customer completes online Razorpay checkouts or when you record an offline payment.')
+                          : `No transactions occurred between ${economicsWindow.formattedRange}. Select "All Time" in the timeframe filter above to view all historical records.`}
+                      </p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -2966,6 +3417,69 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
       {/* SUBPAGE 5: ECONOMICS */}
       {activeTab === 'cost' && (
         <div className="space-y-6 animate-fadeIn">
+          {/* Global Economics Timeframe Filter (Positioned Above Economics Container on Right) */}
+          <div className="flex flex-col items-end gap-2">
+            {/* Quick Filters */}
+            <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 shadow-sm shrink-0">
+              {(['1d', '1w', '1m', 'custom', 'all'] as const).map((filterKey) => {
+                const labels: Record<typeof filterKey, string> = {
+                  '1d': '1 Day',
+                  '1w': '1 Week',
+                  '1m': '1 Month',
+                  'custom': 'Custom',
+                  'all': 'All Time',
+                };
+                const isActive = economicsTimeFilter === filterKey;
+                return (
+                  <button
+                    key={filterKey}
+                    type="button"
+                    onClick={() => setEconomicsTimeFilter(filterKey)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-sky-600 text-white shadow-md shadow-sky-900/30'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    {labels[filterKey]}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Custom Date Pickers (Positioned Below Timeframe Chooser with Calendar Trigger) */}
+            {economicsTimeFilter === 'custom' && (
+              <div className="flex flex-wrap items-center gap-2.5 bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 shadow-lg animate-fadeIn">
+                <div className="flex items-center gap-1.5 text-slate-400">
+                  <Calendar className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wider">Custom Range:</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">From</span>
+                  <input
+                    type="date"
+                    value={economicsCustomStartDate}
+                    onChange={e => setEconomicsCustomStartDate(e.target.value)}
+                    onClick={e => { try { e.currentTarget.showPicker(); } catch {} }}
+                    onFocus={e => { try { e.currentTarget.showPicker(); } catch {} }}
+                    className="bg-slate-950 border border-slate-700/80 hover:border-sky-500/80 rounded-lg px-2.5 py-1 text-white text-xs outline-none focus:border-sky-500 cursor-pointer [color-scheme:dark] transition-colors"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">To</span>
+                  <input
+                    type="date"
+                    value={economicsCustomEndDate}
+                    onChange={e => setEconomicsCustomEndDate(e.target.value)}
+                    onClick={e => { try { e.currentTarget.showPicker(); } catch {} }}
+                    onFocus={e => { try { e.currentTarget.showPicker(); } catch {} }}
+                    className="bg-slate-950 border border-slate-700/80 hover:border-sky-500/80 rounded-lg px-2.5 py-1 text-white text-xs outline-none focus:border-sky-500 cursor-pointer [color-scheme:dark] transition-colors"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Header & Financial Model Summary Card */}
           <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 sm:p-7 shadow-xl space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
@@ -2973,151 +3487,436 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                 <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
                   <IndianRupee className="w-5 h-5" />
                 </div>
-                <div>
-                  <h2 className="text-base font-bold text-white">Economics</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Calculated using approved financial models from COST_ANALYSIS.md ($1 = ₹100)
-                  </p>
-                </div>
+                <h2 className="text-base font-bold text-white">Economics</h2>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono font-bold text-xs">
-                  Monthly Recurring Cost: ₹{costBreakdown.totalMonthlyCostInr.toFixed(2)}/mo
+              {/* Formatted Date Range Indicator Badge (Top Right inside Economics Container) */}
+              <div className="flex items-center gap-1.5 text-xs font-mono text-sky-300 bg-sky-500/10 border border-sky-500/20 px-3.5 py-1.5 rounded-xl shrink-0 shadow-sm self-start sm:self-auto">
+                <Clock className="w-3.5 h-3.5 text-sky-400" />
+                <span>
+                  {economicsWindow.formattedRange} ({economicsWindow.durationLabel})
                 </span>
               </div>
             </div>
 
-            {/* 4 Executive Financial Summary Cards */}
+            {/* ── Row 1: Infrastructure Cost Cards ── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
-              {/* Card 1: Total Cost Endured */}
-              <div className="rounded-2xl border border-purple-500/20 bg-purple-950/10 p-4 transition-all hover:border-purple-500/40">
-                <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider block mb-1">
-                  Cost Endured Till Now
-                </span>
-                <div className="text-2xl font-black text-purple-200 font-mono">
-                  ₹{costBreakdown.totalLifetimeCostInr.toFixed(2)}
+              {/* Card 1: Total Cost Incurred in Window (Shows exact summation breakdown) */}
+              <div className="rounded-2xl border border-purple-500/20 bg-purple-950/10 p-4 transition-all hover:border-purple-500/40 flex flex-col justify-between">
+                <div>
+                  <div className="mb-1">
+                    <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">
+                      {economicsWindow.isAllTime ? 'Cost Endured Till Now' : 'Cost Incurred'}
+                    </span>
+                  </div>
+                  <div className="text-2xl font-black text-purple-200 font-mono">
+                    ₹{costBreakdown.windowInfraCostInr.toFixed(2)}
+                  </div>
+                  <span className="text-xs font-mono text-slate-400 mt-0.5 block">
+                    ${(costBreakdown.windowInfraCostInr / 100).toFixed(2)} USD (Total Incurred)
+                  </span>
                 </div>
-                <span className="text-xs font-mono text-slate-400 mt-1 block">
-                  ${(costBreakdown.totalLifetimeCostInr / 100).toFixed(2)} USD (Compute + Storage)
-                </span>
+
+                {/* Sub-item Summation Breakdown */}
+                <div className="mt-3 pt-2.5 border-t border-purple-500/20 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <HardDrive className="w-3 h-3 text-sky-400 shrink-0" />
+                      Backblaze B2:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">₹{costBreakdown.windowB2Inr.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <Sparkles className="w-3 h-3 text-purple-400 shrink-0" />
+                      Modal AI Compute:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">₹{costBreakdown.windowModalInr.toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
 
               {/* Card 2: Monthly Recurring Cost */}
-              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Monthly Recurring
-                </span>
-                <div className="text-2xl font-black text-white font-mono">
-                  ₹{costBreakdown.totalMonthlyCostInr.toFixed(2)}
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    Monthly Recurring
+                  </span>
+                  <div className="text-2xl font-black text-white font-mono">
+                    ₹{costBreakdown.totalMonthlyCostInr.toFixed(2)}
+                  </div>
+                  <span className="text-xs font-mono text-slate-400 mt-0.5 block">
+                    ${(costBreakdown.totalMonthlyCostInr / 100).toFixed(4)} USD/mo (B2 Storage)
+                  </span>
                 </div>
-                <span className="text-xs font-mono text-slate-400 mt-1 block">
-                  ${(costBreakdown.totalMonthlyCostInr / 100).toFixed(4)} USD/mo (B2 + DB)
-                </span>
+
+                <div className="mt-3 pt-2.5 border-t border-slate-800 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <HardDrive className="w-3 h-3 text-sky-400 shrink-0" />
+                      B2 Disk Storage:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">₹{costBreakdown.b2MonthlyInr.toFixed(2)}/mo</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <IndianRupee className="w-3 h-3 text-slate-500 shrink-0" />
+                      Annual Baseline:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">₹{(costBreakdown.totalMonthlyCostInr * 12).toFixed(2)}/yr</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <Clock className="w-3 h-3 text-slate-500 shrink-0" />
+                      Active Duration:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">{costBreakdown.monthsActive.toFixed(1)} mo</span>
+                  </div>
+                </div>
               </div>
 
-              {/* Card 3: One-Time Compute Endured */}
-              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Compute Incurred
-                </span>
-                <div className="text-2xl font-black text-white font-mono">
-                  ₹{(costBreakdown.modalTotalInr + costBreakdown.qstashInr).toFixed(2)}
+              {/* Card 3: One-Time Compute Endured in Window */}
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    {economicsWindow.isAllTime ? 'Compute Incurred' : `Compute Incurred (${economicsWindow.durationLabel})`}
+                  </span>
+                  <div className="text-2xl font-black text-white font-mono">
+                    ₹{costBreakdown.modalTotalInr.toFixed(2)}
+                  </div>
+                  <span className="text-xs text-slate-400 mt-0.5 block">
+                    Modal GPU/CPU Workers
+                  </span>
                 </div>
-                <span className="text-xs text-slate-400 mt-1 block">
-                  Modal GPU/CPU + QStash triggers
-                </span>
+
+                <div className="mt-3 pt-2.5 border-t border-slate-800 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <ImageIcon className="w-3 h-3 text-sky-400 shrink-0" />
+                      Photo AI Worker:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">₹{costBreakdown.modalPhotoInr.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <VideoIcon className="w-3 h-3 text-purple-400 shrink-0" />
+                      Video Workers:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">₹{costBreakdown.modalVideoInr.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <Sparkles className="w-3 h-3 text-pink-400 shrink-0" />
+                      Selfie Search:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">₹{costBreakdown.modalSelfieInr.toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
 
-              {/* Card 4: Gross Margin from User */}
-              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Gross Margin
-                </span>
-                <div className="text-2xl font-black text-emerald-400">
-                  {costBreakdown.monthlyMarginPercentage !== null
-                    ? `${costBreakdown.monthlyMarginPercentage}%`
-                    : 'Free Tier'}
+              {/* Card 4: Net Profit / Margin from User in Window */}
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                    {costBreakdown.windowHasRecordedPayments
+                      ? (economicsWindow.isAllTime ? 'Actual Net Profit' : `Net Profit (${economicsWindow.durationLabel})`)
+                      : 'Gross Margin'}
+                  </span>
+                  <div className={`text-2xl font-black font-mono ${
+                    costBreakdown.windowHasRecordedPayments
+                      ? (costBreakdown.windowNetProfitInr >= 0 ? 'text-emerald-400' : 'text-rose-400')
+                      : (costBreakdown.monthlyMarginPercentage !== null ? 'text-emerald-400' : 'text-slate-400')
+                  }`}>
+                    {costBreakdown.windowHasRecordedPayments
+                      ? `₹${costBreakdown.windowNetProfitInr.toFixed(2)}`
+                      : (costBreakdown.monthlyMarginPercentage !== null ? `${costBreakdown.monthlyMarginPercentage}%` : 'Free Tier')}
+                  </div>
+                  <span className="text-xs text-slate-400 mt-0.5 block">
+                    {costBreakdown.windowHasRecordedPayments
+                      ? `${costBreakdown.windowMarginPercentage ?? 0}% margin (₹${costBreakdown.windowCollectedRevenueInr.toFixed(0)} collected)`
+                      : (cleanRole !== 'free' && cleanRole !== 'freemium'
+                        ? (economicsWindow.isAllTime ? 'Promotional / Unpaid Role (₹0 paid)' : `₹0 collected in ${economicsWindow.durationLabel}`)
+                        : 'Non-paying user account')}
+                  </span>
                 </div>
-                <span className="text-xs text-slate-400 mt-1 block">
-                  {costBreakdown.monthlyRevenueInr > 0
-                    ? `₹${costBreakdown.monthlyGrossMarginInr.toFixed(2)} profit / month`
-                    : 'Non-paying user account'}
-                </span>
+
+                <div className="mt-3 pt-2.5 border-t border-slate-800 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <Banknote className="w-3 h-3 text-emerald-400 shrink-0" />
+                      Cash Collected:
+                    </span>
+                    <span className="font-mono text-emerald-300 font-medium">₹{costBreakdown.windowCollectedRevenueInr.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <CreditCard className="w-3 h-3 text-rose-400 shrink-0" />
+                      Incurred Cost:
+                    </span>
+                    <span className="font-mono text-rose-300 font-medium">-₹{costBreakdown.windowInfraCostInr.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <ShieldCheck className="w-3 h-3 text-sky-400 shrink-0" />
+                      Effective Margin:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">{costBreakdown.windowMarginPercentage !== null ? `${costBreakdown.windowMarginPercentage}%` : 'N/A'}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <CheckCircle2 className="w-3 h-3 text-purple-400 shrink-0" />
+                      Paid Transactions:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">{costBreakdown.windowCapturedPaymentsCount}</span>
+                  </div>
+                </div>
               </div>
             </div>
+
+            {/* ── Row 2: Customer Payments & Realized Revenue (INSIDE Economics Container) ── */}
+            {(() => {
+              const validPmts = windowPayments.filter(p => p.status === 'captured' || p.status === 'manual_offline');
+              const totalCollected = validPmts.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+              const failedPmts = windowPayments.filter(p => p.status === 'failed').length;
+              const netProfit = totalCollected - costBreakdown.windowInfraCostInr;
+              const onlinePmts = validPmts.filter(p => p.payment_gateway === 'razorpay');
+              const offlinePmts = validPmts.filter(p => p.payment_gateway !== 'razorpay');
+              const onlineCollected = onlinePmts.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+              const offlineCollected = offlinePmts.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+              const onlineCount = onlinePmts.length;
+              const offlineCount = offlinePmts.length;
+
+              return (
+                <div className="pt-2 border-t border-slate-800/80">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3.5">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                        <Banknote className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-bold text-white uppercase tracking-wider">Customer Collections & Realized Net</h3>
+                        <p className="text-[11px] text-slate-500">
+                          Actual cash collected, net margins, and payment activity for this customer
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-mono text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
+                        {validPmts.length} {validPmts.length === 1 ? 'Payment' : 'Payments'}
+                      </span>
+                      {failedPmts > 0 && (
+                        <span className="text-[11px] font-mono text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-lg">
+                          {failedPmts} Failed
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                    {/* Card 1: Total Cash Collected */}
+                    <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-4 transition-all hover:border-emerald-500/40 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
+                          {economicsWindow.isAllTime ? 'Total Cash Collected' : 'Cash Collected'}
+                        </span>
+                        <div className="text-2xl font-black text-emerald-300 font-mono">
+                          ₹{totalCollected.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                        <span className="text-xs font-mono text-slate-400 mt-0.5 block">
+                          ${(totalCollected / 100).toFixed(2)} USD ({validPmts.length} captured)
+                        </span>
+                      </div>
+                      <div className="mt-3 pt-2.5 border-t border-emerald-500/20 space-y-1.5 text-[11px]">
+                        <div className="flex items-center justify-between text-slate-300">
+                          <span className="flex items-center gap-1.5 text-slate-400">
+                            <CreditCard className="w-3 h-3 text-sky-400 shrink-0" />
+                            Razorpay Online:
+                          </span>
+                          <span className="font-mono text-slate-200 font-medium">₹{onlineCollected.toFixed(2)} ({onlineCount})</span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-300">
+                          <span className="flex items-center gap-1.5 text-slate-400">
+                            <Banknote className="w-3 h-3 text-emerald-400 shrink-0" />
+                            Manual Offline:
+                          </span>
+                          <span className="font-mono text-slate-200 font-medium">₹{offlineCollected.toFixed(2)} ({offlineCount})</span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-300">
+                          <span className="flex items-center gap-1.5 text-slate-400">
+                            <IndianRupee className="w-3 h-3 text-slate-500 shrink-0" />
+                            Avg Order Value:
+                          </span>
+                          <span className="font-mono text-slate-200 font-medium">
+                            ₹{validPmts.length > 0 ? (totalCollected / validPmts.length).toFixed(2) : '0.00'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card 2: Actual Net Profit */}
+                    <div className={`rounded-2xl border ${
+                      netProfit >= 0
+                        ? 'border-emerald-500/20 bg-emerald-950/10 hover:border-emerald-500/40'
+                        : 'border-rose-500/20 bg-rose-950/10 hover:border-rose-500/40'
+                    } p-4 transition-all flex flex-col justify-between`}>
+                      <div>
+                        <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${
+                          netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                        }`}>
+                          {economicsWindow.isAllTime ? 'Actual Net Profit' : 'Net Profit'}
+                        </span>
+                        <div className={`text-2xl font-black font-mono ${
+                          netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                        }`}>
+                          ₹{netProfit.toFixed(2)}
+                        </div>
+                        <span className="text-xs font-mono text-slate-400 mt-0.5 block">
+                          Collected (₹{totalCollected.toFixed(0)}) − Infra (₹{costBreakdown.windowInfraCostInr.toFixed(0)})
+                        </span>
+                      </div>
+                      <div className={`mt-3 pt-2.5 border-t ${
+                        netProfit >= 0 ? 'border-emerald-500/20' : 'border-rose-500/20'
+                      } space-y-1.5 text-[11px]`}>
+                        <div className="flex items-center justify-between text-slate-300">
+                          <span className="flex items-center gap-1.5 text-slate-400">
+                            <ShieldCheck className="w-3 h-3 text-sky-400 shrink-0" />
+                            Net Margin:
+                          </span>
+                          <span className="font-mono text-slate-200 font-medium">
+                            {costBreakdown.windowMarginPercentage !== null ? `${costBreakdown.windowMarginPercentage}%` : (totalCollected > 0 ? `${Math.round((netProfit / totalCollected) * 100)}%` : '0%')}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-300">
+                          <span className="flex items-center gap-1.5 text-slate-400">
+                            <HardDrive className="w-3 h-3 text-purple-400 shrink-0" />
+                            Infra Coverage:
+                          </span>
+                          <span className="font-mono text-slate-200 font-medium">
+                            {costBreakdown.windowInfraCostInr > 0 ? Math.round((totalCollected / costBreakdown.windowInfraCostInr) * 100) : 100}% recovered
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-300">
+                          <span className="flex items-center gap-1.5 text-slate-400">
+                            {netProfit >= 0 ? (
+                              <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                            ) : (
+                              <AlertCircle className="w-3 h-3 text-rose-400 shrink-0" />
+                            )}
+                            Account Position:
+                          </span>
+                          <span className={`font-mono font-medium ${netProfit >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                            {netProfit >= 0 ? 'Profitable Customer' : 'Net Subsidized'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card 3: Lifetime / Window Infra Cost */}
+                    <div className="rounded-2xl border border-purple-500/20 bg-purple-950/10 p-4 transition-all hover:border-purple-500/40 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider block mb-1">
+                          {economicsWindow.isAllTime ? 'Lifetime Infra Cost' : 'Infra Cost'}
+                        </span>
+                        <div className="text-2xl font-black text-purple-200 font-mono">
+                          ₹{costBreakdown.windowInfraCostInr.toFixed(2)}
+                        </div>
+                        <span className="text-xs font-mono text-slate-400 mt-0.5 block">
+                          B2 Storage + Modal AI Compute
+                        </span>
+                      </div>
+                      <div className="mt-3 pt-2.5 border-t border-purple-500/20 space-y-1.5 text-[11px]">
+                        <div className="flex items-center justify-between text-slate-300">
+                          <span className="flex items-center gap-1.5 text-slate-400">
+                            <HardDrive className="w-3 h-3 text-sky-400 shrink-0" />
+                            Backblaze B2:
+                          </span>
+                          <span className="font-mono text-slate-200 font-medium">₹{costBreakdown.windowB2Inr.toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-300">
+                          <span className="flex items-center gap-1.5 text-slate-400">
+                            <Sparkles className="w-3 h-3 text-pink-400 shrink-0" />
+                            Modal.com AI:
+                          </span>
+                          <span className="font-mono text-slate-200 font-medium">₹{costBreakdown.windowModalInr.toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-300">
+                          <span className="flex items-center gap-1.5 text-slate-400">
+                            <Clock className="w-3 h-3 text-slate-500 shrink-0" />
+                            Storage Burn/day:
+                          </span>
+                          <span className="font-mono text-slate-200 font-medium">₹{(costBreakdown.b2MonthlyInr / 30).toFixed(3)}/day</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card 4: Checkout Activity & Drop-offs */}
+                    <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                          {economicsWindow.isAllTime ? 'Checkout Activity' : 'Checkout Activity'}
+                        </span>
+                        <div className="text-2xl font-black text-white font-mono flex items-baseline gap-2">
+                          <span>{windowPayments.length}</span>
+                          {failedPmts > 0 && (
+                            <span className="text-xs font-semibold text-rose-400 font-sans">({failedPmts} failed)</span>
+                          )}
+                        </div>
+                        <span className="text-xs text-slate-400 mt-0.5 block">
+                          {onlineCount} online · {offlineCount} offline
+                        </span>
+                      </div>
+                      <div className="mt-3 pt-2.5 border-t border-slate-800 space-y-1.5 text-[11px]">
+                        <div className="flex items-center justify-between text-slate-300">
+                          <span className="flex items-center gap-1.5 text-slate-400">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                            Conversion Rate:
+                          </span>
+                          <span className="font-mono text-slate-200 font-medium">
+                            {windowPayments.length > 0 ? Math.round((validPmts.length / windowPayments.length) * 100) : 0}%
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-300">
+                          <span className="flex items-center gap-1.5 text-slate-400">
+                            <Check className="w-3 h-3 text-emerald-400 shrink-0" />
+                            Captured Payments:
+                          </span>
+                          <span className="font-mono text-slate-200 font-medium">{validPmts.length}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-300">
+                          <span className="flex items-center gap-1.5 text-slate-400">
+                            <AlertCircle className="w-3 h-3 text-rose-400 shrink-0" />
+                            Drop-offs / Failures:
+                          </span>
+                          <span className="font-mono text-slate-200 font-medium">{failedPmts}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
+
+          {/* Dedicated Customer Payments Record & Ledger */}
+          {renderUserPaymentsSection()}
 
           {/* 1. Backblaze B2 Storage & Metering Cost Matrix */}
           <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 sm:p-7 shadow-xl space-y-6">
             {/* Header & Controls Bar */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
               <div className="flex items-center gap-3">
-                <div className="p-2 px-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
+                <div className="p-2 px-3 rounded-2xl bg-slate-900/80 border border-slate-800/80 flex items-center justify-center">
                   <BackblazeLogo className="h-5 w-auto text-white" />
                 </div>
-                <div>
-                  <h3 className="font-bold text-white text-base">B2 Matrix</h3>
-                </div>
+                <h3 className="font-bold text-white text-base">B2 Matrix</h3>
               </div>
 
-              {/* Time Window Selector & Date Filters */}
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Quick Filters */}
-                <div className="flex items-center gap-1 bg-slate-950/90 p-1 rounded-xl border border-slate-800 shrink-0">
-                  {(['1d', '1w', '1m', 'custom', 'all'] as const).map((filterKey) => {
-                    const labels: Record<typeof filterKey, string> = {
-                      '1d': '1 Day',
-                      '1w': '1 Week',
-                      '1m': '1 Month',
-                      'custom': 'Custom',
-                      'all': 'All Time',
-                    };
-                    const isActive = b2TimeFilter === filterKey;
-                    return (
-                      <button
-                        key={filterKey}
-                        type="button"
-                        onClick={() => setB2TimeFilter(filterKey)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                          isActive
-                            ? 'bg-sky-600 text-white shadow-md shadow-sky-900/30'
-                            : 'text-slate-400 hover:text-white hover:bg-slate-900'
-                        }`}
-                      >
-                        {labels[filterKey]}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Custom Date Pickers */}
-                {b2TimeFilter === 'custom' && (
-                  <div className="flex items-center gap-1.5 bg-slate-950/90 border border-slate-800 rounded-xl px-2.5 py-1 text-xs text-slate-300">
-                    <span className="text-[10px] text-slate-500 uppercase font-bold">From</span>
-                    <input
-                      type="date"
-                      value={b2CustomStartDate}
-                      onChange={e => setB2CustomStartDate(e.target.value)}
-                      className="bg-slate-900 border border-slate-700/80 rounded px-1.5 py-0.5 text-white text-xs outline-none focus:border-sky-500"
-                    />
-                    <span className="text-[10px] text-slate-500 uppercase font-bold">To</span>
-                    <input
-                      type="date"
-                      value={b2CustomEndDate}
-                      onChange={e => setB2CustomEndDate(e.target.value)}
-                      className="bg-slate-900 border border-slate-700/80 rounded px-1.5 py-0.5 text-white text-xs outline-none focus:border-sky-500"
-                    />
-                  </div>
-                )}
-
-                {/* Formatted Date Range Badge */}
-                <div className="flex items-center gap-1.5 text-xs font-mono text-sky-300 bg-sky-500/10 border border-sky-500/20 px-3 py-1.5 rounded-xl shrink-0">
-                  <Clock className="w-3.5 h-3.5 text-sky-400" />
-                  <span>
-                    {b2MeteringData.formattedRange} ({b2MeteringData.durationLabel})
-                  </span>
-                </div>
+              {/* Global Timeframe Sync Indicator */}
+              <div className="flex items-center gap-1.5 text-xs font-mono text-rose-300 bg-rose-500/10 border border-rose-500/20 px-3.5 py-1.5 rounded-xl shrink-0 self-start sm:self-auto">
+                <Clock className="w-3.5 h-3.5 text-rose-400" />
+                <span>
+                  Synced: {economicsWindow.formattedRange} ({economicsWindow.durationLabel})
+                </span>
               </div>
             </div>
 
@@ -3267,12 +4066,13 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                 <div>
                   <h3 className="font-bold text-white text-base">Modal.com Serverless Workers (Actual Incurred Compute)</h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Billed per exact second of container hardware. Auto-routes between CPU and Nvidia L4 GPU based on media type and length.
+                    Billed per exact second of container hardware ({economicsWindow.formattedRange} &bull; {economicsWindow.durationLabel}). Auto-routes between CPU and Nvidia L4 GPU based on media type and length.
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-mono font-bold text-purple-300 bg-purple-500/10 border border-purple-500/20 px-3.5 py-1.5 rounded-full shrink-0 self-start sm:self-auto">
-                ₹{costBreakdown.modalTotalInr.toFixed(2)} billed
+              <span className="text-xs font-mono font-bold text-purple-300 bg-purple-500/10 border border-purple-500/20 px-3.5 py-1.5 rounded-full shrink-0 self-start sm:self-auto flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-purple-400" />
+                ₹{costBreakdown.modalTotalInr.toFixed(2)} billed ({economicsWindow.durationLabel})
               </span>
             </div>
 
@@ -3411,108 +4211,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
             </div>
           </div>
 
-          {/* 2. Platform Storage, Queue & Database (3-Column Grid) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Backblaze B2 Storage */}
-            <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 shadow-xl space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400">
-                    <HardDrive className="w-4 h-4" />
-                  </div>
-                  <h3 className="font-bold text-white text-sm">Backblaze B2 Storage</h3>
-                </div>
-                <span className="text-xs font-mono font-bold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-0.5 rounded-full">
-                  ₹{costBreakdown.b2MonthlyInr.toFixed(2)} / mo
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">
-                Rate: ₹600 per TB/month ($0.006 / GB / mo). Adjusts dynamically when files are deleted.
-              </p>
-              <div className="space-y-2 text-xs text-slate-300 bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Active Storage:</span>
-                  <span className="font-mono text-white font-semibold">{usedGb.toFixed(2)} GB</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Active Media:</span>
-                  <span className="font-mono text-slate-300">
-                    {userEventMetrics.imageCount} photos &bull; {userEventMetrics.videoCount} videos
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Bandwidth / Egress:</span>
-                  <span className="font-mono text-emerald-400 font-semibold">₹0 (Free via Cloudflare)</span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-slate-800 font-bold">
-                  <span className="text-white">Storage Endured:</span>
-                  <span className="font-mono text-white">₹{costBreakdown.b2CostTillNowInr.toFixed(2)} ({costBreakdown.monthsActive.toFixed(1)} mo)</span>
-                </div>
-              </div>
-            </div>
 
-            {/* Upstash QStash Queue */}
-            <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 shadow-xl space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
-                    <Zap className="w-4 h-4" />
-                  </div>
-                  <h3 className="font-bold text-white text-sm">Upstash QStash Queue</h3>
-                </div>
-                <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full">
-                  ₹{costBreakdown.qstashInr.toFixed(2)} total
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">
-                Rate: ₹100 per 100,000 messages (~₹0.001 per photo/video queued at upload time).
-              </p>
-              <div className="space-y-2 text-xs text-slate-300 bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Lifetime Messages:</span>
-                  <span className="font-mono text-white font-semibold">{actualComputeMetrics.totalLifetimeMedia} msgs</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Deleted Media msgs:</span>
-                  <span className="font-mono text-slate-400">
-                    {actualComputeMetrics.deletedPhotosCount + actualComputeMetrics.deletedVideosCount} msgs
-                  </span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-slate-800 font-bold">
-                  <span className="text-white">Total QStash Cost:</span>
-                  <span className="font-mono text-white">₹{costBreakdown.qstashInr.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Supabase DB & Auth */}
-            <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 shadow-xl space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                    <Server className="w-4 h-4" />
-                  </div>
-                  <h3 className="font-bold text-white text-sm">Supabase Database & Auth</h3>
-                </div>
-                <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
-                  ₹{costBreakdown.supabaseMonthlyInr.toFixed(2)} / mo
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">
-                Pro Plan base ₹2,500/mo ($25). Holds ~4M photos' metadata + 100k MAU.
-              </p>
-              <div className="space-y-2 text-xs text-slate-300 bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Metadata Row Share:</span>
-                  <span className="font-mono text-white font-semibold">{userEventMetrics.imageCount + userEventMetrics.videoCount} active rows</span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-slate-800 font-bold">
-                  <span className="text-white">Allocated DB Cost:</span>
-                  <span className="font-mono text-white">₹{costBreakdown.supabaseMonthlyInr.toFixed(2)} / mo</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* 3. Event-Wise Modal.com Processing Expenditure Table */}
           <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-5 sm:p-6 shadow-xl space-y-4">
@@ -4053,6 +4752,125 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Record Offline Payment Modal */}
+      {showRecordPaymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-950 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Banknote className="w-4 h-4 text-emerald-400" />
+                <span>Record Customer Payment</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowRecordPaymentModal(false)}
+                className="text-slate-400 hover:text-white text-lg font-bold"
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleRecordPayment} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">Payment Amount (INR ₹)*</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  placeholder="e.g. 25000"
+                  value={paymentAmount}
+                  onChange={e => setPaymentAmount(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 font-semibold mb-1">Plan</label>
+                  <select
+                    value={paymentPlanId}
+                    onChange={e => setPaymentPlanId(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    {planTiers.map(p => (
+                      <option key={p.role} value={p.role}>{p.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-400 font-semibold mb-1">Duration</label>
+                  <select
+                    value={paymentBillingDuration}
+                    onChange={e => setPaymentBillingDuration(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly (3 Mo)</option>
+                    <option value="half_yearly">Half Yearly (6 Mo)</option>
+                    <option value="yearly">Yearly (12 Mo)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">Payment Method / Gateway</label>
+                <select
+                  value={paymentGateway}
+                  onChange={e => setPaymentGateway(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="manual_upi">Direct UPI (GPay / PhonePe / Paytm)</option>
+                  <option value="bank_transfer">Bank Transfer (IMPS / NEFT / RTGS)</option>
+                  <option value="cash">Cash in hand</option>
+                  <option value="cheque">Cheque</option>
+                  <option value="razorpay_offline">Razorpay (Offline invoice)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">Reference / Notes</label>
+                <input
+                  type="text"
+                  placeholder="e.g. PhonePe UTR 4829103948..."
+                  value={paymentNotes}
+                  onChange={e => setPaymentNotes(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="pt-1">
+                <label className="flex items-center gap-2 cursor-pointer text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={paymentUpdateRole}
+                    onChange={e => setPaymentUpdateRole(e.target.checked)}
+                    className="rounded border-slate-700 text-emerald-500 focus:ring-0"
+                  />
+                  <span>Also update user's plan and expiry date to this tier</span>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowRecordPaymentModal(false)}
+                  className="px-3.5 py-1.5 rounded-xl border border-slate-700 hover:bg-slate-900 text-slate-300 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={recordingPayment}
+                  className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                >
+                  {recordingPayment ? 'Recording...' : 'Save Payment'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
