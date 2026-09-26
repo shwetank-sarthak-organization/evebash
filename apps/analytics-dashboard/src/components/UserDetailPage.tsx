@@ -1957,9 +1957,6 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                     {economicsWindow.formattedRange}
                   </span>
                 </h3>
-                <p className="text-xs text-slate-400">
-                  Historical online Razorpay transactions, bank transfers, failed checkout drop-offs, and manual offline receipts.
-                </p>
               </div>
             </div>
 
@@ -2315,7 +2312,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
         {/* 5 Subpage Navigation Tabs (Segmented Floating Pill Design) */}
         <div className="mt-8 pt-6 border-t border-slate-800/80">
           <div className="inline-flex p-1.5 rounded-2xl bg-slate-950/70 border border-slate-800/90 shadow-inner gap-1.5 flex-wrap">
-            {/* Tab 1: User Info */}
+            {/* Tab 1: Info */}
             <button
               type="button"
               onClick={() => setActiveTab('info')}
@@ -2326,10 +2323,10 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
               }`}
             >
               <User className="w-3.5 h-3.5 shrink-0" />
-              <span>User Info</span>
+              <span>Info</span>
             </button>
 
-            {/* Tab 2: Events & Sub-events */}
+            {/* Tab 2: Events */}
             <button
               type="button"
               onClick={() => setActiveTab('events')}
@@ -2341,14 +2338,9 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
             >
               <Calendar className="w-3.5 h-3.5 shrink-0" />
               <span>Events</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono leading-none ${
-                activeTab === 'events' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-300'
-              }`}>
-                {userEventMetrics.mainEventsCount}
-              </span>
             </button>
 
-            {/* Tab 3: Storage Data */}
+            {/* Tab 3: Storage */}
             <button
               type="button"
               onClick={() => setActiveTab('storage')}
@@ -2359,15 +2351,10 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
               }`}
             >
               <HardDrive className="w-3.5 h-3.5 shrink-0" />
-              <span>Storage Data</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono leading-none ${
-                activeTab === 'storage' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-300'
-              }`}>
-                {formatBytes(userEventMetrics.totalBytes)}
-              </span>
+              <span>Storage</span>
             </button>
 
-            {/* Tab 4: Plan Data */}
+            {/* Tab 4: Plan */}
             <button
               type="button"
               onClick={() => setActiveTab('plan')}
@@ -2378,12 +2365,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
               }`}
             >
               <CreditCard className="w-3.5 h-3.5 shrink-0" />
-              <span>Plan Data</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-md uppercase leading-none ${
-                activeTab === 'plan' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-300'
-              }`}>
-                {user.role || 'free'}
-              </span>
+              <span>Plan</span>
             </button>
 
             {/* Tab 5: Economics */}
@@ -3992,9 +3974,6 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                     <BackblazeLogo className="h-4 w-auto text-white" />
                     <span>Consolidated B2 Matrix</span>
                   </h4>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Single-ledger metering for selected timeframe ({b2MeteringData.formattedRange} &bull; {b2MeteringData.durationLabel})
-                  </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
                   <span className="text-xs font-mono font-bold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-3 py-1.5 rounded-full">
@@ -4056,24 +4035,29 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
             </div>
           </div>
 
-          {/* 2. Modal.com Serverless Workers (Full Width Container Taking Whole Row) */}
+          {/* Modal Matrix (Unified Serverless Workers + Event Processing Ledger) */}
           <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 sm:p-7 shadow-xl space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800/80">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
-                  <Sparkles className="w-5 h-5" />
+                <div className="p-2 px-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                  <ModalLogo className="h-5 w-auto" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-white text-base">Modal.com Serverless Workers (Actual Incurred Compute)</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Billed per exact second of container hardware ({economicsWindow.formattedRange} &bull; {economicsWindow.durationLabel}). Auto-routes between CPU and Nvidia L4 GPU based on media type and length.
-                  </p>
+                  <h3 className="font-bold text-white text-base">Modal Matrix</h3>
                 </div>
               </div>
-              <span className="text-xs font-mono font-bold text-purple-300 bg-purple-500/10 border border-purple-500/20 px-3.5 py-1.5 rounded-full shrink-0 self-start sm:self-auto flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-purple-400" />
-                ₹{costBreakdown.modalTotalInr.toFixed(2)} billed ({economicsWindow.durationLabel})
-              </span>
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setCostRefreshKey(k => k + 1)}
+                  disabled={loadingCostLogs}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-slate-500 text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                  title="Reload latest compute logs from database"
+                >
+                  <RefreshCw className={`w-3 h-3 ${loadingCostLogs ? 'animate-spin text-purple-400' : 'text-slate-400'}`} />
+                  <span>Refresh</span>
+                </button>
+              </div>
             </div>
 
             {/* Modular Worker Breakdown (3 Cards across full row) */}
@@ -4194,53 +4178,25 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
             )}
 
             {/* Modal Bottom Summary Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-800/80">
-              <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl text-xs">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-emerald-300 font-medium">Free Tier Credit:</span>
-                <span className="font-mono text-emerald-400 font-bold">$30/mo credit (~360,000 photos / 100hrs CPU)</span>
-              </div>
-              <div className="flex items-center gap-4 text-xs font-mono">
-                <span className="text-slate-400">
-                  Execution: <strong className="text-slate-200">{actualComputeMetrics.totalComputeSeconds.toFixed(1)}s</strong>
-                </span>
-                <span className="text-slate-400">
-                  Total Modal Compute: <strong className="text-purple-300 text-sm">₹{costBreakdown.modalTotalInr.toFixed(2)}</strong>
-                </span>
-              </div>
+            <div className="flex items-center justify-end gap-4 pt-3 border-t border-slate-800/80 text-xs font-mono">
+              <span className="text-slate-400">
+                Execution: <strong className="text-slate-200">{actualComputeMetrics.totalComputeSeconds.toFixed(1)}s</strong>
+              </span>
+              <span className="text-slate-400">
+                Total Modal Compute: <strong className="text-purple-300 text-sm">₹{costBreakdown.modalTotalInr.toFixed(2)}</strong>
+              </span>
             </div>
-          </div>
 
-
-
-          {/* 3. Event-Wise Modal.com Processing Expenditure Table */}
-          <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-5 sm:p-6 shadow-xl space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2.5">
-                  <div className="p-1.5 px-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+            {/* Event-Wise Modal.com Processing Expenditure Table */}
+            <div className="space-y-4 pt-3 border-t border-slate-800/80">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
+                <div>
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
                     <ModalLogo className="h-4 w-auto" />
-                  </div>
-                  <span>Modal Matrix</span>
-                </h3>
+                    <span>Event Cost</span>
+                  </h4>
+                </div>
               </div>
-              <div className="flex items-center gap-2 self-start sm:self-auto">
-                <button
-                  type="button"
-                  onClick={() => setCostRefreshKey(k => k + 1)}
-                  disabled={loadingCostLogs}
-                  className="px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-slate-500 text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                  title="Reload latest compute logs from database"
-                >
-                  <RefreshCw className={`w-3 h-3 ${loadingCostLogs ? 'animate-spin text-purple-400' : 'text-slate-400'}`} />
-                  <span>Refresh</span>
-                </button>
-                <span className="text-xs font-mono font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shrink-0">
-                  {loadingCostLogs && <Clock className="w-3 h-3 animate-spin text-purple-400" />}
-                  Total Compute: ₹{costBreakdown.modalTotalInr.toFixed(2)}
-                </span>
-              </div>
-            </div>
 
             {/* Filter and Search Toolbar */}
             {allCostRows.length > 0 && (
@@ -4752,6 +4708,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                 </div>
               </div>
             )}
+            </div>
           </div>
         </div>
       )}
