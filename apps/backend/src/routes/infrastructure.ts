@@ -24,15 +24,23 @@ function requireEnv(name: string) {
 }
 
 async function authorize(request: Request, response: Response) {
-  const verification = await verifySuperAdmin(request);
-  if ("error" in verification) {
-    response.status(adminAuthStatus(verification.error)).json({
+  try {
+    const verification = await verifySuperAdmin(request);
+    if ("error" in verification) {
+      response.status(adminAuthStatus(verification.error)).json({
+        success: false,
+        error: verification.error,
+      });
+      return false;
+    }
+    return true;
+  } catch (err: any) {
+    response.status(500).json({
       success: false,
-      error: verification.error,
+      error: err?.message || "Admin authorization failed",
     });
     return false;
   }
-  return true;
 }
 
 infrastructureRouter.get("/supabase-billing", async (request, response) => {

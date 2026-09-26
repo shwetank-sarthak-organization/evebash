@@ -16,7 +16,28 @@ import { tenantAuthRouter } from "./routes/tenantAuth.js";
 import { permissionsRouter } from "./routes/permissions.js";
 import { runMediaWatchdog } from "./services/watchdog.js";
 
-const app = express();
+// ── Process-Level Crash Protection ──────────────────────────────────────────
+// Prevent unhandled promise rejections from crashing the process (Node 16+)
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("[EveBashBackend] Unhandled Promise Rejection:", {
+    reason: reason instanceof Error ? reason.stack || reason.message : reason,
+    promise,
+  });
+});
+
+// Catch synchronous exceptions that escape error handlers to prevent abrupt process termination
+process.on("uncaughtException", (error, origin) => {
+  console.error("[EveBashBackend] Uncaught Exception:", {
+    error: error instanceof Error ? error.stack || error.message : error,
+    origin,
+  });
+});
+
+process.on("warning", (warning) => {
+  console.warn("[EveBashBackend] Process Warning:", warning.name, warning.message);
+});
+
+export const app = express();
 
 app.disable("x-powered-by");
 
@@ -44,10 +65,12 @@ const contactMessagesLimiter = rateLimit({
   message: { success: false, error: "Too many contact requests. Please try again later." },
 });
 
-app.get("/health", (_request, response) => {
+// Health checks for Railway, load balancers, and monitoring tools
+app.get(["/", "/health", "/api/health"], (_request, response) => {
   response.json({
     ok: true,
     service: "evebash-backend",
+    uptime: Math.round(process.uptime()),
     timestamp: new Date().toISOString(),
   });
 });
@@ -70,31 +93,64 @@ app.use("/api/verify-payment", paymentsRouter);
 app.use("/api/v1/tenant-auth", tenantAuthRouter);
 app.use("/api/v1/permissions", permissionsRouter);
 
-
 app.use((_request, response) => {
   response.status(404).json({ success: false, error: "Route not found." });
 });
 
+// ── Global Error Handling Middleware ─────────────────────────────────────────
+// Catches unhandled errors across all routes, body parsers, and CORS
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  const isCorsError = typeof err?.message === "string" && err.message.startsWith("Origin not allowed by CORS");
+  const isSyntaxError = err instanceof SyntaxError && "body" in err;
+  const status = isCorsError
+    ? 403
+    : isSyntaxError
+      ? 400
+      : typeof err?.status === "number" && err.status >= 400 && err.status < 600
+        ? err.status
+        : 500;
+
+  console.error("[EveBashBackend] Handled route error:", {
+    method: req.method,
+    url: req.originalUrl,
+    status,
+    message: err?.message || "Internal server error",
+  });
+
+  res.status(status).json({
+    success: false,
+    error: isSyntaxError ? "Invalid JSON payload" : err?.message || "Internal server error",
+  });
+});
+
 // ── Graceful Shutdown Handling ───────────────────────────────────────────────
-const server = app.listen(PORT, () => {
-  console.log(`[EveBashBackend] Listening on port ${PORT}`);
+const server = app.listen(PORT, "0.0.0.0", () => {
+  console.log(`[EveBashBackend] Listening on 0.0.0.0:${PORT}`);
 });
 
 let isShuttingDown = false;
 
+const safeRunWatchdog = async (context: string) => {
+  try {
+    await runMediaWatchdog();
+  } catch (err) {
+    console.error(`[WatchdogRunner] ${context} watchdog cycle failed:`, err);
+  }
+};
+
 // Start background self-healing watchdog (runs every 10 minutes)
 const WATCHDOG_INTERVAL_MS = 10 * 60 * 1000;
 const watchdogInterval = setInterval(() => {
-  runMediaWatchdog().catch((err) => {
-    console.error("[WatchdogRunner] Background watchdog cycle failed:", err);
-  });
+  safeRunWatchdog("Background").catch(() => {});
 }, WATCHDOG_INTERVAL_MS);
 
 // Also run once 30 seconds after server startup
 const startupWatchdogTimeout = setTimeout(() => {
-  runMediaWatchdog().catch((err) => {
-    console.error("[WatchdogRunner] Startup watchdog cycle failed:", err);
-  });
+  safeRunWatchdog("Startup").catch(() => {});
 }, 30 * 1000);
 
 function handleShutdown(signal: string) {
