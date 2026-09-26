@@ -206,24 +206,41 @@ export async function publishManifestAssemblyTask(payload: {
   let fileSize = payload.fileSize;
   let userId = payload.user_id;
 
-  // If duration, fileSize, or userId is missing, fetch latest metadata from database
-  if ((!duration || duration <= 0 || !fileSize || !userId) && photoId) {
+  // If duration, fileSize, or userId is missing or anonymous, fetch latest metadata from database
+  if ((!duration || duration <= 0 || !fileSize || !userId || userId === "anonymous") && (photoId || payload.event_id)) {
     try {
       const supabaseAdmin = getSupabaseAdminClient();
-      const { data } = await supabaseAdmin
-        .from("photos")
-        .select("duration, size, user_id")
-        .eq("id", photoId)
-        .maybeSingle();
-      if (data) {
-        if ((!duration || duration <= 0) && data.duration) {
-          duration = Number(data.duration);
+      if (photoId) {
+        const { data } = await supabaseAdmin
+          .from("photos")
+          .select("duration, size, user_id, event_id")
+          .eq("id", photoId)
+          .maybeSingle();
+        if (data) {
+          if ((!duration || duration <= 0) && data.duration) {
+            duration = Number(data.duration);
+          }
+          if (!fileSize && data.size) {
+            fileSize = Number(data.size);
+          }
+          if ((!userId || userId === "anonymous") && data.user_id && data.user_id !== "anonymous") {
+            userId = data.user_id;
+          }
+          if (!payload.event_id && data.event_id) {
+            payload.event_id = data.event_id;
+          }
         }
-        if (!fileSize && data.size) {
-          fileSize = Number(data.size);
-        }
-        if (!userId && data.user_id) {
-          userId = data.user_id;
+      }
+
+      // If still missing or anonymous, resolve from event owner
+      if ((!userId || userId === "anonymous") && payload.event_id) {
+        const { data: eventData } = await supabaseAdmin
+          .from("events")
+          .select("created_by")
+          .eq("id", payload.event_id)
+          .maybeSingle();
+        if (eventData?.created_by) {
+          userId = eventData.created_by;
         }
       }
     } catch {

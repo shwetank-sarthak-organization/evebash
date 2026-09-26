@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { getAccessToken, getApiBaseUrl, runAdminAction, type AdminActionResult } from '../lib/adminApi';
 import { supabase } from '../lib/supabase';
+import { ModalLogo } from './ModalLogo';
 
 interface Props {
   stats: DashboardStats | null;
@@ -1011,12 +1012,12 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
 
   // Navigation Subtabs
   const tabs = [
-    { id: 'total', label: 'Total Cost', icon: DollarSign },
-    { id: 'supabase', label: 'Supabase', icon: Database },
-    { id: 'backblaze', label: 'Backblaze B2', icon: HardDrive },
-    { id: 'cloudflare', label: 'Cloudflare', icon: Cloud },
-    { id: 'modal', label: 'Modal.com (AI)', icon: Cpu },
-    { id: 'railway', label: 'Railway (App)', icon: Server },
+    { id: 'total', label: 'Total Cost', icon: DollarSign, customIcon: null },
+    { id: 'supabase', label: 'Supabase', icon: Database, customIcon: null },
+    { id: 'backblaze', label: 'Backblaze B2', icon: HardDrive, customIcon: null },
+    { id: 'cloudflare', label: 'Cloudflare', icon: Cloud, customIcon: null },
+    { id: 'modal', label: 'Modal.com (AI)', icon: null, customIcon: 'modal' },
+    { id: 'railway', label: 'Railway (App)', icon: Server, customIcon: null },
   ];
 
   return (
@@ -1052,7 +1053,11 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
               }`}
             >
-              <Icon className="w-4 h-4" />
+              {tab.customIcon === 'modal' ? (
+                <ModalLogo className="h-3.5 w-auto" />
+              ) : Icon ? (
+                <Icon className="w-4 h-4" />
+              ) : null}
               <span>{tab.label}</span>
             </button>
           );
@@ -1231,8 +1236,8 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                     ₹{(actualModalCostInfo.inr * timeframeFactor).toFixed(2)} <span className="text-xs font-semibold text-slate-500">(${(actualModalCostInfo.usd * timeframeFactor).toFixed(4)})</span>
                   </h3>
                 </div>
-                <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">
-                  <Cpu className="w-4 h-4" />
+                <div className="p-1.5 px-2 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+                  <ModalLogo className="h-4 w-auto" />
                 </div>
               </div>
               <div className="flex items-center justify-between mt-4">
@@ -2692,8 +2697,8 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
           <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
               <div>
-                <h4 className="text-md font-bold text-white mb-1.5 flex items-center">
-                  <Cpu className="w-5 h-5 mr-2 text-indigo-400" />
+                <h4 className="text-md font-bold text-white mb-1.5 flex items-center gap-2">
+                  <ModalLogo className="h-4 w-auto" />
                   Modal.com Execution & Infrastructure Cost Logs ({timeframeLabel})
                 </h4>
                 <p className="text-slate-400 text-xs">

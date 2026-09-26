@@ -29,6 +29,7 @@ import {
   ChevronLeft,
   Search,
   Filter,
+  RefreshCw,
 } from 'lucide-react';
 
 export type UserDetailTabType = 'info' | 'events' | 'storage' | 'plan' | 'cost';
@@ -95,6 +96,11 @@ const durationOptions = [
   { value: 'yearly', label: '1 Year (Annual)', months: 12 },
 ];
 
+export { ModalLogo } from './ModalLogo';
+import { ModalLogo } from './ModalLogo';
+export { BackblazeLogo } from './BackblazeLogo';
+import { BackblazeLogo } from './BackblazeLogo';
+
 export const UserDetailPage: React.FC<UserDetailPageProps> = ({
   user,
   events = [],
@@ -112,6 +118,12 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
+
+  useEffect(() => {
+    if (activeTab === 'cost') {
+      setCostRefreshKey(k => k + 1);
+    }
+  }, [activeTab]);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // Gallery viewer state for inspecting user uploads
@@ -461,6 +473,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
   const [deletedEvents, setDeletedEvents] = useState<DeletedEventArchive[]>([]);
   const [modalLogs, setModalLogs] = useState<any[]>([]);
   const [loadingCostLogs, setLoadingCostLogs] = useState(false);
+  const [costRefreshKey, setCostRefreshKey] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -471,38 +484,75 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
         const allDeleted = await fetchDeletedEvents();
         const userDeleted = allDeleted.filter(d =>
           d.userId === user.id ||
-          (user.email && d.userId === user.email) ||
+          (user.email && d.userId?.toLowerCase() === user.email.toLowerCase()) ||
           (user.phone && d.userId === user.phone)
         );
         if (isMounted) {
           setDeletedEvents(userDeleted);
         }
 
-        // 2. Fetch modal_cost_logs for this user and events (both active & deleted) with pagination
+        // 2. Collect all valid user identifiers & event IDs
+        const validUserIds = Array.from(new Set([
+          user.id,
+          user.email,
+          user.phone,
+        ].filter(Boolean))) as string[];
+
         const activeIds = userEventMetrics.allUserEvents.map(e => e.id);
         const deletedIds = userDeleted.map(d => d.eventId);
-        const allIds = Array.from(new Set([...activeIds, ...deletedIds])).filter(Boolean);
+        const allEventIds = Array.from(new Set([...activeIds, ...deletedIds])).filter(Boolean);
 
-        let allLogs: any[] = [];
-        let from = 0;
-        const batchSize = 1000;
-        while (true) {
-          let query = supabase.from('modal_cost_logs').select('*');
-          if (allIds.length > 0) {
-            query = query.or(`user_id.eq.${user.id},event_id.in.(${allIds.join(',')})`);
-          } else {
-            query = query.eq('user_id', user.id);
+        // Deduplication map by unique log id / signature
+        const logsById = new Map<string, any>();
+
+        // A. Query logs attributed directly to user's identifiers
+        if (validUserIds.length > 0) {
+          let from = 0;
+          const batchSize = 1000;
+          while (true) {
+            const { data: pageLogs, error: logsErr } = await supabase
+              .from('modal_cost_logs')
+              .select('*')
+              .in('user_id', validUserIds)
+              .order('created_at', { ascending: false })
+              .range(from, from + batchSize - 1);
+
+            if (logsErr || !pageLogs || pageLogs.length === 0) break;
+            pageLogs.forEach(log => {
+              const logKey = log.id || `${log.photo_id || ''}-${log.created_at || ''}-${log.function_name || ''}`;
+              logsById.set(logKey, log);
+            });
+            if (pageLogs.length < batchSize || logsById.size >= 20000) break;
+            from += batchSize;
           }
-          query = query.order('created_at', { ascending: false }).range(from, from + batchSize - 1);
-          const { data: pageLogs, error: logsErr } = await query;
-          if (logsErr || !pageLogs || pageLogs.length === 0) break;
-          allLogs = allLogs.concat(pageLogs);
-          if (pageLogs.length < batchSize || allLogs.length >= 20000) break;
-          from += batchSize;
+        }
+
+        // B. Query logs by associated event IDs in batches of 50 to avoid URL query limits
+        const chunkSize = 50;
+        for (let i = 0; i < allEventIds.length; i += chunkSize) {
+          const chunk = allEventIds.slice(i, i + chunkSize);
+          let from = 0;
+          const batchSize = 1000;
+          while (true) {
+            const { data: pageLogs, error: logsErr } = await supabase
+              .from('modal_cost_logs')
+              .select('*')
+              .in('event_id', chunk)
+              .order('created_at', { ascending: false })
+              .range(from, from + batchSize - 1);
+
+            if (logsErr || !pageLogs || pageLogs.length === 0) break;
+            pageLogs.forEach(log => {
+              const logKey = log.id || `${log.photo_id || ''}-${log.created_at || ''}-${log.function_name || ''}`;
+              logsById.set(logKey, log);
+            });
+            if (pageLogs.length < batchSize || logsById.size >= 20000) break;
+            from += batchSize;
+          }
         }
 
         if (isMounted) {
-          setModalLogs(allLogs);
+          setModalLogs(Array.from(logsById.values()));
         }
       } catch (err) {
         console.warn('Failed to load historical cost data:', err);
@@ -515,7 +565,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [user.id, user.email, user.phone, userEventMetrics.allUserEvents]);
+  }, [user.id, user.email, user.phone, userEventMetrics.allUserEvents, costRefreshKey]);
 
   // ── High-Precision Actual Compute Metrics from modal_cost_logs ────────────
   const actualComputeMetrics = useMemo(() => {
@@ -551,7 +601,8 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     }>();
 
     const getOrCreateEventStats = (eventId: string) => {
-      let stats = eventComputeMap.get(eventId);
+      const key = (eventId || '').toLowerCase().trim();
+      let stats = eventComputeMap.get(key);
       if (!stats) {
         stats = {
           photoInr: 0,
@@ -566,7 +617,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
           totalInr: 0,
           totalSeconds: 0,
         };
-        eventComputeMap.set(eventId, stats);
+        eventComputeMap.set(key, stats);
       }
       return stats;
     };
@@ -662,6 +713,8 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
 
     // Remaining unlogged media gets added at observed user average (or COST_ANALYSIS benchmark if 0 runs)
     const avgObservedPhotoCost = totalPhotoRuns > 0 ? (totalPhotoActualInr / totalPhotoRuns) : 0.0082;
+    const avgObservedVideoCpuCost = totalVideoCpuRuns > 0 ? (totalVideoCpuActualInr / totalVideoCpuRuns) : 0.35;
+    const avgObservedVideoGpuCost = totalVideoGpuRuns > 0 ? (totalVideoGpuActualInr / totalVideoGpuRuns) : 1.75;
     const avgObservedVideoCost = totalVideoRuns > 0 ? (totalVideoActualInr / totalVideoRuns) : 0.35;
 
     const deletedArchivePhotoCount = deletedEvents.reduce((s, d) => s + (Number(d.photosCount) || 0), 0);
@@ -673,9 +726,31 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     const unloggedPhotos = Math.max(0, lifetimePhotosCount - totalPhotoRuns);
     const unloggedVideos = Math.max(0, lifetimeVideosCount - totalVideoRuns);
 
+    // Inspect user's actual videos to see how many qualify as GPU candidates (>10m or >350MB)
+    let activeGpuVideosCandidateCount = 0;
+    userEventMetrics.userPhotos.forEach(p => {
+      const size = Number(p.size) || 0;
+      const mediaType = String(p.mediaType || '').toLowerCase();
+      const resourceType = String(p.resourceType || '').toLowerCase();
+      const rawFormat = String((p as any).format || '').toLowerCase();
+      const rawPath = String((p as any).storageKey || (p as any).url || '').toLowerCase();
+      const hasDuration = p.duration != null && Number(p.duration) > 0;
+      const isVideoByExtension = 
+        ['mp4', 'mov', 'webm', 'mkv', 'm4v', 'avi'].includes(rawFormat) ||
+        /\.(mp4|mov|webm|mkv|m4v|avi)(\?.*)?$/i.test(rawPath);
+      const isVideo = mediaType === 'video' || resourceType === 'video' || hasDuration || isVideoByExtension;
+      if (isVideo) {
+        const isLong = (hasDuration && Number(p.duration) > 600) || size > 350 * 1024 * 1024;
+        if (isLong) activeGpuVideosCandidateCount++;
+      }
+    });
+
+    const unloggedGpuVideos = Math.min(unloggedVideos, Math.max(0, activeGpuVideosCandidateCount - totalVideoGpuRuns));
+    const unloggedCpuVideos = Math.max(0, unloggedVideos - unloggedGpuVideos);
+
     const effectivePhotoInr = totalPhotoActualInr + (unloggedPhotos * avgObservedPhotoCost);
-    const effectiveVideoCpuInr = totalVideoCpuActualInr + (unloggedVideos * avgObservedVideoCost);
-    const effectiveVideoGpuInr = totalVideoGpuActualInr;
+    const effectiveVideoCpuInr = totalVideoCpuActualInr + (unloggedCpuVideos * avgObservedVideoCpuCost);
+    const effectiveVideoGpuInr = totalVideoGpuActualInr + (unloggedGpuVideos * avgObservedVideoGpuCost);
     const effectiveVideoInr = effectiveVideoCpuInr + effectiveVideoGpuInr;
     const effectiveSelfieInr = totalSelfieActualInr;
 
@@ -709,14 +784,18 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
       lifetimeVideosCount,
       activePhotos,
       activeVideos,
+      unloggedCpuVideos,
+      unloggedGpuVideos,
       deletedPhotosCount: Math.max(0, lifetimePhotosCount - activePhotos),
       deletedVideosCount: Math.max(0, lifetimeVideosCount - activeVideos),
       totalLifetimeMedia: lifetimePhotosCount + lifetimeVideosCount,
       eventComputeMap,
       avgObservedPhotoCost,
       avgObservedVideoCost,
+      avgObservedVideoCpuCost,
+      avgObservedVideoGpuCost,
     };
-  }, [modalLogs, userEventMetrics.imageCount, userEventMetrics.videoCount, deletedEvents]);
+  }, [modalLogs, userEventMetrics.imageCount, userEventMetrics.videoCount, userEventMetrics.userPhotos, deletedEvents]);
 
   // Formatted helpers
   const formatBytes = (bytes: number | null | undefined): string => {
@@ -1511,8 +1590,8 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     const grandTotalB2CostInr = totalStorageCostInr + totalTransactionCostInr;
     const grandTotalB2CostUsd = grandTotalB2CostInr / 100;
 
-    const freeTierStorageCreditInr = Math.min(totalStorageCostInr, 10 * (Math.min(30, windowDurationDays) / 30) * 0.60);
-    const netBilledB2CostInr = Math.max(0, grandTotalB2CostInr - freeTierStorageCreditInr);
+    const freeTierStorageCreditInr = 0;
+    const netBilledB2CostInr = grandTotalB2CostInr;
 
     // Window-specific metrics (only events active or present during this selected timeframe):
     const windowPhotos = rowsInWindow.reduce((s, r) => s + r.photoCount, 0);
@@ -2974,8 +3053,8 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
             {/* Header & Controls Bar */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-sky-400">
-                  <HardDrive className="w-5 h-5" />
+                <div className="p-2 px-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
+                  <BackblazeLogo className="h-5 w-auto text-white" />
                 </div>
                 <div>
                   <h3 className="font-bold text-white text-base">B2 Matrix</h3>
@@ -3042,8 +3121,8 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
               </div>
             </div>
 
-            {/* 5 Executive B2 Metric Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 pt-1">
+            {/* 4 Executive B2 Metric Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
               {/* Card 1: Data Metered */}
               <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80">
                 <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">
@@ -3092,20 +3171,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                 </span>
               </div>
 
-              {/* Card 4: Bandwidth / Egress */}
-              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80">
-                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
-                  Bandwidth / Egress
-                </span>
-                <div className="text-xl font-black text-emerald-400 font-mono">
-                  ₹0.00
-                </div>
-                <span className="text-[11px] text-slate-400 mt-1 block">
-                  Cloudflare Alliance (100% Free)
-                </span>
-              </div>
-
-              {/* Card 5: Total B2 Incurred */}
+              {/* Card 4: Total B2 Incurred */}
               <div className="rounded-2xl border border-sky-500/30 bg-sky-950/20 p-4 transition-all hover:border-sky-500/50">
                 <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">
                   Total BB Incurred
@@ -3124,6 +3190,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
                 <div>
                   <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    <BackblazeLogo className="h-4 w-auto text-white" />
                     <span>Consolidated B2 Matrix</span>
                   </h4>
                   <p className="text-xs text-slate-400 mt-0.5">
@@ -3132,10 +3199,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                 </div>
                 <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
                   <span className="text-xs font-mono font-bold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-3 py-1.5 rounded-full">
-                    Gross Incurred: ₹{b2MeteringData.grandTotalB2CostInr.toFixed(2)}
-                  </span>
-                  <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full">
-                    Net Billed: ₹{b2MeteringData.netBilledB2CostInr.toFixed(2)}
+                    Total B2 Cost: ₹{b2MeteringData.grandTotalB2CostInr.toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -3151,8 +3215,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                         <th className="py-3 px-3 text-right font-bold whitespace-nowrap">Storage Cost</th>
                         <th className="py-3 px-3 text-right font-bold whitespace-nowrap">Class C</th>
                         <th className="py-3 px-3 text-right font-bold whitespace-nowrap">Class B</th>
-                        <th className="py-3 px-3 text-right font-bold whitespace-nowrap">Gross BB Cost</th>
-                        <th className="py-3 px-3.5 text-right font-bold whitespace-nowrap">Net Invoiced</th>
+                        <th className="py-3 px-3.5 text-right font-bold whitespace-nowrap">Total B2 Cost</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/80">
@@ -3182,14 +3245,9 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                           <span className="text-amber-200 font-bold">₹{b2MeteringData.totalClassBCostInr.toFixed(2)}</span>
                         </td>
 
-                        {/* 7. Gross BB Cost */}
-                        <td className="py-3.5 px-3 text-right font-mono tabular-nums whitespace-nowrap bg-slate-900/40">
-                          <span className="text-white font-black text-sm">₹{b2MeteringData.grandTotalB2CostInr.toFixed(2)}</span>
-                        </td>
-
-                        {/* 8. Net Invoiced */}
-                        <td className="py-3.5 px-3.5 text-right font-mono tabular-nums whitespace-nowrap bg-emerald-950/20">
-                          <span className="text-emerald-300 font-black text-sm">₹{b2MeteringData.netBilledB2CostInr.toFixed(2)}</span>
+                        {/* 7. Total B2 Cost */}
+                        <td className="py-3.5 px-3.5 text-right font-mono tabular-nums whitespace-nowrap bg-sky-950/20">
+                          <span className="text-sky-200 font-black text-sm">₹{b2MeteringData.grandTotalB2CostInr.toFixed(2)}</span>
                         </td>
                       </tr>
                     </tbody>
@@ -3461,16 +3519,28 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
-                    <Sparkles className="w-4 h-4" />
+                  <div className="p-1.5 px-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                    <ModalLogo className="h-4 w-auto" />
                   </div>
                   <span>Modal Matrix</span>
                 </h3>
               </div>
-              <span className="text-xs font-mono font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
-                {loadingCostLogs && <Clock className="w-3 h-3 animate-spin text-purple-400" />}
-                Total Compute: ₹{costBreakdown.modalTotalInr.toFixed(2)}
-              </span>
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setCostRefreshKey(k => k + 1)}
+                  disabled={loadingCostLogs}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-slate-500 text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                  title="Reload latest compute logs from database"
+                >
+                  <RefreshCw className={`w-3 h-3 ${loadingCostLogs ? 'animate-spin text-purple-400' : 'text-slate-400'}`} />
+                  <span>Refresh</span>
+                </button>
+                <span className="text-xs font-mono font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shrink-0">
+                  {loadingCostLogs && <Clock className="w-3 h-3 animate-spin text-purple-400" />}
+                  Total Compute: ₹{costBreakdown.modalTotalInr.toFixed(2)}
+                </span>
+              </div>
             </div>
 
             {/* Filter and Search Toolbar */}
@@ -3567,7 +3637,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                             // Aggregate compute stats across main event AND all child sub-events
                             const allRelatedIds = [event.id, ...children.map(c => c.event.id)];
                             const allStats = allRelatedIds
-                              .map(id => actualComputeMetrics.eventComputeMap.get(id))
+                              .map(id => actualComputeMetrics.eventComputeMap.get((id || '').toLowerCase().trim()))
                               .filter(Boolean);
 
                             const eventPhotoRuns = allStats.reduce((s, st) => s + (st?.photoRuns || 0), 0);
@@ -3585,9 +3655,36 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                             // Accurate video counts & cost split by CPU and GPU
                             const galleryVideoCount = Math.max(combined.videoCount, eventVideoRuns);
                             const unloggedVideos = Math.max(0, galleryVideoCount - eventVideoRuns);
+
+                            // Identify GPU candidates in this gallery
+                            let galleryGpuCandidates = 0;
+                            const galleryRelatedEventIds = new Set(allRelatedIds.map(id => (id || '').toLowerCase().trim()));
+                            userEventMetrics.userPhotos.forEach(p => {
+                              const pid = (p.eventId || '').toLowerCase().trim();
+                              if (!galleryRelatedEventIds.has(pid)) return;
+                              const size = Number(p.size) || 0;
+                              const mediaType = String(p.mediaType || '').toLowerCase();
+                              const resourceType = String(p.resourceType || '').toLowerCase();
+                              const rawFormat = String((p as any).format || '').toLowerCase();
+                              const rawPath = String((p as any).storageKey || (p as any).url || '').toLowerCase();
+                              const hasDuration = p.duration != null && Number(p.duration) > 0;
+                              const isVideoByExtension = 
+                                ['mp4', 'mov', 'webm', 'mkv', 'm4v', 'avi'].includes(rawFormat) ||
+                                /\.(mp4|mov|webm|mkv|m4v|avi)(\?.*)?$/i.test(rawPath);
+                              const isVideo = mediaType === 'video' || resourceType === 'video' || hasDuration || isVideoByExtension;
+                              if (isVideo) {
+                                const isLong = (hasDuration && Number(p.duration) > 600) || size > 350 * 1024 * 1024;
+                                if (isLong) galleryGpuCandidates++;
+                              }
+                            });
+
+                            const unloggedGpuVideos = Math.min(unloggedVideos, Math.max(0, galleryGpuCandidates - eventVideoGpuRuns));
+                            const unloggedCpuVideos = Math.max(0, unloggedVideos - unloggedGpuVideos);
+
                             const eventVideoCpuActualInr = allStats.reduce((s, st) => s + (st?.videoCpuInr || 0), 0);
-                            const eventVideoCpuCost = eventVideoCpuActualInr + (unloggedVideos * actualComputeMetrics.avgObservedVideoCost);
-                            const eventVideoGpuCost = allStats.reduce((s, st) => s + (st?.videoGpuInr || 0), 0);
+                            const eventVideoGpuActualInr = allStats.reduce((s, st) => s + (st?.videoGpuInr || 0), 0);
+                            const eventVideoCpuCost = eventVideoCpuActualInr + (unloggedCpuVideos * actualComputeMetrics.avgObservedVideoCpuCost);
+                            const eventVideoGpuCost = eventVideoGpuActualInr + (unloggedGpuVideos * actualComputeMetrics.avgObservedVideoGpuCost);
 
                             const eventTotalModalCost = eventPhotoCost + eventVideoCpuCost + eventVideoGpuCost;
 
@@ -3641,8 +3738,8 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                                 <td className="py-2 px-2.5 text-right font-mono tabular-nums whitespace-nowrap text-violet-400 font-semibold">
                                   {eventVideoCpuRuns > 0
                                     ? `${eventVideoCpuRuns} ${eventVideoCpuRuns === 1 ? 'run' : 'runs'}`
-                                    : (galleryVideoCount > 0 && eventVideoGpuRuns === 0)
-                                    ? `${galleryVideoCount} ${galleryVideoCount === 1 ? 'vid' : 'vids'}`
+                                    : unloggedCpuVideos > 0
+                                    ? `${unloggedCpuVideos} ${unloggedCpuVideos === 1 ? 'vid' : 'vids'}`
                                     : '0 runs'}
                                 </td>
 
@@ -3653,7 +3750,11 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
 
                                 {/* 7. Videos GPU (Clean count only, no running time) */}
                                 <td className="py-2 px-2.5 text-right font-mono tabular-nums whitespace-nowrap text-fuchsia-400 font-semibold">
-                                  {eventVideoGpuRuns > 0 ? `${eventVideoGpuRuns} ${eventVideoGpuRuns === 1 ? 'run' : 'runs'}` : '0 runs'}
+                                  {eventVideoGpuRuns > 0
+                                    ? `${eventVideoGpuRuns} ${eventVideoGpuRuns === 1 ? 'run' : 'runs'}`
+                                    : unloggedGpuVideos > 0
+                                    ? `${unloggedGpuVideos} ${unloggedGpuVideos === 1 ? 'vid' : 'vids'}`
+                                    : '0 runs'}
                                 </td>
 
                                 {/* 8. GPU Cost */}
@@ -3671,7 +3772,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
 
                           if (row.type === 'deleted') {
                             const del = row.deleted;
-                            const delStats = actualComputeMetrics.eventComputeMap.get(del.eventId);
+                            const delStats = actualComputeMetrics.eventComputeMap.get((del.eventId || '').toLowerCase().trim());
                             const delPhotoCost = delStats ? delStats.photoInr : (del.photosCount * 0.0082);
 
                             const delVideoCpuRuns = delStats?.videoCpuRuns || 0;

@@ -876,17 +876,19 @@ def _transcode_video_core(request: dict, hardware="cpu"):
         event_id = request.get("event_id")
         user_id = request.get("user_id")
 
-        # Resolve user_id if missing from request
-        if not user_id and photo_id:
+        # Resolve user_id if missing or anonymous from request
+        if (not user_id or user_id == "anonymous") and photo_id:
             try:
                 p_res = supabase.table("photos").select("user_id, event_id").eq("id", photo_id).maybe_single().execute()
                 if p_res and p_res.data:
-                    user_id = p_res.data.get("user_id")
+                    p_user = p_res.data.get("user_id")
+                    if p_user and p_user != "anonymous":
+                        user_id = p_user
                     if not event_id:
                         event_id = p_res.data.get("event_id")
             except Exception:
                 pass
-        if not user_id and event_id:
+        if (not user_id or user_id == "anonymous") and event_id:
             try:
                 e_res = supabase.table("events").select("created_by").eq("id", event_id).maybe_single().execute()
                 if e_res and e_res.data:
@@ -915,10 +917,29 @@ def _transcode_video_core(request: dict, hardware="cpu"):
             }
             if user_id:
                 video_log_payload["user_id"] = user_id
-            supabase.table("modal_cost_logs").insert(video_log_payload).execute()
-            print(f"[TranscodeVideo-{hardware.upper()}] Cost logged: {duration:.2f}s, ₹{estimated_cost_inr:.5f}")
+
+            try:
+                supabase.table("modal_cost_logs").insert(video_log_payload).execute()
+                print(f"[TranscodeVideo-{hardware.upper()}] Cost logged (full metadata): {duration:.2f}s, ₹{estimated_cost_inr:.5f}")
+            except Exception as meta_err:
+                print(f"[TranscodeVideo-{hardware.upper()}] Full metadata log failed ({meta_err}), attempting core schema fallback...")
+                core_payload = {
+                    "photo_id":                photo_id,
+                    "event_id":                event_id,
+                    "function_name":           f"process_video_{hardware}",
+                    "cpu_cores":               cpu_cores,
+                    "memory_gb":               memory_gb,
+                    "gpu_type":                gpu_type,
+                    "execution_time_seconds":  duration,
+                    "estimated_cost_inr":      estimated_cost_inr,
+                    "faces_detected":          0
+                }
+                if user_id:
+                    core_payload["user_id"] = user_id
+                supabase.table("modal_cost_logs").insert(core_payload).execute()
+                print(f"[TranscodeVideo-{hardware.upper()}] Cost logged (core fallback): {duration:.2f}s, ₹{estimated_cost_inr:.5f}")
         except Exception as log_err:
-            print(f"[TranscodeVideo-{hardware.upper()}] Cost log failed: {log_err}")
+            print(f"[TranscodeVideo-{hardware.upper()}] Cost log completely failed: {log_err}")
 
         print(f"[TranscodeVideo-{hardware.upper()}] completed in {duration:.1f}s")
         return {"status": "success", "hls_master_url": hls_master_url}

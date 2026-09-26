@@ -1053,6 +1053,8 @@ export interface ModalCostLogRow {
   memory_gb?: number;
   gpu_type?: string;
   estimated_cost_inr?: number;
+  media_type?: string;
+  worker_type?: string;
   created_at?: string;
 }
 
@@ -1084,7 +1086,7 @@ export async function fetchAllModalCostLogs(): Promise<ModalCostLogRow[]> {
     while (true) {
       const { data, error } = await supabase
         .from('modal_cost_logs')
-        .select('event_id, user_id, execution_time_seconds, estimated_cost_inr, cpu_cores, memory_gb, gpu_type, function_name')
+        .select('id, event_id, user_id, execution_time_seconds, estimated_cost_inr, cpu_cores, memory_gb, gpu_type, function_name, media_type, worker_type, created_at')
         .range(from, from + batchSize - 1);
 
       if (error || !data || data.length === 0) break;
