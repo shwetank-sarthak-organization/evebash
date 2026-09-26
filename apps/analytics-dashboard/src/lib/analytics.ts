@@ -1063,6 +1063,7 @@ export interface UserEveBashCostMetrics {
   b2YearlyInr: number;
   b2CostTillNowInr: number;
   modalPhotoInr: number;
+  modalBatchInr?: number;
   modalVideoCpuInr: number;
   modalVideoGpuInr: number;
   modalVideoInr: number;
@@ -1120,6 +1121,10 @@ export function computeUserEveBashCost({
   let totalPhotoSeconds = 0;
   let totalPhotoRuns = 0;
 
+  let totalBatchActualInr = 0;
+  let totalBatchSeconds = 0;
+  let totalBatchRuns = 0;
+
   let totalVideoCpuActualInr = 0;
   let totalVideoCpuSeconds = 0;
   let totalVideoCpuRuns = 0;
@@ -1154,6 +1159,10 @@ export function computeUserEveBashCost({
       totalPhotoActualInr += cost;
       totalPhotoSeconds += dur;
       totalPhotoRuns += 1;
+    } else if (fn === 'process_media_batch' || fn.includes('batch')) {
+      totalBatchActualInr += cost;
+      totalBatchSeconds += dur;
+      totalBatchRuns += 1;
     } else if (fn === 'process_video_gpu' || gpuType === 'l4') {
       totalVideoGpuActualInr += cost;
       totalVideoGpuSeconds += dur;
@@ -1188,7 +1197,7 @@ export function computeUserEveBashCost({
   const unloggedPhotos = Math.max(0, lifetimePhotosCount - totalPhotoRuns);
   const unloggedVideos = Math.max(0, lifetimeVideosCount - totalVideoRuns);
 
-  const effectivePhotoInr = totalPhotoActualInr + (unloggedPhotos * avgObservedPhotoCost);
+  const effectivePhotoInr = totalPhotoActualInr + totalBatchActualInr + (unloggedPhotos * avgObservedPhotoCost);
   const effectiveVideoCpuInr = totalVideoCpuActualInr + (unloggedVideos * avgObservedVideoCost);
   const effectiveVideoGpuInr = totalVideoGpuActualInr;
   const effectiveVideoInr = effectiveVideoCpuInr + effectiveVideoGpuInr;
@@ -1237,6 +1246,7 @@ export function computeUserEveBashCost({
     b2YearlyInr,
     b2CostTillNowInr,
     modalPhotoInr: effectivePhotoInr,
+    modalBatchInr: totalBatchActualInr,
     modalVideoCpuInr: effectiveVideoCpuInr,
     modalVideoGpuInr: effectiveVideoGpuInr,
     modalVideoInr: effectiveVideoInr,

@@ -760,6 +760,10 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     let totalPhotoSeconds = 0;
     let totalPhotoRuns = 0;
 
+    let totalBatchActualInr = 0;
+    let totalBatchSeconds = 0;
+    let totalBatchRuns = 0;
+
     let totalVideoCpuActualInr = 0;
     let totalVideoCpuSeconds = 0;
     let totalVideoCpuRuns = 0;
@@ -783,6 +787,9 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
       videoGpuInr: number;
       videoGpuSeconds: number;
       videoGpuRuns: number;
+      selfieInr: number;
+      selfieSeconds: number;
+      selfieRuns: number;
       totalInr: number;
       totalSeconds: number;
     }>();
@@ -801,6 +808,9 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
           videoGpuInr: 0,
           videoGpuSeconds: 0,
           videoGpuRuns: 0,
+          selfieInr: 0,
+          selfieSeconds: 0,
+          selfieRuns: 0,
           totalInr: 0,
           totalSeconds: 0,
         };
@@ -837,6 +847,12 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
         fn.includes('face_match') || 
         workerType.includes('selfie');
 
+      const isBatch = 
+        fn === 'process_media_batch' || 
+        fn.includes('batch') || 
+        mediaType === 'batch' || 
+        workerType.includes('batch');
+
       const gpuRate = isGpu ? 0.0222 : 0;
 
       // Exact per-second compute rate from COST_ANALYSIS.md ($1 = ₹100):
@@ -855,6 +871,13 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
         totalSelfieActualInr += cost;
         totalSelfieSeconds += dur;
         totalSelfieRuns += 1;
+        if (eventStats) {
+          eventStats.selfieInr += cost;
+          eventStats.selfieSeconds += dur;
+          eventStats.selfieRuns += 1;
+          eventStats.totalInr += cost;
+          eventStats.totalSeconds += dur;
+        }
       } else if (isGpu) {
         totalVideoGpuActualInr += cost;
         totalVideoGpuSeconds += dur;
@@ -874,6 +897,15 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
           eventStats.videoCpuInr += cost;
           eventStats.videoCpuSeconds += dur;
           eventStats.videoCpuRuns += 1;
+          eventStats.totalInr += cost;
+          eventStats.totalSeconds += dur;
+        }
+      } else if (isBatch) {
+        totalBatchActualInr += cost;
+        totalBatchSeconds += dur;
+        totalBatchRuns += 1;
+        if (eventStats) {
+          eventStats.photoInr += cost;
           eventStats.totalInr += cost;
           eventStats.totalSeconds += dur;
         }
@@ -954,19 +986,22 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     const unloggedGpuVideos = Math.min(unloggedVideos, Math.max(0, activeGpuVideosCandidateCount - totalVideoGpuRuns));
     const unloggedCpuVideos = Math.max(0, unloggedVideos - unloggedGpuVideos);
 
-    const effectivePhotoInr = totalPhotoActualInr + (unloggedPhotos * avgObservedPhotoCost);
+    const effectivePhotoInr = totalPhotoActualInr + totalBatchActualInr + (unloggedPhotos * avgObservedPhotoCost);
     const effectiveVideoCpuInr = totalVideoCpuActualInr + (unloggedCpuVideos * avgObservedVideoCpuCost);
     const effectiveVideoGpuInr = totalVideoGpuActualInr + (unloggedGpuVideos * avgObservedVideoGpuCost);
     const effectiveVideoInr = effectiveVideoCpuInr + effectiveVideoGpuInr;
     const effectiveSelfieInr = totalSelfieActualInr;
 
     const totalModalInr = effectivePhotoInr + effectiveVideoInr + effectiveSelfieInr;
-    const totalComputeSeconds = totalPhotoSeconds + totalVideoSeconds + totalSelfieSeconds;
+    const totalComputeSeconds = totalPhotoSeconds + totalBatchSeconds + totalVideoSeconds + totalSelfieSeconds;
 
     return {
       totalPhotoActualInr,
       totalPhotoSeconds,
       totalPhotoRuns,
+      totalBatchActualInr,
+      totalBatchSeconds,
+      totalBatchRuns,
       totalVideoCpuActualInr,
       totalVideoCpuSeconds,
       totalVideoCpuRuns,
@@ -1360,7 +1395,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     Array.from(actualComputeMetrics.eventComputeMap.keys()).forEach(orphanedId => {
       if (!orphanedId || allUserEventIds.has(orphanedId) || allDeletedEventIds.has(orphanedId)) return;
       const oStats = actualComputeMetrics.eventComputeMap.get(orphanedId);
-      if (!oStats || (oStats.photoRuns === 0 && oStats.videoCpuRuns === 0 && oStats.videoGpuRuns === 0)) return;
+      if (!oStats || (oStats.photoRuns === 0 && oStats.videoCpuRuns === 0 && oStats.videoGpuRuns === 0 && oStats.selfieRuns === 0)) return;
 
       const orphanedLogs = modalLogs.filter(l => l.event_id === orphanedId);
       const knownBytes = orphanedLogs.reduce((s, l) => s + (Number(l.media_size) || 0), 0);
@@ -1579,7 +1614,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     Array.from(actualComputeMetrics.eventComputeMap.keys()).forEach(orphanedId => {
       if (!orphanedId || allUserEventIds.has(orphanedId) || allDeletedEventIds.has(orphanedId)) return;
       const oStats = actualComputeMetrics.eventComputeMap.get(orphanedId);
-      if (!oStats || (oStats.photoRuns === 0 && oStats.videoCpuRuns === 0 && oStats.videoGpuRuns === 0)) return;
+      if (!oStats || (oStats.photoRuns === 0 && oStats.videoCpuRuns === 0 && oStats.videoGpuRuns === 0 && oStats.selfieRuns === 0)) return;
 
       const orphanedLogs = modalLogs.filter(l => l.event_id === orphanedId);
       const knownBytes = orphanedLogs.reduce((s, l) => s + (Number(l.media_size) || 0), 0);
@@ -1807,7 +1842,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     Array.from(actualComputeMetrics.eventComputeMap.keys()).forEach(orphanedId => {
       if (!orphanedId || allUserEventIds.has(orphanedId) || allDeletedEventIds.has(orphanedId)) return;
       const oStats = actualComputeMetrics.eventComputeMap.get(orphanedId);
-      if (!oStats || (oStats.photoRuns === 0 && oStats.videoCpuRuns === 0 && oStats.videoGpuRuns === 0)) return;
+      if (!oStats || (oStats.photoRuns === 0 && oStats.videoCpuRuns === 0 && oStats.videoGpuRuns === 0 && oStats.selfieRuns === 0)) return;
 
       rows.push({
         type: 'orphaned_log',
@@ -4073,20 +4108,24 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                     <span className="font-mono text-white font-bold text-sm">₹{costBreakdown.modalPhotoInr.toFixed(2)}</span>
                   </div>
                   <div className="text-[11px] font-mono text-slate-400 mt-1">
-                    <code>process_single_photo</code>
+                    <code>process_single_photo</code> &bull; <code>process_media_batch</code>
                   </div>
-                  <div className="text-xs text-slate-400 mt-2 space-y-1">
-                    <div className="flex justify-between">
-                      <span>Hardware:</span>
-                      <span className="font-mono text-slate-300">1.0 vCPU + 1GB RAM (₹0.00153/s)</span>
+                  <div className="text-xs text-slate-400 mt-2 space-y-1.5">
+                    <div className="flex justify-between items-baseline">
+                      <span>Single Photo (Worker):</span>
+                      <span className="font-mono text-slate-200">
+                        ₹{actualComputeMetrics.totalPhotoActualInr.toFixed(2)} <span className="text-[11px] text-slate-400">({actualComputeMetrics.lifetimePhotosCount} photos &bull; {actualComputeMetrics.totalPhotoSeconds.toFixed(1)}s)</span>
+                      </span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-baseline">
+                      <span>Batch Dispatcher:</span>
+                      <span className="font-mono text-slate-200">
+                        ₹{actualComputeMetrics.totalBatchActualInr.toFixed(3)} <span className="text-[11px] text-slate-400">({actualComputeMetrics.totalBatchRuns} batches &bull; {actualComputeMetrics.totalBatchSeconds.toFixed(1)}s)</span>
+                      </span>
+                    </div>
+                    <div className="flex justify-between pt-1 border-t border-slate-800/60">
                       <span>Total Execution:</span>
-                      <span className="font-mono text-slate-300">{actualComputeMetrics.totalPhotoSeconds.toFixed(1)}s</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Media Processed:</span>
-                      <span className="font-mono text-slate-300">{actualComputeMetrics.lifetimePhotosCount} photos</span>
+                      <span className="font-mono text-slate-300">{(actualComputeMetrics.totalPhotoSeconds + actualComputeMetrics.totalBatchSeconds).toFixed(1)}s</span>
                     </div>
                   </div>
                 </div>
@@ -4340,8 +4379,9 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                             const eventVideoGpuActualInr = allStats.reduce((s, st) => s + (st?.videoGpuInr || 0), 0);
                             const eventVideoCpuCost = eventVideoCpuActualInr + (unloggedCpuVideos * actualComputeMetrics.avgObservedVideoCpuCost);
                             const eventVideoGpuCost = eventVideoGpuActualInr + (unloggedGpuVideos * actualComputeMetrics.avgObservedVideoGpuCost);
+                            const eventSelfieActualInr = allStats.reduce((s, st) => s + (st?.selfieInr || 0), 0);
 
-                            const eventTotalModalCost = eventPhotoCost + eventVideoCpuCost + eventVideoGpuCost;
+                            const eventTotalModalCost = eventPhotoCost + eventVideoCpuCost + eventVideoGpuCost + eventSelfieActualInr;
 
                             return (
                               <tr key={row.id} className="divide-x divide-slate-700/60 hover:bg-slate-900/50 transition-colors">
@@ -4435,7 +4475,8 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
 
                             const delVideoCpuCost = delStats ? delStats.videoCpuInr : (del.videosCount * 0.35);
                             const delVideoGpuCost = delStats ? delStats.videoGpuInr : 0;
-                            const delTotalCost = delStats ? (delPhotoCost + delVideoCpuCost + delVideoGpuCost) : (del.estimatedModalCostInr || (delPhotoCost + delVideoCpuCost + delVideoGpuCost));
+                            const delSelfieCost = delStats ? delStats.selfieInr : 0;
+                            const delTotalCost = delStats ? (delPhotoCost + delVideoCpuCost + delVideoGpuCost + delSelfieCost) : (del.estimatedModalCostInr || (delPhotoCost + delVideoCpuCost + delVideoGpuCost + delSelfieCost));
                             const delPhotoCount = Math.max(del.photosCount, delStats?.photoRuns || 0);
 
                             return (

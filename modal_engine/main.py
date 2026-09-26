@@ -90,13 +90,29 @@ def process_media_batch(request: dict):
     cpu_cores = 0.125
     memory_gb = 1.0
     estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
+
+    user_id = request.get("user_id")
+    event_id = request.get("event_id")
+    if not event_id and photos and isinstance(photos[0], dict):
+        event_id = photos[0].get("event_id")
+    if not user_id and photos and isinstance(photos[0], dict):
+        user_id = photos[0].get("user_id")
+
     try:
         from supabase import create_client
         supabase = create_client(
             os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
             os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
         )
-        supabase.table("modal_cost_logs").insert({
+        if not user_id and event_id:
+            try:
+                e_res = supabase.table("events").select("created_by").eq("id", event_id).maybe_single().execute()
+                if e_res and e_res.data:
+                    user_id = e_res.data.get("created_by")
+            except Exception:
+                pass
+
+        batch_log_payload = {
             "function_name":           "process_media_batch",
             "worker_type":             "Modal Batch Dispatcher (0.125 vCPU • 1GB RAM)",
             "media_type":              "batch",
@@ -105,8 +121,14 @@ def process_media_batch(request: dict):
             "execution_time_seconds":  duration,
             "estimated_cost_inr":      estimated_cost_inr,
             "faces_detected":          0
-        }).execute()
-        print(f"[Batch] Cost logged: {duration:.2f}s, ₹{estimated_cost_inr:.5f}")
+        }
+        if event_id:
+            batch_log_payload["event_id"] = event_id
+        if user_id:
+            batch_log_payload["user_id"] = user_id
+
+        supabase.table("modal_cost_logs").insert(batch_log_payload).execute()
+        print(f"[Batch] Cost logged: {duration:.2f}s, ₹{estimated_cost_inr:.5f} (event: {event_id}, user: {user_id})")
     except Exception as log_err:
         print(f"[Batch] Cost log failed: {log_err}")
 
@@ -342,6 +364,71 @@ def find_matching_photos(request: dict):
     if not selfie_base64 or not event_ids:
         return {"error": "Missing selfie_base64 or event_ids", "matches": []}
 
+    # Resolve primary event_id and user_id (event creator/photographer)
+    user_id = request.get("user_id")
+    event_id = None
+    if event_ids:
+        for candidate in event_ids:
+            if candidate and isinstance(candidate, str) and candidate.strip():
+                event_id = candidate.strip()
+                break
+
+    supabase: Client = create_client(
+        os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
+        os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    )
+
+    if not user_id and event_ids:
+        try:
+            clean_ids = [str(eid).strip() for eid in event_ids if eid and str(eid).strip()]
+            # 1. Try matching events table by id
+            e_res = supabase.table("events").select("id, created_by").in_("id", clean_ids).limit(1).execute()
+            if e_res and e_res.data and len(e_res.data) > 0:
+                user_id = e_res.data[0].get("created_by")
+                if e_res.data[0].get("id"):
+                    event_id = e_res.data[0].get("id")
+            else:
+                # 2. Try matching by legacy_id
+                e_res_leg = supabase.table("events").select("id, created_by").in_("legacy_id", clean_ids).limit(1).execute()
+                if e_res_leg and e_res_leg.data and len(e_res_leg.data) > 0:
+                    user_id = e_res_leg.data[0].get("created_by")
+                    if e_res_leg.data[0].get("id"):
+                        event_id = e_res_leg.data[0].get("id")
+                else:
+                    # 3. Try matching by title (slug fallback)
+                    e_res_title = supabase.table("events").select("id, created_by").in_("title", clean_ids).limit(1).execute()
+                    if e_res_title and e_res_title.data and len(e_res_title.data) > 0:
+                        user_id = e_res_title.data[0].get("created_by")
+                        if e_res_title.data[0].get("id"):
+                            event_id = e_res_title.data[0].get("id")
+        except Exception as lookup_err:
+            print(f"[Selfie] Failed to lookup event owner: {lookup_err}")
+
+    def log_selfie_cost(faces_detected_count: int):
+        duration = time.time() - start_time
+        cpu_cores = 0.125
+        memory_gb = 1.0
+        estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
+        try:
+            log_p = {
+                "function_name":           "find_matching_photos",
+                "worker_type":             "Modal Selfie Worker (0.125 vCPU • 1GB RAM)",
+                "media_type":              "selfie",
+                "media_size":              len(selfie_bytes) if 'selfie_bytes' in locals() and selfie_bytes else None,
+                "cpu_cores":               cpu_cores,
+                "memory_gb":               memory_gb,
+                "gpu_type":                "None",
+                "execution_time_seconds":  duration,
+                "estimated_cost_inr":      estimated_cost_inr,
+                "faces_detected":          faces_detected_count
+            }
+            if user_id: log_p["user_id"] = user_id
+            if event_id: log_p["event_id"] = event_id
+            supabase.table("modal_cost_logs").insert(log_p).execute()
+            print(f"[Selfie] Cost logged: {duration:.2f}s, ₹{estimated_cost_inr:.5f}, user_id={user_id}, event_id={event_id}")
+        except Exception as log_err:
+            print(f"[Selfie] Cost log failed: {log_err}")
+
     try:
         # ── 1. Decode and load selfie ────────────────────────────────────
         selfie_bytes = base64.b64decode(selfie_base64)
@@ -358,33 +445,7 @@ def find_matching_photos(request: dict):
         selfie_faces = face_analysis.get(selfie_bgr)
         if not selfie_faces:
             print("[Selfie] No face detected in selfie.")
-            # Log cost even if no face detected
-            duration = time.time() - start_time
-            cpu_cores = 0.125
-            memory_gb = 1.0
-            estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
-            try:
-                supabase: Client = create_client(
-                    os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
-                    os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-                )
-                log_p = {
-                    "function_name":           "find_matching_photos",
-                    "worker_type":             "Modal Selfie Worker (0.125 vCPU • 1GB RAM)",
-                    "media_type":              "selfie",
-                    "media_size":              len(selfie_bytes) if 'selfie_bytes' in locals() and selfie_bytes else None,
-                    "cpu_cores":               cpu_cores,
-                    "memory_gb":               memory_gb,
-                    "gpu_type":                "None",
-                    "execution_time_seconds":  duration,
-                    "estimated_cost_inr":      estimated_cost_inr,
-                    "faces_detected":          0
-                }
-                if request.get("user_id"): log_p["user_id"] = request.get("user_id")
-                if event_ids and len(event_ids) == 1: log_p["event_id"] = event_ids[0]
-                supabase.table("modal_cost_logs").insert(log_p).execute()
-            except Exception as log_err:
-                print(f"[Selfie] Cost log failed: {log_err}")
+            log_selfie_cost(0)
             return {"error": "No face detected in selfie", "matches": []}
 
         # Sort by box area descending to pick the closest/largest face
@@ -392,42 +453,12 @@ def find_matching_photos(request: dict):
         selfie_vec = sorted_faces[0].normed_embedding
         if selfie_vec is None:
             print("[Selfie] Failed to generate face vector.")
-            # Log cost even if failure
-            duration = time.time() - start_time
-            cpu_cores = 0.125
-            memory_gb = 1.0
-            estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
-            try:
-                supabase: Client = create_client(
-                    os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
-                    os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-                )
-                log_p = {
-                    "function_name":           "find_matching_photos",
-                    "worker_type":             "Modal Selfie Worker (0.125 vCPU • 1GB RAM)",
-                    "media_type":              "selfie",
-                    "media_size":              len(selfie_bytes) if 'selfie_bytes' in locals() and selfie_bytes else None,
-                    "cpu_cores":               cpu_cores,
-                    "memory_gb":               memory_gb,
-                    "gpu_type":                "None",
-                    "execution_time_seconds":  duration,
-                    "estimated_cost_inr":      estimated_cost_inr,
-                    "faces_detected":          0
-                }
-                if request.get("user_id"): log_p["user_id"] = request.get("user_id")
-                if event_ids and len(event_ids) == 1: log_p["event_id"] = event_ids[0]
-                supabase.table("modal_cost_logs").insert(log_p).execute()
-            except Exception as log_err:
-                print(f"[Selfie] Cost log failed: {log_err}")
+            log_selfie_cost(0)
             return {"error": "Failed to generate face vector", "matches": []}
             
         print("[Selfie] Embedding successfully generated.")
 
         # ── 3. Fetch all indexed face descriptors for these events ───────
-        supabase: Client = create_client(
-            os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
-            os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-        )
         response = supabase.table("faces").select("*").in_("event_id", event_ids).execute()
         db_faces = response.data or []
         print(f"[Selfie] Fetched {len(db_faces)} indexed face records to compare.")
@@ -480,29 +511,7 @@ def find_matching_photos(request: dict):
         print(f"[Selfie] Returning {len(matches)} match(es).")
         
         # Log infrastructure cost
-        duration = time.time() - start_time
-        cpu_cores = 0.125
-        memory_gb = 1.0
-        estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
-        try:
-            log_p = {
-                "function_name":           "find_matching_photos",
-                "worker_type":             "Modal Selfie Worker (0.125 vCPU • 1GB RAM)",
-                "media_type":              "selfie",
-                "media_size":              len(selfie_bytes) if 'selfie_bytes' in locals() and selfie_bytes else None,
-                "cpu_cores":               cpu_cores,
-                "memory_gb":               memory_gb,
-                "gpu_type":                "None",
-                "execution_time_seconds":  duration,
-                "estimated_cost_inr":      estimated_cost_inr,
-                "faces_detected":          len(selfie_faces)
-            }
-            if request.get("user_id"): log_p["user_id"] = request.get("user_id")
-            if event_ids and len(event_ids) == 1: log_p["event_id"] = event_ids[0]
-            supabase.table("modal_cost_logs").insert(log_p).execute()
-            print(f"[Selfie] Cost logged: {duration:.2f}s, ₹{estimated_cost_inr:.5f}")
-        except Exception as log_err:
-            print(f"[Selfie] Cost log failed: {log_err}")
+        log_selfie_cost(len(selfie_faces))
 
         return {
             "success": True,
@@ -516,33 +525,7 @@ def find_matching_photos(request: dict):
 
     except Exception as e:
         print(f"[find_matching_photos] Error: {e}")
-        # Log cost even on exception
-        duration = time.time() - start_time
-        cpu_cores = 0.125
-        memory_gb = 1.0
-        estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
-        try:
-            supabase: Client = create_client(
-                os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
-                os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-            )
-            log_p = {
-                "function_name":           "find_matching_photos",
-                "worker_type":             "Modal Selfie Worker (0.125 vCPU • 1GB RAM)",
-                "media_type":              "selfie",
-                "media_size":              len(selfie_bytes) if 'selfie_bytes' in locals() and selfie_bytes else None,
-                "cpu_cores":               cpu_cores,
-                "memory_gb":               memory_gb,
-                "gpu_type":                "None",
-                "execution_time_seconds":  duration,
-                "estimated_cost_inr":      estimated_cost_inr,
-                "faces_detected":          0
-            }
-            if request.get("user_id"): log_p["user_id"] = request.get("user_id")
-            if event_ids and len(event_ids) == 1: log_p["event_id"] = event_ids[0]
-            supabase.table("modal_cost_logs").insert(log_p).execute()
-        except Exception as log_err:
-            print(f"[Selfie] Cost log failed: {log_err}")
+        log_selfie_cost(0)
         return {"error": str(e), "matches": []}
 
 
