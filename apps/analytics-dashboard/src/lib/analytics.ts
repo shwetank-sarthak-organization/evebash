@@ -403,19 +403,13 @@ function addDurationToDate(startDateStr: string, durationStr: string): string {
 export function isProtectedSuperAdmin(user?: { email?: string; username?: string; id?: string; name?: string } | null): boolean {
   if (!user) return false;
   const email = (user.email || '').toLowerCase().trim();
-  const username = (user.username || '').toLowerCase().trim();
-  const id = (user.id || '').toLowerCase().trim();
 
-  const protectedKeys = ['code4sarthak', 'shwetank.chauhan17', 'shwetank.cha'];
+  const protectedEmails = [
+    'code4sarthak@gmail.com',
+    'shwetank.chauhan17@gmail.com',
+  ];
 
-  return protectedKeys.some(key => {
-    return (
-      email.includes(key) ||
-      username === key ||
-      username.includes(key) ||
-      id === key
-    );
-  });
+  return protectedEmails.includes(email);
 }
 
 export async function directPromoteSuperAdmin(userId: string) {
@@ -1062,6 +1056,7 @@ export interface UserEveBashCostMetrics {
   b2MonthlyInr: number;
   b2YearlyInr: number;
   b2CostTillNowInr: number;
+  b2MonthlyUsd?: number;
   modalPhotoInr: number;
   modalBatchInr?: number;
   modalVideoCpuInr: number;
@@ -1069,12 +1064,14 @@ export interface UserEveBashCostMetrics {
   modalVideoInr: number;
   modalSelfieInr: number;
   modalTotalInr: number;
+  modalTotalUsd?: number;
   qstashInr: number;
   supabaseMonthlyInr: number;
   supabaseYearlyInr: number;
   supabaseCostTillNowInr: number;
   totalMonthlyCostInr: number;
   totalLifetimeCostInr: number;
+  totalLifetimeCostUsd?: number;
   totalCostTillNowInr: number;
   monthsActive: number;
 }
@@ -1109,6 +1106,7 @@ export function computeUserEveBashCost({
   modalLogs = [],
   deletedEvents = [],
   userCreatedAt,
+  usdToInrRate = 100,
 }: {
   imageCount: number;
   videoCount: number;
@@ -1116,7 +1114,10 @@ export function computeUserEveBashCost({
   modalLogs?: ModalCostLogRow[];
   deletedEvents?: DeletedEventArchive[];
   userCreatedAt?: string;
+  usdToInrRate?: number;
 }): UserEveBashCostMetrics {
+  const rate = (typeof usdToInrRate === 'number' && usdToInrRate > 0) ? usdToInrRate : 100;
+
   let totalPhotoActualInr = 0;
   let totalPhotoSeconds = 0;
   let totalPhotoRuns = 0;
@@ -1144,13 +1145,14 @@ export function computeUserEveBashCost({
     const gpuType = log.gpu_type || 'None';
     const gpuRate = (gpuType === 'l4' || log.function_name === 'process_video_gpu') ? 0.0222 : 0;
 
-    // Exact per-second compute rate from COST_ANALYSIS.md ($1 = ₹100):
-    // CPU: $0.0000131/vCPU/s (~₹0.00131/vCPU/s)
-    // RAM: $0.00000222/GB/s (~₹0.000222/GB/s)
-    // L4 GPU: $0.000222/s (~₹0.0222/s)
-    const calculatedCost = dur * ((cpu * 0.00131) + (mem * 0.000222) + gpuRate);
+    // Exact per-second compute rate from COST_ANALYSIS.md ($1 = ₹100 benchmark):
+    // CPU: $0.0000131/vCPU/s
+    // RAM: $0.00000222/GB/s
+    // L4 GPU: $0.000222/s
+    const calculatedCostUsd = dur * ((cpu * 0.0000131) + (mem * 0.00000222) + (gpuRate / 100));
+    const calculatedCost = calculatedCostUsd * rate;
     const cost = (typeof log.estimated_cost_inr === 'number' && !isNaN(log.estimated_cost_inr) && log.estimated_cost_inr > 0)
-      ? log.estimated_cost_inr
+      ? (rate === 100 ? log.estimated_cost_inr : (log.estimated_cost_inr / 100) * rate)
       : calculatedCost;
 
     const fn = log.function_name || 'process_single_photo';
@@ -1185,8 +1187,8 @@ export function computeUserEveBashCost({
   const activeVideos = videoCount;
 
   // Remaining unlogged media gets added at observed user average (or COST_ANALYSIS benchmark if 0 runs)
-  const avgObservedPhotoCost = totalPhotoRuns > 0 ? (totalPhotoActualInr / totalPhotoRuns) : 0.0082;
-  const avgObservedVideoCost = totalVideoRuns > 0 ? (totalVideoActualInr / totalVideoRuns) : 0.35;
+  const avgObservedPhotoCost = totalPhotoRuns > 0 ? (totalPhotoActualInr / totalPhotoRuns) : (0.000082 * rate);
+  const avgObservedVideoCost = totalVideoRuns > 0 ? (totalVideoActualInr / totalVideoRuns) : (0.0035 * rate);
 
   const deletedArchivePhotoCount = deletedEvents.reduce((s, d) => s + (Number(d.photosCount) || 0), 0);
   const deletedArchiveVideoCount = deletedEvents.reduce((s, d) => s + (Number(d.videosCount) || 0), 0);
@@ -1218,19 +1220,20 @@ export function computeUserEveBashCost({
   }
 
   // 1. Backblaze B2 Storage (State-Based / Monthly Recurring):
-  // Rate: ₹600 / TB / month ($0.006 / GB / month = ₹0.60 / GB / month)
+  // Rate: $0.006 / GB / month
   const usedGb = totalBytes / (1024 * 1024 * 1024);
-  const b2MonthlyInr = usedGb * 0.60;
+  const b2MonthlyUsd = usedGb * 0.006;
+  const b2MonthlyInr = b2MonthlyUsd * rate;
   const b2YearlyInr = b2MonthlyInr * 12;
   const b2CostTillNowInr = b2MonthlyInr * monthsActive;
 
   // 2. Upstash QStash (Historical Queue Ingestion):
-  // Rate: ₹100 / 100,000 messages (~₹0.001 / photo or video message dispatched)
-  const qstashInr = totalLifetimeMedia * 0.001;
+  // Rate: $1.00 / 100,000 messages (~$0.00001 / photo or video message dispatched)
+  const qstashInr = totalLifetimeMedia * 0.00001 * rate;
 
-  // 3. Supabase DB: Metadata & Auth share (~₹0.003 / active media row)
+  // 3. Supabase DB: Metadata & Auth share (~$0.00003 / active media row)
   const totalActiveMedia = activePhotos + activeVideos;
-  const supabaseMonthlyInr = totalActiveMedia > 0 ? Math.max(0.5, totalActiveMedia * 0.003) : 0;
+  const supabaseMonthlyInr = totalActiveMedia > 0 ? Math.max(0.5, totalActiveMedia * 0.00003 * rate) : 0;
   const supabaseYearlyInr = supabaseMonthlyInr * 12;
   const supabaseCostTillNowInr = supabaseMonthlyInr * monthsActive;
 
@@ -1245,6 +1248,7 @@ export function computeUserEveBashCost({
     b2MonthlyInr,
     b2YearlyInr,
     b2CostTillNowInr,
+    b2MonthlyUsd,
     modalPhotoInr: effectivePhotoInr,
     modalBatchInr: totalBatchActualInr,
     modalVideoCpuInr: effectiveVideoCpuInr,
@@ -1252,12 +1256,14 @@ export function computeUserEveBashCost({
     modalVideoInr: effectiveVideoInr,
     modalSelfieInr: effectiveSelfieInr,
     modalTotalInr,
+    modalTotalUsd: modalTotalInr / rate,
     qstashInr,
     supabaseMonthlyInr,
     supabaseYearlyInr,
     supabaseCostTillNowInr,
     totalMonthlyCostInr,
     totalLifetimeCostInr,
+    totalLifetimeCostUsd: totalLifetimeCostInr / rate,
     totalCostTillNowInr,
     monthsActive,
   };

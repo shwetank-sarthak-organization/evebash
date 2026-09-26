@@ -431,14 +431,10 @@ async function updateUserRole(
 
     if (targetProfileError) throw targetProfileError;
 
-    const email = String(targetProfile?.email || "").toLowerCase();
-    const username = String(targetProfile?.username || "").toLowerCase();
+    const email = String(targetProfile?.email || "").toLowerCase().trim();
     const isProtected =
-      email.includes("code4sarthak") ||
-      email.includes("shwetank.chauhan17") ||
-      username.includes("code4sarthak") ||
-      username.includes("shwetank.chauhan17") ||
-      username.includes("shwetank.cha");
+      email === "code4sarthak@gmail.com" ||
+      email === "shwetank.chauhan17@gmail.com";
 
     if (isProtected && (role !== "admin" || !!delegatedBy)) {
       throw new AdminActionError("This Super Admin account is permanently protected and cannot be modified or demoted", 403);
@@ -587,16 +583,10 @@ async function revokeSuperAdmin(
     throw new AdminActionError("User profile was not found", 404);
   }
 
-  const email = String(profile.email || "").toLowerCase();
-  const username = String(profile.username || "").toLowerCase();
+  const email = String(profile.email || "").toLowerCase().trim();
   const isProtected =
-    email.includes("code4sarthak") ||
-    email.includes("shwetank.chauhan17") ||
-    username.includes("code4sarthak") ||
-    username.includes("shwetank.chauhan17") ||
-    username.includes("shwetank.cha") ||
-    uid.includes("code4sarthak") ||
-    uid.includes("shwetank.chauhan17");
+    email === "code4sarthak@gmail.com" ||
+    email === "shwetank.chauhan17@gmail.com";
 
   if (isProtected) {
     throw new AdminActionError("This Super Admin account is permanently protected and cannot be removed", 403);

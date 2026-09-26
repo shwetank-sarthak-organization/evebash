@@ -104,10 +104,11 @@ def process_media_batch(request: dict):
             os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
             os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
         )
-        if not user_id and event_id:
+        # Media compute belongs to the event owner (host/creator)
+        if event_id:
             try:
                 e_res = supabase.table("events").select("created_by").eq("id", event_id).maybe_single().execute()
-                if e_res and e_res.data:
+                if e_res and e_res.data and e_res.data.get("created_by"):
                     user_id = e_res.data.get("created_by")
             except Exception:
                 pass
@@ -291,20 +292,23 @@ def process_single_photo(photo_data: dict):
         estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
         user_id = photo_data.get("user_id")
 
-        # Resolve user_id if missing from photo_data
-        if not user_id and photo_id:
+        # Resolve user_id / event_id if missing from photo_data
+        if (not user_id or not event_id) and photo_id:
             try:
                 p_res = supabase.table("photos").select("user_id, event_id").eq("id", photo_id).maybe_single().execute()
                 if p_res and p_res.data:
-                    user_id = p_res.data.get("user_id")
+                    if not user_id:
+                        user_id = p_res.data.get("user_id")
                     if not event_id:
                         event_id = p_res.data.get("event_id")
             except Exception:
                 pass
-        if not user_id and event_id:
+
+        # Gallery media compute is always billed to the event owner (host/creator)
+        if event_id:
             try:
                 e_res = supabase.table("events").select("created_by").eq("id", event_id).maybe_single().execute()
-                if e_res and e_res.data:
+                if e_res and e_res.data and e_res.data.get("created_by"):
                     user_id = e_res.data.get("created_by")
             except Exception:
                 pass
@@ -859,22 +863,24 @@ def _transcode_video_core(request: dict, hardware="cpu"):
         event_id = request.get("event_id")
         user_id = request.get("user_id")
 
-        # Resolve user_id if missing or anonymous from request
-        if (not user_id or user_id == "anonymous") and photo_id:
+        # Resolve user_id / event_id if missing or anonymous from request
+        if (not user_id or user_id == "anonymous" or not event_id) and photo_id:
             try:
                 p_res = supabase.table("photos").select("user_id, event_id").eq("id", photo_id).maybe_single().execute()
                 if p_res and p_res.data:
                     p_user = p_res.data.get("user_id")
-                    if p_user and p_user != "anonymous":
+                    if not user_id and p_user and p_user != "anonymous":
                         user_id = p_user
                     if not event_id:
                         event_id = p_res.data.get("event_id")
             except Exception:
                 pass
-        if (not user_id or user_id == "anonymous") and event_id:
+
+        # Gallery video transcode compute is always billed to the event owner (host/creator)
+        if event_id:
             try:
                 e_res = supabase.table("events").select("created_by").eq("id", event_id).maybe_single().execute()
-                if e_res and e_res.data:
+                if e_res and e_res.data and e_res.data.get("created_by"):
                     user_id = e_res.data.get("created_by")
             except Exception:
                 pass

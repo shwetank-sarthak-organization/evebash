@@ -3,14 +3,11 @@ import type { DashboardStats, UserProfile, Event, GuestLog, Photo } from '../lib
 import {
   DollarSign,
   HardDrive,
-  Database,
   ShieldCheck,
-  HelpCircle,
   Cloud,
   Sliders,
   TrendingUp,
   Activity,
-  Globe,
   Info,
   Server,
   Sparkles,
@@ -23,11 +20,20 @@ import {
   Video,
   Image as ImageIcon,
   Clock,
-  Layers
+  Calendar,
+  RefreshCw,
+  IndianRupee,
+  CheckCircle2,
+  ArrowLeftRight
 } from 'lucide-react';
 import { getAccessToken, getApiBaseUrl, runAdminAction, type AdminActionResult } from '../lib/adminApi';
 import { supabase } from '../lib/supabase';
 import { ModalLogo } from './ModalLogo';
+import { BackblazeLogo, BackblazeIcon } from './BackblazeLogo';
+import { SupabaseLogo } from './SupabaseLogo';
+import { CloudflareLogo } from './CloudflareLogo';
+import { RailwayLogo } from './RailwayLogo';
+import { useCurrency } from '../lib/currency';
 
 interface Props {
   stats: DashboardStats | null;
@@ -74,17 +80,6 @@ const formatDecimalSize = (bytes: number | null | undefined) => {
 
 const formatNumber = (num: number) => {
   return new Intl.NumberFormat().format(num);
-};
-
-const formatDuration = (seconds: number | null | undefined) => {
-  if (seconds == null || isNaN(seconds) || seconds <= 0) return '-';
-  const totalSec = Math.round(seconds);
-  const mins = Math.floor(totalSec / 60);
-  const secs = totalSec % 60;
-  if (mins > 0) {
-    return `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
-  }
-  return `${secs}s`;
 };
 
 const computeModalLogCostUsd = (log: any): number => {
@@ -148,12 +143,33 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
     error?: string;
   } | null>(null);
 
-  // Exchange Rate State (USD to INR)
-  const [usdToInrRateInput, setUsdToInrRateInput] = useState<string>('100');
-  const usdToInrRate = useMemo(() => {
-    const parsed = parseFloat(usdToInrRateInput);
-    return isNaN(parsed) || parsed <= 0 ? 100 : parsed;
-  }, [usdToInrRateInput]);
+  // Shared Currency Engine (USD/INR Mode & Live Forex Rate)
+  const {
+    currency,
+    setCurrency,
+    rate: usdToInrRate,
+    rateInput: usdToInrRateInput,
+    handleRateInputChange,
+    syncLiveRate,
+    isSyncing: isSyncingRate,
+    marketRate,
+  } = useCurrency();
+
+  const fmtCost = (valUsd: number, decimals: number = 2): string => {
+    if (valUsd == null || isNaN(valUsd)) return currency === 'USD' ? '$0.00' : '₹0.00';
+    if (currency === 'USD') return `$${valUsd.toFixed(decimals)}`;
+    return `₹${(valUsd * usdToInrRate).toFixed(decimals)}`;
+  };
+
+  const fmtSub = (valUsd: number, suffix: string = ''): string => {
+    if (valUsd == null || isNaN(valUsd)) return '';
+    const cleanSuffix = suffix ? ` ${suffix}` : '';
+    if (currency === 'USD') {
+      return `₹${(valUsd * usdToInrRate).toFixed(2)} INR${cleanSuffix}`;
+    }
+    const d = valUsd < 0.01 && valUsd > 0 ? 4 : 2;
+    return `$${valUsd.toFixed(d)} USD${cleanSuffix}`;
+  };
 
   // Timeframe Filter States
   const [timeFilter, setTimeFilter] = useState<'1d' | '1w' | '1m' | '30d' | '1y' | 'all' | 'custom'>('1m');
@@ -169,18 +185,16 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   const eventsMap = useMemo(() => new Map(events.map(e => [e.id, e])), [events]);
   const photosMap = useMemo(() => new Map(photos.map(p => [p.id, p])), [photos]);
 
-  // Helper to resolve user, event, media, and worker metadata for any log row (historical or new)
+  // Helper to resolve user, event, media, and worker metadata for any log row
   const resolveLogDetails = useMemo(() => {
     return (log: any) => {
       const photo = log.photo_id ? photosMap.get(log.photo_id) : undefined;
       const eventId = log.event_id || photo?.eventId || '';
       const event = eventId ? eventsMap.get(eventId) : undefined;
 
-      // Resolve user
       const resolvedUserId = log.user_id || photo?.userId || event?.createdById || event?.createdBy || '';
       const resolvedUser = resolvedUserId ? usersMap.get(resolvedUserId) : undefined;
 
-      // Resolve media type
       const fn = log.function_name || 'process_single_photo';
       let mediaType: 'photo' | 'video' | 'selfie' | 'batch' = 'photo';
       if (log.media_type) {
@@ -193,18 +207,16 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
         mediaType = 'batch';
       }
 
-      // Resolve media size (bytes)
       const mediaSize: number | null = log.media_size != null ? Number(log.media_size) : (photo?.size ? Number(photo.size) : null);
 
-      // Resolve video duration (seconds)
       const videoDuration: number | null = log.video_duration_seconds != null
         ? Number(log.video_duration_seconds)
         : (photo?.duration != null ? Number(photo.duration) : null);
 
-      // Resolve worker classification & specs
       let workerTitle = 'Modal Photo Worker';
       let workerSpecs = '1 vCPU • 1GB RAM';
       let workerBadge = 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
+      let workerTextColor = 'text-emerald-400';
       let isGpu = false;
 
       if (log.worker_type) {
@@ -212,48 +224,64 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
         if (log.worker_type.includes('GPU') || log.gpu_type === 'l4') {
           workerSpecs = 'NVIDIA L4 • 4 vCPU • 8GB RAM';
           workerBadge = 'bg-amber-500/10 border-amber-500/20 text-amber-400';
+          workerTextColor = 'text-amber-400';
           isGpu = true;
         } else if (log.worker_type.includes('Batch')) {
           workerSpecs = '0.125 vCPU • 1GB RAM';
           workerBadge = 'bg-blue-500/10 border-blue-500/20 text-blue-400';
+          workerTextColor = 'text-blue-400';
         } else if (log.worker_type.includes('Selfie')) {
           workerSpecs = '0.125 vCPU • 1GB RAM';
           workerBadge = 'bg-purple-500/10 border-purple-500/20 text-purple-400';
+          workerTextColor = 'text-purple-400';
         } else if (log.worker_type.includes('CPU') && fn.includes('video')) {
           workerSpecs = '4 vCPU • 4GB RAM';
           workerBadge = 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400';
+          workerTextColor = 'text-cyan-400';
         }
       } else if (fn === 'process_video_gpu' || log.gpu_type === 'l4') {
         workerTitle = 'Modal GPU Worker';
         workerSpecs = 'NVIDIA L4 • 4 vCPU • 8GB RAM';
         workerBadge = 'bg-amber-500/10 border-amber-500/20 text-amber-400';
+        workerTextColor = 'text-amber-400';
         isGpu = true;
       } else if (fn === 'process_video_cpu' || fn.includes('video')) {
         workerTitle = 'Modal CPU Worker';
         workerSpecs = '4 vCPU • 4GB RAM';
         workerBadge = 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400';
+        workerTextColor = 'text-cyan-400';
       } else if (fn === 'find_matching_photos') {
         workerTitle = 'Modal Selfie Worker';
         workerSpecs = '0.125 vCPU • 1GB RAM';
         workerBadge = 'bg-purple-500/10 border-purple-500/20 text-purple-400';
+        workerTextColor = 'text-purple-400';
       } else if (fn === 'process_media_batch') {
         workerTitle = 'Modal Batch Dispatcher';
         workerSpecs = '0.125 vCPU • 1GB RAM';
         workerBadge = 'bg-blue-500/10 border-blue-500/20 text-blue-400';
+        workerTextColor = 'text-blue-400';
       }
+
+      const isSubGallery = Boolean(event?.parentId) || event?.type === 'sub';
+      const parentEvent = event?.parentId ? eventsMap.get(event.parentId) : undefined;
+      const workerName = workerTitle.replace(/\s*\(.*?\)\s*/g, '').trim();
 
       return {
         photo,
         event,
         eventId,
+        isSubGallery,
+        parentEvent,
         resolvedUserId,
         resolvedUser,
         mediaType,
         mediaSize,
         videoDuration,
         workerTitle,
+        workerName,
         workerSpecs,
         workerBadge,
+        workerTextColor,
         isGpu,
       };
     };
@@ -264,12 +292,10 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
     return modalLogs.filter(log => {
       const details = resolveLogDetails(log);
 
-      // Filter by User
       if (modalUserFilter !== 'all') {
         if (details.resolvedUserId !== modalUserFilter) return false;
       }
 
-      // Filter by Worker
       if (modalWorkerFilter !== 'all') {
         if (modalWorkerFilter === 'gpu' && !details.isGpu) return false;
         if (modalWorkerFilter === 'cpu' && (details.isGpu || !log.function_name?.includes('video'))) return false;
@@ -278,12 +304,12 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
         if (modalWorkerFilter === 'batch' && log.function_name !== 'process_media_batch') return false;
       }
 
-      // Filter by Search Query
       if (modalSearchTerm.trim()) {
         const query = modalSearchTerm.toLowerCase();
         const userName = (details.resolvedUser?.name || '').toLowerCase();
         const userEmail = (details.resolvedUser?.email || '').toLowerCase();
         const eventTitle = (details.event?.title || '').toLowerCase();
+        const parentTitle = (details.parentEvent?.title || '').toLowerCase();
         const eventId = (details.eventId || '').toLowerCase();
         const photoId = (log.photo_id || '').toLowerCase();
         const fn = (log.function_name || '').toLowerCase();
@@ -293,6 +319,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
           userName.includes(query) ||
           userEmail.includes(query) ||
           eventTitle.includes(query) ||
+          parentTitle.includes(query) ||
           eventId.includes(query) ||
           photoId.includes(query) ||
           fn.includes(query) ||
@@ -308,7 +335,6 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 10;
 
-  // Reset page when logs or filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [filteredModalLogs.length, modalSearchTerm, modalUserFilter, modalWorkerFilter]);
@@ -339,7 +365,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   // Format local timestamps (YYYY-MM-DDTHH:MM)
   const defaultCustomStart = useMemo(() => {
     const d = new Date();
-    d.setDate(d.getDate() - 3); // Default to 3 days ago for custom start
+    d.setDate(d.getDate() - 3);
     const tzOffset = d.getTimezoneOffset() * 60000;
     return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
   }, []);
@@ -356,19 +382,23 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   // Dynamic Timeframe Scaling Factor & Label
   const { timeframeFactor, timeframeSuffix, timeframeLabel } = useMemo(() => {
     if (timeFilter === '1d') {
-      return { timeframeFactor: 1 / 30, timeframeSuffix: '/ day', timeframeLabel: 'Running Day' };
+      return { timeframeFactor: 1 / 30, timeframeSuffix: '/ day', timeframeLabel: 'Running Day (24h)' };
     }
     if (timeFilter === '1w') {
-      return { timeframeFactor: 7 / 30, timeframeSuffix: '/ wk', timeframeLabel: 'Running Week' };
+      return { timeframeFactor: 7 / 30, timeframeSuffix: '/ wk', timeframeLabel: 'Running Week (7d)' };
     }
     if (timeFilter === '1m') {
-      return { timeframeFactor: 1, timeframeSuffix: '/ mo', timeframeLabel: 'Month to Date' };
+      return { timeframeFactor: 1, timeframeSuffix: '/ mo', timeframeLabel: 'Month to Date (30d)' };
     }
     if (timeFilter === '30d') {
       return { timeframeFactor: 1, timeframeSuffix: '/ 30d', timeframeLabel: 'Last 30 Days' };
     }
     if (timeFilter === '1y') {
-      return { timeframeFactor: 12, timeframeSuffix: '/ yr', timeframeLabel: 'Year to Date' };
+      const now = new Date();
+      const startOfYear = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+      const diffDays = Math.max(1, (now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24));
+      const factor = diffDays / 30;
+      return { timeframeFactor: factor, timeframeSuffix: '/ running yr', timeframeLabel: 'Running Year Endured' };
     }
     if (timeFilter === 'all') {
       return { timeframeFactor: 1, timeframeSuffix: '', timeframeLabel: 'All Time' };
@@ -376,12 +406,12 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
     if (timeFilter === 'custom') {
       const s = new Date(customStart).getTime();
       const e = new Date(customEnd).getTime();
-      const diffDays = Math.max(0.0416, (e - s) / (1000 * 60 * 60 * 24)); // At least 1 hr
+      const diffDays = Math.max(0.0416, (e - s) / (1000 * 60 * 60 * 24));
       const factor = diffDays / 30;
       const suffix = diffDays < 1 ? `/ ${Math.round(diffDays * 24)}h` : `/ ${Math.round(diffDays)}d`;
       return { timeframeFactor: factor, timeframeSuffix: suffix, timeframeLabel: 'Custom Period' };
     }
-    return { timeframeFactor: 1, timeframeSuffix: '/ mo', timeframeLabel: 'Month to Date' };
+    return { timeframeFactor: 1, timeframeSuffix: '/ mo', timeframeLabel: 'Month to Date (30d)' };
   }, [timeFilter, customStart, customEnd]);
 
   const dateRange = useMemo(() => {
@@ -408,13 +438,12 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
     } else if (timeFilter === '30d') {
       start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     } else if (timeFilter === '1y') {
-      const startOfYear = new Date();
-      startOfYear.setMonth(0, 1);
-      startOfYear.setHours(0, 0, 0, 0);
+      const startOfYear = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
       start = startOfYear;
+      end = now;
     } else if (timeFilter === 'all') {
       start = new Date(0);
-    } else { // 'custom'
+    } else {
       start = customStart ? new Date(customStart) : new Date(now.getFullYear(), now.getMonth(), 1);
       end = customEnd ? new Date(customEnd) : now;
     }
@@ -435,7 +464,6 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
           headers: { Authorization: `Bearer ${token}` },
         };
         
-        // Fetch Supabase billing — isolated so failure doesn't block other fetches
         try {
           const res = await fetch(`${apiBase}/api/admin/supabase-billing`, requestOptions);
           if (res.ok) {
@@ -451,7 +479,6 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
           console.warn('[InfraCost] Supabase billing API unavailable:', err);
         }
 
-        // Fetch Cloudflare billing — isolated so failure doesn't block other fetches
         try {
           const cfRes = await fetch(`${apiBase}/api/admin/cloudflare-billing`, requestOptions);
           if (cfRes.ok) {
@@ -473,7 +500,6 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
           console.warn('[InfraCost] Cloudflare billing API unavailable:', err);
         }
 
-        // Fetch Backblaze B2 bucket usage — isolated so failure doesn't block other fetches
         try {
           const b2Res = await fetch(`${apiBase}/api/admin/backblaze-usage`, requestOptions);
           const b2Data = await b2Res.json().catch(() => null);
@@ -493,7 +519,6 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
           console.warn('[InfraCost] Backblaze usage API unavailable:', err);
         }
 
-        // Railway credentials remain server-side; the dashboard only calls the authenticated backend.
         try {
           const params = new URLSearchParams({
             startDate: dateRange.start.toISOString(),
@@ -527,7 +552,6 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
     fetchBilling();
   }, [photos.length, billingRefreshKey, dateRange]);
 
-  // Fetch Modal logs for the selected range when dateRange or billingRefreshKey changes
   useEffect(() => {
     let isCancelled = false;
     const fetchModalLogs = async () => {
@@ -577,8 +601,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
     };
   }, [timeFilter, dateRange.start.toISOString(), dateRange.end.toISOString(), billingRefreshKey]);
   
-  
-  // Extract and default simulated storage
+  // Storage Footprint calculations
   const totalStorage = useMemo(() => {
     return photos.reduce((sum, p) => sum + (Number(p.size) || 0), 0);
   }, [photos]);
@@ -594,13 +617,10 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   // Simulated request rate for Cloudflare Workers
   const [simulatedDailyRequests, setSimulatedDailyRequests] = useState<number>(50000);
 
-
-
   // Simulated Railway Usage
   const [simulatedRailwayRAM, setSimulatedRailwayRAM] = useState<number>(0.5); // GB
   const [simulatedRailwayCPU, setSimulatedRailwayCPU] = useState<number>(0.05); // vCPU
   const [simulatedRailwayEgress, setSimulatedRailwayEgress] = useState<number>(5); // GB
-
 
   // --- Cost Calculations ---
 
@@ -611,7 +631,6 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
     const guestsCount = stats?.totalGuests ?? guests.length;
     const photosCount = photos.length;
     const totalRows = profilesCount + eventsCount + guestsCount + photosCount;
-    // Estimate size based on 1.2 KB average row size (including indexes)
     const estimatedSizeBytes = totalRows * 1228.8; 
     return { profilesCount, eventsCount, guestsCount, photosCount, totalRows, estimatedSizeBytes };
   }, [stats, users, events, guests, photos]);
@@ -637,7 +656,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
 
   const supabaseEgressCostMonth = useMemo(() => {
     const limitEgressGB = supabaseTier === 'free' ? 2 : 50;
-    const actualEgressGB = 0.05; // Bypass via Cloudflare Bandwidth Alliance
+    const actualEgressGB = 0.05;
     const egressOverageGB = Math.max(0, actualEgressGB - limitEgressGB);
     return egressOverageGB * 0.09;
   }, [supabaseTier]);
@@ -647,93 +666,68 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   const supabaseComputeCostMonth = supabaseTier === 'pro' ? 25.00 : 0.00;
   const supabaseComputeCostYear = supabaseComputeCostMonth * 12;
 
-  // 1. Supabase Costs (Total actual or configured tier cost)
   const supabaseTierCost = supabaseDbCostMonth + supabaseMauCostMonth + supabaseEgressCostMonth + supabaseComputeCostMonth;
 
-  // 2. Backblaze B2 Costs (Storage, Class B, Class C, Egress)
-  
-  // Storage Cost: $0.006/GB (First 10GB Free)
+  // Backblaze B2 Costs (Storage, Class B, Class C, Egress)
   const b2StorageCostMonth = Math.max(0, actualB2StorageDecimalGB - 10) * 0.006;
   const b2StorageCostYear = b2StorageCostMonth * 12;
 
-  // Class B (downloads/metadata): 2,500/day = 75,000/month Free. Overage is $0.004 per 10k requests.
-  // We assume ~20 requests per uploaded media resource monthly.
   const b2ClassBCallsMonth = photos.length * 20;
   const b2ClassBOverage = Math.max(0, b2ClassBCallsMonth - 75000);
   const b2ClassBCostMonth = (b2ClassBOverage / 10000) * 0.004;
   const b2ClassBCostYear = b2ClassBCostMonth * 12;
 
-  // Class C (uploads/creation): 2,500/day = 75,000/month Free. Overage is $0.004 per 1k requests.
-  // We assume ~1.5 request per uploaded media resource.
   const b2ClassCCallsMonth = Math.ceil(photos.length * 1.5);
   const b2ClassCOverage = Math.max(0, b2ClassCCallsMonth - 75000);
   const b2ClassCCostMonth = (b2ClassCOverage / 1000) * 0.004;
   const b2ClassCCostYear = b2ClassCCostMonth * 12;
 
-  // Egress Cost: $0.00 (Due to Cloudflare Bandwidth Alliance)
   const b2EgressCostMonth = 0.00;
-
-  // Total Actual B2 Cost
   const actualB2Cost = b2StorageCostMonth + b2ClassBCostMonth + b2ClassCCostMonth + b2EgressCostMonth;
 
-  // B2 Simulated Costs (scaled based on simulatedStorageGB)
+  // B2 Simulated Costs
   const simStorageCostMonth = Math.max(0, simulatedStorageGB - 10) * 0.006;
-  
-  // Scale media count proportionally to simulated storage size
   const simMediaCount = Math.ceil(photos.length * (simulatedStorageGB / Math.max(1, actualB2StorageGB || 1)));
-  
   const simClassBCallsMonth = simMediaCount * 20;
   const simClassBOverage = Math.max(0, simClassBCallsMonth - 75000);
   const simClassBCostMonth = (simClassBOverage / 10000) * 0.004;
-
   const simClassCCallsMonth = Math.ceil(simMediaCount * 1.5);
   const simClassCOverage = Math.max(0, simClassCCallsMonth - 75000);
   const simClassCCostMonth = (simClassCOverage / 1000) * 0.004;
-
   const simulatedB2Cost = simStorageCostMonth + simClassBCostMonth + simClassCCostMonth;
 
-  // 3. Cloudflare Costs
-  const registrarCost = 0.00; // Domain registered externally via Hostinger
+  // Cloudflare Costs
+  const registrarCost = 0.00;
   const monthlyRequests = simulatedDailyRequests * 30;
 
-  // Actual Image Resizing/Transformations: Calculated dynamically from live API values
   const actualCfImageCostMonth = useMemo(() => {
     let cost = 0;
-    
-    // 1. Remote Image Resizing transformations cost (first 5,000 free, then $0.50 per 1,000 unique transformations)
     if (liveCfTransformations !== null) {
       const overageTransformations = Math.max(0, liveCfTransformations - 5000);
       cost += (overageTransformations / 1000) * 0.50;
     }
-    
-    // 2. Cloudflare Images storage cost (if using Cloudflare Images product)
     if (liveCfStoredImages !== null && liveCfStoredImages > 0) {
-      cost += 5.00; // Base $5.00/mo subscription (includes 10,000 stored images)
+      cost += 5.00;
       const overageImages = Math.max(0, liveCfStoredImages - 10000);
       cost += (overageImages / 10000) * 1.00;
     }
-    
     return cost;
   }, [liveCfTransformations, liveCfStoredImages]);
 
-  // Simulated Image Resizing/Transformations: Set to $0.00 as transformations are pre-generated on B2 via backend
   const simCfImageCostMonth = 0;
   
-  // Workers Paid Tier starts at $5/mo (first 10M requests free, then $0.50/M requests)
-  // Free tier allows up to 100k requests/day (3M requests/mo)
   const workersCost = useMemo(() => {
     if (monthlyRequests <= 3000000) {
-      return 0.00; // Free plan
+      return 0.00;
     }
     if (monthlyRequests <= 10000000) {
-      return 5.00; // Paid Plan base (includes 10M requests)
+      return 5.00;
     }
     const extraRequests = monthlyRequests - 10000000;
     const extraMillions = Math.ceil(extraRequests / 1000000);
     return 5.00 + (extraMillions * 0.50);
   }, [monthlyRequests]);
 
-  // Actual subscription costs fetched live (e.g. Pro Plan, image resizing subscription bases, paid workers/KV bases)
   const liveCfSubscriptionCost = useMemo(() => {
     let subscriptionSum = 0;
     let hasZonePlanInSubscriptions = false;
@@ -742,26 +736,22 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
       subscriptionSum = liveCfSubscriptions.reduce((sum, sub) => {
         if (sub.state === 'active' || sub.state === 'paid') {
           const freqMultiplier = sub.frequency === 'yearly' ? 1 / 12 : 1;
-          
-          // Check if this subscription is for a zone plan
           const ratePlanId = (sub.rate_plan?.id || '').toLowerCase();
           if (ratePlanId.includes('pro') || ratePlanId.includes('business')) {
             hasZonePlanInSubscriptions = true;
           }
-          
           return sum + ((sub.price || 0) * freqMultiplier);
         }
         return sum;
       }, 0);
     }
 
-    // Fallback: If zone plan is active but not represented in the subscription list, add its default cost
     if (!hasZonePlanInSubscriptions) {
       const normalizedPlan = (liveCfPlan || '').toLowerCase();
       if (normalizedPlan.includes('pro')) {
-        subscriptionSum += 25.00; // $25.00 Pro Plan (₹2,500/mo)
+        subscriptionSum += 25.00;
       } else if (normalizedPlan.includes('business')) {
-        subscriptionSum += 200.00; // $200.00 Business Plan (₹20,000/mo)
+        subscriptionSum += 200.00;
       }
     }
 
@@ -771,7 +761,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
   const actualCloudflareCost = registrarCost + actualCfImageCostMonth + liveCfSubscriptionCost;
   const simulatedCloudflareCost = registrarCost + workersCost + simCfImageCostMonth;
 
-  // 3b. Modal.com actual costs
+  // Modal.com actual costs
   const actualModalCostInfo = useMemo(() => {
     let totalUsd = 0;
     let totalInr = 0;
@@ -840,24 +830,187 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
     };
   }, [modalLogs, photosMap]);
 
-  // 3c. Railway.app actual/simulated costs
-  // Railway bills per SECOND: CPU @ $0.00000772/vCPU/sec, RAM @ $0.00000386/GB/sec, Egress @ $0.05/GB
-  // 30 days = 2,592,000 seconds/month
-  const railwaySecondsPerMonth = 2592000; // 30 days * 24 hours * 3600 seconds
+  // Aggregated worker fleet performance & compute billing breakdown
+  const modalWorkerBreakdown = useMemo(() => {
+    const fleetTemplates = [
+      {
+        key: 'photo',
+        name: 'Modal Photo Worker',
+        workerTypeDescription: 'Photo Face Vector Indexer',
+        specs: '1 vCPU • 1GB RAM',
+        textColor: 'text-emerald-400',
+        badgeStyle: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
+        costPerSecUsd: (1.0 * 0.0000131) + (1.0 * 0.00000222), // $0.00001532/s
+        runs: 0,
+        totalDurationSeconds: 0,
+        dataSizeBytes: 0,
+        totalCostUsd: 0,
+        totalCostInr: 0,
+      },
+      {
+        key: 'video_gpu',
+        name: 'Modal GPU Worker',
+        workerTypeDescription: 'NVIDIA L4 Video Transcoder',
+        specs: 'NVIDIA L4 • 4 vCPU • 8GB RAM',
+        textColor: 'text-amber-400',
+        badgeStyle: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
+        costPerSecUsd: (4.0 * 0.0000131) + (8.0 * 0.00000222) + 0.0002222, // $0.00029236/s
+        runs: 0,
+        totalDurationSeconds: 0,
+        dataSizeBytes: 0,
+        totalCostUsd: 0,
+        totalCostInr: 0,
+      },
+      {
+        key: 'video_cpu',
+        name: 'Modal CPU Worker',
+        workerTypeDescription: 'CPU Video Transcoder (Fallback)',
+        specs: '4 vCPU • 4GB RAM',
+        textColor: 'text-cyan-400',
+        badgeStyle: 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400',
+        costPerSecUsd: (4.0 * 0.0000131) + (4.0 * 0.00000222), // $0.00006128/s
+        runs: 0,
+        totalDurationSeconds: 0,
+        dataSizeBytes: 0,
+        totalCostUsd: 0,
+        totalCostInr: 0,
+      },
+      {
+        key: 'selfie',
+        name: 'Modal Selfie Worker',
+        workerTypeDescription: 'Guest Face Matcher',
+        specs: '0.125 vCPU • 1GB RAM',
+        textColor: 'text-purple-400',
+        badgeStyle: 'bg-purple-500/10 border-purple-500/30 text-purple-400',
+        costPerSecUsd: (0.125 * 0.0000131) + (1.0 * 0.00000222), // $0.00000386/s
+        runs: 0,
+        totalDurationSeconds: 0,
+        dataSizeBytes: 0,
+        totalCostUsd: 0,
+        totalCostInr: 0,
+      },
+      {
+        key: 'batch',
+        name: 'Modal Batch Dispatcher',
+        workerTypeDescription: 'Serverless Batch Dispatcher',
+        specs: '0.125 vCPU • 1GB RAM',
+        textColor: 'text-blue-400',
+        badgeStyle: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
+        costPerSecUsd: (0.125 * 0.0000131) + (1.0 * 0.00000222), // $0.00000386/s
+        runs: 0,
+        totalDurationSeconds: 0,
+        dataSizeBytes: 0,
+        totalCostUsd: 0,
+        totalCostInr: 0,
+      },
+    ];
+
+    modalLogs.forEach(log => {
+      const fn = log.function_name || 'process_single_photo';
+      const isVideo = fn.includes('video') || log.media_type === 'video';
+      const isGpu = fn === 'process_video_gpu' || log.gpu_type === 'l4' || log.worker_type?.includes('GPU');
+
+      let targetKey = 'photo';
+      if (fn === 'process_video_gpu' || isGpu) {
+        targetKey = 'video_gpu';
+      } else if (fn === 'process_video_cpu' || (isVideo && !isGpu)) {
+        targetKey = 'video_cpu';
+      } else if (fn === 'find_matching_photos' || log.worker_type?.includes('Selfie')) {
+        targetKey = 'selfie';
+      } else if (fn === 'process_media_batch' || log.worker_type?.includes('Batch')) {
+        targetKey = 'batch';
+      } else {
+        targetKey = 'photo';
+      }
+
+      const target = fleetTemplates.find(f => f.key === targetKey);
+      if (target) {
+        target.runs++;
+        const duration = Number(log.execution_time_seconds) || 0;
+        target.totalDurationSeconds += duration;
+
+        const photo = log.photo_id ? photosMap.get(log.photo_id) : undefined;
+        const size = Number(log.media_size) || Number(photo?.size) || 0;
+        target.dataSizeBytes += size;
+
+        target.totalCostUsd += computeModalLogCostUsd(log);
+        target.totalCostInr += computeModalLogCostInr(log, usdToInrRate);
+      }
+    });
+
+    return fleetTemplates.map(f => ({
+      ...f,
+      costPerSecInr: f.costPerSecUsd * usdToInrRate,
+      avgDurationSeconds: f.runs > 0 ? f.totalDurationSeconds / f.runs : 0,
+    }));
+  }, [modalLogs, photosMap, usdToInrRate]);
+
+  const modalWorkerTotals = useMemo(() => {
+    let totalRuns = 0;
+    let totalDuration = 0;
+    let totalBytes = 0;
+    let totalCostUsd = 0;
+    let totalCostInr = 0;
+
+    modalWorkerBreakdown.forEach(f => {
+      totalRuns += f.runs;
+      totalDuration += f.totalDurationSeconds;
+      totalBytes += f.dataSizeBytes;
+      totalCostUsd += f.totalCostUsd;
+      totalCostInr += f.totalCostInr;
+    });
+
+    return {
+      totalRuns,
+      totalDuration,
+      totalBytes,
+      totalCostUsd,
+      totalCostInr,
+    };
+  }, [modalWorkerBreakdown]);
+
+  // Railway.app actual/simulated costs
+  const railwaySecondsPerMonth = 2592000;
   const railwayRamCostMonth = simulatedRailwayRAM * 0.00000386 * railwaySecondsPerMonth;
   const railwayCpuCostMonth = simulatedRailwayCPU * 0.00000772 * railwaySecondsPerMonth;
   const railwayEgressCostMonth = simulatedRailwayEgress * 0.05;
   const simulatedRailwayCost = railwayRamCostMonth + railwayCpuCostMonth + railwayEgressCostMonth;
 
-  // If live Railway data is available, prefer the real invoice/estimated total
   const hasLiveRailway = liveRailwayData && !liveRailwayData.error && liveRailwayData.totalEstimatedDollars > 0;
   const actualRailwayCost = hasLiveRailway
     ? (liveRailwayData.invoiceDollars ?? liveRailwayData.totalEstimatedDollars)
     : simulatedRailwayCost;
 
-  // 4. Combined Totals
-  const actualTotalCost = supabaseTierCost + actualB2Cost + actualCloudflareCost + actualModalCost + actualRailwayCost;
-  const simulatedTotalCost = supabaseTierCost + simulatedB2Cost + simulatedCloudflareCost + actualModalCost + actualRailwayCost;
+  // Timeframe-adjusted operational costs (endured for the selected timeframe)
+  const timeframeSupabaseCost = supabaseTierCost * timeframeFactor;
+  const timeframeActualB2Cost = actualB2Cost * timeframeFactor;
+  const timeframeSimulatedB2Cost = simulatedB2Cost * timeframeFactor;
+  const timeframeActualCloudflareCost = actualCloudflareCost * timeframeFactor;
+  const timeframeSimulatedCloudflareCost = simulatedCloudflareCost * timeframeFactor;
+  const timeframeActualRailwayCost = actualRailwayCost * timeframeFactor;
+  const timeframeSimulatedRailwayCost = simulatedRailwayCost * timeframeFactor;
+  const timeframeActualModalCostUsd = actualModalCost;
+  const timeframeActualModalCostInr = actualModalCostInfo.inr;
+
+  // Actual & simulated consolidated upkeep for active timeframe
+  const timeframeTotalActualCostUsd = timeframeSupabaseCost + timeframeActualB2Cost + timeframeActualCloudflareCost + timeframeActualRailwayCost + timeframeActualModalCostUsd;
+  const timeframeTotalActualCostInr = (timeframeSupabaseCost + timeframeActualB2Cost + timeframeActualCloudflareCost + timeframeActualRailwayCost) * usdToInrRate + timeframeActualModalCostInr;
+
+  const timeframeTotalSimulatedCostUsd = timeframeSupabaseCost + timeframeSimulatedB2Cost + timeframeSimulatedCloudflareCost + timeframeSimulatedRailwayCost + timeframeActualModalCostUsd;
+  const timeframeTotalSimulatedCostInr = (timeframeSupabaseCost + timeframeSimulatedB2Cost + timeframeSimulatedCloudflareCost + timeframeSimulatedRailwayCost) * usdToInrRate + timeframeActualModalCostInr;
+
+  // Full-year (12-month) projected annualized estimates
+  const nowForProjection = new Date();
+  const daysInRunningYear = Math.max(1, (nowForProjection.getTime() - new Date(nowForProjection.getFullYear(), 0, 1, 0, 0, 0, 0).getTime()) / (1000 * 60 * 60 * 24));
+  const projectedYearModalInr = timeFilter === '1y'
+    ? (actualModalCostInfo.inr / daysInRunningYear) * 365
+    : (timeFilter === '1d' ? actualModalCostInfo.inr * 365 : (timeFilter === '1w' ? (actualModalCostInfo.inr / 7) * 365 : actualModalCostInfo.inr * 12));
+  const projectedYearModalUsd = timeFilter === '1y'
+    ? (actualModalCostInfo.usd / daysInRunningYear) * 365
+    : (timeFilter === '1d' ? actualModalCostInfo.usd * 365 : (timeFilter === '1w' ? (actualModalCostInfo.usd / 7) * 365 : actualModalCostInfo.usd * 12));
+
+  const projectedYearTotalUsd = (supabaseTierCost * 12) + (actualB2Cost * 12) + (actualCloudflareCost * 12) + (actualRailwayCost * 12) + projectedYearModalUsd;
+  const projectedYearTotalInr = (projectedYearTotalUsd - projectedYearModalUsd) * usdToInrRate + projectedYearModalInr;
 
   // Media breakdown stats
   const mediaBreakdown = useMemo(() => {
@@ -919,463 +1072,547 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
     }
   };
 
-  // Shared Helper: Render Timeframe & Exchange Rate Filter Bar
-  const renderFilterBar = (activeBgClass: string, textThemeClass: string) => {
+  // Shared Helper: Render Timeframe & Exchange Rate Toolbar (referenced from Economics subpage in UserDetailPage)
+  const renderFilterBar = (activeBgClass: string, textThemeClass: string, borderThemeClass: string) => {
     return (
-      <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-5 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center space-x-3">
-          <Sliders className={`w-5 h-5 ${textThemeClass}`} />
-          <div>
-            <h4 className="text-sm font-bold text-white">Timeframe & Exchange Rate</h4>
-            <p className="text-[10px] text-slate-400">Filter cost calculations, adjust exchange rate conversions.</p>
-          </div>
-        </div>
-        
-        <div className="flex flex-wrap items-center gap-3">
-          {/* USD to INR Rate Setter */}
-          <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
-            <span className="text-[9px] font-bold text-slate-500 uppercase">Rate ($1 = ₹):</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={usdToInrRateInput}
-              onChange={e => {
-                const val = e.target.value;
-                if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                  setUsdToInrRateInput(val);
-                }
-              }}
-              className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 w-12 text-center font-bold"
-            />
-          </div>
+      <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Dollar - INR Conversion Widget (Shifted to Left Side on Top) */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800/90 rounded-2xl p-1.5 shadow-sm">
+              {/* Badge Label */}
+              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800/60 border ${borderThemeClass} ${textThemeClass}`}>
+                <ArrowLeftRight className="w-3.5 h-3.5 shrink-0" />
+                <span className="text-[11px] font-bold tracking-tight whitespace-nowrap">Dollar – INR Conversion</span>
+              </div>
 
-          {/* Presets */}
-          <div className="bg-slate-900/60 p-1 border border-slate-800 rounded-xl flex flex-wrap gap-1">
-            {(['1d', '1w', '1m', '30d', '1y', 'all', 'custom'] as const).map(preset => {
-              const labelMap: Record<string, string> = {
-                '1d': 'Running Day',
-                '1w': 'Running Week',
-                '1m': 'Month to Date',
-                '30d': 'Last 30 Days',
-                '1y': 'Year to Date',
-                'all': 'All Time',
-                'custom': 'Custom'
-              };
-              const isActive = timeFilter === preset;
-              return (
+              {/* Currency Toggle (INR / USD) */}
+              <div className="flex items-center bg-slate-950/80 p-0.5 rounded-xl border border-slate-800 shrink-0">
                 <button
-                  key={preset}
-                  onClick={() => setTimeFilter(preset)}
-                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-150 cursor-pointer ${
-                    isActive
-                      ? `${activeBgClass} text-white`
-                      : 'text-slate-450 hover:text-slate-200'
+                  type="button"
+                  onClick={() => setCurrency('INR')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    currency === 'INR'
+                      ? `${activeBgClass} text-white shadow-md`
+                      : 'text-slate-400 hover:text-white'
                   }`}
+                  title="Display all costs in Indian Rupees (INR)"
                 >
-                  {labelMap[preset]}
+                  ₹ INR
                 </button>
-              );
-            })}
+                <button
+                  type="button"
+                  onClick={() => setCurrency('USD')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    currency === 'USD'
+                      ? `${activeBgClass} text-white shadow-md`
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Display all costs in US Dollars (USD)"
+                >
+                  $ USD
+                </button>
+              </div>
+
+              {/* Conversion Rate Setter ($1 = ₹Rate) */}
+              <div className="flex items-center space-x-1.5 bg-slate-950/80 border border-slate-800 rounded-xl px-2.5 py-1 shrink-0">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  Rate:
+                </span>
+                <span className="font-mono font-bold text-xs text-sky-400">$1</span>
+                <span className="text-slate-500 text-xs font-bold">=</span>
+                <div className="flex items-center font-mono font-bold text-white text-xs">
+                  <span className="text-emerald-400 mr-0.5">₹</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={usdToInrRateInput}
+                    onChange={e => handleRateInputChange(e.target.value)}
+                    className="bg-transparent text-white text-xs border-0 outline-none w-11 text-center font-bold font-mono focus:ring-0"
+                    title="Edit USD to INR exchange rate"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={syncLiveRate}
+                  disabled={isSyncingRate}
+                  className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition-colors disabled:opacity-50 cursor-pointer"
+                  title={marketRate ? `Market rate: ₹${marketRate}. Click to re-sync.` : "Sync live USD/INR exchange rate"}
+                >
+                  <RefreshCw className={`w-3 h-3 ${isSyncingRate ? 'animate-spin text-emerald-400' : ''}`} />
+                </button>
+              </div>
+
+              {/* Live Forex sync status pill */}
+              {marketRate && (
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono text-emerald-400/90 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg shrink-0">
+                  Live: ₹{marketRate}
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* Custom Date Time Pickers */}
-          {timeFilter === 'custom' && (
-            <div className="flex flex-wrap items-center gap-2 animate-fadeIn">
-              <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
-                <span className="text-[9px] font-bold text-slate-500 uppercase">Start:</span>
-                <input
-                  type="datetime-local"
-                  value={customStart}
-                  onChange={e => setCustomStart(e.target.value)}
-                  onClick={e => (e.target as any).showPicker?.()}
-                  style={{ colorScheme: 'dark' }}
-                  className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 cursor-pointer w-[155px]"
-                />
-              </div>
-              <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
-                <span className="text-[9px] font-bold text-slate-500 uppercase">End:</span>
-                <input
-                  type="datetime-local"
-                  value={customEnd}
-                  onChange={e => setCustomEnd(e.target.value)}
-                  onClick={e => (e.target as any).showPicker?.()}
-                  style={{ colorScheme: 'dark' }}
-                  className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 cursor-pointer w-[155px]"
-                />
-              </div>
+          {/* Right Side: Quick Filters / Timeframe Presets & Refresh */}
+          <div className="flex items-center gap-2 flex-wrap self-end sm:self-auto">
+            {/* Quick Filters / Timeframe Presets */}
+            <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 shadow-sm shrink-0">
+              {(['1d', '1w', '1m', '30d', '1y', 'all', 'custom'] as const).map(preset => {
+                const labelMap: Record<string, string> = {
+                  '1d': '1D',
+                  '1w': '1W',
+                  '1m': '1M',
+                  '30d': '30D',
+                  '1y': '1Y',
+                  'all': 'All',
+                  'custom': 'Custom'
+                };
+                const titleMap: Record<string, string> = {
+                  '1d': 'Running Day (24h)',
+                  '1w': 'Running Week (7d)',
+                  '1m': 'Month to Date (30d)',
+                  '30d': 'Last 30 Days',
+                  '1y': 'Running Year Endured',
+                  'all': 'All Time',
+                  'custom': 'Custom Period'
+                };
+                const isActive = timeFilter === preset;
+                return (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setTimeFilter(preset)}
+                    title={titleMap[preset]}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      isActive
+                        ? `${activeBgClass} text-white shadow-md shadow-slate-950/50`
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    {labelMap[preset]}
+                  </button>
+                );
+              })}
             </div>
-          )}
+
+            {/* Refresh billing trigger */}
+            <button
+              type="button"
+              onClick={() => setBillingRefreshKey(k => k + 1)}
+              disabled={loadingBilling || loadingModalLogs}
+              className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+              title="Refresh Live API Billing Data"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loadingBilling || loadingModalLogs ? 'animate-spin text-emerald-400' : ''}`} />
+            </button>
+          </div>
         </div>
+
+        {/* Custom Date Pickers */}
+        {timeFilter === 'custom' && (
+          <div className="flex flex-wrap items-center justify-end gap-2 bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 shadow-lg animate-fadeIn self-end">
+            <div className="flex items-center gap-1 text-slate-400">
+              <Calendar className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+              <span className="text-[10px] font-semibold uppercase tracking-wider">Custom Range:</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-slate-500 uppercase font-bold">From</span>
+              <input
+                type="datetime-local"
+                value={customStart}
+                onChange={e => setCustomStart(e.target.value)}
+                onClick={e => (e.target as any).showPicker?.()}
+                style={{ colorScheme: 'dark' }}
+                className="bg-slate-950 border border-slate-700/80 hover:border-sky-500 rounded-lg px-2 py-1 text-white text-[11px] outline-none focus:border-sky-500 cursor-pointer font-mono"
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-slate-500 uppercase font-bold">To</span>
+              <input
+                type="datetime-local"
+                value={customEnd}
+                onChange={e => setCustomEnd(e.target.value)}
+                onClick={e => (e.target as any).showPicker?.()}
+                style={{ colorScheme: 'dark' }}
+                className="bg-slate-950 border border-slate-700/80 hover:border-sky-500 rounded-lg px-2 py-1 text-white text-[11px] outline-none focus:border-sky-500 cursor-pointer font-mono"
+              />
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
-  // Navigation Subtabs
+  // Navigation Subtabs with dedicated SVGs
   const tabs = [
-    { id: 'total', label: 'Total Cost', icon: DollarSign, customIcon: null },
-    { id: 'supabase', label: 'Supabase', icon: Database, customIcon: null },
-    { id: 'backblaze', label: 'Backblaze B2', icon: HardDrive, customIcon: null },
-    { id: 'cloudflare', label: 'Cloudflare', icon: Cloud, customIcon: null },
-    { id: 'modal', label: 'Modal.com (AI)', icon: null, customIcon: 'modal' },
-    { id: 'railway', label: 'Railway (App)', icon: Server, customIcon: null },
+    {
+      id: 'total',
+      label: 'Consolidated Upkeep',
+      type: 'icon',
+      icon: DollarSign,
+      activeColor: 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 border-indigo-500/40',
+      tagColor: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20'
+    },
+    {
+      id: 'supabase',
+      label: 'Supabase DB',
+      type: 'supabase',
+      activeColor: 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 border-emerald-500/40',
+      tagColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+    },
+    {
+      id: 'backblaze',
+      label: 'Backblaze B2',
+      type: 'backblaze',
+      activeColor: 'bg-sky-600 text-white shadow-lg shadow-sky-600/20 border-sky-500/40',
+      tagColor: 'text-sky-400 bg-sky-500/10 border-sky-500/20'
+    },
+    {
+      id: 'cloudflare',
+      label: 'Cloudflare Edge',
+      type: 'cloudflare',
+      activeColor: 'bg-amber-600 text-white shadow-lg shadow-amber-600/20 border-amber-500/40',
+      tagColor: 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+    },
+    {
+      id: 'modal',
+      label: 'Modal.com AI',
+      type: 'modal',
+      activeColor: 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 border-emerald-500/40',
+      tagColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+    },
+    {
+      id: 'railway',
+      label: 'Railway App',
+      type: 'railway',
+      activeColor: 'bg-fuchsia-600 text-white shadow-lg shadow-fuchsia-600/20 border-fuchsia-500/40',
+      tagColor: 'text-fuchsia-400 bg-fuchsia-500/10 border-fuchsia-500/20'
+    },
   ];
 
   return (
-    <div className="space-y-8 animate-fadeIn">
-      {/* Page Title & Description */}
-      <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h3 className="text-xl font-bold text-white">Platform Infrastructure Cost</h3>
-          <p className="text-slate-400 text-xs mt-1">
-            Analyze combined monthly upkeep expense and view specific infrastructure pricing calculators.
-          </p>
+    <div className="space-y-6 animate-fadeIn pb-12">
+      {/* Page Title & Status Banner */}
+      <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 sm:p-7 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 shadow-inner">
+            <DollarSign className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-white tracking-tight">Infrastructure Cost Hub</h2>
+            <p className="text-slate-400 text-xs mt-1">
+              Enterprise financial ledger, live API billing sync, unit economics, and simulated scaling models.
+            </p>
+          </div>
         </div>
-        <div className="flex items-center space-x-2.5">
-          <div className="px-3.5 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-xl text-xs font-semibold flex items-center">
-            <Sliders className="w-3.5 h-3.5 mr-1.5 text-indigo-400" />
-            Configurable Simulation
+
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-1.5 text-xs font-mono text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-3.5 py-1.5 rounded-xl shadow-sm">
+            <Clock className="w-3.5 h-3.5 text-indigo-400" />
+            <span>{timeframeLabel}</span>
           </div>
         </div>
       </div>
 
-      {/* Pill Capsule Sub-tab Switcher */}
-      <div className="bg-slate-900/40 p-1 border border-slate-800 rounded-2xl flex flex-wrap gap-1 w-fit max-w-full">
+      {/* Modern Capsule Navigation Switcher with Dedicated SVGs */}
+      <div className="flex items-center gap-1.5 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 shadow-lg overflow-x-auto max-w-full">
         {tabs.map(tab => {
-          const Icon = tab.icon;
           const isActive = activeSubTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveSubTab(tab.id as any)}
-              className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer whitespace-nowrap border ${
                 isActive
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                  ? `${tab.activeColor} border-transparent`
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60 border-transparent'
               }`}
             >
-              {tab.customIcon === 'modal' ? (
-                <ModalLogo className="h-3.5 w-auto" />
-              ) : Icon ? (
-                <Icon className="w-4 h-4" />
-              ) : null}
+              {tab.type === 'supabase' ? (
+                <SupabaseLogo className="h-4 w-4 shrink-0" />
+              ) : tab.type === 'backblaze' ? (
+                <BackblazeIcon className="h-4 w-auto shrink-0" />
+              ) : tab.type === 'cloudflare' ? (
+                <CloudflareLogo className="h-3.5 w-auto shrink-0" />
+              ) : tab.type === 'modal' ? (
+                <ModalLogo className="h-3.5 w-auto shrink-0" />
+              ) : tab.type === 'railway' ? (
+                <RailwayLogo className={`h-3.5 w-auto shrink-0 ${isActive ? 'text-white' : 'text-fuchsia-400'}`} />
+              ) : (
+                <DollarSign className="w-4 h-4 shrink-0" />
+              )}
               <span>{tab.label}</span>
             </button>
           );
         })}
       </div>
 
-      {/* TAB PANEL 1: TOTAL COST OVERVIEW */}
+      {/* ── TAB PANEL 1: CONSOLIDATED TOTAL COST OVERVIEW ── */}
       {activeSubTab === 'total' && (
-        <div className="space-y-8">
-          {/* Timeframe & Exchange Rate Filters */}
-          <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-5 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-fadeIn">
-            <div className="flex items-center space-x-3">
-              <Sliders className="w-5 h-5 text-indigo-400" />
-              <div>
-                <h4 className="text-sm font-bold text-white">Timeframe & Exchange Rate</h4>
-                <p className="text-[10px] text-slate-400">Filter cost calculations, adjust exchange rate conversions.</p>
-              </div>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-3">
-              {/* USD to INR Rate Setter */}
-              <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
-                <span className="text-[9px] font-bold text-slate-500 uppercase">Rate ($1 = ₹):</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={usdToInrRateInput}
-                  onChange={e => {
-                    const val = e.target.value;
-                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                      setUsdToInrRateInput(val);
-                    }
-                  }}
-                  className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 w-12 text-center font-bold"
-                />
-              </div>
+        <div className="space-y-6">
+          {renderFilterBar('bg-indigo-600', 'text-indigo-400', 'border-indigo-500/20')}
 
-              {/* Presets */}
-              <div className="bg-slate-900/60 p-1 border border-slate-800 rounded-xl flex gap-1 flex-wrap">
-                {(['1d', '1w', '1m', '1y', 'custom'] as const).map(preset => {
-                  const labelMap: Record<string, string> = {
-                    '1d': 'Running Day',
-                    '1w': 'Running Week',
-                    '1m': 'Running Month',
-                    '1y': 'Running Year',
-                    'custom': 'Custom'
-                  };
-                  const isActive = timeFilter === preset;
-                  return (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setTimeFilter(preset)}
-                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-150 cursor-pointer ${
-                        isActive
-                          ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      {labelMap[preset]}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Custom Date Time Pickers */}
-              {timeFilter === 'custom' && (
-                <div className="flex flex-wrap items-center gap-2 animate-fadeIn">
-                  <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase">Start:</span>
-                    <input
-                      type="datetime-local"
-                      value={customStart}
-                      onChange={e => setCustomStart(e.target.value)}
-                      onClick={e => (e.target as any).showPicker?.()}
-                      style={{ colorScheme: 'dark' }}
-                      className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 cursor-pointer w-[155px]"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-1.5 bg-slate-900/60 border border-slate-800 rounded-xl px-2.5 py-1">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase">End:</span>
-                    <input
-                      type="datetime-local"
-                      value={customEnd}
-                      onChange={e => setCustomEnd(e.target.value)}
-                      onClick={e => (e.target as any).showPicker?.()}
-                      style={{ colorScheme: 'dark' }}
-                      className="bg-transparent text-white text-[10px] border-0 outline-none focus:ring-0 cursor-pointer w-[155px]"
-                    />
-                  </div>
+          {/* 4 Executive KPI Metric Cards (UserDetailPage Aesthetics) */}
+          <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 sm:p-7 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                  <IndianRupee className="w-5 h-5" />
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Main cost summary cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Supabase summary */}
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg group">
-              <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Supabase Estimate ({timeframeLabel})</p>
-                  <h3 className="text-2xl font-black text-white mt-1 group-hover:text-emerald-400 transition-colors">
-                    ${(supabaseTierCost * timeframeFactor).toFixed(2)} <span className="text-xs font-medium text-slate-500">{timeframeSuffix}</span>
-                  </h3>
-                </div>
-                <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400">
-                  <Database className="w-4 h-4" />
+                  <h3 className="text-base font-bold text-white">Consolidated Upkeep Ledger</h3>
+                  <p className="text-[11px] text-slate-500">Global cloud bill across object storage, serverless AI, edge CDN, and app nodes</p>
                 </div>
               </div>
-              <div className="flex items-center justify-between mt-4">
-                <span className="text-[10px] text-slate-500">Tier: {supabaseTier.toUpperCase()}</span>
-                <button
-                  onClick={() => setActiveSubTab('supabase')}
-                  className="text-[10px] text-indigo-400 hover:underline font-bold"
-                >
-                  Configure &rarr;
-                </button>
+
+              <div className="flex items-center gap-1.5 text-xs font-mono text-sky-300 bg-sky-500/10 border border-sky-500/20 px-3.5 py-1.5 rounded-xl shrink-0 shadow-sm self-start sm:self-auto">
+                <Clock className="w-3.5 h-3.5 text-sky-400" />
+                <span>
+                  {timeframeLabel} {timeframeSuffix ? `(${timeframeSuffix})` : ''}
+                </span>
               </div>
             </div>
 
-            {/* Backblaze B2 summary */}
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg group">
-              <div className="flex justify-between items-start">
+            {/* 4 Executive KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
+              {/* Card 1: Actual Consolidated Upkeep */}
+              <div className="rounded-2xl border border-indigo-500/30 bg-indigo-950/20 p-4 transition-all hover:border-indigo-500/50 flex flex-col justify-between">
                 <div>
-                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Backblaze B2 Storage ({timeframeLabel})</p>
-                  <h3 className="text-2xl font-black text-white mt-1 group-hover:text-sky-400 transition-colors">
-                    ${(actualB2Cost * timeframeFactor).toFixed(4)} <span className="text-xs font-medium text-slate-500">{timeframeSuffix}</span>
-                  </h3>
-                </div>
-                <div className="p-2 bg-sky-500/10 rounded-lg text-sky-400">
-                  <HardDrive className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="flex items-center justify-between mt-4">
-                <span className="text-[10px] text-slate-500">Actual: {actualB2StorageDecimalGB.toFixed(3)} GB (Free &lt; 10GB) • Sim: {simulatedStorageGB} GB (${(simulatedB2Cost * timeframeFactor).toFixed(4)})</span>
-                <button
-                  onClick={() => setActiveSubTab('backblaze')}
-                  className="text-[10px] text-indigo-400 hover:underline font-bold shrink-0 ml-2"
-                >
-                  Simulate Storage &rarr;
-                </button>
-              </div>
-            </div>
-
-            {/* Cloudflare summary */}
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg group">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Cloudflare Edge & DNS ({timeframeLabel})</p>
-                  <h3 className="text-2xl font-black text-white mt-1 group-hover:text-amber-400 transition-colors">
-                    ${(actualCloudflareCost * timeframeFactor).toFixed(2)} <span className="text-xs font-medium text-slate-500">{timeframeSuffix}</span>
-                  </h3>
-                </div>
-                <div className="p-2 bg-amber-500/10 rounded-lg text-amber-400">
-                  <Cloud className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="flex items-center justify-between mt-4">
-                <span className="text-[10px] text-slate-500">Workers: ${(workersCost * timeframeFactor).toFixed(2)} | CDN Caching: Free</span>
-                <button
-                  onClick={() => setActiveSubTab('cloudflare')}
-                  className="text-[10px] text-indigo-400 hover:underline font-bold"
-                >
-                  Adjust requests &rarr;
-                </button>
-              </div>
-            </div>
-
-            {/* Modal.com summary */}
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg group">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Modal.com AI ({timeframeLabel})</p>
-                  <h3 className="text-2xl font-black text-white mt-1 group-hover:text-indigo-400 transition-colors">
-                    ₹{(actualModalCostInfo.inr * timeframeFactor).toFixed(2)} <span className="text-xs font-semibold text-slate-500">(${(actualModalCostInfo.usd * timeframeFactor).toFixed(4)})</span>
-                  </h3>
-                </div>
-                <div className="p-1.5 px-2 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-                  <ModalLogo className="h-4 w-auto" />
-                </div>
-              </div>
-              <div className="flex items-center justify-between mt-4">
-                <span className="text-[10px] text-slate-500">Invocations: {modalLogs.length}</span>
-                <button
-                  onClick={() => setActiveSubTab('modal')}
-                  className="text-[10px] text-indigo-400 hover:underline font-bold"
-                >
-                  Configure &rarr;
-                </button>
-              </div>
-            </div>
-
-            {/* Railway summary */}
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg group">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Railway App Server ({timeframeLabel})</p>
-                  <h3 className="text-2xl font-black text-white mt-1 group-hover:text-fuchsia-400 transition-colors">
-                    ${(actualRailwayCost * timeframeFactor).toFixed(2)} <span className="text-xs font-semibold text-slate-500">{timeframeSuffix}</span>
-                  </h3>
-                </div>
-                <div className="p-2 bg-fuchsia-500/10 rounded-lg text-fuchsia-400">
-                  <Server className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="flex items-center justify-between mt-4">
-                {hasLiveRailway ? (
-                  <span className="px-2 py-0.5 text-[9px] font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full flex items-center gap-1">
-                    <ShieldCheck className="w-3 h-3" /> Live Sync Active
+                  <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block mb-1">
+                    Actual Consolidated Upkeep
                   </span>
-                ) : (
-                  <span className="text-[10px] text-slate-500">Simulated | RAM: {simulatedRailwayRAM}GB CPU: {simulatedRailwayCPU}vCPU</span>
-                )}
-                <button
-                  onClick={() => setActiveSubTab('railway')}
-                  className="text-[10px] text-indigo-400 hover:underline font-bold"
-                >
-                  {hasLiveRailway ? 'Details →' : 'Configure →'}
-                </button>
-              </div>
-            </div>
+                  <div className="text-2xl font-black text-indigo-200 font-mono">
+                    {fmtCost(timeframeTotalActualCostUsd)}
+                  </div>
+                  <span className="text-xs font-mono text-slate-400 mt-0.5 block">
+                    {fmtSub(timeframeTotalActualCostUsd, timeframeSuffix)}
+                  </span>
+                </div>
 
-            {/* Combined upkeep */}
-            <div className="bg-[#111827]/80 border border-indigo-950 rounded-2xl p-5 shadow-lg bg-gradient-to-br from-[#111827]/90 to-indigo-950/20 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-indigo-400 text-[10px] font-black uppercase tracking-wider">Actual Platform Upkeep ({timeframeLabel})</p>
-                  <h3 className="text-2xl font-black text-white mt-1 group-hover:text-indigo-400 transition-colors">
-                    ${(actualTotalCost * timeframeFactor).toFixed(4)} <span className="text-xs font-medium text-slate-500">{timeframeSuffix}</span>
-                  </h3>
-                </div>
-                <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">
-                  <DollarSign className="w-4 h-4" />
+                <div className="mt-3 pt-2.5 border-t border-indigo-500/20 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <BackblazeIcon className="h-3 w-auto" />
+                      Backblaze B2:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">{fmtCost(timeframeActualB2Cost)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <ModalLogo className="h-2.5 w-auto" />
+                      Modal AI Compute:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">
+                      {currency === 'USD' ? `$${timeframeActualModalCostUsd.toFixed(2)}` : `₹${timeframeActualModalCostInr.toFixed(2)}`}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <SupabaseLogo className="h-3 w-auto" />
+                      Supabase DB:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">{fmtCost(timeframeSupabaseCost)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <RailwayLogo className="h-2.5 w-auto text-fuchsia-400" />
+                      Railway + Cloudflare:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">{fmtCost(timeframeActualRailwayCost + timeframeActualCloudflareCost)}</span>
+                  </div>
                 </div>
               </div>
-              <p className="text-[9px] text-slate-500 mt-5">
-                Simulated scaling upkeep ({simulatedStorageGB}GB B2): <span className="text-slate-350 font-bold">${(simulatedTotalCost * timeframeFactor).toFixed(4)}{timeframeSuffix}</span>
-              </p>
+
+              {/* Card 2: Object Storage Footprint */}
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">
+                    Object Storage Footprint
+                  </span>
+                  <div className="text-2xl font-black text-white font-mono">
+                    {actualB2StorageDecimalGB >= 1000
+                      ? `${(actualB2StorageDecimalGB / 1000).toFixed(2)} TB`
+                      : `${actualB2StorageDecimalGB.toFixed(2)} GB`}
+                  </div>
+                  <span className="text-xs font-mono text-slate-400 mt-0.5 block">
+                    {formatDecimalSize(actualB2StorageBytes)} in B2 Bucket
+                  </span>
+                </div>
+
+                <div className="mt-3 pt-2.5 border-t border-slate-800 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <HardDrive className="w-3 h-3 text-sky-400 shrink-0" />
+                      Active Files:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">{formatNumber(typeof liveB2Usage?.fileCount === 'number' ? liveB2Usage.fileCount : photos.length)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <ShieldCheck className="w-3 h-3 text-emerald-400 shrink-0" />
+                      Free Tier:
+                    </span>
+                    <span className="font-mono text-emerald-300 font-medium">First 10 GB Free</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <Cloud className="w-3 h-3 text-sky-400 shrink-0" />
+                      Egress Fee:
+                    </span>
+                    <span className="font-mono text-emerald-400 font-medium">₹0.00 (Free Alliance)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 3: Modal AI Execution Compute */}
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
+                    Modal.com AI Compute
+                  </span>
+                  <div className="text-2xl font-black text-white font-mono">
+                    ₹{timeframeActualModalCostInr.toFixed(2)}
+                  </div>
+                  <span className="text-xs font-mono text-slate-400 mt-0.5 block">
+                    ${timeframeActualModalCostUsd.toFixed(4)} USD ({modalLogs.length} runs)
+                  </span>
+                </div>
+
+                <div className="mt-3 pt-2.5 border-t border-slate-800 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <ImageIcon className="w-3 h-3 text-emerald-400 shrink-0" />
+                      Photos Processed:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">{modalStats.photosCount}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <Video className="w-3 h-3 text-purple-400 shrink-0" />
+                      Videos Transcoded:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">{modalStats.videosCount} ({modalStats.videoGpuCount} L4 GPU)</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <Sparkles className="w-3 h-3 text-pink-400 shrink-0" />
+                      Faces Indexed:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">{modalStats.totalFaces} vectors</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 4: App Server & Edge CDN */}
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-fuchsia-400 uppercase tracking-wider block mb-1">
+                    App Server & Edge CDN
+                  </span>
+                  <div className="text-2xl font-black text-white font-mono">
+                    {fmtCost((actualRailwayCost + actualCloudflareCost) * timeframeFactor)}
+                  </div>
+                  <span className="text-xs font-mono text-slate-400 mt-0.5 block">
+                    {fmtSub((actualRailwayCost + actualCloudflareCost) * timeframeFactor, timeframeSuffix)}
+                  </span>
+                </div>
+
+                <div className="mt-3 pt-2.5 border-t border-slate-800 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <RailwayLogo className="h-2.5 w-auto text-fuchsia-400" />
+                      Railway Server:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">{fmtCost(actualRailwayCost * timeframeFactor)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <CloudflareLogo className="h-2.5 w-auto" />
+                      Cloudflare Edge:
+                    </span>
+                    <span className="font-mono text-slate-200 font-medium">{fmtCost(actualCloudflareCost * timeframeFactor)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="flex items-center gap-1.5 text-slate-400">
+                      <Activity className="w-3 h-3 text-emerald-400 shrink-0" />
+                      Infrastructure Health:
+                    </span>
+                    <span className="font-mono text-emerald-400 font-medium">100% Online</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Cost Allocation breakdown visual chart - Pie / Donut Chart */}
-          <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          {/* Cost Allocation Donut Chart & Provider Matrix Cards */}
+          <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 sm:p-7 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
               <div>
-                <h4 className="text-md font-bold text-white flex items-center">
-                  <TrendingUp className="w-5 h-5 mr-2 text-indigo-400" />
-                  Infrastructure Cost Distribution Share ({costChartMode === 'actual' ? 'Actual Live' : 'Simulated Scaling'} • {timeframeLabel})
+                <h4 className="text-base font-bold text-white flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-indigo-400" />
+                  <span>Cost Allocation Distribution</span>
                 </h4>
                 <p className="text-slate-400 text-xs mt-0.5">
-                  Visual pie chart breakdown of operational expenses across cloud nodes for {timeframeLabel.toLowerCase()}.
+                  Visual breakdown of operational expenses across cloud nodes for {timeframeLabel.toLowerCase()}.
                 </p>
               </div>
 
               {/* View Mode Toggle: Actual vs Simulated */}
-              <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs shrink-0">
+              <div className="flex bg-slate-900/90 border border-slate-800 rounded-xl p-1 text-xs shrink-0 self-start sm:self-auto">
                 <button
                   type="button"
                   onClick={() => setCostChartMode('actual')}
-                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
                     costChartMode === 'actual'
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  Actual Live (${(actualTotalCost * timeframeFactor).toFixed(4)}{timeframeSuffix})
+                  Actual Live (${timeframeTotalActualCostUsd.toFixed(4)})
                 </button>
                 <button
                   type="button"
                   onClick={() => setCostChartMode('simulated')}
-                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
                     costChartMode === 'simulated'
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  Simulated Scaling (${(simulatedTotalCost * timeframeFactor).toFixed(4)}{timeframeSuffix})
+                  Simulated Scaling (${timeframeTotalSimulatedCostUsd.toFixed(4)})
                 </button>
               </div>
             </div>
 
             {(() => {
-              const baseTotal = costChartMode === 'actual' ? actualTotalCost : simulatedTotalCost;
-              const baseB2Cost = costChartMode === 'actual' ? actualB2Cost : simulatedB2Cost;
-              const baseCloudflareCost = costChartMode === 'actual' ? actualCloudflareCost : simulatedCloudflareCost;
-
-              const currentTotal = baseTotal * timeframeFactor;
-              const currentB2Cost = baseB2Cost * timeframeFactor;
-              const currentCloudflareCost = baseCloudflareCost * timeframeFactor;
-              const currentSupabaseCost = supabaseTierCost * timeframeFactor;
-              const currentModalCost = actualModalCost * timeframeFactor;
-              const currentRailwayCost = actualRailwayCost * timeframeFactor;
+              const currentTotal = costChartMode === 'actual' ? timeframeTotalActualCostUsd : timeframeTotalSimulatedCostUsd;
+              const currentB2Cost = costChartMode === 'actual' ? timeframeActualB2Cost : timeframeSimulatedB2Cost;
+              const currentCloudflareCost = costChartMode === 'actual' ? timeframeActualCloudflareCost : timeframeSimulatedCloudflareCost;
+              const currentSupabaseCost = timeframeSupabaseCost;
+              const currentModalCost = timeframeActualModalCostUsd;
+              const currentRailwayCost = costChartMode === 'actual' ? timeframeActualRailwayCost : timeframeSimulatedRailwayCost;
 
               return currentTotal > 0 ? (
                 <div className="flex flex-col lg:flex-row items-center justify-between gap-8 pt-2">
-                  {/* Donut / Pie Chart SVG */}
-                  <div className="relative flex items-center justify-center shrink-0 w-60 h-60">
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 180 180">
-                      {/* Background Track Circle */}
+                  {/* Donut Chart SVG */}
+                  <div className="relative flex items-center justify-center shrink-0 w-64 h-64">
+                    <svg className="w-full h-full transform -rotate-90 drop-shadow-lg" viewBox="0 0 180 180">
                       <circle
                         cx="90"
                         cy="90"
                         r="70"
                         fill="transparent"
                         stroke="#1e293b"
-                        strokeWidth="20"
+                        strokeWidth="18"
                       />
                       {(() => {
                         const items = [
                           { label: 'Supabase DB', cost: currentSupabaseCost, color: '#10b981' },
                           { label: 'Backblaze B2', cost: currentB2Cost, color: '#0ea5e9' },
                           { label: 'Cloudflare Edge', cost: currentCloudflareCost, color: '#f59e0b' },
-                          { label: 'Modal.com (AI)', cost: currentModalCost, color: '#6366f1' },
-                          { label: 'Railway (App)', cost: currentRailwayCost, color: '#d946ef' },
+                          { label: 'Modal.com AI', cost: currentModalCost, color: '#6366f1' },
+                          { label: 'Railway App', cost: currentRailwayCost, color: '#d946ef' },
                         ];
-                        const circumference = 2 * Math.PI * 70; // ~439.82
+                        const circumference = 2 * Math.PI * 70;
                         let accumulatedPercent = 0;
 
                         return items.map((item, idx) => {
@@ -1393,10 +1630,10 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                               r="70"
                               fill="transparent"
                               stroke={item.color}
-                              strokeWidth="22"
+                              strokeWidth="20"
                               strokeDasharray={strokeDasharray}
                               strokeDashoffset={strokeDashoffset}
-                              className="transition-all duration-300 hover:opacity-80"
+                              className="transition-all duration-300 hover:opacity-80 cursor-pointer"
                             >
                               <title>{`${item.label}: $${item.cost.toFixed(4)} (${percentage.toFixed(1)}%)`}</title>
                             </circle>
@@ -1405,834 +1642,1039 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                       })()}
                     </svg>
 
-                    {/* Donut Center Total Text */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                         {costChartMode === 'actual' ? 'Actual Upkeep' : 'Simulated Upkeep'}
                       </span>
-                      <span className="text-xl font-black text-white mt-0.5">
-                        ${currentTotal.toFixed(4)}
+                      <span className="text-2xl font-black text-white mt-0.5 font-mono">
+                        {fmtCost(currentTotal, 4)}
                       </span>
-                      <span className="text-xs font-bold text-emerald-400 mt-0.5">
-                        ₹{(currentTotal * usdToInrRate).toFixed(2)}{timeframeSuffix}
+                      <span className="text-xs font-black text-emerald-400 mt-0.5 font-mono">
+                        {fmtSub(currentTotal, timeframeSuffix)}
                       </span>
                     </div>
                   </div>
 
-                  {/* Service Cards Grid on Right */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 flex-1 w-full">
+                  {/* Provider Breakdown Cards Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 flex-1 w-full">
                     {/* Supabase DB */}
-                    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 flex items-start space-x-3">
-                      <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 shrink-0 mt-1 shadow-sm shadow-emerald-500/50" />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-bold text-slate-300 truncate">Supabase DB</p>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                            {((currentSupabaseCost / currentTotal) * 100).toFixed(1)}%
-                          </span>
+                    <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-4 transition-all hover:border-emerald-500/40">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <SupabaseLogo className="h-4 w-4 shrink-0" />
+                          <p className="text-xs font-bold text-white truncate">Supabase DB</p>
                         </div>
-                        <p className="text-base font-black text-white mt-1">${currentSupabaseCost.toFixed(2)} <span className="text-xs font-normal text-slate-400">{timeframeSuffix}</span></p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">₹{(currentSupabaseCost * usdToInrRate).toFixed(0)}{timeframeSuffix}</p>
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                          {((currentSupabaseCost / currentTotal) * 100).toFixed(1)}%
+                        </span>
                       </div>
+                      <p className="text-xl font-black text-white mt-2 font-mono">
+                        {fmtCost(currentSupabaseCost, 2)}
+                      </p>
+                      <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                        {fmtSub(currentSupabaseCost, timeframeSuffix)}
+                      </p>
+                      <button
+                        onClick={() => setActiveSubTab('supabase')}
+                        className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold mt-2 inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        Inspect DB limits &rarr;
+                      </button>
                     </div>
 
                     {/* Backblaze B2 */}
-                    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 flex items-start space-x-3">
-                      <span className="w-3.5 h-3.5 rounded-full bg-sky-500 shrink-0 mt-1 shadow-sm shadow-sky-500/50" />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-bold text-slate-300 truncate">Backblaze B2</p>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400">
-                            {((currentB2Cost / currentTotal) * 100).toFixed(1)}%
-                          </span>
+                    <div className="rounded-2xl border border-sky-500/20 bg-sky-950/10 p-4 transition-all hover:border-sky-500/40">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <BackblazeIcon className="h-4 w-auto shrink-0" />
+                          <p className="text-xs font-bold text-white truncate">Backblaze B2</p>
                         </div>
-                        <p className="text-base font-black text-white mt-1">${currentB2Cost.toFixed(4)} <span className="text-xs font-normal text-slate-400">{timeframeSuffix}</span></p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">
-                          {costChartMode === 'actual' && actualB2StorageDecimalGB <= 10
-                            ? 'First 10GB Free'
-                            : `₹${(currentB2Cost * usdToInrRate).toFixed(2)}${timeframeSuffix}`}
-                        </p>
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400">
+                          {((currentB2Cost / currentTotal) * 100).toFixed(1)}%
+                        </span>
                       </div>
+                      <p className="text-xl font-black text-white mt-2 font-mono">
+                        {fmtCost(currentB2Cost, 2)}
+                      </p>
+                      <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                        {fmtSub(currentB2Cost, `${timeframeSuffix} (10GB Free)`)}
+                      </p>
+                      <button
+                        onClick={() => setActiveSubTab('backblaze')}
+                        className="text-[10px] text-sky-400 hover:text-sky-300 font-bold mt-2 inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        Storage simulation &rarr;
+                      </button>
                     </div>
 
-                    {/* Cloudflare */}
-                    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 flex items-start space-x-3">
-                      <span className="w-3.5 h-3.5 rounded-full bg-amber-500 shrink-0 mt-1 shadow-sm shadow-amber-500/50" />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-bold text-slate-300 truncate">Cloudflare Edge</p>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400">
-                            {((currentCloudflareCost / currentTotal) * 100).toFixed(1)}%
-                          </span>
+                    {/* Cloudflare Edge */}
+                    <div className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-4 transition-all hover:border-amber-500/40">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <CloudflareLogo className="h-3 w-auto shrink-0" />
+                          <p className="text-xs font-bold text-white truncate">Cloudflare Edge</p>
                         </div>
-                        <p className="text-base font-black text-white mt-1">${currentCloudflareCost.toFixed(2)} <span className="text-xs font-normal text-slate-400">{timeframeSuffix}</span></p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">Free Egress Alliance</p>
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                          {((currentCloudflareCost / currentTotal) * 100).toFixed(1)}%
+                        </span>
                       </div>
+                      <p className="text-xl font-black text-white mt-2 font-mono">
+                        {fmtCost(currentCloudflareCost, 2)}
+                      </p>
+                      <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                        {fmtSub(currentCloudflareCost, `${timeframeSuffix} (Free Egress)`)}
+                      </p>
+                      <button
+                        onClick={() => setActiveSubTab('cloudflare')}
+                        className="text-[10px] text-amber-400 hover:text-amber-300 font-bold mt-2 inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        Workers simulation &rarr;
+                      </button>
                     </div>
 
                     {/* Modal.com AI */}
-                    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 flex items-start space-x-3">
-                      <span className="w-3.5 h-3.5 rounded-full bg-indigo-500 shrink-0 mt-1 shadow-sm shadow-indigo-500/50" />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-bold text-slate-300 truncate">Modal.com (AI)</p>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
-                            {((currentModalCost / currentTotal) * 100).toFixed(1)}%
-                          </span>
+                    <div className="rounded-2xl border border-indigo-500/20 bg-indigo-950/10 p-4 transition-all hover:border-indigo-500/40">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <ModalLogo className="h-3.5 w-auto shrink-0" />
+                          <p className="text-xs font-bold text-white truncate">Modal.com AI</p>
                         </div>
-                        <p className="text-base font-black text-white mt-1">${currentModalCost.toFixed(4)} <span className="text-xs font-normal text-slate-400">{timeframeSuffix}</span></p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">₹{(currentModalCost * usdToInrRate).toFixed(2)}{timeframeSuffix} ({modalLogs.length} runs)</p>
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                          {((currentModalCost / currentTotal) * 100).toFixed(1)}%
+                        </span>
                       </div>
+                      <p className="text-xl font-black text-white mt-2 font-mono">
+                        {fmtCost(currentModalCost, 2)}
+                      </p>
+                      <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                        {fmtSub(currentModalCost, `(${modalLogs.length} runs)`)}
+                      </p>
+                      <button
+                        onClick={() => setActiveSubTab('modal')}
+                        className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold mt-2 inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        Compute logs &rarr;
+                      </button>
                     </div>
 
-                    {/* Railway */}
-                    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 flex items-start space-x-3">
-                      <span className="w-3.5 h-3.5 rounded-full bg-fuchsia-500 shrink-0 mt-1 shadow-sm shadow-fuchsia-500/50" />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-bold text-slate-300 truncate">Railway (App)</p>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-400">
-                            {((currentRailwayCost / currentTotal) * 100).toFixed(1)}%
-                          </span>
+                    {/* Railway App */}
+                    <div className="rounded-2xl border border-fuchsia-500/20 bg-fuchsia-950/10 p-4 transition-all hover:border-fuchsia-500/40">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <RailwayLogo className="h-3 w-auto text-fuchsia-400" />
+                          <p className="text-xs font-bold text-white truncate">Railway App</p>
                         </div>
-                        <p className="text-base font-black text-white mt-1">${currentRailwayCost.toFixed(4)} <span className="text-xs font-normal text-slate-400">{timeframeSuffix}</span></p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">₹{(currentRailwayCost * usdToInrRate).toFixed(2)}{timeframeSuffix} (Per-sec compute)</p>
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-400">
+                          {((currentRailwayCost / currentTotal) * 100).toFixed(1)}%
+                        </span>
                       </div>
+                      <p className="text-xl font-black text-white mt-2 font-mono">
+                        {fmtCost(currentRailwayCost, 2)}
+                      </p>
+                      <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                        {fmtSub(currentRailwayCost, timeframeSuffix)}
+                      </p>
+                      <button
+                        onClick={() => setActiveSubTab('railway')}
+                        className="text-[10px] text-fuchsia-400 hover:text-fuchsia-300 font-bold mt-2 inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        Server allocation &rarr;
+                      </button>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-6 text-slate-500 text-xs">
-                  No active platform expenses generated.
+                <div className="text-center py-8 text-slate-500 text-xs">
+                  No active platform expenses recorded in this period.
                 </div>
               );
             })()}
           </div>
 
-          {/* Individual & Total Infra Cost Ledger Table */}
-          <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl">
-            <h4 className="text-md font-bold text-white mb-1.5 flex items-center">
-              <DollarSign className="w-5 h-5 mr-2 text-indigo-400" />
-              Infrastructure Ledger & Billing Breakdown
-            </h4>
-            <p className="text-slate-400 text-xs mb-6">
-              Individual and consolidated platform costing comparison between actual usage and simulated limits.
-            </p>
-
-            <div className="overflow-x-auto border border-slate-800/60 rounded-2xl">
-              <table className="w-full text-left text-xs text-slate-400">
-                <thead className="text-[10px] text-slate-500 uppercase bg-slate-900/30 border-b border-slate-800">
-                  <tr>
-                    <th className="py-3 px-4">Cloud Provider</th>
-                    <th className="py-3 px-4">Included Usage & Baseline</th>
-                    <th className="py-3 px-4">Actual Cost (Month)</th>
-                    <th className="py-3 px-4">Simulated Cost (Month)</th>
-                    <th className="py-3 px-4">Cost Trend (Projected Year)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/40 text-slate-350">
-                  {/* Supabase Row */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Supabase (Postgres & Auth)</td>
-                    <td className="py-4 px-4">
-                      {liveBillingTier ? `Live: ${liveBillingTier.toUpperCase()}` : `Config: ${supabaseTier.toUpperCase()}`} Plan (DB, Auth MAUs)
-                    </td>
-                    <td className="py-4 px-4 font-mono font-bold text-emerald-450">${supabaseTierCost.toFixed(2)}</td>
-                    <td className="py-4 px-4 font-mono text-slate-450">${supabaseTierCost.toFixed(2)}</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">${(supabaseTierCost * 12).toFixed(2)} / yr</td>
-                  </tr>
-
-                  {/* Backblaze B2 Row */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Backblaze B2 (Object Storage)</td>
-                    <td className="py-4 px-4">
-                      10 GB Free baseline storage & Class B/C APIs
-                    </td>
-                    <td className="py-4 px-4 font-mono font-bold text-sky-400">${actualB2Cost.toFixed(4)}</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">${simulatedB2Cost.toFixed(4)}</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">${(actualB2Cost * 12).toFixed(4)} / yr</td>
-                  </tr>
-
-                  {/* Cloudflare Edge Row */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Cloudflare (CDN, DNS & Workers)</td>
-                    <td className="py-4 px-4">
-                      Domain Registry wholesale, 5k Image Resizing free/mo
-                    </td>
-                    <td className="py-4 px-4 font-mono font-bold text-amber-400">${actualCloudflareCost.toFixed(2)}</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">${simulatedCloudflareCost.toFixed(2)}</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">${(actualCloudflareCost * 12).toFixed(2)} / yr</td>
-                  </tr>
-
-                  {/* Modal.com Row */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Modal.com (AI Face-Indexing)</td>
-                    <td className="py-4 px-4">
-                      $30.00 (₹3,000) Monthly Free Tier Included
-                    </td>
-                    <td className="py-4 px-4 font-mono font-bold text-indigo-400">${actualModalCost.toFixed(4)}</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">${actualModalCost.toFixed(4)}</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">${(actualModalCost * 12).toFixed(4)} / yr</td>
-                  </tr>
-
-                  {/* Railway Row */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Railway (App Server)</td>
-                    <td className="py-4 px-4">
-                      Node.js Edge Deployment (Simulated Cost)
-                    </td>
-                    <td className="py-4 px-4 font-mono font-bold text-indigo-400">${actualRailwayCost.toFixed(2)}</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">${simulatedRailwayCost.toFixed(2)}</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">${(actualRailwayCost * 12).toFixed(2)} / yr</td>
-                  </tr>
-
-                  {/* Consolidated Total Row */}
-                  <tr className="bg-slate-900/40 font-black border-t-2 border-slate-800">
-                    <td className="py-4 px-4 text-white uppercase tracking-wider text-[10px]">Consolidated Upkeep</td>
-                    <td className="py-4 px-4 text-indigo-400">Total Infrastructure Footprint</td>
-                    <td className="py-4 px-4 font-mono font-black text-indigo-400 text-sm">${actualTotalCost.toFixed(4)}</td>
-                    <td className="py-4 px-4 font-mono font-black text-slate-200 text-sm">${simulatedTotalCost.toFixed(4)}</td>
-                    <td className="py-4 px-4 font-mono text-indigo-400">${(actualTotalCost * 12).toFixed(4)} / yr</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Integration Status Table */}
-          <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl">
-            <h4 className="text-md font-bold text-white mb-1">Service Cost API Integration Status</h4>
-            <p className="text-slate-400 text-xs mb-5">
-              Current sync capabilities for real-time external billing APIs.
-            </p>
-
-            <div className="overflow-x-auto border border-slate-800/60 rounded-2xl">
-              <table className="w-full text-left text-xs text-slate-400">
-                <thead className="text-[10px] text-slate-500 uppercase bg-slate-900/30 border-b border-slate-800">
-                  <tr>
-                    <th className="py-3 px-4">Service Node</th>
-                    <th className="py-3 px-4">Cost Pull Capabilities</th>
-                    <th className="py-3 px-4">Authentication / Integration Method</th>
-                    <th className="py-3 px-4">Sync Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/40 text-slate-350">
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Supabase (Postgres)</td>
-                    <td className="py-4 px-4">
-                      Database row size metadata is read directly. Billing tiers require Management API access tokens.
-                    </td>
-                    <td className="py-4 px-4 text-indigo-400 font-mono">SUPABASE_MGMT_KEY</td>
-                    <td className="py-4 px-4">
-                      {liveBillingTier ? (
-                        <span className="px-2 py-0.5 text-[9px] font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 rounded-full flex items-center w-fit">
-                          <ShieldCheck className="w-3 h-3 mr-1" /> Live Sync Active ({liveBillingTier.toUpperCase()})
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 text-[9px] font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full">
-                          Offline / Simulated
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Backblaze B2</td>
-                    <td className="py-4 px-4">
-                      Live bucket usage is read from Backblaze B2 and falls back to database media metadata if the API is unavailable.
-                    </td>
-                    <td className="py-4 px-4 text-indigo-400 font-mono">B2_KEY_ID / B2_APPLICATION_KEY</td>
-                    <td className="py-4 px-4">
-                      {liveB2Bytes !== null ? (
-                        <span className="px-2 py-0.5 text-[9px] font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 rounded-full flex items-center w-fit">
-                          <ShieldCheck className="w-3 h-3 mr-1" /> Live Sync Active ({liveB2Usage?.bucketName || 'EveBash'})
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 text-[9px] font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full">
-                          Fallback / Database Metadata
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Cloudflare Edge</td>
-                    <td className="py-4 px-4">
-                      Workers request counters and monthly invoice limits can sync via Accounts Billing API.
-                    </td>
-                    <td className="py-4 px-4 text-indigo-400 font-mono">CLOUDFLARE_API_TOKEN</td>
-                    <td className="py-4 px-4">
-                      {liveCfPlan ? (
-                        <span className="px-2 py-0.5 text-[9px] font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 rounded-full flex items-center w-fit">
-                          <ShieldCheck className="w-3 h-3 mr-1" /> Live Sync Active ({liveCfPlan.toUpperCase()})
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 text-[9px] font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full">
-                          Offline / Simulated
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Registrar (Domain)</td>
-                    <td className="py-4 px-4">
-                      Fixed wholesale registry costs (e.g. .com at $10.16/year). No live API needed.
-                    </td>
-                    <td className="py-4 px-4 text-indigo-400 font-mono">Flat Ledger Registry Rates</td>
-                    <td className="py-4 px-4">
-                      <span className="px-2 py-0.5 text-[9px] font-semibold bg-slate-800 border border-slate-700 text-slate-400 rounded-full">
-                        Ledger Standard
-                      </span>
-                    </td>
-                  </tr>
-
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Railway (App Server)</td>
-                    <td className="py-4 px-4">
-                      Container metrics usage billed per minute (CPU/RAM).
-                    </td>
-                    <td className="py-4 px-4 text-indigo-400 font-mono">RAILWAY_API_TOKEN</td>
-                    <td className="py-4 px-4">
-                      <span className="px-2 py-0.5 text-[9px] font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full">
-                        Offline / Simulated
-                      </span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Informational Alert Box */}
-            <div className="mt-6 p-4 bg-slate-900/50 border border-slate-800 rounded-2xl flex items-start space-x-3 text-xs text-slate-400">
-              <HelpCircle className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
+          {/* Consolidated Infrastructure Ledger Matrix (UserDetailPage Style) */}
+          <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 sm:p-7 shadow-xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
               <div>
-                <p className="font-semibold text-slate-200">Dynamic Estimations vs API Keys:</p>
-                <p className="mt-1 leading-relaxed">
-                  Instead of exposing production API credentials directly on client-side analytics dashboards, this page calls server-side admin APIs for live service data and uses database metrics as fallback. This provides useful values without compromising security.
+                <h4 className="text-base font-bold text-white flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-indigo-400" />
+                  <span>Consolidated Infrastructure Ledger Matrix</span>
+                </h4>
+                <p className="text-slate-400 text-xs mt-0.5">
+                  Detailed comparative matrix across cloud tiers, active utilization, and annual upkeep projections.
                 </p>
+              </div>
+
+              <span className="text-xs font-mono font-bold text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-full self-start sm:self-auto">
+                Total Upkeep: ₹{timeframeTotalActualCostInr.toFixed(2)}
+              </span>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800/80 overflow-hidden bg-slate-950/40">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-400">
+                  <thead className="bg-slate-950/90 text-slate-400 uppercase tracking-wider border-b border-slate-800 text-[10px]">
+                    <tr className="divide-x divide-slate-800">
+                      <th className="py-3 px-4 font-bold whitespace-nowrap">Cloud Node Provider</th>
+                      <th className="py-3 px-4 font-bold whitespace-nowrap">Included Baseline & Quota</th>
+                      <th className="py-3 px-4 text-right font-bold whitespace-nowrap">Cost ({timeframeLabel})</th>
+                      <th className="py-3 px-4 text-right font-bold whitespace-nowrap">Simulated Cost</th>
+                      <th className="py-3 px-4 text-right font-bold whitespace-nowrap">Projected Year</th>
+                      <th className="py-3 px-4 font-bold whitespace-nowrap">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/80">
+                    {/* Supabase Row */}
+                    <tr className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white whitespace-nowrap flex items-center gap-2.5">
+                        <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                          <SupabaseLogo className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <span>Supabase</span>
+                          <span className="block text-[10px] text-slate-500 font-normal">Postgres 15 & Auth GoTrue</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span className="text-slate-300 font-medium">
+                          {liveBillingTier ? `Live: ${liveBillingTier.toUpperCase()}` : `Config: ${supabaseTier.toUpperCase()}`} Plan
+                        </span>
+                        <span className="block text-[10px] text-slate-500 mt-0.5">{supabaseTier === 'free' ? '500MB DB · 50k MAUs' : '8GB DB · 100k MAUs'}</span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap">
+                        <span className="text-emerald-400 font-bold block">₹{(timeframeSupabaseCost * usdToInrRate).toFixed(2)}</span>
+                        <span className="text-[10px] text-slate-500 block">${timeframeSupabaseCost.toFixed(2)}</span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap text-slate-400">
+                        ₹{(timeframeSupabaseCost * usdToInrRate).toFixed(2)}
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap text-slate-350">
+                        ₹{((supabaseTierCost * 12) * usdToInrRate).toFixed(2)} / yr
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        {liveBillingTier ? (
+                          <span className="px-2 py-0.5 text-[9px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full inline-flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3" /> Live Sync
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 text-[9px] font-semibold bg-slate-800 text-slate-400 rounded-full">
+                            Configured
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+
+                    {/* Backblaze B2 Row */}
+                    <tr className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white whitespace-nowrap flex items-center gap-2.5">
+                        <div className="p-1.5 rounded-lg bg-sky-500/10 border border-sky-500/20">
+                          <BackblazeIcon className="h-4 w-auto" />
+                        </div>
+                        <div>
+                          <span>Backblaze B2</span>
+                          <span className="block text-[10px] text-slate-500 font-normal">S3 Cloud Object Storage</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span className="text-slate-300 font-medium">10 GB Free Storage</span>
+                        <span className="block text-[10px] text-slate-500 mt-0.5">75k Class B/C APIs free/mo</span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap">
+                        <span className="text-sky-300 font-bold block">₹{(timeframeActualB2Cost * usdToInrRate).toFixed(2)}</span>
+                        <span className="text-[10px] text-slate-500 block">${timeframeActualB2Cost.toFixed(4)}</span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap text-slate-400">
+                        ₹{(timeframeSimulatedB2Cost * usdToInrRate).toFixed(2)}
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap text-slate-350">
+                        ₹{(b2StorageCostYear * usdToInrRate).toFixed(2)}
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        {liveB2Bytes !== null ? (
+                          <span className="px-2 py-0.5 text-[9px] font-bold bg-sky-500/10 border border-sky-500/20 text-sky-400 rounded-full inline-flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3" /> Live Bucket
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 text-[9px] font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full">
+                            DB Fallback
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+
+                    {/* Cloudflare Edge Row */}
+                    <tr className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white whitespace-nowrap flex items-center gap-2.5">
+                        <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                          <CloudflareLogo className="h-3 w-auto" />
+                        </div>
+                        <div>
+                          <span>Cloudflare Edge</span>
+                          <span className="block text-[10px] text-slate-500 font-normal">CDN, DNS & Serverless</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span className="text-slate-300 font-medium">Free DNS & Bandwidth Alliance</span>
+                        <span className="block text-[10px] text-slate-500 mt-0.5">100k Workers req/day Free</span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap">
+                        <span className="text-amber-300 font-bold block">₹{(timeframeActualCloudflareCost * usdToInrRate).toFixed(2)}</span>
+                        <span className="text-[10px] text-slate-500 block">${timeframeActualCloudflareCost.toFixed(2)}</span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap text-slate-400">
+                        ₹{(timeframeSimulatedCloudflareCost * usdToInrRate).toFixed(2)}
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap text-slate-350">
+                        ₹{((actualCloudflareCost * 12) * usdToInrRate).toFixed(2)} / yr
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        {liveCfPlan ? (
+                          <span className="px-2 py-0.5 text-[9px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full inline-flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3" /> Live API
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 text-[9px] font-semibold bg-slate-800 text-slate-400 rounded-full">
+                            Free Zone
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+
+                    {/* Modal.com AI Row */}
+                    <tr className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white whitespace-nowrap flex items-center gap-2.5">
+                        <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                          <ModalLogo className="h-3.5 w-auto" />
+                        </div>
+                        <div>
+                          <span>Modal.com AI</span>
+                          <span className="block text-[10px] text-slate-500 font-normal">Face Vectors & Video GPU</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span className="text-slate-300 font-medium">$30 (₹3,000)/mo Free Tier</span>
+                        <span className="block text-[10px] text-slate-500 mt-0.5">Per-second compute metering</span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap">
+                        <span className="text-indigo-300 font-bold block">₹{timeframeActualModalCostInr.toFixed(2)}</span>
+                        <span className="text-[10px] text-slate-500 block">${timeframeActualModalCostUsd.toFixed(4)}</span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap text-slate-400">
+                        ₹{timeframeActualModalCostInr.toFixed(2)}
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap text-slate-350">
+                        ₹{projectedYearModalInr.toFixed(2)} / yr
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span className="px-2 py-0.5 text-[9px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full inline-flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3" /> Live Compute
+                        </span>
+                      </td>
+                    </tr>
+
+                    {/* Railway App Row */}
+                    <tr className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white whitespace-nowrap flex items-center gap-2.5">
+                        <div className="p-1.5 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20">
+                          <RailwayLogo className="h-3.5 w-auto text-fuchsia-400" />
+                        </div>
+                        <div>
+                          <span>Railway App Server</span>
+                          <span className="block text-[10px] text-slate-500 font-normal">Next.js Edge Runtime Container</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span className="text-slate-300 font-medium">Billed per second (CPU/RAM)</span>
+                        <span className="block text-[10px] text-slate-500 mt-0.5">{simulatedRailwayRAM}GB RAM · {simulatedRailwayCPU}vCPU</span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap">
+                        <span className="text-fuchsia-300 font-bold block">₹{(timeframeActualRailwayCost * usdToInrRate).toFixed(2)}</span>
+                        <span className="text-[10px] text-slate-500 block">${timeframeActualRailwayCost.toFixed(2)}</span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap text-slate-400">
+                        ₹{(timeframeSimulatedRailwayCost * usdToInrRate).toFixed(2)}
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap text-slate-350">
+                        ₹{((actualRailwayCost * 12) * usdToInrRate).toFixed(2)} / yr
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        {hasLiveRailway ? (
+                          <span className="px-2 py-0.5 text-[9px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full inline-flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3" /> Live GraphQL
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 text-[9px] font-semibold bg-slate-800 text-slate-400 rounded-full">
+                            Simulated
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+
+                    {/* Consolidated Row */}
+                    <tr className="divide-x divide-slate-800 bg-indigo-950/20 font-black border-t-2 border-indigo-500/30">
+                      <td className="py-4 px-4 text-white uppercase tracking-wider text-xs whitespace-nowrap">
+                        Consolidated Platform Upkeep
+                      </td>
+                      <td className="py-4 px-4 text-indigo-300 whitespace-nowrap font-medium text-xs">
+                        All Cloud Nodes Aggregated
+                      </td>
+                      <td className="py-4 px-4 text-right font-mono tabular-nums whitespace-nowrap bg-indigo-950/40">
+                        <span className="text-base font-black text-indigo-200 block">₹{timeframeTotalActualCostInr.toFixed(2)}</span>
+                        <span className="text-[11px] font-medium text-slate-400 block">${timeframeTotalActualCostUsd.toFixed(4)}</span>
+                      </td>
+                      <td className="py-4 px-4 text-right font-mono tabular-nums whitespace-nowrap text-slate-200 font-bold text-xs">
+                        ₹{timeframeTotalSimulatedCostInr.toFixed(2)}
+                      </td>
+                      <td className="py-4 px-4 text-right font-mono tabular-nums whitespace-nowrap text-indigo-300 font-black text-xs">
+                        ₹{projectedYearTotalInr.toFixed(2)} / yr
+                      </td>
+                      <td className="py-4 px-4 whitespace-nowrap">
+                        <span className="px-2.5 py-1 text-[10px] font-black bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 rounded-full">
+                          Aggregated
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* TAB PANEL 2: SUPABASE DETAIL */}
+      {/* ── TAB PANEL 2: SUPABASE DETAIL ── */}
       {activeSubTab === 'supabase' && (
-        <div className="space-y-8">
-          {renderFilterBar('bg-emerald-600', 'text-emerald-450')}
-          {/* Supabase row count indicators */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-            <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 text-center">
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">User Profiles</p>
-              <h4 className="text-xl font-black text-white mt-1.5">{formatNumber(dbStats.profilesCount)}</h4>
+        <div className="space-y-6">
+          {renderFilterBar('bg-emerald-600', 'text-emerald-400', 'border-emerald-500/20')}
+
+          {/* Header & Executive Cards Container */}
+          <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 sm:p-7 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                  <SupabaseLogo className="h-5 w-auto" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-base">Supabase PostgreSQL & Auth Matrix</h3>
+                  <p className="text-[11px] text-slate-500">Database rows, active sessions, index footprint, and storage allocations</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                <span className="text-xs font-mono font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl">
+                  {liveBillingTier ? `Live API: ${liveBillingTier.toUpperCase()}` : `Config: ${supabaseTier.toUpperCase()} Plan`}
+                </span>
+              </div>
             </div>
-            <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 text-center">
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Events Catalog</p>
-              <h4 className="text-xl font-black text-white mt-1.5">{formatNumber(dbStats.eventsCount)}</h4>
+
+            {/* 4 Executive KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4 transition-all hover:border-emerald-500/50 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
+                    Supabase Cost ({timeframeLabel})
+                  </span>
+                  <div className="text-2xl font-black text-emerald-200 font-mono">
+                    ₹{((supabaseTierCost * timeframeFactor) * usdToInrRate).toFixed(2)}
+                  </div>
+                  <span className="text-xs font-mono text-slate-400 mt-0.5 block">
+                    ${(supabaseTierCost * timeframeFactor).toFixed(2)} USD {timeframeSuffix}
+                  </span>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-emerald-500/20 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Compute Base:</span>
+                    <span className="font-mono text-slate-200 font-medium">${supabaseComputeCostMonth.toFixed(2)}/mo</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Storage Overage:</span>
+                    <span className="font-mono text-slate-200 font-medium">${supabaseDbCostMonth.toFixed(2)}/mo</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    Database Storage Size
+                  </span>
+                  <div className="text-2xl font-black text-white font-mono">
+                    {formatSize(dbStats.estimatedSizeBytes)}
+                  </div>
+                  <span className="text-xs font-mono text-slate-400 mt-0.5 block">
+                    Quota: {supabaseTier === 'free' ? '500 MB Free' : '8 GB Included'}
+                  </span>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-slate-800 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Aggregate DB Rows:</span>
+                    <span className="font-mono text-slate-200 font-medium">{formatNumber(dbStats.totalRows)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Capacity Utilized:</span>
+                    <span className="font-mono text-emerald-400 font-medium">
+                      {((dbStats.estimatedSizeBytes / ((supabaseTier === 'free' ? 500 : 8192) * 1024 * 1024)) * 100).toFixed(2)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    Monthly Active Users (MAU)
+                  </span>
+                  <div className="text-2xl font-black text-white font-mono">
+                    {formatNumber(stats?.mau || users.length)}
+                  </div>
+                  <span className="text-xs font-mono text-slate-400 mt-0.5 block">
+                    Allowance: {supabaseTier === 'free' ? '50,000 MAUs' : '100,000 MAUs'}
+                  </span>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-slate-800 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Total Users Registered:</span>
+                    <span className="font-mono text-slate-200 font-medium">{formatNumber(users.length)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">MAU Overage:</span>
+                    <span className="font-mono text-slate-200 font-medium">${supabaseMauCostMonth.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    Data Bandwidth Egress
+                  </span>
+                  <div className="text-2xl font-black text-emerald-400 font-mono">
+                    $0.00
+                  </div>
+                  <span className="text-xs font-mono text-slate-400 mt-0.5 block">
+                    Cloudflare Bandwidth Alliance Bypass
+                  </span>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-slate-800 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Media Downloads:</span>
+                    <span className="font-mono text-emerald-300 font-medium">100% Routed via CF</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">API Egress Overage:</span>
+                    <span className="font-mono text-slate-200 font-medium">$0.00</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 text-center">
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Guest Logs</p>
-              <h4 className="text-xl font-black text-white mt-1.5">{formatNumber(dbStats.guestsCount)}</h4>
-            </div>
-            <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 text-center">
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Media Metadata</p>
-              <h4 className="text-xl font-black text-white mt-1.5">{formatNumber(dbStats.photosCount)}</h4>
-            </div>
-            <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 text-center col-span-2 md:col-span-1 bg-gradient-to-br from-slate-900/40 to-emerald-950/10">
-              <p className="text-[10px] text-emerald-400 uppercase tracking-wider font-black">Total DB Rows</p>
-              <h4 className="text-xl font-black text-emerald-400 mt-1.5">{formatNumber(dbStats.totalRows)}</h4>
+
+            {/* Database rows breakdown */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
+              <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-3 text-center">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">User Profiles</p>
+                <h4 className="text-lg font-black text-white mt-1 font-mono">{formatNumber(dbStats.profilesCount)}</h4>
+              </div>
+              <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-3 text-center">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Events Catalog</p>
+                <h4 className="text-lg font-black text-white mt-1 font-mono">{formatNumber(dbStats.eventsCount)}</h4>
+              </div>
+              <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-3 text-center">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Guest Logs</p>
+                <h4 className="text-lg font-black text-white mt-1 font-mono">{formatNumber(dbStats.guestsCount)}</h4>
+              </div>
+              <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-3 text-center">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Media Metadata</p>
+                <h4 className="text-lg font-black text-white mt-1 font-mono">{formatNumber(dbStats.photosCount)}</h4>
+              </div>
+              <div className="bg-emerald-950/20 border border-emerald-500/20 rounded-2xl p-3 text-center col-span-2 sm:col-span-1">
+                <p className="text-[10px] text-emerald-400 uppercase tracking-wider font-black">Total DB Rows</p>
+                <h4 className="text-lg font-black text-emerald-400 mt-1 font-mono">{formatNumber(dbStats.totalRows)}</h4>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Database storage footprint and limit gauge */}
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl md:col-span-2 space-y-6">
+          {/* Database Footprint & Plan Configuration */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 shadow-xl lg:col-span-2 space-y-6">
               <div>
-                <h4 className="text-md font-bold text-white flex items-center">
-                  <Activity className="w-5 h-5 mr-2 text-emerald-400" />
-                  Estimated Database Footprint
+                <h4 className="text-base font-bold text-white flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-emerald-400" />
+                  <span>Estimated Database Storage Footprint</span>
                 </h4>
                 <p className="text-slate-400 text-xs mt-1">
-                  Database storage footprint derived from aggregate active rows.
+                  Database storage allocation derived from active table rows and PostgreSQL indexing overhead.
                 </p>
               </div>
 
-              <div className="bg-slate-900/30 border border-slate-800/80 rounded-2xl p-5 space-y-4">
+              <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 space-y-4">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-400">Estimated Database Size:</span>
-                  <span className="text-white font-bold">{formatSize(dbStats.estimatedSizeBytes)}</span>
+                  <span className="text-slate-400">Calculated Footprint:</span>
+                  <span className="text-white font-mono font-bold">{formatSize(dbStats.estimatedSizeBytes)}</span>
                 </div>
 
-                {/* Free tier limits representation */}
                 <div>
-                  <div className="flex justify-between items-center text-[10px] mb-1.5 text-slate-500">
-                    <span>Free Tier Row limit (500MB Database Size Equivalent)</span>
-                    <span>~0.01% utilized</span>
+                  <div className="flex justify-between items-center text-[10px] mb-1.5 text-slate-400">
+                    <span>Free Plan Limit: 500 MB</span>
+                    <span className="text-emerald-400 font-mono font-bold">
+                      {((dbStats.estimatedSizeBytes / (500 * 1024 * 1024)) * 100).toFixed(2)}% consumed
+                    </span>
                   </div>
                   <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden">
                     <div
                       style={{ width: `${Math.min(100, Math.max(1, (dbStats.estimatedSizeBytes / (500 * 1024 * 1024)) * 100))}%` }}
-                      className="h-full bg-gradient-to-r from-emerald-500 to-teal-500"
+                      className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
                     />
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-2 text-[10px] text-slate-500">
-                  <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                  <p>
-                    Size estimation assumes an average row index allocation of 1.2 KB. Real storage space may vary based on Supabase database auto-vacuum settings and PostgreSQL table index sizes.
+                <div className="flex items-start space-x-2 text-[11px] text-slate-400 bg-slate-950/60 p-3 rounded-xl border border-slate-800/60">
+                  <Info className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <p className="leading-relaxed">
+                    Calculation assumes 1.2 KB average row overhead including B-tree indexing. Project comfortably operates on Free Tier ($0/mo) up to 500,000 total rows.
                   </p>
                 </div>
               </div>
 
-              {/* Toggle controls */}
+              {/* Tier Toggle Buttons */}
               <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs font-bold text-slate-350 uppercase tracking-wide">
-                    Select Supabase Tier Configuration
-                  </label>
-                  {loadingBilling ? (
-                    <span className="text-[10px] text-slate-500 animate-pulse font-medium">Syncing with Supabase API...</span>
-                  ) : liveBillingTier ? (
-                    <span className="px-2 py-0.5 text-[9px] font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full flex items-center">
-                      <ShieldCheck className="w-3 h-3 mr-1" /> Live Sync: {liveBillingTier.toUpperCase()}
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 text-[9px] font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full">
-                      API Offline (Simulator)
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Free plan */}
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
+                  Select Supabase Tier Plan
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <button
                     onClick={() => setSupabaseTier('free')}
-                    className={`p-4 rounded-xl border text-left cursor-pointer transition-all duration-200 ${
+                    className={`p-4 rounded-2xl border text-left cursor-pointer transition-all duration-200 ${
                       supabaseTier === 'free'
-                        ? 'bg-emerald-500/10 border-emerald-500 text-white'
-                        : 'bg-slate-900/20 border-slate-800 text-slate-400 hover:border-slate-700'
+                        ? 'bg-emerald-500/10 border-emerald-500 text-white shadow-lg shadow-emerald-500/10'
+                        : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:border-slate-700'
                     }`}
                   >
-                    <p className="text-xs font-black">Free Tier</p>
-                    <p className="text-lg font-black mt-1">$0.00 <span className="text-xs font-medium text-slate-500">/ mo</span></p>
-                    <p className="text-[10px] text-slate-500 mt-2">Up to 500 MB DB & 50,000 MAUs. Automatically pauses after 1 week inactivity.</p>
+                    <div className="flex justify-between items-center">
+                      <p className="text-xs font-black uppercase text-emerald-400">Free Tier</p>
+                      {supabaseTier === 'free' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+                    </div>
+                    <p className="text-xl font-black mt-1 font-mono text-white">$0.00 <span className="text-xs font-medium text-slate-500">/ mo</span></p>
+                    <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">Up to 500 MB DB storage & 50,000 MAUs. Automatically pauses after 1 week inactivity.</p>
                   </button>
 
-                  {/* Pro plan */}
                   <button
                     onClick={() => setSupabaseTier('pro')}
-                    className={`p-4 rounded-xl border text-left cursor-pointer transition-all duration-200 ${
+                    className={`p-4 rounded-2xl border text-left cursor-pointer transition-all duration-200 ${
                       supabaseTier === 'pro'
-                        ? 'bg-emerald-500/10 border-emerald-500 text-white'
-                        : 'bg-slate-900/20 border-slate-800 text-slate-400 hover:border-slate-700'
+                        ? 'bg-emerald-500/10 border-emerald-500 text-white shadow-lg shadow-emerald-500/10'
+                        : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:border-slate-700'
                     }`}
                   >
-                    <p className="text-xs font-black">Pro Tier</p>
-                    <p className="text-lg font-black mt-1">$25.00 <span className="text-xs font-medium text-slate-500">/ mo</span></p>
-                    <p className="text-[10px] text-slate-500 mt-2">Up to 8 GB DB, 100,000 MAUs. Daily automated backups, never pauses.</p>
+                    <div className="flex justify-between items-center">
+                      <p className="text-xs font-black uppercase text-emerald-400">Pro Tier</p>
+                      {supabaseTier === 'pro' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+                    </div>
+                    <p className="text-xl font-black mt-1 font-mono text-white">$25.00 <span className="text-xs font-medium text-slate-500">/ mo</span></p>
+                    <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">Up to 8 GB DB, 100,000 MAUs. Daily automated backups, never pauses, dedicated compute.</p>
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Supabase service details side card */}
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
+            {/* Architecture Details Card */}
+            <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 shadow-xl flex flex-col justify-between space-y-6">
               <div>
-                <h4 className="text-md font-bold text-white mb-1.5 flex items-center">
-                  <Server className="w-5 h-5 mr-2 text-indigo-400" />
-                  Supabase Features
+                <h4 className="text-base font-bold text-white mb-1.5 flex items-center gap-2">
+                  <Server className="w-5 h-5 text-emerald-400" />
+                  <span>PostgreSQL Stack</span>
                 </h4>
                 <p className="text-slate-400 text-xs mb-6">
-                  Supabase hosts PostgreSQL and provides backend API endpoints.
+                  Supabase hosts PostgreSQL and provides backend GoTrue and PostgREST API endpoints.
                 </p>
 
-                <div className="space-y-4 text-xs">
+                <div className="space-y-3 text-xs">
                   <div className="flex justify-between py-2 border-b border-slate-800/40">
                     <span className="text-slate-400">Database Engine</span>
-                    <span className="text-white font-semibold">PostgreSQL 15</span>
+                    <span className="text-white font-mono font-semibold">PostgreSQL 15</span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-slate-800/40">
                     <span className="text-slate-400">Connection Pooling</span>
-                    <span className="text-white font-semibold">PgBouncer Active</span>
+                    <span className="text-emerald-400 font-mono font-semibold">PgBouncer Active</span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-slate-800/40">
                     <span className="text-slate-400">Auth Engine</span>
-                    <span className="text-white font-semibold">Supabase GoTrue</span>
+                    <span className="text-white font-mono font-semibold">Supabase GoTrue</span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-slate-800/40">
-                    <span className="text-slate-400">Restful API Endpoint</span>
-                    <span className="text-white font-semibold">PostgREST API</span>
+                    <span className="text-slate-400">REST API Endpoint</span>
+                    <span className="text-white font-mono font-semibold">PostgREST v12</span>
                   </div>
                 </div>
               </div>
 
-              <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl mt-6">
-                <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center">
-                  <Sparkles className="w-3.5 h-3.5 mr-1" />
-                  Recommendation
+              <div className="p-4 bg-emerald-500/5 border border-emerald-500/15 rounded-2xl">
+                <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Cost Recommendation
                 </p>
-                <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed">
-                  Based on current usage ({dbStats.totalRows} database rows, under 1MB DB footprint), the platform operates comfortably on the Free Tier ($0/mo). Upgrading to Pro ($25/mo) is only necessary when database sizes exceed 500MB, or to prevent project dormancy if no admin logs in for 7 days.
+                <p className="text-[11px] text-slate-300 mt-1.5 leading-relaxed">
+                  With {formatNumber(dbStats.totalRows)} rows under {formatSize(dbStats.estimatedSizeBytes)}, the platform operates at $0.00/mo cost. Upgrading to Pro ($25/mo or ₹2,500/mo) is only needed once storage exceeds 500 MB or to bypass dormant auto-pausing.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Supabase Charging Units Cost Table */}
-          <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl">
-            <h4 className="text-md font-bold text-white mb-1.5 flex items-center">
-              <DollarSign className="w-5 h-5 mr-2 text-emerald-400" />
-              Supabase Billing Units Cost Breakdown
+          {/* Supabase Billing Units Matrix Table */}
+          <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 sm:p-7 shadow-xl space-y-4">
+            <h4 className="text-base font-bold text-white flex items-center gap-2">
+              <SupabaseLogo className="h-4 w-4" />
+              <span>Supabase Billing Units Cost Breakdown</span>
             </h4>
-            <p className="text-slate-400 text-xs mb-6">
+            <p className="text-slate-400 text-xs">
               Detailed tracking of active database utilization versus plan allowances, including actual monthly and yearly projections.
             </p>
 
-            <div className="overflow-x-auto border border-slate-800/60 rounded-2xl">
-              <table className="w-full text-left text-xs text-slate-400">
-                <thead className="text-[10px] text-slate-500 uppercase bg-slate-900/30 border-b border-slate-800">
-                  <tr>
-                    <th className="py-3 px-4">Billing Unit</th>
-                    <th className="py-3 px-4">Plan Limit / Allowance</th>
-                    <th className="py-3 px-4">Actual Usage "Till Now"</th>
-                    <th className="py-3 px-4">Cost (Current Month)</th>
-                    <th className="py-3 px-4">Cost (Projected Year)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/40 text-slate-350">
-                  {/* Row 1: Database Storage */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Database Storage (size)</td>
-                    <td className="py-4 px-4">{supabaseTier === 'free' ? '500 MB' : '8 GB'}</td>
-                    <td className="py-4 px-4">{formatSize(dbStats.estimatedSizeBytes)}</td>
-                    <td className="py-4 px-4 font-mono font-bold text-emerald-400">${supabaseDbCostMonth.toFixed(2)}</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">${supabaseDbCostYear.toFixed(2)}</td>
-                  </tr>
-
-                  {/* Row 2: Monthly Active Users */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Monthly Active Users (MAU)</td>
-                    <td className="py-4 px-4">{supabaseTier === 'free' ? '50,000 MAUs' : '100,000 MAUs'}</td>
-                    <td className="py-4 px-4">{formatNumber(stats?.mau || users.length)} MAUs</td>
-                    <td className="py-4 px-4 font-mono font-bold text-emerald-400">${supabaseMauCostMonth.toFixed(2)}</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">${supabaseMauCostYear.toFixed(2)}</td>
-                  </tr>
-
-                  {/* Row 3: Data Egress */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Data Egress Bandwidth</td>
-                    <td className="py-4 px-4">{supabaseTier === 'free' ? '2 GB' : '50 GB'}</td>
-                    <td className="py-4 px-4">~0.05 GB <span className="text-[10px] text-slate-500">(B2/CF Alliance Bypass)</span></td>
-                    <td className="py-4 px-4 font-mono font-bold text-emerald-400">${supabaseEgressCostMonth.toFixed(2)}</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">${supabaseEgressCostYear.toFixed(2)}</td>
-                  </tr>
-
-                  {/* Row 4: Compute Instance */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Compute Instance Tier</td>
-                    <td className="py-4 px-4">{supabaseTier === 'free' ? 'Shared (Pauses)' : 'Dedicated Micro (Always-on)'}</td>
-                    <td className="py-4 px-4">Active</td>
-                    <td className="py-4 px-4 font-mono font-bold text-emerald-400">${supabaseComputeCostMonth.toFixed(2)}</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">${supabaseComputeCostYear.toFixed(2)}</td>
-                  </tr>
-
-                  {/* Row 5: Edge Functions */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Edge Functions (Invocations)</td>
-                    <td className="py-4 px-4">{supabaseTier === 'free' ? '500,000 / mo' : '2 Million / mo'}</td>
-                    <td className="py-4 px-4">Minimal</td>
-                    <td className="py-4 px-4 font-mono font-bold text-emerald-400">$0.00</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">$0.00</td>
-                  </tr>
-
-                  {/* Total row */}
-                  <tr className="bg-slate-900/30 font-bold border-t border-slate-800">
-                    <td className="py-4 px-4 text-white">Total Supabase Expenses</td>
-                    <td className="py-4 px-4">-</td>
-                    <td className="py-4 px-4">-</td>
-                    <td className="py-4 px-4 font-mono text-emerald-400">${(supabaseDbCostMonth + supabaseMauCostMonth + supabaseEgressCostMonth + supabaseComputeCostMonth).toFixed(2)} / mo</td>
-                    <td className="py-4 px-4 font-mono text-slate-350">${(supabaseDbCostYear + supabaseMauCostYear + supabaseEgressCostYear + supabaseComputeCostYear).toFixed(2)} / yr</td>
-                  </tr>
-                </tbody>
-              </table>
+            <div className="rounded-2xl border border-slate-800/80 overflow-hidden bg-slate-950/40">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-400">
+                  <thead className="bg-slate-950/90 text-slate-400 uppercase tracking-wider border-b border-slate-800 text-[10px]">
+                    <tr className="divide-x divide-slate-800">
+                      <th className="py-3 px-4 font-bold whitespace-nowrap">Billing Unit</th>
+                      <th className="py-3 px-4 font-bold whitespace-nowrap">Plan Limit / Allowance</th>
+                      <th className="py-3 px-4 font-bold whitespace-nowrap">Actual Usage "Till Now"</th>
+                      <th className="py-3 px-4 text-right font-bold whitespace-nowrap">Cost ({timeframeLabel})</th>
+                      <th className="py-3 px-4 text-right font-bold whitespace-nowrap">Cost (Projected Year)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/80">
+                    <tr className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white whitespace-nowrap">Database Storage (Size)</td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">{supabaseTier === 'free' ? '500 MB' : '8 GB'}</td>
+                      <td className="py-3.5 px-4 font-mono whitespace-nowrap">{formatSize(dbStats.estimatedSizeBytes)}</td>
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-400 whitespace-nowrap">${(supabaseDbCostMonth * timeframeFactor).toFixed(2)}</td>
+                      <td className="py-3.5 px-4 text-right font-mono text-slate-350 whitespace-nowrap">${supabaseDbCostYear.toFixed(2)}</td>
+                    </tr>
+                    <tr className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white whitespace-nowrap">Monthly Active Users (MAU)</td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">{supabaseTier === 'free' ? '50,000 MAUs' : '100,000 MAUs'}</td>
+                      <td className="py-3.5 px-4 font-mono whitespace-nowrap">{formatNumber(stats?.mau || users.length)} MAUs</td>
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-400 whitespace-nowrap">${(supabaseMauCostMonth * timeframeFactor).toFixed(2)}</td>
+                      <td className="py-3.5 px-4 text-right font-mono text-slate-350 whitespace-nowrap">${supabaseMauCostYear.toFixed(2)}</td>
+                    </tr>
+                    <tr className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white whitespace-nowrap">Data Egress Bandwidth</td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">{supabaseTier === 'free' ? '2 GB' : '50 GB'}</td>
+                      <td className="py-3.5 px-4 font-mono whitespace-nowrap">~0.05 GB (CF Alliance Bypass)</td>
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-400 whitespace-nowrap">${(supabaseEgressCostMonth * timeframeFactor).toFixed(2)}</td>
+                      <td className="py-3.5 px-4 text-right font-mono text-slate-350 whitespace-nowrap">${supabaseEgressCostYear.toFixed(2)}</td>
+                    </tr>
+                    <tr className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white whitespace-nowrap">Compute Instance Tier</td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">{supabaseTier === 'free' ? 'Shared (Pauses)' : 'Dedicated Micro (Always-on)'}</td>
+                      <td className="py-3.5 px-4 font-mono whitespace-nowrap">Active</td>
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-400 whitespace-nowrap">${(supabaseComputeCostMonth * timeframeFactor).toFixed(2)}</td>
+                      <td className="py-3.5 px-4 text-right font-mono text-slate-350 whitespace-nowrap">${supabaseComputeCostYear.toFixed(2)}</td>
+                    </tr>
+                    <tr className="divide-x divide-slate-800 bg-emerald-950/20 font-bold border-t border-slate-800">
+                      <td className="py-4 px-4 text-white uppercase text-xs whitespace-nowrap">Total Supabase Upkeep</td>
+                      <td className="py-4 px-4 text-emerald-300 whitespace-nowrap">-</td>
+                      <td className="py-4 px-4 whitespace-nowrap">-</td>
+                      <td className="py-4 px-4 text-right font-mono text-emerald-300 font-black text-sm whitespace-nowrap">
+                        ${(supabaseTierCost * timeframeFactor).toFixed(2)} {timeframeSuffix}
+                      </td>
+                      <td className="py-4 px-4 text-right font-mono text-slate-200 font-bold whitespace-nowrap">
+                        ${(supabaseTierCost * 12).toFixed(2)} / yr
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* TAB PANEL 3: BACKBLAZE B2 STORAGE DETAIL */}
+      {/* ── TAB PANEL 3: BACKBLAZE B2 STORAGE DETAIL ── */}
       {activeSubTab === 'backblaze' && (
-        <div className="space-y-8">
-          {renderFilterBar('bg-sky-600', 'text-sky-405')}
-          {/* Backblaze stats breakdown */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Photos count/size card */}
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg group">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Active Photos</p>
-                  <h3 className="text-2xl font-black text-white mt-1 group-hover:text-indigo-400 transition-colors">
-                    {formatNumber(mediaBreakdown.photoCount)}
-                  </h3>
+        <div className="space-y-6">
+          {renderFilterBar('bg-sky-600', 'text-sky-400', 'border-sky-500/20')}
+
+          {/* Header & 4 Executive Cards */}
+          <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 sm:p-7 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+              <div className="flex items-center gap-3">
+                <div className="p-2 px-3 rounded-2xl bg-slate-900/80 border border-slate-800/80 flex items-center justify-center">
+                  <BackblazeLogo className="h-5 w-auto text-white" />
                 </div>
-                <div className="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-400">
-                  <Sliders className="w-5 h-5" />
+                <div>
+                  <h3 className="font-bold text-white text-base">Backblaze B2 Metering Matrix</h3>
+                  <p className="text-[11px] text-slate-500">Object storage, Class B/C API transactions, and Bandwidth Alliance egress</p>
                 </div>
               </div>
-              <p className="text-[10px] text-slate-500 mt-2.5">
-                Total Storage: <span className="text-slate-350 font-bold">{formatSize(mediaBreakdown.photoSize)}</span>
-              </p>
+
+              <div className="flex items-center gap-1.5 text-xs font-mono text-sky-300 bg-sky-500/10 border border-sky-500/20 px-3.5 py-1.5 rounded-xl shrink-0 self-start sm:self-auto">
+                <Clock className="w-3.5 h-3.5 text-sky-400" />
+                <span>Synced: {timeframeLabel}</span>
+              </div>
             </div>
 
-            {/* Videos count/size card */}
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg group">
-              <div className="flex justify-between items-start">
+            {/* 4 Executive B2 Cards (matching UserDetailPage) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80 flex flex-col justify-between">
                 <div>
-                  <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Active Videos</p>
-                  <h3 className="text-2xl font-black text-white mt-1 group-hover:text-emerald-400 transition-colors">
-                    {formatNumber(mediaBreakdown.videoCount)}
-                  </h3>
+                  <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">
+                    Data Metered
+                  </span>
+                  <div className="text-xl font-black text-white font-mono flex items-baseline gap-2">
+                    <span>{actualB2StorageDecimalGB.toFixed(2)} GB</span>
+                    <span className="text-xs text-slate-500 font-sans font-normal">active</span>
+                  </div>
+                  <span className="text-[11px] font-mono text-slate-400 mt-1 block">
+                    Source: {b2StorageSource}
+                  </span>
                 </div>
-                <div className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-400">
-                  <Sliders className="w-5 h-5" />
+                <div className="mt-3 pt-2.5 border-t border-slate-800 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Total Files:</span>
+                    <span className="font-mono text-slate-200 font-medium">
+                      {formatNumber(typeof liveB2Usage?.fileCount === 'number' ? liveB2Usage.fileCount : photos.length)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Photos / Videos:</span>
+                    <span className="font-mono text-slate-200 font-medium">
+                      {formatNumber(mediaBreakdown.photoCount)} / {formatNumber(mediaBreakdown.videoCount)}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <p className="text-[10px] text-slate-500 mt-2.5">
-                Total Storage: <span className="text-slate-350 font-bold">{formatSize(mediaBreakdown.videoSize)}</span>
-              </p>
-            </div>
 
-            {/* Total combined media */}
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg group bg-gradient-to-br from-[#111827]/90 to-sky-950/15">
-              <div className="flex justify-between items-start">
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80 flex flex-col justify-between">
                 <div>
-                  <p className="text-sky-400 text-xs font-black uppercase tracking-wider">EveBash Bucket Size</p>
-                  <h3 className="text-2xl font-black text-white mt-1 group-hover:text-sky-400 transition-colors">
-                    {formatDecimalSize(actualB2StorageBytes)}
-                  </h3>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    Storage Cost ({timeframeLabel})
+                  </span>
+                  <div className="text-xl font-black text-sky-300 font-mono">
+                    ₹{((b2StorageCostMonth * timeframeFactor) * usdToInrRate).toFixed(2)}
+                  </div>
+                  <span className="text-[11px] font-mono text-slate-400 mt-1 block">
+                    ${(b2StorageCostMonth * timeframeFactor).toFixed(4)} USD (@ ₹0.60/GB-mo)
+                  </span>
                 </div>
-                <div className="p-2.5 bg-sky-500/10 rounded-xl text-sky-400">
-                  <HardDrive className="w-5 h-5" />
+                <div className="mt-3 pt-2.5 border-t border-slate-800 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Free Baseline:</span>
+                    <span className="font-mono text-emerald-400 font-medium">10 GB Free</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Projected Year:</span>
+                    <span className="font-mono text-slate-200 font-medium">₹{(b2StorageCostYear * usdToInrRate).toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
-              <p className="text-[10px] text-slate-500 mt-2.5">
-                Source: <span className="text-slate-350 font-bold">{b2StorageSource}</span>
-                {typeof liveB2Usage?.fileCount === 'number' ? (
-                  <span> | Files: <span className="text-slate-350 font-bold">{formatNumber(liveB2Usage.fileCount)}</span></span>
-                ) : null}
-              </p>
-              {liveB2Usage?.error ? (
-                <p className="text-[10px] text-amber-400 mt-2 leading-relaxed">
-                  Live Backblaze usage unavailable{liveB2Usage.code ? ` (${liveB2Usage.code})` : ''}: {liveB2Usage.error}. Showing database media total.
-                </p>
-              ) : null}
+
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block mb-1">
+                    API Transactions
+                  </span>
+                  <div className="text-xl font-black text-amber-300 font-mono">
+                    ₹{(((b2ClassBCostMonth + b2ClassCCostMonth) * timeframeFactor) * usdToInrRate).toFixed(2)}
+                  </div>
+                  <span className="text-[11px] font-mono text-slate-400 mt-1 block">
+                    {formatNumber(b2ClassCCallsMonth)} Class C &bull; {formatNumber(b2ClassBCallsMonth)} Class B
+                  </span>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-slate-800 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Free Daily Quota:</span>
+                    <span className="font-mono text-emerald-400 font-medium">2,500/day Free</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Overage Rate:</span>
+                    <span className="font-mono text-slate-200 font-medium">₹0.40/10k B, ₹0.40/1k C</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-sky-500/30 bg-sky-950/20 p-4 transition-all hover:border-sky-500/50 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">
+                    Total B2 Incurred
+                  </span>
+                  <div className="text-xl font-black text-sky-200 font-mono">
+                    ₹{((actualB2Cost * timeframeFactor) * usdToInrRate).toFixed(2)}
+                  </div>
+                  <span className="text-[11px] font-mono text-slate-300 mt-1 block">
+                    ${(actualB2Cost * timeframeFactor).toFixed(4)} USD {timeframeSuffix}
+                  </span>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-sky-500/30 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Download Egress:</span>
+                    <span className="font-mono text-emerald-400 font-bold">₹0.00 (Free Alliance)</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Annual Run-rate:</span>
+                    <span className="font-mono text-sky-300 font-medium">₹{(actualB2Cost * 12 * usdToInrRate).toFixed(2)}/yr</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Backblaze orphan cleanup */}
-          <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          {/* Backblaze B2 Billing Units Matrix Table */}
+          <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 sm:p-7 shadow-xl space-y-4">
+            <h4 className="text-base font-bold text-white flex items-center gap-2">
+              <BackblazeIcon className="h-4 w-auto" />
+              <span>Backblaze B2 Billing Units Breakdown</span>
+            </h4>
+            <p className="text-slate-400 text-xs">
+              Storage capacity tiers, Bandwidth Alliance zero-egress routing, and S3-compatible API transactions.
+            </p>
+
+            <div className="rounded-2xl border border-slate-800/80 overflow-hidden bg-slate-950/40">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-400">
+                  <thead className="bg-slate-950/90 text-slate-400 uppercase tracking-wider border-b border-slate-800 text-[10px]">
+                    <tr className="divide-x divide-slate-800">
+                      <th className="py-3 px-4 font-bold whitespace-nowrap">Billing Unit</th>
+                      <th className="py-3 px-4 font-bold whitespace-nowrap">Plan Allowance</th>
+                      <th className="py-3 px-4 font-bold whitespace-nowrap">Active Usage</th>
+                      <th className="py-3 px-4 text-right font-bold whitespace-nowrap">Cost ({timeframeLabel})</th>
+                      <th className="py-3 px-4 text-right font-bold whitespace-nowrap">Cost (Projected Year)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/80">
+                    <tr className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white whitespace-nowrap">Object Storage Size (GB)</td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">10 GB Free baseline</td>
+                      <td className="py-3.5 px-4 font-mono whitespace-nowrap">{actualB2StorageDecimalGB.toFixed(3)} GB</td>
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-sky-400 whitespace-nowrap">
+                        ₹{((b2StorageCostMonth * timeframeFactor) * usdToInrRate).toFixed(2)}
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono text-slate-350 whitespace-nowrap">
+                        ₹{(b2StorageCostYear * usdToInrRate).toFixed(2)}
+                      </td>
+                    </tr>
+                    <tr className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white whitespace-nowrap">Egress Bandwidth (Downloads)</td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">Unlimited Free (Bandwidth Alliance)</td>
+                      <td className="py-3.5 px-4 font-mono whitespace-nowrap">Active Edge Routing</td>
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-400 whitespace-nowrap">₹0.00</td>
+                      <td className="py-3.5 px-4 text-right font-mono text-emerald-400 whitespace-nowrap">₹0.00</td>
+                    </tr>
+                    <tr className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white whitespace-nowrap">Class B API Calls (Downloads)</td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">2,500/day Free (75,000/mo)</td>
+                      <td className="py-3.5 px-4 font-mono whitespace-nowrap">{formatNumber(b2ClassBCallsMonth)} calls/mo</td>
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-sky-400 whitespace-nowrap">
+                        ₹{((b2ClassBCostMonth * timeframeFactor) * usdToInrRate).toFixed(2)}
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono text-slate-350 whitespace-nowrap">
+                        ₹{(b2ClassBCostYear * usdToInrRate).toFixed(2)}
+                      </td>
+                    </tr>
+                    <tr className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white whitespace-nowrap">Class C API Calls (Uploads)</td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">2,500/day Free (75,000/mo)</td>
+                      <td className="py-3.5 px-4 font-mono whitespace-nowrap">{formatNumber(b2ClassCCallsMonth)} calls/mo</td>
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-sky-400 whitespace-nowrap">
+                        ₹{((b2ClassCCostMonth * timeframeFactor) * usdToInrRate).toFixed(2)}
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono text-slate-350 whitespace-nowrap">
+                        ₹{(b2ClassCCostYear * usdToInrRate).toFixed(2)}
+                      </td>
+                    </tr>
+                    <tr className="divide-x divide-slate-800 bg-sky-950/20 font-bold border-t border-slate-800">
+                      <td className="py-4 px-4 text-white uppercase text-xs whitespace-nowrap">Total Backblaze Upkeep</td>
+                      <td className="py-4 px-4 text-sky-300 whitespace-nowrap">-</td>
+                      <td className="py-4 px-4 whitespace-nowrap">-</td>
+                      <td className="py-4 px-4 text-right font-mono text-sky-300 font-black text-sm whitespace-nowrap">
+                        ₹{((actualB2Cost * timeframeFactor) * usdToInrRate).toFixed(2)}
+                      </td>
+                      <td className="py-4 px-4 text-right font-mono text-slate-200 font-bold whitespace-nowrap">
+                        ₹{((actualB2Cost * 12) * usdToInrRate).toFixed(2)} / yr
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Backblaze Orphan Cleanup Toolkit */}
+          <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 shadow-xl space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
-                <h4 className="text-md font-bold text-white flex items-center">
-                  <Search className="w-5 h-5 mr-2 text-sky-400" />
-                  Backblaze Orphan File Cleanup
+                <h4 className="text-base font-bold text-white flex items-center gap-2">
+                  <Search className="w-5 h-5 text-sky-400" />
+                  <span>Backblaze Orphan File Scanner & Garbage Collector</span>
                 </h4>
                 <p className="text-slate-400 text-xs mt-1 max-w-3xl leading-relaxed">
-                  Scan the EveBash bucket for files under <span className="font-mono text-slate-300">events/</span> and <span className="font-mono text-slate-300">profiles/</span> that are no longer referenced by current database media records.
+                  Safely scan the EveBash bucket for media files under <span className="font-mono text-slate-300">events/</span> and <span className="font-mono text-slate-300">profiles/</span> that no longer belong to active database rows.
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-2.5">
                 <button
                   onClick={handleScanBackblazeOrphans}
                   disabled={orphanActionLoading !== null}
-                  className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/15 disabled:opacity-60 disabled:cursor-not-allowed text-xs font-bold transition-colors"
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 disabled:opacity-60 disabled:cursor-not-allowed text-xs font-bold transition-all cursor-pointer"
                 >
-                  <Search className="w-4 h-4 mr-2" />
+                  <Search className="w-3.5 h-3.5 mr-1.5" />
                   {orphanActionLoading === 'scan' ? 'Scanning...' : 'Scan Orphans'}
                 </button>
                 <button
                   onClick={handleDeleteBackblazeOrphans}
                   disabled={orphanActionLoading !== null || !orphanScan?.orphanFiles}
-                  className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/15 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold transition-colors"
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold transition-all cursor-pointer"
                 >
-                  <Trash2 className="w-4 h-4 mr-2" />
+                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
                   {orphanActionLoading === 'delete' ? 'Deleting...' : 'Delete Orphans'}
                 </button>
               </div>
             </div>
 
-            {orphanActionError ? (
-              <div className="mt-4 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs text-rose-300">
+            {orphanActionError && (
+              <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-300">
                 {orphanActionError}
               </div>
-            ) : null}
+            )}
 
-            {orphanScan ? (
-              <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+            {orphanScan && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-3.5">
                   <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Managed B2 Files</p>
-                  <p className="mt-1 text-xl font-black text-white">{formatNumber(orphanScan.totalFiles || 0)}</p>
+                  <p className="mt-1 text-xl font-black text-white font-mono">{formatNumber(orphanScan.totalFiles || 0)}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-3.5">
                   <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Referenced Files</p>
-                  <p className="mt-1 text-xl font-black text-emerald-400">{formatNumber(orphanScan.referencedFiles || 0)}</p>
+                  <p className="mt-1 text-xl font-black text-emerald-400 font-mono">{formatNumber(orphanScan.referencedFiles || 0)}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-3.5">
                   <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Orphan Files</p>
-                  <p className="mt-1 text-xl font-black text-amber-400">{formatNumber(orphanScan.orphanFiles || 0)}</p>
+                  <p className="mt-1 text-xl font-black text-amber-400 font-mono">{formatNumber(orphanScan.orphanFiles || 0)}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-3.5">
                   <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Orphan Size</p>
-                  <p className="mt-1 text-xl font-black text-sky-400">{formatDecimalSize(orphanScan.orphanBytes || 0)}</p>
-                  {typeof orphanScan.deletedFiles === 'number' ? (
-                    <p className="mt-1 text-[10px] text-emerald-400">
-                      Deleted {formatNumber(orphanScan.deletedFiles)} files ({formatDecimalSize(orphanScan.deletedBytes || 0)})
-                    </p>
-                  ) : null}
+                  <p className="mt-1 text-xl font-black text-sky-400 font-mono">{formatDecimalSize(orphanScan.orphanBytes || 0)}</p>
                 </div>
               </div>
-            ) : null}
+            )}
           </div>
 
-          {/* Backblaze B2 Charging Units Cost Table */}
-          <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl">
-            <h4 className="text-md font-bold text-white mb-1.5 flex items-center">
-              <DollarSign className="w-5 h-5 mr-2 text-sky-400" />
-              Backblaze B2 Billing Units Cost Breakdown ({timeframeLabel})
-            </h4>
-            <p className="text-slate-400 text-xs mb-6">
-              Detailed tracking of active storage utilization, transfer bandwidth, and API operations for {timeframeLabel.toLowerCase()}.
-            </p>
-
-            <div className="overflow-x-auto border border-slate-800/60 rounded-2xl">
-              <table className="w-full text-left text-xs text-slate-400">
-                <thead className="text-[10px] text-slate-500 uppercase bg-slate-900/30 border-b border-slate-800">
-                  <tr>
-                    <th className="py-3 px-4">Billing Unit</th>
-                    <th className="py-3 px-4">Plan Limit / Allowance</th>
-                    <th className="py-3 px-4">Actual Usage "Till Now"</th>
-                    <th className="py-3 px-4">Cost ({timeframeLabel})</th>
-                    <th className="py-3 px-4">Cost (Projected Year)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/40 text-slate-350">
-                  {/* Row 1: B2 Storage Space */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Object Storage Size (GB)</td>
-                    <td className="py-4 px-4">10 GB Free</td>
-                    <td className="py-4 px-4">
-                      {actualB2StorageDecimalGB.toFixed(3)} GB ({formatDecimalSize(actualB2StorageBytes)})
-                      <span className="block text-[10px] text-slate-500 mt-1">{b2StorageSource}</span>
-                    </td>
-                    <td className="py-4 px-4 font-mono font-bold text-sky-400">
-                      ₹{((b2StorageCostMonth * timeframeFactor) * usdToInrRate).toFixed(2)}
-                      <span className="block text-[10px] font-normal text-slate-500 mt-0.5">${(b2StorageCostMonth * timeframeFactor).toFixed(4)} {timeframeSuffix}</span>
-                    </td>
-                    <td className="py-4 px-4 font-mono text-slate-400">
-                      ₹{(b2StorageCostYear * usdToInrRate).toFixed(2)}
-                      <span className="block text-[10px] font-normal text-slate-500 mt-0.5">${b2StorageCostYear.toFixed(4)} / yr</span>
-                    </td>
-                  </tr>
-
-                  {/* Row 2: B2 Download Egress */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Egress Download Bandwidth</td>
-                    <td className="py-4 px-4">Unlimited Free <span className="text-[9px] text-emerald-450">(Bandwidth Alliance)</span></td>
-                    <td className="py-4 px-4">Active Routing</td>
-                    <td className="py-4 px-4 font-mono font-bold text-sky-400">
-                      ₹0.00
-                      <span className="block text-[10px] font-normal text-slate-500 mt-0.5">$0.0000</span>
-                    </td>
-                    <td className="py-4 px-4 font-mono text-slate-400">
-                      ₹0.00
-                      <span className="block text-[10px] font-normal text-slate-500 mt-0.5">$0.0000</span>
-                    </td>
-                  </tr>
-
-                  {/* Row 3: Class A API Transactions */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Class A API Transactions (List, etc.)</td>
-                    <td className="py-4 px-4">Unlimited Free</td>
-                    <td className="py-4 px-4">Minimal</td>
-                    <td className="py-4 px-4 font-mono font-bold text-sky-400">
-                      ₹0.00
-                      <span className="block text-[10px] font-normal text-slate-500 mt-0.5">$0.0000</span>
-                    </td>
-                    <td className="py-4 px-4 font-mono text-slate-400">
-                      ₹0.00
-                      <span className="block text-[10px] font-normal text-slate-500 mt-0.5">$0.0000</span>
-                    </td>
-                  </tr>
-
-                  {/* Row 4: Class B API Transactions */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Class B API Transactions (Download metadata)</td>
-                    <td className="py-4 px-4">2,500/day Free (75,000/mo)</td>
-                    <td className="py-4 px-4">{formatNumber(b2ClassBCallsMonth)} calls/mo <span className="text-[10px] text-slate-500">(est.)</span></td>
-                    <td className="py-4 px-4 font-mono font-bold text-sky-400">
-                      ₹{((b2ClassBCostMonth * timeframeFactor) * usdToInrRate).toFixed(2)}
-                      <span className="block text-[10px] font-normal text-slate-500 mt-0.5">${(b2ClassBCostMonth * timeframeFactor).toFixed(4)} {timeframeSuffix}</span>
-                    </td>
-                    <td className="py-4 px-4 font-mono text-slate-400">
-                      ₹{(b2ClassBCostYear * usdToInrRate).toFixed(2)}
-                      <span className="block text-[10px] font-normal text-slate-500 mt-0.5">${b2ClassBCostYear.toFixed(4)} / yr</span>
-                    </td>
-                  </tr>
-
-                  {/* Row 5: Class C API Transactions */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Class C API Transactions (Upload creations)</td>
-                    <td className="py-4 px-4">2,500/day Free (75,000/mo)</td>
-                    <td className="py-4 px-4">{formatNumber(b2ClassCCallsMonth)} calls/mo <span className="text-[10px] text-slate-500">(est.)</span></td>
-                    <td className="py-4 px-4 font-mono font-bold text-sky-400">
-                      ₹{((b2ClassCCostMonth * timeframeFactor) * usdToInrRate).toFixed(2)}
-                      <span className="block text-[10px] font-normal text-slate-500 mt-0.5">${(b2ClassCCostMonth * timeframeFactor).toFixed(4)} {timeframeSuffix}</span>
-                    </td>
-                    <td className="py-4 px-4 font-mono text-slate-400">
-                      ₹{(b2ClassCCostYear * usdToInrRate).toFixed(2)}
-                      <span className="block text-[10px] font-normal text-slate-500 mt-0.5">${b2ClassCCostYear.toFixed(4)} / yr</span>
-                    </td>
-                  </tr>
-
-                  {/* Total row */}
-                  <tr className="bg-slate-900/30 font-bold border-t border-slate-800">
-                    <td className="py-4 px-4 text-white">Total Backblaze B2 Expenses</td>
-                    <td className="py-4 px-4">-</td>
-                    <td className="py-4 px-4">-</td>
-                    <td className="py-4 px-4 font-mono text-sky-400">
-                      ₹{((actualB2Cost * timeframeFactor) * usdToInrRate).toFixed(2)}
-                      <span className="block text-[10px] font-normal text-slate-500 mt-0.5">${(actualB2Cost * timeframeFactor).toFixed(4)} {timeframeSuffix}</span>
-                    </td>
-                    <td className="py-4 px-4 font-mono text-slate-350">
-                      ₹{((actualB2Cost * 12) * usdToInrRate).toFixed(2)}
-                      <span className="block text-[10px] font-normal text-slate-500 mt-0.5">${(actualB2Cost * 12).toFixed(4)} / yr</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Interactive B2 storage slider & comparison */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl md:col-span-2 space-y-6">
+          {/* Interactive B2 Storage Growth Simulator */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 shadow-xl lg:col-span-2 space-y-6">
               <div>
-                <h4 className="text-md font-bold text-white flex items-center">
-                  <Sliders className="w-5 h-5 mr-2 text-sky-400" />
-                  B2 Storage Growth Simulator ({timeframeLabel})
+                <h4 className="text-base font-bold text-white flex items-center gap-2">
+                  <Sliders className="w-5 h-5 text-sky-400" />
+                  <span>Storage Growth & Scaling Simulator ({timeframeLabel})</span>
                 </h4>
                 <p className="text-slate-400 text-xs mt-1">
-                  Simulate storage growth scaling from current levels up to 10 Terabytes.
+                  Model infrastructure storage upkeep growth scaling from 10 GB up to 10 Terabytes.
                 </p>
               </div>
 
-              {/* Slider Input */}
-              <div className="space-y-4">
+              <div className="space-y-4 bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-400">Simulated Storage Capacity:</span>
-                  <span className="text-sky-400 font-bold text-sm">
+                  <span className="text-slate-400 font-medium">Simulated Capacity:</span>
+                  <span className="text-sky-300 font-mono font-bold text-base">
                     {simulatedStorageGB >= 1000
                       ? `${(simulatedStorageGB / 1000).toFixed(1)} TB`
                       : `${simulatedStorageGB} GB`}
@@ -2249,7 +2691,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                   className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-500"
                 />
                 
-                <div className="flex justify-between text-[10px] text-slate-600 font-semibold uppercase">
+                <div className="flex justify-between text-[10px] text-slate-500 font-semibold uppercase">
                   <span>10 GB (Min)</span>
                   <span>2.5 TB</span>
                   <span>5 TB</span>
@@ -2258,72 +2700,56 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                 </div>
               </div>
 
-              {/* B2 Simulator Pricing Card */}
-              <div className="p-5 rounded-2xl border border-sky-500/20 bg-sky-500/5 text-left relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/5 rounded-full blur-2xl pointer-events-none" />
-                <p className="text-[10px] text-sky-400 font-black uppercase tracking-wider">Backblaze B2 Simulated Upkeep ({timeframeLabel})</p>
-                <h4 className="text-2xl font-black text-white mt-1.5">
-                  ₹{((simulatedB2Cost * timeframeFactor) * usdToInrRate).toFixed(2)} <span className="text-xs font-medium text-slate-500">{timeframeSuffix}</span>
-                </h4>
-                <p className="text-[10px] text-sky-400 font-bold mt-1">
-                  ${(simulatedB2Cost * timeframeFactor).toFixed(4)} USD
-                </p>
-                <p className="text-[10px] text-slate-500 mt-2.5 leading-relaxed">
-                  Based on simulated storage capacity of <span className="text-slate-350 font-semibold">{simulatedStorageGB} GB</span> and scaled transaction API volumes.
+              <div className="p-5 rounded-2xl border border-sky-500/20 bg-sky-950/20 text-left relative overflow-hidden">
+                <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block">
+                  Simulated Monthly Storage Upkeep
+                </span>
+                <div className="text-2xl font-black text-white font-mono mt-1">
+                  ₹{((simulatedB2Cost * timeframeFactor) * usdToInrRate).toFixed(2)}
+                  <span className="text-xs font-normal text-slate-400 ml-2">
+                    (${(simulatedB2Cost * timeframeFactor).toFixed(4)} USD)
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-2">
+                  At <strong>₹600 per TB/month</strong> ($0.006/GB/mo) with <strong>₹0.00 download egress fees</strong>.
                 </p>
               </div>
             </div>
 
-            {/* Backblaze B2 pricing explanation */}
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
+            {/* Rules card */}
+            <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 shadow-xl flex flex-col justify-between space-y-6">
               <div>
-                <h4 className="text-md font-bold text-white mb-1.5 flex items-center">
-                  <Info className="w-5 h-5 mr-2 text-indigo-400" />
-                  B2 Storage Rules
+                <h4 className="text-base font-bold text-white mb-2 flex items-center gap-2">
+                  <Info className="w-5 h-5 text-sky-400" />
+                  <span>Bandwidth Alliance</span>
                 </h4>
-                <p className="text-slate-400 text-xs mb-6">
-                  Backblaze B2 provides enterprise storage capabilities.
+                <p className="text-slate-400 text-xs mb-4">
+                  Backblaze B2 and Cloudflare partner in the Bandwidth Alliance to waive standard cloud egress fees.
                 </p>
 
-                <div className="space-y-4 text-xs">
+                <div className="space-y-3 text-xs">
                   <div className="flex justify-between py-2 border-b border-slate-800/40">
-                    <span className="text-slate-400">Bucket</span>
-                    <span className="text-white font-semibold">{liveB2Usage?.bucketName || 'EveBash'}</span>
+                    <span className="text-slate-400">AWS S3 Standard Egress</span>
+                    <span className="text-rose-400 font-mono font-semibold">$0.09 / GB</span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-slate-800/40">
-                    <span className="text-slate-400">Live Bucket Files</span>
-                    <span className="text-white font-semibold">
-                      {typeof liveB2Usage?.fileCount === 'number' ? formatNumber(liveB2Usage.fileCount) : 'Unavailable'}
-                    </span>
+                    <span className="text-slate-400">B2 Standard Egress</span>
+                    <span className="text-amber-400 font-mono font-semibold">$0.01 / GB</span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-slate-800/40">
-                    <span className="text-slate-400">Free Tier Limit</span>
-                    <span className="text-white font-semibold">10 GB / month</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-slate-800/40">
-                    <span className="text-slate-400">Storage Unit Rate</span>
-                    <span className="text-white font-semibold">$0.006 / GB / month</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-slate-800/40">
-                    <span className="text-slate-400">Standard Egress Fee</span>
-                    <span className="text-white font-semibold">$0.01 / GB</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-slate-800/40">
-                    <span className="text-slate-400">Bandwidth Alliance</span>
-                    <span className="text-emerald-400 font-bold flex items-center">
-                      <ShieldCheck className="w-3.5 h-3.5 mr-1" /> $0.00 Egress
-                    </span>
+                    <span className="text-slate-400">EveBash Cloudflare Egress</span>
+                    <span className="text-emerald-400 font-mono font-bold">$0.00 (FREE)</span>
                   </div>
                 </div>
               </div>
 
-              <div className="p-4 bg-sky-500/5 border border-sky-500/10 rounded-2xl mt-6">
-                <p className="text-[10px] text-sky-400 font-bold uppercase tracking-wider flex items-center">
-                  <Sparkles className="w-3.5 h-3.5 mr-1" />
-                  Egress Saving Strategy
+              <div className="p-4 bg-sky-500/5 border border-sky-500/15 rounded-2xl">
+                <p className="text-[10px] text-sky-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Financial Impact
                 </p>
-                <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed">
-                  Due to our Cloudflare DNS setup, requests are routed via the Cloudflare Edge network. Both providers participate in the **Bandwidth Alliance**, reducing outbound media download (egress) transfer fees from Backblaze B2 to $0.00.
+                <p className="text-[11px] text-slate-300 mt-1.5 leading-relaxed">
+                  Serving 50 TB of wedding photos monthly on AWS would cost ~$4,500 (~₹4.5 Lakhs) in egress alone. With our architecture, that fee is ₹0.
                 </p>
               </div>
             </div>
@@ -2331,116 +2757,150 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
         </div>
       )}
 
-      {/* TAB PANEL 4: CLOUDFLARE DETAIL */}
+      {/* ── TAB PANEL 4: CLOUDFLARE DETAIL ── */}
       {activeSubTab === 'cloudflare' && (
-        <div className="space-y-8 animate-fadeIn">
-          {renderFilterBar('bg-amber-600', 'text-amber-400')}
+        <div className="space-y-6">
+          {renderFilterBar('bg-amber-600', 'text-amber-400', 'border-amber-500/20')}
 
-          {/* Live Cost Banner — shown when API is connected */}
-          {liveCfPlan && (
-            <div className="bg-amber-955/20 border border-amber-800/30 rounded-3xl p-6 shadow-xl">
-              <div className="flex items-center gap-2 mb-5">
-                <ShieldCheck className="w-5 h-5 text-amber-400" />
-                <h4 className="text-base font-bold text-amber-300 font-sans">Live Cloudflare Account Billing</h4>
-                <span className="ml-auto text-[10px] text-amber-500 font-mono">Real-time via Cloudflare API v4</span>
+          {/* Live Cloudflare Billing Banner */}
+          <div className="rounded-3xl border border-amber-500/30 bg-gradient-to-b from-[#111827] to-[#151208] p-6 sm:p-7 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                  <CloudflareLogo className="h-4 w-auto" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-base">Live Cloudflare Account Billing</h3>
+                  <p className="text-[11px] text-slate-500">Real-time edge zone plan, domain registry, and Workers serverless queries</p>
+                </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="bg-amber-950/30 border border-amber-900/10 rounded-2xl p-4">
-                  <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-1">Zone Plan</p>
-                  <p className="text-2xl font-black text-white">{liveCfPlan.toUpperCase()}</p>
-                  <p className="text-[10px] text-amber-500 mt-1">Free Website Tier</p>
-                </div>
-                <div className="bg-amber-950/30 border border-amber-900/10 rounded-2xl p-4">
-                  <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-1">Domain Registrar</p>
-                  <p className="text-2xl font-black text-white">$0.00</p>
-                  <p className="text-[10px] text-amber-500 mt-1">Registered via Hostinger</p>
-                </div>
-                <div className="bg-amber-950/30 border border-amber-900/10 rounded-2xl p-4">
-                  <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-1">Active Subscriptions</p>
-                  <p className="text-2xl font-black text-white">
-                    {liveCfSubscriptionCost > 0 ? `$${liveCfSubscriptionCost.toFixed(2)}` : 'None'}
-                  </p>
-                  <p className="text-[10px] text-amber-500 mt-1">{liveCfSubscriptions.length} active addon(s)</p>
-                </div>
-                <div className="bg-amber-900/20 border border-amber-700/25 rounded-2xl p-4">
-                  <p className="text-[10px] text-amber-350 font-bold uppercase tracking-wider mb-1">Total Monthly Cost</p>
-                  <p className="text-2xl font-black text-amber-300">${actualCloudflareCost.toFixed(2)}</p>
-                  <p className="text-[10px] text-amber-500 mt-1">
-                    ₹{(actualCloudflareCost * usdToInrRate).toFixed(0)} @ ₹{usdToInrRate}/USD
-                  </p>
-                </div>
+
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <span className="text-xs font-mono font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl">
+                  {liveCfPlan ? `Zone: ${liveCfPlan.toUpperCase()}` : 'Free Global CDN Active'}
+                </span>
               </div>
             </div>
-          )}
 
-          {/* Cloudflare metrics block */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Egress savings banner */}
-            <div className="bg-[#111827]/80 border border-emerald-950 rounded-2xl p-5 shadow-lg flex items-center justify-between col-span-1 md:col-span-1 bg-gradient-to-br from-[#111827]/90 to-emerald-950/15">
-              <div className="space-y-1">
-                <p className="text-emerald-400 text-xs font-black uppercase tracking-wider">Bandwidth Alliance</p>
-                <h4 className="text-lg font-bold text-white mt-1">Egress: $0.00 / GB</h4>
-                <p className="text-[10px] text-slate-400 leading-relaxed mt-1">
-                  B2 downloads via Cloudflare edge incur zero egress.
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 pt-1">
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4">
+                <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-1">Zone Plan</p>
+                <p className="text-xl font-black text-white font-mono">{liveCfPlan ? liveCfPlan.toUpperCase() : 'FREE'}</p>
+                <p className="text-[11px] text-slate-500 mt-1">DDoS & WAF Protection</p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4">
+                <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-1">Domain Registrar</p>
+                <p className="text-xl font-black text-white font-mono">$0.00</p>
+                <p className="text-[11px] text-slate-500 mt-1">External via Hostinger</p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4">
+                <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-1">Active Subscriptions</p>
+                <p className="text-xl font-black text-white font-mono">
+                  {liveCfSubscriptionCost > 0 ? `$${liveCfSubscriptionCost.toFixed(2)}` : 'None'}
+                </p>
+                <p className="text-[11px] text-slate-500 mt-1">{liveCfSubscriptions.length} active addon(s)</p>
+              </div>
+
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4">
+                <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-1">Total Monthly Cost</p>
+                <p className="text-xl font-black text-amber-300 font-mono">${actualCloudflareCost.toFixed(2)}</p>
+                <p className="text-[11px] font-mono text-slate-400 mt-1">
+                  ₹{(actualCloudflareCost * usdToInrRate).toFixed(0)} @ ₹{usdToInrRate}/USD
                 </p>
               </div>
-              <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl shrink-0 hidden sm:block">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-            </div>
-
-            {/* Live API sync status */}
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg bg-gradient-to-br from-[#111827]/90 to-amber-950/10">
-              <p className="text-amber-400 text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${liveCfPlan ? 'bg-emerald-500 animate-pulse' : 'bg-slate-650'}`}></span>
-                Live API Connection
-              </p>
-              <h4 className="text-md font-bold text-white mt-1">
-                {liveCfPlan ? `${liveCfPlan.toUpperCase()} Plan` : 'Offline / Simulated'}
-              </h4>
-              <div className="text-[10px] text-slate-400 mt-2 space-y-1">
-                <div>Transformations (30d): <span className="text-slate-200 font-semibold">{liveCfTransformations !== null ? formatNumber(liveCfTransformations) : 'N/A'}</span></div>
-                <div>Stored Images (Live): <span className="text-slate-200 font-semibold">{liveCfStoredImages !== null ? formatNumber(liveCfStoredImages) : 'N/A'}</span></div>
-              </div>
-            </div>
-            {/* Registrar cost info */}
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg group">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Domain Registrar Cost</p>
-                  <h3 className="text-xl font-black text-white mt-1 group-hover:text-amber-400 transition-colors">
-                    $0.00 <span className="text-xs font-medium text-slate-500">/ mo</span>
-                  </h3>
-                </div>
-                <div className="p-2.5 bg-amber-500/10 rounded-xl text-amber-400">
-                  <Globe className="w-5 h-5" />
-                </div>
-              </div>
-              <p className="text-[10px] text-slate-500 mt-2.5">
-                $0.00 billed to Cloudflare (registered externally via Hostinger)
-              </p>
             </div>
           </div>
 
-          {/* Workers API interactive simulator */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl md:col-span-2 space-y-6">
+          {/* Cloudflare Billing Units Breakdown Table */}
+          <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 sm:p-7 shadow-xl space-y-4">
+            <h4 className="text-base font-bold text-white flex items-center gap-2">
+              <CloudflareLogo className="h-4 w-auto" />
+              <span>Cloudflare Billing Units Breakdown</span>
+            </h4>
+            <p className="text-slate-400 text-xs">
+              Edge routing, DDoS defense, SSL termination, and serverless Workers request tiers.
+            </p>
+
+            <div className="rounded-2xl border border-slate-800/80 overflow-hidden bg-slate-950/40">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-400">
+                  <thead className="bg-slate-950/90 text-slate-400 uppercase tracking-wider border-b border-slate-800 text-[10px]">
+                    <tr className="divide-x divide-slate-800">
+                      <th className="py-3 px-4 font-bold whitespace-nowrap">Billing Unit</th>
+                      <th className="py-3 px-4 font-bold whitespace-nowrap">Plan Allowance</th>
+                      <th className="py-3 px-4 font-bold whitespace-nowrap">Active Status</th>
+                      <th className="py-3 px-4 text-right font-bold whitespace-nowrap">Cost ({timeframeLabel})</th>
+                      <th className="py-3 px-4 text-right font-bold whitespace-nowrap">Cost (Projected Year)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/80">
+                    <tr className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white whitespace-nowrap">Domain Registrar (Hostinger)</td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">External DNS CNAME delegation</td>
+                      <td className="py-3.5 px-4 font-mono whitespace-nowrap">1 Domain Active</td>
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-amber-400 whitespace-nowrap">$0.00</td>
+                      <td className="py-3.5 px-4 text-right font-mono text-slate-350 whitespace-nowrap">$0.00</td>
+                    </tr>
+                    {liveCfSubscriptionCost > 0 && (
+                      <tr className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors bg-amber-500/5">
+                        <td className="py-3.5 px-4 font-semibold text-white whitespace-nowrap">Zone Plan & Subscriptions</td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">Active Paid Upgrades</td>
+                        <td className="py-3.5 px-4 font-mono whitespace-nowrap">{liveCfPlan?.toUpperCase() || 'Paid'}</td>
+                        <td className="py-3.5 px-4 text-right font-mono font-bold text-amber-400 whitespace-nowrap">${(liveCfSubscriptionCost * timeframeFactor).toFixed(2)}</td>
+                        <td className="py-3.5 px-4 text-right font-mono text-slate-350 whitespace-nowrap">${(liveCfSubscriptionCost * 12).toFixed(2)}</td>
+                      </tr>
+                    )}
+                    <tr className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white whitespace-nowrap">Workers Serverless Requests</td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">100k requests / day Free</td>
+                      <td className="py-3.5 px-4 font-mono whitespace-nowrap">{formatNumber(monthlyRequests)} req/mo (sim)</td>
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-amber-400 whitespace-nowrap">${(workersCost * timeframeFactor).toFixed(2)}</td>
+                      <td className="py-3.5 px-4 text-right font-mono text-slate-350 whitespace-nowrap">${(workersCost * 12).toFixed(2)}</td>
+                    </tr>
+                    <tr className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-white whitespace-nowrap">CDN Caching & Bandwidth</td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">Unlimited Edge Bandwidth</td>
+                      <td className="py-3.5 px-4 font-mono whitespace-nowrap">Global Edge Pop Network</td>
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-amber-400 whitespace-nowrap">$0.00</td>
+                      <td className="py-3.5 px-4 text-right font-mono text-slate-350 whitespace-nowrap">$0.00</td>
+                    </tr>
+                    <tr className="divide-x divide-slate-800 bg-amber-950/20 font-bold border-t border-slate-800">
+                      <td className="py-4 px-4 text-white uppercase text-xs whitespace-nowrap">Total Cloudflare Upkeep</td>
+                      <td className="py-4 px-4 text-amber-300 whitespace-nowrap">-</td>
+                      <td className="py-4 px-4 whitespace-nowrap">-</td>
+                      <td className="py-4 px-4 text-right font-mono text-amber-300 font-black text-sm whitespace-nowrap">
+                        ${(actualCloudflareCost * timeframeFactor).toFixed(2)} {timeframeSuffix}
+                      </td>
+                      <td className="py-4 px-4 text-right font-mono text-slate-200 font-bold whitespace-nowrap">
+                        ${(actualCloudflareCost * 12).toFixed(2)} / yr
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Interactive Workers Simulator */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 shadow-xl lg:col-span-2 space-y-6">
               <div>
-                <h4 className="text-md font-bold text-white flex items-center">
-                  <Activity className="w-5 h-5 mr-2 text-amber-400" />
-                  Cloudflare Workers API Requests Simulator
+                <h4 className="text-base font-bold text-white flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-amber-400" />
+                  <span>Cloudflare Workers Serverless API Simulator</span>
                 </h4>
                 <p className="text-slate-400 text-xs mt-1">
-                  Simulate daily serverless API queries to test Workers request tiers.
+                  Simulate daily edge queries and determine when Workers Paid plan is triggered.
                 </p>
               </div>
 
-              {/* Request Slider */}
-              <div className="space-y-4">
+              <div className="space-y-4 bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-400">Simulated Daily Requests:</span>
-                  <span className="text-amber-400 font-bold text-sm">
-                    {formatNumber(simulatedDailyRequests)} requests / day
+                  <span className="text-slate-400">Simulated Daily Traffic:</span>
+                  <span className="text-amber-400 font-mono font-bold text-base">
+                    {formatNumber(simulatedDailyRequests)} req / day
                   </span>
                 </div>
 
@@ -2454,257 +2914,363 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                   className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
                 />
 
-                <div className="flex justify-between text-[10px] text-slate-650 font-semibold uppercase">
-                  <span>10,000 req/day</span>
+                <div className="flex justify-between text-[10px] text-slate-500 font-semibold uppercase">
+                  <span>10k req/day</span>
                   <span>500k req/day</span>
                   <span>1M req/day</span>
-                  <span>1.5M req/day</span>
                   <span>2M req/day</span>
                 </div>
               </div>
 
-              {/* Calculation analysis cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 rounded-xl border border-slate-850 bg-slate-900/30">
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Estimated Monthly Volume</p>
-                  <h4 className="text-md font-black text-white mt-1.5">
-                    {formatNumber(monthlyRequests)} <span className="text-[10px] font-semibold text-slate-500">req</span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900/40">
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Monthly Volume</p>
+                  <h4 className="text-lg font-black text-white font-mono mt-1">
+                    {formatNumber(monthlyRequests)}
                   </h4>
                 </div>
 
-                <div className="p-4 rounded-xl border border-slate-850 bg-slate-900/30">
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Workers Plan Required</p>
-                  <h4 className="text-md font-black text-white mt-1.5">
+                <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900/40">
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Plan Required</p>
+                  <h4 className="text-lg font-black text-amber-400 font-mono mt-1">
                     {monthlyRequests <= 3000000 ? 'Workers Free' : 'Workers Paid'}
                   </h4>
                 </div>
 
-                <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
-                  <p className="text-[10px] text-amber-400 font-black uppercase tracking-wider">Estimated Monthly Cost</p>
-                  <h4 className="text-md font-black text-white mt-1.5">
-                    ${workersCost.toFixed(2)} <span className="text-[10px] font-semibold text-slate-500">/ mo</span>
+                <div className="p-4 rounded-2xl border border-amber-500/20 bg-amber-950/20">
+                  <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Estimated Monthly Cost</p>
+                  <h4 className="text-lg font-black text-amber-300 font-mono mt-1">
+                    ${workersCost.toFixed(2)} / mo
                   </h4>
                 </div>
               </div>
             </div>
 
-            {/* Cloudflare plan terms side card */}
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
+            {/* Terms card */}
+            <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 shadow-xl flex flex-col justify-between space-y-6">
               <div>
-                <h4 className="text-md font-bold text-white mb-1.5 flex items-center">
-                  <Info className="w-5 h-5 mr-2 text-indigo-400" />
-                  Cloudflare Workers Limits
+                <h4 className="text-base font-bold text-white mb-2 flex items-center gap-2">
+                  <Info className="w-5 h-5 text-amber-400" />
+                  <span>Workers Edge Isolation</span>
                 </h4>
-                <p className="text-slate-400 text-xs mb-6">
-                  Workers run serverless functions at edge network datacenters.
+                <p className="text-slate-400 text-xs mb-4">
+                  Workers run V8 JavaScript isolates directly inside Cloudflare edge datacenters without cold starts.
                 </p>
 
-                <div className="space-y-4 text-xs">
+                <div className="space-y-3 text-xs">
                   <div className="flex justify-between py-2 border-b border-slate-800/40">
-                    <span className="text-slate-400">Workers Free Tier</span>
-                    <span className="text-white font-semibold">100k requests / day</span>
+                    <span className="text-slate-400">Free Tier Limit</span>
+                    <span className="text-white font-mono font-semibold">100k requests / day</span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-slate-800/40">
-                    <span className="text-slate-400">Workers Paid Base</span>
-                    <span className="text-white font-semibold">$5.00 / month</span>
+                    <span className="text-slate-400">Paid Plan Base</span>
+                    <span className="text-white font-mono font-semibold">$5.00 / month</span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-slate-800/40">
-                    <span className="text-slate-400">Included Paid Volume</span>
-                    <span className="text-white font-semibold">10 Million requests</span>
+                    <span className="text-slate-400">Included Requests</span>
+                    <span className="text-white font-mono font-semibold">10 Million / month</span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-slate-800/40">
-                    <span className="text-slate-400">Overage Surcharge</span>
-                    <span className="text-white font-semibold">$0.50 / Million req</span>
+                    <span className="text-slate-400">Overage Rate</span>
+                    <span className="text-white font-mono font-semibold">$0.50 / Million req</span>
                   </div>
                 </div>
               </div>
 
-              <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl mt-6">
-                <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center">
-                  <Sparkles className="w-3.5 h-3.5 mr-1" />
-                  Workers Architecture
+              <div className="p-4 bg-amber-500/5 border border-amber-500/15 rounded-2xl">
+                <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Zero Cold Starts
                 </p>
-                <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed">
-                  Cloudflare Workers execute Javascript queries via V8 isolates. Isolates require no cold boot starts, providing much lower latency compared to AWS Lambda serverless functions.
+                <p className="text-[11px] text-slate-300 mt-1.5 leading-relaxed">
+                  Unlike AWS Lambda or GCP Functions that take seconds to spin up containers, V8 isolates initiate in under 5 milliseconds globally.
                 </p>
               </div>
-            </div>
-          </div>
-
-
-
-          {/* Cloudflare Charging Units Cost Table */}
-          <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl">
-            <h4 className="text-md font-bold text-white mb-1.5 flex items-center">
-              <DollarSign className="w-5 h-5 mr-2 text-amber-400" />
-              Cloudflare Billing Units Cost Breakdown
-            </h4>
-            <p className="text-slate-400 text-xs mb-6">
-              Detailed tracking of active edge network routing, SSL/TLS security, domain registration, and serverless Workers, including actual monthly and yearly projections.
-            </p>
-
-            <div className="overflow-x-auto border border-slate-800/60 rounded-2xl">
-              <table className="w-full text-left text-xs text-slate-400">
-                <thead className="text-[10px] text-slate-500 uppercase bg-slate-900/30 border-b border-slate-800">
-                  <tr>
-                    <th className="py-3 px-4">Billing Unit</th>
-                    <th className="py-3 px-4">Plan Limit / Allowance</th>
-                    <th className="py-3 px-4">Actual Usage "Till Now"</th>
-                    <th className="py-3 px-4">Cost (Current Month)</th>
-                    <th className="py-3 px-4">Cost (Projected Year)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/40 text-slate-350">
-                  {/* Row 1: Domain Registration */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Domain Registrar (External Hostinger)</td>
-                    <td className="py-4 px-4">Registered externally via Hostinger</td>
-                    <td className="py-4 px-4">1 Domain Active</td>
-                    <td className="py-4 px-4 font-mono font-bold text-amber-400">$0.00</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">$0.00</td>
-                  </tr>
-
-                  {/* Row 1b: Live Cloudflare Plan Subscriptions */}
-                  {liveCfSubscriptionCost > 0 && (
-                    <tr className="hover:bg-slate-800/10 transition-colors bg-amber-500/5">
-                      <td className="py-4 px-4 font-semibold text-white flex items-center gap-1.5">
-                        Cloudflare Premium Subscriptions
-                        <span className="text-[9px] bg-amber-500/20 text-amber-350 px-1.5 py-0.5 rounded font-black uppercase">Live</span>
-                      </td>
-                      <td className="py-4 px-4">Active Plan upgrades / Paid add-ons</td>
-                      <td className="py-4 px-4">
-                        {liveCfPlan ? `${liveCfPlan.toUpperCase()} Zone Plan` : 'Subscriptions Active'}
-                      </td>
-                      <td className="py-4 px-4 font-mono font-bold text-amber-400">${liveCfSubscriptionCost.toFixed(2)}</td>
-                      <td className="py-4 px-4 font-mono text-slate-400">${(liveCfSubscriptionCost * 12).toFixed(2)}</td>
-                    </tr>
-                  )}
-
-                  {/* Row 2: Workers Serverless API requests */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Cloudflare Workers API Requests</td>
-                    <td className="py-4 px-4">100,000 / day Free (3M / mo)</td>
-                    <td className="py-4 px-4">Minimal</td>
-                    <td className="py-4 px-4 font-mono font-bold text-amber-400">$0.00</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">$0.00</td>
-                  </tr>
-
-                  {/* Row 3: Remote Image Resizing */}
-                  <tr className="hover:bg-slate-800/10 transition-colors opacity-60">
-                    <td className="py-4 px-4 font-semibold text-slate-400 flex items-center gap-1.5">
-                      Remote Image Resizing (Cloudflare)
-                      <span className="text-[9px] bg-slate-850 text-slate-500 px-1.5 py-0.5 rounded font-bold uppercase">Bypassed</span>
-                    </td>
-                    <td className="py-4 px-4 text-slate-500">Deactivated (Shifted to backend)</td>
-                    <td className="py-4 px-4 text-slate-500">0 transformations/mo <span className="text-[10px] text-slate-650">(pre-generated on B2)</span></td>
-                    <td className="py-4 px-4 font-mono font-bold text-slate-500">$0.00</td>
-                    <td className="py-4 px-4 font-mono text-slate-500">$0.00</td>
-                  </tr>
-
-                  {/* Row 4: CDN Bandwidth / Egress */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">CDN Content Egress & Data Transfer</td>
-                    <td className="py-4 px-4">Unlimited Free</td>
-                    <td className="py-4 px-4">Active Cache</td>
-                    <td className="py-4 px-4 font-mono font-bold text-amber-400">$0.00</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">$0.00</td>
-                  </tr>
-
-                  {/* Row 5: SSL/TLS Security */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">Edge SSL/TLS Certificates</td>
-                    <td className="py-4 px-4">Unlimited Free</td>
-                    <td className="py-4 px-4">Active (Universal SSL)</td>
-                    <td className="py-4 px-4 font-mono font-bold text-amber-400">$0.00</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">$0.00</td>
-                  </tr>
-
-                  {/* Row 6: DDoS Protection & WAF */}
-                  <tr className="hover:bg-slate-800/10 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-white">DNS Hosting & DDoS Protection (WAF)</td>
-                    <td className="py-4 px-4">5 Custom Rules Included</td>
-                    <td className="py-4 px-4">Active</td>
-                    <td className="py-4 px-4 font-mono font-bold text-amber-400">$0.00</td>
-                    <td className="py-4 px-4 font-mono text-slate-400">$0.00</td>
-                  </tr>
-
-                  {/* Total row */}
-                  <tr className="bg-slate-900/30 font-bold border-t border-slate-800">
-                    <td className="py-4 px-4 text-white">Total Cloudflare Expenses</td>
-                    <td className="py-4 px-4">-</td>
-                    <td className="py-4 px-4">-</td>
-                    <td className="py-4 px-4 font-mono text-amber-400">${actualCloudflareCost.toFixed(2)} / mo</td>
-                    <td className="py-4 px-4 font-mono text-slate-350">${(actualCloudflareCost * 12).toFixed(2)} / yr</td>
-                  </tr>
-                </tbody>
-              </table>
             </div>
           </div>
         </div>
       )}
-      {/* TAB PANEL 5: MODAL.COM (AI) */}
+
+      {/* ── TAB PANEL 5: MODAL.COM (AI) DETAIL ── */}
       {activeSubTab === 'modal' && (
-        <div className="space-y-8 animate-fadeIn">
-          {/* Real-time Timeframe Filtering Controls */}
-          {renderFilterBar('bg-indigo-650', 'text-indigo-400')}
+        <div className="space-y-6">
+          {renderFilterBar('bg-emerald-600', 'text-emerald-400', 'border-emerald-500/20')}
 
-          {/* Overview Metrics Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg">
-              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-                Total Cost ({timeframeLabel})
-              </p>
-              <h3 className="text-2xl font-black text-indigo-455 mt-1">
-                ₹{actualModalCostInfo.inr.toFixed(2)} <span className="text-xs font-semibold text-slate-400">(${actualModalCostInfo.usd.toFixed(4)})</span>
-              </h3>
-              <p className="text-[10px] text-slate-500 mt-2">
-                Actual compute cost for {modalLogs.length} execution runs
-              </p>
+          {/* Header & 4 Executive Cards */}
+          <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 sm:p-7 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                  <ModalLogo className="h-5 w-auto" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-base">Modal Matrix</h3>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <span className="text-xs font-mono font-bold text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-xl">
+                  {modalLogs.length} Executions Endured
+                </span>
+              </div>
             </div>
 
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg">
-              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Invocations</p>
-              <h3 className="text-2xl font-black text-white mt-1">
-                {modalLogs.length}
-              </h3>
-              <p className="text-[10px] text-slate-500 mt-2">
-                {modalStats.photosCount} Photos | {modalStats.videosCount} Videos ({modalStats.videoGpuCount} GPU) | {modalStats.selfiesCount} Selfies
-              </p>
+            {/* 4 Executive Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
+              <div className="rounded-2xl border border-indigo-500/30 bg-indigo-950/20 p-4 transition-all hover:border-indigo-500/50 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block mb-1">
+                    Total Compute Cost
+                  </span>
+                  <div className="text-2xl font-black text-indigo-200 font-mono">
+                    ₹{actualModalCostInfo.inr.toFixed(2)}
+                  </div>
+                  <span className="text-xs font-mono text-slate-400 mt-0.5 block">
+                    ${actualModalCostInfo.usd.toFixed(4)} USD ({modalLogs.length} invocations)
+                  </span>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-indigo-500/20 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Avg Cost / Run:</span>
+                    <span className="font-mono text-slate-200 font-medium">
+                      ₹{modalLogs.length > 0 ? (actualModalCostInfo.inr / modalLogs.length).toFixed(4) : '0.0000'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Total Compute Time:</span>
+                    <span className="font-mono text-indigo-300 font-bold">
+                      {(() => {
+                        const totalSec = modalLogs.reduce((acc, l) => acc + (Number(l.execution_time_seconds) || 0), 0);
+                        if (totalSec < 60) return `${totalSec.toFixed(1)}s`;
+                        const mins = Math.floor(totalSec / 60);
+                        const secs = Math.round(totalSec % 60);
+                        return `${mins}m ${secs}s`;
+                      })()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    Media Volume Processed
+                  </span>
+                  <div className="text-2xl font-black text-white font-mono">
+                    {formatSize(modalStats.totalMediaBytes)}
+                  </div>
+                  <span className="text-xs font-mono text-slate-400 mt-0.5 block">
+                    Across {modalStats.photosCount + modalStats.videosCount} media uploads
+                  </span>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-slate-800 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Photos:</span>
+                    <span className="font-mono text-slate-200 font-medium">{modalStats.photosCount} files</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Videos:</span>
+                    <span className="font-mono text-slate-200 font-medium">{modalStats.videosCount} files</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    Face Embeddings Indexed
+                  </span>
+                  <div className="text-2xl font-black text-white font-mono">
+                    {formatNumber(modalStats.totalFaces)}
+                  </div>
+                  <span className="text-xs font-mono text-slate-400 mt-0.5 block">
+                    512-D vector embeddings
+                  </span>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-slate-800 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Selfie Searches:</span>
+                    <span className="font-mono text-slate-200 font-medium">{modalStats.selfiesCount} lookups</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">Batch Dispatchers:</span>
+                    <span className="font-mono text-slate-200 font-medium">{modalStats.batchesCount} batches</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 transition-all hover:border-slate-700/80 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    Average Execution Duration
+                  </span>
+                  <div className="text-2xl font-black text-white font-mono">
+                    {modalStats.avgDuration.toFixed(2)}s
+                  </div>
+                  <span className="text-xs font-mono text-slate-400 mt-0.5 block">
+                    NVIDIA L4 GPU + High-Core CPU
+                  </span>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-slate-800 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">L4 GPU Video Runs:</span>
+                    <span className="font-mono text-amber-400 font-medium">{modalStats.videoGpuCount} runs</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span className="text-slate-400">CPU Video Transcoding:</span>
+                    <span className="font-mono text-cyan-400 font-medium">{modalStats.videoCpuCount} runs</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg">
-              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Media Volume Processed</p>
-              <h3 className="text-2xl font-black text-white mt-1">
-                {formatSize(modalStats.totalMediaBytes)}
-              </h3>
-              <p className="text-[10px] text-slate-500 mt-2">
-                Across {modalStats.photosCount + modalStats.videosCount} media uploads
-              </p>
-            </div>
+            {/* Worker Fleet Performance & Cost Breakdown Table */}
+            <div className="pt-2 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-slate-800/80 pt-5">
+                <div>
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    <ModalLogo className="h-4 w-auto" />
+                    <span>Worker Breakdown</span>
+                  </h4>
+                </div>
+                <div className="text-xs font-mono text-slate-400">
+                  <span className="font-semibold text-slate-200">{modalLogs.length}</span> total runs analyzed
+                </div>
+              </div>
 
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-2xl p-5 shadow-lg">
-              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Faces & Avg Time</p>
-              <h3 className="text-2xl font-black text-white mt-1">
-                {modalStats.totalFaces} <span className="text-xs font-normal text-slate-400">({modalStats.avgDuration.toFixed(2)}s avg)</span>
-              </h3>
-              <p className="text-[10px] text-slate-500 mt-2">
-                Face vector embeddings indexed
-              </p>
+              <div className="rounded-2xl border border-slate-800/80 overflow-hidden bg-slate-950/40">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-400">
+                    <thead className="bg-slate-950/90 text-slate-400 uppercase tracking-wider border-b border-slate-800 text-[10px]">
+                      <tr className="divide-x divide-slate-800">
+                        <th className="py-3 px-4 font-bold whitespace-nowrap">Worker Name</th>
+                        <th className="py-3 px-4 font-bold whitespace-nowrap">Cost Per Sec</th>
+                        <th className="py-3 px-4 font-bold whitespace-nowrap">Run time</th>
+                        <th className="py-3 px-4 font-bold whitespace-nowrap">Data</th>
+                        <th className="py-3 px-4 text-center font-bold whitespace-nowrap">Runs</th>
+                        <th className="py-3 px-4 text-right font-bold whitespace-nowrap">Costs</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/80">
+                      {modalWorkerBreakdown.map(worker => (
+                        <tr key={worker.key} className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors">
+                          <td className="py-3.5 px-4 whitespace-nowrap">
+                            <span className={`text-xs font-bold ${worker.textColor}`}>
+                              {worker.name}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 px-4 whitespace-nowrap font-mono tabular-nums">
+                            <div className="space-y-0.5">
+                              <span className="text-xs font-semibold text-slate-200 block">
+                                {currency === 'USD'
+                                  ? `$${worker.costPerSecUsd.toFixed(6)}/s`
+                                  : `₹${worker.costPerSecInr.toFixed(5)}/s`}
+                              </span>
+                              <span className="text-[10px] text-slate-500 block">
+                                {currency === 'USD'
+                                  ? `(₹${worker.costPerSecInr.toFixed(5)}/s)`
+                                  : `($${worker.costPerSecUsd.toFixed(6)}/s)`}
+                              </span>
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-4 whitespace-nowrap font-mono tabular-nums">
+                            <div className="space-y-0.5">
+                              <span className="text-xs font-bold text-white block">
+                                {(worker.totalDurationSeconds / 60).toFixed(2)} min
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-medium block">
+                                {worker.totalDurationSeconds.toFixed(2)} sec
+                              </span>
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-4 whitespace-nowrap font-mono tabular-nums">
+                            {worker.dataSizeBytes > 0 ? (
+                              <span className="text-xs font-semibold text-slate-200">
+                                {formatSize(worker.dataSizeBytes)}
+                              </span>
+                            ) : (
+                              <span className="text-slate-600">-</span>
+                            )}
+                          </td>
+
+                          <td className="py-3.5 px-4 text-center whitespace-nowrap font-mono tabular-nums">
+                            <span className="text-xs font-bold text-slate-200">
+                              {formatNumber(worker.runs)}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap">
+                            <span className="text-sm font-black text-indigo-300 block">
+                              {currency === 'USD'
+                                ? `$${worker.totalCostUsd.toFixed(4)}`
+                                : `₹${worker.totalCostInr.toFixed(2)}`}
+                            </span>
+                            <span className="text-[10px] font-medium text-slate-500 block">
+                              {currency === 'USD'
+                                ? `(₹${worker.totalCostInr.toFixed(2)})`
+                                : `($${worker.totalCostUsd.toFixed(4)})`}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-slate-950/90 border-t-2 border-slate-800 font-bold text-white text-xs divide-x divide-slate-800">
+                      <tr>
+                        <td className="py-3.5 px-4">
+                          <span>Total Fleet Utilization</span>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-slate-400 text-[11px]">
+                          Blended Compute
+                        </td>
+                        <td className="py-3.5 px-4 font-mono tabular-nums">
+                          <span className="text-white block">
+                            {(modalWorkerTotals.totalDuration / 60).toFixed(2)} min
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium block">
+                            {modalWorkerTotals.totalDuration.toFixed(2)} sec
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono tabular-nums text-slate-200">
+                          {formatSize(modalWorkerTotals.totalBytes)}
+                        </td>
+                        <td className="py-3.5 px-4 text-center font-mono tabular-nums">
+                          <span className="text-emerald-400 font-bold">
+                            {formatNumber(modalWorkerTotals.totalRuns)}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono tabular-nums">
+                          <span className="text-sm font-black text-indigo-300 block">
+                            {currency === 'USD'
+                              ? `$${actualModalCostInfo.usd.toFixed(4)}`
+                              : `₹${actualModalCostInfo.inr.toFixed(2)}`}
+                          </span>
+                          <span className="text-[10px] font-medium text-slate-500 block">
+                            {currency === 'USD'
+                              ? `(₹${actualModalCostInfo.inr.toFixed(2)})`
+                              : `($${actualModalCostInfo.usd.toFixed(4)})`}
+                          </span>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Cost Logs Table */}
-          <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+          {/* Execution & Cost Logs Table */}
+          <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 sm:p-7 shadow-xl space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
-                <h4 className="text-md font-bold text-white mb-1.5 flex items-center gap-2">
+                <h4 className="text-base font-bold text-white flex items-center gap-2">
                   <ModalLogo className="h-4 w-auto" />
-                  Modal.com Execution & Infrastructure Cost Logs ({timeframeLabel})
+                  <span>Modal Logs</span>
                 </h4>
-                <p className="text-slate-400 text-xs">
-                  Track real-time face indexing and video transcoding, attributed photographers, file sizes, video duration, worker hardware, and actual costs.
-                </p>
               </div>
+
               {loadingModalLogs && (
                 <div className="flex items-center text-xs text-indigo-400 space-x-2 animate-pulse bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-xl">
                   <Activity className="w-3.5 h-3.5 animate-spin" />
@@ -2713,9 +3279,8 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
               )}
             </div>
 
-            {/* Filter & Search Bar */}
-            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-3">
-              {/* Search input */}
+            {/* Filter & Search Toolbar */}
+            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-3.5 flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[220px]">
                 <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -2723,11 +3288,10 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                   placeholder="Search user, event, photo ID, worker..."
                   value={modalSearchTerm}
                   onChange={e => setModalSearchTerm(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 outline-none focus:border-indigo-500 font-medium"
                 />
               </div>
 
-              {/* User filter */}
               <div className="flex items-center space-x-1.5 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1">
                 <User className="w-3.5 h-3.5 text-slate-500" />
                 <select
@@ -2744,7 +3308,6 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                 </select>
               </div>
 
-              {/* Worker Fleet filter */}
               <div className="flex items-center space-x-1.5 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1">
                 <Cpu className="w-3.5 h-3.5 text-slate-500" />
                 <select
@@ -2761,7 +3324,6 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                 </select>
               </div>
 
-              {/* Reset button */}
               {(modalSearchTerm || modalUserFilter !== 'all' || modalWorkerFilter !== 'all') && (
                 <button
                   onClick={() => {
@@ -2776,245 +3338,166 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
               )}
             </div>
 
-            <div className="overflow-x-auto border border-slate-800/60 rounded-2xl">
-              <table className="w-full text-left text-xs text-slate-400">
-                <thead className="text-[10px] text-slate-500 uppercase bg-slate-900/30 border-b border-slate-800">
-                  <tr>
-                    <th className="py-3 px-4">Timestamp</th>
-                    <th className="py-3 px-4">Photographer / User</th>
-                    <th className="py-3 px-4">Media Asset & Size</th>
-                    <th className="py-3 px-4">Gallery / Event</th>
-                    <th className="py-3 px-4">Worker & Hardware Fleet</th>
-                    <th className="py-3 px-4">Exec Time</th>
-                    <th className="py-3 px-4">Faces</th>
-                    <th className="py-3 px-4">Actual Cost Endured</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/40 text-slate-350">
-                  {paginatedLogs.length > 0 ? (
-                    paginatedLogs.map(log => {
-                      const details = resolveLogDetails(log);
-                      const costUsd = computeModalLogCostUsd(log);
-                      const costInr = computeModalLogCostInr(log, usdToInrRate);
-                      const duration = Number(log.execution_time_seconds) || 0;
+            {/* Matrix Table */}
+            <div className="rounded-2xl border border-slate-800/80 overflow-hidden bg-slate-950/40">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-400">
+                  <thead className="bg-slate-950/90 text-slate-400 uppercase tracking-wider border-b border-slate-800 text-[10px]">
+                    <tr className="divide-x divide-slate-800">
+                      <th className="py-3 px-4 font-bold whitespace-nowrap">Timestamp</th>
+                      <th className="py-3 px-4 font-bold whitespace-nowrap">User</th>
+                      <th className="py-3 px-4 font-bold whitespace-nowrap">Size</th>
+                      <th className="py-3 px-4 font-bold whitespace-nowrap">Event Gallery</th>
+                      <th className="py-3 px-4 font-bold whitespace-nowrap">Worker</th>
+                      <th className="py-3 px-4 text-right font-bold whitespace-nowrap">Runtime</th>
+                      <th className="py-3 px-4 text-center font-bold whitespace-nowrap">Faces</th>
+                      <th className="py-3 px-4 text-right font-bold whitespace-nowrap">Actual Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/80">
+                    {paginatedLogs.length > 0 ? (
+                      paginatedLogs.map(log => {
+                        const details = resolveLogDetails(log);
+                        const costUsd = computeModalLogCostUsd(log);
+                        const costInr = computeModalLogCostInr(log, usdToInrRate);
+                        const duration = Number(log.execution_time_seconds) || 0;
 
-                      return (
-                        <tr key={log.id} className="hover:bg-slate-800/10 transition-colors">
-                          {/* Timestamp */}
-                          <td className="py-3 px-4 text-[11px] font-mono">
-                            <div className="font-semibold text-white">
-                              {new Date(log.created_at).toLocaleDateString()}
-                            </div>
-                            <div className="text-[10px] text-slate-500">
-                              {new Date(log.created_at).toLocaleTimeString()}
-                            </div>
-                          </td>
+                        return (
+                          <tr key={log.id} className="divide-x divide-slate-800 hover:bg-slate-900/40 transition-colors">
+                            <td className="py-3.5 px-4 text-[11px] font-mono whitespace-nowrap">
+                              <span className="font-semibold text-white block">{new Date(log.created_at).toLocaleDateString()}</span>
+                              <span className="text-[10px] text-slate-500 block">{new Date(log.created_at).toLocaleTimeString()}</span>
+                            </td>
 
-                          {/* Photographer / User */}
-                          <td className="py-3 px-4">
-                            <div className="flex items-center space-x-2.5">
-                              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-[11px] font-bold text-white shrink-0">
-                                {(details.resolvedUser?.name || details.resolvedUser?.email || 'U').charAt(0).toUpperCase()}
-                              </div>
-                              <div className="min-w-0 max-w-[170px]">
-                                <p className="text-xs font-semibold text-white truncate" title={details.resolvedUser?.name || 'Guest / Attendee'}>
+                            <td className="py-3.5 px-4 whitespace-nowrap">
+                              <div className="min-w-0 max-w-[200px]">
+                                <p className="text-xs font-semibold text-white truncate" title={details.resolvedUser?.name || details.resolvedUser?.email || 'Guest / Attendee'}>
                                   {details.resolvedUser?.name || details.resolvedUser?.username || (details.resolvedUserId ? 'User' : 'Guest / Attendee')}
                                 </p>
-                                <p className="text-[10px] text-slate-400 truncate" title={details.resolvedUser?.email || details.resolvedUser?.phone || details.resolvedUserId || ''}>
-                                  {details.resolvedUser?.email || details.resolvedUser?.phone || (details.resolvedUserId ? `ID: ${details.resolvedUserId.slice(0, 8)}…` : 'Anonymous Guest')}
+                                <p className="text-[10px] text-slate-400 truncate">
+                                  {details.resolvedUser?.email || (details.resolvedUserId ? `ID: ${details.resolvedUserId.slice(0, 8)}…` : 'Guest')}
                                 </p>
                               </div>
-                            </div>
-                          </td>
+                            </td>
 
-                          {/* Media Asset & Size */}
-                          <td className="py-3 px-4">
-                            <div className="space-y-1">
-                              <div className="flex items-center space-x-1.5 flex-wrap gap-1">
-                                {details.mediaType === 'video' ? (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
-                                    <Video className="w-2.5 h-2.5 mr-1" />
-                                    Video
-                                  </span>
-                                ) : details.mediaType === 'selfie' ? (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-purple-500/10 border border-purple-500/30 text-purple-400">
-                                    <User className="w-2.5 h-2.5 mr-1" />
-                                    Selfie
-                                  </span>
-                                ) : details.mediaType === 'batch' ? (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/10 border border-blue-500/30 text-blue-400">
-                                    <Layers className="w-2.5 h-2.5 mr-1" />
-                                    Batch
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-                                    <ImageIcon className="w-2.5 h-2.5 mr-1" />
-                                    Photo
-                                  </span>
-                                )}
+                            <td className="py-3.5 px-4 font-mono text-slate-200 whitespace-nowrap text-xs">
+                              {details.mediaSize != null && details.mediaSize > 0 ? (
+                                formatSize(details.mediaSize)
+                              ) : (
+                                <span className="text-slate-600">-</span>
+                              )}
+                            </td>
 
-                                {/* Media File Size */}
-                                {details.mediaSize != null && details.mediaSize > 0 && (
-                                  <span className="text-[10px] font-mono font-medium text-slate-300">
-                                    {formatSize(details.mediaSize)}
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Video duration if video */}
-                              {details.mediaType === 'video' && details.videoDuration != null && (
-                                <div className="flex items-center text-[10px] font-mono text-cyan-300">
-                                  <Clock className="w-2.5 h-2.5 mr-1 text-cyan-400" />
-                                  <span>Length: {formatDuration(details.videoDuration)}</span>
+                            <td className="py-3.5 px-4 whitespace-nowrap">
+                              {details.event ? (
+                                <div className="max-w-[180px]">
+                                  <p className="text-xs font-medium text-slate-200 truncate" title={details.event.title}>
+                                    {details.event.title}
+                                  </p>
+                                  {details.parentEvent ? (
+                                    <p className="text-[10px] text-purple-400 truncate" title={`Sub-gallery of ${details.parentEvent.title}`}>
+                                      Sub-gallery of {details.parentEvent.title}
+                                    </p>
+                                  ) : details.isSubGallery ? (
+                                    <span className="inline-block text-[10px] text-purple-400 font-medium">
+                                      Sub-gallery
+                                    </span>
+                                  ) : null}
                                 </div>
+                              ) : (
+                                <span className="text-slate-600">-</span>
                               )}
+                            </td>
 
-                              {log.photo_id && (
-                                <p className="text-[9px] font-mono text-slate-500 truncate max-w-[140px]" title={log.photo_id}>
-                                  {log.photo_id}
-                                </p>
-                              )}
-                            </div>
-                          </td>
-
-                          {/* Gallery / Event */}
-                          <td className="py-3 px-4">
-                            {details.event ? (
-                              <div className="max-w-[150px]">
-                                <p className="text-xs font-medium text-slate-200 truncate" title={details.event.title}>
-                                  📅 {details.event.title}
-                                </p>
-                                <p className="text-[9px] font-mono text-slate-500 truncate">
-                                  ID: {details.event.id.slice(0, 10)}…
-                                </p>
-                              </div>
-                            ) : details.eventId ? (
-                              <span className="text-[10px] font-mono text-slate-400 truncate block max-w-[130px]" title={details.eventId}>
-                                📅 {details.eventId.slice(0, 12)}…
+                            <td className="py-3.5 px-4 whitespace-nowrap">
+                              <span className={`text-xs font-semibold ${details.workerTextColor}`}>
+                                {details.workerName}
                               </span>
-                            ) : (
-                              <span className="text-slate-600">-</span>
-                            )}
-                          </td>
+                            </td>
 
-                          {/* Worker & Compute Fleet */}
-                          <td className="py-3 px-4">
-                            <div className="space-y-1">
-                              <div className="flex items-center space-x-1.5 flex-wrap gap-1">
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold border ${details.workerBadge}`}>
-                                  <Cpu className="w-2.5 h-2.5 mr-1" />
-                                  {details.workerTitle}
-                                </span>
-                                {details.isGpu && (
-                                  <span className="px-1.5 py-0.5 text-[8px] font-bold rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                                    NVIDIA L4
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[10px] font-mono text-slate-400">
-                                {details.workerSpecs}
-                              </p>
-                            </div>
-                          </td>
+                            <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap">
+                              <span className="font-bold text-white">{duration.toFixed(2)}s</span>
+                            </td>
 
-                          {/* Execution Time */}
-                          <td className="py-3 px-4 font-mono">
-                            <span className="font-semibold text-white">{duration.toFixed(2)}s</span>
-                          </td>
-
-                          {/* Faces Detected */}
-                          <td className="py-3 px-4">
-                            <span className="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-slate-800 text-slate-200 border border-slate-700">
+                            <td className="py-3.5 px-4 text-center font-mono tabular-nums text-slate-200 whitespace-nowrap">
                               {log.faces_detected ?? 0}
-                            </span>
-                          </td>
+                            </td>
 
-                          {/* Actual Cost Endured */}
-                          <td className="py-3 px-4 font-mono font-bold text-indigo-400">
-                            <div className="text-sm font-black text-indigo-300">
-                              ₹{costInr.toFixed(5)}
-                            </div>
-                            <div className="text-[10px] font-medium text-slate-400">
-                              (${costUsd.toFixed(6)})
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan={8} className="py-12 text-center text-slate-500">
-                        No Modal compute logs match the selected timeframe and filters.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-              
-              {/* Pagination Controls */}
+                            <td className="py-3.5 px-4 text-right font-mono tabular-nums whitespace-nowrap">
+                              <span className="text-sm font-black text-indigo-300 block">
+                                {currency === 'USD' ? `$${costUsd.toFixed(5)}` : `₹${costInr.toFixed(4)}`}
+                              </span>
+                              <span className="text-[10px] font-medium text-slate-500 block">
+                                {currency === 'USD' ? `(₹${costInr.toFixed(4)})` : `($${costUsd.toFixed(5)})`}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={8} className="py-12 text-center text-slate-500">
+                          No Modal compute logs found for the selected timeframe.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between border-t border-slate-800/60 px-4 py-4 sm:px-6 bg-slate-900/10">
+                <div className="flex items-center justify-between border-t border-slate-800 px-4 py-3 sm:px-6 bg-slate-950/60">
                   <div className="flex flex-1 justify-between sm:hidden">
                     <button
                       onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                       disabled={currentPage === 1}
-                      className="relative inline-flex items-center rounded-xl border border-slate-800 bg-slate-950 px-4 py-2 text-xs font-medium text-slate-450 hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      className="px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900 text-xs font-semibold text-slate-300 disabled:opacity-40"
                     >
                       Previous
                     </button>
                     <button
                       onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                       disabled={currentPage === totalPages}
-                      className="relative ml-3 inline-flex items-center rounded-xl border border-slate-800 bg-slate-950 px-4 py-2 text-xs font-medium text-slate-450 hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      className="px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900 text-xs font-semibold text-slate-300 disabled:opacity-40"
                     >
                       Next
                     </button>
                   </div>
                   <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-xs text-slate-400">
-                        Showing <span className="font-semibold text-white">{Math.min(filteredModalLogs.length, (currentPage - 1) * itemsPerPage + 1)}</span> to{' '}
-                        <span className="font-semibold text-white">{Math.min(filteredModalLogs.length, currentPage * itemsPerPage)}</span> of{' '}
-                        <span className="font-semibold text-white">{filteredModalLogs.length}</span> entries
-                      </p>
-                    </div>
-                    <div>
-                      <nav className="isolate inline-flex -space-x-px rounded-xl border border-slate-800/65 bg-slate-950 p-1 gap-1" aria-label="Pagination">
+                    <p className="text-xs text-slate-400">
+                      Showing <span className="font-bold text-white">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+                      <span className="font-bold text-white">{Math.min(filteredModalLogs.length, currentPage * itemsPerPage)}</span> of{' '}
+                      <span className="font-bold text-white">{filteredModalLogs.length}</span> logs
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="p-1.5 rounded-lg border border-slate-800 text-slate-400 hover:text-white disabled:opacity-30 cursor-pointer"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      {pageNumbers.map(page => (
                         <button
-                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                          disabled={currentPage === 1}
-                          className="relative inline-flex items-center rounded-lg p-1.5 text-slate-450 hover:bg-slate-900 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold font-mono transition-all cursor-pointer ${
+                            page === currentPage
+                              ? 'bg-indigo-600 text-white'
+                              : 'text-slate-400 hover:bg-slate-850 hover:text-white'
+                          }`}
                         >
-                          <span className="sr-only">Previous</span>
-                          <ChevronLeft className="h-4 w-4" />
+                          {page}
                         </button>
-                        
-                        {pageNumbers.map(page => {
-                          const isActive = page === currentPage;
-                          return (
-                            <button
-                              key={page}
-                              onClick={() => setCurrentPage(page)}
-                              className={`relative inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
-                                isActive
-                                  ? 'bg-indigo-650 text-white'
-                                  : 'text-slate-450 hover:bg-slate-900 hover:text-slate-200'
-                              }`}
-                            >
-                              {page}
-                            </button>
-                          );
-                        })}
-
-                        <button
-                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                          disabled={currentPage === totalPages}
-                          className="relative inline-flex items-center rounded-lg p-1.5 text-slate-450 hover:bg-slate-900 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                        >
-                          <span className="sr-only">Next</span>
-                          <ChevronRight className="h-4 w-4" />
-                        </button>
-                      </nav>
+                      ))}
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className="p-1.5 rounded-lg border border-slate-800 text-slate-400 hover:text-white disabled:opacity-30 cursor-pointer"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -3024,42 +3507,58 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
         </div>
       )}
 
-      {/* 5. Railway.app Tab */}
+      {/* ── TAB PANEL 6: RAILWAY (APP SERVER) DETAIL ── */}
       {activeSubTab === 'railway' && (
-        <div className="space-y-8 animate-fadeIn">
-          {/* Timeframe & Exchange Rate Controls */}
-          {renderFilterBar('bg-fuchsia-600', 'text-fuchsia-400')}
+        <div className="space-y-6">
+          {renderFilterBar('bg-fuchsia-600', 'text-fuchsia-400', 'border-fuchsia-500/20')}
 
-          {/* Live Cost Banner — shown when API is connected */}
+          {/* Live Railway Account Billing Banner */}
           {hasLiveRailway && liveRailwayData && (
-            <div className="bg-emerald-950/30 border border-emerald-800/40 rounded-3xl p-6 shadow-xl">
-              <div className="flex items-center gap-2 mb-5">
-                <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                <h4 className="text-base font-bold text-emerald-300">Live Railway Billing — {liveRailwayData.projectName}</h4>
-                <span className="ml-auto text-[10px] text-emerald-500 font-mono">Real-time via Railway GraphQL API</span>
+            <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-b from-[#111827] to-[#071a12] p-6 sm:p-7 shadow-xl space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                    <RailwayLogo className="h-4 w-auto text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-base">Live Railway GraphQL Billing — {liveRailwayData.projectName}</h3>
+                    <p className="text-[11px] text-slate-500">Real-time edge container CPU, RAM memory, and network egress metrics</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <span className="text-xs font-mono font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Live Sync Active
+                  </span>
+                </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="bg-emerald-950/40 rounded-2xl p-4">
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 pt-1">
+                <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4">
                   <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-1">CPU Compute</p>
-                  <p className="text-2xl font-black text-white">${liveRailwayData.cpuDollars.toFixed(2)}</p>
-                  <p className="text-[10px] text-emerald-500 mt-1">This month</p>
+                  <p className="text-xl font-black text-white font-mono">${liveRailwayData.cpuDollars.toFixed(2)}</p>
+                  <p className="text-[11px] text-slate-500 mt-1">This month</p>
                 </div>
-                <div className="bg-emerald-950/40 rounded-2xl p-4">
+
+                <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4">
                   <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-1">RAM Memory</p>
-                  <p className="text-2xl font-black text-white">${liveRailwayData.memoryDollars.toFixed(2)}</p>
-                  <p className="text-[10px] text-emerald-500 mt-1">This month</p>
+                  <p className="text-xl font-black text-white font-mono">${liveRailwayData.memoryDollars.toFixed(2)}</p>
+                  <p className="text-[11px] text-slate-500 mt-1">This month</p>
                 </div>
-                <div className="bg-emerald-950/40 rounded-2xl p-4">
+
+                <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4">
                   <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-1">Network Egress</p>
-                  <p className="text-2xl font-black text-white">${liveRailwayData.networkDollars.toFixed(2)}</p>
-                  <p className="text-[10px] text-emerald-500 mt-1">This month</p>
+                  <p className="text-xl font-black text-white font-mono">${liveRailwayData.networkDollars.toFixed(2)}</p>
+                  <p className="text-[11px] text-slate-500 mt-1">This month</p>
                 </div>
-                <div className="bg-emerald-900/30 border border-emerald-700/30 rounded-2xl p-4">
+
+                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4">
                   <p className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider mb-1">
                     {liveRailwayData.invoiceDollars !== null ? 'Current Invoice' : 'Estimated Total'}
                   </p>
-                  <p className="text-2xl font-black text-emerald-300">${actualRailwayCost.toFixed(2)}</p>
-                  <p className="text-[10px] text-emerald-500 mt-1">
+                  <p className="text-xl font-black text-emerald-300 font-mono">${actualRailwayCost.toFixed(2)}</p>
+                  <p className="text-[11px] font-mono text-slate-400 mt-1">
                     ₹{(actualRailwayCost * usdToInrRate).toFixed(0)} @ ₹{usdToInrRate}/USD
                   </p>
                 </div>
@@ -3067,49 +3566,24 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
             </div>
           )}
 
-          {/* Error state — token not configured */}
-          {liveRailwayData?.error && (
-            <div className="bg-amber-950/30 border border-amber-800/40 rounded-3xl p-5 flex items-start gap-3">
-              <HelpCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-bold text-amber-300">Live Railway data unavailable</p>
-                <p className="text-xs text-amber-400/80 mt-1">{liveRailwayData.error}</p>
-                <div className="mt-3 space-y-1.5 text-xs text-amber-400/70">
-                  <p>To enable live billing sync, add these to your Next.js <code className="bg-amber-950/60 px-1 rounded">.env.local</code>:</p>
-                  <p className="font-mono bg-amber-950/60 px-2 py-1 rounded text-amber-300">RAILWAY_API_TOKEN=your_account_token</p>
-                  <p className="font-mono bg-amber-950/60 px-2 py-1 rounded text-amber-300">RAILWAY_PROJECT_ID=your_project_id</p>
-                  <p className="text-amber-500 mt-2">
-                    ⚠️ Must be an <strong>Account Token</strong> — not a Project or Workspace token.<br />
-                    Get it from: <strong>Railway Dashboard → Account Settings → Tokens → New Token</strong>
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
+          {/* Interactive Server Simulator */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            {/* Left: Configuration Sliders */}
-            <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-8">
+            <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 shadow-xl space-y-6">
               <div>
-                <h4 className="text-lg font-bold text-white mb-2 flex items-center">
-                  <Sliders className="w-5 h-5 mr-2 text-fuchsia-400" />
-                  Railway Server Simulator
+                <h4 className="text-base font-bold text-white flex items-center gap-2">
+                  <Sliders className="w-5 h-5 text-fuchsia-400" />
+                  <span>Railway Node.js Server Allocation Simulator</span>
                 </h4>
-                <p className="text-slate-400 text-xs">
-                  {hasLiveRailway
-                    ? 'Live data is active above. Use these sliders to model future scaling scenarios.'
-                    : 'Railway.app bills your edge server usage by the second based on Memory and CPU allocation. Use the sliders to estimate your Node.js container\'s costs.'}
+                <p className="text-slate-400 text-xs mt-1">
+                  Railway bills per second for CPU, Memory, and Egress. Test container scaling profiles.
                 </p>
               </div>
 
-              <div className="space-y-8">
+              <div className="space-y-6 bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5">
                 <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <label className="text-sm font-semibold text-slate-300">Container RAM Allocation</label>
-                    <span className="px-3 py-1 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-fuchsia-400">
-                      {simulatedRailwayRAM.toFixed(1)} GB
-                    </span>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-xs font-bold text-slate-300 uppercase">Container RAM Allocation</label>
+                    <span className="font-mono font-bold text-fuchsia-400 text-xs">{simulatedRailwayRAM.toFixed(1)} GB</span>
                   </div>
                   <input
                     type="range"
@@ -3120,18 +3594,16 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                     onChange={e => setSimulatedRailwayRAM(Number(e.target.value))}
                     className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-fuchsia-500"
                   />
-                  <div className="flex justify-between mt-2 text-[10px] text-slate-500">
+                  <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
                     <span>0.5 GB</span>
-                    <span>8 GB</span>
+                    <span>8.0 GB</span>
                   </div>
                 </div>
 
                 <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <label className="text-sm font-semibold text-slate-300">Container vCPU Allocation</label>
-                    <span className="px-3 py-1 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-fuchsia-400">
-                      {simulatedRailwayCPU.toFixed(2)} vCPU
-                    </span>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-xs font-bold text-slate-300 uppercase">Container vCPU Allocation</label>
+                    <span className="font-mono font-bold text-fuchsia-400 text-xs">{simulatedRailwayCPU.toFixed(2)} vCPU</span>
                   </div>
                   <input
                     type="range"
@@ -3142,18 +3614,16 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                     onChange={e => setSimulatedRailwayCPU(Number(e.target.value))}
                     className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-fuchsia-500"
                   />
-                  <div className="flex justify-between mt-2 text-[10px] text-slate-500">
+                  <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
                     <span>0.05 vCPU</span>
-                    <span>4 vCPU</span>
+                    <span>4.0 vCPU</span>
                   </div>
                 </div>
 
                 <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <label className="text-sm font-semibold text-slate-300">Monthly Egress (Bandwidth)</label>
-                    <span className="px-3 py-1 bg-slate-900 border border-slate-700 rounded-xl text-xs font-bold text-fuchsia-400">
-                      {simulatedRailwayEgress} GB
-                    </span>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-xs font-bold text-slate-300 uppercase">Monthly Network Egress</label>
+                    <span className="font-mono font-bold text-fuchsia-400 text-xs">{simulatedRailwayEgress} GB</span>
                   </div>
                   <input
                     type="range"
@@ -3164,7 +3634,7 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
                     onChange={e => setSimulatedRailwayEgress(Number(e.target.value))}
                     className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-fuchsia-500"
                   />
-                  <div className="flex justify-between mt-2 text-[10px] text-slate-500">
+                  <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
                     <span>1 GB</span>
                     <span>500 GB</span>
                   </div>
@@ -3172,41 +3642,44 @@ export const InfraCostGrid: React.FC<Props> = ({ stats, users, events, guests, p
               </div>
             </div>
 
-            {/* Right: Cost Breakdown & Architecture Details */}
+            {/* Simulated Impact card */}
             <div className="space-y-6">
-              <div className="bg-[#111827]/80 border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-fuchsia-500/10 rounded-full blur-2xl pointer-events-none" />
-                <h4 className="text-lg font-bold text-white mb-6 border-b border-slate-800 pb-4">Estimated Monthly Impact</h4>
+              <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0c1322] p-6 shadow-xl space-y-4">
+                <h4 className="text-base font-bold text-white flex items-center gap-2">
+                  <RailwayLogo className="h-4 w-auto text-fuchsia-400" />
+                  <span>Simulated Monthly Upkeep Impact</span>
+                </h4>
                 
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-slate-400 text-sm">Memory Compute</span>
-                    <span className="font-mono text-white">${railwayRamCostMonth.toFixed(2)}</span>
+                <div className="space-y-3 text-xs pt-1">
+                  <div className="flex justify-between items-center py-2 border-b border-slate-800/50">
+                    <span className="text-slate-400">RAM Compute ($0.00000386/GB/s)</span>
+                    <span className="font-mono font-bold text-white">${railwayRamCostMonth.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-slate-400 text-sm">vCPU Compute</span>
-                    <span className="font-mono text-white">${railwayCpuCostMonth.toFixed(2)}</span>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-800/50">
+                    <span className="text-slate-400">vCPU Compute ($0.00000772/vCPU/s)</span>
+                    <span className="font-mono font-bold text-white">${railwayCpuCostMonth.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-slate-400 text-sm">Network Egress</span>
-                    <span className="font-mono text-white">${railwayEgressCostMonth.toFixed(2)}</span>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-800/50">
+                    <span className="text-slate-400">Network Egress ($0.05/GB)</span>
+                    <span className="font-mono font-bold text-white">${railwayEgressCostMonth.toFixed(2)}</span>
                   </div>
-                  <div className="border-t border-slate-800 pt-4 flex justify-between items-center">
-                    <span className="font-bold text-slate-300">Total Simulated Cost</span>
-                    <span className="font-mono font-black text-fuchsia-400 text-xl">${simulatedRailwayCost.toFixed(2)} / mo</span>
+                  <div className="flex justify-between items-center pt-3">
+                    <span className="font-bold text-slate-200">Total Railway Upkeep</span>
+                    <span className="font-mono font-black text-fuchsia-400 text-lg">
+                      ${simulatedRailwayCost.toFixed(2)} / mo (₹{(simulatedRailwayCost * usdToInrRate).toFixed(0)})
+                    </span>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-fuchsia-950/20 border border-fuchsia-900/30 rounded-3xl p-6">
-                <h4 className="text-sm font-bold text-fuchsia-300 mb-3 flex items-center">
-                  <Server className="w-4 h-4 mr-2" /> Server Architecture Notes
-                </h4>
-                <ul className="space-y-2 text-xs text-fuchsia-200/70 list-disc list-inside">
-                  <li><strong>Compute Profile:</strong> Next.js containers naturally idle around 0.005 vCPU and ~300MB RAM. Egress is drastically reduced because heavy media assets are served directly from Backblaze B2 & Cloudflare.</li>
-                  <li><strong>Execution Rates:</strong> Billed precisely by the second based on actual usage peaks. Memory is $0.00000386/GB/sec (~$10/GB/month), CPU is $0.00000772/vCPU/sec (~$20/vCPU/month), Egress is $0.05/GB.</li>
-                  <li><strong>Included Credits:</strong> Hobby plan ($5/mo) and Pro plan ($20/mo) come with matching usage credits — you only pay overage above that. Adjust sliders to your actual container allocation from Railway dashboard.</li>
-                </ul>
+              <div className="p-5 rounded-3xl border border-fuchsia-500/20 bg-fuchsia-950/15 space-y-2">
+                <h5 className="text-xs font-bold text-fuchsia-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Server className="w-3.5 h-3.5" />
+                  Container Server Profile
+                </h5>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  Next.js containers naturally idle around 0.005 vCPU and ~300MB RAM. Because heavy photos and videos are stored in Backblaze B2 and cached on Cloudflare, Railway egress remains near zero.
+                </p>
               </div>
             </div>
           </div>

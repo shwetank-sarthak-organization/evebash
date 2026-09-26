@@ -814,10 +814,11 @@ export const UserGrid: React.FC<Props> = ({ users, events = [], photos = [], res
     users.forEach(u => modalLogsByUser.set(u.id, []));
 
     modalLogs.forEach(log => {
-      let uid = log.user_id ? userByIdentifier.get(log.user_id.toLowerCase()) : undefined;
-      if (!uid && log.event_id) {
-        uid = eventIdToUserId.get(log.event_id);
-      }
+      // If the log is tied to an event/gallery, attribute compute to the event owner (host),
+      // matching how photo storage bytes are attributed to eventOwnerUserId.
+      const eventOwnerUid = log.event_id ? eventIdToUserId.get(log.event_id) : undefined;
+      const directUid = log.user_id ? userByIdentifier.get(log.user_id.toLowerCase()) : undefined;
+      const uid = eventOwnerUid || directUid;
       if (uid) {
         modalLogsByUser.get(uid)?.push(log);
       }

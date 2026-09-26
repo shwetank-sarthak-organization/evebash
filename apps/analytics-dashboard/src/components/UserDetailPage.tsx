@@ -6,10 +6,12 @@ import { runAdminAction } from '../lib/adminApi';
 import { GalleryViewer } from './GalleryViewer';
 import {
   ArrowLeft,
+  ArrowLeftRight,
   User,
   HardDrive,
   CreditCard,
   IndianRupee,
+  DollarSign,
   Calendar,
   Clock,
   ShieldCheck,
@@ -105,6 +107,7 @@ export { ModalLogo } from './ModalLogo';
 import { ModalLogo } from './ModalLogo';
 export { BackblazeLogo } from './BackblazeLogo';
 import { BackblazeLogo } from './BackblazeLogo';
+import { useCurrency } from '../lib/currency';
 
 export const UserDetailPage: React.FC<UserDetailPageProps> = ({
   user,
@@ -131,6 +134,46 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     }
   }, [activeTab]);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Shared Currency Engine (USD/INR Mode & Live Forex Rate)
+  const {
+    currency,
+    setCurrency,
+    rate: usdToInrRate,
+    rateInput: usdToInrRateInput,
+    handleRateInputChange,
+    syncLiveRate,
+    isSyncing: isSyncingRate,
+    marketRate,
+  } = useCurrency();
+
+  const fmtCost = (valUsd: number, decimals: number = 2): string => {
+    if (valUsd == null || isNaN(valUsd)) return currency === 'USD' ? '$0.00' : '₹0.00';
+    if (currency === 'USD') return `$${valUsd.toFixed(decimals)}`;
+    return `₹${(valUsd * usdToInrRate).toFixed(decimals)}`;
+  };
+
+  const fmtCostFromInr = (valInr: number, decimals: number = 2): string => {
+    if (valInr == null || isNaN(valInr)) return currency === 'USD' ? '$0.00' : '₹0.00';
+    if (currency === 'USD') return `$${(valInr / usdToInrRate).toFixed(decimals)}`;
+    return `₹${valInr.toFixed(decimals)}`;
+  };
+
+  const fmtSub = (valUsd: number, suffix: string = ''): string => {
+    if (valUsd == null || isNaN(valUsd)) return '';
+    const cleanSuffix = suffix ? ` ${suffix}` : '';
+    if (currency === 'USD') {
+      return `₹${(valUsd * usdToInrRate).toFixed(2)} INR${cleanSuffix}`;
+    }
+    const d = Math.abs(valUsd) < 0.01 && Math.abs(valUsd) > 0 ? 4 : 2;
+    return `$${valUsd.toFixed(d)} USD${cleanSuffix}`;
+  };
+
+  const fmtSubFromInr = (valInr: number, suffix: string = ''): string => {
+    if (valInr == null || isNaN(valInr)) return '';
+    const valUsd = valInr / usdToInrRate;
+    return fmtSub(valUsd, suffix);
+  };
 
   // Gallery viewer state for inspecting user uploads
   const [viewingGallery, setViewingGallery] = useState<Event | null>(null);
@@ -370,12 +413,13 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     const allUserEvents = Array.from(allUserEventsMap.values());
     const allUserEventIds = new Set(allUserEvents.map(e => (e.id || '').toLowerCase()));
 
-    // 3. User photos belonging to any of their events OR uploaded directly by the user
+    // 3. User photos belonging to any of their events OR standalone photos directly uploaded by user
     const userPhotos = photos.filter(p => {
       const pUploader = (p.userId || '').toLowerCase();
       const pEventId = (p.eventId || '').toLowerCase();
       const belongsByEvent = Boolean(pEventId && allUserEventIds.has(pEventId));
-      const belongsByUser = Boolean(pUploader && userIdentifiers.has(pUploader));
+      // Only attribute by uploader if the photo is NOT part of another host's event
+      const belongsByUser = Boolean(!pEventId && pUploader && userIdentifiers.has(pUploader));
       return belongsByEvent || belongsByUser;
     });
 
@@ -596,6 +640,12 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
         const activeIds = userEventMetrics.allUserEvents.map(e => e.id);
         const deletedIds = userDeleted.map(d => d.eventId);
         const allEventIds = Array.from(new Set([...activeIds, ...deletedIds])).filter(Boolean);
+        const allEventIdSet = new Set(allEventIds.map(id => (id || '').toLowerCase()));
+        const knownOtherEventIds = new Set(
+          events
+            .filter(e => !allEventIdSet.has((e.id || '').toLowerCase()))
+            .map(e => (e.id || '').toLowerCase())
+        );
 
         // Deduplication map by unique log id / signature
         const logsById = new Map<string, any>();
@@ -614,6 +664,11 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
 
             if (logsErr || !pageLogs || pageLogs.length === 0) break;
             pageLogs.forEach(log => {
+              const eid = (log.event_id || '').toLowerCase();
+              // If the log is for an event owned by another host, skip it (belongs to that event's host)
+              if (eid && knownOtherEventIds.has(eid)) {
+                return;
+              }
               const logKey = log.id || `${log.photo_id || ''}-${log.created_at || ''}-${log.function_name || ''}`;
               logsById.set(logKey, log);
             });
@@ -756,40 +811,50 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
 
   // ── High-Precision Actual Compute Metrics from modal_cost_logs ────────────
   const actualComputeMetrics = useMemo(() => {
+    let totalPhotoActualUsd = 0;
     let totalPhotoActualInr = 0;
     let totalPhotoSeconds = 0;
     let totalPhotoRuns = 0;
 
+    let totalBatchActualUsd = 0;
     let totalBatchActualInr = 0;
     let totalBatchSeconds = 0;
     let totalBatchRuns = 0;
 
+    let totalVideoCpuActualUsd = 0;
     let totalVideoCpuActualInr = 0;
     let totalVideoCpuSeconds = 0;
     let totalVideoCpuRuns = 0;
 
+    let totalVideoGpuActualUsd = 0;
     let totalVideoGpuActualInr = 0;
     let totalVideoGpuSeconds = 0;
     let totalVideoGpuRuns = 0;
 
+    let totalSelfieActualUsd = 0;
     let totalSelfieActualInr = 0;
     let totalSelfieSeconds = 0;
     let totalSelfieRuns = 0;
 
     // Per-event compute details
     const eventComputeMap = new Map<string, {
+      photoUsd: number;
       photoInr: number;
       photoSeconds: number;
       photoRuns: number;
+      videoCpuUsd: number;
       videoCpuInr: number;
       videoCpuSeconds: number;
       videoCpuRuns: number;
+      videoGpuUsd: number;
       videoGpuInr: number;
       videoGpuSeconds: number;
       videoGpuRuns: number;
+      selfieUsd: number;
       selfieInr: number;
       selfieSeconds: number;
       selfieRuns: number;
+      totalUsd: number;
       totalInr: number;
       totalSeconds: number;
     }>();
@@ -799,18 +864,23 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
       let stats = eventComputeMap.get(key);
       if (!stats) {
         stats = {
+          photoUsd: 0,
           photoInr: 0,
           photoSeconds: 0,
           photoRuns: 0,
+          videoCpuUsd: 0,
           videoCpuInr: 0,
           videoCpuSeconds: 0,
           videoCpuRuns: 0,
+          videoGpuUsd: 0,
           videoGpuInr: 0,
           videoGpuSeconds: 0,
           videoGpuRuns: 0,
+          selfieUsd: 0,
           selfieInr: 0,
           selfieSeconds: 0,
           selfieRuns: 0,
+          totalUsd: 0,
           totalInr: 0,
           totalSeconds: 0,
         };
@@ -830,6 +900,8 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
 
       const isGpu = 
         gpuType.toLowerCase().includes('l4') || 
+        gpuType.toLowerCase().includes('a10g') || 
+        gpuType.toLowerCase().includes('t4') || 
         fn.includes('video_gpu') || 
         fn.includes('gpu') || 
         workerType.includes('gpu') || 
@@ -853,76 +925,100 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
         mediaType === 'batch' || 
         workerType.includes('batch');
 
-      const gpuRate = isGpu ? 0.0222 : 0;
+      let gpuRateUsd = 0;
+      if (isGpu) {
+        if (gpuType.toLowerCase().includes('a10g')) gpuRateUsd = 0.0002778; // $1.00/hr
+        else if (gpuType.toLowerCase().includes('t4')) gpuRateUsd = 0.0001639; // $0.59/hr
+        else gpuRateUsd = 0.0002222; // $0.80/hr default L4
+      }
 
-      // Exact per-second compute rate from COST_ANALYSIS.md ($1 = ₹100):
-      // CPU: $0.0000131/vCPU/s (~₹0.00131/vCPU/s)
-      // RAM: $0.00000222/GB/s (~₹0.000222/GB/s)
-      // L4 GPU: $0.000222/s (~₹0.0222/s)
-      const calculatedCost = dur * ((cpu * 0.00131) + (mem * 0.000222) + gpuRate);
-      const cost = (typeof log.estimated_cost_inr === 'number' && !isNaN(log.estimated_cost_inr) && log.estimated_cost_inr > 0)
-        ? log.estimated_cost_inr
-        : calculatedCost;
+      // Exact per-second compute rate from COST_ANALYSIS.md
+      // CPU: $0.0000131/vCPU/s
+      // RAM: $0.00000222/GB/s
+      // L4 GPU: $0.0002222/s
+      const calculatedCostUsd = dur * ((cpu * 0.0000131) + (mem * 0.00000222) + gpuRateUsd);
+      const costUsd = (typeof log.cost_usd === 'number' && !isNaN(log.cost_usd) && log.cost_usd > 0)
+        ? log.cost_usd
+        : (typeof log.estimated_cost_inr === 'number' && !isNaN(log.estimated_cost_inr) && log.estimated_cost_inr > 0)
+          ? log.estimated_cost_inr / 100
+          : calculatedCostUsd;
+      const costInr = costUsd * usdToInrRate;
 
       const eventId = log.event_id || '';
       const eventStats = eventId ? getOrCreateEventStats(eventId) : null;
 
       if (isSelfie) {
-        totalSelfieActualInr += cost;
+        totalSelfieActualUsd += costUsd;
+        totalSelfieActualInr += costInr;
         totalSelfieSeconds += dur;
         totalSelfieRuns += 1;
         if (eventStats) {
-          eventStats.selfieInr += cost;
+          eventStats.selfieUsd += costUsd;
+          eventStats.selfieInr += costInr;
           eventStats.selfieSeconds += dur;
           eventStats.selfieRuns += 1;
-          eventStats.totalInr += cost;
+          eventStats.totalUsd += costUsd;
+          eventStats.totalInr += costInr;
           eventStats.totalSeconds += dur;
         }
       } else if (isGpu) {
-        totalVideoGpuActualInr += cost;
+        totalVideoGpuActualUsd += costUsd;
+        totalVideoGpuActualInr += costInr;
         totalVideoGpuSeconds += dur;
         totalVideoGpuRuns += 1;
         if (eventStats) {
-          eventStats.videoGpuInr += cost;
+          eventStats.videoGpuUsd += costUsd;
+          eventStats.videoGpuInr += costInr;
           eventStats.videoGpuSeconds += dur;
           eventStats.videoGpuRuns += 1;
-          eventStats.totalInr += cost;
+          eventStats.totalUsd += costUsd;
+          eventStats.totalInr += costInr;
           eventStats.totalSeconds += dur;
         }
       } else if (isVideo) {
-        totalVideoCpuActualInr += cost;
+        totalVideoCpuActualUsd += costUsd;
+        totalVideoCpuActualInr += costInr;
         totalVideoCpuSeconds += dur;
         totalVideoCpuRuns += 1;
         if (eventStats) {
-          eventStats.videoCpuInr += cost;
+          eventStats.videoCpuUsd += costUsd;
+          eventStats.videoCpuInr += costInr;
           eventStats.videoCpuSeconds += dur;
           eventStats.videoCpuRuns += 1;
-          eventStats.totalInr += cost;
+          eventStats.totalUsd += costUsd;
+          eventStats.totalInr += costInr;
           eventStats.totalSeconds += dur;
         }
       } else if (isBatch) {
-        totalBatchActualInr += cost;
+        totalBatchActualUsd += costUsd;
+        totalBatchActualInr += costInr;
         totalBatchSeconds += dur;
         totalBatchRuns += 1;
         if (eventStats) {
-          eventStats.photoInr += cost;
-          eventStats.totalInr += cost;
+          eventStats.photoUsd += costUsd;
+          eventStats.photoInr += costInr;
+          eventStats.totalUsd += costUsd;
+          eventStats.totalInr += costInr;
           eventStats.totalSeconds += dur;
         }
       } else {
-        totalPhotoActualInr += cost;
+        totalPhotoActualUsd += costUsd;
+        totalPhotoActualInr += costInr;
         totalPhotoSeconds += dur;
         totalPhotoRuns += 1;
         if (eventStats) {
-          eventStats.photoInr += cost;
+          eventStats.photoUsd += costUsd;
+          eventStats.photoInr += costInr;
           eventStats.photoSeconds += dur;
           eventStats.photoRuns += 1;
-          eventStats.totalInr += cost;
+          eventStats.totalUsd += costUsd;
+          eventStats.totalInr += costInr;
           eventStats.totalSeconds += dur;
         }
       }
     });
 
+    const totalVideoActualUsd = totalVideoCpuActualUsd + totalVideoGpuActualUsd;
     const totalVideoActualInr = totalVideoCpuActualInr + totalVideoGpuActualInr;
     const totalVideoSeconds = totalVideoCpuSeconds + totalVideoGpuSeconds;
     const totalVideoRuns = totalVideoCpuRuns + totalVideoGpuRuns;
@@ -931,10 +1027,15 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     const activeVideos = userEventMetrics.videoCount;
 
     // Remaining unlogged media gets added at observed user average (or COST_ANALYSIS benchmark if 0 runs)
-    const avgObservedPhotoCost = totalPhotoRuns > 0 ? (totalPhotoActualInr / totalPhotoRuns) : 0.0082;
-    const avgObservedVideoCpuCost = totalVideoCpuRuns > 0 ? (totalVideoCpuActualInr / totalVideoCpuRuns) : 0.35;
-    const avgObservedVideoGpuCost = totalVideoGpuRuns > 0 ? (totalVideoGpuActualInr / totalVideoGpuRuns) : 1.75;
-    const avgObservedVideoCost = totalVideoRuns > 0 ? (totalVideoActualInr / totalVideoRuns) : 0.35;
+    const avgObservedPhotoCostUsd = totalPhotoRuns > 0 ? (totalPhotoActualUsd / totalPhotoRuns) : 0.000082;
+    const avgObservedVideoCpuCostUsd = totalVideoCpuRuns > 0 ? (totalVideoCpuActualUsd / totalVideoCpuRuns) : 0.0035;
+    const avgObservedVideoGpuCostUsd = totalVideoGpuRuns > 0 ? (totalVideoGpuActualUsd / totalVideoGpuRuns) : 0.0175;
+    const avgObservedVideoCostUsd = totalVideoRuns > 0 ? (totalVideoActualUsd / totalVideoRuns) : 0.0035;
+
+    const avgObservedPhotoCost = avgObservedPhotoCostUsd * usdToInrRate;
+    const avgObservedVideoCpuCost = avgObservedVideoCpuCostUsd * usdToInrRate;
+    const avgObservedVideoGpuCost = avgObservedVideoGpuCostUsd * usdToInrRate;
+    const avgObservedVideoCost = avgObservedVideoCostUsd * usdToInrRate;
 
     let lifetimePhotosCount = totalPhotoRuns;
     let lifetimeVideosCount = totalVideoRuns;
@@ -986,40 +1087,59 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     const unloggedGpuVideos = Math.min(unloggedVideos, Math.max(0, activeGpuVideosCandidateCount - totalVideoGpuRuns));
     const unloggedCpuVideos = Math.max(0, unloggedVideos - unloggedGpuVideos);
 
-    const effectivePhotoInr = totalPhotoActualInr + totalBatchActualInr + (unloggedPhotos * avgObservedPhotoCost);
-    const effectiveVideoCpuInr = totalVideoCpuActualInr + (unloggedCpuVideos * avgObservedVideoCpuCost);
-    const effectiveVideoGpuInr = totalVideoGpuActualInr + (unloggedGpuVideos * avgObservedVideoGpuCost);
-    const effectiveVideoInr = effectiveVideoCpuInr + effectiveVideoGpuInr;
-    const effectiveSelfieInr = totalSelfieActualInr;
+    const effectivePhotoUsd = totalPhotoActualUsd + totalBatchActualUsd + (unloggedPhotos * avgObservedPhotoCostUsd);
+    const effectiveVideoCpuUsd = totalVideoCpuActualUsd + (unloggedCpuVideos * avgObservedVideoCpuCostUsd);
+    const effectiveVideoGpuUsd = totalVideoGpuActualUsd + (unloggedGpuVideos * avgObservedVideoGpuCostUsd);
+    const effectiveVideoUsd = effectiveVideoCpuUsd + effectiveVideoGpuUsd;
+    const effectiveSelfieUsd = totalSelfieActualUsd;
+    const totalModalUsd = effectivePhotoUsd + effectiveVideoUsd + effectiveSelfieUsd;
 
-    const totalModalInr = effectivePhotoInr + effectiveVideoInr + effectiveSelfieInr;
+    const effectivePhotoInr = effectivePhotoUsd * usdToInrRate;
+    const effectiveVideoCpuInr = effectiveVideoCpuUsd * usdToInrRate;
+    const effectiveVideoGpuInr = effectiveVideoGpuUsd * usdToInrRate;
+    const effectiveVideoInr = effectiveVideoUsd * usdToInrRate;
+    const effectiveSelfieInr = effectiveSelfieUsd * usdToInrRate;
+    const totalModalInr = totalModalUsd * usdToInrRate;
+
     const totalComputeSeconds = totalPhotoSeconds + totalBatchSeconds + totalVideoSeconds + totalSelfieSeconds;
 
     return {
+      totalPhotoActualUsd,
       totalPhotoActualInr,
       totalPhotoSeconds,
       totalPhotoRuns,
+      totalBatchActualUsd,
       totalBatchActualInr,
       totalBatchSeconds,
       totalBatchRuns,
+      totalVideoCpuActualUsd,
       totalVideoCpuActualInr,
       totalVideoCpuSeconds,
       totalVideoCpuRuns,
+      totalVideoGpuActualUsd,
       totalVideoGpuActualInr,
       totalVideoGpuSeconds,
       totalVideoGpuRuns,
+      totalVideoActualUsd,
       totalVideoActualInr,
       totalVideoSeconds,
       totalVideoRuns,
+      totalSelfieActualUsd,
       totalSelfieActualInr,
       totalSelfieSeconds,
       totalSelfieRuns,
       totalComputeSeconds,
+      effectivePhotoUsd,
       effectivePhotoInr,
+      effectiveVideoCpuUsd,
       effectiveVideoCpuInr,
+      effectiveVideoGpuUsd,
       effectiveVideoGpuInr,
+      effectiveVideoUsd,
       effectiveVideoInr,
+      effectiveSelfieUsd,
       effectiveSelfieInr,
+      totalModalUsd,
       totalModalInr,
       lifetimePhotosCount,
       lifetimeVideosCount,
@@ -1031,12 +1151,16 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
       deletedVideosCount: Math.max(0, lifetimeVideosCount - activeVideos),
       totalLifetimeMedia: lifetimePhotosCount + lifetimeVideosCount,
       eventComputeMap,
+      avgObservedPhotoCostUsd,
       avgObservedPhotoCost,
+      avgObservedVideoCostUsd,
       avgObservedVideoCost,
+      avgObservedVideoCpuCostUsd,
       avgObservedVideoCpuCost,
+      avgObservedVideoGpuCostUsd,
       avgObservedVideoGpuCost,
     };
-  }, [windowModalLogs, userEventMetrics.imageCount, userEventMetrics.videoCount, userEventMetrics.userPhotos, deletedEvents, economicsWindow, photos]);
+  }, [windowModalLogs, userEventMetrics.imageCount, userEventMetrics.videoCount, userEventMetrics.userPhotos, deletedEvents, economicsWindow, photos, usdToInrRate]);
 
   // Formatted helpers
   const formatBytes = (bytes: number | null | undefined): string => {
@@ -1475,20 +1599,23 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
 
     const totalGbHours = rows.reduce((s, r) => s + r.gbHours, 0);
     const totalBillableGbMonths = totalGbHours / 720;
-    const totalStorageCostInr = totalBillableGbMonths * 0.60;
-    const totalStorageCostUsd = totalStorageCostInr / 100;
+    const totalStorageCostUsd = totalBillableGbMonths * 0.006;
+    const totalStorageCostInr = totalStorageCostUsd * usdToInrRate;
 
     const totalClassCUploads = rows.reduce((s, r) => s + r.classCUploads, 0);
     const totalClassCDeletions = rows.reduce((s, r) => s + r.classCDeletions, 0);
     const totalClassC = totalClassCUploads + totalClassCDeletions;
-    const totalClassCCostInr = (totalClassC / 1000) * 0.40;
+    const totalClassCCostUsd = (totalClassC / 1000) * 0.004;
+    const totalClassCCostInr = totalClassCCostUsd * usdToInrRate;
 
     const totalClassB = rows.reduce((s, r) => s + r.classBReads, 0);
-    const totalClassBCostInr = (totalClassB / 10000) * 0.40;
+    const totalClassBCostUsd = (totalClassB / 10000) * 0.004;
+    const totalClassBCostInr = totalClassBCostUsd * usdToInrRate;
 
-    const totalTransactionCostInr = totalClassCCostInr + totalClassBCostInr;
-    const grandTotalB2CostInr = totalStorageCostInr + totalTransactionCostInr;
-    const grandTotalB2CostUsd = grandTotalB2CostInr / 100;
+    const totalTransactionCostUsd = totalClassCCostUsd + totalClassBCostUsd;
+    const totalTransactionCostInr = totalTransactionCostUsd * usdToInrRate;
+    const grandTotalB2CostUsd = totalStorageCostUsd + totalTransactionCostUsd;
+    const grandTotalB2CostInr = grandTotalB2CostUsd * usdToInrRate;
 
     const freeTierStorageCreditInr = 0;
     const netBilledB2CostInr = grandTotalB2CostInr;
@@ -1533,9 +1660,12 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
       totalClassCDeletions,
       totalClassC,
       totalClassCCostInr,
+      totalClassCCostUsd,
       totalClassB,
       totalClassBCostInr,
+      totalClassBCostUsd,
       totalTransactionCostInr,
+      totalTransactionCostUsd,
       grandTotalB2CostInr,
       grandTotalB2CostUsd,
       freeTierStorageCreditInr,
@@ -1548,24 +1678,33 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     photos,
     deletedEvents,
     modalLogs,
-    user.createdAt
+    user.createdAt,
+    usdToInrRate,
   ]);
 
-  // Cost calculations strictly adhering to COST_ANALYSIS.md ($1 = ₹100)
+  // Cost calculations strictly adhering to COST_ANALYSIS.md ($1 = ₹100 fallback, live forex supported)
   // Actual per-second hardware billing for Compute; State-based for B2 Storage
   const costBreakdown = useMemo(() => {
     // 1. Backblaze B2 Storage (State-Based / Monthly Recurring):
     // Only ACTIVE media currently occupying B2 disk space is billed recurringly monthly.
-    // Rate: ₹600 / TB / month ($0.006 / GB / month = ₹0.60 / GB / month)
-    const b2MonthlyInr = usedGb * 0.60;
+    // Rate: $0.006 / GB / month (~₹0.60 / GB / month at $1=₹100)
+    const b2MonthlyUsd = usedGb * 0.006;
+    const b2MonthlyInr = b2MonthlyUsd * usdToInrRate;
+    const b2YearlyUsd = b2MonthlyUsd * 12;
     const b2YearlyInr = b2MonthlyInr * 12;
 
     // 2. Modal.com Serverless Compute Workers (Actual Per-Second Hardware Consumption in window):
+    const modalPhotoUsd = actualComputeMetrics.effectivePhotoUsd;
     const modalPhotoInr = actualComputeMetrics.effectivePhotoInr;
+    const modalVideoCpuUsd = actualComputeMetrics.effectiveVideoCpuUsd;
     const modalVideoCpuInr = actualComputeMetrics.effectiveVideoCpuInr;
+    const modalVideoGpuUsd = actualComputeMetrics.effectiveVideoGpuUsd;
     const modalVideoGpuInr = actualComputeMetrics.effectiveVideoGpuInr;
+    const modalVideoUsd = actualComputeMetrics.effectiveVideoUsd;
     const modalVideoInr = actualComputeMetrics.effectiveVideoInr;
+    const modalSelfieUsd = actualComputeMetrics.effectiveSelfieUsd;
     const modalSelfieInr = actualComputeMetrics.effectiveSelfieInr;
+    const modalTotalUsd = actualComputeMetrics.totalModalUsd;
     const modalTotalInr = actualComputeMetrics.totalModalInr;
 
     // Platform-level fixed infrastructure (Supabase DB & Upstash Queue) excluded from per-user unit economics
@@ -1628,23 +1767,28 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
       lifetimeGbHours += delGb * 720;
     });
 
-    const lifetimeStorageCostInr = (lifetimeGbHours / 720) * 0.60;
-    const lifetimeTxCostInr = ((actualComputeMetrics.totalLifetimeMedia + deletedEvents.reduce((s, d) => s + (Number(d.photosCount) || 0) + (Number(d.videosCount) || 0), 0)) / 1000) * 0.40;
-    const b2CostTillNowInr = Math.max(b2MonthlyInr * monthsActive, lifetimeStorageCostInr + lifetimeTxCostInr);
+    const lifetimeStorageCostUsd = (lifetimeGbHours / 720) * 0.006;
+    const lifetimeTxCostUsd = ((actualComputeMetrics.totalLifetimeMedia + deletedEvents.reduce((s, d) => s + (Number(d.photosCount) || 0) + (Number(d.videosCount) || 0), 0)) / 1000) * 0.004;
+    const b2CostTillNowUsd = Math.max(b2MonthlyUsd * monthsActive, lifetimeStorageCostUsd + lifetimeTxCostUsd);
+    const b2CostTillNowInr = b2CostTillNowUsd * usdToInrRate;
 
     // Total Monthly Cost to EveBash (Active recurring storage only: Backblaze B2)
+    const totalMonthlyCostUsd = b2MonthlyUsd;
     const totalMonthlyCostInr = b2MonthlyInr;
 
     // Cumulative Cost to EveBash ENDURED TILL NOW (Direct user costs: Modal compute + B2 storage endured)
-    const totalLifetimeCostInr = modalTotalInr + b2CostTillNowInr;
+    const totalLifetimeCostUsd = modalTotalUsd + b2CostTillNowUsd;
+    const totalLifetimeCostInr = totalLifetimeCostUsd * usdToInrRate;
 
     // Real captured / offline revenue from payments ledger
     const capturedPayments = payments.filter(p => p.status === 'captured' || p.status === 'manual_offline');
     const totalCollectedRevenueInr = capturedPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const totalCollectedRevenueUsd = totalCollectedRevenueInr / usdToInrRate;
     const hasRecordedPayments = capturedPayments.length > 0;
 
     // Actual Net Profit: Cash collected minus actual infrastructure cost endured
     const actualNetProfitInr = totalCollectedRevenueInr - totalLifetimeCostInr;
+    const actualNetProfitUsd = totalCollectedRevenueUsd - totalLifetimeCostUsd;
     const actualMarginPercentage = totalCollectedRevenueInr > 0
       ? Math.round((actualNetProfitInr / totalCollectedRevenueInr) * 100)
       : null;
@@ -1652,41 +1796,60 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     // Windowed calculations (for the selected global timeframe filter)
     const windowCapturedPayments = windowPayments.filter(p => p.status === 'captured' || p.status === 'manual_offline');
     const windowCollectedRevenueInr = windowCapturedPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const windowCollectedRevenueUsd = windowCollectedRevenueInr / usdToInrRate;
     const windowHasRecordedPayments = windowCapturedPayments.length > 0;
 
     // Window Infrastructure Cost (B2 Storage & Tx + Modal Compute):
-    const currentB2InWindow = economicsWindow.isAllTime ? b2CostTillNowInr : b2MeteringData.grandTotalB2CostInr;
-    const currentModalInWindow = modalTotalInr;
+    const currentB2InWindowUsd = economicsWindow.isAllTime ? b2CostTillNowUsd : b2MeteringData.grandTotalB2CostUsd;
+    const currentB2InWindowInr = currentB2InWindowUsd * usdToInrRate;
+    const currentModalInWindowUsd = modalTotalUsd;
+    const currentModalInWindowInr = modalTotalInr;
 
-    const windowInfraCostInr = economicsWindow.isAllTime
-      ? totalLifetimeCostInr
-      : (b2MeteringData.grandTotalB2CostInr + modalTotalInr);
+    const windowInfraCostUsd = economicsWindow.isAllTime
+      ? totalLifetimeCostUsd
+      : (currentB2InWindowUsd + currentModalInWindowUsd);
+    const windowInfraCostInr = windowInfraCostUsd * usdToInrRate;
 
     const windowNetProfitInr = windowCollectedRevenueInr - windowInfraCostInr;
+    const windowNetProfitUsd = windowCollectedRevenueUsd - windowInfraCostUsd;
     const windowMarginPercentage = windowCollectedRevenueInr > 0
       ? Math.round((windowNetProfitInr / windowCollectedRevenueInr) * 100)
       : null;
 
     // User Subscription Theoretical Revenue
     const monthlyRevenueInr = currentPlan.monthlyPriceInr;
+    const monthlyRevenueUsd = monthlyRevenueInr / usdToInrRate;
     const yearlyRevenueInr = monthlyRevenueInr * 12;
+    const yearlyRevenueUsd = monthlyRevenueUsd * 12;
 
     const monthlyGrossMarginInr = monthlyRevenueInr - totalMonthlyCostInr;
+    const monthlyGrossMarginUsd = monthlyRevenueUsd - totalMonthlyCostUsd;
     const monthlyMarginPercentage = monthlyRevenueInr > 0
       ? Math.round((monthlyGrossMarginInr / monthlyRevenueInr) * 100)
       : null;
 
     return {
+      b2MonthlyUsd,
       b2MonthlyInr,
+      b2YearlyUsd,
       b2YearlyInr,
+      b2CostTillNowUsd,
       b2CostTillNowInr,
+      b2MonthlyCostUsd: b2MonthlyUsd,
       b2MonthlyCostInr: b2MonthlyInr,
+      b2YearlyCostUsd: b2YearlyUsd,
       b2YearlyCostInr: b2YearlyInr,
+      modalPhotoUsd,
       modalPhotoInr,
+      modalVideoCpuUsd,
       modalVideoCpuInr,
+      modalVideoGpuUsd,
       modalVideoGpuInr,
+      modalVideoUsd,
       modalVideoInr,
+      modalSelfieUsd,
       modalSelfieInr,
+      modalTotalUsd,
       modalTotalInr,
       modalInr: modalTotalInr, // backwards-compatible alias
       qstashInr: 0,
@@ -1694,37 +1857,49 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
       supabaseYearlyInr: 0,
       supabaseCostTillNowInr: 0,
       supabaseWindowInr: 0,
+      totalMonthlyCostUsd,
       totalMonthlyCostInr,
+      totalLifetimeCostUsd,
       totalLifetimeCostInr,
       totalCostTillNowInr: totalLifetimeCostInr,
       totalYearlyCostInr: totalLifetimeCostInr, // backwards-compatible alias
       monthsActive,
+      monthlyRevenueUsd,
       monthlyRevenueInr,
+      yearlyRevenueUsd,
       yearlyRevenueInr,
+      monthlyGrossMarginUsd,
       monthlyGrossMarginInr,
       monthlyMarginPercentage,
+      totalCollectedRevenueUsd,
       totalCollectedRevenueInr,
       hasRecordedPayments,
+      actualNetProfitUsd,
       actualNetProfitInr,
       actualMarginPercentage,
       totalPaymentsCount: payments.length,
       capturedPaymentsCount: capturedPayments.length,
       failedPaymentsCount: payments.filter(p => p.status === 'failed').length,
       // Windowed properties
+      windowInfraCostUsd,
       windowInfraCostInr,
-      windowB2Inr: currentB2InWindow,
-      windowModalInr: currentModalInWindow,
+      windowB2Usd: currentB2InWindowUsd,
+      windowB2Inr: currentB2InWindowInr,
+      windowModalUsd: currentModalInWindowUsd,
+      windowModalInr: currentModalInWindowInr,
       windowQstashInr: 0,
       windowSupabaseInr: 0,
+      windowCollectedRevenueUsd,
       windowCollectedRevenueInr,
       windowHasRecordedPayments,
+      windowNetProfitUsd,
       windowNetProfitInr,
       windowMarginPercentage,
       windowPaymentsCount: windowPayments.length,
       windowCapturedPaymentsCount: windowCapturedPayments.length,
       windowFailedPaymentsCount: windowPayments.filter(p => p.status === 'failed').length,
     };
-  }, [usedGb, actualComputeMetrics, userEventMetrics, photos, deletedEvents, modalLogs, currentPlan, user.createdAt, payments, windowPayments, economicsWindow, b2MeteringData.grandTotalB2CostInr]);
+  }, [usedGb, actualComputeMetrics, userEventMetrics, photos, deletedEvents, modalLogs, currentPlan, user.createdAt, payments, windowPayments, economicsWindow, b2MeteringData.grandTotalB2CostInr, b2MeteringData.grandTotalB2CostUsd, usdToInrRate]);
 
   // Unified cost table gallery row representation
   interface CostGalleryRowActive {
@@ -1769,15 +1944,23 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     searchableText: string;
     orphanedId: string;
     stats: {
+      photoUsd: number;
       photoInr: number;
       photoSeconds: number;
       photoRuns: number;
+      videoCpuUsd: number;
       videoCpuInr: number;
       videoCpuSeconds: number;
       videoCpuRuns: number;
+      videoGpuUsd: number;
       videoGpuInr: number;
       videoGpuSeconds: number;
       videoGpuRuns: number;
+      selfieUsd?: number;
+      selfieInr?: number;
+      selfieSeconds?: number;
+      selfieRuns?: number;
+      totalUsd: number;
       totalInr: number;
       totalSeconds: number;
     };
@@ -3434,34 +3617,111 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
       {/* SUBPAGE 5: ECONOMICS */}
       {activeTab === 'cost' && (
         <div className="space-y-6 animate-fadeIn">
-          {/* Global Economics Timeframe Filter (Positioned Above Economics Container on Right) */}
-          <div className="flex flex-col items-end gap-2">
-            {/* Quick Filters */}
-            <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 shadow-sm shrink-0">
-              {(['1d', '1w', '1m', 'custom', 'all'] as const).map((filterKey) => {
-                const labels: Record<typeof filterKey, string> = {
-                  '1d': '1 Day',
-                  '1w': '1 Week',
-                  '1m': '1 Month',
-                  'custom': 'Custom',
-                  'all': 'All Time',
-                };
-                const isActive = economicsTimeFilter === filterKey;
-                return (
-                  <button
-                    key={filterKey}
-                    type="button"
-                    onClick={() => setEconomicsTimeFilter(filterKey)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      isActive
-                        ? 'bg-sky-600 text-white shadow-md shadow-sky-900/30'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                    }`}
-                  >
-                    {labels[filterKey]}
-                  </button>
-                );
-              })}
+          {/* Global Economics Controls Toolbar */}
+          <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              {/* Dollar - INR Conversion (Positioned Above Economics Container on Top Left) */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800/90 rounded-2xl p-1.5 shadow-sm">
+                  {/* Badge Label */}
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-300">
+                    <ArrowLeftRight className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                    <span className="text-[11px] font-bold tracking-tight whitespace-nowrap">Dollar – INR Conversion</span>
+                  </div>
+
+                  {/* Currency Toggle (INR / USD) */}
+                  <div className="flex items-center bg-slate-950/80 p-0.5 rounded-xl border border-slate-800 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setCurrency('INR')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        currency === 'INR'
+                          ? 'bg-purple-600 text-white shadow-md shadow-purple-900/40'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title="Display all user costs in Indian Rupees (INR)"
+                    >
+                      ₹ INR
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrency('USD')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        currency === 'USD'
+                          ? 'bg-purple-600 text-white shadow-md shadow-purple-900/40'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title="Display all user costs in US Dollars (USD)"
+                    >
+                      $ USD
+                    </button>
+                  </div>
+
+                  {/* Conversion Rate Setter ($1 = ₹Rate) */}
+                  <div className="flex items-center space-x-1.5 bg-slate-950/80 border border-slate-800 rounded-xl px-2.5 py-1 shrink-0">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      Rate:
+                    </span>
+                    <span className="font-mono font-bold text-xs text-sky-400">$1</span>
+                    <span className="text-slate-500 text-xs font-bold">=</span>
+                    <div className="flex items-center font-mono font-bold text-white text-xs">
+                      <span className="text-emerald-400 mr-0.5">₹</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={usdToInrRateInput}
+                        onChange={e => handleRateInputChange(e.target.value)}
+                        className="bg-transparent text-white text-xs border-0 outline-none w-11 text-center font-bold font-mono focus:ring-0"
+                        title="Edit USD to INR exchange rate"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={syncLiveRate}
+                      disabled={isSyncingRate}
+                      className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition-colors disabled:opacity-50 cursor-pointer"
+                      title={marketRate ? `Market rate: ₹${marketRate}. Click to re-sync.` : "Sync live USD/INR exchange rate"}
+                    >
+                      <RefreshCw className={`w-3 h-3 ${isSyncingRate ? 'animate-spin text-emerald-400' : ''}`} />
+                    </button>
+                  </div>
+
+                  {/* Live Forex sync status pill */}
+                  {marketRate && (
+                    <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono text-emerald-400/90 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg shrink-0">
+                      Live: ₹{marketRate}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Filters */}
+              <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 shadow-sm shrink-0 self-end sm:self-auto">
+                {(['1d', '1w', '1m', 'custom', 'all'] as const).map((filterKey) => {
+                  const labels: Record<typeof filterKey, string> = {
+                    '1d': '1 Day',
+                    '1w': '1 Week',
+                    '1m': '1 Month',
+                    'custom': 'Custom',
+                    'all': 'All Time',
+                  };
+                  const isActive = economicsTimeFilter === filterKey;
+                  return (
+                    <button
+                      key={filterKey}
+                      type="button"
+                      onClick={() => setEconomicsTimeFilter(filterKey)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-sky-600 text-white shadow-md shadow-sky-900/30'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      }`}
+                    >
+                      {labels[filterKey]}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Custom Date Pickers (Positioned Below Timeframe Chooser with Calendar Trigger) */}
@@ -3502,7 +3762,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
-                  <IndianRupee className="w-5 h-5" />
+                  {currency === 'USD' ? <DollarSign className="w-5 h-5" /> : <IndianRupee className="w-5 h-5" />}
                 </div>
                 <h2 className="text-base font-bold text-white">Economics</h2>
               </div>
@@ -3527,10 +3787,10 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                     </span>
                   </div>
                   <div className="text-2xl font-black text-purple-200 font-mono">
-                    ₹{costBreakdown.windowInfraCostInr.toFixed(2)}
+                    {fmtCost(costBreakdown.windowInfraCostUsd)}
                   </div>
                   <span className="text-xs font-mono text-slate-400 mt-0.5 block">
-                    ${(costBreakdown.windowInfraCostInr / 100).toFixed(2)} USD (Total Incurred)
+                    {fmtSub(costBreakdown.windowInfraCostUsd, '(Total Incurred)')}
                   </span>
                 </div>
 
@@ -3541,14 +3801,14 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                       <HardDrive className="w-3 h-3 text-sky-400 shrink-0" />
                       Backblaze B2:
                     </span>
-                    <span className="font-mono text-slate-200 font-medium">₹{costBreakdown.windowB2Inr.toFixed(2)}</span>
+                    <span className="font-mono text-slate-200 font-medium">{fmtCost(costBreakdown.windowB2Usd)}</span>
                   </div>
                   <div className="flex items-center justify-between text-slate-300">
                     <span className="flex items-center gap-1.5 text-slate-400">
                       <Sparkles className="w-3 h-3 text-purple-400 shrink-0" />
                       Modal AI Compute:
                     </span>
-                    <span className="font-mono text-slate-200 font-medium">₹{costBreakdown.windowModalInr.toFixed(2)}</span>
+                    <span className="font-mono text-slate-200 font-medium">{fmtCost(costBreakdown.modalTotalUsd)}</span>
                   </div>
                 </div>
               </div>
@@ -3560,10 +3820,10 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                     Monthly Recurring
                   </span>
                   <div className="text-2xl font-black text-white font-mono">
-                    ₹{costBreakdown.totalMonthlyCostInr.toFixed(2)}
+                    {fmtCost(costBreakdown.totalMonthlyCostUsd)}
                   </div>
                   <span className="text-xs font-mono text-slate-400 mt-0.5 block">
-                    ${(costBreakdown.totalMonthlyCostInr / 100).toFixed(4)} USD/mo (B2 Storage)
+                    {fmtSub(costBreakdown.totalMonthlyCostUsd, '/mo (B2 Storage)')}
                   </span>
                 </div>
 
@@ -3573,14 +3833,14 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                       <HardDrive className="w-3 h-3 text-sky-400 shrink-0" />
                       B2 Disk Storage:
                     </span>
-                    <span className="font-mono text-slate-200 font-medium">₹{costBreakdown.b2MonthlyInr.toFixed(2)}/mo</span>
+                    <span className="font-mono text-slate-200 font-medium">{fmtCost(costBreakdown.b2MonthlyUsd)}/mo</span>
                   </div>
                   <div className="flex items-center justify-between text-slate-300">
                     <span className="flex items-center gap-1.5 text-slate-400">
-                      <IndianRupee className="w-3 h-3 text-slate-500 shrink-0" />
+                      {currency === 'USD' ? <DollarSign className="w-3 h-3 text-slate-500 shrink-0" /> : <IndianRupee className="w-3 h-3 text-slate-500 shrink-0" />}
                       Annual Baseline:
                     </span>
-                    <span className="font-mono text-slate-200 font-medium">₹{(costBreakdown.totalMonthlyCostInr * 12).toFixed(2)}/yr</span>
+                    <span className="font-mono text-slate-200 font-medium">{fmtCost(costBreakdown.totalMonthlyCostUsd * 12)}/yr</span>
                   </div>
                   <div className="flex items-center justify-between text-slate-300">
                     <span className="flex items-center gap-1.5 text-slate-400">
@@ -3599,7 +3859,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                     {economicsWindow.isAllTime ? 'Compute Incurred' : `Compute Incurred (${economicsWindow.durationLabel})`}
                   </span>
                   <div className="text-2xl font-black text-white font-mono">
-                    ₹{costBreakdown.modalTotalInr.toFixed(2)}
+                    {fmtCost(costBreakdown.modalTotalUsd)}
                   </div>
                   <span className="text-xs text-slate-400 mt-0.5 block">
                     Modal GPU/CPU Workers
@@ -3612,21 +3872,21 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                       <ImageIcon className="w-3 h-3 text-sky-400 shrink-0" />
                       Photo AI Worker:
                     </span>
-                    <span className="font-mono text-slate-200 font-medium">₹{costBreakdown.modalPhotoInr.toFixed(2)}</span>
+                    <span className="font-mono text-slate-200 font-medium">{fmtCost(costBreakdown.modalPhotoUsd)}</span>
                   </div>
                   <div className="flex items-center justify-between text-slate-300">
                     <span className="flex items-center gap-1.5 text-slate-400">
                       <VideoIcon className="w-3 h-3 text-purple-400 shrink-0" />
                       Video Workers:
                     </span>
-                    <span className="font-mono text-slate-200 font-medium">₹{costBreakdown.modalVideoInr.toFixed(2)}</span>
+                    <span className="font-mono text-slate-200 font-medium">{fmtCost(costBreakdown.modalVideoUsd)}</span>
                   </div>
                   <div className="flex items-center justify-between text-slate-300">
                     <span className="flex items-center gap-1.5 text-slate-400">
                       <Sparkles className="w-3 h-3 text-pink-400 shrink-0" />
                       Selfie Search:
                     </span>
-                    <span className="font-mono text-slate-200 font-medium">₹{costBreakdown.modalSelfieInr.toFixed(2)}</span>
+                    <span className="font-mono text-slate-200 font-medium">{fmtCost(costBreakdown.modalSelfieUsd)}</span>
                   </div>
                 </div>
               </div>
@@ -3645,14 +3905,16 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                       : (costBreakdown.monthlyMarginPercentage !== null ? 'text-emerald-400' : 'text-slate-400')
                   }`}>
                     {costBreakdown.windowHasRecordedPayments
-                      ? `₹${costBreakdown.windowNetProfitInr.toFixed(2)}`
+                      ? (currency === 'USD'
+                          ? (costBreakdown.windowNetProfitUsd >= 0 ? `$${costBreakdown.windowNetProfitUsd.toFixed(2)}` : `-$${Math.abs(costBreakdown.windowNetProfitUsd).toFixed(2)}`)
+                          : (costBreakdown.windowNetProfitInr >= 0 ? `₹${costBreakdown.windowNetProfitInr.toFixed(2)}` : `-₹${Math.abs(costBreakdown.windowNetProfitInr).toFixed(2)}`))
                       : (costBreakdown.monthlyMarginPercentage !== null ? `${costBreakdown.monthlyMarginPercentage}%` : 'Free Tier')}
                   </div>
                   <span className="text-xs text-slate-400 mt-0.5 block">
                     {costBreakdown.windowHasRecordedPayments
-                      ? `${costBreakdown.windowMarginPercentage ?? 0}% margin (₹${costBreakdown.windowCollectedRevenueInr.toFixed(0)} collected)`
+                      ? `${costBreakdown.windowMarginPercentage ?? 0}% margin (${fmtCostFromInr(costBreakdown.windowCollectedRevenueInr, 0)} collected)`
                       : (cleanRole !== 'free' && cleanRole !== 'freemium'
-                        ? (economicsWindow.isAllTime ? 'Promotional / Unpaid Role (₹0 paid)' : `₹0 collected in ${economicsWindow.durationLabel}`)
+                        ? (economicsWindow.isAllTime ? `Promotional / Unpaid Role (${currency === 'USD' ? '$0' : '₹0'} paid)` : `${currency === 'USD' ? '$0' : '₹0'} collected in ${economicsWindow.durationLabel}`)
                         : 'Non-paying user account')}
                   </span>
                 </div>
@@ -3663,14 +3925,14 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                       <Banknote className="w-3 h-3 text-emerald-400 shrink-0" />
                       Cash Collected:
                     </span>
-                    <span className="font-mono text-emerald-300 font-medium">₹{costBreakdown.windowCollectedRevenueInr.toFixed(2)}</span>
+                    <span className="font-mono text-emerald-300 font-medium">{fmtCostFromInr(costBreakdown.windowCollectedRevenueInr)}</span>
                   </div>
                   <div className="flex items-center justify-between text-slate-300">
                     <span className="flex items-center gap-1.5 text-slate-400">
                       <CreditCard className="w-3 h-3 text-rose-400 shrink-0" />
                       Incurred Cost:
                     </span>
-                    <span className="font-mono text-rose-300 font-medium">-₹{costBreakdown.windowInfraCostInr.toFixed(2)}</span>
+                    <span className="font-mono text-rose-300 font-medium">-{fmtCost(costBreakdown.windowInfraCostUsd)}</span>
                   </div>
                   <div className="flex items-center justify-between text-slate-300">
                     <span className="flex items-center gap-1.5 text-slate-400">
@@ -3737,10 +3999,10 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                           {economicsWindow.isAllTime ? 'Total Cash Collected' : 'Cash Collected'}
                         </span>
                         <div className="text-2xl font-black text-emerald-300 font-mono">
-                          ₹{totalCollected.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {fmtCostFromInr(totalCollected)}
                         </div>
                         <span className="text-xs font-mono text-slate-400 mt-0.5 block">
-                          ${(totalCollected / 100).toFixed(2)} USD ({validPmts.length} captured)
+                          {fmtSubFromInr(totalCollected, `(${validPmts.length} captured)`)}
                         </span>
                       </div>
                       <div className="mt-3 pt-2.5 border-t border-emerald-500/20 space-y-1.5 text-[11px]">
@@ -3749,22 +4011,22 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                             <CreditCard className="w-3 h-3 text-sky-400 shrink-0" />
                             Razorpay Online:
                           </span>
-                          <span className="font-mono text-slate-200 font-medium">₹{onlineCollected.toFixed(2)} ({onlineCount})</span>
+                          <span className="font-mono text-slate-200 font-medium">{fmtCostFromInr(onlineCollected)} ({onlineCount})</span>
                         </div>
                         <div className="flex items-center justify-between text-slate-300">
                           <span className="flex items-center gap-1.5 text-slate-400">
                             <Banknote className="w-3 h-3 text-emerald-400 shrink-0" />
                             Manual Offline:
                           </span>
-                          <span className="font-mono text-slate-200 font-medium">₹{offlineCollected.toFixed(2)} ({offlineCount})</span>
+                          <span className="font-mono text-slate-200 font-medium">{fmtCostFromInr(offlineCollected)} ({offlineCount})</span>
                         </div>
                         <div className="flex items-center justify-between text-slate-300">
                           <span className="flex items-center gap-1.5 text-slate-400">
-                            <IndianRupee className="w-3 h-3 text-slate-500 shrink-0" />
+                            {currency === 'USD' ? <DollarSign className="w-3 h-3 text-slate-500 shrink-0" /> : <IndianRupee className="w-3 h-3 text-slate-500 shrink-0" />}
                             Avg Order Value:
                           </span>
                           <span className="font-mono text-slate-200 font-medium">
-                            ₹{validPmts.length > 0 ? (totalCollected / validPmts.length).toFixed(2) : '0.00'}
+                            {validPmts.length > 0 ? fmtCostFromInr(totalCollected / validPmts.length) : (currency === 'USD' ? '$0.00' : '₹0.00')}
                           </span>
                         </div>
                       </div>
@@ -3785,10 +4047,12 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                         <div className={`text-2xl font-black font-mono ${
                           netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'
                         }`}>
-                          ₹{netProfit.toFixed(2)}
+                          {currency === 'USD'
+                            ? (netProfit / usdToInrRate >= 0 ? `$${(netProfit / usdToInrRate).toFixed(2)}` : `-$${Math.abs(netProfit / usdToInrRate).toFixed(2)}`)
+                            : (netProfit >= 0 ? `₹${netProfit.toFixed(2)}` : `-₹${Math.abs(netProfit).toFixed(2)}`)}
                         </div>
                         <span className="text-xs font-mono text-slate-400 mt-0.5 block">
-                          Collected (₹{totalCollected.toFixed(0)}) − Infra (₹{costBreakdown.windowInfraCostInr.toFixed(0)})
+                          Collected ({fmtCostFromInr(totalCollected, 0)}) − Infra ({fmtCost(costBreakdown.windowInfraCostUsd, 0)})
                         </span>
                       </div>
                       <div className={`mt-3 pt-2.5 border-t ${
@@ -3835,7 +4099,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                           {economicsWindow.isAllTime ? 'Lifetime Infra Cost' : 'Infra Cost'}
                         </span>
                         <div className="text-2xl font-black text-purple-200 font-mono">
-                          ₹{costBreakdown.windowInfraCostInr.toFixed(2)}
+                          {fmtCost(costBreakdown.windowInfraCostUsd)}
                         </div>
                         <span className="text-xs font-mono text-slate-400 mt-0.5 block">
                           B2 Storage + Modal AI Compute
@@ -3847,21 +4111,21 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                             <HardDrive className="w-3 h-3 text-sky-400 shrink-0" />
                             Backblaze B2:
                           </span>
-                          <span className="font-mono text-slate-200 font-medium">₹{costBreakdown.windowB2Inr.toFixed(2)}</span>
+                          <span className="font-mono text-slate-200 font-medium">{fmtCost(costBreakdown.windowB2Usd)}</span>
                         </div>
                         <div className="flex items-center justify-between text-slate-300">
                           <span className="flex items-center gap-1.5 text-slate-400">
                             <Sparkles className="w-3 h-3 text-pink-400 shrink-0" />
                             Modal.com AI:
                           </span>
-                          <span className="font-mono text-slate-200 font-medium">₹{costBreakdown.windowModalInr.toFixed(2)}</span>
+                          <span className="font-mono text-slate-200 font-medium">{fmtCost(costBreakdown.modalTotalUsd)}</span>
                         </div>
                         <div className="flex items-center justify-between text-slate-300">
                           <span className="flex items-center gap-1.5 text-slate-400">
                             <Clock className="w-3 h-3 text-slate-500 shrink-0" />
                             Storage Burn/day:
                           </span>
-                          <span className="font-mono text-slate-200 font-medium">₹{(costBreakdown.b2MonthlyInr / 30).toFixed(3)}/day</span>
+                          <span className="font-mono text-slate-200 font-medium">{fmtCost(costBreakdown.b2MonthlyUsd / 30, 3)}/day</span>
                         </div>
                       </div>
                     </div>
@@ -3967,10 +4231,10 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                   Storage Cost
                 </span>
                 <div className="text-xl font-black text-sky-300 font-mono">
-                  ₹{b2MeteringData.totalStorageCostInr.toFixed(2)}
+                  {fmtCost(b2MeteringData.totalStorageCostUsd)}
                 </div>
                 <span className="text-[11px] font-mono text-slate-400 mt-1 block">
-                  ${b2MeteringData.totalStorageCostUsd.toFixed(4)} USD (@ ₹0.60/GB-mo)
+                  {fmtSub(b2MeteringData.totalStorageCostUsd, '(@ $0.006/GB-mo)')}
                 </span>
               </div>
 
@@ -3980,7 +4244,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                   API Transactions
                 </span>
                 <div className="text-xl font-black text-amber-300 font-mono">
-                  ₹{b2MeteringData.totalTransactionCostInr.toFixed(2)}
+                  {fmtCost(b2MeteringData.totalTransactionCostUsd)}
                 </div>
                 <span className="text-[11px] font-mono text-slate-400 mt-1 block">
                   {b2MeteringData.totalClassC} Class C &bull; {b2MeteringData.totalClassB} Class B
@@ -3993,10 +4257,10 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                   Total BB Incurred
                 </span>
                 <div className="text-xl font-black text-sky-200 font-mono">
-                  ₹{b2MeteringData.grandTotalB2CostInr.toFixed(2)}
+                  {fmtCost(b2MeteringData.grandTotalB2CostUsd)}
                 </div>
                 <span className="text-[11px] font-mono text-slate-300 mt-1 block">
-                  ${b2MeteringData.grandTotalB2CostUsd.toFixed(4)} USD
+                  {fmtSub(b2MeteringData.grandTotalB2CostUsd)}
                 </span>
               </div>
             </div>
@@ -4012,7 +4276,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                 </div>
                 <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
                   <span className="text-xs font-mono font-bold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-3 py-1.5 rounded-full">
-                    Total B2 Cost: ₹{b2MeteringData.grandTotalB2CostInr.toFixed(2)}
+                    Total B2 Cost: {fmtCost(b2MeteringData.grandTotalB2CostUsd)}
                   </span>
                 </div>
               </div>
@@ -4045,22 +4309,22 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
 
                         {/* 4. Storage Cost */}
                         <td className="py-3.5 px-3 text-right font-mono tabular-nums whitespace-nowrap">
-                          <span className="text-sky-300 font-bold">₹{b2MeteringData.totalStorageCostInr.toFixed(2)}</span>
+                          <span className="text-sky-300 font-bold">{fmtCost(b2MeteringData.totalStorageCostUsd)}</span>
                         </td>
 
                         {/* 5. Class C (Uploads & Deletions) */}
                         <td className="py-3.5 px-3 text-right font-mono tabular-nums whitespace-nowrap">
-                          <span className="text-amber-300 font-bold">₹{b2MeteringData.totalClassCCostInr.toFixed(2)}</span>
+                          <span className="text-amber-300 font-bold">{fmtCost(b2MeteringData.totalClassCCostUsd, 4)}</span>
                         </td>
 
                         {/* 6. Class B (Reads) */}
                         <td className="py-3.5 px-3 text-right font-mono tabular-nums whitespace-nowrap">
-                          <span className="text-amber-200 font-bold">₹{b2MeteringData.totalClassBCostInr.toFixed(2)}</span>
+                          <span className="text-amber-200 font-bold">{fmtCost(b2MeteringData.totalClassBCostUsd, 4)}</span>
                         </td>
 
                         {/* 7. Total B2 Cost */}
                         <td className="py-3.5 px-3.5 text-right font-mono tabular-nums whitespace-nowrap bg-sky-950/20">
-                          <span className="text-sky-200 font-black text-sm">₹{b2MeteringData.grandTotalB2CostInr.toFixed(2)}</span>
+                          <span className="text-sky-200 font-black text-sm">{fmtCost(b2MeteringData.grandTotalB2CostUsd)}</span>
                         </td>
                       </tr>
                     </tbody>
@@ -4105,7 +4369,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                       <ImageIcon className="w-4 h-4 text-sky-400" />
                       Photo AI Worker
                     </span>
-                    <span className="font-mono text-white font-bold text-sm">₹{costBreakdown.modalPhotoInr.toFixed(2)}</span>
+                    <span className="font-mono text-white font-bold text-sm">{fmtCost(costBreakdown.modalPhotoUsd)}</span>
                   </div>
                   <div className="text-[11px] font-mono text-slate-400 mt-1">
                     <code>process_single_photo</code> &bull; <code>process_media_batch</code>
@@ -4114,13 +4378,13 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                     <div className="flex justify-between items-baseline">
                       <span>Single Photo (Worker):</span>
                       <span className="font-mono text-slate-200">
-                        ₹{actualComputeMetrics.totalPhotoActualInr.toFixed(2)} <span className="text-[11px] text-slate-400">({actualComputeMetrics.lifetimePhotosCount} photos &bull; {actualComputeMetrics.totalPhotoSeconds.toFixed(1)}s)</span>
+                        {fmtCost(actualComputeMetrics.totalPhotoActualUsd)} <span className="text-[11px] text-slate-400">({actualComputeMetrics.lifetimePhotosCount} photos &bull; {actualComputeMetrics.totalPhotoSeconds.toFixed(1)}s)</span>
                       </span>
                     </div>
                     <div className="flex justify-between items-baseline">
                       <span>Batch Dispatcher:</span>
                       <span className="font-mono text-slate-200">
-                        ₹{actualComputeMetrics.totalBatchActualInr.toFixed(3)} <span className="text-[11px] text-slate-400">({actualComputeMetrics.totalBatchRuns} batches &bull; {actualComputeMetrics.totalBatchSeconds.toFixed(1)}s)</span>
+                        {fmtCost(actualComputeMetrics.totalBatchActualUsd, 3)} <span className="text-[11px] text-slate-400">({actualComputeMetrics.totalBatchRuns} batches &bull; {actualComputeMetrics.totalBatchSeconds.toFixed(1)}s)</span>
                       </span>
                     </div>
                     <div className="flex justify-between pt-1 border-t border-slate-800/60">
@@ -4130,7 +4394,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                   </div>
                 </div>
                 <div className="pt-2 border-t border-slate-800/60 text-[11px] text-slate-400 flex items-center justify-between">
-                  <span>Avg ~₹{(costBreakdown.modalPhotoInr / Math.max(1, actualComputeMetrics.lifetimePhotosCount)).toFixed(4)}/photo</span>
+                  <span>Avg ~{fmtCost(costBreakdown.modalPhotoUsd / Math.max(1, actualComputeMetrics.lifetimePhotosCount), 4)}/photo</span>
                   {actualComputeMetrics.deletedPhotosCount > 0 && (
                     <span className="text-amber-400/90 text-[10px] font-medium">({actualComputeMetrics.deletedPhotosCount} deleted retained)</span>
                   )}
@@ -4145,7 +4409,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                       <VideoIcon className="w-4 h-4 text-violet-400" />
                       Standard Video Worker
                     </span>
-                    <span className="font-mono text-white font-bold text-sm">₹{costBreakdown.modalVideoCpuInr.toFixed(2)}</span>
+                    <span className="font-mono text-white font-bold text-sm">{fmtCost(costBreakdown.modalVideoCpuUsd)}</span>
                   </div>
                   <div className="text-[11px] font-mono text-slate-400 mt-1">
                     <code>process_video_cpu (&le; 10 min)</code>
@@ -4153,7 +4417,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                   <div className="text-xs text-slate-400 mt-2 space-y-1">
                     <div className="flex justify-between">
                       <span>Hardware:</span>
-                      <span className="font-mono text-slate-300">4.0 vCPU + 4GB RAM (₹0.00613/s)</span>
+                      <span className="font-mono text-slate-300">4.0 vCPU + 4GB RAM ({fmtCost((4 * 0.0000131) + (4 * 0.00000222), 5)}/s)</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Total Execution:</span>
@@ -4178,7 +4442,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                       <VideoIcon className="w-4 h-4 text-fuchsia-400" />
                       High-Capacity Video Worker
                     </span>
-                    <span className="font-mono text-white font-bold text-sm">₹{costBreakdown.modalVideoGpuInr.toFixed(2)}</span>
+                    <span className="font-mono text-white font-bold text-sm">{fmtCost(costBreakdown.modalVideoGpuUsd)}</span>
                   </div>
                   <div className="text-[11px] font-mono text-slate-400 mt-1">
                     <code>process_video_gpu (&gt; 10 min)</code>
@@ -4186,7 +4450,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                   <div className="text-xs text-slate-400 mt-2 space-y-1">
                     <div className="flex justify-between">
                       <span>Hardware:</span>
-                      <span className="font-mono text-slate-300">Nvidia L4 GPU + 4.0 vCPU (₹0.02922/s)</span>
+                      <span className="font-mono text-slate-300">Nvidia L4 GPU + 4.0 vCPU ({fmtCost(0.0002222 + (4 * 0.0000131), 5)}/s)</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Total Execution:</span>
@@ -4212,7 +4476,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                   <span className="font-semibold text-white">Guest Face Match Worker (<code>find_matching_photos</code>)</span>
                   <span className="text-slate-400">&bull; 0.125 vCPU + 1GB RAM &bull; {actualComputeMetrics.totalSelfieSeconds.toFixed(1)}s ({actualComputeMetrics.totalSelfieRuns} searches)</span>
                 </div>
-                <span className="font-mono text-white font-bold">₹{costBreakdown.modalSelfieInr.toFixed(3)}</span>
+                <span className="font-mono text-white font-bold">{fmtCost(costBreakdown.modalSelfieUsd, 3)}</span>
               </div>
             )}
 
@@ -4222,7 +4486,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                 Execution: <strong className="text-slate-200">{actualComputeMetrics.totalComputeSeconds.toFixed(1)}s</strong>
               </span>
               <span className="text-slate-400">
-                Total Modal Compute: <strong className="text-purple-300 text-sm">₹{costBreakdown.modalTotalInr.toFixed(2)}</strong>
+                Total Modal Compute: <strong className="text-purple-300 text-sm">{fmtCost(costBreakdown.modalTotalUsd)}</strong>
               </span>
             </div>
 
@@ -4308,12 +4572,12 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                         <th className="py-2.5 px-3 font-bold">Gallery</th>
                         <th className="py-2.5 px-2.5 font-bold whitespace-nowrap">gal_ID</th>
                         <th className="py-2.5 px-2.5 text-right font-bold whitespace-nowrap">Photos</th>
-                        <th className="py-2.5 px-2.5 text-right font-bold whitespace-nowrap">P_cost</th>
+                        <th className="py-2.5 px-2.5 text-right font-bold whitespace-nowrap">P_cost ({currency === 'USD' ? '$' : '₹'})</th>
                         <th className="py-2.5 px-2.5 text-right font-bold whitespace-nowrap">Videos CPU</th>
-                        <th className="py-2.5 px-2.5 text-right font-bold whitespace-nowrap">V_C_cost</th>
+                        <th className="py-2.5 px-2.5 text-right font-bold whitespace-nowrap">V_C_cost ({currency === 'USD' ? '$' : '₹'})</th>
                         <th className="py-2.5 px-2.5 text-right font-bold whitespace-nowrap">Videos GPU</th>
-                        <th className="py-2.5 px-2.5 text-right font-bold whitespace-nowrap">V_G_cost</th>
-                        <th className="py-2.5 px-3 text-right font-bold whitespace-nowrap">Total</th>
+                        <th className="py-2.5 px-2.5 text-right font-bold whitespace-nowrap">V_G_cost ({currency === 'USD' ? '$' : '₹'})</th>
+                        <th className="py-2.5 px-3 text-right font-bold whitespace-nowrap">Total ({currency === 'USD' ? '$' : '₹'})</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/60">
@@ -4335,7 +4599,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                               .filter(Boolean);
 
                             const eventPhotoRuns = allStats.reduce((s, st) => s + (st?.photoRuns || 0), 0);
-                            const eventPhotoActualInr = allStats.reduce((s, st) => s + (st?.photoInr || 0), 0);
+                            const eventPhotoActualUsd = allStats.reduce((s, st) => s + (st?.photoUsd || 0), 0);
 
                             const eventVideoCpuRuns = allStats.reduce((s, st) => s + (st?.videoCpuRuns || 0), 0);
                             const eventVideoGpuRuns = allStats.reduce((s, st) => s + (st?.videoGpuRuns || 0), 0);
@@ -4344,7 +4608,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                             // Accurate photo counts & cost
                             const galleryPhotoCount = Math.max(combined.imageCount, eventPhotoRuns);
                             const unloggedPhotos = Math.max(0, galleryPhotoCount - eventPhotoRuns);
-                            const eventPhotoCost = eventPhotoActualInr + (unloggedPhotos * actualComputeMetrics.avgObservedPhotoCost);
+                            const eventPhotoCostUsd = eventPhotoActualUsd + (unloggedPhotos * actualComputeMetrics.avgObservedPhotoCostUsd);
 
                             // Accurate video counts & cost split by CPU and GPU
                             const galleryVideoCount = Math.max(combined.videoCount, eventVideoRuns);
@@ -4375,13 +4639,13 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                             const unloggedGpuVideos = Math.min(unloggedVideos, Math.max(0, galleryGpuCandidates - eventVideoGpuRuns));
                             const unloggedCpuVideos = Math.max(0, unloggedVideos - unloggedGpuVideos);
 
-                            const eventVideoCpuActualInr = allStats.reduce((s, st) => s + (st?.videoCpuInr || 0), 0);
-                            const eventVideoGpuActualInr = allStats.reduce((s, st) => s + (st?.videoGpuInr || 0), 0);
-                            const eventVideoCpuCost = eventVideoCpuActualInr + (unloggedCpuVideos * actualComputeMetrics.avgObservedVideoCpuCost);
-                            const eventVideoGpuCost = eventVideoGpuActualInr + (unloggedGpuVideos * actualComputeMetrics.avgObservedVideoGpuCost);
-                            const eventSelfieActualInr = allStats.reduce((s, st) => s + (st?.selfieInr || 0), 0);
+                            const eventVideoCpuActualUsd = allStats.reduce((s, st) => s + (st?.videoCpuUsd || 0), 0);
+                            const eventVideoGpuActualUsd = allStats.reduce((s, st) => s + (st?.videoGpuUsd || 0), 0);
 
-                            const eventTotalModalCost = eventPhotoCost + eventVideoCpuCost + eventVideoGpuCost + eventSelfieActualInr;
+                            const eventVideoCpuCostUsd = eventVideoCpuActualUsd + (unloggedCpuVideos * actualComputeMetrics.avgObservedVideoCpuCostUsd);
+                            const eventVideoGpuCostUsd = eventVideoGpuActualUsd + (unloggedGpuVideos * actualComputeMetrics.avgObservedVideoGpuCostUsd);
+                            const eventSelfieActualUsd = allStats.reduce((s, st) => s + (st?.selfieUsd || 0), 0);
+                            const eventTotalModalCostUsd = eventPhotoCostUsd + eventVideoCpuCostUsd + eventVideoGpuCostUsd + eventSelfieActualUsd;
 
                             return (
                               <tr key={row.id} className="divide-x divide-slate-700/60 hover:bg-slate-900/50 transition-colors">
@@ -4426,7 +4690,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
 
                                 {/* 4. Photo Cost */}
                                 <td className="py-2 px-2.5 text-right font-mono tabular-nums whitespace-nowrap text-slate-300 font-semibold">
-                                  ₹{eventPhotoCost.toFixed(3)}
+                                  {fmtCost(eventPhotoCostUsd, 3)}
                                 </td>
 
                                 {/* 5. Videos CPU (Clean count only, no running time) */}
@@ -4440,7 +4704,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
 
                                 {/* 6. CPU Cost */}
                                 <td className="py-2 px-2.5 text-right font-mono tabular-nums whitespace-nowrap text-slate-300 font-semibold">
-                                  ₹{eventVideoCpuCost.toFixed(2)}
+                                  {fmtCost(eventVideoCpuCostUsd)}
                                 </td>
 
                                 {/* 7. Videos GPU (Clean count only, no running time) */}
@@ -4454,12 +4718,12 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
 
                                 {/* 8. GPU Cost */}
                                 <td className="py-2 px-2.5 text-right font-mono tabular-nums whitespace-nowrap text-slate-300 font-semibold">
-                                  ₹{eventVideoGpuCost.toFixed(2)}
+                                  {fmtCost(eventVideoGpuCostUsd)}
                                 </td>
 
                                 {/* 9. Total Cost */}
                                 <td className="py-2 px-3 text-right font-mono tabular-nums whitespace-nowrap font-bold text-white">
-                                  ₹{eventTotalModalCost.toFixed(2)}
+                                  {fmtCost(eventTotalModalCostUsd)}
                                 </td>
                               </tr>
                             );
@@ -4468,15 +4732,19 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                           if (row.type === 'deleted') {
                             const del = row.deleted;
                             const delStats = actualComputeMetrics.eventComputeMap.get((del.eventId || '').toLowerCase().trim());
-                            const delPhotoCost = delStats ? delStats.photoInr : (del.photosCount * 0.0082);
+                            const delPhotoCostUsd = delStats ? delStats.photoUsd : (del.photosCount * 0.000082);
 
                             const delVideoCpuRuns = delStats?.videoCpuRuns || 0;
                             const delVideoGpuRuns = delStats?.videoGpuRuns || 0;
 
-                            const delVideoCpuCost = delStats ? delStats.videoCpuInr : (del.videosCount * 0.35);
-                            const delVideoGpuCost = delStats ? delStats.videoGpuInr : 0;
-                            const delSelfieCost = delStats ? delStats.selfieInr : 0;
-                            const delTotalCost = delStats ? (delPhotoCost + delVideoCpuCost + delVideoGpuCost + delSelfieCost) : (del.estimatedModalCostInr || (delPhotoCost + delVideoCpuCost + delVideoGpuCost + delSelfieCost));
+                            const delVideoCpuCostUsd = delStats ? delStats.videoCpuUsd : (del.videosCount * 0.0035);
+                            const delVideoGpuCostUsd = delStats ? delStats.videoGpuUsd : 0;
+                            const delSelfieCostUsd = delStats ? delStats.selfieUsd : 0;
+                            const delTotalCostUsd = delStats 
+                              ? (delPhotoCostUsd + delVideoCpuCostUsd + delVideoGpuCostUsd + delSelfieCostUsd) 
+                              : (Number(del.estimatedModalCostInr) > 0 
+                                  ? Number(del.estimatedModalCostInr) / usdToInrRate 
+                                  : (delPhotoCostUsd + delVideoCpuCostUsd + delVideoGpuCostUsd));
                             const delPhotoCount = Math.max(del.photosCount, delStats?.photoRuns || 0);
 
                             return (
@@ -4515,7 +4783,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
 
                                 {/* 4. Photo Cost */}
                                 <td className="py-2 px-2.5 text-right font-mono tabular-nums whitespace-nowrap text-slate-400 font-semibold">
-                                  ₹{delPhotoCost.toFixed(3)}
+                                  {fmtCost(delPhotoCostUsd, 3)}
                                 </td>
 
                                 {/* 5. Videos CPU (Clean count only, no running time) */}
@@ -4529,7 +4797,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
 
                                 {/* 6. CPU Cost */}
                                 <td className="py-2 px-2.5 text-right font-mono tabular-nums whitespace-nowrap text-slate-400 font-semibold">
-                                  ₹{delVideoCpuCost.toFixed(2)}
+                                  {fmtCost(delVideoCpuCostUsd)}
                                 </td>
 
                                 {/* 7. Videos GPU (Clean count only, no running time) */}
@@ -4539,12 +4807,12 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
 
                                 {/* 8. GPU Cost */}
                                 <td className="py-2 px-2.5 text-right font-mono tabular-nums whitespace-nowrap text-slate-400 font-semibold">
-                                  ₹{delVideoGpuCost.toFixed(2)}
+                                  {fmtCost(delVideoGpuCostUsd)}
                                 </td>
 
                                 {/* 9. Total Cost */}
                                 <td className="py-2 px-3 text-right font-mono tabular-nums whitespace-nowrap font-bold text-amber-300">
-                                  ₹{delTotalCost.toFixed(2)}
+                                  {fmtCost(delTotalCostUsd)}
                                 </td>
                               </tr>
                             );
@@ -4587,7 +4855,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
 
                                 {/* 4. Photo Cost */}
                                 <td className="py-2 px-2.5 text-right font-mono tabular-nums whitespace-nowrap text-slate-400 font-semibold">
-                                  ₹{oStats.photoInr.toFixed(3)}
+                                  {fmtCost(oStats.photoUsd, 3)}
                                 </td>
 
                                 {/* 5. Videos CPU (Clean count only, no running time) */}
@@ -4597,7 +4865,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
 
                                 {/* 6. CPU Cost */}
                                 <td className="py-2 px-2.5 text-right font-mono tabular-nums whitespace-nowrap text-slate-400 font-semibold">
-                                  ₹{oStats.videoCpuInr.toFixed(2)}
+                                  {fmtCost(oStats.videoCpuUsd)}
                                 </td>
 
                                 {/* 7. Videos GPU (Clean count only, no running time) */}
@@ -4607,12 +4875,12 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
 
                                 {/* 8. GPU Cost */}
                                 <td className="py-2 px-2.5 text-right font-mono tabular-nums whitespace-nowrap text-slate-400 font-semibold">
-                                  ₹{oStats.videoGpuInr.toFixed(2)}
+                                  {fmtCost(oStats.videoGpuUsd)}
                                 </td>
 
                                 {/* 9. Total Cost */}
                                 <td className="py-2 px-3 text-right font-mono tabular-nums whitespace-nowrap font-bold text-amber-300">
-                                  ₹{oStats.totalInr.toFixed(2)}
+                                  {fmtCost(oStats.totalUsd)}
                                 </td>
                               </tr>
                             );
@@ -4634,22 +4902,22 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
                           {actualComputeMetrics.lifetimePhotosCount} photos
                         </td>
                         <td className="py-2.5 px-2.5 text-right font-mono tabular-nums whitespace-nowrap text-white">
-                          ₹{costBreakdown.modalPhotoInr.toFixed(2)}
+                          {fmtCost(costBreakdown.modalPhotoUsd)}
                         </td>
                         <td className="py-2.5 px-2.5 text-right font-mono tabular-nums whitespace-nowrap text-violet-400 font-semibold">
                           {actualComputeMetrics.totalVideoCpuRuns} runs
                         </td>
                         <td className="py-2.5 px-2.5 text-right font-mono tabular-nums whitespace-nowrap text-white">
-                          ₹{costBreakdown.modalVideoCpuInr.toFixed(2)}
+                          {fmtCost(costBreakdown.modalVideoCpuUsd)}
                         </td>
                         <td className="py-2.5 px-2.5 text-right font-mono tabular-nums whitespace-nowrap text-fuchsia-400 font-semibold">
                           {actualComputeMetrics.totalVideoGpuRuns} runs
                         </td>
                         <td className="py-2.5 px-2.5 text-right font-mono tabular-nums whitespace-nowrap text-white">
-                          ₹{costBreakdown.modalVideoGpuInr.toFixed(2)}
+                          {fmtCost(costBreakdown.modalVideoGpuUsd)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono tabular-nums whitespace-nowrap text-purple-400 text-sm">
-                          ₹{costBreakdown.modalTotalInr.toFixed(2)}
+                          {fmtCost(costBreakdown.modalTotalUsd)}
                         </td>
                       </tr>
                     </tfoot>
