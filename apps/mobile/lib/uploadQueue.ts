@@ -851,7 +851,7 @@ export function triggerAndTrackProcessing(eventId: string) {
   const pollerState = { timer: null as any, abort: false, startTime: Date.now() };
   activeIndexingPollers.set(eventId, pollerState);
 
-  const MAX_POLL_DURATION_MS = 20000; // 20s max timeout safety fallback
+  const MAX_POLL_DURATION_MS = 90000; // 90s max timeout safety fallback
 
   const poll = async () => {
     if (pollerState.abort) {
@@ -880,7 +880,6 @@ export function triggerAndTrackProcessing(eventId: string) {
           }
         }
       });
-      void updateProgressNotification(true);
       processQueue();
       return;
     }
@@ -920,6 +919,14 @@ export function triggerAndTrackProcessing(eventId: string) {
             console.log(`[UploadQueue] Processing complete for event ${eventId} (status: ${data.status}, elapsed: ${Math.round(elapsed / 1000)}s)`);
             activeIndexingPollers.delete(eventId);
 
+            // Record finalized 100% indexing status for this event
+            lastIndexingStatus.set(eventId, {
+              ...data,
+              indexed: data.total || data.indexed,
+              percentComplete: 100,
+              status: 'complete',
+            });
+
             // Mark processing items as completed!
             await mutateQueue(q => {
               for (const item of q) {
@@ -930,7 +937,6 @@ export function triggerAndTrackProcessing(eventId: string) {
               }
             });
 
-            void updateProgressNotification(true);
             processQueue();
             return;
           }
@@ -1114,9 +1120,11 @@ async function performNotificationUpdate() {
       notificationThrottleTimer = null;
     }
     pendingNotificationUpdate = false;
-    try {
-      await Notifications.dismissNotificationAsync(PROGRESS_NOTIFICATION_ID);
-    } catch (e) {}
+    if (queue.length === 0) {
+      try {
+        await Notifications.dismissNotificationAsync(PROGRESS_NOTIFICATION_ID);
+      } catch (e) {}
+    }
     return;
   }
 
@@ -1217,29 +1225,41 @@ async function notifyQueueDrained() {
 
   if (Notifications) {
     try {
-      await Notifications.dismissNotificationAsync(PROGRESS_NOTIFICATION_ID);
-    } catch (e) {}
-
-    try {
       const batchTotal = succeeded[0]?.batchTotal || succeeded.length;
       if (failed.length > 0) {
         await Notifications.scheduleNotificationAsync({
+          identifier: PROGRESS_NOTIFICATION_ID,
           content: {
             title: 'Upload finished with issues',
             body: `${succeeded.length} uploaded, ${failed.length} failed. Tap to retry.`,
             sound: true,
-            android: { channelId: CHANNEL_COMPLETE },
+            sticky: false,
+            autoDismiss: true,
+            android: {
+              channelId: CHANNEL_COMPLETE,
+              sticky: false,
+              ongoing: false,
+            },
           },
           trigger: null,
         });
       } else {
         const title = batchTotal > 1 ? `${batchTotal} files uploaded` : '1 file uploaded';
+        const bodyText = 'Upload finished successfully.';
+
         await Notifications.scheduleNotificationAsync({
+          identifier: PROGRESS_NOTIFICATION_ID,
           content: {
             title,
-            body: 'All photos processed and indexed successfully.',
+            body: bodyText,
             sound: true,
-            android: { channelId: CHANNEL_COMPLETE },
+            sticky: false,
+            autoDismiss: true,
+            android: {
+              channelId: CHANNEL_COMPLETE,
+              sticky: false,
+              ongoing: false,
+            },
           },
           trigger: null,
         });
