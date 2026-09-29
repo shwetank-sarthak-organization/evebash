@@ -255,7 +255,8 @@ export const AnalyticsOverview: React.FC<Props> = ({ stats, users, guests }) => 
   const innerW = chartWidth - paddingX * 2;
   const innerH = chartHeight - paddingY * 2;
 
-  const maxVal = Math.max(...timeline.map(t => Math.max(t.logins, t.registrations)), 1);
+  const rawMax = Math.max(...timeline.map(t => Math.max(t.logins, t.registrations)), 0);
+  const maxVal = Math.max(Math.ceil(rawMax / 4) * 4, 4);
 
   const pts = timeline.map((t, idx) => {
     const x = paddingX + (idx / Math.max(timeline.length - 1, 1)) * innerW;
