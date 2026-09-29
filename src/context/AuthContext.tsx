@@ -193,8 +193,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await createUserProfile(uid, fallbackName, email || "", options?.phone || "", options?.role || "user");
             profile = await getUserProfile(uid);
         } else {
-            // Update last login in the background
-            updateUserProfile(uid, { lastLogin: new Date().toISOString() }).catch(e => console.error("[Auth] Failed to update lastLogin:", e));
+            // Update last login in the background using direct Supabase call to bypass any column mapping issues
+            supabase.from('profiles').update({ last_login: new Date().toISOString() }).eq('id', uid).then().catch(e => console.error("[Auth] Failed to update lastLogin:", e));
         }
         if (options?.shouldSync && !options.shouldSync()) return;
         syncUserSession(buildUserData(uid, email, fallbackName, profile));
