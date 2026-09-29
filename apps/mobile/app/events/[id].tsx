@@ -348,8 +348,12 @@ function GalleryThumbnailImage({
       style={style}
       contentFit="cover"
       blurRadius={blurRadius}
+      transition={200}
       onError={() => {
-        // Do not fall back to original url
+        // If the web thumbnail is still generating in the background (404), fall back to the uploaded original photo
+        if (sourceUri !== url && url) {
+          setSourceUri(url);
+        }
       }}
     />
   );

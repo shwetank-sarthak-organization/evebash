@@ -358,7 +358,10 @@ export async function addToUploadQueue(
   }
 
   await mutateQueue(q => {
-    q.push(...newItems);
+    // Purge any stale finished items (completed or failed) before starting a new batch
+    const activeRemaining = q.filter(item => item.status !== 'completed' && item.status !== 'failed');
+    q.length = 0;
+    q.push(...activeRemaining, ...newItems);
   });
 
   processQueue();
@@ -820,11 +823,21 @@ async function updateProgressNotification() {
     return;
   }
 
-  const completedCount = queue.filter(item => item.status === 'completed').length;
-  const totalCount = queue.length;
+  // Scope to the active event currently being processed
+  const currentEventId = activeItems[0]?.eventId;
+  const currentBatchItems = queue.filter(item => item.eventId === currentEventId);
 
-  const totalProgressSum = queue.reduce((sum, item) => {
+  const activeCount = currentBatchItems.filter(
+    item => item.status === 'pending' || item.status === 'uploading' || item.status === 'uploaded_pending_metadata'
+  ).length;
+  const completedCount = currentBatchItems.filter(item => item.status === 'completed').length;
+  const totalCount = activeCount + completedCount;
+
+  if (totalCount === 0) return;
+
+  const totalProgressSum = currentBatchItems.reduce((sum, item) => {
     if (item.status === 'completed') return sum + 100;
+    if (item.status === 'failed') return sum;
     return sum + item.progress;
   }, 0);
   const overallPercentage = totalCount > 0 ? (totalProgressSum / (totalCount * 100)) * 100 : 0;
@@ -914,5 +927,10 @@ async function notifyQueueDrained() {
     } catch (err) {
       console.warn('[UploadQueue] Failed to send completion notification:', err);
     }
+  }
+
+  // Auto-prune settled items once the queue has completely drained without errors
+  if (failed.length === 0) {
+    void clearFinishedUploads();
   }
 }
