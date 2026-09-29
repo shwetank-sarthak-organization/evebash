@@ -1345,57 +1345,66 @@ export default function DashboardScreen() {
                       padding: 24,
                       borderRadius: 24,
                       borderWidth: 1.5,
-                      backgroundColor: isDark ? '#1B211F' : '#ffffff',
-                      borderColor: isDark ? 'rgba(202, 156, 104, 0.3)' : 'rgba(202, 156, 104, 0.15)',
+                      backgroundColor: '#1B211F',
+                      borderColor: 'rgba(202, 156, 104, 0.3)',
                       alignItems: 'center',
                       alignSelf: 'center',
-                      width: width * 0.8,
+                      width: width * 0.85,
+                      maxWidth: 400,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 10 },
+                      shadowOpacity: 0.5,
+                      shadowRadius: 20,
+                      elevation: 10,
                     }
                   ]}>
                     <View style={{
-                      width: 60,
-                      height: 60,
-                      borderRadius: 30,
-                      backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                      width: 64,
+                      height: 64,
+                      borderRadius: 32,
+                      backgroundColor: 'rgba(34, 197, 94, 0.15)',
                       justifyContent: 'center',
                       alignItems: 'center',
                       marginBottom: 16,
                       borderWidth: 1,
-                      borderColor: 'rgba(34, 197, 94, 0.3)',
+                      borderColor: 'rgba(34, 197, 94, 0.35)',
                     }}>
-                      <IconSymbol name="checkmark.circle.fill" size={32} color="#22c55e" />
+                      <IconSymbol name="checkmark.circle.fill" size={34} color="#22c55e" />
                     </View>
 
                     <Text style={{
-                      fontSize: 20,
+                      fontSize: 22,
                       fontWeight: 'bold',
                       color: colors.gold || '#CCA43B',
-                      marginBottom: 8,
+                      marginBottom: 10,
                       fontFamily: 'Outfit_700Bold',
                       textAlign: 'center',
+                      letterSpacing: -0.3,
                     }}>
                       Upload Complete
                     </Text>
 
                     <Text style={{
                       fontSize: 14,
-                      color: isDark ? '#cbd5e1' : '#64748b',
+                      color: '#cbd5e1',
                       textAlign: 'center',
-                      marginBottom: 20,
+                      marginBottom: 24,
                       fontFamily: 'Inter_400Regular',
+                      lineHeight: 20,
+                      paddingHorizontal: 8,
                     }}>
                       Upload complete
                     </Text>
 
                     <TouchableOpacity
-                      style={[styles.modalCloseBtn, { width: '100%' }]}
+                      style={[styles.modalCloseBtn, { width: '100%', borderRadius: 14, paddingVertical: 14 }]}
                       onPress={async () => {
                         setShowUploadCompleteModal(false);
                         const { clearFinishedUploads } = require('@/lib/uploadQueue');
                         await clearFinishedUploads();
                       }}
                     >
-                      <Text style={styles.modalCloseBtnText}>
+                      <Text style={[styles.modalCloseBtnText, { fontSize: 15 }]}>
                         Done
                       </Text>
                     </TouchableOpacity>

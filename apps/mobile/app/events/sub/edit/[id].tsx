@@ -53,32 +53,31 @@ export default function EditPhotosScreen() {
     if (!id) return;
 
     const unsubscribe = subscribeToUploadQueue((items) => {
-      const filtered = items.filter(item => item.eventId === id);
-      const activeItems = filtered.filter(item => item.status === 'uploading' || item.status === 'pending');
+      const legacyId = subEvent?.legacyId;
+      const filtered = items.filter(item => item.eventId === id || (legacyId && item.eventId === legacyId));
+      const activeItems = filtered.filter(
+        item => item.status === 'uploading' || item.status === 'pending' || item.status === 'uploaded_pending_metadata' || item.status === 'processing'
+      );
       const completedItems = filtered.filter(item => item.status === 'completed');
 
-      // Reload photos if any upload just finished successfully (one-by-one check)
-      const newlyCompleted = completedItems.filter(item => !completedIdsRef.current.includes(item.id));
-      if (newlyCompleted.length > 0) {
-        completedIdsRef.current = [...completedIdsRef.current, ...newlyCompleted.map(item => item.id)];
+      // Option B: Reload photos progressively as each photo is saved to DB (status: 'processing' or 'completed')
+      const readyItems = filtered.filter(item => item.status === 'processing' || item.status === 'completed');
+      const newlyReady = readyItems.filter(item => !completedIdsRef.current.includes(item.id));
+      if (newlyReady.length > 0) {
+        completedIdsRef.current = [...completedIdsRef.current, ...newlyReady.map(item => item.id)];
         fetchData();
-      }
-
-      if (activeItems.length === 0 && completedItems.length > 0) {
-        clearFinishedUploads();
-        completedIdsRef.current = [];
       }
     });
 
     return unsubscribe;
-  }, [id]);
+  }, [id, subEvent?.legacyId]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const [eventData, photosData] = await Promise.all([
         getEventById(id!),
-        getEventPhotos(id!)
+        getEventPhotos(id!, subEvent?.legacyId)
       ]);
       setSubEvent(eventData);
       setPhotos(photosData.filter(photo => photo.mediaType !== 'video' && photo.resourceType !== 'video'));
@@ -248,63 +247,67 @@ export default function EditPhotosScreen() {
               padding: 24,
               borderRadius: 24,
               borderWidth: 1.5,
-              backgroundColor: isDark ? '#1B211F' : '#ffffff',
-              borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+              backgroundColor: '#1B211F',
+              borderColor: 'rgba(202, 156, 104, 0.3)',
               alignItems: 'center',
               alignSelf: 'center',
-              width: width * 0.8,
+              width: width * 0.85,
+              maxWidth: 400,
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 10 },
-              shadowOpacity: isDark ? 0.25 : 0.08,
+              shadowOpacity: 0.5,
               shadowRadius: 20,
               elevation: 10,
             }
           ]}>
             <View style={{
-              width: 60,
-              height: 60,
-              borderRadius: 30,
-              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              backgroundColor: 'rgba(34, 197, 94, 0.15)',
               justifyContent: 'center',
               alignItems: 'center',
               marginBottom: 16,
               borderWidth: 1,
-              borderColor: 'rgba(34, 197, 94, 0.3)',
+              borderColor: 'rgba(34, 197, 94, 0.35)',
             }}>
-              <IconSymbol name="checkmark.circle.fill" size={32} color="#22c55e" />
+              <IconSymbol name="checkmark.circle.fill" size={34} color="#22c55e" />
             </View>
 
             <Text style={{
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: 'bold',
-              color: isDark ? '#ffffff' : '#1B211F',
-              marginBottom: 8,
+              color: colors.gold || '#CCA43B',
+              marginBottom: 10,
               textAlign: 'center',
+              letterSpacing: -0.3,
             }}>
               Upload Complete
             </Text>
 
             <Text style={{
               fontSize: 14,
-              color: isDark ? '#cbd5e1' : '#64748b',
+              color: '#cbd5e1',
               textAlign: 'center',
-              marginBottom: 20,
+              marginBottom: 24,
+              lineHeight: 20,
+              paddingHorizontal: 8,
             }}>
               Upload complete
             </Text>
 
             <TouchableOpacity
               style={{
-                backgroundColor: '#0284c7',
-                paddingVertical: 12,
+                backgroundColor: colors.gold || '#CCA43B',
+                paddingVertical: 14,
                 paddingHorizontal: 24,
-                borderRadius: 12,
+                borderRadius: 14,
                 width: '100%',
                 alignItems: 'center'
               }}
               onPress={() => setShowUploadCompleteModal(false)}
             >
-              <Text style={{ color: '#ffffff', fontWeight: 'bold' }}>
+              <Text style={{ color: '#13191F', fontWeight: 'bold', fontSize: 15 }}>
                 Done
               </Text>
             </TouchableOpacity>
@@ -327,63 +330,67 @@ export default function EditPhotosScreen() {
               padding: 24,
               borderRadius: 24,
               borderWidth: 1.5,
-              backgroundColor: isDark ? '#1B211F' : '#ffffff',
-              borderColor: 'rgba(239, 68, 68, 0.3)',
+              backgroundColor: '#1B211F',
+              borderColor: 'rgba(239, 68, 68, 0.35)',
               alignItems: 'center',
               alignSelf: 'center',
-              width: width * 0.8,
+              width: width * 0.85,
+              maxWidth: 400,
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 10 },
-              shadowOpacity: isDark ? 0.25 : 0.08,
+              shadowOpacity: 0.5,
               shadowRadius: 20,
               elevation: 10,
             }
           ]}>
             <View style={{
-              width: 60,
-              height: 60,
-              borderRadius: 30,
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              backgroundColor: 'rgba(239, 68, 68, 0.15)',
               justifyContent: 'center',
               alignItems: 'center',
               marginBottom: 16,
               borderWidth: 1,
-              borderColor: 'rgba(239, 68, 68, 0.3)',
+              borderColor: 'rgba(239, 68, 68, 0.35)',
             }}>
-              <IconSymbol name="xmark.circle.fill" size={32} color="#ef4444" />
+              <IconSymbol name="xmark.circle.fill" size={34} color="#ef4444" />
             </View>
 
             <Text style={{
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: 'bold',
               color: '#ef4444',
-              marginBottom: 8,
+              marginBottom: 10,
               textAlign: 'center',
+              letterSpacing: -0.3,
             }}>
               Upload Failed
             </Text>
 
             <Text style={{
               fontSize: 14,
-              color: isDark ? '#cbd5e1' : '#64748b',
+              color: '#cbd5e1',
               textAlign: 'center',
-              marginBottom: 20,
+              marginBottom: 24,
+              lineHeight: 20,
+              paddingHorizontal: 8,
             }}>
               Upload failed
             </Text>
 
             <TouchableOpacity
               style={{
-                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0',
-                paddingVertical: 12,
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                paddingVertical: 14,
                 paddingHorizontal: 24,
-                borderRadius: 12,
+                borderRadius: 14,
                 width: '100%',
                 alignItems: 'center'
               }}
               onPress={() => setShowUploadFailedModal(false)}
             >
-              <Text style={{ color: isDark ? '#ffffff' : '#1B211F', fontWeight: 'bold' }}>
+              <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 15 }}>
                 Close
               </Text>
             </TouchableOpacity>

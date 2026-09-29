@@ -1771,11 +1771,17 @@ export default function EventDetailScreen() {
 
       if (!currentActiveId) return;
 
-      const filtered = items.filter(item => item.eventId === currentActiveId);
+      const activeLegacyId = selectedAdminGallery !== undefined
+        ? (selectedAdminGallery ? selectedAdminGallery.legacyId : event?.legacyId)
+        : (activeSubEvent ? activeSubEvent.legacyId : event?.legacyId);
+
+      const filtered = items.filter(
+        item => item.eventId === currentActiveId || (activeLegacyId && item.eventId === activeLegacyId)
+      );
       setUploadQueue(filtered);
 
       const activeItems = filtered.filter(
-        i => i.status === 'uploading' || i.status === 'pending' || i.status === 'uploaded_pending_metadata' || i.status === 'upload_needs_reconciliation'
+        i => i.status === 'uploading' || i.status === 'pending' || i.status === 'uploaded_pending_metadata' || i.status === 'upload_needs_reconciliation' || i.status === 'processing'
       );
       const completedItems = filtered.filter(i => i.status === 'completed');
       const failedItems = filtered.filter(i => i.status === 'failed');
@@ -1793,19 +1799,17 @@ export default function EventDetailScreen() {
         completedIdsRef.current = [];
       }
 
-      // Reload photos if any upload just finished successfully (one-by-one check)
-      const newlyCompleted = completedItems.filter(item => !completedIdsRef.current.includes(item.id));
-      if (newlyCompleted.length > 0) {
-        completedIdsRef.current = [...completedIdsRef.current, ...newlyCompleted.map(item => item.id)];
-        const activeLegacyId = selectedAdminGallery !== undefined
-          ? (selectedAdminGallery ? selectedAdminGallery.legacyId : event?.legacyId)
-          : (activeSubEvent ? activeSubEvent.legacyId : event?.legacyId);
+      // Option B: Reload photos progressively as each photo is saved to DB (status: 'processing' or 'completed')
+      const readyItems = filtered.filter(item => item.status === 'processing' || item.status === 'completed');
+      const newlyReady = readyItems.filter(item => !completedIdsRef.current.includes(item.id));
+      if (newlyReady.length > 0) {
+        completedIdsRef.current = [...completedIdsRef.current, ...newlyReady.map(item => item.id)];
         loadPhotos(currentActiveId, activeLegacyId);
       }
     });
 
     return unsubscribe;
-  }, [event?.id, activeSubEvent?.id, selectedAdminGallery?.id]);
+  }, [event?.id, event?.legacyId, activeSubEvent?.id, activeSubEvent?.legacyId, selectedAdminGallery?.id, selectedAdminGallery?.legacyId]);
 
   // Poll face indexing status when upload completes in mobile app
   useEffect(() => {
@@ -1847,7 +1851,7 @@ export default function EventDetailScreen() {
           const data = await res.json();
           setMobileIndexingStatus(data);
           
-          const hasActiveUploads = uploadQueue.some(i => i.status === 'uploading' || i.status === 'pending' || i.status === 'uploaded_pending_metadata' || i.status === 'upload_needs_reconciliation');
+          const hasActiveUploads = uploadQueue.some(i => i.status === 'uploading' || i.status === 'pending' || i.status === 'uploaded_pending_metadata' || i.status === 'upload_needs_reconciliation' || i.status === 'processing');
           if (data.status === 'complete' && !hasActiveUploads) {
             clearInterval(pollInterval);
           }
@@ -2533,17 +2537,18 @@ export default function EventDetailScreen() {
 
   const renderUploadProgressCard = () => {
     const active = uploadQueue.filter(
-      i => i.status === 'uploading' || i.status === 'pending' || i.status === 'uploaded_pending_metadata' || i.status === 'upload_needs_reconciliation'
+      i => i.status === 'uploading' || i.status === 'pending' || i.status === 'uploaded_pending_metadata' || i.status === 'upload_needs_reconciliation' || i.status === 'processing'
     );
     const failed = uploadQueue.filter(i => i.status === 'failed');
 
     if (active.length === 0 && failed.length === 0) return null;
 
-    const total = uploadQueue.length;
+    const total = uploadQueue[0]?.batchTotal || uploadQueue.length;
     const completed = uploadQueue.filter(i => i.status === 'completed').length;
     const currentUploading = uploadQueue.find(
       i => i.status === 'uploading' || i.status === 'uploaded_pending_metadata' || i.status === 'upload_needs_reconciliation'
     );
+    const isProcessingOnly = active.length > 0 && !currentUploading && active.every(i => i.status === 'processing');
 
     // Calculate progress percentage
     const progressSum = uploadQueue.reduce((sum, item) => {
@@ -2560,11 +2565,17 @@ export default function EventDetailScreen() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View style={{ flex: 1, marginRight: 8 }}>
             <Text style={localStyles.progressCardTitle}>
-              {active.length > 0
-                ? `Uploading Media (${completed}/${total})`
-                : 'Upload Halted with Issues'}
+              {isProcessingOnly
+                ? `Processing Media (${total} files)`
+                : active.length > 0
+                  ? `Uploading Media (${completed}/${total})`
+                  : 'Upload Halted with Issues'}
             </Text>
-            {currentUploading && (
+            {isProcessingOnly ? (
+              <Text style={localStyles.progressCardSubtitle} numberOfLines={1}>
+                AI face indexing and thumbnail generation... ({Math.round(overallPercent)}%)
+              </Text>
+            ) : currentUploading ? (
               <Text style={localStyles.progressCardSubtitle} numberOfLines={1}>
                 {currentUploading.status === 'uploaded_pending_metadata'
                   ? `Finalizing ${currentUploading.fileName}...`
@@ -2576,7 +2587,7 @@ export default function EventDetailScreen() {
                         ? `Finishing ${currentUploading.fileName}...`
                         : `${currentUploading.fileName} (${Math.round(currentUploading.progress)}%)`}
               </Text>
-            )}
+            ) : null}
             {failed.length > 0 && (
               <TouchableOpacity
                 onPress={() => {
@@ -7607,47 +7618,55 @@ export default function EventDetailScreen() {
               padding: 24,
               borderRadius: 24,
               borderWidth: 1.5,
-              backgroundColor: selectedTemplate.panel || (isDark ? '#1B211F' : '#ffffff'),
-              borderColor: selectedTemplate.accentBg || 'rgba(202, 156, 104, 0.3)',
+              backgroundColor: '#1B211F',
+              borderColor: selectedTemplate.accentBg || 'rgba(202, 156, 104, 0.35)',
               alignItems: 'center',
               alignSelf: 'center',
-              width: width * 0.8,
+              width: width * 0.85,
+              maxWidth: 400,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: 0.5,
+              shadowRadius: 20,
+              elevation: 10,
             }
           ]}>
             <View style={{
-              width: 60,
-              height: 60,
-              borderRadius: 30,
-              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              backgroundColor: 'rgba(34, 197, 94, 0.15)',
               justifyContent: 'center',
               alignItems: 'center',
               marginBottom: 16,
               borderWidth: 1,
-              borderColor: 'rgba(34, 197, 94, 0.3)',
+              borderColor: 'rgba(34, 197, 94, 0.35)',
             }}>
-              <IconSymbol name="checkmark.circle.fill" size={32} color="#22c55e" />
+              <IconSymbol name="checkmark.circle.fill" size={34} color="#22c55e" />
             </View>
 
             <Text style={{
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: 'bold',
               color: selectedTemplate.accent || MidnightColors.gold || '#CCA43B',
-              marginBottom: 8,
+              marginBottom: 10,
               fontFamily: Fonts.outfit.bold,
               textAlign: 'center',
+              letterSpacing: -0.3,
             }}>
               Upload Complete
             </Text>
 
             {mobileIndexingStatus ? (
-              <View style={{ width: '100%', alignItems: 'center', marginBottom: 20 }}>
+              <View style={{ width: '100%', alignItems: 'center', marginBottom: 24 }}>
                 <Text style={{
                   fontSize: 14,
-                  color: isDark ? '#cbd5e1' : '#64748b',
+                  color: '#cbd5e1',
                   textAlign: 'center',
                   marginBottom: 12,
                   fontFamily: Fonts.inter.regular,
-                  lineHeight: 18,
+                  lineHeight: 20,
+                  paddingHorizontal: 8,
                 }}>
                   {mobileIndexingStatus.status === 'complete'
                     ? (mobileIndexingStatus.photosWithoutFaces > 0
@@ -7656,14 +7675,14 @@ export default function EventDetailScreen() {
                     : `AI is indexing faces: ${mobileIndexingStatus.indexed}/${mobileIndexingStatus.total} (${mobileIndexingStatus.percentComplete}%)`}
                 </Text>
                 {mobileIndexingStatus.status === 'processing' && (
-                  <View style={{ width: '100%', height: 4, backgroundColor: isDark ? '#202020' : '#e2e8f0', borderRadius: 2, overflow: 'hidden' }}>
+                  <View style={{ width: '100%', height: 4, backgroundColor: '#2B2F2E', borderRadius: 2, overflow: 'hidden' }}>
                     <View style={{ width: `${mobileIndexingStatus.percentComplete}%`, height: '100%', backgroundColor: selectedTemplate.accent || MidnightColors.gold || '#CCA43B' }} />
                   </View>
                 )}
                 {mobileIndexingStatus.status === 'processing' && (
                   <Text style={{
-                    fontSize: 11,
-                    color: isDark ? '#CDB89E' : '#64748b',
+                    fontSize: 12,
+                    color: MidnightColors.slate400,
                     textAlign: 'center',
                     marginTop: 8,
                     fontStyle: 'italic',
@@ -7676,10 +7695,12 @@ export default function EventDetailScreen() {
             ) : (
               <Text style={{
                 fontSize: 14,
-                color: isDark ? '#cbd5e1' : '#64748b',
+                color: '#cbd5e1',
                 textAlign: 'center',
-                marginBottom: 20,
+                marginBottom: 24,
                 fontFamily: Fonts.inter.regular,
+                lineHeight: 20,
+                paddingHorizontal: 8,
               }}>
                 Upload complete. Previews are being generated...
               </Text>
@@ -7688,15 +7709,20 @@ export default function EventDetailScreen() {
             <TouchableOpacity
               style={{
                 backgroundColor: selectedTemplate.accent || MidnightColors.gold || '#CCA43B',
-                paddingVertical: 12,
+                paddingVertical: 14,
                 paddingHorizontal: 24,
-                borderRadius: 12,
+                borderRadius: 14,
                 width: '100%',
-                alignItems: 'center'
+                alignItems: 'center',
+                shadowColor: selectedTemplate.accent || MidnightColors.gold || '#CCA43B',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.25,
+                shadowRadius: 8,
+                elevation: 3,
               }}
               onPress={() => setShowUploadCompleteModal(false)}
             >
-              <Text style={{ color: isDark ? '#13191F' : '#ffffff', fontWeight: 'bold', fontFamily: Fonts.outfit.semiBold }}>
+              <Text style={{ color: '#13191F', fontWeight: 'bold', fontSize: 15, fontFamily: Fonts.outfit.semiBold }}>
                 Done
               </Text>
             </TouchableOpacity>
@@ -7719,60 +7745,69 @@ export default function EventDetailScreen() {
               padding: 24,
               borderRadius: 24,
               borderWidth: 1.5,
-              backgroundColor: selectedTemplate.panel || (isDark ? '#1B211F' : '#ffffff'),
-              borderColor: 'rgba(239, 68, 68, 0.3)',
+              backgroundColor: '#1B211F',
+              borderColor: 'rgba(239, 68, 68, 0.35)',
               alignItems: 'center',
               alignSelf: 'center',
-              width: width * 0.8,
+              width: width * 0.85,
+              maxWidth: 400,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: 0.5,
+              shadowRadius: 20,
+              elevation: 10,
             }
           ]}>
             <View style={{
-              width: 60,
-              height: 60,
-              borderRadius: 30,
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              backgroundColor: 'rgba(239, 68, 68, 0.15)',
               justifyContent: 'center',
               alignItems: 'center',
               marginBottom: 16,
               borderWidth: 1,
-              borderColor: 'rgba(239, 68, 68, 0.3)',
+              borderColor: 'rgba(239, 68, 68, 0.35)',
             }}>
-              <IconSymbol name="xmark.circle.fill" size={32} color="#ef4444" />
+              <IconSymbol name="xmark.circle.fill" size={34} color="#ef4444" />
             </View>
 
             <Text style={{
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: 'bold',
               color: '#ef4444',
-              marginBottom: 8,
+              marginBottom: 10,
               fontFamily: Fonts.outfit.bold,
               textAlign: 'center',
+              letterSpacing: -0.3,
             }}>
               Upload Failed
             </Text>
 
             <Text style={{
               fontSize: 14,
-              color: isDark ? '#cbd5e1' : '#64748b',
+              color: '#cbd5e1',
               textAlign: 'center',
-              marginBottom: 20,
+              marginBottom: 24,
               fontFamily: Fonts.inter.regular,
+              lineHeight: 20,
+              paddingHorizontal: 8,
             }}>
               Upload failed
             </Text>
 
             <TouchableOpacity
               style={{
-                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#e2e8f0',
-                paddingVertical: 12,
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                paddingVertical: 14,
                 paddingHorizontal: 24,
-                borderRadius: 12,
+                borderRadius: 14,
                 width: '100%',
                 alignItems: 'center'
               }}
               onPress={() => setShowUploadFailedModal(false)}
             >
-              <Text style={{ color: isDark ? '#ffffff' : '#1B211F', fontWeight: 'bold', fontFamily: Fonts.outfit.semiBold }}>
+              <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 15, fontFamily: Fonts.outfit.semiBold }}>
                 Close
               </Text>
             </TouchableOpacity>

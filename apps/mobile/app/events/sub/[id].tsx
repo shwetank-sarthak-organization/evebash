@@ -86,14 +86,18 @@ export default function SubEventPhotosScreen() {
     if (!id) return;
 
     const unsubscribe = subscribeToUploadQueue((items) => {
-      const filtered = items.filter(item => item.eventId === id);
-      const activeItems = filtered.filter(item => item.status === 'uploading' || item.status === 'pending');
+      const legacyId = subEvent?.legacyId;
+      const filtered = items.filter(item => item.eventId === id || (legacyId && item.eventId === legacyId));
+      const activeItems = filtered.filter(
+        item => item.status === 'uploading' || item.status === 'pending' || item.status === 'uploaded_pending_metadata' || item.status === 'processing'
+      );
       const completedItems = filtered.filter(item => item.status === 'completed');
 
-      // Reload photos if any upload just finished successfully (one-by-one check)
-      const newlyCompleted = completedItems.filter(item => !completedIdsRef.current.includes(item.id));
-      if (newlyCompleted.length > 0) {
-        completedIdsRef.current = [...completedIdsRef.current, ...newlyCompleted.map(item => item.id)];
+      // Option B: Reload photos progressively as each photo is saved to DB (status: 'processing' or 'completed')
+      const readyItems = filtered.filter(item => item.status === 'processing' || item.status === 'completed');
+      const newlyReady = readyItems.filter(item => !completedIdsRef.current.includes(item.id));
+      if (newlyReady.length > 0) {
+        completedIdsRef.current = [...completedIdsRef.current, ...newlyReady.map(item => item.id)];
         const loadFresh = async () => {
           try {
             const eventData = await getEventById(id);
@@ -105,15 +109,10 @@ export default function SubEventPhotosScreen() {
         };
         loadFresh();
       }
-
-      if (activeItems.length === 0 && completedItems.length > 0) {
-        clearFinishedUploads();
-        completedIdsRef.current = [];
-      }
     });
 
     return unsubscribe;
-  }, [id]);
+  }, [id, subEvent?.legacyId]);
 
   useEffect(() => {
     if (!isShared || isPrivilegedViewer || !id) return;

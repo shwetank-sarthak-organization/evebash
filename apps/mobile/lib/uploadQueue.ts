@@ -35,6 +35,7 @@ export type UploadStatus =
   | 'pending'
   | 'uploading'
   | 'uploaded_pending_metadata'
+  | 'processing'
   | 'completed'
   | 'failed'
   | 'upload_needs_reconciliation';
@@ -55,6 +56,9 @@ export interface UploadQueueItem {
   error?: string;
   retryCount?: number;
   addedAt: number;
+  batchId?: string;
+  batchTotal?: number;
+  batchIndex?: number;
 }
 
 type QueueListener = (items: UploadQueueItem[]) => void;
@@ -176,8 +180,17 @@ export async function initUploadQueue() {
       }
     }
 
-    // 2. Mark any interrupted uploads as needs reconciliation
-    queue = initialQueue.map(item => {
+    // 2. Filter out stale failed items hitting foreign key or invalid event constraints
+    const validInitial = initialQueue.filter(item => {
+      if (item.status === 'failed' && (item.error?.includes('foreign key constraint') || item.error?.includes('does not exist'))) {
+        void cleanupDurableFile(item.fileUri);
+        return false;
+      }
+      return true;
+    });
+
+    // Mark any interrupted uploads as needs reconciliation
+    queue = validInitial.map(item => {
       if (item.status === 'uploading') {
         return { ...item, status: 'upload_needs_reconciliation' as UploadStatus, progress: 0 };
       }
@@ -195,9 +208,19 @@ export async function initUploadQueue() {
     // 4. Flush any pending metadata batches
     void flushMetadataBatches();
 
-    // 5. Start queue processing if there are pending items
+    // 5. Resume tracking any processing batches
+    const processingEventIds = Array.from(new Set(queue.filter(i => i.status === 'processing').map(i => i.eventId)));
+    for (const eventId of processingEventIds) {
+      void triggerAndTrackProcessing(eventId);
+    }
+
+    // 6. Start queue processing if there are pending items
     if (queue.some(item => item.status === 'pending')) {
       processQueue();
+    } else if (Notifications && !queue.some(i => i.status === 'uploading' || i.status === 'uploaded_pending_metadata' || i.status === 'processing')) {
+      try {
+        await Notifications.dismissNotificationAsync(PROGRESS_NOTIFICATION_ID);
+      } catch (e) {}
     }
   } catch (err) {
     console.error('[UploadQueue] Init error:', err);
@@ -240,10 +263,11 @@ async function reconcileInterruptedUploads(items: UploadQueueItem[]) {
             await mutateQueue(q => {
               const target = q.find(i => i.id === item.id);
               if (target) {
-                target.status = 'completed';
-                target.progress = 100;
+                target.status = 'processing';
+                target.progress = 90;
               }
             });
+            void triggerAndTrackProcessing(item.eventId);
           } else {
             await mutateQueue(q => {
               const target = q.find(i => i.id === item.id);
@@ -322,10 +346,28 @@ export async function addToUploadQueue(
   const uploadDir = `${FileSystem.documentDirectory}${UPLOAD_DIR_NAME}`;
   await FileSystem.makeDirectoryAsync(uploadDir, { intermediates: true }).catch(() => {});
 
-  // 3. Copy files to durable document directory
-  const newItems: UploadQueueItem[] = [];
+  // 3. Resolve eventId against DB in case it's a slug or legacy_id
+  let resolvedEventId = eventId;
+  try {
+    const { data: eventRow } = await supabase
+      .from('events')
+      .select('id')
+      .or(`id.eq.${eventId},legacy_id.eq.${eventId}`)
+      .maybeSingle();
+    if (eventRow?.id) {
+      resolvedEventId = eventRow.id;
+    }
+  } catch (lookupErr) {
+    // If lookup fails (e.g. offline), continue with original eventId
+  }
 
-  for (const detail of fileDetails) {
+  // 4. Copy files to durable document directory
+  const newItems: UploadQueueItem[] = [];
+  const batchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const batchTotal = fileDetails.length;
+
+  for (let idx = 0; idx < fileDetails.length; idx++) {
+    const detail = fileDetails[idx];
     const clientUploadId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const sanitizedFileName = detail.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const durableUri = `${uploadDir}${clientUploadId}_${sanitizedFileName}`;
@@ -347,13 +389,16 @@ export async function addToUploadQueue(
       fileName: detail.name,
       fileType: detail.type,
       fileSize: detail.size,
-      eventId,
+      eventId: resolvedEventId,
       userId,
       mediaType,
       status: 'pending',
       progress: 0,
       retryCount: 0,
       addedAt: Date.now(),
+      batchId,
+      batchTotal,
+      batchIndex: idx + 1,
     });
   }
 
@@ -364,6 +409,7 @@ export async function addToUploadQueue(
     q.push(...activeRemaining, ...newItems);
   });
 
+  void updateProgressNotification(true);
   processQueue();
 }
 
@@ -387,7 +433,7 @@ async function uploadWorker(item: UploadQueueItem) {
     }
   });
 
-  void updateProgressNotification();
+  void updateProgressNotification(true);
 
   try {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -487,20 +533,21 @@ async function uploadWorker(item: UploadQueueItem) {
           'X-Bz-File-Name': encodeURIComponent(storageKey),
           'X-Bz-Content-Sha1': 'do_not_verify',
         },
-        sessionType: FileSystem.FileSystemSessionType.BACKGROUND,
       },
       (progress) => {
-        const percent = Math.min(
-          99,
+        const rawPercent = Math.min(
+          100,
           Math.max(0, (progress.totalBytesSent / (progress.totalBytesExpectedToSend || fileSize || 1)) * 100)
         );
+        // Upload phase spans 0% to 90% of overall lifecycle (last 10% is DB save + AI face indexing)
+        const percent = Math.min(90, Math.round(rawPercent * 0.9));
         // Progress ticks are in-memory only — never save entire queue to disk on progress!
         const target = queue.find(i => i.id === item.id);
         if (target) {
           target.progress = percent;
         }
         notifyListeners();
-        void updateProgressNotification();
+        void updateProgressNotification(false);
       }
     );
 
@@ -515,9 +562,11 @@ async function uploadWorker(item: UploadQueueItem) {
       const target = q.find(i => i.id === item.id);
       if (target) {
         target.status = 'uploaded_pending_metadata';
-        target.progress = 99;
+        target.progress = 90;
       }
     });
+
+    void updateProgressNotification(true);
 
     // Trigger metadata batch flusher
     void flushMetadataBatches();
@@ -549,7 +598,7 @@ async function uploadWorker(item: UploadQueueItem) {
     }
   } finally {
     activeSlots = Math.max(0, activeSlots - 1);
-    void updateProgressNotification();
+    void updateProgressNotification(true);
     processQueue();
   }
 }
@@ -583,14 +632,45 @@ async function flushMetadataBatchesInternal(): Promise<void> {
     itemsByEvent.set(item.eventId, list);
   }
 
-  for (const [eventId, items] of itemsByEvent.entries()) {
+  for (const [rawEventId, items] of itemsByEvent.entries()) {
     try {
-      console.log(`[UploadQueue] Flushing metadata batch for event ${eventId} (${items.length} items)...`);
+      console.log(`[UploadQueue] Flushing metadata batch for event ${rawEventId} (${items.length} items)...`);
+
+      // 1. Resolve rawEventId to true database primary key id
+      let targetEventId = rawEventId;
+      try {
+        const { data: eventRow } = await supabase
+          .from('events')
+          .select('id')
+          .or(`id.eq.${rawEventId},legacy_id.eq.${rawEventId}`)
+          .maybeSingle();
+
+        if (eventRow?.id) {
+          targetEventId = eventRow.id;
+        } else {
+          // Event was deleted or does not exist in database!
+          console.warn(`[UploadQueue] Event ${rawEventId} does not exist in events table. Aborting batch.`);
+          const nonExistentError = 'Event does not exist in database';
+          await mutateQueue(q => {
+            for (const item of items) {
+              const target = q.find(i => i.id === item.id);
+              if (target) {
+                target.status = 'failed';
+                target.error = nonExistentError;
+                void cleanupDurableFile(target.fileUri);
+              }
+            }
+          });
+          continue;
+        }
+      } catch (lookupErr) {
+        // Network error during lookup, continue with rawEventId
+      }
 
       const photosPayload = items.map(item => ({
         clientUploadId: item.id,
         storageKey: item.storageKey,
-        eventId: item.eventId || eventId,
+        eventId: targetEventId,
         fileName: item.fileName,
         fileSize: item.fileSize,
         resourceType: item.mediaType === 'video' ? 'video' : 'image',
@@ -608,7 +688,7 @@ async function flushMetadataBatchesInternal(): Promise<void> {
                 Authorization: `Bearer ${accessToken}`,
               },
               body: JSON.stringify({
-                eventId,
+                eventId: targetEventId,
                 photos: photosPayload,
               }),
             });
@@ -633,7 +713,7 @@ async function flushMetadataBatchesInternal(): Promise<void> {
               body: JSON.stringify({
                 photos: photosPayload.map(p => ({
                   storageKey: p.storageKey,
-                  eventId,
+                  eventId: targetEventId,
                   fileName: p.fileName,
                   fileSize: p.fileSize,
                   resourceType: p.resourceType,
@@ -654,7 +734,7 @@ async function flushMetadataBatchesInternal(): Promise<void> {
         throw new Error(result.error || `Failed to save metadata batch (status: ${response.status})`);
       }
 
-      console.log(`[UploadQueue] Metadata batch response for event ${eventId}:`, JSON.stringify(result));
+      console.log(`[UploadQueue] Metadata batch response for event ${targetEventId}:`, JSON.stringify(result));
 
       // Inspect per-item results
       const resultsMap = new Map<string, { status: string; error?: string }>();
@@ -671,8 +751,8 @@ async function flushMetadataBatchesInternal(): Promise<void> {
           if (!target) continue;
 
           if (!itemResult || itemResult.status === 'saved') {
-            target.status = 'completed';
-            target.progress = 100;
+            target.status = 'processing';
+            target.progress = 90;
             target.error = undefined;
             void cleanupDurableFile(target.fileUri);
           } else if (itemResult.status === 'not_uploaded') {
@@ -692,24 +772,180 @@ async function flushMetadataBatchesInternal(): Promise<void> {
           }
         }
       });
+
+      // Trigger immediate face indexing and track processing completion
+      void triggerAndTrackProcessing(targetEventId);
+      if (rawEventId !== targetEventId) {
+        void triggerAndTrackProcessing(rawEventId);
+      }
     } catch (batchErr: any) {
-      console.warn(`[UploadQueue] Error flushing metadata batch for event ${eventId}:`, batchErr);
+      const errorMsg = batchErr?.message || String(batchErr || 'Metadata sync failed');
+      console.warn(`[UploadQueue] Error flushing metadata batch for event ${rawEventId}:`, errorMsg);
+      const isFatalFkError = errorMsg.includes('foreign key constraint') || errorMsg.includes('does not exist');
+      let shouldRetry = false;
       await mutateQueue(q => {
         for (const item of items) {
           const target = q.find(i => i.id === item.id);
           if (!target) continue;
           const retries = (target.retryCount || 0) + 1;
-          if (retries >= MAX_UPLOAD_RETRIES) {
+          target.retryCount = retries;
+          if (retries >= MAX_UPLOAD_RETRIES || isFatalFkError) {
             target.status = 'failed';
-            target.error = batchErr?.message || 'Metadata sync failed';
+            target.error = errorMsg;
+            void cleanupDurableFile(target.fileUri);
+          } else {
+            shouldRetry = true;
           }
         }
       });
+      if (shouldRetry) {
+        setTimeout(() => {
+          void flushMetadataBatches();
+        }, 2000);
+      }
     }
   }
 
-  void updateProgressNotification();
+  void updateProgressNotification(true);
   processQueue();
+}
+
+// ── 6b. Background Processing & AI Face Indexing Tracker ─────────────────────
+const activeIndexingPollers = new Map<string, { timer: ReturnType<typeof setTimeout> | null; abort: boolean; startTime: number }>();
+const lastIndexingStatus = new Map<string, { indexed: number; total: number; percentComplete: number; status: string }>();
+
+export function getIndexingStatusForEvent(eventId: string) {
+  return lastIndexingStatus.get(eventId) || null;
+}
+
+export function triggerAndTrackProcessing(eventId: string) {
+  if (!eventId) return;
+
+  // 1. Fire trigger-modal-batch
+  try {
+    const triggerUrl = getEndpointsForPath('/api/media/trigger-modal-batch?immediate=true')[0];
+    supabase.auth.getSession().then(({ data: sessionData }) => {
+      const accessToken = sessionData.session?.access_token;
+      if (triggerUrl && accessToken) {
+        fetch(triggerUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ eventId }),
+        }).catch(err => {
+          console.warn(`[UploadQueue] Face indexing trigger notice for event ${eventId}:`, err);
+        });
+      }
+    }).catch(() => {});
+  } catch (err) {
+    console.warn('[UploadQueue] Notice on triggering indexing:', err);
+  }
+
+  // 2. Start polling if not already polling
+  if (activeIndexingPollers.has(eventId)) {
+    return;
+  }
+
+  const pollerState = { timer: null as any, abort: false, startTime: Date.now() };
+  activeIndexingPollers.set(eventId, pollerState);
+
+  const MAX_POLL_DURATION_MS = 20000; // 20s max timeout safety fallback
+
+  const poll = async () => {
+    if (pollerState.abort) {
+      activeIndexingPollers.delete(eventId);
+      return;
+    }
+
+    const currentProcessing = queue.filter(item => item.eventId === eventId && item.status === 'processing');
+    const stillUploading = queue.filter(
+      item => item.eventId === eventId && (item.status === 'pending' || item.status === 'uploading' || item.status === 'uploaded_pending_metadata')
+    );
+
+    if (currentProcessing.length === 0) {
+      activeIndexingPollers.delete(eventId);
+      return;
+    }
+
+    const hasPhotoProcessing = currentProcessing.some(item => item.mediaType !== 'video');
+    if (!hasPhotoProcessing && stillUploading.length === 0) {
+      activeIndexingPollers.delete(eventId);
+      await mutateQueue(q => {
+        for (const item of q) {
+          if (item.eventId === eventId && item.status === 'processing' && item.mediaType === 'video') {
+            item.status = 'completed';
+            item.progress = 100;
+          }
+        }
+      });
+      void updateProgressNotification(true);
+      processQueue();
+      return;
+    }
+
+    try {
+      const statusEndpoints = getEndpointsForPath(`/api/v1/media/indexing-status?eventId=${eventId}`);
+      const response = await fetchWithEndpointFallback(
+        statusEndpoints,
+        (endpoint: string) => fetch(endpoint),
+        'indexing-status'
+      );
+
+      if (response && response.ok) {
+        const data = await response.json();
+        if (data && typeof data.status === 'string') {
+          lastIndexingStatus.set(eventId, data);
+
+          // Update progress % for processing items (maps indexing % from 90% to 99%)
+          if (typeof data.percentComplete === 'number') {
+            const mappedProgress = Math.min(99, Math.max(90, Math.round(90 + (data.percentComplete * 0.09))));
+            await mutateQueue(q => {
+              for (const item of q) {
+                if (item.eventId === eventId && item.status === 'processing') {
+                  item.progress = mappedProgress;
+                }
+              }
+            });
+            void updateProgressNotification(false);
+          }
+
+          // Check if indexing is complete AND all files have finished uploading to B2
+          const elapsed = Date.now() - pollerState.startTime;
+          const isComplete = data.status === 'complete' || (data.total > 0 && data.pending === 0) || (data.total === 0 && elapsed >= 4000);
+          const isTimedOut = elapsed >= MAX_POLL_DURATION_MS;
+
+          if ((isComplete || isTimedOut) && stillUploading.length === 0) {
+            console.log(`[UploadQueue] Processing complete for event ${eventId} (status: ${data.status}, elapsed: ${Math.round(elapsed / 1000)}s)`);
+            activeIndexingPollers.delete(eventId);
+
+            // Mark processing items as completed!
+            await mutateQueue(q => {
+              for (const item of q) {
+                if (item.eventId === eventId && item.status === 'processing') {
+                  item.status = 'completed';
+                  item.progress = 100;
+                }
+              }
+            });
+
+            void updateProgressNotification(true);
+            processQueue();
+            return;
+          }
+        }
+      }
+    } catch (pollErr) {
+      console.warn(`[UploadQueue] Polling error for event ${eventId}:`, pollErr);
+    }
+
+    if (!pollerState.abort) {
+      pollerState.timer = setTimeout(poll, 3000);
+    }
+  };
+
+  pollerState.timer = setTimeout(poll, 2500);
 }
 
 // ── 7. Concurrent Queue Dispatcher ──────────────────────────────────────────
@@ -748,12 +984,15 @@ export function subscribeToUploadQueue(listener: QueueListener) {
 }
 
 export async function clearFinishedUploads() {
-  // Only remove items that have truly finished (never remove in-flight metadata items)
+  // Never clear finished items if any item is still uploading or processing
+  const hasActiveWork = queue.some(
+    item => item.status === 'pending' || item.status === 'uploading' || item.status === 'uploaded_pending_metadata' || item.status === 'upload_needs_reconciliation' || item.status === 'processing'
+  );
+  if (hasActiveWork) return;
+
   const itemsToRemove = queue.filter(item => item.status === 'completed' || item.status === 'failed');
   for (const item of itemsToRemove) {
-    if (item.status === 'completed') {
-      await cleanupDurableFile(item.fileUri);
-    }
+    await cleanupDurableFile(item.fileUri);
   }
 
   await mutateQueue(q => {
@@ -773,8 +1012,9 @@ export async function cancelUploadItem(itemId: string) {
 
   if (item.status === 'uploading') {
     activeSlots = Math.max(0, activeSlots - 1);
-    processQueue();
   }
+  void updateProgressNotification(true);
+  processQueue();
 }
 
 export async function retryUploadItem(itemId: string) {
@@ -788,10 +1028,17 @@ export async function retryUploadItem(itemId: string) {
     }
   });
 
+  void updateProgressNotification(true);
   processQueue();
 }
 
 export async function resetUploadQueue() {
+  if (notificationThrottleTimer) {
+    clearTimeout(notificationThrottleTimer);
+    notificationThrottleTimer = null;
+  }
+  pendingNotificationUpdate = false;
+
   for (const item of queue) {
     await cleanupDurableFile(item.fileUri);
   }
@@ -809,49 +1056,139 @@ export async function resetUploadQueue() {
 }
 
 // ── 9. Notification & Drainage Handlers ─────────────────────────────────────
-async function updateProgressNotification() {
+let lastNotificationTime = 0;
+let notificationThrottleTimer: ReturnType<typeof setTimeout> | null = null;
+let isNotificationUpdating = false;
+let pendingNotificationUpdate = false;
+
+async function updateProgressNotification(force: boolean = false) {
+  if (!Notifications) return;
+
+  const now = Date.now();
+  const timeSinceLast = now - lastNotificationTime;
+
+  if (!force && timeSinceLast < 1000) {
+    if (!notificationThrottleTimer) {
+      notificationThrottleTimer = setTimeout(() => {
+        notificationThrottleTimer = null;
+        void updateProgressNotification(true);
+      }, 1000 - timeSinceLast);
+    }
+    return;
+  }
+
+  if (notificationThrottleTimer) {
+    clearTimeout(notificationThrottleTimer);
+    notificationThrottleTimer = null;
+  }
+
+  if (isNotificationUpdating) {
+    pendingNotificationUpdate = true;
+    return;
+  }
+
+  isNotificationUpdating = true;
+  lastNotificationTime = Date.now();
+
+  try {
+    await performNotificationUpdate();
+  } finally {
+    isNotificationUpdating = false;
+    if (pendingNotificationUpdate) {
+      pendingNotificationUpdate = false;
+      void updateProgressNotification(false);
+    }
+  }
+}
+
+async function performNotificationUpdate() {
   if (!Notifications) return;
 
   const activeItems = queue.filter(
-    item => item.status === 'pending' || item.status === 'uploading' || item.status === 'uploaded_pending_metadata'
+    item => item.status === 'pending' || item.status === 'uploading' || item.status === 'uploaded_pending_metadata' || item.status === 'processing'
   );
 
   if (activeItems.length === 0) {
+    if (notificationThrottleTimer) {
+      clearTimeout(notificationThrottleTimer);
+      notificationThrottleTimer = null;
+    }
+    pendingNotificationUpdate = false;
     try {
       await Notifications.dismissNotificationAsync(PROGRESS_NOTIFICATION_ID);
     } catch (e) {}
     return;
   }
 
-  // Scope to the active event currently being processed
-  const currentEventId = activeItems[0]?.eventId;
+  // Prioritize the latest active batch initiated by the user
+  const sortedActive = [...activeItems].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+  const currentEventId = sortedActive[0]?.eventId;
   const currentBatchItems = queue.filter(item => item.eventId === currentEventId);
+  const batchTotal = sortedActive[0]?.batchTotal || currentBatchItems.length;
 
-  const activeCount = currentBatchItems.filter(
-    item => item.status === 'pending' || item.status === 'uploading' || item.status === 'uploaded_pending_metadata'
-  ).length;
-  const completedCount = currentBatchItems.filter(item => item.status === 'completed').length;
-  const totalCount = activeCount + completedCount;
-
-  if (totalCount === 0) return;
+  if (batchTotal === 0) return;
 
   const totalProgressSum = currentBatchItems.reduce((sum, item) => {
-    if (item.status === 'completed') return sum + 100;
-    if (item.status === 'failed') return sum;
-    return sum + item.progress;
+    if (item.status === 'completed' || item.status === 'failed') return sum + 100;
+    return sum + (item.progress || 0);
   }, 0);
-  const overallPercentage = totalCount > 0 ? (totalProgressSum / (totalCount * 100)) * 100 : 0;
+  const overallPercentage = Math.min(100, Math.max(0, Math.round(totalProgressSum / batchTotal)));
 
-  const bodyText = `Uploading: ${completedCount}/${totalCount} files completed (${Math.round(overallPercentage)}%)`;
+  // Are any files still uploading binary to B2?
+  const isUploadingBinary = currentBatchItems.some(
+    item => item.status === 'pending' || item.status === 'uploading'
+  );
+
+  let title = '';
+  let subtitle = `${overallPercentage}%`;
+  let bodyText = '';
+
+  if (isUploadingBinary) {
+    // ── UPLOADING PHASE (Google Drive style) ──
+    title = batchTotal > 1 ? `Uploading ${batchTotal} files` : 'Uploading 1 file';
+    const uploadedCount = currentBatchItems.filter(
+      i => i.status === 'uploaded_pending_metadata' || i.status === 'processing' || i.status === 'completed'
+    ).length;
+    const failedCount = currentBatchItems.filter(i => i.status === 'failed').length;
+    const currentIndex = Math.min(batchTotal, uploadedCount + failedCount + 1);
+
+    const currentItem = currentBatchItems.find(i => i.status === 'uploading') ||
+      currentBatchItems.find(i => i.status === 'pending');
+
+    const fileName = currentItem?.fileName || currentItem?.originalFileName || 'Photo';
+    const displayName = fileName.length > 20 ? `${fileName.substring(0, 17)}...` : fileName;
+    const filePercent = Math.round(currentItem?.progress || 0);
+
+    if (batchTotal > 1) {
+      bodyText = `Uploading ${currentIndex} of ${batchTotal} • ${displayName} (${filePercent}%)`;
+    } else {
+      bodyText = `${displayName} (${filePercent}%)`;
+    }
+  } else {
+    // ── PROCESSING & AI INDEXING PHASE (Google Drive style) ──
+    title = batchTotal > 1 ? `Processing ${batchTotal} files` : 'Processing 1 file';
+    const indexingData = lastIndexingStatus.get(currentEventId);
+
+    if (indexingData && indexingData.total > 0) {
+      subtitle = `${indexingData.percentComplete}%`;
+      bodyText = `AI Face Indexing: ${indexingData.indexed} of ${indexingData.total} (${indexingData.percentComplete}%)`;
+    } else {
+      subtitle = 'Processing';
+      bodyText = `Processing photos and indexing faces... (${overallPercentage}%)`;
+    }
+  }
 
   try {
     await Notifications.scheduleNotificationAsync({
       identifier: PROGRESS_NOTIFICATION_ID,
       content: {
-        title: 'Uploading Media to EveBash',
+        title,
+        subtitle,
         body: bodyText,
         sound: false,
         color: '#CCA43B',
+        sticky: true,
+        autoDismiss: false,
         android: {
           channelId: CHANNEL_PROGRESS,
           sticky: true,
@@ -866,36 +1203,17 @@ async function updateProgressNotification() {
 }
 
 async function notifyQueueDrained() {
+  if (notificationThrottleTimer) {
+    clearTimeout(notificationThrottleTimer);
+    notificationThrottleTimer = null;
+  }
+  pendingNotificationUpdate = false;
+
   const totalCount = queue.length;
   if (totalCount === 0) return;
 
   const failed = queue.filter(item => item.status === 'failed');
   const succeeded = queue.filter(item => item.status === 'completed');
-
-  if (succeeded.length > 0) {
-    try {
-      const triggerUrl = getEndpointsForPath('/api/media/trigger-modal-batch?immediate=true')[0];
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      if (triggerUrl && accessToken) {
-        const eventIds = Array.from(new Set(succeeded.map(item => item.eventId).filter(Boolean)));
-        for (const eventId of eventIds) {
-          fetch(triggerUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: JSON.stringify({ eventId }),
-          }).catch(err => {
-            console.warn(`[UploadQueue] Face indexing trigger failed for event ${eventId}:`, err);
-          });
-        }
-      }
-    } catch (triggerErr) {
-      console.warn('[UploadQueue] Failed to initiate immediate face indexing trigger:', triggerErr);
-    }
-  }
 
   if (Notifications) {
     try {
@@ -903,21 +1221,23 @@ async function notifyQueueDrained() {
     } catch (e) {}
 
     try {
+      const batchTotal = succeeded[0]?.batchTotal || succeeded.length;
       if (failed.length > 0) {
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: 'Upload Finished with Issues',
-            body: `Succeeded: ${succeeded.length}, Failed: ${failed.length}. Tap to retry.`,
+            title: 'Upload finished with issues',
+            body: `${succeeded.length} uploaded, ${failed.length} failed. Tap to retry.`,
             sound: true,
             android: { channelId: CHANNEL_COMPLETE },
           },
           trigger: null,
         });
       } else {
+        const title = batchTotal > 1 ? `${batchTotal} files uploaded` : '1 file uploaded';
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: 'Upload Complete',
-            body: 'All files uploaded successfully!',
+            title,
+            body: 'All photos processed and indexed successfully.',
             sound: true,
             android: { channelId: CHANNEL_COMPLETE },
           },
