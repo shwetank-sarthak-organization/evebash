@@ -212,6 +212,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 role: 'user',
               });
             if (insertErr) throw insertErr;
+          } else {
+            // Update last login timestamp in the background
+            supabase.from('profiles')
+              .update({ last_login: new Date().toISOString() })
+              .eq('id', supabaseUser.id)
+              .then(({ error }) => {
+                if (error) {
+                  console.error("[Auth] Supabase rejected lastLogin update in mobile:", error.message);
+                }
+              })
+              .catch(e => console.error('[Auth] Failed to update lastLogin:', e));
           }
         } catch (docErr) {
           const nameVal = supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'User';
