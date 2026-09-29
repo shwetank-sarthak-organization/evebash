@@ -9,6 +9,7 @@ import {
     getAllowedUser,
     getUserProfile,
     logGuestLogin,
+    updateUserProfile,
 } from "@/lib/database";
 
 type RoleType = "primary" | "event";
@@ -191,6 +192,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!profile) {
             await createUserProfile(uid, fallbackName, email || "", options?.phone || "", options?.role || "user");
             profile = await getUserProfile(uid);
+        } else {
+            // Update last login in the background
+            updateUserProfile(uid, { lastLogin: new Date().toISOString() }).catch(e => console.error("[Auth] Failed to update lastLogin:", e));
         }
         if (options?.shouldSync && !options.shouldSync()) return;
         syncUserSession(buildUserData(uid, email, fallbackName, profile));

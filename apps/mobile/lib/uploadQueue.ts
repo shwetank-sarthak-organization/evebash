@@ -58,6 +58,7 @@ export interface UploadQueueItem {
   addedAt: number;
   batchId?: string;
   batchTotal?: number;
+  duration?: number; // Optional duration extracted from picker
   batchIndex?: number;
 }
 
@@ -233,6 +234,20 @@ async function reconcileInterruptedUploads(items: UploadQueueItem[]) {
   if (!accessToken) return;
 
   for (const item of items) {
+    // Chunked uploads handle their own resume state perfectly.
+    // Transition them to pending so processQueue -> uploadWorker -> chunkUpload resumes them.
+    if (item.fileSize && item.fileSize >= 20 * 1024 * 1024) {
+      await mutateQueue(q => {
+        const target = q.find(i => i.id === item.id);
+        if (target) {
+          target.status = 'pending';
+          target.progress = 0;
+        }
+      });
+      processQueue();
+      continue;
+    }
+
     try {
       let reconciled = false;
       try {
@@ -309,7 +324,7 @@ async function reconcileInterruptedUploads(items: UploadQueueItem[]) {
 
 // ── 4. Add Files with Durable Copy & Disk Budget Check ───────────────────────
 export async function addToUploadQueue(
-  files: { uri: string; name: string; type: string }[],
+  files: { uri: string; name: string; type: string; duration?: number }[],
   eventId: string,
   userId: string,
   mediaType: 'photo' | 'video'
@@ -318,16 +333,16 @@ export async function addToUploadQueue(
 
   // 1. Calculate total batch size & check disk space
   let totalBatchBytes = 0;
-  const fileDetails: Array<{ originalUri: string; name: string; type: string; size: number }> = [];
+  const fileDetails: Array<{ originalUri: string; name: string; type: string; size: number; duration?: number }> = [];
 
   for (const file of files) {
     try {
       const info = await FileSystem.getInfoAsync(file.uri);
       const size = info?.exists ? info.size || 0 : 0;
       totalBatchBytes += size;
-      fileDetails.push({ originalUri: file.uri, name: file.name, type: file.type, size });
+      fileDetails.push({ originalUri: file.uri, name: file.name, type: file.type, size, duration: file.duration });
     } catch {
-      fileDetails.push({ originalUri: file.uri, name: file.name, type: file.type, size: 0 });
+      fileDetails.push({ originalUri: file.uri, name: file.name, type: file.type, size: 0, duration: file.duration });
     }
   }
 
@@ -399,6 +414,7 @@ export async function addToUploadQueue(
       batchId,
       batchTotal,
       batchIndex: idx + 1,
+      duration: detail.duration,
     });
   }
 
@@ -449,6 +465,34 @@ async function uploadWorker(item: UploadQueueItem) {
       if (info && info.exists) {
         fileSize = info.size || 0;
       }
+    }
+
+    const MULTIPART_THRESHOLD = 20 * 1024 * 1024; // 20 MiB
+    if (fileSize >= MULTIPART_THRESHOLD) {
+      console.log(`[UploadQueue] Video is >= 20 MiB (${fileSize} bytes). Routing to ChunkUpload.`);
+      const { uploadVideoInChunks } = require('./chunkUpload');
+      const { storageKey } = await uploadVideoInChunks(item, (rawPercent: number) => {
+        const percent = Math.min(90, Math.round(rawPercent * 0.9));
+        const target = queue.find(i => i.id === item.id);
+        if (target) {
+          target.progress = percent;
+        }
+        notifyListeners();
+        void updateProgressNotification(false);
+      });
+      
+      console.log(`[UploadQueue] Chunked upload successful for ${storageKey}. Enqueueing for metadata batch.`);
+      await mutateQueue(q => {
+        const target = q.find(i => i.id === item.id);
+        if (target) {
+          target.status = 'uploaded_pending_metadata';
+          target.progress = 90;
+          target.storageKey = storageKey;
+        }
+      });
+      void updateProgressNotification(true);
+      void flushMetadataBatches();
+      return;
     }
 
     // 1. Get B2 upload URL (try /mobile/ endpoint first, fallback to standard endpoint if server is not yet updated)
@@ -1011,6 +1055,11 @@ export async function cancelUploadItem(itemId: string) {
   if (!item) return;
 
   await cleanupDurableFile(item.fileUri);
+
+  if (item.fileSize && item.fileSize >= 20 * 1024 * 1024) {
+    const { abortChunkedUpload } = require('./chunkUpload');
+    abortChunkedUpload(item).catch((err: any) => console.warn('[UploadQueue] Failed to abort chunked upload:', err));
+  }
 
   await mutateQueue(q => {
     queue = q.filter(i => i.id !== itemId);

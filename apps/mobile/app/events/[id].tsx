@@ -1511,6 +1511,7 @@ export default function EventDetailScreen() {
             uri: asset.uri,
             name: asset.fileName || fallbackName,
             type: asset.mimeType || fallbackType,
+            duration: asset.duration || undefined,
           };
         });
 
@@ -7669,10 +7670,8 @@ export default function EventDetailScreen() {
                   paddingHorizontal: 8,
                 }}>
                   {mobileIndexingStatus.status === 'complete'
-                    ? (mobileIndexingStatus.photosWithoutFaces > 0
-                        ? `✓ AI face indexing complete! ${mobileIndexingStatus.photosWithFaces || 0} with faces, ${mobileIndexingStatus.photosWithoutFaces} without faces.`
-                        : '✓ AI face indexing complete! All photos are searchable by guests.')
-                    : `AI is indexing faces: ${mobileIndexingStatus.indexed}/${mobileIndexingStatus.total} (${mobileIndexingStatus.percentComplete}%)`}
+                    ? '✓ Upload finished! All photos are ready.'
+                    : `Processing photos: ${mobileIndexingStatus.indexed}/${mobileIndexingStatus.total} (${mobileIndexingStatus.percentComplete}%)`}
                 </Text>
                 {mobileIndexingStatus.status === 'processing' && (
                   <View style={{ width: '100%', height: 4, backgroundColor: '#2B2F2E', borderRadius: 2, overflow: 'hidden' }}>

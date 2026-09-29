@@ -7,7 +7,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppTheme } from '@/context/ThemeContext';
 import { Fonts, MidnightColors } from '@/constants/theme';
 
-import { policyTextParts, type PolicySection } from '../../../shared/legal';
+import { policyTextParts, type PolicySection } from '../../../shared/legal/index';
 
 function PolicyText({ text }: { text: string }) {
   return <>{policyTextParts(text).map((part, index) => part.href ? (

@@ -5,6 +5,12 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@shared/legal": [
+        "../../shared/legal/index.ts"
+      ],
+      "@shared/legal/*": [
+        "../../shared/legal/*"
       ]
     }
   },
@@ -12,6 +18,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "expo-env.d.ts",
+    "../../shared/legal/**/*.ts"
   ]
 }
