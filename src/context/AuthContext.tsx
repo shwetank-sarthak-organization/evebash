@@ -194,15 +194,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             profile = await getUserProfile(uid);
         } else {
             // Update last login and properly check for Supabase API errors
-            supabase.from('profiles')
-                .update({ last_login: new Date().toISOString() })
-                .eq('id', uid)
-                .then(({ error }) => {
-                    if (error) {
-                        console.error("[Auth] Supabase rejected lastLogin update:", error.message, error.details);
-                    }
-                })
-                .catch(e => console.error("[Auth] Network error updating lastLogin:", e));
+            Promise.resolve(
+                supabase.from('profiles')
+                    .update({ last_login: new Date().toISOString() })
+                    .eq('id', uid)
+            ).then(({ error }) => {
+                if (error) {
+                    console.error("[Auth] Supabase rejected lastLogin update:", error.message, error.details);
+                }
+            }).catch(e => console.error("[Auth] Network error updating lastLogin:", e));
         }
         if (options?.shouldSync && !options.shouldSync()) return;
         syncUserSession(buildUserData(uid, email, fallbackName, profile));
