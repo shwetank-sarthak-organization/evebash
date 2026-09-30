@@ -849,6 +849,44 @@ class FaceIndexer:
 # SELF-HEALING RECONCILER & OUTBOX DISPATCHER
 # ==============================================================================
 
+def _close_outbox_row_if_unrunnable(supabase, row: dict, photo: dict) -> bool:
+    """
+    Closes an outbox row whose worker would refuse it (claim_media_job / claim_face_job), so it isn't
+    re-dispatched every minute forever. Returns True when the row was closed and must not be dispatched.
+    """
+    from datetime import datetime, timezone
+
+    job_type = row.get("job_type")
+    asset_version = int(row.get("asset_version") or 1)
+    if job_type == "media_preview":
+        status, attempts, done_status = photo.get("media_status"), int(photo.get("media_attempt") or 0), "ready"
+    elif job_type == "face_index":
+        status, attempts, done_status = photo.get("face_status"), int(photo.get("face_attempt") or 0), "indexed"
+    else:
+        return False
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if int(photo.get("asset_version") or 1) != asset_version:
+        update = {"status": "failed", "last_error": "Superseded by a newer asset version"}
+    elif status == done_status:
+        # Work already finished (e.g. a later save reset this row to 'pending')
+        update = {"status": "published", "published_at": row.get("published_at") or now_iso}
+    elif status == "failed" and attempts >= 3:
+        update = {"status": "failed", "last_error": "Worker gave up after 3 attempts"}
+    else:
+        return False
+
+    update.update({"lease_until": None, "updated_at": now_iso})
+    try:
+        supabase.table("processing_outbox").update(update).eq("id", row["id"]).execute()
+    except Exception as err:
+        # Fall back to dispatching as before
+        print(f"[Outbox] Could not close {job_type} row for {photo.get('id')}: {err}")
+        return False
+    print(f"[Outbox] Closed {job_type} row for {photo.get('id')} as {update['status']} (worker would skip it)")
+    return True
+
+
 @app.function(
     image=media_image,
     schedule=modal.Cron("* * * * *"),
@@ -947,6 +985,8 @@ def sweep_stuck_jobs():
         for row in (res.data or []):
             photo_res = supabase.table("photos").select("*").eq("id", row["photo_id"]).maybe_single().execute()
             p = photo_res.data
+            if p and _close_outbox_row_if_unrunnable(supabase, row, p):
+                continue
             if p:
                 if row["job_type"] == "media_preview":
                     process_photo_preview.spawn({
@@ -1050,6 +1090,8 @@ def dispatch_outbox_jobs():
         photo_res = supabase.table("photos").select("*").eq("id", photo_id).maybe_single().execute()
         photo = photo_res.data
         if not photo:
+            continue
+        if _close_outbox_row_if_unrunnable(supabase, row, photo):
             continue
 
         payload = {

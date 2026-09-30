@@ -843,12 +843,13 @@ mediaRouter.post("/save-photo", asyncRoute(async (request, response) => {
     // Insert outbox entry for job durability & trigger fast media preview worker
     let assetVersion = 1;
     try {
+      // ignoreDuplicates: saving the same photo again must not reset a finished job back to 'pending'
       const { data: outboxData } = await supabaseAdmin.from("processing_outbox").upsert({
         photo_id: photoId,
         job_type: "media_preview",
         asset_version: 1,
         status: "pending"
-      }, { onConflict: "photo_id,job_type,asset_version" }).select().maybeSingle();
+      }, { onConflict: "photo_id,job_type,asset_version", ignoreDuplicates: true }).select().maybeSingle();
       if (outboxData?.asset_version) {
         assetVersion = outboxData.asset_version;
       }
@@ -921,7 +922,8 @@ mediaRouter.post("/save-photo-batch", asyncRoute(async (request, response) => {
         asset_version: 1,
         status: "pending",
       }));
-      await supabaseAdmin.from("processing_outbox").upsert(outboxEntries, { onConflict: "photo_id,job_type,asset_version" });
+      // ignoreDuplicates: saving the same photo again must not reset a finished job back to 'pending'
+      await supabaseAdmin.from("processing_outbox").upsert(outboxEntries, { onConflict: "photo_id,job_type,asset_version", ignoreDuplicates: true });
     } catch (outboxErr) {
       console.warn("[SavePhotoBatch] Outbox batch upsert notice:", outboxErr);
     }
@@ -1258,7 +1260,8 @@ mediaRouter.post("/mobile/save-photo-batch", asyncRoute(async (request, response
           asset_version: 1,
           status: "pending",
         }));
-        await supabaseAdmin.from("processing_outbox").upsert(outboxEntries, { onConflict: "photo_id,job_type,asset_version" });
+        // ignoreDuplicates: saving the same photo again must not reset a finished job back to 'pending'
+        await supabaseAdmin.from("processing_outbox").upsert(outboxEntries, { onConflict: "photo_id,job_type,asset_version", ignoreDuplicates: true });
       } catch (outboxErr) {
         console.warn("[MobileSavePhotoBatch] Outbox batch upsert notice:", outboxErr);
       }
