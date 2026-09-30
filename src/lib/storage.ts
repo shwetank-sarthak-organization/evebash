@@ -573,6 +573,8 @@ async function uploadLargeFileInChunks(
         height: undefined,
         bytes: file.size,
         format: file.name.split(".").pop() || "mp4",
+        // /chunk/complete saved the row and, for videos, queued the transcode — callers must not save it again
+        videoSavedByBackend: completeData.mediaType === "video",
     };
     } catch (error) {
         if (signal?.aborted) {
@@ -813,6 +815,7 @@ export async function uploadEventImage(
             height: undefined,
             bytes: file.size,
             format: file.name.split(".").pop() || "jpg",
+            videoSavedByBackend: false,
         };
     } catch (error: unknown) {
         console.error("[Storage] Direct upload flow error:", error);

@@ -358,6 +358,11 @@ function isMediaVisibleInGallery(photo: Photo): boolean {
     return true;
 }
 
+/** Same rule as the gallery queries, for a raw `photos` row (e.g. a realtime payload). */
+export function isPhotoRowVisibleInGallery(row: any): boolean {
+    return isMediaVisibleInGallery(mapSqlToPhoto(row));
+}
+
 function mapSqlToEventFavouritePhoto(row: any): EventFavouritePhoto {
     return {
         id: row.id,

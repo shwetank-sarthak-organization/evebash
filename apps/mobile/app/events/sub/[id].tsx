@@ -93,8 +93,11 @@ export default function SubEventPhotosScreen() {
       );
       const completedItems = filtered.filter(item => item.status === 'completed');
 
-      // Option B: Reload photos progressively as each photo is saved to DB (status: 'processing' or 'completed')
-      const readyItems = filtered.filter(item => item.status === 'processing' || item.status === 'completed');
+      // Option B: Reload progressively as each item becomes visible: photos once saved to DB ('processing'),
+      // videos only once Modal has transcoded them ('completed') — the grid hides unprocessed videos.
+      const readyItems = filtered.filter(item => item.mediaType === 'video'
+        ? item.status === 'completed'
+        : item.status === 'processing' || item.status === 'completed');
       const newlyReady = readyItems.filter(item => !completedIdsRef.current.includes(item.id));
       if (newlyReady.length > 0) {
         completedIdsRef.current = [...completedIdsRef.current, ...newlyReady.map(item => item.id)];

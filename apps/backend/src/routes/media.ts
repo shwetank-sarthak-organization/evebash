@@ -28,6 +28,12 @@ import {
   publishModalBatchTask,
   publishVideoTranscodeTask,
 } from "../qstash.js";
+import {
+  EVENT_NOTIFICATION_DEBOUNCE_MS,
+  flushEventNotificationOutbox,
+  isVideoReadyPushEnabled,
+  sendOwnerUploadNotification,
+} from "../uploadNotifications.js";
 import { runMediaWatchdog } from "../services/watchdog.js";
 
 export const mediaRouter = Router();
@@ -311,51 +317,6 @@ function background(label: string, task: () => Promise<unknown>) {
   setTimeout(() => {
     task().catch((error) => console.error(`[${label}] Background task failed:`, error));
   }, 0);
-}
-
-async function sendOwnerUploadNotification(
-  eventId: string,
-  userId: string,
-  title: string,
-  body: string,
-  data: Record<string, unknown>,
-) {
-  if (!eventId || !userId || userId === "anonymous") return;
-
-  const supabaseAdmin = getSupabaseAdminClient();
-  const { data: event, error: eventError } = await supabaseAdmin
-    .from("events")
-    .select("created_by, title")
-    .eq("id", eventId)
-    .maybeSingle();
-
-  if (eventError || !event?.created_by || event.created_by === userId) return;
-
-  const { data: profile, error: profileError } = await supabaseAdmin
-    .from("profiles")
-    .select("push_token, notification_preferences")
-    .eq("id", event.created_by)
-    .maybeSingle();
-
-  if (profileError || !profile?.push_token) return;
-  const preferences = profile.notification_preferences as Record<string, unknown> | null;
-  if (preferences?.push === false || preferences?.event_activity === false) return;
-
-  await fetch("https://exp.host/--/api/v2/push/send", {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Accept-Encoding": "gzip, deflate",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      to: profile.push_token,
-      sound: "default",
-      title,
-      body,
-      data,
-    }),
-  });
 }
 
 async function deleteB2File(auth: BackblazeAuth, bucketId: string, key: string) {
@@ -810,15 +771,18 @@ mediaRouter.post("/upload/chunk/complete", asyncRoute(async (request, response) 
       // and the Stage 3 self-healing watchdog will re-enqueue it automatically!
     }
   }
-  background("CompleteChunkedUploadNotify", () =>
-    sendOwnerUploadNotification(
-      eventId,
-      userId,
-      isVideo ? "🎥 New video uploaded" : "📸 New photo uploaded",
-      `Someone added a ${isVideo ? "video" : "photo"} to your event`,
-      { eventId },
-    ),
-  );
+  // With VIDEO_READY_PUSH, videos are announced once processed (/internal/video-processed)
+  if (!isVideo || !isVideoReadyPushEnabled()) {
+    background("CompleteChunkedUploadNotify", () =>
+      sendOwnerUploadNotification(
+        eventId,
+        userId,
+        isVideo ? "🎥 New video uploaded" : "📸 New photo uploaded",
+        `Someone added a ${isVideo ? "video" : "photo"} to your event`,
+        { eventId },
+      ),
+    );
+  }
 
   response.json({
     success: true,
@@ -860,9 +824,12 @@ mediaRouter.post("/save-photo", asyncRoute(async (request, response) => {
     return jsonError(response, 500, `Failed to save to database: ${dbError.message}`);
   }
 
-  background("SavePhotoNotify", () =>
-    sendOwnerUploadNotification(eventId, userId, isVideo ? "🎥 New video uploaded" : "📸 New photo uploaded", `Someone added a ${isVideo ? "video" : "photo"} to your event`, { eventId }),
-  );
+  // With VIDEO_READY_PUSH, videos are announced once processed (/internal/video-processed)
+  if (!isVideo || !isVideoReadyPushEnabled()) {
+    background("SavePhotoNotify", () =>
+      sendOwnerUploadNotification(eventId, userId, isVideo ? "🎥 New video uploaded" : "📸 New photo uploaded", `Someone added a ${isVideo ? "video" : "photo"} to your event`, { eventId }),
+    );
+  }
 
   if (isVideo) {
     // Await transcode dispatch before responding
@@ -964,9 +931,11 @@ mediaRouter.post("/save-photo-batch", asyncRoute(async (request, response) => {
     );
   }
 
-  if (firstEventId) {
+  // With VIDEO_READY_PUSH, videos are announced once processed (/internal/video-processed), so only photos count here
+  const notifyCount = isVideoReadyPushEnabled() ? imagePayloads.length : upsertRows.length;
+  if (firstEventId && notifyCount > 0) {
     background("SavePhotoBatchNotify", () =>
-      sendOwnerUploadNotification(firstEventId, userId, "📸 New photos uploaded", `Someone added ${upsertRows.length} photos to your event`, { eventId: firstEventId }),
+      sendOwnerUploadNotification(firstEventId, userId, "📸 New photos uploaded", `Someone added ${notifyCount} photos to your event`, { eventId: firstEventId }),
     );
   }
 
@@ -1003,36 +972,7 @@ const notificationTimers = new Map<string, NodeJS.Timeout>();
 
 async function flushEventNotification(eventId: string) {
   notificationTimers.delete(eventId);
-  const supabaseAdmin = getSupabaseAdminClient();
-  try {
-    const { data: outboxItem, error } = await supabaseAdmin
-      .from("event_notifications_outbox")
-      .select("*")
-      .eq("event_id", eventId)
-      .maybeSingle();
-
-    if (error || !outboxItem) return;
-
-    const count = outboxItem.unsent_count || 1;
-    const uploaderUserId = outboxItem.uploader_user_id;
-
-    // Delete before sending to prevent duplicate sends
-    await supabaseAdmin
-      .from("event_notifications_outbox")
-      .delete()
-      .eq("event_id", eventId);
-
-    console.log(`[MobileOutbox] Flushing debounced notification for event ${eventId} (${count} photos)`);
-    await sendOwnerUploadNotification(
-      eventId,
-      uploaderUserId,
-      "📸 New photos uploaded",
-      `Someone added ${count} new photos to your event`,
-      { eventId }
-    );
-  } catch (err) {
-    console.error(`[MobileOutbox] Error flushing notification for event ${eventId}:`, err);
-  }
+  await flushEventNotificationOutbox(eventId);
 }
 
 function debounceEventNotification(eventId: string, uploaderUserId: string, photoCount: number) {
@@ -1074,13 +1014,13 @@ function debounceEventNotification(eventId: string, uploaderUserId: string, phot
         }
       }
 
-      // Reset trailing 2-minute debounce timer
+      // Reset trailing 2-minute debounce timer (the watchdog sends it if this timer is lost on restart)
       if (notificationTimers.has(eventId)) {
         clearTimeout(notificationTimers.get(eventId)!);
       }
       const timer = setTimeout(() => {
         void flushEventNotification(eventId);
-      }, 2 * 60 * 1000);
+      }, EVENT_NOTIFICATION_DEBOUNCE_MS);
       notificationTimers.set(eventId, timer);
     } catch (err) {
       console.warn(`[MobileOutbox] Notice on record/debounce for ${eventId}:`, err);
@@ -1328,9 +1268,11 @@ mediaRouter.post("/mobile/save-photo-batch", asyncRoute(async (request, response
       );
     }
 
-    // Consolidated, debounced notification
-    if (eventIdForNotification) {
-      debounceEventNotification(eventIdForNotification, userId, upsertRows.length);
+    // Consolidated, debounced notification. With VIDEO_READY_PUSH, videos are announced once processed
+    // (/internal/video-processed), so only photos count here.
+    const notifyCount = isVideoReadyPushEnabled() ? imagePayloads.length : upsertRows.length;
+    if (eventIdForNotification && notifyCount > 0) {
+      debounceEventNotification(eventIdForNotification, userId, notifyCount);
     }
   }
 
@@ -1393,6 +1335,52 @@ mediaRouter.post("/trigger-modal-batch", asyncRoute(async (request, response) =>
   }
 
   response.json({ success: true, queued: payload.length });
+}));
+
+// Called by Modal once a video is transcoded. With VIDEO_READY_PUSH on, this is where the event owner's
+// "new video" push is sent, so it never announces a video that isn't playable yet (or that failed).
+mediaRouter.post("/internal/video-processed", asyncRoute(async (request, response) => {
+  if (!verifyInternalJob(request)) return jsonError(response, 401, "Unauthorized");
+
+  const photoId = String(request.body?.photoId || "").trim();
+  if (!photoId) return jsonError(response, 400, "Missing photoId");
+
+  if (!isVideoReadyPushEnabled()) {
+    response.json({ success: true, skipped: "disabled" });
+    return;
+  }
+
+  const supabaseAdmin = getSupabaseAdminClient();
+  const { data: photo, error } = await supabaseAdmin
+    .from("photos")
+    .select("id, event_id, user_id, status, media_type, resource_type")
+    .eq("id", photoId)
+    .maybeSingle();
+  if (error) throw error;
+
+  const isVideo = photo?.media_type === "video" || photo?.resource_type === "video";
+  if (!photo || !isVideo || photo.status !== "processed") {
+    response.json({ success: true, skipped: "not_a_processed_video" });
+    return;
+  }
+
+  // Claim the row first: Modal can report the same video more than once (QStash retries, watchdog recovery)
+  const { data: claimed, error: claimError } = await supabaseAdmin
+    .from("photos")
+    .update({ owner_notified_at: new Date().toISOString() })
+    .eq("id", photoId)
+    .is("owner_notified_at", null)
+    .select("id");
+  if (claimError) throw claimError;
+  if (!claimed || claimed.length === 0) {
+    response.json({ success: true, skipped: "already_notified" });
+    return;
+  }
+
+  background("VideoProcessedNotify", () =>
+    sendOwnerUploadNotification(photo.event_id, photo.user_id, "🎥 New video uploaded", "Someone added a video to your event", { eventId: photo.event_id }),
+  );
+  response.json({ success: true, notified: true });
 }));
 
 mediaRouter.get("/indexing-status", asyncRoute(async (request, response) => {

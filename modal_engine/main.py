@@ -1299,6 +1299,29 @@ transcode_image = (
     .pip_install("boto3", "supabase", "fastapi[standard]")
 )
 
+def _notify_video_processed(photo_id: str):
+    """Tells the backend the video is playable so it can send the event owner's push. Best effort: never raises."""
+    import json
+    import urllib.request
+
+    backend_url = (os.environ.get("BACKEND_API_URL") or "").strip().rstrip("/")
+    # Same precedence as the backend's getInternalJobSecret (apps/backend/src/auth.ts)
+    secret = (os.environ.get("INTERNAL_JOB_SECRET") or os.environ.get("CRON_SECRET") or os.environ.get("QSTASH_TOKEN") or "").strip()
+    if not backend_url or not secret or not photo_id:
+        return
+
+    try:
+        req = urllib.request.Request(
+            f"{backend_url}/api/v1/media/internal/video-processed",
+            data=json.dumps({"photoId": photo_id}).encode("utf-8"),
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {secret}"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            print(f"[TranscodeVideo] Video-ready callback for {photo_id}: HTTP {resp.status}")
+    except Exception as e:
+        print(f"[TranscodeVideo] Video-ready callback failed for {photo_id} (non-fatal): {e}")
+
 def _transcode_video_core(request: dict, hardware="cpu"):
     import boto3
     import tempfile
@@ -1609,6 +1632,7 @@ def _transcode_video_core(request: dict, hardware="cpu"):
         if video_duration_seconds:
             update_data["duration"] = round(video_duration_seconds, 2)
         supabase.table("photos").update(update_data).eq("id", photo_id).execute()
+        _notify_video_processed(photo_id)
 
         # 7. Log infrastructure cost
         duration = time.time() - start_time

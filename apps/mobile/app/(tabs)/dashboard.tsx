@@ -34,7 +34,7 @@ import {
   getNotifications,
   checkGuestRequestStatus,
 } from '@/lib/database';
-import { subscribeToUploadQueue } from '@/lib/uploadQueue';
+import { subscribeToUploadQueue, UploadQueueItem } from '@/lib/uploadQueue';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path } from 'react-native-svg';
@@ -110,6 +110,64 @@ export function SwipeableNotificationItem({ children, onDismiss, colors, isDark 
   );
 }
 
+/** The in-app card for the upload queue, or null when there is nothing to show. */
+function buildUploadQueueNotification(queueItems: UploadQueueItem[]): any {
+  const active = queueItems.filter(i => i.status === 'uploading' || i.status === 'pending');
+  // Uploaded but not ready yet (videos wait for Modal to finish transcoding)
+  const processing = queueItems.filter(i => i.status === 'uploaded_pending_metadata' || i.status === 'processing');
+  const failed = queueItems.filter(i => i.status === 'failed');
+  const completedCount = queueItems.filter(i => i.status === 'completed').length;
+
+  const total = queueItems.length;
+  const progressSum = queueItems.reduce((sum, item) => {
+    if (item.status === 'completed') return sum + 100;
+    return sum + item.progress;
+  }, 0);
+  const overallPercentage = total > 0 ? progressSum / (total * 100) * 100 : 0;
+
+  if (active.length > 0) {
+    return {
+      id: 'upload-active',
+      title: '📤 Uploading Media',
+      body: `Uploading: ${completedCount}/${total} files (${Math.round(overallPercentage)}%)`,
+      createdAt: new Date(),
+      type: 'upload_progress',
+      targetId: 'upload_queue'
+    };
+  }
+  if (processing.length > 0) {
+    return {
+      id: 'upload-processing',
+      title: '⚙️ Processing Media',
+      body: `Preparing ${processing.length} ${processing.length === 1 ? 'file' : 'files'}...`,
+      createdAt: new Date(),
+      type: 'upload_processing',
+      targetId: 'upload_queue'
+    };
+  }
+  if (failed.length > 0) {
+    return {
+      id: 'upload-failed',
+      title: '❌ Upload Halted with Issues',
+      body: `Succeeded: ${completedCount}, Failed: ${failed.length}. Tap to retry.`,
+      createdAt: new Date(),
+      type: 'upload_failed',
+      targetId: 'upload_queue'
+    };
+  }
+  if (completedCount > 0) {
+    return {
+      id: 'upload-success',
+      title: '✅ Upload Complete',
+      body: 'Upload complete',
+      createdAt: new Date(),
+      type: 'upload_success',
+      targetId: 'upload_queue'
+    };
+  }
+  return null;
+}
+
 export default function DashboardScreen() {
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
@@ -158,48 +216,7 @@ export default function DashboardScreen() {
       const filtered = list.filter(item => !dismissed.has(item.id));
 
       const { getUploadQueue } = require('@/lib/uploadQueue');
-      const queueItems = getUploadQueue();
-      const active = queueItems.filter((i: any) => i.status === 'uploading' || i.status === 'pending');
-      const failed = queueItems.filter((i: any) => i.status === 'failed');
-      const completed = queueItems.filter((i: any) => i.status === 'completed');
-
-      let uploadNotif: any = null;
-      const total = queueItems.length;
-      const completedCount = completed.length;
-      const progressSum = queueItems.reduce((sum: number, item: any) => {
-        if (item.status === 'completed') return sum + 100;
-        return sum + item.progress;
-      }, 0);
-      const overallPercentage = total > 0 ? progressSum / (total * 100) * 100 : 0;
-
-      if (active.length > 0) {
-        uploadNotif = {
-          id: 'upload-active',
-          title: '📤 Uploading Media',
-          body: `Uploading: ${completedCount}/${total} files (${Math.round(overallPercentage)}%)`,
-          createdAt: new Date(),
-          type: 'upload_progress',
-          targetId: 'upload_queue'
-        };
-      } else if (failed.length > 0) {
-        uploadNotif = {
-          id: 'upload-failed',
-          title: '❌ Upload Halted with Issues',
-          body: `Succeeded: ${completedCount}, Failed: ${failed.length}. Tap to retry.`,
-          createdAt: new Date(),
-          type: 'upload_failed',
-          targetId: 'upload_queue'
-        };
-      } else if (completedCount > 0) {
-        uploadNotif = {
-          id: 'upload-success',
-          title: '✅ Upload Complete',
-          body: 'Upload complete',
-          createdAt: new Date(),
-          type: 'upload_success',
-          targetId: 'upload_queue'
-        };
-      }
+      const uploadNotif = buildUploadQueueNotification(getUploadQueue());
 
       const finalNotifs = [...filtered];
       if (uploadNotif && !dismissed.has(uploadNotif.id)) {
@@ -218,7 +235,7 @@ export default function DashboardScreen() {
           ? latestNotif.createdAt.seconds * 1000
           : (latestNotif.createdAt instanceof Date ? latestNotif.createdAt.getTime() : 0);
 
-        if (latestTime > lastReadTime || (uploadNotif && (active.length > 0 || failed.length > 0 || completedCount > 0))) {
+        if (latestTime > lastReadTime || uploadNotif) {
           setHasUnreadNotifications(true);
         } else {
           setHasUnreadNotifications(false);
@@ -439,48 +456,7 @@ export default function DashboardScreen() {
 
   useEffect(() => {
     const unsubscribe = subscribeToUploadQueue((queueItems) => {
-      const active = queueItems.filter(i => i.status === 'uploading' || i.status === 'pending');
-      const failed = queueItems.filter(i => i.status === 'failed');
-      const completed = queueItems.filter(i => i.status === 'completed');
-
-      const total = queueItems.length;
-      const completedCount = completed.length;
-      const progressSum = queueItems.reduce((sum, item) => {
-        if (item.status === 'completed') return sum + 100;
-        return sum + item.progress;
-      }, 0);
-      const overallPercentage = total > 0 ? progressSum / (total * 100) * 100 : 0;
-
-      let uploadNotif: any = null;
-
-      if (active.length > 0) {
-        uploadNotif = {
-          id: 'upload-active',
-          title: '📤 Uploading Media',
-          body: `Uploading: ${completedCount}/${total} files (${Math.round(overallPercentage)}%)`,
-          createdAt: new Date(),
-          type: 'upload_progress',
-          targetId: 'upload_queue'
-        };
-      } else if (failed.length > 0) {
-        uploadNotif = {
-          id: 'upload-failed',
-          title: '❌ Upload Halted with Issues',
-          body: `Succeeded: ${completedCount}, Failed: ${failed.length}. Tap to retry.`,
-          createdAt: new Date(),
-          type: 'upload_failed',
-          targetId: 'upload_queue'
-        };
-      } else if (completedCount > 0) {
-        uploadNotif = {
-          id: 'upload-success',
-          title: '✅ Upload Complete',
-          body: 'Upload complete',
-          createdAt: new Date(),
-          type: 'upload_success',
-          targetId: 'upload_queue'
-        };
-      }
+      const uploadNotif = buildUploadQueueNotification(queueItems);
 
       setNotifications(prev => {
         const filtered = prev.filter(n => !n.id.startsWith('upload-'));
@@ -489,7 +465,7 @@ export default function DashboardScreen() {
         return [uploadNotif, ...filtered];
       });
 
-      if (uploadNotif && (active.length > 0 || failed.length > 0 || completedCount > 0)) {
+      if (uploadNotif) {
         setHasUnreadNotifications(true);
       }
     });
@@ -1017,6 +993,10 @@ export default function DashboardScreen() {
                                     setShowUploadCompleteModal(true);
                                     return;
                                   }
+                                  if (item.id === 'upload-processing') {
+                                    setShowNotificationsModal(false);
+                                    return;
+                                  }
 
                                   setShowNotificationsModal(false);
                                   if (item.type === 'followed_event') {
@@ -1071,6 +1051,7 @@ export default function DashboardScreen() {
                                      item.type === 'shortlist_faq' ? '❓' :
                                      item.type === 'shortlist_portfolio' ? '📸' :
                                      item.type === 'upload_progress' ? '📤' :
+                                     item.type === 'upload_processing' ? '⚙️' :
                                      item.type === 'upload_success' ? '✅' :
                                      item.type === 'upload_failed' ? '❌' : '📢'}
                                   </Text>

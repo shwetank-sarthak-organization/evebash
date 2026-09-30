@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from './supabase';
 import { getEndpointsForPath, fetchWithEndpointFallback } from './storage';
+import { toDurationSeconds } from './mediaDuration';
 
 let Notifications: any = null;
 try {
@@ -58,8 +59,9 @@ export interface UploadQueueItem {
   addedAt: number;
   batchId?: string;
   batchTotal?: number;
-  duration?: number; // Optional duration extracted from picker
+  duration?: number; // Optional duration from expo-image-picker, in MILLISECONDS — send toDurationSeconds(duration) to the API
   batchIndex?: number;
+  processingStartedAt?: number; // When the backend saved the row; videos stay 'processing' until Modal has transcoded them
 }
 
 type QueueListener = (items: UploadQueueItem[]) => void;
@@ -234,9 +236,9 @@ async function reconcileInterruptedUploads(items: UploadQueueItem[]) {
   if (!accessToken) return;
 
   for (const item of items) {
-    // Chunked uploads handle their own resume state perfectly.
+    // Chunked uploads (videos >= 20 MiB) handle their own resume state perfectly.
     // Transition them to pending so processQueue -> uploadWorker -> chunkUpload resumes them.
-    if (item.fileSize && item.fileSize >= 20 * 1024 * 1024) {
+    if (item.mediaType === 'video' && item.fileSize && item.fileSize >= 20 * 1024 * 1024) {
       await mutateQueue(q => {
         const target = q.find(i => i.id === item.id);
         if (target) {
@@ -280,6 +282,7 @@ async function reconcileInterruptedUploads(items: UploadQueueItem[]) {
               if (target) {
                 target.status = 'processing';
                 target.progress = 90;
+                target.processingStartedAt = Date.now();
               }
             });
             void triggerAndTrackProcessing(item.eventId);
@@ -472,10 +475,12 @@ async function uploadWorker(item: UploadQueueItem) {
     }
 
     const MULTIPART_THRESHOLD = 20 * 1024 * 1024; // 20 MiB
-    if (fileSize >= MULTIPART_THRESHOLD) {
+    // Only videos: chunkUpload saves the row as a video. Photos of any size use the single-part path below.
+    if (item.mediaType === 'video' && fileSize >= MULTIPART_THRESHOLD) {
       console.log(`[UploadQueue] Video is >= 20 MiB (${fileSize} bytes). Routing to ChunkUpload.`);
-      const { uploadVideoInChunks } = require('./chunkUpload');
-      const { storageKey } = await uploadVideoInChunks(item, (rawPercent: number) => {
+      const { uploadVideoInChunks, clearChunkUploadState } = require('./chunkUpload');
+      // Pass the resolved size — item.fileSize can be 0 if the picker could not stat the file.
+      const { storageKey } = await uploadVideoInChunks({ ...item, fileSize }, (rawPercent: number) => {
         const percent = Math.min(90, Math.round(rawPercent * 0.9));
         const target = queue.find(i => i.id === item.id);
         if (target) {
@@ -484,18 +489,26 @@ async function uploadWorker(item: UploadQueueItem) {
         notifyListeners();
         void updateProgressNotification(false);
       });
-      
-      console.log(`[UploadQueue] Chunked upload successful for ${storageKey}. Enqueueing for metadata batch.`);
+
+      // /chunk/complete has already saved the photo row (status 'processing') and queued the
+      // transcode — same as the web flow. No save-photo-batch call here: it would only re-upsert
+      // the same row (resetting its duration) and send the host a second "new video" notification.
+      console.log(`[UploadQueue] Chunked upload finalized for ${storageKey}. Backend saved the row and queued transcoding.`);
       await mutateQueue(q => {
         const target = q.find(i => i.id === item.id);
         if (target) {
-          target.status = 'uploaded_pending_metadata';
+          target.status = 'processing';
           target.progress = 90;
+          target.processingStartedAt = Date.now();
           target.storageKey = storageKey;
+          target.fileSize = fileSize;
+          target.error = undefined;
         }
       });
+      await clearChunkUploadState(item.id);
+      void cleanupDurableFile(item.fileUri);
       void updateProgressNotification(true);
-      void flushMetadataBatches();
+      void triggerAndTrackProcessing(item.eventId);
       return;
     }
 
@@ -620,8 +633,10 @@ async function uploadWorker(item: UploadQueueItem) {
     void flushMetadataBatches();
   } catch (err: any) {
     const retries = (item.retryCount || 0) + 1;
+    // Set by chunkUpload for 4xx responses — repeating the identical request cannot succeed.
+    const nonRetryable = err?.nonRetryable === true;
 
-    if (retries < MAX_UPLOAD_RETRIES) {
+    if (!nonRetryable && retries < MAX_UPLOAD_RETRIES) {
       console.warn(`[UploadQueue] Transient upload issue on ${item.fileName} (${err?.message || err}). Retrying attempt ${retries}/${MAX_UPLOAD_RETRIES}...`);
       await mutateQueue(q => {
         const target = q.find(i => i.id === item.id);
@@ -635,7 +650,12 @@ async function uploadWorker(item: UploadQueueItem) {
       // Backoff before slot is retried
       await new Promise(res => setTimeout(res, 2000 * retries));
     } else {
-      console.error(`[UploadQueue] Permanent upload failure for ${item.fileName} after ${MAX_UPLOAD_RETRIES} attempts:`, err);
+      console.error(
+        nonRetryable
+          ? `[UploadQueue] Upload rejected for ${item.fileName} (not retrying automatically):`
+          : `[UploadQueue] Permanent upload failure for ${item.fileName} after ${MAX_UPLOAD_RETRIES} attempts:`,
+        err
+      );
       await mutateQueue(q => {
         const target = q.find(i => i.id === item.id);
         if (target) {
@@ -653,11 +673,21 @@ async function uploadWorker(item: UploadQueueItem) {
 
 // ── 6. Single-Flight Metadata Batch Sync ─────────────────────────────────────
 let metadataFlushPromise: Promise<void> | null = null;
+let metadataFlushRequested = false;
 
 export function flushMetadataBatches(): Promise<void> {
-  if (metadataFlushPromise) return metadataFlushPromise;
+  if (metadataFlushPromise) {
+    // An upload finished while a flush was running; that flush's snapshot doesn't include it, so run once more.
+    metadataFlushRequested = true;
+    return metadataFlushPromise;
+  }
 
-  metadataFlushPromise = flushMetadataBatchesInternal().finally(() => {
+  metadataFlushPromise = (async () => {
+    do {
+      metadataFlushRequested = false;
+      await flushMetadataBatchesInternal();
+    } while (metadataFlushRequested);
+  })().finally(() => {
     metadataFlushPromise = null;
   });
 
@@ -722,6 +752,8 @@ async function flushMetadataBatchesInternal(): Promise<void> {
         fileName: item.fileName,
         fileSize: item.fileSize,
         resourceType: item.mediaType === 'video' ? 'video' : 'image',
+        // Picker duration is in ms; backend routes transcodes by seconds (> 600s → GPU).
+        duration: item.mediaType === 'video' ? toDurationSeconds(item.duration) : undefined,
       }));
 
       let response: Response | null = null;
@@ -765,6 +797,7 @@ async function flushMetadataBatchesInternal(): Promise<void> {
                   fileName: p.fileName,
                   fileSize: p.fileSize,
                   resourceType: p.resourceType,
+                  duration: p.duration,
                 })),
               }),
             });
@@ -801,6 +834,7 @@ async function flushMetadataBatchesInternal(): Promise<void> {
           if (!itemResult || itemResult.status === 'saved') {
             target.status = 'processing';
             target.progress = 90;
+            target.processingStartedAt = Date.now();
             target.error = undefined;
             void cleanupDurableFile(target.fileUri);
           } else if (itemResult.status === 'not_uploaded') {
@@ -859,11 +893,68 @@ async function flushMetadataBatchesInternal(): Promise<void> {
 }
 
 // ── 6b. Background Processing & AI Face Indexing Tracker ─────────────────────
-const activeIndexingPollers = new Map<string, { timer: ReturnType<typeof setTimeout> | null; abort: boolean; startTime: number }>();
+const activeIndexingPollers = new Map<string, { timer: ReturnType<typeof setTimeout> | null; abort: boolean; photoPhaseStart: number | null }>();
 const lastIndexingStatus = new Map<string, { indexed: number; total: number; percentComplete: number; status: string }>();
+
+// Modal's video functions time out after 1h. Past that the upload is reported as done and the
+// backend watchdog keeps retrying the transcode.
+const MAX_VIDEO_PROCESSING_TRACK_MS = 60 * 60 * 1000;
 
 export function getIndexingStatusForEvent(eventId: string) {
   return lastIndexingStatus.get(eventId) || null;
+}
+
+/** The backend's photos.id for a storage key (see toPhotoRow in apps/backend/src/routes/media.ts). */
+function photoRowIdFor(storageKey: string) {
+  return storageKey.replace(/\//g, '_');
+}
+
+/**
+ * A video is finished only once Modal has transcoded it: its row becomes 'processed' (or 'failed').
+ * Returns true when any item changed status.
+ */
+async function settleProcessingVideos(videos: UploadQueueItem[]): Promise<boolean> {
+  const rowIds = videos.flatMap(video => (video.storageKey ? [photoRowIdFor(video.storageKey)] : []));
+  const rowStatusById = new Map<string, string>();
+  if (rowIds.length > 0) {
+    const { data, error } = await supabase.from('photos').select('id, status').in('id', rowIds);
+    if (error) {
+      console.warn('[UploadQueue] Video processing status check notice:', error.message);
+    }
+    for (const row of data || []) {
+      rowStatusById.set(row.id, row.status);
+    }
+  }
+
+  const now = Date.now();
+  const outcomes = new Map<string, 'completed' | 'failed'>();
+  for (const video of videos) {
+    const rowStatus = video.storageKey ? rowStatusById.get(photoRowIdFor(video.storageKey)) : undefined;
+    if (rowStatus === 'processed') {
+      outcomes.set(video.id, 'completed');
+    } else if (rowStatus === 'failed') {
+      outcomes.set(video.id, 'failed');
+    } else if (now - (video.processingStartedAt ?? video.addedAt) >= MAX_VIDEO_PROCESSING_TRACK_MS) {
+      console.warn(`[UploadQueue] Stopped waiting for video ${video.id} to finish processing; the server keeps handling it.`);
+      outcomes.set(video.id, 'completed');
+    }
+  }
+  if (outcomes.size === 0) return false;
+
+  await mutateQueue(q => {
+    for (const item of q) {
+      const outcome = outcomes.get(item.id);
+      if (!outcome || item.status !== 'processing') continue;
+      item.status = outcome;
+      if (outcome === 'completed') {
+        item.progress = 100;
+      } else {
+        item.error = 'The video was uploaded but could not be processed. Please upload it again.';
+      }
+    }
+  });
+  void updateProgressNotification(true);
+  return true;
 }
 
 export function triggerAndTrackProcessing(eventId: string) {
@@ -896,15 +987,25 @@ export function triggerAndTrackProcessing(eventId: string) {
     return;
   }
 
-  const pollerState = { timer: null as any, abort: false, startTime: Date.now() };
+  const pollerState = { timer: null as any, abort: false, photoPhaseStart: null as number | null };
   activeIndexingPollers.set(eventId, pollerState);
 
-  const MAX_POLL_DURATION_MS = 90000; // 90s max timeout safety fallback
+  const MAX_POLL_DURATION_MS = 90000; // 90s max wait for photo face indexing
 
   const poll = async () => {
     if (pollerState.abort) {
       activeIndexingPollers.delete(eventId);
       return;
+    }
+
+    const processingVideos = queue.filter(item => item.eventId === eventId && item.status === 'processing' && item.mediaType === 'video');
+    let videosSettled = false;
+    if (processingVideos.length > 0) {
+      try {
+        videosSettled = await settleProcessingVideos(processingVideos);
+      } catch (videoErr) {
+        console.warn(`[UploadQueue] Video processing check error for event ${eventId}:`, videoErr);
+      }
     }
 
     const currentProcessing = queue.filter(item => item.eventId === eventId && item.status === 'processing');
@@ -914,23 +1015,25 @@ export function triggerAndTrackProcessing(eventId: string) {
 
     if (currentProcessing.length === 0) {
       activeIndexingPollers.delete(eventId);
+      // processQueue sends the completion notification once the whole queue has settled
+      if (videosSettled) processQueue();
       return;
     }
 
     const hasPhotoProcessing = currentProcessing.some(item => item.mediaType !== 'video');
-    if (!hasPhotoProcessing && stillUploading.length === 0) {
-      activeIndexingPollers.delete(eventId);
-      await mutateQueue(q => {
-        for (const item of q) {
-          if (item.eventId === eventId && item.status === 'processing' && item.mediaType === 'video') {
-            item.status = 'completed';
-            item.progress = 100;
-          }
-        }
-      });
-      processQueue();
+    const hasVideoProcessing = currentProcessing.some(item => item.mediaType === 'video');
+    if (!hasPhotoProcessing) {
+      // Only videos left: no face indexing to track, just wait for Modal
+      pollerState.photoPhaseStart = null;
+      if (!pollerState.abort) {
+        pollerState.timer = setTimeout(poll, 5000);
+      }
       return;
     }
+    if (pollerState.photoPhaseStart === null) {
+      pollerState.photoPhaseStart = Date.now();
+    }
+    const photoPhaseStart = pollerState.photoPhaseStart;
 
     try {
       const statusEndpoints = getEndpointsForPath(`/api/v1/media/indexing-status?eventId=${eventId}`);
@@ -950,7 +1053,7 @@ export function triggerAndTrackProcessing(eventId: string) {
             const mappedProgress = Math.min(99, Math.max(90, Math.round(90 + (data.percentComplete * 0.09))));
             await mutateQueue(q => {
               for (const item of q) {
-                if (item.eventId === eventId && item.status === 'processing') {
+                if (item.eventId === eventId && item.status === 'processing' && item.mediaType !== 'video') {
                   item.progress = mappedProgress;
                 }
               }
@@ -959,13 +1062,12 @@ export function triggerAndTrackProcessing(eventId: string) {
           }
 
           // Check if indexing is complete AND all files have finished uploading to B2
-          const elapsed = Date.now() - pollerState.startTime;
+          const elapsed = Date.now() - photoPhaseStart;
           const isComplete = data.status === 'complete' || (data.total > 0 && data.pending === 0) || (data.total === 0 && elapsed >= 4000);
           const isTimedOut = elapsed >= MAX_POLL_DURATION_MS;
 
           if ((isComplete || isTimedOut) && stillUploading.length === 0) {
-            console.log(`[UploadQueue] Processing complete for event ${eventId} (status: ${data.status}, elapsed: ${Math.round(elapsed / 1000)}s)`);
-            activeIndexingPollers.delete(eventId);
+            console.log(`[UploadQueue] Photo processing complete for event ${eventId} (status: ${data.status}, elapsed: ${Math.round(elapsed / 1000)}s)`);
 
             // Record finalized 100% indexing status for this event
             lastIndexingStatus.set(eventId, {
@@ -975,18 +1077,22 @@ export function triggerAndTrackProcessing(eventId: string) {
               status: 'complete',
             });
 
-            // Mark processing items as completed!
+            // Mark processing photos as completed (videos settle from their own row status)
             await mutateQueue(q => {
               for (const item of q) {
-                if (item.eventId === eventId && item.status === 'processing') {
+                if (item.eventId === eventId && item.status === 'processing' && item.mediaType !== 'video') {
                   item.status = 'completed';
                   item.progress = 100;
                 }
               }
             });
+            pollerState.photoPhaseStart = null;
 
             processQueue();
-            return;
+            if (!hasVideoProcessing) {
+              activeIndexingPollers.delete(eventId);
+              return;
+            }
           }
         }
       }
@@ -1047,6 +1153,11 @@ export async function clearFinishedUploads() {
   const itemsToRemove = queue.filter(item => item.status === 'completed' || item.status === 'failed');
   for (const item of itemsToRemove) {
     await cleanupDurableFile(item.fileUri);
+    if (item.status === 'failed' && item.fileSize && item.fileSize >= 20 * 1024 * 1024) {
+      // Release the unfinished B2 large file and its 'uploading' row (no-op if the upload had completed).
+      const { abortChunkedUpload } = require('./chunkUpload');
+      abortChunkedUpload(item).catch((err: any) => console.warn('[UploadQueue] Failed to abort chunked upload:', err));
+    }
   }
 
   await mutateQueue(q => {
@@ -1077,6 +1188,22 @@ export async function cancelUploadItem(itemId: string) {
 }
 
 export async function retryUploadItem(itemId: string) {
+  const item = queue.find(i => i.id === itemId);
+  if (!item) return;
+
+  // The local copy is deleted once the server has the file (e.g. a video whose processing failed),
+  // so there is nothing left to re-upload.
+  const fileInfo = await FileSystem.getInfoAsync(item.fileUri).catch(() => null);
+  if (!fileInfo?.exists) {
+    await mutateQueue(q => {
+      const target = q.find(i => i.id === itemId);
+      if (target) {
+        target.error = 'This file is no longer on the device. Please select it again to upload.';
+      }
+    });
+    return;
+  }
+
   await mutateQueue(q => {
     const target = q.find(i => i.id === itemId);
     if (target) {
@@ -1229,8 +1356,14 @@ async function performNotificationUpdate() {
     // ── PROCESSING & AI INDEXING PHASE (Google Drive style) ──
     title = batchTotal > 1 ? `Processing ${batchTotal} files` : 'Processing 1 file';
     const indexingData = lastIndexingStatus.get(currentEventId);
+    const processingItems = currentBatchItems.filter(i => i.status === 'processing');
 
-    if (indexingData && indexingData.total > 0) {
+    if (processingItems.length > 0 && processingItems.every(i => i.mediaType === 'video')) {
+      subtitle = 'Processing';
+      bodyText = processingItems.length > 1
+        ? `Preparing ${processingItems.length} videos for playback...`
+        : 'Preparing video for playback...';
+    } else if (indexingData && indexingData.total > 0) {
       subtitle = `${indexingData.percentComplete}%`;
       bodyText = `AI Face Indexing: ${indexingData.indexed} of ${indexingData.total} (${indexingData.percentComplete}%)`;
     } else {

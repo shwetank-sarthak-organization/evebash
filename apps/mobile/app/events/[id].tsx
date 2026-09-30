@@ -8,7 +8,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { getEventById, getSubEvents, logGuestLogin, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getUsers, UserProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto } from '@/lib/database';
+import { getEventById, getSubEvents, logGuestLogin, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getUsers, UserProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { styles, FunkyFonts } from '../../components/eventStyles';
@@ -1020,6 +1020,8 @@ export default function EventDetailScreen() {
 
   const [activeSubEvent, setActiveSubEvent] = useState<DatabaseEvent | null>(null);
   const [photos, setPhotos] = useState<any[]>([]);
+  const photosRef = React.useRef<any[]>([]);
+  photosRef.current = photos;
   const [mediaTotals, setMediaTotals] = useState({ photos: 0, videos: 0 });
   const [storageStats, setStorageStats] = useState<{ used: number; limit: number; label: string; percent: number } | null>(null);
   const [retainedMediaIds, setRetainedMediaIds] = useState<Set<string>>(new Set());
@@ -1050,6 +1052,8 @@ export default function EventDetailScreen() {
   }, [fetchStorage, photos.length]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [photoPage, setPhotoPage] = useState(0);
+  const photoPageRef = React.useRef(0);
+  photoPageRef.current = photoPage;
   const [hasMorePhotos, setHasMorePhotos] = useState(false);
   const [loadingMorePhotos, setLoadingMorePhotos] = useState(false);
   // undefined = gallery list, null = Primary Gallery, event = sub-gallery
@@ -1281,36 +1285,39 @@ export default function EventDetailScreen() {
     }
   };
 
-  const loadPhotos = async (eventId: string, legacyId?: string) => {
-    setLoadingPhotos(true);
+  // silent (realtime refresh): no spinner, keep the pages already scrolled through, keep the grid on error
+  const loadPhotos = async (eventId: string, legacyId?: string, { silent = false } = {}) => {
+    if (!silent) setLoadingPhotos(true);
+    const pageCount = silent ? photoPageRef.current + 1 : 1;
     const perfPhotosStart = Date.now();
     try {
       const [photoDataResult, retainedIds, favouriteRows] = await Promise.all([
-        getEventPhotosPaginated(eventId, legacyId, 0, PHOTO_PAGE_SIZE),
+        getEventPhotosPaginated(eventId, legacyId, 0, PHOTO_PAGE_SIZE * pageCount),
         getRetainedMediaIdsForEventGrace(eventId, legacyId),
         getEventFavouritePhotos(eventId),
       ]);
       setPhotos(photoDataResult.photos);
       setMediaTotals({ photos: photoDataResult.totalPhotos, videos: photoDataResult.totalVideos });
-      setPhotoPage(0);
+      if (!silent) setPhotoPage(0);
       setHasMorePhotos(photoDataResult.hasMore);
       setRetainedMediaIds(new Set(retainedIds));
       setEventFavouritePhotoIds(new Set(favouriteRows.map((row: any) => row.photoId)));
       console.log(`[PERF] loadPhotos completed in ${Date.now() - perfPhotosStart}ms`);
     } catch (err) {
       console.error('[EventDetail] Photos load error:', err);
+      if (silent) return;
       setPhotos([]);
       setMediaTotals({ photos: 0, videos: 0 });
       setHasMorePhotos(false);
       setEventFavouritePhotoIds(new Set());
     } finally {
-      setLoadingPhotos(false);
+      if (!silent) setLoadingPhotos(false);
     }
   };
 
-  const loadPrimaryGalleryPhotos = useCallback(async () => {
+  const loadPrimaryGalleryPhotos = useCallback(async ({ silent = false } = {}) => {
     if (!event) return;
-    setLoadingPhotos(true);
+    if (!silent) setLoadingPhotos(true);
     try {
       const favouritePhotos = await getFavouritePhotosForEvents(getPrimaryFavouriteEventIds());
       if (favouritePhotos.length > 0) {
@@ -1327,26 +1334,28 @@ export default function EventDetailScreen() {
         return;
       }
 
+      const pageCount = silent ? photoPageRef.current + 1 : 1;
       const [photoDataResult, retainedIds, favouriteRows] = await Promise.all([
-        getEventPhotosPaginated(event.id, event.legacyId, 0, PHOTO_PAGE_SIZE),
+        getEventPhotosPaginated(event.id, event.legacyId, 0, PHOTO_PAGE_SIZE * pageCount),
         getRetainedMediaIdsForEventGrace(event.id, event.legacyId),
         getEventFavouritePhotos(event.id),
       ]);
 
       setPhotos(photoDataResult.photos);
       setMediaTotals({ photos: photoDataResult.totalPhotos, videos: photoDataResult.totalVideos });
-      setPhotoPage(0);
+      if (!silent) setPhotoPage(0);
       setHasMorePhotos(photoDataResult.hasMore);
       setRetainedMediaIds(new Set(retainedIds));
       setEventFavouritePhotoIds(new Set(favouriteRows.map((row: any) => row.photoId)));
     } catch (err) {
       console.error('[EventDetail] Primary gallery photos load error:', err);
+      if (silent) return;
       setPhotos([]);
       setMediaTotals({ photos: 0, videos: 0 });
       setHasMorePhotos(false);
       setEventFavouritePhotoIds(new Set());
     } finally {
-      setLoadingPhotos(false);
+      if (!silent) setLoadingPhotos(false);
     }
   }, [event, getPrimaryFavouriteEventIds]);
 
@@ -1817,8 +1826,11 @@ export default function EventDetailScreen() {
         completedIdsRef.current = [];
       }
 
-      // Option B: Reload photos progressively as each photo is saved to DB (status: 'processing' or 'completed')
-      const readyItems = filtered.filter(item => item.status === 'processing' || item.status === 'completed');
+      // Option B: Reload progressively as each item becomes visible: photos once saved to DB ('processing'),
+      // videos only once Modal has transcoded them ('completed') — the grid hides unprocessed videos.
+      const readyItems = filtered.filter(item => item.mediaType === 'video'
+        ? item.status === 'completed'
+        : item.status === 'processing' || item.status === 'completed');
       const newlyReady = readyItems.filter(item => !completedIdsRef.current.includes(item.id));
       if (newlyReady.length > 0) {
         completedIdsRef.current = [...completedIdsRef.current, ...newlyReady.map(item => item.id)];
@@ -1828,6 +1840,63 @@ export default function EventDetailScreen() {
 
     return unsubscribe;
   }, [event?.id, event?.legacyId, activeSubEvent?.id, activeSubEvent?.legacyId, selectedAdminGallery?.id, selectedAdminGallery?.legacyId]);
+
+  // Live grid: media from any uploader (e.g. a guest's video that Modal just finished) shows up without a refresh.
+  const liveGalleryId = event
+    ? (selectedAdminGallery !== undefined
+      ? (selectedAdminGallery ? selectedAdminGallery.id : event.id)
+      : (activeSubEvent ? activeSubEvent.id : event.id))
+    : undefined;
+  const liveGalleryLegacyId = event
+    ? (selectedAdminGallery !== undefined
+      ? (selectedAdminGallery ? selectedAdminGallery.legacyId : event.legacyId)
+      : (activeSubEvent ? activeSubEvent.legacyId : event.legacyId))
+    : undefined;
+  // Called from the realtime callback through a ref so it always reloads the gallery on screen with current state.
+  const refreshLiveGalleryRef = React.useRef<() => void>(() => {});
+  refreshLiveGalleryRef.current = () => {
+    if (!liveGalleryId) return;
+    const isPrimaryGallery = selectedAdminGallery !== undefined ? selectedAdminGallery === null : !activeSubEvent;
+    if (isPrimaryGallery) {
+      loadPrimaryGalleryPhotos({ silent: true });
+    } else {
+      loadPhotos(liveGalleryId, liveGalleryLegacyId, { silent: true });
+    }
+  };
+
+  useEffect(() => {
+    if (!liveGalleryId || liveGalleryId === 'event-partners' || liveGalleryId === 'find-you') return;
+
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    const handleMediaChange = (payload: any) => {
+      const row = payload.new;
+      if (!row?.id || !isPhotoRowVisibleInGallery(row)) return;
+      // Photo updates are thumbnails / face indexing of items already added; only a video's update
+      // (status -> 'processed') can make a new item appear.
+      const isVideo = row.media_type === 'video' || row.resource_type === 'video';
+      if (payload.eventType === 'UPDATE' && !isVideo) return;
+      if (photosRef.current.some(photo => photo.id === row.id)) return;
+
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        refreshTimer = null;
+        refreshLiveGalleryRef.current();
+      }, 1500);
+    };
+
+    const channel = supabase.channel(`event-media-${liveGalleryId}-${Math.random().toString(36).slice(2, 8)}`);
+    for (const galleryEventId of new Set([liveGalleryId, liveGalleryLegacyId].filter(Boolean) as string[])) {
+      channel
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'photos', filter: `event_id=eq.${galleryEventId}` }, handleMediaChange)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'photos', filter: `event_id=eq.${galleryEventId}` }, handleMediaChange);
+    }
+    channel.subscribe();
+
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      supabase.removeChannel(channel);
+    };
+  }, [liveGalleryId, liveGalleryLegacyId]);
 
   // Poll face indexing status when upload completes in mobile app
   useEffect(() => {
@@ -1866,9 +1935,11 @@ export default function EventDetailScreen() {
 
         const res = await fetch(`${baseUrl}/api/v1/media/indexing-status?eventId=${eventIdToQuery}`);
         if (res.ok) {
-          const data = await res.json();
+          const rawData = await res.json();
+          // indexing-status only counts photos; an event with none (videos only) has nothing left to index
+          const data = rawData.total === 0 ? { ...rawData, status: 'complete' } : rawData;
           setMobileIndexingStatus(data);
-          
+
           const hasActiveUploads = uploadQueue.some(i => i.status === 'uploading' || i.status === 'pending' || i.status === 'uploaded_pending_metadata' || i.status === 'upload_needs_reconciliation' || i.status === 'processing');
           if (data.status === 'complete' && !hasActiveUploads) {
             clearInterval(pollInterval);
@@ -2591,7 +2662,9 @@ export default function EventDetailScreen() {
             </Text>
             {isProcessingOnly ? (
               <Text style={localStyles.progressCardSubtitle} numberOfLines={1}>
-                AI face indexing and thumbnail generation... ({Math.round(overallPercent)}%)
+                {active.every(i => i.mediaType === 'video')
+                  ? `Preparing ${active.length > 1 ? 'videos' : 'video'} for playback...`
+                  : `AI face indexing and thumbnail generation... (${Math.round(overallPercent)}%)`}
               </Text>
             ) : currentUploading ? (
               <Text style={localStyles.progressCardSubtitle} numberOfLines={1}>
@@ -7687,7 +7760,7 @@ export default function EventDetailScreen() {
                   paddingHorizontal: 8,
                 }}>
                   {mobileIndexingStatus.status === 'complete'
-                    ? '✓ Upload finished! All photos are ready.'
+                    ? (mobileIndexingStatus.total > 0 ? '✓ Upload finished! All photos are ready.' : '✓ Upload finished! Your videos are ready.')
                     : `Processing photos: ${mobileIndexingStatus.indexed}/${mobileIndexingStatus.total} (${mobileIndexingStatus.percentComplete}%)`}
                 </Text>
                 {mobileIndexingStatus.status === 'processing' && (

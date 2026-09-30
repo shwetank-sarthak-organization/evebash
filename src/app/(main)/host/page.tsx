@@ -2229,7 +2229,7 @@ function DashboardContent() {
             const concurrencyLimit = 3;
             let activeCount = 0;
             let currentIndex = 0;
-            let chunkBuffer: { photo: Photo; queueItemId: string; transcodeTriggered?: boolean }[] = [];
+            let chunkBuffer: { photo: Photo; queueItemId: string }[] = [];
             let completedCount = 0;
 
             const flushChunkBuffer = async () => {
@@ -2252,8 +2252,7 @@ function DashboardContent() {
                                 eventId: item.photo.eventId,
                                 fileName: item.photo.storageKey.split('/').pop() || 'image.jpg',
                                 fileSize: item.photo.size,
-                                resourceType: item.photo.resourceType,
-                                skipTranscode: item.transcodeTriggered ?? false
+                                resourceType: item.photo.resourceType
                             }))
                         })
                     });
@@ -2272,8 +2271,7 @@ function DashboardContent() {
                                         eventId: item.photo.eventId,
                                         fileName: item.photo.storageKey.split('/').pop() || 'image.jpg',
                                         fileSize: item.photo.size,
-                                        resourceType: item.photo.resourceType,
-                                        skipTranscode: item.transcodeTriggered ?? false
+                                        resourceType: item.photo.resourceType
                                     }))
                                 })
                             });
@@ -2382,12 +2380,22 @@ function DashboardContent() {
                             : item
                     ));
 
-                    // If this was a video (routed via uploadLargeFileInChunks), upload/chunk/complete
-                    // already dispatched the transcode task — skip duplicate trigger in save-photo-batch
-                    const transcodeTriggered = isVideoFile;
-                    chunkBuffer.push({ photo, queueItemId, transcodeTriggered });
-                    // Flush immediately after each upload so resizing starts right away (non-blocking)
-                    flushChunkBuffer();
+                    if (uploadResult.videoSavedByBackend) {
+                        // /upload/chunk/complete already saved the row and queued the transcode. Saving it again via
+                        // save-photo-batch would re-upsert the row (clearing its duration) and notify the host twice.
+                        // The video processing poll marks it ready or failed.
+                        setUploadQueue(prev => prev.map(qItem =>
+                            qItem.id === queueItemId && qItem.status !== "success" && qItem.status !== "error"
+                                ? { ...qItem, status: "processing", progress: 90 }
+                                : qItem
+                        ));
+                    } else {
+                        // Photos (incl. large chunked images, whose previews are queued here) and small direct-upload
+                        // videos, whose transcode save-photo-batch queues.
+                        chunkBuffer.push({ photo, queueItemId });
+                        // Flush immediately after each upload so resizing starts right away (non-blocking)
+                        flushChunkBuffer();
+                    }
 
                     // Store for background indexing
                     uploadResults.push({ file, photo });
