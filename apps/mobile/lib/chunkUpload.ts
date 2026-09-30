@@ -199,7 +199,7 @@ export async function uploadVideoInChunks(
             'X-Bz-Content-Sha1': chunkSha1,
             'Content-Length': chunkBytes.byteLength.toString(),
           },
-          body: chunkBytes,
+          body: chunkBytes as unknown as BodyInit,
         });
 
         if (!uploadRes.ok) {

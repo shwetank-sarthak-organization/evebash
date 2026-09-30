@@ -389,6 +389,10 @@ export async function addToUploadQueue(
 
     try {
       await FileSystem.copyAsync({ from: detail.originalUri, to: durableUri });
+      // Free up device space by wiping the ImagePicker cache duplicate
+      if (detail.originalUri.includes('ImagePicker')) {
+        await FileSystem.deleteAsync(detail.originalUri, { idempotent: true }).catch(() => {});
+      }
     } catch (copyErr) {
       console.warn(`[UploadQueue] Failed to make durable copy for ${detail.name}, using original URI:`, copyErr);
     }

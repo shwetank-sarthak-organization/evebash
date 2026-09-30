@@ -1400,22 +1400,20 @@ mediaRouter.get("/indexing-status", asyncRoute(async (request, response) => {
   if (!eventId) return jsonError(response, 400, "Missing eventId");
 
   const supabaseAdmin = getSupabaseAdminClient();
-  const [{ count: totalPhotos, error: totalError }, { count: indexedPhotos, error: indexedError }, { data: photoIds, error: photoIdsError }] = await Promise.all([
+  const [
+    { count: totalPhotos, error: totalError },
+    { count: indexedPhotos, error: indexedError },
+    { data: eventFaces, error: facesError },
+  ] = await Promise.all([
     supabaseAdmin.from("photos").select("id", { count: "exact", head: true }).eq("event_id", eventId).eq("media_type", "photo"),
     supabaseAdmin.from("photos").select("id", { count: "exact", head: true }).eq("event_id", eventId).eq("media_type", "photo").eq("face_indexed", true),
-    supabaseAdmin.from("photos").select("id").eq("event_id", eventId).eq("media_type", "photo"),
+    supabaseAdmin.from("faces").select("image_id").eq("event_id", eventId).limit(50000),
   ]);
-  if (totalError || indexedError || photoIdsError) throw totalError || indexedError || photoIdsError;
+  if (totalError || indexedError || facesError) throw totalError || indexedError || facesError;
 
   let photosWithFaces = 0;
-  if (photoIds && photoIds.length > 0) {
-    const ids = photoIds.map((photo) => photo.id);
-    const { data: eventFaces, error: facesError } = await supabaseAdmin
-      .from("faces")
-      .select("image_id")
-      .in("image_id", ids);
-    if (facesError) throw facesError;
-    photosWithFaces = eventFaces ? new Set(eventFaces.map((face) => face.image_id)).size : 0;
+  if (eventFaces && eventFaces.length > 0) {
+    photosWithFaces = new Set(eventFaces.map((face) => face.image_id).filter(Boolean)).size;
   }
 
   const total = totalPhotos || 0;

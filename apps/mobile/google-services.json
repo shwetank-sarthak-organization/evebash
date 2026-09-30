@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "71982315150",
+    "project_id": "evebash-e36ae",
+    "storage_bucket": "evebash-e36ae.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:71982315150:android:c78587cc6cb1f4e179fbdf",
+        "android_client_info": {
+          "package_name": "com.anonymous.evebash"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "71982315150-82v82h5hd28u8um8r3to0hi4s8ilm8c1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.anonymous.evebash",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "71982315150-f5rfe8cr2sido3l06v6sprlkju4siis2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAuKWahPHUB2Ray2BA12S4og2gZxSsZs4k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "71982315150-f5rfe8cr2sido3l06v6sprlkju4siis2.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

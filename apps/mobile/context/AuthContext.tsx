@@ -36,8 +36,11 @@ const configureGoogleSignin = async () => {
   const GoogleSignin = await getGoogleSignin();
   if (!GoogleSignin || googleSigninConfigured) return GoogleSignin;
 
+  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '71982315150-f5rfe8cr2sido3l06v6sprlkju4siis2.apps.googleusercontent.com';
+  console.log('[Auth] Configuring GoogleSignin with webClientId:', webClientId);
+
   GoogleSignin.configure({
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'YOUR_WEB_CLIENT_ID_HERE',
+    webClientId,
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'YOUR_IOS_CLIENT_ID_HERE',
   });
   googleSigninConfigured = true;
@@ -485,6 +488,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();
+      console.log('[Auth] GoogleSignin.signIn() response:', JSON.stringify(response));
+
+      // v16 returns { type: 'success' | 'cancelled' | 'noSavedCredentialFound', data }
+      if ((response as any).type === 'cancelled') {
+        return { success: false, error: 'Google sign-in was cancelled.' };
+      }
+
       // @ts-ignore - Handle both v10 and v11/12 return structures
       const idToken = response.data?.idToken || response.idToken;
       if (!idToken) throw new Error('No ID token present!');

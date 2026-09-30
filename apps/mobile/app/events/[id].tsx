@@ -1465,12 +1465,29 @@ export default function EventDetailScreen() {
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: mediaType === 'video' ? ['videos'] : ['images'],
-      allowsEditing: false,
-      allowsMultipleSelection: true,
-      quality: 1.0,
-    });
+    let result: ImagePicker.ImagePickerResult;
+    try {
+      result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: mediaType === 'video' ? ['videos'] : ['images'],
+        allowsEditing: false,
+        allowsMultipleSelection: true,
+        quality: 1.0,
+        exif: false,
+      });
+    } catch (pickerErr: any) {
+      const msg = pickerErr?.message || String(pickerErr);
+      if (msg.includes('ENOSPC') || msg.includes('No space left')) {
+        Alert.alert(
+          'Storage Full',
+          'Your device does not have enough free storage to select this file. Please free up space and try again.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Could Not Open Media Library', msg);
+      }
+      return;
+    }
+
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
       try {
