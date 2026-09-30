@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { File } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { getEndpointsForPath, fetchWithEndpointFallback } from './storage';
 import { supabase } from './supabase';
 import { sha1 } from './sha1';
@@ -97,22 +98,32 @@ export async function uploadVideoInChunks(
   // State Machine Loop
   while (state.status !== 'completed' && state.status !== 'failed' && state.status !== 'aborting') {
     if (state.status === 'initiating') {
+      console.log(`[ChunkUpload] Initiating chunked upload for ${item.fileName} (${item.fileSize} bytes, ${state.totalParts} parts)...`);
       const response = await fetchWithEndpointFallback(
         getEndpointsForPath('/api/media/upload/chunk/initiate'),
-        (endpoint) => fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            eventId: item.eventId,
-            fileName: item.fileName,
-            fileSize: item.fileSize,
-            contentType: item.fileType || 'video/mp4',
-            resourceType: 'video',
-          }),
-        }),
+        async (endpoint) => {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 20000);
+          try {
+            return await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${accessToken}`,
+              },
+              body: JSON.stringify({
+                eventId: item.eventId,
+                fileName: item.fileName,
+                fileSize: item.fileSize,
+                contentType: item.fileType || 'video/mp4',
+                resourceType: 'video',
+              }),
+              signal: controller.signal,
+            });
+          } finally {
+            clearTimeout(timer);
+          }
+        },
         'chunk-initiate'
       );
 
@@ -124,13 +135,7 @@ export async function uploadVideoInChunks(
       state.b2FileId = data.fileId;
       state.storageKey = data.storageKey;
       state.status = 'uploading';
-      
-      // If server returned resumed parts, merge them
-      if (data.resumed && Array.isArray(data.completedParts)) {
-        // Just rely on what B2 told us, or keep our client parts if they are richer
-        // Since we are client-authoritative on completedParts in AsyncStorage, we don't strictly need this,
-        // but it's safe to merge.
-      }
+      console.log(`[ChunkUpload] Initiate succeeded (fileId=${data.fileId}, storageKey=${data.storageKey}).`);
       
       await persistState();
     } 
@@ -140,6 +145,7 @@ export async function uploadVideoInChunks(
       // Find missing parts
       for (let partNumber = 1; partNumber <= state.totalParts; partNumber++) {
         if (state.completedParts[partNumber]) {
+          console.log(`[ChunkUpload] Part ${partNumber}/${state.totalParts} already uploaded. Skipping.`);
           continue;
         }
 
@@ -147,6 +153,7 @@ export async function uploadVideoInChunks(
         const remaining = state.fileSize - offset;
         const partSize = Math.min(CHUNK_SIZE, remaining);
 
+        console.log(`[ChunkUpload] [Part ${partNumber}/${state.totalParts}] Reading ${partSize} bytes at offset ${offset}...`);
         let chunkBytes: Uint8Array | null = null;
         let handle: any = null;
         try {
@@ -160,25 +167,35 @@ export async function uploadVideoInChunks(
         if (!chunkBytes) throw new Error("Failed to read chunk bytes");
 
         const chunkSha1 = sha1(chunkBytes);
+        console.log(`[ChunkUpload] [Part ${partNumber}/${state.totalParts}] SHA1: ${chunkSha1}. Getting part URL...`);
 
         // Get part URL
         const partUrlRes = await fetchWithEndpointFallback(
           getEndpointsForPath('/api/media/upload/chunk/part-url'),
-          (endpoint) => fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: JSON.stringify({ fileId: state!.b2FileId }),
-          }),
+          async (endpoint) => {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 20000);
+            try {
+              return await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify({ fileId: state!.b2FileId }),
+                signal: controller.signal,
+              });
+            } finally {
+              clearTimeout(timer);
+            }
+          },
           'chunk-part-url'
         );
 
         if (!partUrlRes) throw new Error("Failed to get part URL");
         
         if (partUrlRes.status === 410 || partUrlRes.status === 404) {
-          // Session expired on B2 or missing
+          console.warn("[ChunkUpload] B2 file session expired or missing on B2. Restarting fresh.");
           state.status = 'initiating';
           state.b2FileId = '';
           state.completedParts = {};
@@ -190,33 +207,43 @@ export async function uploadVideoInChunks(
 
         const partUrlData = await partUrlRes.json();
 
-        // Upload chunk to B2
-        const uploadRes = await fetch(partUrlData.uploadUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': partUrlData.authorizationToken,
-            'X-Bz-Part-Number': partNumber.toString(),
-            'X-Bz-Content-Sha1': chunkSha1,
-            'Content-Length': chunkBytes.byteLength.toString(),
-          },
-          body: chunkBytes as unknown as BodyInit,
-        });
+        // Upload chunk to B2 using native FileSystem.uploadAsync.
+        console.log(`[ChunkUpload] [Part ${partNumber}/${state.totalParts}] Uploading ${partSize} bytes directly to B2...`);
+        const chunkTempFile = new File(FileSystem.cacheDirectory || '', `part_${item.id}_${partNumber}.tmp`);
+        try {
+          chunkTempFile.write(chunkBytes);
 
-        if (!uploadRes.ok) {
-          const bodyText = await uploadRes.text().catch(() => '');
-          if (uploadRes.status === 401 || uploadRes.status === 403 || bodyText.includes('expired')) {
-            // Token expired, retry getting URL
-            partNumber--; 
-            continue;
+          const uploadRes = await FileSystem.uploadAsync(partUrlData.uploadUrl, chunkTempFile.uri, {
+            httpMethod: 'POST',
+            uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+            headers: {
+              'Authorization': partUrlData.authorizationToken,
+              'X-Bz-Part-Number': partNumber.toString(),
+              'X-Bz-Content-Sha1': chunkSha1,
+            },
+          });
+
+          if (uploadRes.status < 200 || uploadRes.status >= 300) {
+            const bodyText = uploadRes.body || '';
+            if (uploadRes.status === 401 || uploadRes.status === 403 || bodyText.includes('expired')) {
+              console.warn(`[ChunkUpload] Upload token expired for Part ${partNumber}. Retrying part URL...`);
+              partNumber--; 
+              continue;
+            }
+            throw new Error(`B2 upload_part failed: ${uploadRes.status} ${bodyText}`);
           }
-          throw new Error(`B2 upload_part failed: ${uploadRes.status} ${bodyText}`);
+          console.log(`[ChunkUpload] [Part ${partNumber}/${state.totalParts}] Upload successful (status ${uploadRes.status}).`);
+        } finally {
+          try {
+            chunkTempFile.delete();
+          } catch {}
         }
 
         // B2 verified the SHA1 and saved the part
         state.completedParts[partNumber] = { sha1: chunkSha1, size: chunkBytes.byteLength };
         await persistState();
 
-        const progress = (Object.keys(state.completedParts).length / state.totalParts) * 100;
+        const progress = Math.round((Object.keys(state.completedParts).length / state.totalParts) * 100);
         onProgress(Math.min(99, progress));
       }
 
@@ -226,6 +253,7 @@ export async function uploadVideoInChunks(
       }
     } 
     else if (state.status === 'completing') {
+      console.log(`[ChunkUpload] All ${state.totalParts} parts verified. Finalizing large file on B2...`);
       const partSha1Array: string[] = [];
       for (let i = 1; i <= state.totalParts; i++) {
         partSha1Array.push(state.completedParts[i].sha1);
@@ -233,18 +261,27 @@ export async function uploadVideoInChunks(
 
       const completeRes = await fetchWithEndpointFallback(
         getEndpointsForPath('/api/media/upload/chunk/complete'),
-        (endpoint) => fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            fileId: state!.b2FileId,
-            partSha1Array,
-            duration: item.duration || 0,
-          }),
-        }),
+        async (endpoint) => {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 30000);
+          try {
+            return await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${accessToken}`,
+              },
+              body: JSON.stringify({
+                fileId: state!.b2FileId,
+                partSha1Array,
+                duration: item.duration || 0,
+              }),
+              signal: controller.signal,
+            });
+          } finally {
+            clearTimeout(timer);
+          }
+        },
         'chunk-complete'
       );
 
@@ -254,13 +291,10 @@ export async function uploadVideoInChunks(
 
       if (completeRes.ok) {
         state.status = 'completed';
+        console.log(`[ChunkUpload] Large file completed successfully on B2!`);
         await persistState();
       } else {
         const errText = await completeRes.text().catch(() => '');
-        // Note: The backend already catches "No active upload for" and "already_finished" 
-        // and returns 200 OK. If we get a 400 here, it's a real failure, but we shouldn't assume it's terminal
-        // unless B2 rejected the sha1Array permanently.
-        // If it's a 502/504 network drop, we throw so `uploadQueue` retries.
         throw new Error(`Complete failed: ${completeRes.status} ${errText}`);
       }
     }
