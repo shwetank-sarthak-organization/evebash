@@ -128,6 +128,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let isMounted = true;
     let profileUnsubscribe: (() => void) | undefined;
     let authLoadingFallback: ReturnType<typeof setTimeout> | undefined;
+    // At startup checkSession() and the auth listener (SIGNED_IN, INITIAL_SESSION) all report the
+    // same user. Skip repeats while that user's setup is still running, so the profile isn't
+    // fetched and a realtime channel opened once per event.
+    let settingUpUserId: string | null = null;
 
     const finishAuthLoading = () => {
       if (authLoadingFallback) {
@@ -170,6 +174,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const handleUserSession = async (supabaseUser: SupabaseUser) => {
+      if (settingUpUserId === supabaseUser.id) return;
+      settingUpUserId = supabaseUser.id;
       try {
         if (needsEmailVerification(supabaseUser)) {
           await supabase.auth.signOut();
@@ -320,15 +326,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (err) {
         console.error('[Auth] handleUserSession error:', err);
         finishAuthLoading();
+      } finally {
+        if (settingUpUserId === supabaseUser.id) settingUpUserId = null;
       }
     };
 
     checkSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('[Auth] onAuthStateChange fired. Event:', event, 'User:', session?.user?.id || 'none');
       if (session?.user) {
-        await handleUserSession(session.user);
+        // Not awaited: auth-js waits for this callback while it restores the saved session, and
+        // handleUserSession's queries wait for that restore, so awaiting can deadlock startup.
+        // The user is still set synchronously, before the first await inside handleUserSession.
+        handleUserSession(session.user);
       } else {
         if (profileUnsubscribe) profileUnsubscribe();
         if (isMounted) {

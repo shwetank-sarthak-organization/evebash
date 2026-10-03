@@ -3,7 +3,7 @@ import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-rout
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import * as React from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { View, LogBox, Platform, StyleSheet, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import LoadingScreen from '@/components/LoadingScreen';
@@ -15,6 +15,7 @@ import { initUploadQueue } from '@/lib/uploadQueue';
 import { registerDeviceForPushNotifications } from '@/lib/notifications';
 import * as Notifications from 'expo-notifications';
 import { SCREEN_ORIENTATION_LOCK, lockScreenOrientation } from '@/lib/screenOrientation';
+import { markStartup } from '@/lib/startupTiming';
 import { useFonts } from 'expo-font';
 import { 
   Inter_400Regular, 
@@ -29,6 +30,18 @@ const IS_STAGING_BUILD = process.env.EXPO_PUBLIC_API_BASE_URL?.includes('api-sta
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
+
+// The native splash stays up until AuthGate can show the first screen, but never longer than
+// this, so a slow session refresh shows the branded loading screen instead of a frozen splash.
+const SPLASH_MAX_MS = 2000;
+let splashHidden = false;
+
+function hideSplash(reason: 'ready' | 'timeout') {
+  if (splashHidden) return;
+  splashHidden = true;
+  markStartup(`splash hidden (${reason})`);
+  SplashScreen.hideAsync();
+}
 
 LogBox.ignoreLogs([
   "Can't perform a React state update on a component that hasn't mounted yet",
@@ -123,6 +136,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
     return () => tapSubscription.remove();
   }, [router]);
+
+  useEffect(() => {
+    if (!loading && rootNavigationState?.key) hideSplash('ready');
+  }, [loading, rootNavigationState?.key]);
 
   if (loading || !rootNavigationState?.key) {
     return <LoadingScreen message="Loading your account" />;
@@ -239,31 +256,23 @@ export default function RootLayout() {
   console.log('fontError:', fontError);
   console.log('------------------------');
 
-  const [minLoadingDone, setMinLoadingDone] = useState(false);
+  const fontsReady = fontsLoaded || !!fontError;
 
-  // Guarantee at least 3 seconds of loading screen on app open
   useEffect(() => {
-    const timer = setTimeout(() => setMinLoadingDone(true), 3000);
+    if (fontsReady) markStartup('fonts ready');
+  }, [fontsReady]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => hideSplash('timeout'), SPLASH_MAX_MS);
     return () => clearTimeout(timer);
   }, []);
 
-  const isReady = (fontsLoaded || !!fontError) && minLoadingDone;
-
-  useEffect(() => {
-    if (isReady) {
-      SplashScreen.hideAsync();
-    }
-  }, [isReady]);
-
-  if (!isReady) {
-    return <LoadingScreen message="Starting up" />;
-  }
-
+  // AuthProvider mounts before fonts finish loading so the session check starts right away
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppThemeProvider>
         <AuthProvider>
-          <RootLayoutContent />
+          {fontsReady ? <RootLayoutContent /> : <LoadingScreen message="Starting up" />}
         </AuthProvider>
       </AppThemeProvider>
     </GestureHandlerRootView>

@@ -35,6 +35,7 @@ import {
   checkGuestRequestStatus,
 } from '@/lib/database';
 import { subscribeToUploadQueue, UploadQueueItem } from '@/lib/uploadQueue';
+import { markStartup } from '@/lib/startupTiming';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path } from 'react-native-svg';
@@ -421,7 +422,11 @@ export default function DashboardScreen() {
     }
   };
 
+  // Bumped on every fetch so a slower, older request can't overwrite newer results
+  const fetchSeq = React.useRef(0);
+
   const fetchData = async () => {
+    const seq = ++fetchSeq.current;
     if (!user) {
       setEvents([]);
       setLoading(false);
@@ -429,6 +434,8 @@ export default function DashboardScreen() {
       return;
     }
     setLoading(true);
+    // Notifications load on their own so the event list doesn't wait for them
+    fetchNotifs();
     try {
       const ownIdentifiers = [user.uid];
       if (user.email) ownIdentifiers.push(user.email);
@@ -437,22 +444,27 @@ export default function DashboardScreen() {
       const [fetchedEvents, approvedSharedEvents] = await Promise.all([
         getUserEvents(ownIdentifiers, 'main'),
         getApprovedSharedEventsForUser(ownIdentifiers),
-        fetchNotifs()
       ]);
+      if (seq !== fetchSeq.current) return;
 
       const visibleEvents = Array.from(
         new Map([...fetchedEvents, ...approvedSharedEvents].map((e) => [e.id, e])).values()
       ).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setEvents(visibleEvents);
+      markStartup('dashboard loaded');
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (seq === fetchSeq.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
-  useEffect(() => { fetchData(); }, [user]);
+  // Keyed on the identifiers fetchData uses: AuthContext replaces the user object several times
+  // at startup (placeholder, then full profile), which used to refetch and re-show the spinner.
+  useEffect(() => { fetchData(); }, [user?.uid, user?.email, user?.phone]);
 
   useEffect(() => {
     const unsubscribe = subscribeToUploadQueue((queueItems) => {
@@ -595,7 +607,7 @@ export default function DashboardScreen() {
           </View>
         </LinearGradient>
 
-        {loading && !refreshing
+        {loading && !refreshing && events.length === 0
           ? <ActivityIndicator color="#CA9C68" style={{ marginTop: 60 }} />
           : <>
               {/* ── SECTION 1: EVENTS (Deep Midnight) ── */}
