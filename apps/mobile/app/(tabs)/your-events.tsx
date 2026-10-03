@@ -10,8 +10,7 @@ import {
   Dimensions,
   Platform,
   TextInput,
-  Alert,
-} from 'react-native';
+  } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,6 +22,7 @@ import { MidnightColors, Fonts } from '../../constants/theme';
 import { getUserEvents, getApprovedSharedEventsForUser, Event as DatabaseEvent } from '@/lib/database';
 import { resolveEventCoverImage } from '@/lib/eventCovers';
 import { EveBashLogoBadge } from '@/components/EveBashLogo';
+import { appAlert } from '@/lib/feedback';
 
 const { width } = Dimensions.get('window');
 
@@ -159,7 +159,7 @@ export default function YourEventsScreen() {
           <View style={styles.headerRight}>
             <TouchableOpacity 
               onPress={() => {
-                Alert.alert("Filters", "Filter and sorting options coming soon!");
+                appAlert("Filters", "Filter and sorting options coming soon!");
               }}
               style={styles.headerFilterBtn}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}

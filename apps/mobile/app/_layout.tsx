@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { View, LogBox, Platform, StyleSheet, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import LoadingScreen from '@/components/LoadingScreen';
+import { FeedbackHost } from '@/components/feedback/FeedbackHost';
 
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { AppThemeProvider, useAppTheme } from '@/context/ThemeContext';
@@ -194,6 +195,8 @@ function RootLayoutContent() {
         </Stack>
       </AuthGate>
       <StatusBar style={isDark ? "light" : "dark"} />
+      {/* App-wide toasts and the themed alert dialog (see lib/feedback.ts) */}
+      <FeedbackHost />
       {IS_STAGING_BUILD && (
         <View pointerEvents="none" style={styles.stagingBadge}>
           <Text style={styles.stagingBadgeText}>STAGING</Text>

@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
 import { logGuestLogin } from '@/lib/database';
+import { appAlert } from '@/lib/feedback';
 
 export function useGuestAccess(
   id: string,
@@ -129,11 +130,11 @@ export function useGuestAccess(
     const rawPhone = user ? (user.phone || user.email || user.uid) : guestPhone.trim();
 
     if (!nameToSubmit) {
-      Alert.alert("Error", "Please enter your name.");
+      appAlert("Error", "Please enter your name.");
       return;
     }
     if (!rawPhone) {
-      Alert.alert("Error", "Please enter your phone number or email.");
+      appAlert("Error", "Please enter your phone number or email.");
       return;
     }
 
@@ -142,7 +143,7 @@ export function useGuestAccess(
       : rawPhone;
 
     if (!normalizedIdentifier) {
-      Alert.alert("Error", "Invalid phone number or email.");
+      appAlert("Error", "Invalid phone number or email.");
       return;
     }
 
@@ -184,11 +185,11 @@ export function useGuestAccess(
           )
           .subscribe();
       } else {
-        Alert.alert("Error", "Failed to send access request.");
+        appAlert("Error", "Failed to send access request.");
       }
     } catch (err) {
       console.error('[GuestAccess] Request error:', err);
-      Alert.alert("Error", "An error occurred while sending the request.");
+      appAlert("Error", "An error occurred while sending the request.");
     } finally {
       setUpdating(false);
     }

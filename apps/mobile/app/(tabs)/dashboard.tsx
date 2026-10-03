@@ -14,7 +14,6 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   PanResponder,
   Animated,
   Linking,
@@ -45,6 +44,8 @@ import { Image as ExpoImage } from 'expo-image';
 import CakeIcon from '@/components/icons/CakeIcon';
 import HandshakeIcon from '@/components/icons/HandshakeIcon';
 import { EveBashLogoBadge } from '@/components/EveBashLogo';
+import { BottomSheet } from '@/components/ui/BottomSheet';
+import { appAlert } from '@/lib/feedback';
 
 const { width, height } = Dimensions.get('window');
 
@@ -188,8 +189,6 @@ export default function DashboardScreen() {
   const styles = getStyles(colors, isDark);
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  // Keep bottom-sheet content clear of the Android gesture/nav bar (iOS padding already covers it)
-  const androidSheetInset = Platform.OS === 'android' ? { paddingBottom: 24 + insets.bottom } : null;
 
   const [hasUnreadChats, setHasUnreadChats] = useState(false);
 
@@ -301,7 +300,7 @@ export default function DashboardScreen() {
       const guestName = user.name || 'Anonymous Guest';
       const guestId = user.phone || user.email || user.uid;
       if (!guestId) {
-        Alert.alert("Error", "You must be logged in to request access.");
+        appAlert("Error", "You must be logged in to request access.");
         return;
       }
 
@@ -328,11 +327,11 @@ export default function DashboardScreen() {
         setShowStatusModal(true);
       } else {
         setShowRequestAccessModal(false);
-        Alert.alert("Request Failed", "Failed to submit request. Please try again later.");
+        appAlert("Request Failed", "Failed to submit request. Please try again later.");
       }
     } catch (err) {
       console.error("Error submitting guest request:", err);
-      Alert.alert("Error", "An error occurred while sending your request.");
+      appAlert("Error", "An error occurred while sending your request.");
     } finally {
       setSendingRequest(false);
     }
@@ -369,7 +368,7 @@ export default function DashboardScreen() {
     if (!finalCode) return;
 
     if (!user) {
-      Alert.alert("Error", "You must be logged in to join an event.");
+      appAlert("Error", "You must be logged in to join an event.");
       return;
     }
 
@@ -400,7 +399,7 @@ export default function DashboardScreen() {
         );
 
         if (success) {
-          Alert.alert(
+          appAlert(
             "Request Sent",
             "Your request to join this event has been sent to the admin. You will see the event in your collections once approved.",
             [{ text: "OK", onPress: () => {
@@ -410,14 +409,14 @@ export default function DashboardScreen() {
             }}]
           );
         } else {
-          Alert.alert("Error", "The join request could not be submitted. Please try again.");
+          appAlert("Error", "The join request could not be submitted. Please try again.");
         }
       } else {
-        Alert.alert("Invalid Code", "We couldn't find an event with that Join ID. Please check the code and try again.");
+        appAlert("Invalid Code", "We couldn't find an event with that Join ID. Please check the code and try again.");
       }
     } catch (err: any) {
       console.error('[Join] Error:', err);
-      Alert.alert("Join Error", "An unexpected error occurred while joining. Please try again later.");
+      appAlert("Join Error", "An unexpected error occurred while joining. Please try again later.");
     } finally {
       setJoining(false);
     }
@@ -802,17 +801,7 @@ export default function DashboardScreen() {
               </Modal>
 
               {/* ── JOIN EVENT MODAL ── */}
-              <Modal visible={showJoinModal} transparent animationType="slide" onRequestClose={() => { setShowJoinModal(false); setIsScanning(false); }}>
-                <KeyboardAvoidingView
-                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                  style={styles.joinModalOverlay}
-                >
-                  <TouchableOpacity
-                    style={styles.joinModalBackdrop}
-                    activeOpacity={1}
-                    onPress={() => { setShowJoinModal(false); setIsScanning(false); }}
-                  />
-                  <View style={[styles.joinModalContent, androidSheetInset]}>
+              <BottomSheet visible={showJoinModal} onClose={() => { setShowJoinModal(false); setIsScanning(false); }}>
                     <View style={styles.modalHeader}>
                       <Text style={styles.modalTitle}>Join Event</Text>
                       <TouchableOpacity
@@ -891,19 +880,10 @@ export default function DashboardScreen() {
                         </TouchableOpacity>
                       </View>
                     )}
-                  </View>
-                </KeyboardAvoidingView>
-              </Modal>
+              </BottomSheet>
 
               {/* ── NOTIFICATIONS MODAL ── */}
-              <Modal visible={showNotificationsModal} transparent animationType="slide" onRequestClose={() => setShowNotificationsModal(false)}>
-                <View style={styles.joinModalOverlay}>
-                  <TouchableOpacity
-                    style={styles.joinModalBackdrop}
-                    activeOpacity={1}
-                    onPress={() => setShowNotificationsModal(false)}
-                  />
-                  <View style={[styles.joinModalContent, androidSheetInset, { maxHeight: height * 0.85 }]}>
+              <BottomSheet visible={showNotificationsModal} onClose={() => setShowNotificationsModal(false)} style={{ maxHeight: height * 0.85 }}>
                     <View style={styles.modalHeader}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         <IconSymbol name="bell.fill" size={22} color={colors.gold} />
@@ -983,7 +963,7 @@ export default function DashboardScreen() {
                                 activeOpacity={0.85}
                                 onPress={async () => {
                                   if (item.id === 'upload-failed') {
-                                    Alert.alert(
+                                    appAlert(
                                       "Upload Halted",
                                       "Would you like to retry the failed uploads or clear the queue?",
                                       [
@@ -1012,7 +992,7 @@ export default function DashboardScreen() {
                                     return;
                                   }
                                   if (item.id === 'upload-active') {
-                                    Alert.alert(
+                                    appAlert(
                                       "Upload Active",
                                       "Would you like to cancel all ongoing uploads?",
                                       [
@@ -1104,9 +1084,7 @@ export default function DashboardScreen() {
                         })}
                       </ScrollView>
                     )}
-                  </View>
-                </View>
-              </Modal>
+              </BottomSheet>
 
               {/* ── CUSTOM REQUEST ACCESS MODAL ── */}
               <Modal
@@ -1724,17 +1702,6 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   modalCloseBtnText: { color: '#1B211F', fontFamily: 'Outfit_800ExtraBold', fontSize: 14, textTransform: 'uppercase', letterSpacing: 0.8 },
 
   // ── Join Event Modal Specific ──
-  joinModalOverlay: { flex: 1, justifyContent: 'flex-end' },
-  joinModalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(19, 25, 31, 0.8)' },
-  joinModalContent: {
-    backgroundColor: colors.slate900,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    padding: 24,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   form: { gap: 16 },
   inputGroup: { gap: 8 },

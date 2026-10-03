@@ -1,9 +1,10 @@
-import { Platform, Alert } from 'react-native';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from './supabase';
 import { getEndpointsForPath, fetchWithEndpointFallback } from './storage';
 import { toDurationSeconds } from './mediaDuration';
+import { appAlert } from './feedback';
 
 let Notifications: any = null;
 try {
@@ -352,7 +353,7 @@ export async function addToUploadQueue(
   const freeDisk = await FileSystem.getFreeDiskStorageAsync().catch(() => 1024 * 1024 * 1024);
   const safetyMargin = 50 * 1024 * 1024; // 50 MB safety margin
   if (freeDisk < totalBatchBytes + safetyMargin) {
-    Alert.alert(
+    appAlert(
       'Storage Space Low',
       'Your device is very low on free storage space. Please free up some space before uploading large media batches.',
       [{ text: 'OK' }]

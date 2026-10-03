@@ -1,7 +1,7 @@
 import { galleryActionText } from '../../constants/galleryContrast';
 import React, { useCallback, useEffect, useState } from 'react';
 import LoadingScreen from '@/components/LoadingScreen';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Share, Keyboard, useWindowDimensions, useColorScheme, BackHandler, PanResponder, Animated as RNAnimated, type ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Share, Keyboard, useWindowDimensions, useColorScheme, BackHandler, PanResponder, Animated as RNAnimated, type ViewStyle } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,6 +39,7 @@ import { TemplateSelectionModal } from '../../components/event/modals/TemplateSe
 import { GalleryDescriptionModal } from '../../components/event/modals/GalleryDescriptionModal';
 import { useGuestAccess } from '../../hooks/useGuestAccess';
 import { FindYouPanel } from '../../components/event/FindYouPanel';
+import { appAlert, showToast } from '@/lib/feedback';
 
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -1483,10 +1484,10 @@ export default function EventDetailScreen() {
         setEvent({ ...event, description: galleryDescText.trim() });
       }
       setGalleryDescModalVisible(false);
-      Alert.alert("Success", "Gallery message updated successfully!");
+      showToast("Gallery message updated successfully!");
     } catch (err) {
       console.error('[SaveDesc] Error:', err);
-      Alert.alert("Error", "Failed to update description.");
+      appAlert("Error", "Failed to update description.");
     } finally {
       setUpdating(false);
     }
@@ -1495,14 +1496,14 @@ export default function EventDetailScreen() {
   const handleUploadGalleryMedia = async (mediaType: 'photo' | 'video' = 'photo') => {
     if (!event) return;
     if (!user?.uid) {
-      Alert.alert("Login Required", "Please log in before uploading media.");
+      appAlert("Login Required", "Please log in before uploading media.");
       return;
     }
     const activeId = selectedAdminGallery !== undefined
       ? (selectedAdminGallery ? selectedAdminGallery.id : event.id)
       : (activeSubEvent ? activeSubEvent.id : event.id);
     if (!activeId) {
-      Alert.alert("Error", "Please select a valid gallery before uploading.");
+      appAlert("Error", "Please select a valid gallery before uploading.");
       return;
     }
 
@@ -1518,13 +1519,13 @@ export default function EventDetailScreen() {
     } catch (pickerErr: any) {
       const msg = pickerErr?.message || String(pickerErr);
       if (msg.includes('ENOSPC') || msg.includes('No space left')) {
-        Alert.alert(
+        appAlert(
           'Storage Full',
           'Your device does not have enough free storage to select this file. Please free up space and try again.',
           [{ text: 'OK' }]
         );
       } else {
-        Alert.alert('Could Not Open Media Library', msg);
+        appAlert('Could Not Open Media Library', msg);
       }
       return;
     }
@@ -1535,7 +1536,7 @@ export default function EventDetailScreen() {
         if (mediaType === 'video' && isFreePlanUser) {
           const oversizedVideo = result.assets.find(asset => (asset.fileSize || 0) > FREE_PLAN_VIDEO_LIMIT_BYTES);
           if (oversizedVideo) {
-            Alert.alert("Upgrade Required", "Free plan videos can be up to 200 MB. Upgrade to upload larger videos.");
+            appAlert("Upgrade Required", "Free plan videos can be up to 200 MB. Upgrade to upload larger videos.");
             return;
           }
         }
@@ -1551,7 +1552,7 @@ export default function EventDetailScreen() {
               duration: asset.duration,
             });
             if (!validation.valid) {
-              Alert.alert(
+              appAlert(
                 "Invalid Video",
                 validation.error || "This file cannot be uploaded as a video.",
                 [{ text: "OK" }]
@@ -1576,7 +1577,7 @@ export default function EventDetailScreen() {
         await addToUploadQueue(files, activeId, user.uid, mediaType);
       } catch (err: any) {
         console.error('[UploadMedia] Error queueing uploads:', err);
-        Alert.alert("Error", `Failed to start upload: ${err.message || err}`);
+        appAlert("Error", `Failed to start upload: ${err.message || err}`);
       }
     }
   };
@@ -1651,7 +1652,7 @@ export default function EventDetailScreen() {
         }
         return next;
       });
-      Alert.alert('Error', result.error);
+      appAlert('Error', result.error);
       return;
     }
 
@@ -1678,7 +1679,7 @@ export default function EventDetailScreen() {
   const handleRotateGalleryPhoto = async (photoId: string, direction: 'left' | 'right') => {
     const result = await rotatePhoto(photoId, direction);
     if (!result.success || !result.url || !result.thumbnailUrl) {
-      Alert.alert('Error', result.error || 'Failed to rotate photo.');
+      appAlert('Error', result.error || 'Failed to rotate photo.');
       return;
     }
 
@@ -1714,7 +1715,7 @@ export default function EventDetailScreen() {
 
   const handleDeleteGalleryPhoto = async (photoId: string) => {
     const selectedMediaLabel = galleryMediaTab === 'videos' ? 'video' : 'photo';
-    Alert.alert(
+    appAlert(
       `Delete ${selectedMediaLabel === 'video' ? 'Video' : 'Photo'}`,
       `Are you sure you want to permanently delete this ${selectedMediaLabel} from the gallery?`,
       [
@@ -1745,10 +1746,10 @@ export default function EventDetailScreen() {
               } else {
                 loadPhotos(activeId, activeLegacyId);
               }
-              Alert.alert("Success", `${selectedMediaLabel === 'video' ? 'Video' : 'Photo'} removed from gallery.`);
+              showToast(`${selectedMediaLabel === 'video' ? 'Video' : 'Photo'} removed from gallery.`);
             } catch (err) {
               console.error('[DeletePhoto] Error:', err);
-              Alert.alert("Error", "Failed to delete photo.");
+              appAlert("Error", "Failed to delete photo.");
             } finally {
               setUpdating(false);
             }
@@ -1778,10 +1779,10 @@ export default function EventDetailScreen() {
       if (!success) throw new Error("Cover update failed");
       syncCoverForEvent(targetId, photoUrl);
       setPhotoActionItem(null);
-      Alert.alert("Updated", `${label} thumbnail updated.`);
+      showToast(`${label} thumbnail updated.`);
     } catch (err) {
       console.error('[SetPhotoCover] Error:', err);
-      Alert.alert("Error", `Failed to update ${label.toLowerCase()} thumbnail.`);
+      appAlert("Error", `Failed to update ${label.toLowerCase()} thumbnail.`);
     } finally {
       setUpdating(false);
     }
@@ -2121,11 +2122,11 @@ export default function EventDetailScreen() {
     const rawPhone = user ? (user.phone || user.email || user.uid) : guestPhone.trim();
 
     if (!nameToSubmit) {
-      Alert.alert("Error", "Please enter your name.");
+      appAlert("Error", "Please enter your name.");
       return;
     }
     if (!rawPhone) {
-      Alert.alert("Error", "Please enter your phone number or email.");
+      appAlert("Error", "Please enter your phone number or email.");
       return;
     }
 
@@ -2134,7 +2135,7 @@ export default function EventDetailScreen() {
       : rawPhone;
 
     if (!normalizedIdentifier) {
-      Alert.alert("Error", "Invalid phone number or email.");
+      appAlert("Error", "Invalid phone number or email.");
       return;
     }
 
@@ -2190,11 +2191,11 @@ export default function EventDetailScreen() {
           })
           .subscribe();
       } else {
-        Alert.alert("Error", "Failed to send access request.");
+        appAlert("Error", "Failed to send access request.");
       }
     } catch (err) {
       console.error('[GuestAccess] Request error:', err);
-      Alert.alert("Error", "An error occurred while sending the request.");
+      appAlert("Error", "An error occurred while sending the request.");
     } finally {
       setUpdating(false);
     }
@@ -2207,7 +2208,7 @@ export default function EventDetailScreen() {
 
   const handleChangeCover = async () => {
     if (!user?.uid) {
-      Alert.alert("Login Required", "Please log in before changing the cover.");
+      appAlert("Login Required", "Please log in before changing the cover.");
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -2272,7 +2273,7 @@ export default function EventDetailScreen() {
 
         showToast("Cover image updated successfully!");
       } catch (err) {
-        Alert.alert("Error", "Failed to update cover.");
+        appAlert("Error", "Failed to update cover.");
       } finally {
         setCoverUploadMessage(null);
         setUpdating(false);
@@ -2289,7 +2290,7 @@ export default function EventDetailScreen() {
       return;
     }
 
-    Alert.alert(
+    appAlert(
       "Remove Cover",
       "This will remove only the cover picture. Your event and galleries will stay as they are.",
       [
@@ -2329,7 +2330,7 @@ export default function EventDetailScreen() {
               showToast("Cover picture removed. Default cover restored.");
             } catch (err) {
               console.log("Error removing cover:", err);
-              Alert.alert("Error", "Failed to remove cover.");
+              appAlert("Error", "Failed to remove cover.");
             } finally {
               setUpdating(false);
             }
@@ -2368,11 +2369,11 @@ export default function EventDetailScreen() {
   const handleCreateSubEvent = async () => {
     if (!newSubTitle.trim() || !event) return;
     if (!newSubDate.trim()) {
-      Alert.alert("Missing Date", "Please choose a sub-gallery date.");
+      appAlert("Missing Date", "Please choose a sub-gallery date.");
       return;
     }
     if (!user?.uid) {
-      Alert.alert("Login Required", "Please log in before creating a gallery.");
+      appAlert("Login Required", "Please log in before creating a gallery.");
       return;
     }
     setUpdating(true);
@@ -2391,7 +2392,7 @@ export default function EventDetailScreen() {
         order: subEvents.length
       });
       if (!success) {
-        Alert.alert("Error", "Failed to create gallery. Please try again.");
+        appAlert("Error", "Failed to create gallery. Please try again.");
         return;
       }
       setNewSubTitle('');
@@ -2399,7 +2400,7 @@ export default function EventDetailScreen() {
       await loadEvent();
     } catch (err) {
       console.error("Error creating sub-gallery:", err);
-      Alert.alert("Error", "Failed to create gallery.");
+      appAlert("Error", "Failed to create gallery.");
     } finally {
       setUpdating(false);
     }
@@ -2413,7 +2414,7 @@ export default function EventDetailScreen() {
       await updateEvent(event.id, { templateId });
       setShowTemplateModal(false);
     } catch (err) {
-      Alert.alert("Error", "Failed to update theme.");
+      appAlert("Error", "Failed to update theme.");
     } finally {
       setUpdating(false);
     }
@@ -2432,7 +2433,7 @@ export default function EventDetailScreen() {
       setEvent({ ...event, ...updates });
       await updateEvent(event.id, updates);
     } catch (err) {
-      Alert.alert("Error", "Failed to update event type.");
+      appAlert("Error", "Failed to update event type.");
     } finally {
       setUpdating(false);
     }
@@ -2459,11 +2460,11 @@ export default function EventDetailScreen() {
         }
         setShowRenameModal(false);
       } else {
-        Alert.alert("Error", "Failed to rename in database.");
+        appAlert("Error", "Failed to rename in database.");
       }
     } catch (err) {
       console.error("[RenameEvent] Error:", err);
-      Alert.alert("Error", "An unexpected error occurred.");
+      appAlert("Error", "An unexpected error occurred.");
     } finally {
       setUpdating(false);
     }
@@ -2494,11 +2495,11 @@ export default function EventDetailScreen() {
             setEvent({ ...event, date: formattedDate });
           }
         } else {
-          Alert.alert("Error", "Failed to update date in database.");
+          appAlert("Error", "Failed to update date in database.");
         }
       } catch (err) {
         console.error("[DateChange] Error:", err);
-        Alert.alert("Error", "Failed to update date.");
+        appAlert("Error", "Failed to update date.");
       } finally {
         setUpdating(false);
       }
@@ -2507,7 +2508,7 @@ export default function EventDetailScreen() {
 
   const handleDeleteMainEvent = async () => {
     if (!event) return;
-    Alert.alert(
+    appAlert(
       "Delete Event",
       `Are you sure you want to delete "${event.title}"? This will permanently remove all photos and sub-events.`,
       [
@@ -2519,10 +2520,10 @@ export default function EventDetailScreen() {
             setUpdating(true);
             const success = await deleteEvent(event.id);
             if (success) {
-              Alert.alert("Success", "Event deleted successfully.");
+              showToast("Event deleted successfully.");
               router.replace('/(tabs)/gallery');
             } else {
-              Alert.alert("Error", "Failed to delete event.");
+              appAlert("Error", "Failed to delete event.");
             }
             setUpdating(false);
           }
@@ -2534,7 +2535,7 @@ export default function EventDetailScreen() {
   const handleDeleteSubGallery = async (targetGallery?: DatabaseEvent) => {
     const gallery = targetGallery || selectedAdminGallery;
     if (!gallery) return;
-    Alert.alert(
+    appAlert(
       "Delete Gallery",
       `Are you sure you want to delete the gallery "${gallery.title}"? This will permanently remove all photos inside this gallery.`,
       [
@@ -2547,17 +2548,17 @@ export default function EventDetailScreen() {
             try {
               const success = await deleteEvent(gallery.id);
               if (success) {
-                Alert.alert("Success", "Gallery deleted successfully.");
+                showToast("Gallery deleted successfully.");
                 if (selectedAdminGallery?.id === gallery.id) {
                   setSelectedAdminGallery(undefined);
                 }
                 loadEvent();
               } else {
-                Alert.alert("Error", "Failed to delete gallery.");
+                appAlert("Error", "Failed to delete gallery.");
               }
             } catch (err) {
               console.error("[DeleteSubGallery] Error:", err);
-              Alert.alert("Error", "Failed to delete gallery.");
+              appAlert("Error", "Failed to delete gallery.");
             } finally {
               setUpdating(false);
             }
@@ -2612,7 +2613,7 @@ export default function EventDetailScreen() {
           style={styles.memberDelete}
           onPress={() => {
             if (doesGuestLogBelongToCurrentUser(log) && !isOwner) {
-              Alert.alert("Permission Denied", "Ask host to remove you.");
+              appAlert("Permission Denied", "Ask host to remove you.");
               return;
             }
             deleteGuest(log.id).then(loadEvent);
@@ -2715,7 +2716,7 @@ export default function EventDetailScreen() {
               <TouchableOpacity
                 onPress={() => {
                   const errors = failed.map(item => `${item.fileName}: ${item.error || 'Unknown error'}`).join('\n\n');
-                  Alert.alert('Upload Details', errors);
+                  appAlert('Upload Details', errors);
                 }}
               >
                 <Text style={[localStyles.progressCardSubtitle, { color: '#f87171', textDecorationLine: 'underline' }]}>
@@ -2741,7 +2742,7 @@ export default function EventDetailScreen() {
               style={[localStyles.progressCardBtn, { backgroundColor: 'rgba(255,255,255,0.08)' }]}
               onPress={async () => {
                 if (active.length > 0) {
-                  Alert.alert(
+                  appAlert(
                     "Cancel Uploads",
                     "Are you sure you want to cancel all ongoing uploads?",
                     [
@@ -4969,7 +4970,7 @@ export default function EventDetailScreen() {
                                         selectedAdminGallery.description = galleryDescText;
                                       }
 
-                                      Alert.alert('Saved', 'Welcome message updated.');
+                                      showToast('Welcome message updated.');
                                     }}
                                   >
                                     <IconSymbol name="checkmark" size={12} color={MidnightColors.gold} />
@@ -5561,7 +5562,7 @@ export default function EventDetailScreen() {
                                     return;
                                   }
                                   if (isSelfAdminCheck) {
-                                    Alert.alert("Permission Denied", "Ask host to remove you.");
+                                    appAlert("Permission Denied", "Ask host to remove you.");
                                     return;
                                   }
                                   const nextValue = !isActive;
@@ -7591,18 +7592,18 @@ export default function EventDetailScreen() {
                     const biz = await getBusinessByVendorCode(vendorCode);
                     if (biz) {
                       if (event?.vendors?.includes(biz.id)) {
-                        Alert.alert("Already Linked", "This vendor is already linked to your event.");
+                        appAlert("Already Linked", "This vendor is already linked to your event.");
                       } else {
                         const newVendors = [...(event?.vendors || []), biz.id];
                         await updateEvent(event!.id, { vendors: newVendors });
                         setEvent({ ...event!, vendors: newVendors });
                         setLinkedVendors([...linkedVendors, biz]);
-                        Alert.alert("Vendor Linked!", `Successfully linked ${biz.name}. They will now appear on the Event Partners page.`);
+                        appAlert("Vendor Linked!", `Successfully linked ${biz.name}. They will now appear on the Event Partners page.`);
                         setLinkingVendor(false);
                         setVendorCode('');
                       }
                     } else {
-                      Alert.alert("Invalid Code", "No business found with this code. Please try again.");
+                      appAlert("Invalid Code", "No business found with this code. Please try again.");
                     }
                   }}
                 >

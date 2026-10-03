@@ -1,7 +1,7 @@
 import { VIEWER_TEMPLATE_PALETTES, SPORTS_VIEWER_PALETTES } from '../constants/viewerPalettes';
 import { galleryActionText } from '../constants/galleryContrast';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Pressable, ScrollView, KeyboardAvoidingView, Platform, Alert, Share, TextInput, Keyboard, Modal, ActivityIndicator, StyleSheet, StatusBar as RNStatusBar, useWindowDimensions, type GestureResponderEvent, type NativeSyntheticEvent } from 'react-native';
+import { View, Text, TouchableOpacity, Pressable, ScrollView, KeyboardAvoidingView, Platform, Share, TextInput, Keyboard, Modal, ActivityIndicator, StyleSheet, StatusBar as RNStatusBar, useWindowDimensions, type GestureResponderEvent, type NativeSyntheticEvent } from 'react-native';
 import { Image as ExpoImage, type ImageLoadEventData } from 'expo-image';
 import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,6 +17,7 @@ import { styles } from './eventStyles';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ZoomablePhoto } from './ZoomablePhoto';
+import { appAlert } from '@/lib/feedback';
 
 interface PhotoViewerProps {
   visible: boolean;
@@ -979,7 +980,7 @@ export default function PhotoViewer({
   };
 
   const handleDeleteComment = (commentId: string) => {
-    Alert.alert('Delete Comment', 'Are you sure you want to delete this comment?', [
+    appAlert('Delete Comment', 'Are you sure you want to delete this comment?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -1014,7 +1015,7 @@ export default function PhotoViewer({
       await onTogglePhotoFavourite(currentPhoto);
     } catch (error) {
       console.error('[PhotoViewer] Primary gallery toggle failed:', error);
-      Alert.alert('Primary Gallery Update Failed', 'Could not update this media. Please try again.');
+      appAlert('Primary Gallery Update Failed', 'Could not update this media. Please try again.');
     } finally {
       setIsTogglingFavourite(false);
     }
@@ -1027,7 +1028,7 @@ export default function PhotoViewer({
       await onRotatePhoto(currentPhoto, direction);
     } catch (error) {
       console.error('[PhotoViewer] Photo rotation failed:', error);
-      Alert.alert('Rotation Failed', 'Could not rotate this photo. Please try again.');
+      appAlert('Rotation Failed', 'Could not rotate this photo. Please try again.');
     } finally {
       setRotatingDirection(null);
     }
@@ -1056,7 +1057,7 @@ export default function PhotoViewer({
       }
     } catch (error) {
       console.error('[PhotoViewer] Photo download/share failed:', error);
-      Alert.alert('Download Failed', 'Could not download the original media. Please try again.');
+      appAlert('Download Failed', 'Could not download the original media. Please try again.');
     } finally {
       setIsDownloading(false);
     }

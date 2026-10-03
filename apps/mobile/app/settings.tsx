@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -21,6 +20,8 @@ import { updateUserPrivacy, updateUserProfile, submitFeedback } from '@/lib/data
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { APP_VERSION } from '@/lib/appVersion';
+import { appAlert, showToast } from '@/lib/feedback';
+import * as Clipboard from 'expo-clipboard';
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
@@ -138,7 +139,7 @@ export default function SettingsScreen() {
     if (!success) {
       // Revert state on failure
       setNotifPreferences(notifPreferences);
-      Alert.alert('Error', 'Failed to update preferences. Try again.');
+      appAlert('Error', 'Failed to update preferences. Try again.');
     }
   };
 
@@ -163,7 +164,7 @@ export default function SettingsScreen() {
           clearInterval(interval);
           setTimeout(() => {
             setClearingCache(false);
-            Alert.alert('Cache Wiped', 'Successfully cleared 24.2 MB of temporary media logs.');
+            appAlert('Cache Wiped', 'Successfully cleared 24.2 MB of temporary media logs.');
           }, 300);
           return 100;
         }
@@ -175,11 +176,11 @@ export default function SettingsScreen() {
   // Password Change Handler
   const handlePasswordChange = async () => {
     if (newPassword.length < 6) {
-      Alert.alert('Password too short', 'Password must be at least 6 characters long.');
+      appAlert('Password too short', 'Password must be at least 6 characters long.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert('Passwords match error', 'New password and confirmation password do not match.');
+      appAlert('Passwords match error', 'New password and confirmation password do not match.');
       return;
     }
 
@@ -189,13 +190,13 @@ export default function SettingsScreen() {
         password: newPassword
       });
       if (error) throw error;
-      Alert.alert('Success', 'Your account password has been updated.');
+      showToast('Your account password has been updated.');
       setPasswordModalVisible(false);
       setNewPassword('');
       setConfirmPassword('');
     } catch (error: any) {
       console.error('Password change error:', error);
-      Alert.alert('Error', error?.message || 'Failed to update password.');
+      appAlert('Error', error?.message || 'Failed to update password.');
     } finally {
       setUpdatingPassword(false);
     }
@@ -205,7 +206,7 @@ export default function SettingsScreen() {
   const handleFeedbackSubmit = async () => {
     if (!user?.uid) return;
     if (!feedbackText.trim()) {
-      Alert.alert('Error', 'Feedback message cannot be empty.');
+      appAlert('Error', 'Feedback message cannot be empty.');
       return;
     }
 
@@ -219,15 +220,15 @@ export default function SettingsScreen() {
       );
 
       if (success) {
-        Alert.alert('Feedback Sent', 'Thank you for your valuable feedback! Our team will review this shortly.');
+        appAlert('Feedback Sent', 'Thank you for your valuable feedback! Our team will review this shortly.');
         setFeedbackModalVisible(false);
         setFeedbackText('');
       } else {
-        Alert.alert('Error', 'Failed to submit feedback. Please try again.');
+        appAlert('Error', 'Failed to submit feedback. Please try again.');
       }
     } catch (err) {
       console.error('Error submitting feedback:', err);
-      Alert.alert('Error', 'An unexpected error occurred.');
+      appAlert('Error', 'An unexpected error occurred.');
     } finally {
       setSubmittingFeedback(false);
     }
@@ -258,11 +259,11 @@ export default function SettingsScreen() {
       await logout();
       setDeleteModalVisible(false);
       setDeleteConfirmation('');
-      Alert.alert('Account Deleted', 'Your EveBash account has been deleted permanently.');
+      appAlert('Account Deleted', 'Your EveBash account has been deleted permanently.');
       router.replace('/login');
     } catch (error: unknown) {
       console.error('Account deletion error:', error);
-      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to delete account.');
+      appAlert('Error', error instanceof Error ? error.message : 'Failed to delete account.');
     } finally {
       setDeletingAccount(false);
     }
@@ -527,9 +528,15 @@ export default function SettingsScreen() {
           <TouchableOpacity
             style={styles.actionItemRow}
             activeOpacity={0.7}
-            onPress={() => Alert.alert('Customer Support', 'Mail us directly at support@evebash.com or tap to copy.', [
+            onPress={() => appAlert('Customer Support', 'Mail us directly at support@evebash.com or tap to copy.', [
               { text: 'Cancel', style: 'cancel' },
-              { text: 'Copy Email', onPress: () => Alert.alert('Copied', 'Email copied to clipboard.') }
+              {
+                text: 'Copy Email',
+                onPress: async () => {
+                  await Clipboard.setStringAsync('support@evebash.com');
+                  showToast('Email copied to clipboard.');
+                },
+              }
             ])}
           >
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>

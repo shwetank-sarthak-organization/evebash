@@ -20,6 +20,7 @@ import {
 import { uploadEventImage } from '@/lib/storage';
 import { getDefaultTemplateForEventCategory } from '@/constants/templates';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { appAlert, showToast } from '@/lib/feedback';
 
 export function useEventState(id: string, user: any) {
   const router = useRouter();
@@ -203,10 +204,10 @@ export function useEventState(id: string, user: any) {
         setEvent({ ...event, description: galleryDescText.trim() });
       }
       setGalleryDescModalVisible(false);
-      Alert.alert("Success", "Gallery message updated successfully!");
+      showToast("Gallery message updated successfully!");
     } catch (err) {
       console.error('[SaveDesc] Error:', err);
-      Alert.alert("Error", "Failed to update description.");
+      appAlert("Error", "Failed to update description.");
     } finally {
       setUpdating(false);
     }
@@ -243,10 +244,10 @@ export function useEventState(id: string, user: any) {
         });
 
         loadPhotos(activeId, activeLegacyId);
-        Alert.alert("Success", "Photo uploaded successfully!");
+        showToast("Photo uploaded successfully!");
       } catch (err: any) {
         console.error('[EventUpload] Error:', err);
-        Alert.alert("Error", `Failed to upload photo: ${err.message || err}`);
+        appAlert("Error", `Failed to upload photo: ${err.message || err}`);
       } finally {
         setUpdating(false);
       }
@@ -274,7 +275,7 @@ export function useEventState(id: string, user: any) {
   };
 
   const handleDeleteGalleryPhoto = async (photoId: string) => {
-    Alert.alert(
+    appAlert(
       "Delete Photo",
       "Are you sure you want to permanently delete this photo from the gallery?",
       [
@@ -296,10 +297,10 @@ export function useEventState(id: string, user: any) {
                 : (activeSubEvent ? activeSubEvent.legacyId : event!.legacyId);
 
               loadPhotos(activeId, activeLegacyId);
-              Alert.alert("Success", "Photo removed from gallery.");
+              showToast("Photo removed from gallery.");
             } catch (err) {
               console.error('[DeletePhoto] Error:', err);
-              Alert.alert("Error", "Failed to delete photo.");
+              appAlert("Error", "Failed to delete photo.");
             } finally {
               setUpdating(false);
             }
@@ -360,7 +361,7 @@ export function useEventState(id: string, user: any) {
         await updateEvent(target.id, updatedFields);
         showToast("Cover image updated successfully!");
       } catch (err) {
-        Alert.alert("Error", "Failed to update cover.");
+        appAlert("Error", "Failed to update cover.");
       } finally {
         setUpdating(false);
       }
@@ -385,13 +386,13 @@ export function useEventState(id: string, user: any) {
         order: subEvents.length
       });
       if (!success) {
-        Alert.alert("Error", "Failed to create gallery. Please try again.");
+        appAlert("Error", "Failed to create gallery. Please try again.");
         return;
       }
       await loadEvent();
     } catch (err) {
       console.error("Error creating sub-gallery:", err);
-      Alert.alert("Error", "Failed to create gallery.");
+      appAlert("Error", "Failed to create gallery.");
     } finally {
       setUpdating(false);
     }
@@ -404,7 +405,7 @@ export function useEventState(id: string, user: any) {
       setEvent({ ...event, templateId });
       await updateEvent(event.id, { templateId });
     } catch (err) {
-      Alert.alert("Error", "Failed to update theme.");
+      appAlert("Error", "Failed to update theme.");
     } finally {
       setUpdating(false);
     }
@@ -423,7 +424,7 @@ export function useEventState(id: string, user: any) {
       setEvent({ ...event, ...updates });
       await updateEvent(event.id, updates);
     } catch (err) {
-      Alert.alert("Error", "Failed to update event type.");
+      appAlert("Error", "Failed to update event type.");
     } finally {
       setUpdating(false);
     }
@@ -449,11 +450,11 @@ export function useEventState(id: string, user: any) {
           setEvent({ ...event, ...updated } as any);
         }
       } else {
-        Alert.alert("Error", "Failed to rename in database.");
+        appAlert("Error", "Failed to rename in database.");
       }
     } catch (err) {
       console.error("[RenameEvent] Error:", err);
-      Alert.alert("Error", "An unexpected error occurred.");
+      appAlert("Error", "An unexpected error occurred.");
     } finally {
       setUpdating(false);
     }
@@ -478,11 +479,11 @@ export function useEventState(id: string, user: any) {
             setEvent({ ...event, date: formattedDate });
           }
         } else {
-          Alert.alert("Error", "Failed to update date in database.");
+          appAlert("Error", "Failed to update date in database.");
         }
       } catch (err) {
         console.error("[DateChange] Error:", err);
-        Alert.alert("Error", "Failed to update date.");
+        appAlert("Error", "Failed to update date.");
       } finally {
         setUpdating(false);
       }
@@ -491,7 +492,7 @@ export function useEventState(id: string, user: any) {
 
   const handleDeleteMainEvent = async () => {
     if (!event) return;
-    Alert.alert(
+    appAlert(
       "Delete Event",
       `Are you sure you want to delete "${event.title}"? This will permanently remove all photos and sub-events.`,
       [
@@ -503,14 +504,14 @@ export function useEventState(id: string, user: any) {
             setUpdating(true);
             const success = await deleteEvent(event.id);
             if (success) {
-              Alert.alert("Success", "Event deleted successfully.");
+              showToast("Event deleted successfully.");
               if (router.canGoBack()) {
                 router.back();
               } else {
                 router.replace('/(tabs)/dashboard');
               }
             } else {
-              Alert.alert("Error", "Failed to delete event.");
+              appAlert("Error", "Failed to delete event.");
             }
             setUpdating(false);
           }
@@ -522,7 +523,7 @@ export function useEventState(id: string, user: any) {
   const handleDeleteSubGallery = async (targetGallery?: DatabaseEvent) => {
     const gallery = targetGallery || selectedAdminGallery;
     if (!gallery) return;
-    Alert.alert(
+    appAlert(
       "Delete Gallery",
       `Are you sure you want to delete the gallery "${gallery.title}"? This will permanently remove all photos inside this gallery.`,
       [
@@ -535,17 +536,17 @@ export function useEventState(id: string, user: any) {
             try {
               const success = await deleteEvent(gallery.id);
               if (success) {
-                Alert.alert("Success", "Gallery deleted successfully.");
+                showToast("Gallery deleted successfully.");
                 if (selectedAdminGallery?.id === gallery.id) {
                   setSelectedAdminGallery(undefined);
                 }
                 loadEvent();
               } else {
-                Alert.alert("Error", "Failed to delete gallery.");
+                appAlert("Error", "Failed to delete gallery.");
               }
             } catch (err) {
               console.error("[DeleteSubGallery] Error:", err);
-              Alert.alert("Error", "Failed to delete gallery.");
+              appAlert("Error", "Failed to delete gallery.");
             } finally {
               setUpdating(false);
             }

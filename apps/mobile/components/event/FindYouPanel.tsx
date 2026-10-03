@@ -5,13 +5,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
-  Alert,
   StyleSheet,
   Dimensions,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '@/lib/supabase';
+import { appAlert } from '@/lib/feedback';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_GAP = 3;
@@ -62,7 +62,7 @@ export function FindYouPanel({
       if (useCamera) {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
         if (!perm.granted) {
-          Alert.alert('Permission Required', 'Camera access is needed to take a selfie.');
+          appAlert('Permission Required', 'Camera access is needed to take a selfie.');
           return;
         }
         result = await ImagePicker.launchCameraAsync({
@@ -76,7 +76,7 @@ export function FindYouPanel({
       } else {
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!perm.granted) {
-          Alert.alert('Permission Required', 'Photo library access is needed to select a selfie.');
+          appAlert('Permission Required', 'Photo library access is needed to select a selfie.');
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({

@@ -9,7 +9,6 @@ import {
   RefreshControl,
   Dimensions,
   Platform,
-  Alert,
   Modal,
   TextInput,
   KeyboardAvoidingView,
@@ -33,6 +32,7 @@ import { supabase } from '@/lib/supabase';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory } from '../../constants/templates';
 import { EveBashLogoBadge } from '@/components/EveBashLogo';
+import { BottomSheet } from '@/components/ui/BottomSheet';
 import {
   Event as DatabaseEvent,
   getUserEvents,
@@ -50,6 +50,7 @@ import {
   UserProfile
 } from '@/lib/database';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { appAlert, showToast } from '@/lib/feedback';
 
 const { width } = Dimensions.get('window');
 const EVENT_TYPE_OPTIONS = [
@@ -305,9 +306,9 @@ export default function PortfolioTabScreen() {
   const handleCreateSubmit = async () => {
     if (!user) return;
     const title = newEventTitle.trim();
-    if (!title) return Alert.alert("Missing Title", "Please enter an event name.");
-    if (!newEventType) return Alert.alert("Missing Event Type", "Please choose an event type.");
-    if (!newEventDate) return Alert.alert("Missing Date", "Please choose an event date.");
+    if (!title) return appAlert("Missing Title", "Please enter an event name.");
+    if (!newEventType) return appAlert("Missing Event Type", "Please choose an event type.");
+    if (!newEventDate) return appAlert("Missing Date", "Please choose an event date.");
 
     const baseSlug = createSlug(title);
     const id = `${baseSlug}-${Math.random().toString(36).slice(-5)}`;
@@ -324,7 +325,7 @@ export default function PortfolioTabScreen() {
             const maxEvents = currentPlan.eventLimit;
             
             if (mainEventCount >= maxEvents) {
-                Alert.alert(
+                appAlert(
                     "Plan Limit Reached", 
                     `You've reached your ${currentPlan.eventLabel}-event limit for the ${currentPlan.name}. Upgrade your plan to create more events.`
                 );
@@ -356,11 +357,11 @@ export default function PortfolioTabScreen() {
         setNewEventDate(formatDisplayDate(today));
         setNewEventType('Wedding');
         fetchData();
-        Alert.alert("Success", "Your event has been created! ✨");
+        showToast("Your event has been created!");
       }
     } catch (err) {
       console.error('[CreateEvent] Error:', err);
-      Alert.alert("Error", "Failed to create event.");
+      appAlert("Error", "Failed to create event.");
     } finally {
       setCreating(false);
     }
@@ -396,7 +397,7 @@ export default function PortfolioTabScreen() {
   };
 
   const handleDeleteEvent = async (event: DatabaseEvent) => {
-    Alert.alert(
+    appAlert(
       "Delete Event",
       `Are you sure you want to delete "${event.title}"? This will permanently remove all photos and sub-events.`,
       [
@@ -409,9 +410,9 @@ export default function PortfolioTabScreen() {
             const success = await deleteEvent(event.id);
             if (success) {
               fetchData();
-              Alert.alert("Success", "Event deleted successfully.");
+              showToast("Event deleted successfully.");
             } else {
-              Alert.alert("Error", "Failed to delete event.");
+              appAlert("Error", "Failed to delete event.");
             }
             setLoading(false);
           }
@@ -428,9 +429,9 @@ export default function PortfolioTabScreen() {
       setRenameVisible(false);
       setTargetEvent(null);
       fetchData();
-      Alert.alert("Success", "Event renamed successfully.");
+      showToast("Event renamed successfully.");
     } else {
-      Alert.alert("Error", "Failed to rename event.");
+      appAlert("Error", "Failed to rename event.");
     }
     setLoading(false);
   };
@@ -445,9 +446,9 @@ export default function PortfolioTabScreen() {
       setWelcomeEditVisible(false);
       setTargetEvent(null);
       fetchData();
-      Alert.alert("Success", "Welcome card settings updated.");
+      showToast("Welcome card settings updated.");
     } else {
-      Alert.alert("Error", "Failed to update settings.");
+      appAlert("Error", "Failed to update settings.");
     }
     setLoading(false);
   };
@@ -463,16 +464,16 @@ export default function PortfolioTabScreen() {
     try {
       const success = await updateEvent(targetEvent.id, { templateId });
       if (!success) {
-        Alert.alert("Error", "Failed to update template.");
+        appAlert("Error", "Failed to update template.");
         fetchData();
         return;
       }
       setTemplateVisible(false);
       setOptionsVisible(false);
-      Alert.alert("Success", "Template updated!");
+      showToast("Template updated!");
     } catch (error) {
       console.error('[Portfolio] Template update error:', error);
-      Alert.alert("Error", "Failed to update template.");
+      appAlert("Error", "Failed to update template.");
       fetchData();
     }
   };
@@ -1246,25 +1247,14 @@ export default function PortfolioTabScreen() {
       </Modal>
 
       {/* ── CREATE EVENT MODAL ── */}
-      <Modal
+      <BottomSheet
         visible={createModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
+        onClose={() => {
           setShowCreateDatePicker(false);
           setCreateModalVisible(false);
         }}
+        style={{ backgroundColor: colors.deepSlate, maxHeight: '88%' }}
       >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={() => {
-              setShowCreateDatePicker(false);
-              setCreateModalVisible(false);
-            }}
-          />
-          <View style={styles.createModalContent}>
             <ScrollView
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
@@ -1351,9 +1341,7 @@ export default function PortfolioTabScreen() {
                 )}
               </TouchableOpacity>
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      </BottomSheet>
     </View>
   );
 }
@@ -1975,16 +1963,6 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     borderWidth: 1,
     borderColor: colors.border,
-  },
-  createModalContent: {
-    backgroundColor: colors.deepSlate,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    padding: 24,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    maxHeight: '88%',
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   modalTitle: { fontSize: 24, color: colors.white, fontFamily: Fonts.outfit.extraBold },

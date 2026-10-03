@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,11 +8,12 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { Fonts, MidnightColors } from '@/constants/theme';
 
 import { policyTextParts, type PolicySection } from '../../../shared/legal/index';
+import { appAlert } from '@/lib/feedback';
 
 function PolicyText({ text }: { text: string }) {
   return <>{policyTextParts(text).map((part, index) => part.href ? (
     <Text key={index} accessibilityRole="link" style={{ color: MidnightColors.gold, textDecorationLine: 'underline' }}
-      onPress={() => Linking.openURL(part.href!).catch(() => Alert.alert('Unable to open link', part.text))}>
+      onPress={() => Linking.openURL(part.href!).catch(() => appAlert('Unable to open link', part.text))}>
       {part.text}
     </Text>
   ) : part.text)}</>;

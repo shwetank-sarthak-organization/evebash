@@ -10,8 +10,7 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
-  Alert,
-} from 'react-native';
+  } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
@@ -35,6 +34,7 @@ import { supabase } from '@/lib/supabase';
 import { getPlanDetails } from '@/lib/planLimits';
 import { EveBashLogoBadge } from '@/components/EveBashLogo';
 import { APP_VERSION } from '@/lib/appVersion';
+import { appAlert, showToast } from '@/lib/feedback';
 
 const { width } = Dimensions.get('window');
 
@@ -262,7 +262,7 @@ export default function ProfileScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Needed', 'We need access to your photos to update your profile picture.');
+        appAlert('Permission Needed', 'We need access to your photos to update your profile picture.');
         return;
       }
 
@@ -282,14 +282,14 @@ export default function ProfileScreen() {
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image.');
+      appAlert('Error', 'Failed to pick image.');
     }
   };
 
   const handleRemoveProfileImage = () => {
     if (!user?.profileImage || saving) return;
 
-    Alert.alert(
+    appAlert(
       'Remove Profile Photo',
       'Remove your current profile photo?',
       [
@@ -304,9 +304,9 @@ export default function ProfileScreen() {
               setEditImage(null);
               setEditImageBase64(null);
               setEditImageRemoved(true);
-              Alert.alert('Success', 'Profile photo removed.');
+              showToast('Profile photo removed.');
             } catch (error: any) {
-              Alert.alert('Error', error?.message || 'Failed to remove profile photo.');
+              appAlert('Error', error?.message || 'Failed to remove profile photo.');
             } finally {
               setSaving(false);
             }
@@ -319,16 +319,16 @@ export default function ProfileScreen() {
   const handleSaveChanges = async () => {
     if (!user?.uid) return;
     if (!editName.trim()) {
-      Alert.alert('Error', 'Full name cannot be empty.');
+      appAlert('Error', 'Full name cannot be empty.');
       return;
     }
     const normalizedEmail = editEmail.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      Alert.alert('Error', 'Please enter a valid email address.');
+      appAlert('Error', 'Please enter a valid email address.');
       return;
     }
     if (!isUsernameValid) {
-      Alert.alert('Error', 'Please choose a valid and available username.');
+      appAlert('Error', 'Please choose a valid and available username.');
       return;
     }
 
@@ -358,14 +358,14 @@ export default function ProfileScreen() {
       });
 
       if (success) {
-        Alert.alert('Success', 'Profile updated successfully.');
+        showToast('Profile updated successfully.');
         setIsEditing(false);
       } else {
-        Alert.alert('Error', 'Failed to update profile. Please try again.');
+        appAlert('Error', 'Failed to update profile. Please try again.');
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-      Alert.alert('Error', 'An unexpected error occurred.');
+      appAlert('Error', 'An unexpected error occurred.');
     } finally {
       setSaving(false);
     }
@@ -722,7 +722,7 @@ export default function ProfileScreen() {
             style={styles.signOutBtn}
             activeOpacity={0.8}
             onPress={() =>
-              Alert.alert('Sign out?', 'You can sign back in anytime with the same account.', [
+              appAlert('Sign out?', 'You can sign back in anytime with the same account.', [
                 { text: 'Cancel', style: 'cancel' },
                 { text: 'Sign Out', style: 'destructive', onPress: logout },
               ])
@@ -1015,7 +1015,7 @@ export default function ProfileScreen() {
                               if (editPersona.length > 1) {
                                 setEditPersona(editPersona.filter((p) => p !== item));
                               } else {
-                                Alert.alert('Selection Required', 'Please select at least one role.');
+                                appAlert('Selection Required', 'Please select at least one role.');
                               }
                             } else {
                               setEditPersona([...editPersona, item]);

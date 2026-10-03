@@ -7,7 +7,6 @@ import {
   FlatList,
   Image,
   ActivityIndicator,
-  Alert,
   Dimensions,
   Platform,
   Modal
@@ -22,6 +21,7 @@ import { uploadEventImage } from '@/lib/storage';
 import { useAppTheme } from '@/context/ThemeContext';
 import { getGridThumbnail } from '@/lib/imageUrl';
 import { subscribeToUploadQueue, clearFinishedUploads } from '@/lib/uploadQueue';
+import { appAlert } from '@/lib/feedback';
 
 
 const { width } = Dimensions.get('window');
@@ -91,7 +91,7 @@ export default function EditPhotosScreen() {
   const handlePickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Needed', 'We need access to your photos to upload them.');
+      appAlert('Permission Needed', 'We need access to your photos to upload them.');
       return;
     }
 
@@ -151,7 +151,7 @@ export default function EditPhotosScreen() {
   };
 
   const handleDeletePhoto = (photoId: string) => {
-    Alert.alert(
+    appAlert(
       "Delete Photo",
       "Are you sure you want to delete this photo?",
       [
