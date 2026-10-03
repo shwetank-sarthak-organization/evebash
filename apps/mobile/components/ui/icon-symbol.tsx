@@ -110,6 +110,9 @@ const MAPPING = {
   'forward.end.fill': 'skip-next',
   'backward.fill': 'fast-rewind',
   'forward.fill': 'fast-forward',
+  'arrow.up.and.down': 'swap-vert',
+  'building.2': 'business',
+  'line.3.horizontal.decrease.circle': 'filter-list',
 } as const;
 
 export type IconSymbolName = keyof typeof MAPPING;

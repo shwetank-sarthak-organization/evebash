@@ -152,7 +152,7 @@ export default function YourEventsScreen() {
           </View>
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <View style={styles.headingLogoRow}>
-              <EveBashLogoBadge onPress={() => router.replace('/(tabs)' as any)} />
+              <EveBashLogoBadge />
               <Text style={styles.headerTitle}>Gallery</Text>
             </View>
           </View>
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 38,
     color: '#ffffff',
-    fontFamily: 'AkayaKanadaka_400Regular',
+    fontFamily: 'AkayaKanadakaHeader_400Regular',
     letterSpacing: 0.5,
     textAlign: 'center',
     includeFontPadding: false,
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   },
   heroBadgeText: {
     color: '#ffffff',
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: Fonts.outfit.extraBold,
     letterSpacing: 0.8,
   },

@@ -206,8 +206,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   brandName: {
-    fontFamily: 'AkayaKanadaka_400Regular',
+    fontFamily: 'AkayaKanadakaHeader_400Regular',
     fontSize: 28,
+    lineHeight: 38,
+    includeFontPadding: false,
     color: '#FFF7EB',
     letterSpacing: 0.5,
   },

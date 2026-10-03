@@ -20,6 +20,7 @@ import { useRouter } from 'expo-router';
 import { updateUserPrivacy, updateUserProfile, submitFeedback } from '@/lib/database';
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { APP_VERSION } from '@/lib/appVersion';
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
@@ -302,6 +303,8 @@ export default function SettingsScreen() {
           activeOpacity={0.7}
           onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile')}
           style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
         >
           <IconSymbol name="chevron.left" size={20} color={colors.white} />
         </TouchableOpacity>
@@ -369,12 +372,12 @@ export default function SettingsScreen() {
         {/* Privacy Settings */}
         <Text style={styles.sectionLabel}>Privacy</Text>
         <View style={styles.settingsCard}>
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={togglePrivacy} disabled={updatingPrivacy}>
+          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={togglePrivacy} disabled={updatingPrivacy} accessibilityRole="switch" accessibilityLabel="Private account" accessibilityState={{ checked: isPrivate, disabled: updatingPrivacy }}>
             <View style={[styles.infoIconBox, { backgroundColor: isPrivate ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)' }]}>
               <IconSymbol name={isPrivate ? "lock.fill" : "globe"} size={18} color={isPrivate ? "#ef4444" : "#10b981"} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.actionText}>{isPrivate ? 'Private Account' : 'Public Account'}</Text>
+              <Text style={styles.actionText}>Private Account</Text>
               <Text style={styles.actionSubtext}>
                 {isPrivate ? 'Followers must be approved' : 'Anyone can follow you'}
               </Text>
@@ -390,7 +393,7 @@ export default function SettingsScreen() {
 
           <View style={styles.divider} />
 
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={toggleDiscoverability} disabled={updatingSearch}>
+          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={toggleDiscoverability} disabled={updatingSearch} accessibilityRole="switch" accessibilityLabel="Discoverable profile" accessibilityState={{ checked: isDiscoverable, disabled: updatingSearch }}>
             <View style={[styles.infoIconBox, { backgroundColor: isDiscoverable ? 'rgba(16, 185, 129, 0.1)' : 'rgba(100, 116, 139, 0.1)' }]}>
               <IconSymbol name="magnifyingglass" size={18} color={isDiscoverable ? "#10b981" : "#64748b"} />
             </View>
@@ -411,7 +414,7 @@ export default function SettingsScreen() {
         {/* Notification Preferences */}
         <Text style={styles.sectionLabel}>Notifications</Text>
         <View style={styles.settingsCard}>
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('likesAndComments')}>
+          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('likesAndComments')} accessibilityRole="switch" accessibilityLabel="Likes and comments notifications" accessibilityState={{ checked: notifPreferences.likesAndComments }}>
             <View style={{ flex: 1 }}>
               <Text style={styles.actionText}>Likes & Comments</Text>
               <Text style={styles.actionSubtext}>When people interact with your photos</Text>
@@ -423,7 +426,7 @@ export default function SettingsScreen() {
 
           <View style={styles.divider} />
 
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('eventInvites')}>
+          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('eventInvites')} accessibilityRole="switch" accessibilityLabel="Event invitation notifications" accessibilityState={{ checked: notifPreferences.eventInvites }}>
             <View style={{ flex: 1 }}>
               <Text style={styles.actionText}>Event Invitations</Text>
               <Text style={styles.actionSubtext}>When you get added to a new event album</Text>
@@ -435,7 +438,7 @@ export default function SettingsScreen() {
 
           <View style={styles.divider} />
 
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('businessMatches')}>
+          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('businessMatches')} accessibilityRole="switch" accessibilityLabel="Local match enquiry notifications" accessibilityState={{ checked: notifPreferences.businessMatches }}>
             <View style={{ flex: 1 }}>
               <Text style={styles.actionText}>Local Match Enquiries</Text>
               <Text style={styles.actionSubtext}>New lead alerts matching your area</Text>
@@ -447,7 +450,7 @@ export default function SettingsScreen() {
 
           <View style={styles.divider} />
 
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('marketing')}>
+          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.8} onPress={() => toggleNotificationSetting('marketing')} accessibilityRole="switch" accessibilityLabel="Marketing offer notifications" accessibilityState={{ checked: notifPreferences.marketing }}>
             <View style={{ flex: 1 }}>
               <Text style={styles.actionText}>Marketing Offers</Text>
               <Text style={styles.actionSubtext}>Coupons, specials, and milestone deals</Text>
@@ -570,7 +573,7 @@ export default function SettingsScreen() {
         {/* Legal Section */}
         <Text style={styles.sectionLabel}>About & Legal</Text>
         <View style={styles.settingsCard}>
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={() => router.push('/' as any)}>
+          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={() => router.push('/(tabs)' as any)}>
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
               <IconSymbol name="house.fill" size={18} color="#CA9C68" />
             </View>
@@ -600,7 +603,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* App Version Footer */}
-        <Text style={styles.footerVersionText}>EveBash v1.1.2 • Standard Package</Text>
+        <Text style={styles.footerVersionText}>EveBash v{APP_VERSION} • Standard Package</Text>
 
       </ScrollView>
 
@@ -1018,7 +1021,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   progressText: {
     position: 'absolute',
     alignSelf: 'center',
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: 'Inter_700Bold',
     color: colors.white,
   },

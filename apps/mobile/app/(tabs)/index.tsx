@@ -180,19 +180,19 @@ export default function HomeScreen() {
           <View style={styles.footerSection}>
             <Text style={styles.footerHeading}>Contact Us</Text>
             <View style={styles.contactRow}>
-              <IconSymbol name="mappin.fill" size={17} color="#38bdf8" />
+              <IconSymbol name="mappin.fill" size={17} color={colors.gold} />
               <Text style={styles.contactText}>Dehradun, Uttarakhand, India - 248001</Text>
             </View>
             <TouchableOpacity onPress={() => Linking.openURL('tel:+919871264964')} activeOpacity={0.75} style={styles.contactRow}>
-              <IconSymbol name="phone.fill" size={17} color="#38bdf8" />
+              <IconSymbol name="phone.fill" size={17} color={colors.gold} />
               <Text style={styles.contactText}>+91 98712 64964</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => Linking.openURL('tel:+918535029872')} activeOpacity={0.75} style={styles.contactRow}>
-              <IconSymbol name="phone.fill" size={17} color="#38bdf8" />
+              <IconSymbol name="phone.fill" size={17} color={colors.gold} />
               <Text style={styles.contactText}>+91 85350 29872</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => Linking.openURL('mailto:support@evebash.com')} activeOpacity={0.75} style={styles.contactRow}>
-              <IconSymbol name="envelope.fill" size={17} color="#38bdf8" />
+              <IconSymbol name="envelope.fill" size={17} color={colors.gold} />
               <Text style={styles.contactText}>support@evebash.com</Text>
             </TouchableOpacity>
           </View>
@@ -244,7 +244,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   },
   brandName: {
     color: MidnightColors.white,
-    fontFamily: 'AkayaKanadaka_400Regular',
+    fontFamily: 'AkayaKanadakaHeader_400Regular',
     fontSize: 34,
     lineHeight: 42,
     includeFontPadding: false,
@@ -421,7 +421,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   },
   footerBrandName: {
     color: colors.white,
-    fontFamily: Fonts.playfair.bold,
+    fontFamily: 'AkayaKanadakaHeader_400Regular',
     fontSize: 24,
     lineHeight: 34,
     includeFontPadding: false,

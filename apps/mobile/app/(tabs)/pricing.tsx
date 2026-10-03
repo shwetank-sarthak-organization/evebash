@@ -257,7 +257,7 @@ export default function PricingScreen() {
           <IconSymbol name="chevron.left" size={24} color={colors.gold} />
         </TouchableOpacity>
         <View style={styles.headingLogoRow}>
-          <EveBashLogoBadge onPress={() => router.replace('/(tabs)' as any)} />
+          <EveBashLogoBadge />
           <Text style={styles.headerTitle}>Upgrade Plan</Text>
         </View>
         <View style={{ width: 40 }} /> 
@@ -545,7 +545,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     paddingVertical: 1,
   },
   popularBadgeMiniText: {
-    fontSize: 8,
+    fontSize: 10,
     fontFamily: 'Outfit_800ExtraBold',
     color: '#13191F',
   },

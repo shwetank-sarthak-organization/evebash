@@ -15,6 +15,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
+import { EveBashLogo } from '@/components/EveBashLogo';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+
+// Text colours for the white card, chosen for at least 4.5:1 contrast
+const LINK = '#8C6434';
+const MUTED = '#7C6C58';
 
 const { height } = Dimensions.get('window');
 
@@ -163,10 +169,9 @@ export default function LoginScreen() {
             {/* Logo / Brand */}
             <View style={styles.brandContainer}>
               <View style={styles.logoRing}>
-                <Text style={styles.logoEmoji}>EB</Text>
+                <EveBashLogo size={46} />
               </View>
               <Text style={styles.brandName}>EveBash</Text>
-              <Text style={styles.versionLabel}>v1.1</Text>
               <Text style={styles.brandTagline}>Your event memories, beautifully preserved</Text>
             </View>
 
@@ -208,10 +213,12 @@ export default function LoginScreen() {
                   <TextInput
                     style={styles.input}
                     placeholder="John Doe"
-                    placeholderTextColor="#CDB89E"
+                    placeholderTextColor={MUTED}
                     value={name}
                     onChangeText={setName}
                     autoCapitalize="words"
+                    autoComplete="name"
+                    textContentType="name"
                     returnKeyType="next"
                   />
                 </View>
@@ -223,10 +230,12 @@ export default function LoginScreen() {
                   <TextInput
                     style={styles.input}
                     placeholder="9876543210"
-                    placeholderTextColor="#CDB89E"
+                    placeholderTextColor={MUTED}
                     value={phone}
                     onChangeText={setPhone}
                     keyboardType="phone-pad"
+                    autoComplete="tel"
+                    textContentType="telephoneNumber"
                     autoCapitalize="none"
                     autoCorrect={false}
                     returnKeyType="next"
@@ -238,10 +247,12 @@ export default function LoginScreen() {
                   <TextInput
                     style={styles.input}
                     placeholder="you@example.com"
-                    placeholderTextColor="#CDB89E"
+                    placeholderTextColor={MUTED}
                     value={email}
                     onChangeText={setEmail}
                     keyboardType="email-address"
+                    autoComplete="email"
+                    textContentType="emailAddress"
                     autoCapitalize="none"
                     autoCorrect={false}
                     returnKeyType="next"
@@ -253,8 +264,8 @@ export default function LoginScreen() {
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
                   <Text style={[styles.label, { marginBottom: 0 }]}>Password</Text>
                   {isSignUp && (
-                    <TouchableOpacity onPress={generateStrongPassword}>
-                      <Text style={{ color: '#0284c7', fontSize: 12, fontWeight: '700' }}>Suggest Strong Password</Text>
+                    <TouchableOpacity onPress={generateStrongPassword} hitSlop={12} accessibilityRole="button">
+                      <Text style={{ color: LINK, fontSize: 12, fontWeight: '700' }}>Suggest Strong Password</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -262,18 +273,22 @@ export default function LoginScreen() {
                   <TextInput
                     style={[styles.input, styles.passwordInput]}
                     placeholder="••••••••"
-                    placeholderTextColor="#CDB89E"
+                    placeholderTextColor={MUTED}
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry={!showPass}
+                    autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                    textContentType={isSignUp ? 'newPassword' : 'password'}
                     returnKeyType={isSignUp ? 'next' : 'done'}
                     onSubmitEditing={!isSignUp ? handleSubmit : undefined}
                   />
                   <TouchableOpacity
                     style={styles.eyeBtn}
                     onPress={() => setShowPass((v) => !v)}
+                    accessibilityRole="button"
+                    accessibilityLabel={showPass ? 'Hide password' : 'Show password'}
                   >
-                    <Text style={styles.eyeText}>{showPass ? '🙈' : '👁️'}</Text>
+                    <IconSymbol name={showPass ? 'eye.slash.fill' : 'eye.fill'} size={20} color={MUTED} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -299,8 +314,8 @@ export default function LoginScreen() {
               )}
 
               {!isSignUp && !isPhoneAuth && (
-                <TouchableOpacity onPress={() => router.push('/forgot-password')} style={{ alignSelf: 'flex-end', marginTop: -8, marginBottom: 12 }}>
-                  <Text style={{ color: '#0284c7', fontSize: 13, fontWeight: '600' }}>Forgot Password?</Text>
+                <TouchableOpacity onPress={() => router.push('/forgot-password')} style={{ alignSelf: 'flex-end', marginTop: -8, marginBottom: 12 }} hitSlop={12} accessibilityRole="button">
+                  <Text style={{ color: LINK, fontSize: 13, fontWeight: '600' }}>Forgot Password?</Text>
                 </TouchableOpacity>
               )}
 
@@ -310,10 +325,12 @@ export default function LoginScreen() {
                   <TextInput
                     style={styles.input}
                     placeholder="••••••••"
-                    placeholderTextColor="#CDB89E"
+                    placeholderTextColor={MUTED}
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
                     secureTextEntry={!showPass}
+                    autoComplete="new-password"
+                    textContentType="newPassword"
                     returnKeyType="done"
                     onSubmitEditing={handleSubmit}
                   />
@@ -380,7 +397,7 @@ export default function LoginScreen() {
                 <Text style={styles.toggleLabel}>
                   {isSignUp ? 'Already have an account?' : "Don't have an account?"}
                 </Text>
-                <TouchableOpacity onPress={toggleMode}>
+                <TouchableOpacity onPress={toggleMode} hitSlop={{ top: 14, bottom: 14, left: 8, right: 16 }} accessibilityRole="button">
                   <Text style={styles.toggleAction}>
                     {isSignUp ? ' Sign In' : ' Sign Up'}
                   </Text>
@@ -389,7 +406,12 @@ export default function LoginScreen() {
             </View>
 
             {/* Footer */}
-            <Text style={styles.footer}>Protected access to EveBash</Text>
+            <Text style={styles.footer}>
+              By continuing, you agree to our{' '}
+              <Text style={styles.footerLink} onPress={() => router.push('/terms-and-conditions')}>Terms</Text>
+              {' '}and{' '}
+              <Text style={styles.footerLink} onPress={() => router.push('/privacy-policy')}>Privacy Policy</Text>.
+            </Text>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -431,15 +453,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 16,
   },
-  logoEmoji: {
-    fontSize: 24,
-    color: '#FFF7EB',
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
   brandName: {
-    fontFamily: 'AkayaKanadaka_400Regular',
+    fontFamily: 'AkayaKanadakaHeader_400Regular',
     fontSize: 32,
+    lineHeight: 42,
+    includeFontPadding: false,
     color: '#FFF7EB',
     letterSpacing: 0.5,
     marginBottom: 6,
@@ -545,9 +563,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  eyeText: {
-    fontSize: 18,
-  },
   passwordChecklist: {
     marginTop: -10,
     marginBottom: 20,
@@ -555,7 +570,7 @@ const styles = StyleSheet.create({
   },
   checkItem: {
     fontSize: 12,
-    color: '#CDB89E',
+    color: MUTED,
     marginBottom: 4,
   },
   checkMet: {
@@ -630,7 +645,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   toggleAction: {
-    color: '#0284c7',
+    color: LINK,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -648,7 +663,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#e2e8f0',
   },
   dividerText: {
-    color: '#CDB89E',
+    color: MUTED,
     fontSize: 12,
     fontWeight: '700',
     paddingHorizontal: 12,
@@ -684,18 +699,15 @@ const styles = StyleSheet.create({
   // Footer
   footer: {
     textAlign: 'center',
-    color: '#64748b',
+    color: '#E6D8C3',
     fontSize: 13,
+    lineHeight: 20,
     marginTop: 28,
+    paddingHorizontal: 12,
   },
-  versionLabel: {
-    fontSize: 10,
-    color: '#CA9C68',
-    fontWeight: 'bold',
-    marginBottom: 4,
-    backgroundColor: 'rgba(202, 156, 104,0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+  footerLink: {
+    color: '#FFF7EB',
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
 });

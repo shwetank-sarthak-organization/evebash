@@ -44,6 +44,8 @@ import { FindYouPanel } from '../../components/event/FindYouPanel';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_GRID_GAP = 3;
 const PHOTO_PAGE_SIZE = 20;
+// Visitor templates that draw their own back/share buttons inside the hero instead of the native header
+const NATIVE_HEADER_HIDDEN_TEMPLATES = ['classic', 'hero', 'pop', 'ethereal', 'cyber_tech', 'retro_arcade', 'academic_editorial', 'neon_carnival', 'garden', 'bohemian', 'tech_sleek', 'executive'];
 const FREE_PLAN_VIDEO_LIMIT_BYTES = 200 * 1024 * 1024;
 const SPORTS_TEMPLATE_IDS = [
   'bohemian',
@@ -558,8 +560,19 @@ export default function EventDetailScreen() {
     planEndDate: user?.planEndDate,
   }), [user?.role, user?.planStartDate, user?.planEndDate]);
 
-  const [scrollY, setScrollY] = useState(0);
   const scrollViewRef = React.useRef<ScrollView>(null);
+  // Native-driven scroll offset (no re-renders) used to fade in the pinned gallery tabs' background
+  const scrollYAnim = React.useRef(new RNAnimated.Value(0)).current;
+  const [stickyTabsY, setStickyTabsY] = useState<number | null>(null);
+  // Bottom edge (window coords) of the floating back/share header buttons, measured on layout
+  const [floatingButtonsBottom, setFloatingButtonsBottom] = useState<number | null>(null);
+  const backButtonRef = React.useRef<View>(null);
+  const shareButtonRef = React.useRef<View>(null);
+  const measureFloatingButton = useCallback((ref: React.RefObject<View | null>) => {
+    ref.current?.measureInWindow((_x, y, _w, h) => {
+      if (h > 0) setFloatingButtonsBottom(prev => Math.max(prev ?? 0, Math.round(y + h)));
+    });
+  }, []);
   const { height: windowHeight } = useWindowDimensions();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -784,6 +797,11 @@ export default function EventDetailScreen() {
   const isSportsTemplate = !showAdminView && event?.category === 'Sports' && SPORTS_TEMPLATE_IDS.includes(event?.templateId || '');
   const sportsTheme = React.useMemo(() => getSportsTemplateTheme(event?.templateId), [event?.templateId]);
   const pageBackground = isSportsTemplate ? sportsTheme.background : selectedTemplate.background;
+  const showsNativeVisitorHeader = !showAdminView && !(isSportsTemplate || NATIVE_HEADER_HIDDEN_TEMPLATES.includes(event?.templateId || ''));
+  // Room the pinned gallery tabs leave at the top: the status bar, plus the floating back/share buttons when shown
+  const stickyTabsTopInset = showsNativeVisitorHeader
+    ? Math.max(floatingButtonsBottom ?? (Platform.OS === 'android' ? 80 : insets.top + 52), insets.top) + 8
+    : insets.top + 4;
 
   const heroHeight = showAdminView
     ? 400
@@ -1107,6 +1125,20 @@ export default function EventDetailScreen() {
     ];
   }, [displayedPhotoCount, displayedVideoCount]);
   const activeGalleryItems = galleryMediaTab === 'photos' ? filteredPhotoItems : filteredVideoItems;
+
+  // Guests opening a video-only gallery land on Videos instead of an empty Photos tab.
+  // Runs once per gallery after its media counts load, so a manual tab choice is never overridden.
+  const autoMediaTabGalleryRef = React.useRef<string | null>(null);
+  const visitorGalleryKey = activeSubEvent?.id ?? 'primary';
+  useEffect(() => {
+    if (showAdminView || loading || loadingPhotos || !event) return;
+    if (visitorGalleryKey === 'event-partners' || visitorGalleryKey === 'find-you') return;
+    if (autoMediaTabGalleryRef.current === visitorGalleryKey) return;
+    autoMediaTabGalleryRef.current = visitorGalleryKey;
+    if (galleryMediaTab === 'photos' && displayedPhotoCount === 0 && displayedVideoCount > 0) {
+      setGalleryMediaTab('videos');
+    }
+  }, [showAdminView, loading, loadingPhotos, event, visitorGalleryKey, galleryMediaTab, displayedPhotoCount, displayedVideoCount]);
   const activeFavouriteCount = galleryMediaTab === 'photos'
     ? photoItems.filter(item => eventFavouritePhotoIds.has(item.id)).length
     : videoItems.filter(item => eventFavouritePhotoIds.has(item.id)).length;
@@ -2658,7 +2690,7 @@ export default function EventDetailScreen() {
                 ? `Processing Media (${total} files)`
                 : active.length > 0
                   ? `Uploading Media (${completed}/${total})`
-                  : 'Upload Halted with Issues'}
+                  : 'Some Uploads Failed'}
             </Text>
             {isProcessingOnly ? (
               <Text style={localStyles.progressCardSubtitle} numberOfLines={1}>
@@ -2749,7 +2781,7 @@ export default function EventDetailScreen() {
     <View style={[styles.safeArea, { backgroundColor: pageBackground }]}>
       <Stack.Screen
         options={{
-          headerShown: showAdminView ? false : !(isSportsTemplate || event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'pop' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden' || event?.templateId === 'bohemian' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive'),
+          headerShown: showsNativeVisitorHeader,
           headerTransparent: true,
           headerTitle: '',
           headerLeft: () => {
@@ -2762,12 +2794,18 @@ export default function EventDetailScreen() {
             const isBrutalist = event?.templateId === 'brutalist';
             return (!showAdminView && (isSportsTemplate || event?.templateId === 'classic' || event?.templateId === 'hero' || event?.templateId === 'ethereal' || event?.templateId === 'cyber_tech' || event?.templateId === 'retro_arcade' || event?.templateId === 'academic_editorial' || event?.templateId === 'neon_carnival' || event?.templateId === 'garden' || event?.templateId === 'bohemian' || event?.templateId === 'tech_sleek' || event?.templateId === 'executive')) ? null : (
               <TouchableOpacity
+                ref={backButtonRef}
+                onLayout={() => measureFloatingButton(backButtonRef)}
                 onPress={handleEventBack}
+                accessibilityRole="button"
+                accessibilityLabel="Back"
                 style={[
                   styles.floatingBack,
-                  { marginLeft: 16 },
+                  // Android: match the share button's offset so the back button clears the status bar
+                  { marginLeft: 16, marginTop: Platform.OS === 'android' ? 10 : 0 },
                   (!showAdminView && (event?.templateId === 'royal' || event?.templateId === 'classic')) && {
                     marginLeft: 24,
+                    marginTop: Platform.OS === 'android' ? 36 : 0,
                     width: 40,
                     height: 40,
                     borderRadius: 6,
@@ -2813,7 +2851,11 @@ export default function EventDetailScreen() {
                   isMuseum && styles.museumFloatingButton,
                   isBrutalist && styles.brutalistFloatingButton,
                 ]}
+                ref={shareButtonRef}
+                onLayout={() => measureFloatingButton(shareButtonRef)}
                 onPress={() => setShowShareModal(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Share event"
                 hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
               >
                 <IconSymbol name="square.and.arrow.up" size={isPop ? 18 : 20} color={(isPop || isMinimal || isMuseum || isBrutalist) ? '#fffaf2' : selectedTemplate.accent} />
@@ -2823,14 +2865,14 @@ export default function EventDetailScreen() {
         }}
       />
 
-      <ScrollView
+      <RNAnimated.ScrollView
         ref={scrollViewRef}
         style={[styles.container, { backgroundColor: pageBackground }]}
         bounces={false}
         showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
-        onScroll={(e) => setScrollY(e.nativeEvent.contentOffset.y)}
         stickyHeaderIndices={!showAdminView ? [1] : undefined}
+        scrollEventThrottle={16}
+        onScroll={RNAnimated.event([{ nativeEvent: { contentOffset: { y: scrollYAnim } } }], { useNativeDriver: true })}
       >
         {/* ── HERO ── */}
         <View
@@ -4628,14 +4670,36 @@ export default function EventDetailScreen() {
 
         {/* Visitor Navigation Tabs placed BELOW the Cover Photo screen */}
         {!showAdminView && canViewContent && (
-          <ThemeHeader
-            event={event}
-            selectedTemplate={selectedTemplate}
-            activeSubEvent={activeSubEvent}
-            subEvents={subEvents}
-            handleSubEventChange={handleSubEventChange}
-            styles={styles}
-          />
+          // Sticky wrapper: the top spacer keeps pinned tabs clear of the status bar and floating buttons.
+          // It overlaps the hero while scrolling (transparent, touch-through) and gets an opaque background once pinned.
+          <View
+            pointerEvents="box-none"
+            style={{ marginTop: -stickyTabsTopInset, paddingTop: stickyTabsTopInset }}
+            onLayout={(e) => setStickyTabsY(e.nativeEvent.layout.y)}
+          >
+            <RNAnimated.View
+              pointerEvents="none"
+              style={[
+                StyleSheet.absoluteFill,
+                {
+                  backgroundColor: pageBackground,
+                  opacity: stickyTabsY === null ? 0 : scrollYAnim.interpolate({
+                    inputRange: [stickyTabsY - 1, stickyTabsY],
+                    outputRange: [0, 1],
+                    extrapolate: 'clamp',
+                  }),
+                },
+              ]}
+            />
+            <ThemeHeader
+              event={event}
+              selectedTemplate={selectedTemplate}
+              activeSubEvent={activeSubEvent}
+              subEvents={subEvents}
+              handleSubEventChange={handleSubEventChange}
+              styles={styles}
+            />
+          </View>
         )}
 
         {/* ── CONTENT ── */}
@@ -5409,7 +5473,7 @@ export default function EventDetailScreen() {
               )}
 
               {/* ── PREMIUM MEMBER PERMISSIONS MODAL ── */}
-              <Modal visible={!!selectedGuest} transparent animationType="fade">
+              <Modal visible={!!selectedGuest} transparent animationType="fade" onRequestClose={() => setSelectedGuest(null)}>
                 <View style={styles.premiumModalBackdrop}>
                   <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                     <LinearGradient
@@ -5567,7 +5631,7 @@ export default function EventDetailScreen() {
               </Modal>
 
               {/* ── PREMIUM REQUEST DETAIL MODAL ── */}
-              <Modal visible={!!selectedRequest} transparent animationType="fade">
+              <Modal visible={!!selectedRequest} transparent animationType="fade" onRequestClose={() => setSelectedRequest(null)}>
                 <View style={styles.premiumModalBackdrop}>
                   <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                     <LinearGradient
@@ -6557,7 +6621,50 @@ export default function EventDetailScreen() {
                   </View>
                 ) : (
                   <View style={styles.photoGrid}>
-                    {activeGalleryItems.length === 0 ? (
+                    {activeGalleryItems.length === 0 && isPrimaryGalleryView && !isFavouriteFilterActive
+                      && subEvents.length > 0 && displayedPhotoCount === 0 && displayedVideoCount === 0 ? (
+                      // Home has no highlights yet, but the sub-galleries may: point guests to them
+                      <View style={{ width: '100%', paddingVertical: 8 }}>
+                        <Text style={{ color: selectedTemplate.text, fontFamily: selectedTemplate.bodyBold || Fonts.inter.bold, fontSize: 16, marginBottom: 4 }}>
+                          Explore the galleries
+                        </Text>
+                        <Text style={{ color: selectedTemplate.muted, fontFamily: Fonts.inter.regular, fontSize: 13, lineHeight: 19, marginBottom: 14 }}>
+                          Photos and videos from this event are inside its galleries.
+                        </Text>
+                        {subEvents.map((sub) => (
+                          <TouchableOpacity
+                            key={sub.id}
+                            activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Open ${sub.title} gallery`}
+                            onPress={() => handleSubEventChange(sub)}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 12,
+                              minHeight: 64,
+                              padding: 10,
+                              marginBottom: 10,
+                              borderRadius: Math.min(selectedTemplate.radius ?? 14, 16),
+                              borderWidth: 1,
+                              borderColor: `${selectedTemplate.accent}40`,
+                              backgroundColor: selectedTemplate.accentBg,
+                            }}
+                          >
+                            <ExpoImage
+                              source={{ uri: resolveEventCoverImage(sub.coverImage || event?.coverImage, 'thumbnail') }}
+                              style={{ width: 48, height: 48, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.2)' }}
+                              contentFit="cover"
+                              transition={200}
+                            />
+                            <Text style={{ flex: 1, color: selectedTemplate.text, fontFamily: Fonts.inter.semiBold, fontSize: 15 }} numberOfLines={1}>
+                              {sub.title}
+                            </Text>
+                            <IconSymbol name="chevron.right" size={18} color={selectedTemplate.accent} />
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    ) : activeGalleryItems.length === 0 ? (
                       <View style={styles.emptyGallery}>
                         <IconSymbol name={galleryMediaTab === 'videos' ? 'play.fill' : 'photo.on.rectangle'} size={40} color={isCyberTechTemplate ? 'rgba(0, 240, 255, 0.15)' : 'rgba(255,255,255,0.05)'} />
                         <Text style={[styles.emptyText, isCyberTechTemplate && styles.cyberEmptyText]}>
@@ -7027,7 +7134,7 @@ export default function EventDetailScreen() {
             </>
           )}
         </View>
-      </ScrollView>
+      </RNAnimated.ScrollView>
 
       {/* ── CREATE SUB-EVENT MODAL ── */}
       <SubEventModal
@@ -7046,7 +7153,7 @@ export default function EventDetailScreen() {
       />
 
       {/* ── CATEGORY MODAL ── */}
-      <Modal visible={showCategoryModal} transparent animationType="slide">
+      <Modal visible={showCategoryModal} transparent animationType="slide" onRequestClose={() => setShowCategoryModal(false)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowCategoryModal(false)} />
           <View style={[styles.modalContent, { maxHeight: '80%' }]}>
@@ -7348,7 +7455,7 @@ export default function EventDetailScreen() {
         );
       })()}
       {/* ── SHARE MODAL ── */}
-      <Modal visible={showShareModal} transparent animationType="slide">
+      <Modal visible={showShareModal} transparent animationType="slide" onRequestClose={() => setShowShareModal(false)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowShareModal(false)} />
           <View style={styles.shareModalContent}>
@@ -7382,7 +7489,7 @@ export default function EventDetailScreen() {
       </Modal>
 
       {/* ── LINK VENDOR MODAL ── */}
-      <Modal visible={linkingVendor} transparent animationType="slide">
+      <Modal visible={linkingVendor} transparent animationType="slide" onRequestClose={() => { setLinkingVendor(false); setVendorCode(''); }}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}

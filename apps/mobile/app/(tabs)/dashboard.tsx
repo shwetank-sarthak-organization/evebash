@@ -38,6 +38,7 @@ import { subscribeToUploadQueue, UploadQueueItem } from '@/lib/uploadQueue';
 import { markStartup } from '@/lib/startupTiming';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import type { IconSymbolName } from '@/components/ui/icon-symbol';
 import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { Image as ExpoImage } from 'expo-image';
@@ -111,6 +112,18 @@ export function SwipeableNotificationItem({ children, onDismiss, colors, isDark 
   );
 }
 
+const NOTIFICATION_ICONS: Record<string, IconSymbolName> = {
+  followed_event: 'calendar',
+  followed_business: 'briefcase.fill',
+  shortlist_creation: 'sparkles',
+  shortlist_faq: 'questionmark.circle.fill',
+  shortlist_portfolio: 'photo.on.rectangle',
+  upload_progress: 'cloud.fill',
+  upload_processing: 'clock.fill',
+  upload_success: 'checkmark.circle.fill',
+  upload_failed: 'exclamationmark.triangle.fill',
+};
+
 /** The in-app card for the upload queue, or null when there is nothing to show. */
 function buildUploadQueueNotification(queueItems: UploadQueueItem[]): any {
   const active = queueItems.filter(i => i.status === 'uploading' || i.status === 'pending');
@@ -129,7 +142,7 @@ function buildUploadQueueNotification(queueItems: UploadQueueItem[]): any {
   if (active.length > 0) {
     return {
       id: 'upload-active',
-      title: '📤 Uploading Media',
+      title: 'Uploading Media',
       body: `Uploading: ${completedCount}/${total} files (${Math.round(overallPercentage)}%)`,
       createdAt: new Date(),
       type: 'upload_progress',
@@ -139,7 +152,7 @@ function buildUploadQueueNotification(queueItems: UploadQueueItem[]): any {
   if (processing.length > 0) {
     return {
       id: 'upload-processing',
-      title: '⚙️ Processing Media',
+      title: 'Processing Media',
       body: `Preparing ${processing.length} ${processing.length === 1 ? 'file' : 'files'}...`,
       createdAt: new Date(),
       type: 'upload_processing',
@@ -149,7 +162,7 @@ function buildUploadQueueNotification(queueItems: UploadQueueItem[]): any {
   if (failed.length > 0) {
     return {
       id: 'upload-failed',
-      title: '❌ Upload Halted with Issues',
+      title: 'Some Uploads Failed',
       body: `Succeeded: ${completedCount}, Failed: ${failed.length}. Tap to retry.`,
       createdAt: new Date(),
       type: 'upload_failed',
@@ -159,8 +172,8 @@ function buildUploadQueueNotification(queueItems: UploadQueueItem[]): any {
   if (completedCount > 0) {
     return {
       id: 'upload-success',
-      title: '✅ Upload Complete',
-      body: 'Upload complete',
+      title: 'Upload Complete',
+      body: 'All your photos and videos have been uploaded.',
       createdAt: new Date(),
       type: 'upload_success',
       targetId: 'upload_queue'
@@ -175,6 +188,8 @@ export default function DashboardScreen() {
   const styles = getStyles(colors, isDark);
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // Keep bottom-sheet content clear of the Android gesture/nav bar (iOS padding already covers it)
+  const androidSheetInset = Platform.OS === 'android' ? { paddingBottom: 24 + insets.bottom } : null;
 
   const [hasUnreadChats, setHasUnreadChats] = useState(false);
 
@@ -580,6 +595,8 @@ export default function DashboardScreen() {
               style={{ width: 24, height: 24, justifyContent: 'center', alignItems: 'center', position: 'relative' }}
               activeOpacity={0.7}
               onPress={handleOpenNotifications}
+              accessibilityRole="button"
+              accessibilityLabel={hasUnreadNotifications ? 'Notifications, new' : 'Notifications'}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
               <IconSymbol name="bell.fill" size={20} color={colors.gold} />
@@ -588,7 +605,7 @@ export default function DashboardScreen() {
           </View>
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <View style={styles.headingLogoRow}>
-              <EveBashLogoBadge onPress={() => router.replace('/(tabs)' as any)} />
+              <EveBashLogoBadge />
               <Text style={styles.headerTitle}>Dashboard</Text>
             </View>
           </View>
@@ -597,6 +614,8 @@ export default function DashboardScreen() {
               style={{ width: 24, height: 24, justifyContent: 'center', alignItems: 'center', position: 'relative' }}
               activeOpacity={0.7}
               onPress={() => router.push('/customer-chats')}
+              accessibilityRole="button"
+              accessibilityLabel={hasUnreadChats ? 'Messages, unread' : 'Messages'}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
               <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -737,17 +756,17 @@ export default function DashboardScreen() {
                 onPress={() => Linking.openURL('https://www.youtube.com/@EveBashApp')}
               >
                 <LinearGradient
-                  colors={['#312e81', '#1e1b4b']}
+                  colors={['#1E1B17', '#12171C']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.heroGradient}
                 >
                   <View style={styles.heroContent}>
-                    <View style={[styles.heroBadge, { backgroundColor: 'rgba(167,139,250,0.25)' }]}>
-                      <Text style={[styles.heroBadgeText, { color: '#c4b5fd' }]}>HOW TO HOST</Text>
+                    <View style={styles.heroBadge}>
+                      <Text style={styles.heroBadgeText}>HOW TO HOST</Text>
                     </View>
-                    <Text style={[styles.heroTitle, { color: '#ffffff' }]}>Host Your Perfect Event</Text>
-                    <Text style={[styles.heroSubtitle, { color: 'rgba(196,181,253,0.85)' }]}>
+                    <Text style={styles.heroTitle}>Host Your Perfect Event</Text>
+                    <Text style={styles.heroSubtitle}>
                       Watch our step-by-step tutorials and host your event like a pro.
                     </Text>
                     <View style={styles.howToHostBtn}>
@@ -756,7 +775,7 @@ export default function DashboardScreen() {
                     </View>
                   </View>
                   <View style={styles.heroIconContainer}>
-                    <IconSymbol name="play.rectangle.fill" size={60} color="rgba(167,139,250,0.25)" />
+                    <IconSymbol name="play.rectangle.fill" size={60} color="rgba(202,156,104,0.22)" />
                   </View>
                 </LinearGradient>
               </TouchableOpacity>
@@ -783,7 +802,7 @@ export default function DashboardScreen() {
               </Modal>
 
               {/* ── JOIN EVENT MODAL ── */}
-              <Modal visible={showJoinModal} transparent animationType="slide">
+              <Modal visible={showJoinModal} transparent animationType="slide" onRequestClose={() => { setShowJoinModal(false); setIsScanning(false); }}>
                 <KeyboardAvoidingView
                   behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                   style={styles.joinModalOverlay}
@@ -793,10 +812,15 @@ export default function DashboardScreen() {
                     activeOpacity={1}
                     onPress={() => { setShowJoinModal(false); setIsScanning(false); }}
                   />
-                  <View style={styles.joinModalContent}>
+                  <View style={[styles.joinModalContent, androidSheetInset]}>
                     <View style={styles.modalHeader}>
                       <Text style={styles.modalTitle}>Join Event</Text>
-                      <TouchableOpacity onPress={() => { setShowJoinModal(false); setIsScanning(false); }}>
+                      <TouchableOpacity
+                        onPress={() => { setShowJoinModal(false); setIsScanning(false); }}
+                        accessibilityRole="button"
+                        accessibilityLabel="Close"
+                        hitSlop={10}
+                      >
                         <IconSymbol name="xmark.circle.fill" size={24} color="#64748b" />
                       </TouchableOpacity>
                     </View>
@@ -872,20 +896,25 @@ export default function DashboardScreen() {
               </Modal>
 
               {/* ── NOTIFICATIONS MODAL ── */}
-              <Modal visible={showNotificationsModal} transparent animationType="slide">
+              <Modal visible={showNotificationsModal} transparent animationType="slide" onRequestClose={() => setShowNotificationsModal(false)}>
                 <View style={styles.joinModalOverlay}>
                   <TouchableOpacity
                     style={styles.joinModalBackdrop}
                     activeOpacity={1}
                     onPress={() => setShowNotificationsModal(false)}
                   />
-                  <View style={[styles.joinModalContent, { maxHeight: height * 0.85 }]}>
+                  <View style={[styles.joinModalContent, androidSheetInset, { maxHeight: height * 0.85 }]}>
                     <View style={styles.modalHeader}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         <IconSymbol name="bell.fill" size={22} color={colors.gold} />
                         <Text style={styles.modalTitle}>Notifications</Text>
                       </View>
-                      <TouchableOpacity onPress={() => setShowNotificationsModal(false)}>
+                      <TouchableOpacity
+                        onPress={() => setShowNotificationsModal(false)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Close"
+                        hitSlop={10}
+                      >
                         <IconSymbol name="xmark.circle.fill" size={24} color="#64748b" />
                       </TouchableOpacity>
                     </View>
@@ -899,7 +928,7 @@ export default function DashboardScreen() {
                         <View style={styles.emptyNotifRing}>
                           <IconSymbol name="bell.slash.fill" size={32} color={colors.gold} />
                         </View>
-                        <Text style={styles.emptyNotifTitle}>All caught up! ✨</Text>
+                        <Text style={styles.emptyNotifTitle}>All caught up</Text>
                         <Text style={styles.emptyNotifBody}>
                           Follow users, join events, or shortlist businesses to receive real-time updates here.
                         </Text>
@@ -1056,17 +1085,11 @@ export default function DashboardScreen() {
                                 }}
                               >
                                 <View style={styles.notificationIconWrapper}>
-                                  <Text style={styles.notificationIconText}>
-                                    {item.type === 'followed_event' ? '🎉' :
-                                     item.type === 'followed_business' ? '💼' :
-                                     item.type === 'shortlist_creation' ? '✨' :
-                                     item.type === 'shortlist_faq' ? '❓' :
-                                     item.type === 'shortlist_portfolio' ? '📸' :
-                                     item.type === 'upload_progress' ? '📤' :
-                                     item.type === 'upload_processing' ? '⚙️' :
-                                     item.type === 'upload_success' ? '✅' :
-                                     item.type === 'upload_failed' ? '❌' : '📢'}
-                                  </Text>
+                                  <IconSymbol
+                                    name={NOTIFICATION_ICONS[item.type] || 'bell.fill'}
+                                    size={20}
+                                    color={item.type === 'upload_failed' ? '#ef4444' : item.type === 'upload_success' ? '#22c55e' : colors.gold}
+                                  />
                                 </View>
                                 <View style={styles.notificationTextWrapper}>
                                   <View style={styles.notificationHeaderRow}>
@@ -1386,7 +1409,7 @@ export default function DashboardScreen() {
                       lineHeight: 20,
                       paddingHorizontal: 8,
                     }}>
-                      Upload complete
+                      All your photos and videos have been uploaded.
                     </Text>
 
                     <TouchableOpacity
@@ -1638,7 +1661,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   heroBadgeText: {
     color: colors.gold,
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: 'Outfit_800ExtraBold',
     letterSpacing: 0.8,
   },
@@ -2183,9 +2206,6 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     marginRight: 12,
     borderWidth: 0.5,
     borderColor: colors.border,
-  },
-  notificationIconText: {
-    fontSize: 18,
   },
   notificationTextWrapper: {
     flex: 1,

@@ -31,12 +31,17 @@ export const MidnightColors = {
   slate900: '#1B211F',
   slate800: '#2B2F2E',
   slate700: '#594C3D',
+  slate600: '#9A8B78',
   slate400: '#CDB89E',
+  slate300: '#E6D8C3',
   gold: '#CA9C68',
   white: '#FFF7EB',
   ghostWhite: '#FFF7EB',
+  text: '#FFF7EB',
+  card: '#1B211F',
   border: 'rgba(202, 156, 104, 0.25)',
   cardBorder: 'rgba(202, 156, 104, 0.12)',
+  modalBackdrop: 'rgba(0, 0, 0, 0.65)',
 };
 
 export const RoyalColors = {

@@ -14,6 +14,9 @@ import { getImageUrl } from '@/lib/imageUrl';
 import { SCREEN_ORIENTATION_LOCK, canLockScreenOrientation, lockScreenOrientation } from '@/lib/screenOrientation';
 import { MidnightColors, Fonts } from '../constants/theme';
 import { styles } from './eventStyles';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ZoomablePhoto } from './ZoomablePhoto';
 
 interface PhotoViewerProps {
   visible: boolean;
@@ -713,6 +716,9 @@ export default function PhotoViewer({
   onRotatePhoto,
 }: PhotoViewerProps) {
   const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
+  const viewerInsets = useSafeAreaInsets();
+  // Leave room under the photo so Like / Comment / Share / Download are visible without scrolling
+  const revealFrameHeight = Math.max(320, viewportHeight - 150 - viewerInsets.bottom);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(initialIndex);
   const [likes, setLikes] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
@@ -1341,7 +1347,7 @@ export default function PhotoViewer({
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity style={[styles.viewerClose, { backgroundColor: viewerTheme.controlBg, borderRadius: viewerTheme.radius }]} onPress={onClose}>
+          <TouchableOpacity style={[styles.viewerClose, { backgroundColor: viewerTheme.controlBg, borderRadius: viewerTheme.radius }]} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close photo viewer" hitSlop={8}>
             <IconSymbol name="xmark" size={26} color={viewerTheme.controlText} />
           </TouchableOpacity>
         )}
@@ -1426,7 +1432,7 @@ export default function PhotoViewer({
             )}
 
             <View style={localStyles.hostViewerActionsFlow}>
-              <TouchableOpacity style={localStyles.hostViewerAction} onPress={handleToggleLike} disabled={isLiking}>
+              <TouchableOpacity style={localStyles.hostViewerAction} onPress={handleToggleLike} disabled={isLiking} accessibilityRole="button" accessibilityLabel={isLiked ? 'Unlike' : 'Like'} accessibilityState={{ selected: isLiked }}>
                 <LucideHeartIcon
                   size={20}
                   color={isLiked ? "#f43f5e" : viewerTheme.controlText}
@@ -1434,7 +1440,7 @@ export default function PhotoViewer({
                 />
                 <Text style={[localStyles.hostViewerActionLabel, { color: viewerTheme.muted }]}>{likes.length} LIKES</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={localStyles.hostViewerAction} onPress={handleOpenComments}>
+              <TouchableOpacity style={localStyles.hostViewerAction} onPress={handleOpenComments} accessibilityRole="button" accessibilityLabel={`Comments, ${comments.length}`}>
                 <LucideMessageCircleIcon size={20} color={viewerTheme.controlText} />
                 <Text style={[localStyles.hostViewerActionLabel, { color: viewerTheme.muted }]}>{comments.length} COMMENTS</Text>
               </TouchableOpacity>
@@ -1492,15 +1498,17 @@ export default function PhotoViewer({
               contentContainerStyle={localStyles.dashboardImageViewerScrollContent}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
+              // Photos handle their own pan/zoom gestures; the actions already fit on screen
+              scrollEnabled={isVideoMedia}
             >
               {photos[currentPhotoIndex] && (
                 <View
-                  onTouchStart={handleViewerTouchStart}
-                  onTouchEnd={handleViewerTouchEnd}
+                  onTouchStart={isVideoMedia ? handleViewerTouchStart : undefined}
+                  onTouchEnd={isVideoMedia ? handleViewerTouchEnd : undefined}
                   style={[
                     localStyles.dashboardFullscreenImageFrame,
                     {
-                      height: viewportHeight,
+                      height: revealFrameHeight,
                       backgroundColor: viewerTheme.tileBg,
                     },
                   ]}
@@ -1518,11 +1526,12 @@ export default function PhotoViewer({
                       onNextMedia={() => navigateViewer('next')}
                     />
                   ) : (
-                    <ExpoImage
-                      source={{ uri: getImageUrl(photos[currentPhotoIndex].url, { width: 1200, quality: 82, format: 'webp' }, photos[currentPhotoIndex].thumbnailUrl) }}
-                      style={localStyles.dashboardFullscreenImage}
-                      contentFit="contain"
-                      cachePolicy="memory-disk"
+                    <ZoomablePhoto
+                      uri={getImageUrl(photos[currentPhotoIndex].url, { width: 1200, quality: 82, format: 'webp' }, photos[currentPhotoIndex].thumbnailUrl)}
+                      resetKey={currentPhotoKey}
+                      canSwipe={photos.length > 1}
+                      onSwipe={navigateViewer}
+                      onDismiss={onClose}
                     />
                   )}
                   {(isDownloading || rotatingDirection) && (
@@ -1538,7 +1547,7 @@ export default function PhotoViewer({
 
               <View style={localStyles.dashboardImageDetails}>
                 <View style={localStyles.dashboardImageActionsFlow}>
-                  <TouchableOpacity style={styles.viewerAction} onPress={handleToggleLike} disabled={isLiking}>
+                  <TouchableOpacity style={styles.viewerAction} onPress={handleToggleLike} disabled={isLiking} accessibilityRole="button" accessibilityLabel={isLiked ? 'Unlike' : 'Like'} accessibilityState={{ selected: isLiked }}>
                     <LucideHeartIcon
                       size={30}
                       color={isLiked ? "#f43f5e" : viewerTheme.controlText}
@@ -1547,15 +1556,15 @@ export default function PhotoViewer({
                     />
                     <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{likes.length}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.viewerAction} onPress={handleOpenComments}>
+                  <TouchableOpacity style={styles.viewerAction} onPress={handleOpenComments} accessibilityRole="button" accessibilityLabel={`Comments, ${comments.length}`}>
                     <LucideMessageCircleIcon size={30} color={showComments ? viewerTheme.accent : viewerTheme.controlText} strokeWidth={2} />
                     <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{comments.length}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.viewerAction} onPress={handleSharePhoto}>
+                  <TouchableOpacity style={styles.viewerAction} onPress={handleSharePhoto} accessibilityRole="button" accessibilityLabel="Share">
                     <LucideShare2Icon size={28} color={viewerTheme.controlText} strokeWidth={2} />
                     <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Share</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.viewerAction} onPress={handleDownloadPhoto} disabled={isDownloading}>
+                  <TouchableOpacity style={styles.viewerAction} onPress={handleDownloadPhoto} disabled={isDownloading} accessibilityRole="button" accessibilityLabel="Download">
                     <LucideDownloadIcon size={30} color={viewerTheme.controlText} strokeWidth={2} />
                     <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Download</Text>
                   </TouchableOpacity>
@@ -1570,8 +1579,8 @@ export default function PhotoViewer({
           <>
             {photos[currentPhotoIndex] && (
               <View
-                onTouchStart={handleViewerTouchStart}
-                onTouchEnd={handleViewerTouchEnd}
+                onTouchStart={isVideoMedia ? handleViewerTouchStart : undefined}
+                onTouchEnd={isVideoMedia ? handleViewerTouchEnd : undefined}
                 style={[
                   styles.fullImage,
                   showComments && styles.fullImageWithComments,
@@ -1598,10 +1607,12 @@ export default function PhotoViewer({
                     onNextMedia={() => navigateViewer('next')}
                   />
                 ) : (
-                  <ExpoImage
-                    source={{ uri: getImageUrl(photos[currentPhotoIndex].url, { width: 900, quality: 75, format: 'webp' }, photos[currentPhotoIndex].thumbnailUrl) }}
-                    style={{ width: '100%', height: '100%' }}
-                    contentFit="contain"
+                  <ZoomablePhoto
+                    uri={getImageUrl(photos[currentPhotoIndex].url, { width: 900, quality: 75, format: 'webp' }, photos[currentPhotoIndex].thumbnailUrl)}
+                    resetKey={currentPhotoKey}
+                    canSwipe={photos.length > 1}
+                    onSwipe={navigateViewer}
+                    onDismiss={onClose}
                   />
                 )}
                 {(isDownloading || rotatingDirection) && (
@@ -1616,21 +1627,21 @@ export default function PhotoViewer({
             )}
 
             <View style={[styles.viewerActions, showComments ? styles.viewerActionsRaised : styles.viewerActionsDocked]}>
-              <TouchableOpacity style={styles.viewerAction} onPress={handleToggleLike} disabled={isLiking}>
+              <TouchableOpacity style={styles.viewerAction} onPress={handleToggleLike} disabled={isLiking} accessibilityRole="button" accessibilityLabel={isLiked ? 'Unlike' : 'Like'} accessibilityState={{ selected: isLiked }}>
                 <IconSymbol name={isLiked ? "heart.fill" : "heart"} size={30} color={isLiked ? "#f43f5e" : viewerTheme.controlText} />
                 <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{likes.length}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.viewerAction} onPress={handleOpenComments}>
+              <TouchableOpacity style={styles.viewerAction} onPress={handleOpenComments} accessibilityRole="button" accessibilityLabel={`Comments, ${comments.length}`}>
                 <IconSymbol name="bubble.right" size={30} color={showComments ? viewerTheme.accent : viewerTheme.controlText} />
                 <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{comments.length}</Text>
               </TouchableOpacity>
               {(isScrapbookTemplate || isNeonTemplate || isPopTemplate) && (
-                <TouchableOpacity style={styles.viewerAction} onPress={handleSharePhoto}>
+                <TouchableOpacity style={styles.viewerAction} onPress={handleSharePhoto} accessibilityRole="button" accessibilityLabel="Share">
                   <IconSymbol name="square.and.arrow.up" size={28} color={isNeonTemplate ? '#66e8ff' : (isPopTemplate ? '#231f20' : viewerTheme.controlText)} />
                   <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }, isNeonTemplate && styles.neonViewerActionCount, isPopTemplate && styles.popViewerActionCount]}>Share</Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity style={styles.viewerAction} onPress={handleDownloadPhoto} disabled={isDownloading}>
+              <TouchableOpacity style={styles.viewerAction} onPress={handleDownloadPhoto} disabled={isDownloading} accessibilityRole="button" accessibilityLabel="Download">
                 <IconSymbol name="arrow.down.to.line.compact" size={30} color={viewerTheme.controlText} />
                 <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Download</Text>
               </TouchableOpacity>
@@ -1685,7 +1696,9 @@ export default function PhotoViewer({
       navigationBarTranslucent
       onRequestClose={onClose}
     >
-      {viewerContent}
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        {viewerContent}
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -1823,7 +1836,7 @@ const localStyles = StyleSheet.create({
     paddingVertical: 9,
   },
   dashboardVideoSettingsLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: Fonts.inter.bold,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
@@ -1997,7 +2010,7 @@ const localStyles = StyleSheet.create({
     fontSize: 22,
   },
   hostGuestbookSubtitle: {
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1.8,
   },
   hostCloseGuestbookBtn: {
@@ -2058,7 +2071,7 @@ const localStyles = StyleSheet.create({
     fontSize: 22,
   },
   hostGuestbookPeekSubtitle: {
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1.8,
     marginTop: 5,
   },

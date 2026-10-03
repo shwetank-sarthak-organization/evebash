@@ -571,6 +571,8 @@ export default function PortfolioTabScreen() {
               style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }}
               activeOpacity={0.7}
               onPress={showQuotaAlert}
+              accessibilityRole="button"
+              accessibilityLabel="Storage and plan usage"
             >
               <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <Rect width={20} height={8} x={2} y={2} rx={2} ry={2} />
@@ -582,7 +584,7 @@ export default function PortfolioTabScreen() {
           </View>
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <View style={styles.headingLogoRow}>
-              <EveBashLogoBadge onPress={() => router.replace('/(tabs)' as any)} />
+              <EveBashLogoBadge />
               <Text style={styles.headerName}>Host</Text>
             </View>
           </View>
@@ -590,6 +592,8 @@ export default function PortfolioTabScreen() {
             <TouchableOpacity
               style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }}
               onPress={() => setCreateModalVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Create event"
             >
               <Svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <Path d="M5 12h14" />
@@ -727,12 +731,18 @@ export default function PortfolioTabScreen() {
                             <TouchableOpacity
                               style={styles.miniActionBtnRed}
                               onPress={() => updateGuestStatus(log.id, 'rejected').then(fetchData)}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Reject ${log.name || 'guest'}`}
+                              hitSlop={6}
                             >
                               <IconSymbol name="xmark" size={12} color="#fff" />
                             </TouchableOpacity>
                             <TouchableOpacity
                               style={styles.miniActionBtnGreen}
                               onPress={() => updateGuestStatus(log.id, 'approved').then(fetchData)}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Approve ${log.name || 'guest'}`}
+                              hitSlop={6}
                             >
                               <IconSymbol name="checkmark" size={12} color="#fff" />
                             </TouchableOpacity>
@@ -746,7 +756,7 @@ export default function PortfolioTabScreen() {
             )}
 
           {/* ── PREMIUM REQUEST DETAIL MODAL ── */}
-          <Modal visible={!!selectedRequest} transparent animationType="fade">
+          <Modal visible={!!selectedRequest} transparent animationType="fade" onRequestClose={() => setSelectedRequest(null)}>
             <View style={styles.premiumModalBackdrop}>
               <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                 <LinearGradient
@@ -768,7 +778,7 @@ export default function PortfolioTabScreen() {
                       <Text style={styles.premiumModalTitle}>{selectedRequest?.name}</Text>
                       <Text style={styles.premiumModalSub}>Requesting Access</Text>
                     </View>
-                    <TouchableOpacity onPress={() => setSelectedRequest(null)} style={styles.closeModalCircle}>
+                    <TouchableOpacity onPress={() => setSelectedRequest(null)} style={styles.closeModalCircle} accessibilityRole="button" accessibilityLabel="Close" hitSlop={8}>
                       <IconSymbol name="xmark" size={16} color={MidnightColors.slate400} />
                     </TouchableOpacity>
                   </View>
@@ -847,7 +857,7 @@ export default function PortfolioTabScreen() {
               </View>
               <View style={styles.benefitContent}>
                 <Text style={styles.benefitTitle}>Stunning Galleries</Text>
-                <Text style={styles.benefitDesc}>Create unlimited, high-resolution albums to preserve every beautiful memory.</Text>
+                <Text style={styles.benefitDesc}>Create beautiful, high-resolution albums to preserve every memory.</Text>
               </View>
             </View>
 
@@ -866,8 +876,8 @@ export default function PortfolioTabScreen() {
                 <IconSymbol name="video.fill" size={20} color={colors.gold} />
               </View>
               <View style={styles.benefitContent}>
-                <Text style={styles.benefitTitle}>Live Streaming</Text>
-                <Text style={styles.benefitDesc}>{"Broadcast your special moments live to loved ones who couldn't attend in person."}</Text>
+                <Text style={styles.benefitTitle}>Photos & Videos</Text>
+                <Text style={styles.benefitDesc}>Share event videos alongside photos, ready to play smoothly on any phone.</Text>
               </View>
             </View>
           </View>
@@ -879,7 +889,7 @@ export default function PortfolioTabScreen() {
             onPress={() => Linking.openURL('https://www.youtube.com/@EveBashApp')}
           >
             <LinearGradient
-              colors={['#312e81', '#1e1b4b']}
+              colors={['#1E1B17', '#12171C']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.howToHostGradient}
@@ -906,7 +916,7 @@ export default function PortfolioTabScreen() {
               {/* Right: play icon watermark */}
               <View style={{ marginLeft: 10, justifyContent: 'center', alignItems: 'center' }}>
                 <View style={styles.howToHostPlayCircle}>
-                  <IconSymbol name="play.fill" size={28} color="rgba(167,139,250,0.6)" />
+                  <IconSymbol name="play.fill" size={28} color="rgba(202,156,104,0.6)" />
                 </View>
               </View>
             </LinearGradient>
@@ -917,7 +927,7 @@ export default function PortfolioTabScreen() {
       </ScrollView>
 
       {/* ── QUOTA MODAL ── */}
-      <Modal visible={showQuotaModal} transparent animationType="fade" statusBarTranslucent>
+      <Modal visible={showQuotaModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setShowQuotaModal(false)}>
         <TouchableOpacity
           style={styles.quotaOverlay}
           activeOpacity={1}
@@ -944,7 +954,7 @@ export default function PortfolioTabScreen() {
                   <Text style={styles.quotaHeroTitle}>Storage & Quota</Text>
                   <Text style={styles.quotaHeroSub}>Your current plan usage</Text>
                 </View>
-                <TouchableOpacity onPress={() => setShowQuotaModal(false)} style={styles.quotaCloseBtn}>
+                <TouchableOpacity onPress={() => setShowQuotaModal(false)} style={styles.quotaCloseBtn} accessibilityRole="button" accessibilityLabel="Close" hitSlop={10}>
                   <IconSymbol name="xmark" size={13} color={colors.slate400} />
                 </TouchableOpacity>
               </View>
@@ -1049,7 +1059,15 @@ export default function PortfolioTabScreen() {
       </Modal>
 
       {/* ── EVENT OPTIONS MODAL ── */}
-      <Modal visible={optionsVisible} transparent animationType="slide">
+      <Modal
+        visible={optionsVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          setTemplateVisible(false);
+          setOptionsVisible(false);
+        }}
+      >
         <View style={styles.modalOverlay}>
           <TouchableOpacity
             style={styles.modalBackdrop}
@@ -1186,7 +1204,7 @@ export default function PortfolioTabScreen() {
       </Modal>
 
       {/* ── RENAME MODAL ── */}
-      <Modal visible={renameVisible} transparent animationType="fade">
+      <Modal visible={renameVisible} transparent animationType="fade" onRequestClose={() => setRenameVisible(false)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity
             style={styles.modalBackdrop}
@@ -1228,7 +1246,15 @@ export default function PortfolioTabScreen() {
       </Modal>
 
       {/* ── CREATE EVENT MODAL ── */}
-      <Modal visible={createModalVisible} transparent animationType="slide">
+      <Modal
+        visible={createModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          setShowCreateDatePicker(false);
+          setCreateModalVisible(false);
+        }}
+      >
         <View style={styles.modalOverlay}>
           <TouchableOpacity
             style={styles.modalBackdrop}
@@ -1392,10 +1418,12 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     overflow: 'hidden',
     marginTop: 16,
     elevation: 6,
-    shadowColor: '#312e81',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(202, 156, 104, 0.16)',
   },
   howToHostGradient: {
     flexDirection: 'row',
@@ -1403,18 +1431,18 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     padding: 20,
   },
   howToHostBadge: {
-    backgroundColor: 'rgba(167,139,250,0.2)',
+    backgroundColor: 'rgba(202, 156, 104, 0.1)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     alignSelf: 'flex-start',
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: 'rgba(167,139,250,0.3)',
+    borderColor: 'rgba(202, 156, 104, 0.18)',
   },
   howToHostBadgeText: {
-    color: '#c4b5fd',
-    fontSize: 9,
+    color: colors.gold,
+    fontSize: 10,
     fontFamily: Fonts.outfit.extraBold,
     letterSpacing: 0.8,
   },
@@ -1425,7 +1453,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     marginBottom: 4,
   },
   howToHostSubtitle: {
-    color: 'rgba(196,181,253,0.85)',
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
     fontFamily: Fonts.inter.regular,
     lineHeight: 17,
@@ -1452,7 +1480,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderRadius: 32,
     backgroundColor: 'rgba(255,255,255,0.07)',
     borderWidth: 1.5,
-    borderColor: 'rgba(167,139,250,0.3)',
+    borderColor: 'rgba(202, 156, 104, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1534,8 +1562,8 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  tabBadge: { position: 'absolute', top: 4, right: 8, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: colors.background },
-  tabBadgeText: { color: colors.white, fontSize: 9, fontFamily: Fonts.inter.bold },
+  tabBadge: { position: 'absolute', top: 4, right: 8, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: colors.background },
+  tabBadgeText: { color: colors.white, fontSize: 10, fontFamily: Fonts.inter.bold },
   tabButtonActive: {
     backgroundColor: 'rgba(202, 156, 104, 0.1)',
     borderColor: 'rgba(202, 156, 104, 0.32)',
@@ -1575,7 +1603,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   opsMetricLabel: {
     color: colors.slate400,
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: Fonts.inter.bold,
     textTransform: 'uppercase',
     letterSpacing: 0.9,
@@ -1623,7 +1651,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingVertical: 2,
   },
   cardCategoryText: {
-    fontSize: 8,
+    fontSize: 10,
     color: colors.gold,
     fontFamily: Fonts.inter.bold,
     letterSpacing: 0.7,
@@ -1660,7 +1688,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderTopColor: 'rgba(255,255,255,0.08)',
   },
   sharedOwnerLine: {
-    fontSize: 8,
+    fontSize: 10,
     color: colors.white,
     fontFamily: Fonts.inter.bold,
     letterSpacing: 0.4,
@@ -1700,7 +1728,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   requestGroupLabel: {
     color: colors.slate400,
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: Fonts.inter.bold,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
@@ -2155,6 +2183,6 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   userInfoHandle: { color: MidnightColors.gold, fontSize: 11, fontFamily: Fonts.inter.bold, marginTop: 2 },
   userInfoDetails: { gap: 6 },
   userInfoDetailRow: { backgroundColor: 'rgba(27, 33, 31, 0.7)', padding: 9, borderRadius: 12 },
-  userInfoDetailLabel: { color: '#CDB89E', fontSize: 9, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', marginBottom: 2, letterSpacing: 0.8 },
+  userInfoDetailLabel: { color: '#CDB89E', fontSize: 10, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', marginBottom: 2, letterSpacing: 0.8 },
   userInfoDetailValue: { color: '#fff', fontSize: 12, fontFamily: Fonts.inter.medium },
 });

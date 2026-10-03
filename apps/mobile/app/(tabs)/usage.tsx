@@ -163,7 +163,7 @@ export default function UsageScreen() {
             <IconSymbol name="chevron.left" size={24} color="#CA9C68" />
           </TouchableOpacity>
           <View style={styles.headingLogoRow}>
-            <EveBashLogoBadge onPress={() => router.replace('/(tabs)' as any)} />
+            <EveBashLogoBadge />
             <Text style={styles.headerTitle}>Plan & Usage</Text>
           </View>
           <View style={{ width: 40 }} />

@@ -89,7 +89,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       root === 'pricing' ||
       root === 'contact' ||
       root === 'sample-galleries' ||
-      root === 'events';
+      root === 'events' ||
+      // Legal pages are linked from the login screen, so they must open while signed out
+      root === 'terms-and-conditions' ||
+      root === 'privacy-policy';
 
     if (!user && !inAuthGroup && !isPublicRoute) {
       const timeoutId = setTimeout(() => router.replace('/login'), 1);

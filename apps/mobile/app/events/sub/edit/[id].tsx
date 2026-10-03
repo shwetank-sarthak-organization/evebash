@@ -219,6 +219,9 @@ export default function EditPhotosScreen() {
             <TouchableOpacity
               style={styles.deleteBtn}
               onPress={() => handleDeletePhoto(item.id)}
+              accessibilityRole="button"
+              accessibilityLabel="Delete photo"
+              hitSlop={10}
             >
               <IconSymbol name="xmark" size={14} color="#ffffff" />
             </TouchableOpacity>
@@ -293,7 +296,7 @@ export default function EditPhotosScreen() {
               lineHeight: 20,
               paddingHorizontal: 8,
             }}>
-              Upload complete
+              All your photos and videos have been uploaded.
             </Text>
 
             <TouchableOpacity

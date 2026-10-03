@@ -51,6 +51,8 @@ export function FindYouPanel({
   const [status, setStatus] = useState<'idle' | 'uploading' | 'searching' | 'done' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('Upload a selfie to find your photos');
   const [matchedPhotos, setMatchedPhotos] = useState<any[]>([]);
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
   const isBusy = status === 'uploading' || status === 'searching';
 
@@ -411,11 +413,11 @@ const panelStyles = StyleSheet.create({
     fontSize: 28,
     marginBottom: 6,
   },
-  buttonLabel: {
+  buttonText: {
     fontSize: 13,
     fontWeight: '700',
   },
-  statusContainer: {
+  statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

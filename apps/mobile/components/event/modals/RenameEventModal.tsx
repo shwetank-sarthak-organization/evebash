@@ -30,7 +30,7 @@ export function RenameEventModal({
   styles
 }: RenameEventModalProps) {
   return (
-    <Modal visible={visible} transparent animationType="fade">
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <TouchableOpacity
           style={styles.modalBackdrop}

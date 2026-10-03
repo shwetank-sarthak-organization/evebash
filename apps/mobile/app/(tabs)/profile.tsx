@@ -34,6 +34,7 @@ import { removeProfileImage, uploadProfileImage } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { getPlanDetails } from '@/lib/planLimits';
 import { EveBashLogoBadge } from '@/components/EveBashLogo';
+import { APP_VERSION } from '@/lib/appVersion';
 
 const { width } = Dimensions.get('window');
 
@@ -454,7 +455,7 @@ export default function ProfileScreen() {
             <View style={styles.profileHeaderSide} />
             <View style={styles.profileHeaderTitleWrap}>
               <View style={styles.headingLogoRow}>
-                <EveBashLogoBadge onPress={() => router.replace('/(tabs)' as any)} />
+                <EveBashLogoBadge />
                 <Text style={styles.headerTitle}>Profile</Text>
               </View>
             </View>
@@ -463,6 +464,8 @@ export default function ProfileScreen() {
                 activeOpacity={0.7}
                 onPress={() => router.push('/settings' as any)}
                 style={styles.settingsBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Settings"
               >
                 <SettingsIcon size={22} color="#CA9C68" />
               </TouchableOpacity>
@@ -521,12 +524,12 @@ export default function ProfileScreen() {
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{activityStats.eventsOrganized}</Text>
-              <Text style={styles.statLabel}>Event Hosted</Text>
+              <Text style={styles.statLabel}>Events Hosted</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{activityStats.eventsJoined}</Text>
-              <Text style={styles.statLabel}>Event Joined</Text>
+              <Text style={styles.statLabel}>Events Joined</Text>
             </View>
           </View>
 
@@ -715,14 +718,23 @@ export default function ProfileScreen() {
 
           </View>
 
-          <TouchableOpacity style={styles.signOutBtn} activeOpacity={0.8} onPress={logout}>
+          <TouchableOpacity
+            style={styles.signOutBtn}
+            activeOpacity={0.8}
+            onPress={() =>
+              Alert.alert('Sign out?', 'You can sign back in anytime with the same account.', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Sign Out', style: 'destructive', onPress: logout },
+              ])
+            }
+          >
             <IconSymbol name="rectangle.portrait.and.arrow.right" size={16} color="#f87171" />
             <Text style={styles.signOutText}>Sign Out</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>EveBash v1.0.4</Text>
+          <Text style={styles.footerText}>EveBash v{APP_VERSION}</Text>
         </View>
       </ScrollView>
 
@@ -1177,7 +1189,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: 'rgba(202, 156, 104, 0.12)',
   },
   planBadgeText: {
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: 'Inter_800ExtraBold',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
@@ -1187,7 +1199,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderColor: '#594C3D',
   },
   personaBadgeText: {
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: 'Inter_800ExtraBold',
     color: '#cbd5e1',
     textTransform: 'uppercase',

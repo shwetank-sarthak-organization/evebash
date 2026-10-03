@@ -33,7 +33,7 @@ export function TemplateSelectionModal({
   const templates = getTemplatesForEventCategory(category);
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <TouchableOpacity
           style={styles.modalBackdrop}
