@@ -20,13 +20,15 @@ import { updateUserPrivacy, updateUserProfile, submitFeedback } from '@/lib/data
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { APP_VERSION } from '@/lib/appVersion';
+import { Button } from '@/components/ui/Button';
 import { appAlert, showToast } from '@/lib/feedback';
+import { haptic } from '@/lib/haptics';
 import * as Clipboard from 'expo-clipboard';
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
   const { colors, isDark } = useAppTheme();
-  const styles = getStyles(colors, isDark);
+  const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -104,6 +106,7 @@ export default function SettingsScreen() {
     const newStatus = !isPrivate;
     const success = await updateUserPrivacy(user.uid, newStatus);
     if (success) {
+      haptic('select');
       setIsPrivate(newStatus);
     }
     setUpdatingPrivacy(false);
@@ -116,6 +119,7 @@ export default function SettingsScreen() {
     const newStatus = !isDiscoverable;
     const success = await updateUserProfile(user.uid, { discoverable: newStatus });
     if (success) {
+      haptic('select');
       setIsDiscoverable(newStatus);
     }
     setUpdatingSearch(false);
@@ -130,6 +134,7 @@ export default function SettingsScreen() {
     };
     
     // Optimistically set state
+    haptic('select');
     setNotifPreferences(updatedPreferences);
 
     const success = await updateUserProfile(user.uid, {
@@ -630,7 +635,7 @@ export default function SettingsScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Change Password</Text>
-              <TouchableOpacity onPress={() => setPasswordModalVisible(false)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setPasswordModalVisible(false)}>
                 <IconSymbol name="xmark" size={20} color="#64748b" />
               </TouchableOpacity>
             </View>
@@ -644,7 +649,7 @@ export default function SettingsScreen() {
                   onChangeText={setNewPassword}
                   secureTextEntry={true}
                   placeholder="At least 6 characters"
-                  placeholderTextColor="#475569"
+                  placeholderTextColor="#9A8B78"
                 />
               </View>
 
@@ -656,30 +661,30 @@ export default function SettingsScreen() {
                   onChangeText={setConfirmPassword}
                   secureTextEntry={true}
                   placeholder="Re-enter password"
-                  placeholderTextColor="#475569"
+                  placeholderTextColor="#9A8B78"
                 />
               </View>
             </View>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelBtn}
+              <Button
+                title="Cancel"
+                variant="secondary"
+                size="md"
+                fullWidth={false}
+                style={{ flex: 1 }}
                 onPress={() => setPasswordModalVisible(false)}
                 disabled={updatingPassword}
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.saveBtn}
+              />
+              <Button
+                title="Save Password"
+                variant="primary"
+                size="md"
+                fullWidth={false}
+                style={{ flex: 1 }}
                 onPress={handlePasswordChange}
-                disabled={updatingPassword}
-              >
-                {updatingPassword ? (
-                  <ActivityIndicator size="small" color="#13191F" />
-                ) : (
-                  <Text style={styles.saveBtnText}>Save Password</Text>
-                )}
-              </TouchableOpacity>
+                loading={updatingPassword}
+              />
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -696,7 +701,7 @@ export default function SettingsScreen() {
           <View style={[styles.modalContent, { borderTopColor: '#ef4444', borderTopWidth: 4 }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: '#ef4444' }]}>Delete Account Permanently?</Text>
-              <TouchableOpacity onPress={() => setDeleteModalVisible(false)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setDeleteModalVisible(false)}>
                 <IconSymbol name="xmark" size={20} color="#64748b" />
               </TouchableOpacity>
             </View>
@@ -714,28 +719,33 @@ export default function SettingsScreen() {
                 autoCorrect={false}
                 editable={!deletingAccount}
                 placeholder="DELETE"
-                placeholderTextColor="#64748b"
+                placeholderTextColor="#9A8B78"
               />
             </View>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelBtn}
+              <Button
+                title="Cancel"
+                variant="secondary"
+                size="md"
+                fullWidth={false}
+                style={{ flex: 1 }}
                 onPress={() => {
                   setDeleteModalVisible(false);
                   setDeleteConfirmation('');
                 }}
                 disabled={deletingAccount}
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.saveBtn, { backgroundColor: '#ef4444', opacity: deleteConfirmation === 'DELETE' && !deletingAccount ? 1 : 0.45 }]}
+              />
+              <Button
+                title="Delete"
+                variant="destructive"
+                size="md"
+                fullWidth={false}
+                style={{ flex: 1 }}
                 onPress={handleDeleteAccount}
-                disabled={deleteConfirmation !== 'DELETE' || deletingAccount}
-              >
-                {deletingAccount ? <ActivityIndicator size="small" color="#fff" /> : <Text style={[styles.saveBtnText, { color: '#fff' }]}>Delete Permanently</Text>}
-              </TouchableOpacity>
+                loading={deletingAccount}
+                disabled={deleteConfirmation !== 'DELETE'}
+              />
             </View>
           </View>
         </View>
@@ -755,7 +765,7 @@ export default function SettingsScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Send Feedback</Text>
-              <TouchableOpacity onPress={() => setFeedbackModalVisible(false)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setFeedbackModalVisible(false)}>
                 <IconSymbol name="xmark" size={20} color="#64748b" />
               </TouchableOpacity>
             </View>
@@ -781,7 +791,7 @@ export default function SettingsScreen() {
                   value={feedbackText}
                   onChangeText={setFeedbackText}
                   placeholder="Describe your issue or suggest a premium feature..."
-                  placeholderTextColor="#475569"
+                  placeholderTextColor="#9A8B78"
                   multiline={true}
                   numberOfLines={5}
                 />
@@ -789,24 +799,24 @@ export default function SettingsScreen() {
             </View>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelBtn}
+              <Button
+                title="Cancel"
+                variant="secondary"
+                size="md"
+                fullWidth={false}
+                style={{ flex: 1 }}
                 onPress={() => setFeedbackModalVisible(false)}
                 disabled={submittingFeedback}
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.saveBtn}
+              />
+              <Button
+                title="Send Feedback"
+                variant="primary"
+                size="md"
+                fullWidth={false}
+                style={{ flex: 1 }}
                 onPress={handleFeedbackSubmit}
-                disabled={submittingFeedback}
-              >
-                {submittingFeedback ? (
-                  <ActivityIndicator size="small" color="#13191F" />
-                ) : (
-                  <Text style={styles.saveBtnText}>Send Feedback</Text>
-                )}
-              </TouchableOpacity>
+                loading={submittingFeedback}
+              />
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -825,7 +835,7 @@ export default function SettingsScreen() {
               <Text style={styles.modalTitle}>
                 {legalModalType === 'terms' ? 'Terms of Service' : 'Privacy Policy'}
               </Text>
-              <TouchableOpacity onPress={() => setLegalModalVisible(false)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setLegalModalVisible(false)}>
                 <IconSymbol name="xmark" size={20} color="#64748b" />
               </TouchableOpacity>
             </View>
@@ -853,12 +863,7 @@ export default function SettingsScreen() {
             </ScrollView>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.saveBtn, { width: '100%' }]}
-                onPress={() => setLegalModalVisible(false)}
-              >
-                <Text style={styles.saveBtnText}>Accept & Close</Text>
-              </TouchableOpacity>
+              <Button title="Close" onPress={() => setLegalModalVisible(false)} />
             </View>
           </View>
         </View>

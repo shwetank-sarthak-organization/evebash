@@ -1759,7 +1759,7 @@ headerGreeting: {
   description: { fontSize: 16, color: MidnightColors.slate400, fontFamily: Fonts.inter.regular, lineHeight: 24, marginBottom: 32 },
 
   // Tabs
-  tabBar: { flexDirection: 'row', gap: 16, marginBottom: 24, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
+  tabBar: { flexDirection: 'row', gap: 4, marginBottom: 24, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
   tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
   activeTab: { borderBottomWidth: 2, borderBottomColor: MidnightColors.gold },
   tabText: { color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.outfit.bold },

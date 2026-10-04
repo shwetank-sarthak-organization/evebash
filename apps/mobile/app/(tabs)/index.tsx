@@ -27,7 +27,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
   const { user } = useAuth();
-  const styles = getStyles(colors, isDark);
+  const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
 
   return (
     <View style={styles.screen}>
@@ -53,14 +53,14 @@ export default function HomeScreen() {
 
             <View style={styles.heroChip}>
               <IconSymbol name="sparkles.fill" size={14} color={colors.gold} />
-              <Text style={styles.heroChipText}>Premium Wedding Photography</Text>
+              <Text style={styles.heroChipText}>Private Event Galleries</Text>
             </View>
 
             <Text style={styles.heroTitle}>
-              Capturing <Text style={styles.heroTitleAccent}>Timeless</Text> Moments
+              Every Moment, <Text style={styles.heroTitleAccent}>Together</Text>
             </Text>
             <Text style={styles.heroSubtitle}>
-              Where every frame tells a story of elegance, and every moment becomes a masterpiece.
+              Create a private gallery for your wedding or celebration. Guests join with a QR code, and everyone's photos and videos come together in one album.
             </Text>
 
             <View style={styles.heroActions}>
@@ -88,7 +88,7 @@ export default function HomeScreen() {
                 style={styles.loginLink}
                 onPress={() => router.push('/login')}
               >
-                <Text style={styles.loginLinkText}>Already have an account? Login</Text>
+                <Text style={styles.loginLinkText}>Already have an account? Sign in</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -99,17 +99,20 @@ export default function HomeScreen() {
 
           <View style={styles.kickerRow}>
             <View style={styles.kickerLine} />
-            <Text style={styles.kickerText}>About The Artist</Text>
+            <Text style={styles.kickerText}>How It Works</Text>
           </View>
 
           <Text style={styles.aboutTitle}>
-            Preserving Your <Text style={styles.aboutTitleAccent}>Legacy</Text>
+            Your Celebration, <Text style={styles.aboutTitleAccent}>Beautifully Shared</Text>
           </Text>
           <Text style={styles.aboutText}>
-            With over a decade of experience in capturing the grandest celebrations, EveBash turns wedding memories into elegant, lasting stories.
+            1. Create an event and pick a gallery theme that matches your celebration.
           </Text>
           <Text style={styles.aboutText}>
-            Our royal aesthetic blends warm storytelling with modern fine-art precision, so every celebration feels personal, polished, and timeless.
+            2. Invite guests with a QR code or a Join ID. You approve who gets in.
+          </Text>
+          <Text style={styles.aboutText}>
+            3. Everyone's photos and videos land in one private gallery to view, like and download.
           </Text>
 
           <TouchableOpacity
@@ -117,7 +120,7 @@ export default function HomeScreen() {
             style={styles.aboutButton}
             onPress={() => router.push('/contact')}
           >
-            <Text style={styles.aboutButtonText}>Discover Our Journey</Text>
+            <Text style={styles.aboutButtonText}>Contact Us</Text>
           </TouchableOpacity>
         </View>
 
@@ -128,21 +131,12 @@ export default function HomeScreen() {
               <Text style={styles.footerBrandName}>EveBash</Text>
             </View>
             <Text style={styles.footerDescription}>
-              Capturing the most precious moments of your life with elegance and style. We believe every picture tells a story, and we are here to tell yours.
+              Private event galleries for weddings, parties and every celebration in between.
             </Text>
-            <View style={styles.socialRow}>
-              <Text style={styles.socialIcon}>Instagram</Text>
-              <Text style={styles.socialIcon}>Facebook</Text>
-              <Text style={styles.socialIcon}>Twitter</Text>
-            </View>
           </View>
 
           <View style={styles.footerSection}>
             <Text style={styles.footerHeading}>Explore</Text>
-            <TouchableOpacity onPress={() => router.replace('/(tabs)' as any)} activeOpacity={0.75} style={styles.footerLink}>
-              <Text style={styles.footerBullet}>•</Text>
-              <Text style={styles.footerLinkText}>About Us</Text>
-            </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push('/sample-galleries')} activeOpacity={0.75} style={styles.footerLink}>
               <Text style={styles.footerBullet}>•</Text>
               <Text style={styles.footerLinkText}>Sample Galleries</Text>
@@ -245,7 +239,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   brandName: {
     color: MidnightColors.white,
     fontFamily: 'AkayaKanadakaHeader_400Regular',
-    fontSize: 34,
+    fontSize: 32,
     lineHeight: 42,
     includeFontPadding: false,
   },
@@ -271,7 +265,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   heroTitle: {
     color: MidnightColors.white,
     fontFamily: Fonts.playfair.bold,
-    fontSize: 47,
+    fontSize: 48,
     lineHeight: 54,
     textAlign: 'center',
     letterSpacing: 0,
@@ -372,7 +366,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   aboutTitle: {
     color: colors.white,
     fontFamily: Fonts.playfair.bold,
-    fontSize: 38,
+    fontSize: 40,
     lineHeight: 45,
     letterSpacing: 0,
     marginBottom: 18,
@@ -433,22 +427,10 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     lineHeight: 25,
     maxWidth: 310,
   },
-  socialRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 18,
-    marginTop: 24,
-  },
-  socialIcon: {
-    color: colors.slate400,
-    fontFamily: Fonts.outfit.semiBold,
-    fontSize: 12,
-  },
   footerHeading: {
     color: colors.white,
     fontFamily: Fonts.playfair.bold,
-    fontSize: 19,
+    fontSize: 20,
     marginBottom: 18,
   },
   footerLink: {

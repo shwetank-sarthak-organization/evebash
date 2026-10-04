@@ -19,6 +19,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { EveBashLogo } from '@/components/EveBashLogo';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 // Text colours for the white card, chosen for at least 4.5:1 contrast
 const LINK = '#8C6434';
@@ -27,7 +29,6 @@ const MUTED = '#7C6C58';
 const { height } = Dimensions.get('window');
 
 export default function LoginScreen() {
-  console.log('LoginScreen rendering...');
   const { login, signup, authWithPhone, loginWithGoogle, loginWithApple } = useAuth();
   const router = useRouter();
 
@@ -41,6 +42,9 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const [verificationMessage, setVerificationMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  // Which social sign-in is in progress, so only that button shows a spinner
+  const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
+  const anyLoading = loading || socialLoading !== null;
   const [showPass, setShowPass] = useState(false);
   const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('email');
   const isPhoneAuth = authMethod === 'phone';
@@ -129,9 +133,9 @@ export default function LoginScreen() {
   };
   const handleGoogleLogin = async () => {
     setError('');
-    setLoading(true);
+    setSocialLoading('google');
     const result = await loginWithGoogle();
-    setLoading(false);
+    setSocialLoading(null);
     if (result.success) {
       router.replace('/(tabs)/dashboard');
     } else {
@@ -141,9 +145,9 @@ export default function LoginScreen() {
 
   const handleAppleLogin = async () => {
     setError('');
-    setLoading(true);
+    setSocialLoading('apple');
     const result = await loginWithApple();
-    setLoading(false);
+    setSocialLoading(null);
     if (result.success) {
       router.replace('/(tabs)/dashboard');
     } else {
@@ -366,10 +370,12 @@ export default function LoginScreen() {
                 <View style={{ flexDirection: 'row', gap: 20 }}><TouchableOpacity accessibilityRole="link" onPress={() => router.push('/terms-and-conditions')}><Text style={{ color: LINK, textDecorationLine: 'underline' }}>Terms &amp; Conditions</Text></TouchableOpacity><TouchableOpacity accessibilityRole="link" onPress={() => router.push('/privacy-policy')}><Text style={{ color: LINK, textDecorationLine: 'underline' }}>Privacy Policy</Text></TouchableOpacity></View>
               </View>}
               <TouchableOpacity
-                style={[styles.submitBtn, (loading || (isSignUp && !policiesAccepted)) && styles.submitBtnDisabled]}
+                style={[styles.submitBtn, (anyLoading || (isSignUp && !policiesAccepted)) && styles.submitBtnDisabled]}
                 onPress={handleSubmit}
-                disabled={loading || (isSignUp && !policiesAccepted)}
+                disabled={anyLoading || (isSignUp && !policiesAccepted)}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: anyLoading || (isSignUp && !policiesAccepted), busy: loading }}
               >
                 {loading ? (
                   <ActivityIndicator color="#ffffff" size="small" />
@@ -385,24 +391,28 @@ export default function LoginScreen() {
                 <View style={styles.dividerLine} />
               </View>
 
-              <TouchableOpacity
-                style={styles.socialBtnGoogle}
+              <GoogleSignInButton
                 onPress={handleGoogleLogin}
-                disabled={loading}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.socialBtnGoogleText}>Continue with Google</Text>
-              </TouchableOpacity>
+                loading={socialLoading === 'google'}
+                disabled={anyLoading}
+              />
 
               {Platform.OS === 'ios' && (
-                <TouchableOpacity
-                  style={styles.socialBtnApple}
-                  onPress={handleAppleLogin}
-                  disabled={loading}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.socialBtnAppleText}>Continue with Apple</Text>
-                </TouchableOpacity>
+                // Apple requires its own native button (App Store guideline 4.8 / HIG)
+                <View pointerEvents={anyLoading ? 'none' : 'auto'} style={[styles.appleBtnWrap, anyLoading && { opacity: 0.5 }]}>
+                  <AppleAuthentication.AppleAuthenticationButton
+                    buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                    buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                    cornerRadius={14}
+                    style={styles.appleBtn}
+                    onPress={handleAppleLogin}
+                  />
+                  {socialLoading === 'apple' && (
+                    <View style={[StyleSheet.absoluteFill, styles.appleBtnLoading]}>
+                      <ActivityIndicator color="#ffffff" />
+                    </View>
+                  )}
+                </View>
               )}
 
               {/* Toggle */}
@@ -682,31 +692,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     letterSpacing: 0.5,
   },
-  socialBtnGoogle: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#e2e8f0',
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
+  appleBtnWrap: {
     marginBottom: 12,
   },
-  socialBtnGoogleText: {
-    color: '#1B211F',
-    fontSize: 15,
-    fontWeight: '600',
+  appleBtn: {
+    width: '100%',
+    height: 50,
   },
-  socialBtnApple: {
+  appleBtnLoading: {
     backgroundColor: '#000000',
     borderRadius: 14,
-    paddingVertical: 14,
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  socialBtnAppleText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '600',
+    justifyContent: 'center',
   },
 
   // Footer

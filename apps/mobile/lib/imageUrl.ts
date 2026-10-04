@@ -68,3 +68,10 @@ export function getGridThumbnail(src: string | null | undefined, thumbnailUrl?: 
 export function getSmallThumbnail(src: string | null | undefined, thumbnailUrl?: string | null): string {
     return getImageUrl(src, { width: 200 }, thumbnailUrl);
 }
+
+/** Public URL of an uploaded original file, e.g. the source MP4 behind a streamed (HLS) video. */
+export function getOriginalMediaUrl(storageKey: string): string {
+    const domain = MEDIA_DOMAIN.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    const path = storageKey.trim().replace(/^\/+/, '').split('/').map(encodeURIComponent).join('/');
+    return `https://${domain}/${path}`;
+}

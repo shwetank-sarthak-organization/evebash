@@ -19,7 +19,7 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image as ExpoImage } from 'expo-image';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -33,6 +33,9 @@ import { MidnightColors, Fonts } from '../../constants/theme';
 import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory } from '../../constants/templates';
 import { EveBashLogoBadge } from '@/components/EveBashLogo';
 import { BottomSheet } from '@/components/ui/BottomSheet';
+import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { ErrorState } from '@/components/ui/ErrorState';
 import {
   Event as DatabaseEvent,
   getUserEvents,
@@ -50,7 +53,14 @@ import {
   UserProfile
 } from '@/lib/database';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { haptic } from '@/lib/haptics';
 import { appAlert, showToast } from '@/lib/feedback';
+
+// Approve / reject a guest with a confirming haptic
+function updateGuestStatusWithFeedback(logId: string, status: 'pending' | 'approved' | 'rejected') {
+  haptic(status === 'approved' ? 'success' : 'warning');
+  return updateGuestStatus(logId, status);
+}
 
 const { width } = Dimensions.get('window');
 const EVENT_TYPE_OPTIONS = [
@@ -93,9 +103,10 @@ function createSlug(value: string) {
 
 export default function PortfolioTabScreen() {
   const router = useRouter();
+  const { create: createParam } = useLocalSearchParams<{ create?: string }>();
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
-  const styles = getStyles(colors, isDark);
+  const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const insets = useSafeAreaInsets();
 
   const [activeTab, setActiveTab] = useState<'my' | 'shared' | 'requests'>('my');
@@ -106,6 +117,8 @@ export default function PortfolioTabScreen() {
   const [storageUsed, setStorageUsed] = useState(0);
   const [mainEventCount, setMainEventCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const userRefreshRef = React.useRef(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [selectedRequestProfile, setSelectedRequestProfile] = useState<any | null>(null);
@@ -137,6 +150,16 @@ export default function PortfolioTabScreen() {
   const storagePercent = getUsagePercent(storageUsed, planDetails.storageBytes);
   const eventPercent = getUsagePercent(mainEventCount, planDetails.eventLimit);
 
+  useEffect(() => {
+    if (createParam !== '1') return;
+    // Wait for the tab switch to settle; a Modal opened mid-transition doesn't show
+    const timer = setTimeout(() => {
+      setCreateModalVisible(true);
+      router.setParams({ create: undefined });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [createParam, router]);
+
   const fetchData = React.useCallback(async (silent = false) => {
     if (!user) {
       setEvents([]);
@@ -155,7 +178,7 @@ export default function PortfolioTabScreen() {
       if (user.phone) identifiers.push(user.phone);
 
       const [myEvts, shEvts, storage, eventCount] = await Promise.all([
-        getUserEvents(identifiers, 'main'),
+        getUserEvents(identifiers, 'main', undefined, undefined, { throwOnError: true }),
         getApprovedSharedEventsForUser(identifiers, true),
         getUserTotalStorage(identifiers),
         getUserEventCount(user.uid)
@@ -163,6 +186,7 @@ export default function PortfolioTabScreen() {
 
       setEvents(myEvts);
       setSharedEvents(shEvts);
+      setLoadError(false);
       setStorageUsed(storage);
       setMainEventCount(eventCount);
 
@@ -172,6 +196,11 @@ export default function PortfolioTabScreen() {
       }
     } catch (error) {
       console.error('[Portfolio] Fetch error:', error);
+      setLoadError(true);
+      // Keep the events already shown; just say the pull-to-refresh failed
+      if (userRefreshRef.current) {
+        showToast("Couldn't refresh. Check your connection.", { type: 'error' });
+      }
     } finally {
       if (!silent) setLoading(false);
       setRefreshing(false);
@@ -250,8 +279,9 @@ export default function PortfolioTabScreen() {
   }, [user?.uid, user?.email, user?.phone, fetchData]);
 
   const onRefresh = () => {
+    userRefreshRef.current = true;
     setRefreshing(true);
-    fetchData();
+    fetchData().finally(() => { userRefreshRef.current = false; });
   };
 
   const normalizePhoneValue = (val?: string | null) => (val || '').replace(/\D/g, '');
@@ -488,11 +518,6 @@ export default function PortfolioTabScreen() {
       return groups;
     }, {})
   );
-  const hostConsoleMetrics = [
-    { label: 'Hosted', value: events.length, icon: 'calendar' },
-    { label: 'Shared', value: sharedEvents.length, icon: 'person.2.fill' },
-    { label: 'Requests', value: pendingGuestRequests.length, icon: 'envelope.fill' },
-  ];
 
   const renderEventCard = (event: DatabaseEvent, index: number) => {
     const coverImage = resolveEventCoverImage(event.coverImage);
@@ -616,7 +641,7 @@ export default function PortfolioTabScreen() {
               size={14}
               color={activeTab === 'my' ? colors.gold : colors.slate400}
             />
-            <Text style={[styles.tabText, activeTab === 'my' && styles.tabTextActive]}>Host</Text>
+            <Text style={[styles.tabText, activeTab === 'my' && styles.tabTextActive]}>My Events</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -652,20 +677,25 @@ export default function PortfolioTabScreen() {
             </TouchableOpacity>
         </View>
 
-        <View style={styles.opsStrip}>
-          {hostConsoleMetrics.map((metric) => (
-            <View key={metric.label} style={styles.opsMetric}>
-              <View style={styles.opsMetricIcon}>
-                <IconSymbol name={metric.icon as any} size={13} color={colors.gold} />
-              </View>
-              <Text style={styles.opsMetricValue}>{metric.value}</Text>
-              <Text style={styles.opsMetricLabel}>{metric.label}</Text>
-            </View>
-          ))}
-        </View>
 
         {loading && !refreshing ? (
-          <ActivityIndicator color={colors.gold} style={{ marginTop: 60 }} />
+          <View style={styles.grid} accessible accessibilityLabel="Loading your events">
+            {[0, 1, 2, 3].map((i) => (
+              <View key={i} style={styles.eventCard}>
+                <Skeleton height={120} radius={0} />
+                <View style={{ padding: 12, gap: 8 }}>
+                  <Skeleton width="70%" height={13} />
+                  <Skeleton width="50%" height={10} />
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : loadError && events.length === 0 && sharedEvents.length === 0 ? (
+          <ErrorState
+            title="Couldn't load your events"
+            onRetry={() => fetchData()}
+            retrying={loading}
+          />
         ) : (
           <View style={styles.grid}>
             {activeTab === 'my' && (
@@ -673,7 +703,14 @@ export default function PortfolioTabScreen() {
                 <View style={styles.emptyState}>
                   <IconSymbol name="photo.on.rectangle" size={40} color={colors.slate400} />
                   <Text style={styles.emptyTitle}>No events yet</Text>
-                  <Text style={styles.emptyBody}>Create your first album to see it here.</Text>
+                  <Text style={styles.emptyBody}>Create your first event to start a private gallery.</Text>
+                  <Button
+                    title="Create Event"
+                    icon="plus"
+                    fullWidth={false}
+                    onPress={() => setCreateModalVisible(true)}
+                    style={{ marginTop: 20, minWidth: 200 }}
+                  />
                 </View>
               ) : (
                 events.map((event, index) => renderEventCard(event, index))
@@ -731,7 +768,7 @@ export default function PortfolioTabScreen() {
                           <View style={styles.requestActionsMini}>
                             <TouchableOpacity
                               style={styles.miniActionBtnRed}
-                              onPress={() => updateGuestStatus(log.id, 'rejected').then(fetchData)}
+                              onPress={() => updateGuestStatusWithFeedback(log.id, 'rejected').then(fetchData)}
                               accessibilityRole="button"
                               accessibilityLabel={`Reject ${log.name || 'guest'}`}
                               hitSlop={6}
@@ -740,7 +777,7 @@ export default function PortfolioTabScreen() {
                             </TouchableOpacity>
                             <TouchableOpacity
                               style={styles.miniActionBtnGreen}
-                              onPress={() => updateGuestStatus(log.id, 'approved').then(fetchData)}
+                              onPress={() => updateGuestStatusWithFeedback(log.id, 'approved').then(fetchData)}
                               accessibilityRole="button"
                               accessibilityLabel={`Approve ${log.name || 'guest'}`}
                               hitSlop={6}
@@ -812,7 +849,7 @@ export default function PortfolioTabScreen() {
                       style={[styles.modalActionBtn, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}
                       onPress={() => {
                         if (selectedRequest) {
-                          updateGuestStatus(selectedRequest.id, 'rejected').then(() => {
+                          updateGuestStatusWithFeedback(selectedRequest.id, 'rejected').then(() => {
                             setSelectedRequest(null);
                             fetchData();
                           });
@@ -826,7 +863,7 @@ export default function PortfolioTabScreen() {
                       style={styles.modalActionBtnApprove}
                       onPress={() => {
                         if (selectedRequest) {
-                          updateGuestStatus(selectedRequest.id, 'approved').then(() => {
+                          updateGuestStatusWithFeedback(selectedRequest.id, 'approved').then(() => {
                             setSelectedRequest(null);
                             fetchData();
                           });
@@ -1084,7 +1121,7 @@ export default function PortfolioTabScreen() {
                 <Text style={styles.modalTitle}>{templateVisible ? 'Choose Template' : targetEvent?.title}</Text>
                 <Text style={styles.headerGreeting}>{templateVisible ? '10 gallery themes' : 'Event Management'}</Text>
               </View>
-              <TouchableOpacity onPress={() => {
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => {
                 setTemplateVisible(false);
                 setOptionsVisible(false);
               }}>
@@ -1215,7 +1252,7 @@ export default function PortfolioTabScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Rename Event</Text>
-              <TouchableOpacity onPress={() => setRenameVisible(false)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setRenameVisible(false)}>
                 <IconSymbol name={"xmark.circle.fill" as any} size={24} color={colors.slate400} />
               </TouchableOpacity>
             </View>
@@ -1262,7 +1299,7 @@ export default function PortfolioTabScreen() {
             >
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>New Event</Text>
-                <TouchableOpacity onPress={() => {
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => {
                   setShowCreateDatePicker(false);
                   setCreateModalVisible(false);
                 }}>
@@ -1326,20 +1363,13 @@ export default function PortfolioTabScreen() {
                 )}
               </View>
 
-              <TouchableOpacity
-                style={[styles.submitBtn, creating && { opacity: 0.7 }]}
+              <Button
+                title="Create Event"
+                icon="sparkles"
+                iconPosition="right"
                 onPress={handleCreateSubmit}
-                disabled={creating}
-              >
-                {creating ? (
-                  <ActivityIndicator color={'#13191F'} />
-                ) : (
-                  <>
-                    <Text style={styles.submitBtnText}>Create Event</Text>
-                    <IconSymbol name="sparkles" size={16} color={'#13191F'} />
-                  </>
-                )}
-              </TouchableOpacity>
+                loading={creating}
+              />
             </ScrollView>
       </BottomSheet>
     </View>
@@ -1558,44 +1588,6 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   tabText: { fontSize: 13, color: colors.slate400, fontFamily: Fonts.inter.medium },
   tabTextActive: { color: colors.gold, fontFamily: Fonts.inter.bold },
-  opsStrip: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-  },
-  opsMetric: {
-    flex: 1,
-    minHeight: 70,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(202, 156, 104, 0.14)',
-    backgroundColor: '#0D1318',
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    justifyContent: 'space-between',
-  },
-  opsMetricIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    backgroundColor: 'rgba(202, 156, 104, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  opsMetricValue: {
-    color: colors.white,
-    fontSize: 18,
-    fontFamily: Fonts.outfit.extraBold,
-    lineHeight: 22,
-  },
-  opsMetricLabel: {
-    color: colors.slate400,
-    fontSize: 10,
-    fontFamily: Fonts.inter.bold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.9,
-  },
 
   // Grid
   grid: { paddingHorizontal: 16, paddingTop: 16, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start' },
@@ -1837,7 +1829,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
   },
   quotaHeroTitle: {
-    fontSize: 17,
+    fontSize: 18,
     color: colors.white,
     fontFamily: Fonts.outfit.extraBold,
   },

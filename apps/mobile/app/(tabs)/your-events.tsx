@@ -136,7 +136,7 @@ export default function YourEventsScreen() {
           style={[styles.header, { paddingTop: insets.top + 4 }]}
         >
           <View style={styles.headerLeft}>
-            <TouchableOpacity 
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" 
               onPress={() => {
                 if (router.canGoBack()) {
                   router.back();
@@ -157,7 +157,7 @@ export default function YourEventsScreen() {
             </View>
           </View>
           <View style={styles.headerRight}>
-            <TouchableOpacity 
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Filter events" 
               onPress={() => {
                 appAlert("Filters", "Filter and sorting options coming soon!");
               }}
@@ -177,7 +177,7 @@ export default function YourEventsScreen() {
             <TextInput 
               style={styles.searchInput}
               placeholder="Search memories..."
-              placeholderTextColor="#64748b"
+              placeholderTextColor="#9A8B78"
               value={searchQuery}
               onChangeText={setSearchQuery}
             />

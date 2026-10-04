@@ -156,7 +156,7 @@ export default function UsageScreen() {
         style={styles.header}
       >
         <View style={styles.headerRow}>
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
             onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
             style={styles.backButton}
           >

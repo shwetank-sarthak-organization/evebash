@@ -244,7 +244,7 @@ export default function PricingScreen() {
       
       {/* Custom Navigation Header */}
       <View style={styles.headerRow}>
-        <TouchableOpacity 
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" 
           onPress={() => {
             if (router.canGoBack()) {
               router.back();
@@ -611,7 +611,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     marginBottom: 20,
   },
   planPrice: {
-    fontSize: 42,
+    fontSize: 40,
     fontFamily: 'Outfit_800ExtraBold',
     color: colors.white,
   },

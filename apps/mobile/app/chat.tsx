@@ -208,7 +208,7 @@ export default function ChatScreen() {
       
       {/* ── HEADER ── */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/customer-chats')} style={styles.backBtn}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.canGoBack() ? router.back() : router.replace('/customer-chats')} style={styles.backBtn}>
           <IconSymbol name="chevron.left" size={24} color="#ffffff" />
         </TouchableOpacity>
         
@@ -277,7 +277,7 @@ export default function ChatScreen() {
               placeholderTextColor="#475569"
               multiline
             />
-            <TouchableOpacity 
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Send message" 
               style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]} 
               onPress={handleSend}
               disabled={!inputText.trim()}

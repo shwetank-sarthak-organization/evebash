@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, useWindowDimensions, type StyleProp, type ViewStyle, type ImageStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -8,7 +8,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { Image as ExpoImage } from 'expo-image';
+import { Image as ExpoImage, type ImageLoadEventData } from 'expo-image';
 
 type ZoomablePhotoProps = {
   uri: string;
@@ -18,8 +18,18 @@ type ZoomablePhotoProps = {
   canSwipe: boolean;
   onSwipe: (dir: 'prev' | 'next') => void;
   /** Called when the photo is dragged down far enough to close the viewer */
-  onDismiss: () => void;
+  onDismiss?: () => void;
+  /**
+   * 'fullscreen' (default): swipes page between photos and drag-down closes.
+   * 'inline': for a photo inside a scrolling page; only pinch/double-tap zoom and
+   * panning while zoomed are handled, so normal scrolling and swipes keep working.
+   */
+  mode?: 'fullscreen' | 'inline';
+  /** Tells the parent when the photo is zoomed in, e.g. to pause its own scroll/swipe handling */
+  onZoomChange?: (zoomed: boolean) => void;
+  onLoad?: (event: ImageLoadEventData) => void;
   style?: StyleProp<ViewStyle>;
+  imageStyle?: StyleProp<ImageStyle>;
 };
 
 const MAX_SCALE = 4;
@@ -39,7 +49,20 @@ const clamp = (value: number, min: number, max: number) => {
  * finger-following swipes between photos, and drag-down to close.
  * Must be rendered inside a GestureHandlerRootView (RN Modals need their own).
  */
-export function ZoomablePhoto({ uri, resetKey, canSwipe, onSwipe, onDismiss, style }: ZoomablePhotoProps) {
+export function ZoomablePhoto({
+  uri,
+  resetKey,
+  canSwipe,
+  onSwipe,
+  onDismiss,
+  mode = 'fullscreen',
+  onZoomChange,
+  onLoad,
+  style,
+  imageStyle,
+}: ZoomablePhotoProps) {
+  const inline = mode === 'inline';
+  const [zoomed, setZoomed] = useState(false);
   const { width, height } = useWindowDimensions();
 
   const scale = useSharedValue(1);
@@ -61,10 +84,16 @@ export function ZoomablePhoto({ uri, resetKey, canSwipe, onSwipe, onDismiss, sty
     savedPanY.value = 0;
     dragY.value = 0;
     // swipeX is left alone so the slide-in animation for the new photo can finish
+    setZoomed(false);
   }, [resetKey, scale, savedScale, panX, panY, savedPanX, savedPanY, dragY]);
+
+  useEffect(() => {
+    onZoomChange?.(zoomed);
+  }, [zoomed, onZoomChange]);
 
   const resetZoom = () => {
     'worklet';
+    runOnJS(setZoomed)(false);
     scale.value = withTiming(1);
     savedScale.value = 1;
     panX.value = withTiming(0);
@@ -80,9 +109,12 @@ export function ZoomablePhoto({ uri, resetKey, canSwipe, onSwipe, onDismiss, sty
     .onEnd(() => {
       savedScale.value = scale.value;
       if (scale.value <= 1.01) resetZoom();
+      else runOnJS(setZoomed)(true);
     });
 
   const pan = Gesture.Pan()
+    // Inline photos only pan while zoomed, leaving scroll and swipe to the page
+    .enabled(!inline || zoomed)
     .averageTouches(true)
     .onUpdate((e) => {
       if (savedScale.value > 1.01 || scale.value > 1.01) {
@@ -108,7 +140,7 @@ export function ZoomablePhoto({ uri, resetKey, canSwipe, onSwipe, onDismiss, sty
         return;
       }
 
-      if (dragY.value > DISMISS_DISTANCE || e.velocityY > DISMISS_VELOCITY) {
+      if (onDismiss && (dragY.value > DISMISS_DISTANCE || e.velocityY > DISMISS_VELOCITY)) {
         runOnJS(onDismiss)();
         return;
       }
@@ -138,6 +170,7 @@ export function ZoomablePhoto({ uri, resetKey, canSwipe, onSwipe, onDismiss, sty
       } else {
         scale.value = withTiming(DOUBLE_TAP_SCALE);
         savedScale.value = DOUBLE_TAP_SCALE;
+        runOnJS(setZoomed)(true);
       }
     });
 
@@ -158,11 +191,14 @@ export function ZoomablePhoto({ uri, resetKey, canSwipe, onSwipe, onDismiss, sty
         <Animated.View style={[StyleSheet.absoluteFill, animatedStyle]}>
           <ExpoImage
             source={{ uri }}
-            style={StyleSheet.absoluteFill}
+            style={[StyleSheet.absoluteFill, imageStyle]}
             contentFit="contain"
             cachePolicy="memory-disk"
+            onLoad={onLoad}
             accessibilityRole="image"
-            accessibilityHint="Pinch or double-tap to zoom. Swipe to change photo, drag down to close."
+            accessibilityHint={inline
+              ? 'Pinch or double-tap to zoom.'
+              : 'Pinch or double-tap to zoom. Swipe to change photo, drag down to close.'}
           />
         </Animated.View>
       </Animated.View>

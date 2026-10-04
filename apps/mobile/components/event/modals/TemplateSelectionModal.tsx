@@ -48,7 +48,7 @@ export function TemplateSelectionModal({
                 Select a design template for this {category} event.
               </Text>
             </View>
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close"
               style={[styles.closeModalCircle, { marginTop: 2 }]}
               onPress={onClose}
             >

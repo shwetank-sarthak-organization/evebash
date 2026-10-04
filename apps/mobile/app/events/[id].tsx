@@ -40,7 +40,14 @@ import { TemplateSelectionModal } from '../../components/event/modals/TemplateSe
 import { GalleryDescriptionModal } from '../../components/event/modals/GalleryDescriptionModal';
 import { useGuestAccess } from '../../hooks/useGuestAccess';
 import { FindYouPanel } from '../../components/event/FindYouPanel';
+import { haptic } from '@/lib/haptics';
 import { appAlert, showToast } from '@/lib/feedback';
+
+// Approve / reject a guest with a confirming haptic
+function updateGuestStatusWithFeedback(logId: string, status: 'pending' | 'approved' | 'rejected') {
+  haptic(status === 'approved' ? 'success' : 'warning');
+  return updateGuestStatus(logId, status);
+}
 
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -439,6 +446,8 @@ function GalleryVideoCard({
           <TouchableOpacity
             activeOpacity={0.88}
             onPress={onOpen}
+            accessibilityRole="button"
+            accessibilityLabel="Play video"
             style={{
               position: 'absolute',
               top: compact || minimalPreview ? 0 : 10,
@@ -520,7 +529,7 @@ function GalleryVideoCard({
             zIndex: 10,
           }}>
             <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700' }}>
-              ⚠️ Processing Failed
+              Processing failed
             </Text>
           </View>
         )}
@@ -566,6 +575,13 @@ export default function EventDetailScreen() {
   // Native-driven scroll offset (no re-renders) used to fade in the pinned gallery tabs' background
   const scrollYAnim = React.useRef(new RNAnimated.Value(0)).current;
   const [stickyTabsY, setStickyTabsY] = useState<number | null>(null);
+  const loadingMorePhotosRef = React.useRef(false);
+  const loadMorePhotosRef = React.useRef<(() => void) | null>(null);
+  const handleScrollNearEnd = useCallback((e: any) => {
+    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    const distanceFromEnd = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+    if (distanceFromEnd < layoutMeasurement.height * 1.5) loadMorePhotosRef.current?.();
+  }, []);
   // Bottom edge (window coords) of the floating back/share header buttons, measured on layout
   const [floatingButtonsBottom, setFloatingButtonsBottom] = useState<number | null>(null);
   const backButtonRef = React.useRef<View>(null);
@@ -1397,7 +1413,9 @@ export default function EventDetailScreen() {
   }, [event, getPrimaryFavouriteEventIds]);
 
   const handleLoadMorePhotos = async () => {
-    if (loadingMorePhotos || !hasMorePhotos || !event) return;
+    // The ref blocks double-loads from rapid scroll events before state updates land
+    if (loadingMorePhotosRef.current || loadingMorePhotos || !hasMorePhotos || !event) return;
+    loadingMorePhotosRef.current = true;
     setLoadingMorePhotos(true);
     const nextPage = photoPage + 1;
     const activeId = selectedAdminGallery !== undefined
@@ -1416,9 +1434,18 @@ export default function EventDetailScreen() {
     } catch (err) {
       console.error('[EventDetail] Load more photos error:', err);
     } finally {
+      loadingMorePhotosRef.current = false;
       setLoadingMorePhotos(false);
     }
   };
+
+  // Infinite scroll: fetch the next page when the user nears the end of a visible photo grid
+  const canAutoLoadMore = hasMorePhotos && !!event && (
+    showAdminView
+      ? activeTab === 'galleries' && selectedAdminGallery !== undefined
+      : activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you'
+  );
+  loadMorePhotosRef.current = canAutoLoadMore ? handleLoadMorePhotos : null;
 
   const handleSubEventChange = (sub: DatabaseEvent | null) => {
     setGalleryMediaTab('photos');
@@ -1635,6 +1662,7 @@ export default function EventDetailScreen() {
     if (!editableGallery || !user?.uid) return;
 
     const wasFavourite = eventFavouritePhotoIds.has(photoId);
+    haptic('select');
     setEventFavouritePhotoIds(prev => {
       const next = new Set(prev);
       if (wasFavourite) {
@@ -2613,14 +2641,34 @@ export default function EventDetailScreen() {
 
       <View style={styles.memberActions}>
         <Text style={styles.memberNumber}>#{String(index + 1).padStart(2, '0')}</Text>
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Remove guest"
           style={styles.memberDelete}
           onPress={() => {
             if (doesGuestLogBelongToCurrentUser(log) && !isOwner) {
               appAlert("Permission Denied", "Ask host to remove you.");
               return;
             }
-            deleteGuest(log.id).then(loadEvent);
+            appAlert(
+              `Remove ${log.name || 'this guest'}?`,
+              'They will lose access to this event. They can request to join again later.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Remove',
+                  style: 'destructive',
+                  onPress: () => {
+                    deleteGuest(log.id).then((removed) => {
+                      if (!removed) {
+                        appAlert('Could not remove guest', 'Please check your connection and try again.');
+                        return;
+                      }
+                      showToast(`${log.name || 'Guest'} removed.`);
+                      loadEvent();
+                    });
+                  },
+                },
+              ]
+            );
           }}
         >
           <IconSymbol name="trash.fill" size={16} color="rgba(239, 68, 68, 0.4)" />
@@ -2877,7 +2925,7 @@ export default function EventDetailScreen() {
         showsVerticalScrollIndicator={false}
         stickyHeaderIndices={!showAdminView ? [1] : undefined}
         scrollEventThrottle={16}
-        onScroll={RNAnimated.event([{ nativeEvent: { contentOffset: { y: scrollYAnim } } }], { useNativeDriver: true })}
+        onScroll={RNAnimated.event([{ nativeEvent: { contentOffset: { y: scrollYAnim } } }], { useNativeDriver: true, listener: handleScrollNearEnd })}
       >
         {/* ── HERO ── */}
         <View
@@ -2905,7 +2953,7 @@ export default function EventDetailScreen() {
               <View style={[styles.sportsAccentOrb, { backgroundColor: sportsTheme.accentAlt }]} />
 
               <View style={[styles.sportsTopBar, { top: insets.top + 12 }]}>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                   style={[styles.sportsHeaderButton, { backgroundColor: `${sportsTheme.darkControl}dd`, borderColor: `${sportsTheme.accent}66` }]}
                   onPress={handleEventBack}
                   activeOpacity={0.86}
@@ -2913,7 +2961,7 @@ export default function EventDetailScreen() {
                   <IconSymbol name="chevron.left" size={18} color={sportsTheme.imageFrame} />
                 </TouchableOpacity>
                 <Text style={[styles.sportsTopLabel, { color: sportsTheme.accent }]}>{sportsTheme.label}</Text>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                   style={[styles.sportsHeaderButton, { backgroundColor: `${sportsTheme.darkControl}dd`, borderColor: `${sportsTheme.accent}66` }]}
                   onPress={() => setShowShareModal(true)}
                   activeOpacity={0.86}
@@ -3003,7 +3051,7 @@ export default function EventDetailScreen() {
 
               {/* Header Top Bar: Back | Date | Share */}
               <View style={styles.bohemianTopBar}>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                   onPress={handleEventBack}
                   style={styles.bohemianHeaderButton}
                   activeOpacity={0.85}
@@ -3035,7 +3083,7 @@ export default function EventDetailScreen() {
                   </Text>
                 </View>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                   onPress={() => setShowShareModal(true)}
                   style={styles.bohemianHeaderButton}
                   activeOpacity={0.85}
@@ -3192,11 +3240,11 @@ export default function EventDetailScreen() {
 
                 {/* Playback Controls */}
                 <View style={styles.bohemianControlsRow}>
-                  <TouchableOpacity style={styles.bohemianControlBtn} activeOpacity={0.7}>
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Previous track" style={styles.bohemianControlBtn} activeOpacity={0.7}>
                     <IconSymbol name="backward.fill" size={20} color={selectedTemplate.text} />
                   </TouchableOpacity>
 
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel={isBohemianPlaying ? "Pause music" : "Play music"}
                     style={[styles.bohemianPlayBtn, { backgroundColor: selectedTemplate.text }]}
                     onPress={() => setIsBohemianPlaying(prev => !prev)}
                     activeOpacity={0.8}
@@ -3208,7 +3256,7 @@ export default function EventDetailScreen() {
                     />
                   </TouchableOpacity>
 
-                  <TouchableOpacity style={styles.bohemianControlBtn} activeOpacity={0.7}>
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Next track" style={styles.bohemianControlBtn} activeOpacity={0.7}>
                     <IconSymbol name="forward.fill" size={20} color={selectedTemplate.text} />
                   </TouchableOpacity>
                 </View>
@@ -3269,7 +3317,7 @@ export default function EventDetailScreen() {
                   marginTop: 12,
                   marginBottom: 12,
                 }}>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                     onPress={handleEventBack}
                     hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                   >
@@ -3286,7 +3334,7 @@ export default function EventDetailScreen() {
                     {`· ${activeSubEvent ? 'EXCERPT' : 'CAMPUS JOURNAL'} ·`}
                   </Text>
 
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                     onPress={() => setShowShareModal(true)}
                     hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                   >
@@ -3387,11 +3435,11 @@ export default function EventDetailScreen() {
               <View style={styles.executiveVignette} />
 
               <View style={[styles.executiveTopBar, { top: insets.top + 12 }]}>
-                <TouchableOpacity style={styles.executiveHeaderButton} onPress={handleEventBack} activeOpacity={0.86}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" style={styles.executiveHeaderButton} onPress={handleEventBack} activeOpacity={0.86}>
                   <IconSymbol name="chevron.left" size={18} color="#f5eddc" />
                 </TouchableOpacity>
                 <Text style={styles.executiveHeaderLabel}>Executive Suite</Text>
-                <TouchableOpacity style={styles.executiveHeaderButton} onPress={() => setShowShareModal(true)} activeOpacity={0.86}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event" style={styles.executiveHeaderButton} onPress={() => setShowShareModal(true)} activeOpacity={0.86}>
                   <IconSymbol name="square.and.arrow.up" size={16} color="#f5eddc" />
                 </TouchableOpacity>
               </View>
@@ -3461,11 +3509,11 @@ export default function EventDetailScreen() {
               </View>
 
               <View style={[styles.techSleekTopBar, { top: insets.top + 12 }]}>
-                <TouchableOpacity style={styles.techSleekHeaderButton} onPress={handleEventBack} activeOpacity={0.86}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" style={styles.techSleekHeaderButton} onPress={handleEventBack} activeOpacity={0.86}>
                   <IconSymbol name="chevron.left" size={18} color="#e0f2fe" />
                 </TouchableOpacity>
                 <Text style={styles.techSleekHeaderLabel}>Tech Showcase</Text>
-                <TouchableOpacity style={styles.techSleekHeaderButton} onPress={() => setShowShareModal(true)} activeOpacity={0.86}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event" style={styles.techSleekHeaderButton} onPress={() => setShowShareModal(true)} activeOpacity={0.86}>
                   <IconSymbol name="square.and.arrow.up" size={16} color="#e0f2fe" />
                 </TouchableOpacity>
               </View>
@@ -3671,7 +3719,7 @@ export default function EventDetailScreen() {
           )}
 
           {showAdminView && (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
               onPress={handleEventBack}
               style={[
                 styles.floatingBack,
@@ -3811,7 +3859,7 @@ export default function EventDetailScreen() {
                 </View>
 
                 {/* Downward Chevron */}
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Scroll to gallery"
                   onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
                   style={styles.royalChevron}
                 >
@@ -3842,7 +3890,7 @@ export default function EventDetailScreen() {
 
                 <View style={styles.classicActionRow}>
                   {/* Left: Symmetrical Gold Square Back Button */}
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                     style={[styles.classicSideButton, { borderColor: '#cca43b' }]}
                     onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
                   >
@@ -3858,7 +3906,7 @@ export default function EventDetailScreen() {
                   </TouchableOpacity>
 
                   {/* Right: Symmetrical Gold Square Share Button */}
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                     style={[styles.classicSideButton, { borderColor: '#cca43b' }]}
                     onPress={() => setShowShareModal(true)}
                   >
@@ -3874,7 +3922,7 @@ export default function EventDetailScreen() {
                   <Text style={[styles.classicBrandLogoScript, { color: selectedTemplate.text, fontFamily: selectedTemplate.serifItalic }]}>EveBash</Text>
                 </View>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Scroll to gallery"
                   onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
                   style={styles.classicChevron}
                 >
@@ -3885,7 +3933,7 @@ export default function EventDetailScreen() {
           ) : (!showAdminView && event?.templateId === 'ethereal') ? (
             <View style={styles.etherealOverlayContainer}>
               {/* Back button at top left */}
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                 style={styles.etherealBackBtnRound}
                 onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
               >
@@ -3893,7 +3941,7 @@ export default function EventDetailScreen() {
               </TouchableOpacity>
 
               {/* Share button at top right */}
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                 style={styles.etherealShareBtnRound}
                 onPress={() => setShowShareModal(true)}
               >
@@ -3961,7 +4009,7 @@ export default function EventDetailScreen() {
                 {/* Symmetrical parallel buttons block */}
                 <View style={styles.heroActionRow}>
                   {/* Left: Gold bordered Square back/chevron icon button */}
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                     style={[styles.heroSideButton, { borderColor: '#cca43b' }]}
                     onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
                   >
@@ -3977,7 +4025,7 @@ export default function EventDetailScreen() {
                   </TouchableOpacity>
 
                   {/* Right: Gold bordered Square share icon button */}
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                     style={[styles.heroSideButton, { borderColor: '#cca43b' }]}
                     onPress={() => setShowShareModal(true)}
                   >
@@ -3991,7 +4039,7 @@ export default function EventDetailScreen() {
                 <View style={styles.brandLogoContainer}>
                   <Text style={styles.heroBrandText}>CINEMATIC EDITIONS — WED ALBUM</Text>
                 </View>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Scroll to gallery"
                   onPress={() => scrollViewRef.current?.scrollTo({ y: windowHeight, animated: true })}
                   style={styles.heroChevron}
                 >
@@ -4024,7 +4072,7 @@ export default function EventDetailScreen() {
 
                 {/* Integrated Tactile Navigation Console */}
                 <View style={styles.popPolaroidCaptionRow}>
-                  <TouchableOpacity onPress={handleEventBack} style={styles.popCaptionBackBtn}>
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" onPress={handleEventBack} style={styles.popCaptionBackBtn}>
                     <IconSymbol name="chevron.left" size={16} color="#ffffff" />
                   </TouchableOpacity>
 
@@ -4032,7 +4080,7 @@ export default function EventDetailScreen() {
                     {`${currentActiveEvent?.date || event.date || 'PARTY TIME'}`.toUpperCase()}
                   </Text>
 
-                  <TouchableOpacity onPress={() => setShowShareModal(true)} style={styles.popCaptionShareBtn}>
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event" onPress={() => setShowShareModal(true)} style={styles.popCaptionShareBtn}>
                     <IconSymbol name="square.and.arrow.up" size={14} color="#ffffff" />
                   </TouchableOpacity>
                 </View>
@@ -4060,7 +4108,7 @@ export default function EventDetailScreen() {
               {/* Top status bar with centered Event Name and navigation icons */}
               <View style={styles.cyberTopBar}>
                 {/* Left: Back Button */}
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                   style={styles.cyberHeaderButton}
                   onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
                 >
@@ -4075,7 +4123,7 @@ export default function EventDetailScreen() {
                 </View>
 
                 {/* Right: Share Button */}
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                   style={styles.cyberHeaderButton}
                   onPress={() => setShowShareModal(true)}
                 >
@@ -4118,7 +4166,7 @@ export default function EventDetailScreen() {
               {/* Arcade Top Bar Header */}
               <View style={styles.retroTopBar}>
                 {/* Left: Back Button styled as a round arcade button */}
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                   style={styles.retroHeaderButtonBack}
                   onPress={handleEventBack}
                 >
@@ -4133,7 +4181,7 @@ export default function EventDetailScreen() {
                 </View>
 
                 {/* Right: Share Button styled as a round arcade button */}
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                   style={styles.retroHeaderButtonShare}
                   onPress={() => setShowShareModal(true)}
                 >
@@ -4178,7 +4226,7 @@ export default function EventDetailScreen() {
 
               {/* Top status bar with Event Name and navigation icons */}
               <View style={styles.neonCarnivalTopBar}>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                   style={styles.neonCarnivalHeaderButton}
                   onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
                 >
@@ -4186,7 +4234,7 @@ export default function EventDetailScreen() {
                 </TouchableOpacity>
 
                 {/* Right: Share Button */}
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                   style={styles.neonCarnivalHeaderButton}
                   onPress={() => setShowShareModal(true)}
                 >
@@ -4215,7 +4263,7 @@ export default function EventDetailScreen() {
               <View style={styles.gardenTopBar}>
                 {/* Left: back + share */}
                 <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
                     style={styles.gardenHeaderButton}
                     onPress={handleEventBack}
                     hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
@@ -4223,7 +4271,7 @@ export default function EventDetailScreen() {
                     <IconSymbol name="chevron.left" size={20} color="#ffffff" />
                   </TouchableOpacity>
 
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event"
                     style={styles.gardenHeaderButton}
                     onPress={() => setShowShareModal(true)}
                     hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
@@ -4473,7 +4521,7 @@ export default function EventDetailScreen() {
                 </View>
                 <View style={styles.minimalEditorialMetaRow}>
                   <Text style={styles.minimalEditorialDate}>{currentActiveEvent?.date || event.date}</Text>
-                  <TouchableOpacity style={styles.minimalEditorialShare} onPress={() => setShowShareModal(true)}>
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share event" style={styles.minimalEditorialShare} onPress={() => setShowShareModal(true)}>
                     <IconSymbol name="square.and.arrow.up" size={14} color="#fffaf2" />
                   </TouchableOpacity>
                 </View>
@@ -4603,7 +4651,7 @@ export default function EventDetailScreen() {
                   {currentActiveEvent?.title || event.title}
                 </Text>
                 {showAdminView && (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Edit event name"
                     style={styles.renameHeroBtn}
                     onPress={() => {
                       setEditTitle(currentActiveEvent?.title || event.title);
@@ -4638,7 +4686,7 @@ export default function EventDetailScreen() {
                     selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic', letterSpacing: 2 }
                   ]}>{currentActiveEvent?.date || event.date}</Text>
                   {showAdminView && (
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Change event date"
                       style={styles.editDateBtn}
                       onPress={() => setShowDatePicker(true)}
                     >
@@ -4717,13 +4765,13 @@ export default function EventDetailScreen() {
                   style={[styles.tab, activeTab === 'galleries' && styles.activeTab]}
                   onPress={() => { setActiveTab('galleries'); setGalleryMediaTab('photos'); setSelectedAdminGallery(undefined); }}
                 >
-                  <Text style={[styles.tabText, activeTab === 'galleries' && styles.activeTabText]}>Galleries</Text>
+                  <Text style={[styles.tabText, activeTab === 'galleries' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Galleries</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.tab, activeTab === 'permissions' && styles.activeTab]}
                   onPress={() => setActiveTab('permissions')}
                 >
-                  <Text style={[styles.tabText, activeTab === 'permissions' && styles.activeTabText]}>Permissions</Text>
+                  <Text style={[styles.tabText, activeTab === 'permissions' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Permissions</Text>
                   {guestLogs.filter(l => l.status === 'pending').length > 0 && (
                     <View style={styles.badge}>
                       <Text style={styles.badgeText}>{guestLogs.filter(l => l.status === 'pending').length}</Text>
@@ -4734,13 +4782,13 @@ export default function EventDetailScreen() {
                   style={[styles.tab, activeTab === 'design' && styles.activeTab]}
                   onPress={() => { setActiveTab('design'); setGalleryMediaTab('photos'); setSelectedAdminGallery(undefined); }}
                 >
-                  <Text style={[styles.tabText, activeTab === 'design' && styles.activeTabText]}>Design</Text>
+                  <Text style={[styles.tabText, activeTab === 'design' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Design</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.tab, activeTab === 'partners' && styles.activeTab]}
                   onPress={() => { setActiveTab('partners'); setGalleryMediaTab('photos'); setSelectedAdminGallery(undefined); }}
                 >
-                  <Text style={[styles.tabText, activeTab === 'partners' && styles.activeTabText]}>Partners</Text>
+                  <Text style={[styles.tabText, activeTab === 'partners' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Partners</Text>
                 </TouchableOpacity>
               </View>
 
@@ -4784,7 +4832,7 @@ export default function EventDetailScreen() {
 	                            }}
                             activeOpacity={0.85}
                           >
-                            <Image source={{ uri: resolveEventCoverImage(event.coverImage, 'thumbnail') }} style={styles.subImageFull} />
+                            <ExpoImage source={{ uri: resolveEventCoverImage(event.coverImage, 'thumbnail') }} style={styles.subImageFull} contentFit="cover" cachePolicy="memory-disk" transition={150} />
                             <LinearGradient
                               colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0.85)']}
                               style={StyleSheet.absoluteFillObject}
@@ -4860,7 +4908,7 @@ export default function EventDetailScreen() {
 	                                }}
                                 activeOpacity={0.85}
                               >
-                                <Image source={{ uri: resolveEventCoverImage(sub.coverImage, 'thumbnail') }} style={styles.subImageFull} />
+                                <ExpoImage source={{ uri: resolveEventCoverImage(sub.coverImage, 'thumbnail') }} style={styles.subImageFull} contentFit="cover" cachePolicy="memory-disk" transition={150} />
                                 <LinearGradient
                                   colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0.85)']}
                                   style={StyleSheet.absoluteFillObject}
@@ -4875,7 +4923,7 @@ export default function EventDetailScreen() {
                                 </View>
 
                                 {/* Card Delete Option */}
-                                <TouchableOpacity
+                                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Delete gallery"
                                   style={{
                                     position: 'absolute',
                                     top: 10,
@@ -4950,7 +4998,7 @@ export default function EventDetailScreen() {
                             value={galleryDescText}
                             onChangeText={setGalleryDescText}
                             placeholder="Write a brief, elegant welcome note..."
-                            placeholderTextColor="rgba(255,255,255,0.4)"
+                            placeholderTextColor={MidnightColors.slate600}
                             multiline
                             maxLength={200}
                           />
@@ -5134,7 +5182,7 @@ export default function EventDetailScreen() {
                                 blurred={shouldBlurVideo}
                                 onOpen={() => openViewer(idx)}
                               />
-                              <TouchableOpacity
+                              <TouchableOpacity accessibilityRole="button" accessibilityLabel={isFavouriteVideo ? "Remove from favourites" : "Add to favourites"}
                                 style={{
                                   position: 'absolute',
                                   top: 4,
@@ -5160,7 +5208,7 @@ export default function EventDetailScreen() {
                                   color={isFavouriteVideo ? '#13191F' : '#fff'}
                                 />
                               </TouchableOpacity>
-                              <TouchableOpacity
+                              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Delete video"
                                 style={{
                                   position: 'absolute',
                                   top: 4,
@@ -5193,7 +5241,7 @@ export default function EventDetailScreen() {
                                     borderColor: 'rgba(255,255,255,0.12)',
                                   }}
                                 >
-                                  <TouchableOpacity
+                                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Move video up"
                                     style={{
                                       width: 24,
                                       height: 24,
@@ -5209,7 +5257,7 @@ export default function EventDetailScreen() {
                                   >
                                     <IconSymbol name="chevron.up" size={15} color="#fff" />
                                   </TouchableOpacity>
-                                  <TouchableOpacity
+                                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Move video down"
                                     style={{
                                       width: 24,
                                       height: 24,
@@ -5258,6 +5306,9 @@ export default function EventDetailScreen() {
                                     const photoIndex = filteredPhotoItems.findIndex(photo => photo.id === item.id);
                                     openViewer(photoIndex >= 0 ? photoIndex : 0);
                                   }}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Photo ${itemIndex + 1} of ${filteredPhotoItems.length}`}
+                                  accessibilityHint="Opens the photo viewer. Hold and drag to reorder."
                                 >
                                   <GalleryThumbnailImage
                                     url={item.url}
@@ -5290,7 +5341,7 @@ export default function EventDetailScreen() {
 	                                >
 	                                  <Text style={{ color: '#fff', fontSize: 14, lineHeight: 14, fontWeight: '900' }}>⋯</Text>
 	                                </TouchableOpacity>
-                                <TouchableOpacity
+                                <TouchableOpacity accessibilityRole="button" accessibilityLabel={isFavouritePhoto ? "Remove from favourites" : "Add to favourites"}
                                   style={{
                                     position: 'absolute',
                                     top: 4,
@@ -5316,7 +5367,7 @@ export default function EventDetailScreen() {
                                     color={isFavouritePhoto ? '#13191F' : '#fff'}
                                   />
                                 </TouchableOpacity>
-	                                <TouchableOpacity
+	                                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Delete photo"
 	                                  style={{
 	                                    position: 'absolute',
                                     top: 4,
@@ -5349,7 +5400,7 @@ export default function EventDetailScreen() {
                                       borderColor: 'rgba(255,255,255,0.12)',
                                     }}
                                   >
-                                    <TouchableOpacity
+                                    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Move photo up"
                                       style={{
                                         width: 24,
                                         height: 24,
@@ -5365,7 +5416,7 @@ export default function EventDetailScreen() {
                                     >
                                       <IconSymbol name="chevron.up" size={15} color="#fff" />
                                     </TouchableOpacity>
-                                    <TouchableOpacity
+                                    <TouchableOpacity accessibilityRole="button" accessibilityLabel="Move photo down"
                                       style={{
                                         width: 24,
                                         height: 24,
@@ -5431,15 +5482,15 @@ export default function EventDetailScreen() {
                         </View>
 
                         <View style={styles.requestActionsMini}>
-                          <TouchableOpacity
+                          <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Reject ${log.name || "guest"}`}
                             style={styles.miniActionBtnRed}
-                            onPress={() => updateGuestStatus(log.id, 'rejected').then(loadEvent)}
+                            onPress={() => updateGuestStatusWithFeedback(log.id, 'rejected').then(loadEvent)}
                           >
                             <IconSymbol name="xmark" size={12} color="#fff" />
                           </TouchableOpacity>
-                          <TouchableOpacity
+                          <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Approve ${log.name || "guest"}`}
                             style={styles.miniActionBtnGreen}
-                            onPress={() => updateGuestStatus(log.id, 'approved').then(loadEvent)}
+                            onPress={() => updateGuestStatusWithFeedback(log.id, 'approved').then(loadEvent)}
                           >
                             <IconSymbol name="checkmark" size={12} color="#fff" />
                           </TouchableOpacity>
@@ -5523,7 +5574,7 @@ export default function EventDetailScreen() {
                           <Text style={styles.premiumModalTitle}>{selectedGuest?.name}</Text>
                           <Text style={styles.premiumModalSub}>Member #0{guestLogs.filter(l => l.status === 'approved').findIndex(l => l.id === selectedGuest?.id) + 1}</Text>
                         </View>
-                        <TouchableOpacity onPress={() => setSelectedGuest(null)} style={styles.closeModalCircle}>
+                        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setSelectedGuest(null)} style={styles.closeModalCircle}>
                           <IconSymbol name="xmark" size={16} color={MidnightColors.slate400} />
                         </TouchableOpacity>
                       </View>
@@ -5577,7 +5628,7 @@ export default function EventDetailScreen() {
                                 if (selectedGuest) {
                                   if (isViewAccess) {
                                     const nextStatus: GuestLog['status'] = isActive ? 'rejected' : 'approved';
-                                    updateGuestStatus(selectedGuest.id, nextStatus).then(() => {
+                                    updateGuestStatusWithFeedback(selectedGuest.id, nextStatus).then(() => {
                                       const updatedGuest = {
                                         ...selectedGuest,
                                         status: nextStatus,
@@ -5608,7 +5659,7 @@ export default function EventDetailScreen() {
                                   };
 
                                   if (perm.id === 'canAdmin' && nextValue && selectedGuest.status !== 'approved') {
-                                    updateGuestStatus(selectedGuest.id, 'approved').then(applyPermissionUpdate);
+                                    updateGuestStatusWithFeedback(selectedGuest.id, 'approved').then(applyPermissionUpdate);
                                   } else {
                                     applyPermissionUpdate();
                                   }
@@ -5681,7 +5732,7 @@ export default function EventDetailScreen() {
                           <Text style={styles.premiumModalTitle}>{selectedRequest?.name}</Text>
                           <Text style={styles.premiumModalSub}>Requesting Access</Text>
                         </View>
-                        <TouchableOpacity onPress={() => setSelectedRequest(null)} style={styles.closeModalCircle}>
+                        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setSelectedRequest(null)} style={styles.closeModalCircle}>
                           <IconSymbol name="xmark" size={16} color={MidnightColors.slate400} />
                         </TouchableOpacity>
                       </View>
@@ -5714,7 +5765,7 @@ export default function EventDetailScreen() {
                           style={[styles.modalActionBtn, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}
                           onPress={() => {
                             if (selectedRequest) {
-                              updateGuestStatus(selectedRequest.id, 'rejected').then(() => {
+                              updateGuestStatusWithFeedback(selectedRequest.id, 'rejected').then(() => {
                                 setSelectedRequest(null);
                                 loadEvent();
                               });
@@ -5728,7 +5779,7 @@ export default function EventDetailScreen() {
                           style={styles.modalActionBtnApprove}
                           onPress={() => {
                             if (selectedRequest) {
-                              updateGuestStatus(selectedRequest.id, 'approved').then(() => {
+                              updateGuestStatusWithFeedback(selectedRequest.id, 'approved').then(() => {
                                 setSelectedRequest(null);
                                 loadEvent();
                               });
@@ -6745,7 +6796,8 @@ export default function EventDetailScreen() {
                           return (
                             <Animated.View
                               key={photo.id}
-                              entering={FadeInUp.delay(idx * 80).duration(600).springify().damping(14)}
+                              // Stagger only within a page and cap it, so tiles loaded later don't wait seconds to appear
+                              entering={FadeInUp.delay(Math.min(idx % PHOTO_PAGE_SIZE, 6) * 80).duration(600).springify().damping(14)}
                               style={[
                                 styles.photoCard,
                                 !isGardenTemplate && {
@@ -6757,6 +6809,9 @@ export default function EventDetailScreen() {
                                 style={isGardenTemplate ? { width: '100%' } : { flex: 1 }}
                                 activeOpacity={0.9}
                                 onPress={() => openViewer(idx)}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Photo ${idx + 1} of ${filteredPhotoItems.length}`}
+                                accessibilityHint="Opens the photo viewer"
                               >
                                 <View style={[
                                   styles.photoTile,
@@ -7192,7 +7247,7 @@ export default function EventDetailScreen() {
                   Choose a category for your gallery
                 </Text>
               </View>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close"
                 onPress={() => setShowCategoryModal(false)}
                 style={{ marginTop: 2 }}
               >
@@ -7258,7 +7313,7 @@ export default function EventDetailScreen() {
                 <Text style={styles.modalTitle}>Source gallery</Text>
                 <Text style={{ color: MidnightColors.slate400, fontSize: 12, marginTop: 4 }}>Show media selected from</Text>
               </View>
-              <TouchableOpacity onPress={() => setSourceGalleryMenuVisible(false)} style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' }}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setSourceGalleryMenuVisible(false)} style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' }}>
                 <IconSymbol name="xmark" size={17} color="#fff" />
               </TouchableOpacity>
             </View>
@@ -7317,7 +7372,7 @@ export default function EventDetailScreen() {
                   Manage how this photo appears in the gallery.
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setPhotoActionItem(null)} style={{ marginTop: 2 }}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setPhotoActionItem(null)} style={{ marginTop: 2 }}>
                 <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
               </TouchableOpacity>
             </View>
@@ -7547,7 +7602,7 @@ export default function EventDetailScreen() {
                   Connect photographers, makeup artists, and venues from EB Business.
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => { setLinkingVendor(false); setVendorCode(''); }}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => { setLinkingVendor(false); setVendorCode(''); }}>
                 <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
               </TouchableOpacity>
             </View>
@@ -7580,7 +7635,7 @@ export default function EventDetailScreen() {
                   value={vendorCode}
                   onChangeText={(text) => setVendorCode(text.toUpperCase())}
                   placeholder="e.g. VEN-1234"
-                  placeholderTextColor={MidnightColors.slate700}
+                  placeholderTextColor={MidnightColors.slate600}
                   autoCapitalize="characters"
                 />
               </View>
@@ -7742,14 +7797,14 @@ export default function EventDetailScreen() {
 
           {/* Zoom controls */}
           <View style={styles.zoomControlRow}>
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Zoom out cover"
               style={styles.zoomBtn}
               onPress={() => setTempCoverScale(prev => Math.max(1.0, prev - 0.1))}
             >
               <IconSymbol name={"minus" as any} size={12} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.zoomText}>{Math.round(tempCoverScale * 100)}%</Text>
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Zoom in cover"
               style={styles.zoomBtn}
               onPress={() => setTempCoverScale(prev => Math.min(2.5, prev + 0.1))}
             >
@@ -7895,7 +7950,7 @@ export default function EventDetailScreen() {
                   paddingHorizontal: 8,
                 }}>
                   {mobileIndexingStatus.status === 'complete'
-                    ? (mobileIndexingStatus.total > 0 ? '✓ Upload finished! All photos are ready.' : '✓ Upload finished! Your videos are ready.')
+                    ? (mobileIndexingStatus.total > 0 ? 'Upload finished. All photos are ready.' : 'Upload finished. Your videos are ready.')
                     : `Processing photos: ${mobileIndexingStatus.indexed}/${mobileIndexingStatus.total} (${mobileIndexingStatus.percentComplete}%)`}
                 </Text>
                 {mobileIndexingStatus.status === 'processing' && (

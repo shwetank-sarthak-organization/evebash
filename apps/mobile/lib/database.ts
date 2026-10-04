@@ -784,7 +784,14 @@ export async function getUserEventCount(uid: string): Promise<number> {
     }
 }
 
-export async function getUserEvents(userIds: string | string[], type?: 'main' | 'sub', parentId?: string, legacyParentId?: string): Promise<Event[]> {
+export async function getUserEvents(
+    userIds: string | string[],
+    type?: 'main' | 'sub',
+    parentId?: string,
+    legacyParentId?: string,
+    // Opt-in: rethrow instead of returning [], so screens can tell "no events" from "couldn't load"
+    options?: { throwOnError?: boolean }
+): Promise<Event[]> {
     try {
         const ids = Array.isArray(userIds) ? userIds.filter(Boolean) : [userIds].filter(Boolean);
         if (ids.length === 0) return [];
@@ -818,6 +825,7 @@ export async function getUserEvents(userIds: string | string[], type?: 'main' | 
         return filteredEvents.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
     } catch (error) {
         console.error("Error fetching user events:", error);
+        if (options?.throwOnError) throw error;
         return [];
     }
 }

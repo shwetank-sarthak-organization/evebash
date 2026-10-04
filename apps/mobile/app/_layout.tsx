@@ -188,6 +188,8 @@ function RootLayoutContent() {
           headerShadowVisible: false,
           headerTransparent: true,
         }}>
+          {/* Redirect-only route; without this its default header ("index") flashes at startup */}
+          <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '' }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
@@ -257,10 +259,9 @@ export default function RootLayout() {
     GrandHotel_400Regular: Inter_400Regular,
   });
 
-  console.log('--- Font Diagnostics ---');
-  console.log('fontsLoaded:', fontsLoaded);
-  console.log('fontError:', fontError);
-  console.log('------------------------');
+  useEffect(() => {
+    if (fontError) console.warn('[Fonts] Failed to load:', fontError);
+  }, [fontError]);
 
   const fontsReady = fontsLoaded || !!fontError;
 

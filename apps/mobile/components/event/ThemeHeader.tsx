@@ -228,7 +228,7 @@ export function ThemeHeader({
     const onPress = () => handleSubEventChange(sub);
 
     return (
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Home gallery"
         key={sub ? sub.id : 'home'}
         style={[
           styles.visitorTab,

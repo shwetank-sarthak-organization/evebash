@@ -34,7 +34,7 @@ export function LegalPolicyScreen({
 }: LegalPolicyScreenProps) {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
-  const styles = getStyles(colors, isDark);
+  const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -45,7 +45,7 @@ export function LegalPolicyScreen({
           headerTitle: '',
           headerTintColor: colors.white,
           headerLeft: () => (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
               onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)' as any))}
               style={styles.backButton}
               hitSlop={12}
@@ -130,7 +130,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   title: {
     color: colors.white,
     fontFamily: Fonts.playfair.bold,
-    fontSize: 38,
+    fontSize: 40,
     lineHeight: 45,
     letterSpacing: 0,
   },

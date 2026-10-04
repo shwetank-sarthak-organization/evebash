@@ -51,7 +51,7 @@ export function GalleryDescriptionModal({
                 For: {activeSubEvent ? activeSubEvent.title : 'Home Gallery'}
               </Text>
             </View>
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={onClose}>
               <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
             </TouchableOpacity>
           </View>
@@ -74,7 +74,7 @@ export function GalleryDescriptionModal({
                 value={galleryDescText}
                 onChangeText={setGalleryDescText}
                 placeholder="Write a beautiful welcome message for this gallery..."
-                placeholderTextColor={MidnightColors.slate700}
+                placeholderTextColor={MidnightColors.slate600}
                 multiline
                 numberOfLines={5}
               />

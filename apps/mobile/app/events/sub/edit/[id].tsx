@@ -184,7 +184,7 @@ export default function EditPhotosScreen() {
         title: 'Edit Photos',
         headerShown: true,
         headerLeft: () => (
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
             onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
             style={styles.nativeBackButton}
             hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
@@ -196,7 +196,7 @@ export default function EditPhotosScreen() {
           uploading ? (
             <ActivityIndicator size="small" color="#0284c7" style={{ marginRight: 16 }} />
           ) : (
-            <TouchableOpacity onPress={handlePickImage} style={{ marginRight: 16 }}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Add photos" onPress={handlePickImage} style={{ marginRight: 16 }}>
               <IconSymbol name="plus" size={24} color="#0284c7" />
             </TouchableOpacity>
           )

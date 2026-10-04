@@ -21,6 +21,12 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
+      "blockedPermissions": [
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+      ],
       "package": "com.anonymous.evebash",
       "versionCode": 25,
       "usesCleartextTraffic": true,
@@ -54,6 +60,38 @@
         }
       ],
       "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "EveBash uses your photo library so you can add photos and videos to event galleries and choose a profile picture.",
+          "cameraPermission": "EveBash uses your camera to scan event QR codes and to take a selfie for Find You.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "EveBash uses your camera to scan event QR codes and to take a selfie for Find You.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "EveBash uses your photo library so you can add photos and videos to event galleries and choose a profile picture.",
+          "savePhotosPermission": "EveBash saves the photos and videos you download from event galleries to your photo library.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "EveBash uses your location to show event vendors near you.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false
+        }
+      ],
       "expo-image",
       "expo-web-browser",
       "@react-native-community/datetimepicker",

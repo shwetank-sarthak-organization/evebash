@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 
 const { height } = Dimensions.get('window');
 
@@ -84,7 +85,9 @@ export default function ForgotPasswordScreen() {
 
               {success ? (
                 <View style={styles.successBox}>
-                  <Text style={styles.successEmoji}>📬</Text>
+                  <View style={styles.successEmoji}>
+                    <IconSymbol name="envelope.fill" size={30} color="#8C6434" />
+                  </View>
                   <Text style={styles.successTitle}>Check your email!</Text>
                   <Text style={styles.successText}>
                     We&apos;ve sent a password reset link to {email}. Click the link to choose a new password.
@@ -105,7 +108,7 @@ export default function ForgotPasswordScreen() {
                     <TextInput
                       style={styles.input}
                       placeholder="you@example.com"
-                      placeholderTextColor="#CDB89E"
+                      placeholderTextColor="#7C6C58"
                       value={email}
                       onChangeText={setEmail}
                       keyboardType="email-address"
@@ -284,7 +287,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   successEmoji: {
-    fontSize: 48,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(202, 156, 104, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
   },
   successTitle: {

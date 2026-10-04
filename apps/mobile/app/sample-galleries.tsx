@@ -10,7 +10,7 @@ import { Event, getSampleGalleryEvents } from '@/lib/database';
 export default function SampleGalleriesScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
-  const styles = getStyles(colors, isDark);
+  const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const [albums, setAlbums] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,7 +37,7 @@ export default function SampleGalleriesScreen() {
         headerTintColor: colors.white,
         headerStyle: { backgroundColor: colors.background },
         headerLeft: () => (
-          <TouchableOpacity 
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" 
             onPress={() => {
               if (router.canGoBack()) {
                 router.back();

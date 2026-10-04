@@ -21,6 +21,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MidnightColors } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/layout';
 
 type BottomSheetProps = {
   visible: boolean;
@@ -118,12 +119,12 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: MidnightColors.slate900,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: Radius.sheet,
+    borderTopRightRadius: Radius.sheet,
     borderWidth: 1,
     borderBottomWidth: 0,
     borderColor: MidnightColors.border,
-    paddingHorizontal: 24,
+    paddingHorizontal: Spacing.page,
   },
   handleArea: {
     alignItems: 'center',

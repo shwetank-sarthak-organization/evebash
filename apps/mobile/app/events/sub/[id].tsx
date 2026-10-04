@@ -233,7 +233,7 @@ export default function SubEventPhotosScreen() {
           headerTitle: '',
           headerTintColor: '#ffffff',
           headerLeft: () => (
-            <TouchableOpacity 
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" 
               onPress={goBackToParentEvent}
               style={styles.nativeBackButton}
               hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
@@ -259,7 +259,7 @@ export default function SubEventPhotosScreen() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.gridContainer}
             renderItem={({ item, index }) => (
-              <TouchableOpacity activeOpacity={0.8} onPress={() => openViewer(index)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Open photo ${index + 1}`} activeOpacity={0.8} onPress={() => openViewer(index)}>
                 <Image 
                   source={{ uri: getGridThumbnail(item.url, item.thumbnailUrl) }} 
                   style={styles.gridImage} 
@@ -351,8 +351,8 @@ function GuestAccessModal({
             <>
               <Text style={styles.guestModalTitle}>Request gallery access</Text>
               <Text style={styles.guestModalText}>Enter your details so the host can approve this shared gallery.</Text>
-              <TextInput style={styles.guestInput} value={guestName} onChangeText={onNameChange} placeholder="Your name" placeholderTextColor="#CDB89E" />
-              <TextInput style={styles.guestInput} value={guestPhone} onChangeText={onPhoneChange} placeholder="Phone number" placeholderTextColor="#CDB89E" keyboardType="phone-pad" />
+              <TextInput style={styles.guestInput} value={guestName} onChangeText={onNameChange} placeholder="Your name" placeholderTextColor="#7C6C58" />
+              <TextInput style={styles.guestInput} value={guestPhone} onChangeText={onPhoneChange} placeholder="Phone number" placeholderTextColor="#7C6C58" keyboardType="phone-pad" />
               <TouchableOpacity style={[styles.guestSubmitBtn, submitting && { opacity: 0.7 }]} onPress={onSubmit} disabled={submitting}>
                 {submitting ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.guestSubmitText}>Send Request</Text>}
               </TouchableOpacity>
@@ -379,11 +379,11 @@ function PhotoViewer({ photos, initialIndex, onClose, user }: any) {
 
   return (
     <View style={styles.viewerContainer}>
-      <TouchableOpacity style={styles.viewerClose} onPress={onClose}>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" style={styles.viewerClose} onPress={onClose}>
         <IconSymbol name="xmark" size={28} color="#fff" />
       </TouchableOpacity>
       
-      <TouchableOpacity style={styles.navBtnLeft} onPress={goToPrev}>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Previous photo" style={styles.navBtnLeft} onPress={goToPrev}>
         <IconSymbol name="chevron.left" size={32} color="#fff" />
       </TouchableOpacity>
       
@@ -395,7 +395,7 @@ function PhotoViewer({ photos, initialIndex, onClose, user }: any) {
         />
       )}
       
-      <TouchableOpacity style={styles.navBtnRight} onPress={goToNext}>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Next photo" style={styles.navBtnRight} onPress={goToNext}>
         <IconSymbol name="chevron.right" size={32} color="#fff" />
       </TouchableOpacity>
       

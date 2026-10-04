@@ -45,7 +45,10 @@ import CakeIcon from '@/components/icons/CakeIcon';
 import HandshakeIcon from '@/components/icons/HandshakeIcon';
 import { EveBashLogoBadge } from '@/components/EveBashLogo';
 import { BottomSheet } from '@/components/ui/BottomSheet';
-import { appAlert } from '@/lib/feedback';
+import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { appAlert, showToast } from '@/lib/feedback';
 
 const { width, height } = Dimensions.get('window');
 
@@ -186,7 +189,7 @@ function buildUploadQueueNotification(queueItems: UploadQueueItem[]): any {
 export default function DashboardScreen() {
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
-  const styles = getStyles(colors, isDark);
+  const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -350,6 +353,8 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [events, setEvents] = useState<DatabaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  // True when the event list failed to load, so we show Retry instead of a misleading empty state
+  const [loadError, setLoadError] = useState(false);
   const [infoModal, setInfoModal] = useState<{ visible: boolean; title: string; content: string }>({
     visible: false,
     title: '',
@@ -456,7 +461,7 @@ export default function DashboardScreen() {
       if (user.phone) ownIdentifiers.push(user.phone);
 
       const [fetchedEvents, approvedSharedEvents] = await Promise.all([
-        getUserEvents(ownIdentifiers, 'main'),
+        getUserEvents(ownIdentifiers, 'main', undefined, undefined, { throwOnError: true }),
         getApprovedSharedEventsForUser(ownIdentifiers),
       ]);
       if (seq !== fetchSeq.current) return;
@@ -465,8 +470,16 @@ export default function DashboardScreen() {
         new Map([...fetchedEvents, ...approvedSharedEvents].map((e) => [e.id, e])).values()
       ).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setEvents(visibleEvents);
+      setLoadError(false);
       markStartup('dashboard loaded');
     } catch (err) {
+      if (seq === fetchSeq.current) {
+        setLoadError(true);
+        // Keep showing the events we already have; just say the pull-to-refresh failed
+        if (userRefreshRef.current && events.length > 0) {
+          showToast("Couldn't refresh. Check your connection.", { type: 'error' });
+        }
+      }
       console.error('Error fetching dashboard data:', err);
     } finally {
       if (seq === fetchSeq.current) {
@@ -566,7 +579,12 @@ export default function DashboardScreen() {
     };
   }, [user?.uid]);
 
-  const onRefresh = () => { setRefreshing(true); fetchData(); };
+  const userRefreshRef = React.useRef(false);
+  const onRefresh = () => {
+    userRefreshRef.current = true;
+    setRefreshing(true);
+    fetchData().finally(() => { userRefreshRef.current = false; });
+  };
 
   const getGreeting = () => {
     const h = new Date().getHours();
@@ -626,7 +644,28 @@ export default function DashboardScreen() {
         </LinearGradient>
 
         {loading && !refreshing && events.length === 0
-          ? <ActivityIndicator color="#CA9C68" style={{ marginTop: 60 }} />
+          ? (
+            <View style={styles.collectionSection} accessible accessibilityLabel="Loading your events">
+              <View style={styles.sectionHead}>
+                <View style={{ gap: 8 }}>
+                  <Skeleton width={120} height={13} />
+                  <Skeleton width={170} height={12} />
+                </View>
+                <Skeleton width={110} height={30} radius={10} />
+              </View>
+              <View style={styles.eventsGridContainer}>
+                {[0, 1, 2, 3].map((i) => (
+                  <View key={i} style={[styles.aestheticEventCard, { overflow: 'hidden' }]}>
+                    <Skeleton height={100} radius={0} />
+                    <View style={{ padding: 10, gap: 8 }}>
+                      <Skeleton width="70%" height={12} />
+                      <Skeleton width="45%" height={10} />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )
           : <>
               {/* ── SECTION 1: EVENTS (Deep Midnight) ── */}
               <View style={styles.collectionSection}>
@@ -645,6 +684,34 @@ export default function DashboardScreen() {
                   </TouchableOpacity>
                 </View>
 
+                {loadError && events.length === 0 ? (
+                  <ErrorState
+                    title="Couldn't load your events"
+                    message="Check your internet connection and try again."
+                    onRetry={fetchData}
+                    retrying={loading}
+                  />
+                ) : events.length === 0 ? (
+                  // First run: no events yet, so offer the two ways to get started
+                  <View style={styles.welcomeCard}>
+                    <Text style={styles.welcomeTitle}>Welcome to EveBash</Text>
+                    <Text style={styles.welcomeBody}>
+                      Create a private gallery for your celebration, or join one a host shared with you.
+                    </Text>
+                    <Button
+                      title="Create your first event"
+                      icon="plus"
+                      onPress={() => router.push({ pathname: '/(tabs)/gallery', params: { create: '1' } } as any)}
+                    />
+                    <Button
+                      title="Join with a code"
+                      variant="secondary"
+                      icon="qrcode.viewfinder"
+                      onPress={() => setShowJoinModal(true)}
+                      style={{ marginTop: 10 }}
+                    />
+                  </View>
+                ) : (
                 <View style={styles.eventsGridContainer}>
                   {events.slice(0, 3).map((event) => {
                     const coverImage = resolveEventCoverImage(event.coverImage);
@@ -701,7 +768,7 @@ export default function DashboardScreen() {
                       />
                       <View style={styles.aestheticExploreContent}>
                          <View style={{ alignItems: 'center', gap: 4, marginBottom: 12 }}>
-                           <Text style={styles.aestheticExploreTitle} numberOfLines={1}>Your memories</Text>
+                           <Text style={styles.aestheticExploreTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Your memories</Text>
                            <View style={styles.aestheticCountPill}>
                              <Text style={styles.aestheticCountText}>{events.length} Collections</Text>
                            </View>
@@ -715,6 +782,7 @@ export default function DashboardScreen() {
                     </View>
                   </TouchableOpacity>
                 </View>
+                )}
               </View>
 
               {/* ── SECTION 3: HOST AN EVENT ── */}
@@ -790,12 +858,7 @@ export default function DashboardScreen() {
                   <View style={styles.modalContent}>
                     <Text style={styles.modalTitle}>{infoModal.title}</Text>
                     <Text style={styles.modalText}>{infoModal.content}</Text>
-                    <TouchableOpacity
-                      style={styles.modalCloseBtn}
-                      onPress={() => setInfoModal({ ...infoModal, visible: false })}
-                    >
-                      <Text style={styles.modalCloseBtnText}>Got it</Text>
-                    </TouchableOpacity>
+                    <Button title="Got it" onPress={() => setInfoModal({ ...infoModal, visible: false })} />
                   </View>
                 </View>
               </Modal>
@@ -848,22 +911,17 @@ export default function DashboardScreen() {
                             value={joinCode}
                             onChangeText={setJoinCode}
                             placeholder="E.G. A1B2C3"
-                            placeholderTextColor="#594C3D"
+                            placeholderTextColor="#9A8B78"
                             autoCapitalize="characters"
                           />
                         </View>
 
-                        <TouchableOpacity
-                          style={[styles.submitBtn, joining && { opacity: 0.7 }]}
+                        <Button
+                          title="Join with Code"
                           onPress={() => handleJoinEvent()}
-                          disabled={joining}
-                        >
-                          {joining ? (
-                            <ActivityIndicator color="#1B211F" />
-                          ) : (
-                            <Text style={styles.submitBtnText}>Join with Code</Text>
-                          )}
-                        </TouchableOpacity>
+                          loading={joining}
+                          disabled={!joinCode.trim()}
+                        />
 
                         <View style={styles.modalDivider}>
                           <View style={styles.dividerLine} />
@@ -871,13 +929,12 @@ export default function DashboardScreen() {
                           <View style={styles.dividerLine} />
                         </View>
 
-                        <TouchableOpacity
-                          style={styles.scanBtn}
+                        <Button
+                          title="Scan QR Code"
+                          variant="secondary"
+                          icon="qrcode.viewfinder"
                           onPress={() => setIsScanning(true)}
-                        >
-                          <IconSymbol name="qrcode.viewfinder" size={20} color="#CA9C68" />
-                          <Text style={styles.scanBtnText}>Scan QR Code</Text>
-                        </TouchableOpacity>
+                        />
                       </View>
                     )}
               </BottomSheet>
@@ -964,8 +1021,8 @@ export default function DashboardScreen() {
                                 onPress={async () => {
                                   if (item.id === 'upload-failed') {
                                     appAlert(
-                                      "Upload Halted",
-                                      "Would you like to retry the failed uploads or clear the queue?",
+                                      "Some Uploads Failed",
+                                      "Retry the failed uploads, or clear them from the queue?",
                                       [
                                         { text: "Cancel", style: "cancel" },
                                         {
@@ -1121,30 +1178,18 @@ export default function DashboardScreen() {
                     </Text>
 
                     <View style={{ gap: 12 }}>
-                      <TouchableOpacity
-                        style={[styles.modalCloseBtn, { flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'center' }]}
+                      <Button
+                        title="Send Join Request"
+                        icon="paperplane.fill"
                         onPress={handleSendAccessRequest}
-                        disabled={sendingRequest}
-                      >
-                        {sendingRequest ? (
-                          <ActivityIndicator color="#1B211F" />
-                        ) : (
-                          <>
-                            <IconSymbol name="paperplane.fill" size={14} color="#1B211F" />
-                            <Text style={styles.modalCloseBtnText}>Send Join Request</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={{ paddingVertical: 12, alignItems: 'center' }}
+                        loading={sendingRequest}
+                      />
+                      <Button
+                        title="Cancel"
+                        variant="ghost"
                         onPress={() => setShowRequestAccessModal(false)}
                         disabled={sendingRequest}
-                      >
-                        <Text style={{ color: colors.slate400, fontFamily: 'Outfit_700Bold', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                          Cancel
-                        </Text>
-                      </TouchableOpacity>
+                      />
                     </View>
                   </View>
                 </View>
@@ -1290,37 +1335,7 @@ export default function DashboardScreen() {
                       </View>
                     )}
 
-                    <TouchableOpacity
-                      style={[
-                        styles.modalCloseBtn,
-                        {
-                          backgroundColor: statusModalConfig.type === 'success'
-                            ? "#22c55e"
-                            : statusModalConfig.type === 'pending'
-                            ? colors.gold
-                            : "#ef4444",
-                          shadowColor: statusModalConfig.type === 'success'
-                            ? "#22c55e"
-                            : statusModalConfig.type === 'pending'
-                            ? colors.gold
-                            : "#ef4444",
-                          shadowOffset: { width: 0, height: 4 },
-                          shadowOpacity: 0.25,
-                          shadowRadius: 8,
-                          elevation: 4
-                        }
-                      ]}
-                      onPress={() => setShowStatusModal(false)}
-                    >
-                      <Text style={[
-                        styles.modalCloseBtnText,
-                        {
-                          color: statusModalConfig.type === 'pending' ? '#1B211F' : '#ffffff'
-                        }
-                      ]}>
-                        Got It!
-                      </Text>
-                    </TouchableOpacity>
+                    <Button title="Got it" onPress={() => setShowStatusModal(false)} />
                   </View>
                 </View>
               </Modal>
@@ -1390,18 +1405,14 @@ export default function DashboardScreen() {
                       All your photos and videos have been uploaded.
                     </Text>
 
-                    <TouchableOpacity
-                      style={[styles.modalCloseBtn, { width: '100%', borderRadius: 14, paddingVertical: 14 }]}
+                    <Button
+                      title="Done"
                       onPress={async () => {
                         setShowUploadCompleteModal(false);
                         const { clearFinishedUploads } = require('@/lib/uploadQueue');
                         await clearFinishedUploads();
                       }}
-                    >
-                      <Text style={[styles.modalCloseBtnText, { fontSize: 15 }]}>
-                        Done
-                      </Text>
-                    </TouchableOpacity>
+                    />
                   </View>
                 </View>
               </Modal>
@@ -1499,16 +1510,27 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
 
   // ── Sections ──
   section: { paddingTop: 8, paddingBottom: 16 },
-  collectionSection: {
-    marginHorizontal: 16,
-    marginTop: 14,
+  welcomeCard: {
+    paddingHorizontal: 24,
+    paddingBottom: 6,
+  },
+  welcomeTitle: {
+    color: colors.white,
+    fontFamily: 'Inter_700Bold',
+    fontSize: 20,
+    marginBottom: 6,
+  },
+  welcomeBody: {
+    color: colors.slate400,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    lineHeight: 21,
     marginBottom: 18,
-    paddingTop: 18,
-    paddingBottom: 18,
-    borderRadius: 26,
-    borderWidth: 1,
-    borderColor: 'rgba(202, 156, 104, 0.16)',
-    backgroundColor: '#151B21',
+  },
+  // Flat section (no card-in-card) so event cards line up with the cards below at 24px
+  collectionSection: {
+    marginTop: 22,
+    marginBottom: 10,
   },
   sectionHead: {
     flexDirection: 'row', justifyContent: 'space-between',
@@ -1728,7 +1750,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   submitBtnText: { color: '#1B211F', fontFamily: 'Outfit_800ExtraBold', fontSize: 16, textTransform: 'uppercase', letterSpacing: 1 },
   modalDivider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 24 },
   dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
-  dividerText: { color: '#475569', fontSize: 12, fontFamily: 'Inter_700Bold' },
+  dividerText: { color: '#9A8B78', fontSize: 12, fontFamily: 'Inter_700Bold' },
   scanBtn: {
     flexDirection: 'row',
     alignItems: 'center',

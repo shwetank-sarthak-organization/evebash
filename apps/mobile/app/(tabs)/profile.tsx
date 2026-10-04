@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import type { IconSymbolName } from '@/components/ui/icon-symbol';
 import SettingsIcon from '@/components/ui/SettingsIcon';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -34,6 +35,8 @@ import { supabase } from '@/lib/supabase';
 import { getPlanDetails } from '@/lib/planLimits';
 import { EveBashLogoBadge } from '@/components/EveBashLogo';
 import { APP_VERSION } from '@/lib/appVersion';
+import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { appAlert, showToast } from '@/lib/feedback';
 
 const { width } = Dimensions.get('window');
@@ -54,7 +57,7 @@ const formatJoinedDate = (createdAt: any) => {
     return 'Not available';
   }
 
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString('en-GB', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -139,7 +142,7 @@ const getPersonasArray = (personaVal: any): string[] => {
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const { colors, isDark } = useAppTheme();
-  const styles = getStyles(colors, isDark);
+  const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [isPrivate, setIsPrivate] = useState(user?.isPrivate || false);
@@ -383,10 +386,13 @@ export default function ProfileScreen() {
 
     const fetchActivityStats = async () => {
       try {
-        const pCount = await getUserPhotosCount(user.uid);
-        const organizedCount = await getUserEventCount(user.uid);
         const identifiers = [user.uid, user.email, user.phone].filter(Boolean) as string[];
-        const joinedEvents = await getApprovedSharedEventsForUser(identifiers);
+        // Independent requests, so fetch them together
+        const [pCount, organizedCount, joinedEvents] = await Promise.all([
+          getUserPhotosCount(user.uid),
+          getUserEventCount(user.uid),
+          getApprovedSharedEventsForUser(identifiers),
+        ]);
         
         setActivityStats({
           photosCount: pCount,
@@ -441,6 +447,17 @@ export default function ProfileScreen() {
 
   const planDetails = getPlanDetails(user.role);
   const personas = getPersonasArray(user.persona);
+  const optionalProfileFields: { label: string; value?: string; icon: IconSymbolName; short: string }[] = [
+    { label: 'Location', value: user.location, icon: 'mappin.and.ellipse', short: 'location' },
+    { label: 'Gender', value: user.gender, icon: 'person.fill', short: 'gender' },
+    { label: 'Relationship Status', value: user.relationshipStatus, icon: 'heart.fill', short: 'relationship status' },
+    { label: 'Birthday', value: user.birthday, icon: 'gift.fill', short: 'birthday' },
+    { label: 'Anniversary / Milestone Date', value: user.anniversaryDate, icon: 'sparkles', short: 'anniversary' },
+  ];
+  const missingProfileFields = optionalProfileFields.filter((field) => !field.value).map((field) => field.short);
+  const completeProfileHint = missingProfileFields.length > 2
+    ? `Add your ${missingProfileFields.slice(0, 2).join(', ')} and more.`
+    : `Add your ${missingProfileFields.join(' and ')}.`;
 
   return (
     <View style={styles.safeArea}>
@@ -518,17 +535,17 @@ export default function ProfileScreen() {
           
           <View style={styles.statsCardCompact}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{activityStats.photosCount}</Text>
+              {loadingStats ? <Skeleton width={36} height={22} radius={6} style={{ marginBottom: 4 }} /> : <Text style={styles.statNumber}>{activityStats.photosCount}</Text>}
               <Text style={styles.statLabel}>Photos Added</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{activityStats.eventsOrganized}</Text>
+              {loadingStats ? <Skeleton width={36} height={22} radius={6} style={{ marginBottom: 4 }} /> : <Text style={styles.statNumber}>{activityStats.eventsOrganized}</Text>}
               <Text style={styles.statLabel}>Events Hosted</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{activityStats.eventsJoined}</Text>
+              {loadingStats ? <Skeleton width={36} height={22} radius={6} style={{ marginBottom: 4 }} /> : <Text style={styles.statNumber}>{activityStats.eventsJoined}</Text>}
               <Text style={styles.statLabel}>Events Joined</Text>
             </View>
           </View>
@@ -576,7 +593,7 @@ export default function ProfileScreen() {
                 {renderVerificationBadge(
                   verification.email,
                   !user.email,
-                  'Email needs to be entered'
+                  'Add your email'
                 )}
               </View>
             </View>
@@ -595,72 +612,50 @@ export default function ProfileScreen() {
                 {renderVerificationBadge(
                   verification.phone,
                   !user.phone || user.phone === 'No Phone',
-                  'Phone number needs to be entered'
+                  'Add your phone number'
                 )}
               </View>
             </View>
 
             <View style={styles.divider} />
 
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconBox}>
-                <IconSymbol name="mappin.and.ellipse" size={16} color="#CA9C68" />
-              </View>
-              <View style={styles.infoTextContainer}>
-                <Text style={styles.infoLabel}>Location</Text>
-                <Text style={styles.infoValue}>{user.location || 'Not set'}</Text>
-              </View>
-            </View>
+            {/* Optional details: show only what's filled in; collect the rest into one prompt */}
+            {optionalProfileFields.filter((field) => !!field.value).map((field) => (
+              <React.Fragment key={field.label}>
+                <View style={styles.infoRow}>
+                  <View style={styles.infoIconBox}>
+                    <IconSymbol name={field.icon} size={16} color="#CA9C68" />
+                  </View>
+                  <View style={styles.infoTextContainer}>
+                    <Text style={styles.infoLabel}>{field.label}</Text>
+                    <Text style={styles.infoValue}>{field.value}</Text>
+                  </View>
+                </View>
+                <View style={styles.divider} />
+              </React.Fragment>
+            ))}
 
-            <View style={styles.divider} />
-
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconBox}>
-                <IconSymbol name="person.fill" size={16} color="#CA9C68" />
-              </View>
-              <View style={styles.infoTextContainer}>
-                <Text style={styles.infoLabel}>Gender</Text>
-                <Text style={styles.infoValue}>{user.gender || 'Not specified'}</Text>
-              </View>
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconBox}>
-                <IconSymbol name="heart.fill" size={16} color="#CA9C68" />
-              </View>
-              <View style={styles.infoTextContainer}>
-                <Text style={styles.infoLabel}>Relationship Status</Text>
-                <Text style={styles.infoValue}>{user.relationshipStatus || 'Not specified'}</Text>
-              </View>
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconBox}>
-                <IconSymbol name="gift.fill" size={16} color="#CA9C68" />
-              </View>
-              <View style={styles.infoTextContainer}>
-                <Text style={styles.infoLabel}>Birthday</Text>
-                <Text style={styles.infoValue}>{user.birthday || 'Not specified'}</Text>
-              </View>
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconBox}>
-                <IconSymbol name="sparkles" size={16} color="#CA9C68" />
-              </View>
-              <View style={styles.infoTextContainer}>
-                <Text style={styles.infoLabel}>Anniversary / Milestone Date</Text>
-                <Text style={styles.infoValue}>{user.anniversaryDate || 'Not specified'}</Text>
-              </View>
-            </View>
-
-            <View style={styles.divider} />
+            {missingProfileFields.length > 0 && (
+              <>
+                <TouchableOpacity
+                  style={styles.completeProfileRow}
+                  activeOpacity={0.8}
+                  onPress={openEditModal}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Complete your profile. ${completeProfileHint}`}
+                >
+                  <View style={[styles.infoIconBox, styles.completeProfileIcon]}>
+                    <IconSymbol name="sparkles" size={16} color="#CA9C68" />
+                  </View>
+                  <View style={styles.infoTextContainer}>
+                    <Text style={styles.completeProfileTitle}>Complete your profile</Text>
+                    <Text style={styles.completeProfileBody}>{completeProfileHint}</Text>
+                  </View>
+                  <IconSymbol name="chevron.right" size={16} color="#CA9C68" />
+                </TouchableOpacity>
+                <View style={styles.divider} />
+              </>
+            )}
 
             <View style={styles.infoRow}>
               <View style={styles.infoIconBox}>
@@ -753,7 +748,7 @@ export default function ProfileScreen() {
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Profile</Text>
-              <TouchableOpacity 
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" 
                 onPress={() => setIsEditing(false)} 
                 disabled={saving}
                 style={styles.modalCloseBtn}
@@ -768,7 +763,7 @@ export default function ProfileScreen() {
             >
               {/* Profile Image Picking Area */}
               <View style={styles.editAvatarSection}>
-                <TouchableOpacity 
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Change profile photo" 
                   onPress={handlePickImage} 
                   disabled={saving}
                   activeOpacity={0.8}
@@ -816,7 +811,7 @@ export default function ProfileScreen() {
                       value={editName}
                       onChangeText={setEditName}
                       placeholder="Enter full name"
-                      placeholderTextColor="#475569"
+                      placeholderTextColor="#9A8B78"
                       editable={!saving}
                     />
                   </View>
@@ -832,7 +827,7 @@ export default function ProfileScreen() {
                       value={editEmail}
                       onChangeText={(val) => setEditEmail(val.trim().toLowerCase())}
                       placeholder="name@example.com"
-                      placeholderTextColor="#475569"
+                      placeholderTextColor="#9A8B78"
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoCorrect={false}
@@ -851,7 +846,7 @@ export default function ProfileScreen() {
                       value={editUsername}
                       onChangeText={(val) => setEditUsername(val.replace(/\s+/g, '').toLowerCase())}
                       placeholder="username"
-                      placeholderTextColor="#475569"
+                      placeholderTextColor="#9A8B78"
                       autoCapitalize="none"
                       autoCorrect={false}
                       maxLength={12}
@@ -894,7 +889,7 @@ export default function ProfileScreen() {
                       value={editPhone}
                       onChangeText={setEditPhone}
                       placeholder="e.g. +91 98765 43210"
-                      placeholderTextColor="#475569"
+                      placeholderTextColor="#9A8B78"
                       keyboardType="phone-pad"
                       editable={!saving}
                     />
@@ -912,7 +907,7 @@ export default function ProfileScreen() {
                       value={editLocation}
                       onChangeText={setEditLocation}
                       placeholder="e.g. Mumbai, Maharashtra"
-                      placeholderTextColor="#475569"
+                      placeholderTextColor="#9A8B78"
                       editable={!saving}
                     />
                   </View>
@@ -975,7 +970,7 @@ export default function ProfileScreen() {
                       value={editBirthday}
                       onChangeText={setEditBirthday}
                       placeholder="e.g. October 24 (or DD/MM/YYYY)"
-                      placeholderTextColor="#475569"
+                      placeholderTextColor="#9A8B78"
                       editable={!saving}
                     />
                   </View>
@@ -992,7 +987,7 @@ export default function ProfileScreen() {
                       value={editAnniversaryDate}
                       onChangeText={setEditAnniversaryDate}
                       placeholder="e.g. December 18, 2026"
-                      placeholderTextColor="#475569"
+                      placeholderTextColor="#9A8B78"
                       editable={!saving}
                     />
                   </View>
@@ -1040,30 +1035,25 @@ export default function ProfileScreen() {
 
               {/* Action Buttons */}
               <View style={styles.modalActions}>
-                <TouchableOpacity 
-                  style={styles.cancelBtn} 
-                  onPress={() => setIsEditing(false)}
-                  disabled={saving}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[
-                    styles.saveBtn,
-                    (!editName.trim() || !editEmail.trim() || !isUsernameValid || saving) && styles.saveBtnDisabled
-                  ]} 
-                  onPress={handleSaveChanges}
-                  disabled={!editName.trim() || !editEmail.trim() || !isUsernameValid || saving}
-                  activeOpacity={0.7}
-                >
-                  {saving ? (
-                    <ActivityIndicator size="small" color="#13191F" />
-                  ) : (
-                    <Text style={styles.saveBtnText}>Save Changes</Text>
-                  )}
-                </TouchableOpacity>
+              <Button
+                title="Cancel"
+                variant="secondary"
+                size="md"
+                fullWidth={false}
+                style={{ flex: 1 }}
+                onPress={() => setIsEditing(false)}
+                disabled={saving}
+              />
+              <Button
+                title="Save Changes"
+                variant="primary"
+                size="md"
+                fullWidth={false}
+                style={{ flex: 1 }}
+                onPress={handleSaveChanges}
+                loading={saving}
+                disabled={!editName.trim() || !editEmail.trim() || !isUsernameValid}
+              />
               </View>
 
             </ScrollView>
@@ -1325,6 +1315,26 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     color: colors.white,
     marginTop: 1,
   },
+  completeProfileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    gap: 18,
+  },
+  completeProfileIcon: {
+    backgroundColor: 'rgba(202, 156, 104, 0.18)',
+  },
+  completeProfileTitle: {
+    color: colors.gold,
+    fontSize: 15,
+    fontFamily: 'Inter_700Bold',
+  },
+  completeProfileBody: {
+    color: colors.slate400,
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 2,
+  },
   verificationBadge: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
@@ -1335,6 +1345,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 4,
     marginTop: 7,
+    maxWidth: '100%',
   },
   verificationBadgeVerified: {
     backgroundColor: 'rgba(52, 211, 153, 0.1)',
@@ -1349,6 +1360,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderColor: 'rgba(251, 191, 36, 0.25)',
   },
   verificationBadgeText: {
+    flexShrink: 1,
     fontSize: 10,
     fontFamily: 'Inter_700Bold',
     textTransform: 'uppercase',

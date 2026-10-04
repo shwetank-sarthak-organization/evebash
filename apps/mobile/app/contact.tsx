@@ -8,7 +8,7 @@ import { Stack, useRouter } from 'expo-router';
 export default function ContactUsScreen() {
   const router = useRouter();
   const { colors, isDark } = useAppTheme();
-  const styles = getStyles(colors, isDark);
+  const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -68,7 +68,7 @@ export default function ContactUsScreen() {
         headerTitle: 'Contact Us',
         headerTintColor: colors.white,
         headerLeft: () => (
-          <TouchableOpacity 
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" 
             onPress={() => {
               if (router.canGoBack()) {
                 router.back();

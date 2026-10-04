@@ -1,7 +1,7 @@
 import { VIEWER_TEMPLATE_PALETTES, SPORTS_VIEWER_PALETTES } from '../constants/viewerPalettes';
 import { galleryActionText } from '../constants/galleryContrast';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Pressable, ScrollView, KeyboardAvoidingView, Platform, Share, TextInput, Keyboard, Modal, ActivityIndicator, StyleSheet, StatusBar as RNStatusBar, useWindowDimensions, type GestureResponderEvent, type NativeSyntheticEvent } from 'react-native';
+import { View, Text, TouchableOpacity, Pressable, ScrollView, KeyboardAvoidingView, Platform, Share, Linking, TextInput, Keyboard, Modal, ActivityIndicator, StyleSheet, StatusBar as RNStatusBar, useWindowDimensions, type GestureResponderEvent, type NativeSyntheticEvent } from 'react-native';
 import { Image as ExpoImage, type ImageLoadEventData } from 'expo-image';
 import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,14 +10,16 @@ import type { FullscreenOptions } from 'expo-video/build/VideoView.types';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, Event as DatabaseEvent } from '@/lib/database';
-import { getImageUrl } from '@/lib/imageUrl';
+import { getImageUrl, getOriginalMediaUrl } from '@/lib/imageUrl';
 import { SCREEN_ORIENTATION_LOCK, canLockScreenOrientation, lockScreenOrientation } from '@/lib/screenOrientation';
 import { MidnightColors, Fonts } from '../constants/theme';
 import { styles } from './eventStyles';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ZoomablePhoto } from './ZoomablePhoto';
-import { appAlert } from '@/lib/feedback';
+import { appAlert, showToast } from '@/lib/feedback';
+import { haptic } from '@/lib/haptics';
+import { FeedbackHost } from '@/components/feedback/FeedbackHost';
 
 interface PhotoViewerProps {
   visible: boolean;
@@ -55,6 +57,29 @@ const VIDEO_NATIVE_FULLSCREEN_OPTIONS: FullscreenOptions =
     ? { enable: true }
     : { enable: true, orientation: 'landscape' };
 const VIDEO_CUSTOM_FULLSCREEN_OPTIONS: FullscreenOptions = { enable: false };
+
+/**
+ * Saves a downloaded file into the phone's gallery (Photos on iOS, MediaStore on Android).
+ * The native module is loaded lazily so older dev builds without it fall back gracefully.
+ */
+async function saveFileToGallery(localUri: string): Promise<'saved' | 'denied' | 'unavailable'> {
+  let MediaLibrary: typeof import('expo-media-library');
+  try {
+    MediaLibrary = require('expo-media-library');
+  } catch {
+    return 'unavailable';
+  }
+  try {
+    // writeOnly: we only add files, so no read access to the user's library is requested
+    const permission = await MediaLibrary.requestPermissionsAsync(true);
+    if (!permission.granted) return 'denied';
+    await MediaLibrary.saveToLibraryAsync(localUri);
+    return 'saved';
+  } catch (error: any) {
+    if (String(error?.message || error).includes('native module')) return 'unavailable';
+    throw error;
+  }
+}
 
 function formatVideoClock(seconds: number) {
   if (!Number.isFinite(seconds) || seconds <= 0) return '0:00';
@@ -734,6 +759,12 @@ export default function PhotoViewer({
   const [expandedProfileImage, setExpandedProfileImage] = useState<{ src: string; name: string } | null>(null);
   const [loadedImageSizes, setLoadedImageSizes] = useState<Record<string, { width: number; height: number }>>({});
   const swipeStartXRef = useRef<number | null>(null);
+  const [hostZoomed, setHostZoomed] = useState(false);
+  const hostZoomedRef = useRef(false);
+  const handleHostZoomChange = useCallback((zoomed: boolean) => {
+    hostZoomedRef.current = zoomed;
+    setHostZoomed(zoomed);
+  }, []);
   const hostScrollRef = useRef<ScrollView | null>(null);
   const dashboardImageScrollRef = useRef<ScrollView | null>(null);
   const dashboardVideoControlsRef = useRef<ViewerVideoControls | null>(null);
@@ -854,6 +885,26 @@ export default function PhotoViewer({
     dashboardImageScrollRef.current?.scrollTo({ y: 0, animated: false });
   }, [currentPhoto?.id, shouldUseDashboardImageScrollReveal, visible]);
 
+  // Warm the cache for the previous and next photos so swiping shows them instantly.
+  // URLs must match what each viewer layout renders, or the prefetch is wasted.
+  useEffect(() => {
+    if (!visible || photos.length < 2) return;
+    const neighbours = [currentPhotoIndex - 1, currentPhotoIndex + 1]
+      .map((index) => photos[(index + photos.length) % photos.length])
+      .filter((media) => media?.url && media.mediaType !== 'video' && media.resourceType !== 'video');
+    const urls = neighbours.map((media) => {
+      if (showHostTopControls) {
+        return media.previewUrl || getImageUrl(media.url, { width: 900, quality: 75, format: 'webp' }, media.thumbnailUrl);
+      }
+      return shouldUseDashboardImageScrollReveal
+        ? getImageUrl(media.url, { width: 1200, quality: 82, format: 'webp' }, media.thumbnailUrl)
+        : getImageUrl(media.url, { width: 900, quality: 75, format: 'webp' }, media.thumbnailUrl);
+    }).filter(Boolean);
+    if (urls.length > 0) {
+      ExpoImage.prefetch(urls, 'memory-disk').catch(() => {});
+    }
+  }, [visible, currentPhotoIndex, photos, showHostTopControls, shouldUseDashboardImageScrollReveal]);
+
   const isScrapbookTemplate = event?.templateId === 'scrapbook';
   const isNeonTemplate = event?.templateId === 'neon';
   const isPopTemplate = event?.templateId === 'pop';
@@ -929,7 +980,8 @@ export default function PhotoViewer({
   };
 
   const handleViewerTouchEnd = (event: GestureResponderEvent) => {
-    if (swipeStartXRef.current === null || photos.length < 2) {
+    // A drag on a zoomed host photo pans it; it must not also change the photo
+    if (hostZoomedRef.current || swipeStartXRef.current === null || photos.length < 2) {
       swipeStartXRef.current = null;
       return;
     }
@@ -954,6 +1006,7 @@ export default function PhotoViewer({
 
   const handleToggleLike = async () => {
     if (!currentPhoto?.id || isLiking) return;
+    if (!isLiked) haptic('tap');
     setIsLiking(true);
     try {
       await toggleLike(currentPhoto.id, viewerIdentity.id, viewerIdentity.name);
@@ -1036,28 +1089,50 @@ export default function PhotoViewer({
 
   const handleDownloadPhoto = async () => {
     if (!currentPhoto?.url) return;
+
+    // Videos stream as HLS playlists, which can't be saved; download the uploaded original instead
+    const storageKey: string | undefined = currentPhoto.storageKey || currentPhoto.storage_key;
+    const sourceUrl = isVideoMedia
+      ? (storageKey ? getOriginalMediaUrl(storageKey) : null)
+      : currentPhoto.url;
+    if (!sourceUrl) {
+      appAlert('Not available yet', 'This video is still being prepared. Please try again in a little while.');
+      return;
+    }
+
     setIsDownloading(true);
     try {
-      const extension = currentPhoto.url.split('.').pop() || 'jpg';
-      const localUri = `${FileSystem.cacheDirectory}${Date.now()}-download.${extension}`;
-      
-      const downloadResult = await FileSystem.downloadAsync(
-        currentPhoto.url,
-        localUri
-      );
-      
-      if (downloadResult.status === 200) {
+      const cleanPath = sourceUrl.split('?')[0];
+      const extension = (cleanPath.split('.').pop() || (isVideoMedia ? 'mp4' : 'jpg')).toLowerCase();
+      const localUri = `${FileSystem.cacheDirectory}evebash-${Date.now()}.${extension}`;
+      const downloadResult = await FileSystem.downloadAsync(sourceUrl, localUri);
+      if (downloadResult.status !== 200) {
+        throw new Error(`Download failed with status ${downloadResult.status}`);
+      }
+
+      const result = await saveFileToGallery(downloadResult.uri);
+      if (result === 'saved') {
+        showToast(isVideoMedia ? 'Video saved to your gallery.' : 'Photo saved to your gallery.');
+      } else if (result === 'denied') {
+        appAlert(
+          'Allow access to save',
+          'To save photos and videos, allow EveBash to add to your photo library in Settings.',
+          [
+            { text: 'Not now', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          ]
+        );
+      } else {
+        // Builds without the media-library module: fall back to the share sheet
         await Share.share(
           Platform.OS === 'ios'
             ? { url: downloadResult.uri }
             : { message: `Event memory: ${event?.title || 'our event'}`, url: downloadResult.uri }
         );
-      } else {
-        throw new Error(`Download failed with status ${downloadResult.status}`);
       }
     } catch (error) {
-      console.error('[PhotoViewer] Photo download/share failed:', error);
-      appAlert('Download Failed', 'Could not download the original media. Please try again.');
+      console.error('[PhotoViewer] Download failed:', error);
+      appAlert('Download failed', 'We couldn\'t download this file. Please check your connection and try again.');
     } finally {
       setIsDownloading(false);
     }
@@ -1099,7 +1174,7 @@ export default function PhotoViewer({
               selectedTemplate.useSerif && { fontFamily: Fonts.serif, fontStyle: 'italic' }
             ]}>{comments.length} Shared Thoughts</Text>
           </View>
-          <TouchableOpacity style={[styles.closeGuestbookBtn, hostGuestbook && localStyles.hostCloseGuestbookBtn, { backgroundColor: viewerTheme.controlBg }]} onPress={() => setShowComments(false)}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close comments" style={[styles.closeGuestbookBtn, hostGuestbook && localStyles.hostCloseGuestbookBtn, { backgroundColor: viewerTheme.controlBg }]} onPress={() => setShowComments(false)}>
             <IconSymbol name="xmark" size={18} color={viewerTheme.controlText} />
           </TouchableOpacity>
         </View>
@@ -1250,7 +1325,7 @@ export default function PhotoViewer({
           {replyingTo && (
             <View style={styles.replyingToBanner}>
               <Text style={styles.replyingToText}>Replying to <Text style={styles.replyingToName}>{replyingTo.userName}</Text></Text>
-              <TouchableOpacity onPress={() => setReplyingTo(null)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Cancel reply" onPress={() => setReplyingTo(null)}>
                 <IconSymbol name="xmark" size={14} color="#78716c" />
               </TouchableOpacity>
             </View>
@@ -1372,6 +1447,8 @@ export default function PhotoViewer({
         {showHostTopControls ? (
           <ScrollView
             ref={hostScrollRef}
+            // Zoomed photos pan instead of scrolling the page
+            scrollEnabled={!hostZoomed}
             style={localStyles.hostViewerScroll}
             contentContainerStyle={localStyles.hostViewerScrollContent}
             keyboardShouldPersistTaps="handled"
@@ -1412,12 +1489,16 @@ export default function PhotoViewer({
                       onNextMedia={() => navigateViewer('next')}
                     />
                   ) : (
-                    <ExpoImage
-                      source={{ uri: hostDisplayImageUrl }}
-                      style={[localStyles.hostMediaImage, { borderRadius: viewerTheme.radius }]}
-                      contentFit="contain"
-                      cachePolicy="memory-disk"
+                    <ZoomablePhoto
+                      uri={hostDisplayImageUrl}
+                      resetKey={currentPhotoKey}
+                      canSwipe={false}
+                      onSwipe={navigateViewer}
+                      mode="inline"
+                      onZoomChange={handleHostZoomChange}
                       onLoad={handleHostImageLoad}
+                      style={localStyles.hostMediaImage}
+                      imageStyle={{ borderRadius: viewerTheme.radius }}
                     />
                   )}
                 </View>
@@ -1668,7 +1749,7 @@ export default function PhotoViewer({
             <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setExpandedProfileImage(null)} />
             {expandedProfileImage && (
               <View style={[styles.profilePreviewCard, { backgroundColor: viewerTheme.panel, borderColor: viewerTheme.frameBorder }]}>
-                <TouchableOpacity style={[styles.profilePreviewClose, { backgroundColor: viewerTheme.controlBg }]} onPress={() => setExpandedProfileImage(null)}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" style={[styles.profilePreviewClose, { backgroundColor: viewerTheme.controlBg }]} onPress={() => setExpandedProfileImage(null)}>
                   <IconSymbol name="xmark" size={18} color={viewerTheme.controlText} />
                 </TouchableOpacity>
                 <ExpoImage source={{ uri: expandedProfileImage.src }} style={styles.profilePreviewImage} contentFit="cover" />
@@ -1699,6 +1780,8 @@ export default function PhotoViewer({
     >
       <GestureHandlerRootView style={{ flex: 1 }}>
         {viewerContent}
+        {/* The viewer covers the app, so show toasts (e.g. "Photo saved") inside it */}
+        <FeedbackHost toastOnly />
       </GestureHandlerRootView>
     </Modal>
   );

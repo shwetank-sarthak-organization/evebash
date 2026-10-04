@@ -12,6 +12,7 @@ import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '@/lib/supabase';
 import { appAlert } from '@/lib/feedback';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_GAP = 3;
@@ -175,7 +176,7 @@ export function FindYouPanel({
           setStatusMessage('No matching photos found. Try a clearer selfie!');
         }
       } else {
-        setStatusMessage(`Found ${photos.length} photo${photos.length === 1 ? '' : 's'} of you! 🎉`);
+        setStatusMessage(`Found ${photos.length} photo${photos.length === 1 ? '' : 's'} of you.`);
       }
 
     } catch (err: any) {
@@ -224,7 +225,9 @@ export function FindYouPanel({
         {/* Description / Instructions */}
         {!selfieUri && (
           <View style={panelStyles.descContainer}>
-            <Text style={panelStyles.descIcon}>🔍</Text>
+            <View style={panelStyles.descIcon}>
+              <IconSymbol name="magnifyingglass" size={40} color={selectedTemplate?.accent || '#cca43b'} />
+            </View>
             <Text style={[panelStyles.descText, { color: selectedTemplate?.muted || '#555' }]}>
               Upload a clear selfie and our AI will find all your photos from this event instantly.
             </Text>
@@ -245,8 +248,9 @@ export function FindYouPanel({
             onPress={() => !isBusy && pickImage(false)}
             disabled={isBusy}
           >
+            <IconSymbol name="photo" size={22} color={selectedTemplate?.accent || '#cca43b'} />
             <Text style={[panelStyles.buttonText, { color: selectedTemplate?.accent || '#cca43b' }]}>
-              📂 Upload Photo
+              Upload Photo
             </Text>
           </TouchableOpacity>
 
@@ -262,8 +266,9 @@ export function FindYouPanel({
             onPress={() => !isBusy && pickImage(true)}
             disabled={isBusy}
           >
+            <IconSymbol name="camera.fill" size={22} color={selectedTemplate?.accent || '#cca43b'} />
             <Text style={[panelStyles.buttonText, { color: selectedTemplate?.accent || '#cca43b' }]}>
-              📷 Take Selfie
+              Take Selfie
             </Text>
           </TouchableOpacity>
         </View>
@@ -303,7 +308,7 @@ export function FindYouPanel({
 
             <View style={panelStyles.photoGrid}>
               {matchedPhotos.map((photo, index) => (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Open matched photo ${index + 1}`}
                   key={photo.id || photo.imageId || index}
                   style={panelStyles.photoItem}
                   activeOpacity={0.85}
@@ -384,7 +389,6 @@ const panelStyles = StyleSheet.create({
     paddingBottom: 24,
   },
   descIcon: {
-    fontSize: 48,
     marginBottom: 12,
   },
   descText: {
@@ -405,6 +409,7 @@ const panelStyles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1.5,
     borderStyle: 'dashed',
+    gap: 8,
   },
   buttonDisabled: {
     opacity: 0.5,

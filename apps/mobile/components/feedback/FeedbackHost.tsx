@@ -21,12 +21,22 @@ import {
   type DialogItem,
   type ToastItem,
 } from '@/lib/feedback';
+import { Radius, Spacing } from '@/constants/layout';
+import { FontFamily, FontSize } from '@/constants/typography';
 
 const DANGER = '#DC2626';
+
+// Cached "reduce motion" setting so the toast can skip its slide
+let reduceMotion = false;
+AccessibilityInfo.isReduceMotionEnabled().then((value) => { reduceMotion = value; }).catch(() => {});
+AccessibilityInfo.addEventListener('reduceMotionChanged', (value) => { reduceMotion = value; });
 const SUCCESS = '#22C55E';
 
-/** Renders the app-wide toast and (on Android) the themed alert dialog. Mount once at the root. */
-export function FeedbackHost() {
+/**
+ * Renders the app-wide toast and (on Android) the themed alert dialog. Mount once at the root.
+ * Full-screen RN Modals cover the root, so they can mount a `toastOnly` host to show toasts above themselves.
+ */
+export function FeedbackHost({ toastOnly = false }: { toastOnly?: boolean }) {
   const { toast, dialogs } = useSyncExternalStore(subscribeFeedback, getFeedbackState, getFeedbackState);
 
   useEffect(() => {
@@ -37,7 +47,7 @@ export function FeedbackHost() {
   return (
     <>
       {toast && <Toast key={toast.id} toast={toast} />}
-      {dialogs[0] && <ThemedDialog key={dialogs[0].id} dialog={dialogs[0]} />}
+      {!toastOnly && dialogs[0] && <ThemedDialog key={dialogs[0].id} dialog={dialogs[0]} />}
     </>
   );
 }
@@ -47,7 +57,6 @@ function Toast({ toast }: { toast: ToastItem }) {
   const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    AccessibilityInfo.announceForAccessibility(toast.title ? `${toast.title}. ${toast.message}` : toast.message);
     Animated.spring(progress, { toValue: 1, useNativeDriver: true, damping: 18, stiffness: 180 }).start();
     const timer = setTimeout(() => {
       Animated.timing(progress, { toValue: 0, duration: 180, useNativeDriver: true }).start(() => hideToast(toast.id));
@@ -66,7 +75,7 @@ function Toast({ toast }: { toast: ToastItem }) {
         {
           top: insets.top + 8,
           opacity: progress,
-          transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [-24, 0] }) }],
+          transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [reduceMotion ? 0 : -24, 0] }) }],
         },
       ]}
     >
@@ -207,22 +216,22 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
     backgroundColor: MidnightColors.deepSlate,
-    borderRadius: 22,
+    borderRadius: Radius.xl,
     borderWidth: 1,
     borderColor: MidnightColors.border,
-    padding: 22,
+    padding: Spacing.xl,
   },
   dialogTitle: {
     color: MidnightColors.white,
-    fontFamily: 'Inter_700Bold',
-    fontSize: 18,
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.headline,
     lineHeight: 24,
     marginBottom: 8,
   },
   dialogMessage: {
     color: MidnightColors.slate300,
-    fontFamily: 'Inter_400Regular',
-    fontSize: 15,
+    fontFamily: FontFamily.regular,
+    fontSize: FontSize.body,
     lineHeight: 22,
   },
   buttonRow: {
@@ -235,7 +244,7 @@ const styles = StyleSheet.create({
   },
   button: {
     minHeight: 48,
-    borderRadius: 14,
+    borderRadius: Radius.md,
     paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',

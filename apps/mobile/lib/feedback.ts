@@ -1,4 +1,5 @@
-import { Alert, Platform, type AlertButton } from 'react-native';
+import { AccessibilityInfo, Alert, Platform, type AlertButton } from 'react-native';
+import { haptic } from './haptics';
 
 /**
  * Branded replacements for Alert.alert.
@@ -37,7 +38,8 @@ type FeedbackState = {
 let state: FeedbackState = { toast: null, dialogs: [] };
 const listeners = new Set<() => void>();
 let nextId = 1;
-let hostMounted = false;
+// Number of mounted hosts (the root one, plus toast-only ones inside full-screen modals)
+let mountedHosts = 0;
 
 function emit() {
   listeners.forEach((listener) => listener());
@@ -55,17 +57,20 @@ export function getFeedbackState() {
 }
 
 export function setFeedbackHostMounted(mounted: boolean) {
-  hostMounted = mounted;
+  mountedHosts = Math.max(0, mountedHosts + (mounted ? 1 : -1));
 }
 
 export function showToast(
   message: string,
   options: { type?: ToastType; title?: string; duration?: number } = {}
 ) {
-  if (!hostMounted) {
+  if (mountedHosts === 0) {
     Alert.alert(options.title ?? '', message);
     return;
   }
+  // Done here, not in the toast view, so it happens once even if two hosts render the toast
+  if (options.type !== 'info') haptic(options.type === 'error' ? 'error' : 'success');
+  AccessibilityInfo.announceForAccessibility(options.title ? `${options.title}. ${message}` : message);
   state = {
     ...state,
     toast: {
@@ -91,7 +96,7 @@ export function appAlert(
   buttons?: AlertButton[],
   options?: { cancelable?: boolean }
 ) {
-  if (Platform.OS !== 'android' || !hostMounted) {
+  if (Platform.OS !== 'android' || mountedHosts === 0) {
     Alert.alert(title, message, buttons, options);
     return;
   }
@@ -115,6 +120,7 @@ export function appAlert(
 export function resolveDialog(id: number, button?: AlertButton) {
   state = { ...state, dialogs: state.dialogs.filter((dialog) => dialog.id !== id) };
   emit();
+  if (button?.style === 'destructive') haptic('warning');
   if (button?.onPress) {
     // Let the dialog start closing before the handler opens anything new
     setTimeout(() => button.onPress?.(), 0);
