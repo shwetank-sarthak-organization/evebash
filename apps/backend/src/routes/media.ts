@@ -1,3 +1,4 @@
+import { saveVideoThumbnail, ThumbnailError } from "../services/videoThumbnail.js";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
@@ -1486,6 +1487,69 @@ mediaRouter.post("/profile-image", asyncRoute(async (request, response) => {
   if (updateError) throw updateError;
 
   response.json({ success: true, deletedFiles });
+}));
+
+mediaRouter.post("/video-thumbnail", asyncRoute(async (request, response) => {
+  const verified = await verifyRequestUser(request);
+  if (!verified) return jsonError(response, 401, "Authorization required");
+  const user = verified.user;
+  const db = getSupabaseAdminClient();
+  try {
+    const result = await saveVideoThumbnail(user.id, request.body || {}, {
+      load: async (id) => {
+        const { data, error } = await db.from("photos").select("id,event_id,storage_key,url,thumbnail_url,media_type,resource_type,status,user_id").eq("id", id).maybeSingle();
+        if (error) throw error;
+        return data;
+      },
+      canEdit: async (media, userId) => {
+        const [{ data: event, error: eventError }, { data: profile, error: profileError }, { data: photo, error: photoError }] = await Promise.all([
+          db.from("events").select("created_by,parent_id").eq("id", media.event_id).maybeSingle(),
+          db.from("profiles").select("role,delegated_by,role_type").eq("id", userId).maybeSingle(),
+          db.from("photos").select("user_id").eq("id", media.id).maybeSingle(),
+        ]);
+        if (eventError || profileError || photoError) throw eventError || profileError || photoError;
+        if (!event) return false;
+        if (photo?.user_id === userId || ((profile?.role === "admin" || profile?.role === "super_admin") && !profile.delegated_by)) return true;
+        let parentOwner: string | undefined;
+        if (event.parent_id) {
+          const { data: parent, error } = await db.from("events").select("created_by").eq("id", event.parent_id).maybeSingle();
+          if (error) throw error;
+          parentOwner = parent?.created_by;
+        }
+        const owners = [event.created_by, parentOwner].filter(Boolean);
+        if (owners.includes(userId)) return true;
+        if (profile?.role_type === "primary" && owners.includes(profile.delegated_by)) return true;
+        const linkedIds = [media.event_id, event.parent_id].filter(Boolean);
+        const { data: assigned, error: assignedError } = await db.from("profile_assigned_events").select("event_id").eq("profile_id", userId).in("event_id", linkedIds);
+        if (assignedError) throw assignedError;
+        if (assigned?.length && profile?.role_type === "event") return true;
+        // Approved shared-event admins are matched against verified Auth identity,
+        // never an email or role supplied in the request body.
+        const identities = [userId, user.email_confirmed_at ? user.email?.toLowerCase() : undefined, user.phone_confirmed_at ? user.phone : undefined].filter((value): value is string => Boolean(value));
+        const results = await Promise.all(["event_id", "parent_event_id"].flatMap(column => ["email", "phone"].map(identityColumn =>
+          db.from("guests").select("id").eq("status", "approved").eq("can_admin", true).in(column, linkedIds).in(identityColumn, identities).limit(1)
+        )));
+        for (const result of results) if (result.error) throw result.error;
+        return results.some(result => Boolean(result.data?.length));
+      },
+      upload: async (key, bytes) => {
+        await uploadBufferToB2(await getCachedBackblazeAuth(), requireEnv("B2_BUCKET_ID"), bytes, key, "image/jpeg");
+        return `https://${getMediaDomain()}/${key.split("/").map(encodeURIComponent).join("/")}`;
+      },
+      commit: async (media, thumbnailUrl) => {
+        let query = db.from("photos").update({ thumbnail_url: thumbnailUrl }).eq("id", media.id).eq("storage_key", media.storage_key).eq("status", "processed");
+        query = media.thumbnail_url === null ? query.is("thumbnail_url", null) : query.eq("thumbnail_url", media.thumbnail_url);
+        const { data, error } = await query.select("id").maybeSingle();
+        if (error) throw error;
+        return Boolean(data);
+      },
+      remove: async (key) => deleteB2File(await getCachedBackblazeAuth(), requireEnv("B2_BUCKET_ID"), key),
+    });
+    response.json(result);
+  } catch (error) {
+    if (error instanceof ThumbnailError) return jsonError(response, error.status, error.message);
+    throw error;
+  }
 }));
 
 mediaRouter.post("/rotate", asyncRoute(async (request, response) => {

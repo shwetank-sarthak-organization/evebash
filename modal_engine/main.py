@@ -1664,7 +1664,6 @@ def _transcode_video_core(request: dict, hardware="cpu"):
 
         update_data = {
             "url": hls_master_url,
-            "thumbnail_url": poster_url,
             "overhead_size": total_hls_bytes,
             "resource_type": "video",
             "media_type": "video",
@@ -1673,6 +1672,9 @@ def _transcode_video_core(request: dict, hardware="cpu"):
         }
         if video_duration_seconds:
             update_data["duration"] = round(video_duration_seconds, 2)
+        # A retry must preserve a frame explicitly chosen by the video owner.
+        # Atomic null check also protects a concurrent custom-thumbnail save.
+        supabase.table("photos").update({"thumbnail_url": poster_url}).eq("id", photo_id).is_("thumbnail_url", "null").execute()
         supabase.table("photos").update(update_data).eq("id", photo_id).execute()
         _notify_video_processed(photo_id)
 

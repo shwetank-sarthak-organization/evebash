@@ -1,5 +1,6 @@
 "use client";
 
+import { VideoThumbnailPicker, VideoThumbnailActions } from "@/components/VideoThumbnailPicker";
 import React, { useState, useEffect, Suspense, useTransition, useRef, useCallback } from "react";
 import LoadingScreen from "@/components/LoadingScreen";
 import { useAuth } from "@/context/AuthContext";
@@ -128,6 +129,7 @@ const GridMediaCell = ({
     if (isVideo) {
         return (
             <div className="relative h-full w-full bg-slate-950">
+                {photo.thumbnailUrl ? <img src={photo.thumbnailUrl} alt="Video thumbnail" className={cn("h-full w-full object-cover", shouldBlurMediaForPlan && "blur-[1.5px] scale-[1.02]")} /> : (
                 <video
                     src={photo.url}
                     className={cn(
@@ -138,6 +140,7 @@ const GridMediaCell = ({
                     playsInline
                     preload="metadata"
                 />
+                )}
                 <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20">
                     <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#CA9C68]/70 bg-slate-950/80 text-[#CA9C68] shadow-xl">
                         <Play className="h-5 w-5 fill-current" />
@@ -702,6 +705,8 @@ function DashboardContent() {
     const [selectedMainEvent, setSelectedMainEvent] = useState<Event | null>(null);
     const [viewingPhoto, setViewingPhoto] = useState<any | null>(null);
     const [photoActionItem, setPhotoActionItem] = useState<Photo | null>(null);
+    const [videoActionItem, setVideoActionItem] = useState<Photo | null>(null);
+    const [thumbnailVideo, setThumbnailVideo] = useState<Photo | null>(null);
     const [galleryViewMode, setGalleryViewMode] = useState<"grid" | "list">("grid");
     const [galleryMediaTab, setGalleryMediaTab] = useState<"photos" | "videos">("photos");
     const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
@@ -5239,21 +5244,20 @@ function DashboardContent() {
                                                             )}
                                                         </div>
 
-                                                        {!isVideo && (
-                                                        <div className="absolute top-3 left-3 z-10">
-                                                            <Tooltip text="Photo actions">
+                                                        <div className={cn("absolute top-3 z-10", isVideo ? "right-3" : "left-3")}>
+                                                            <Tooltip text={isVideo ? "Video actions" : "Photo actions"}>
                                                                 <button
+                                                                    aria-label={isVideo ? "Video actions" : "Photo actions"}
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
-                                                                        setPhotoActionItem(photo);
+                                                                        isVideo ? setVideoActionItem(photo) : setPhotoActionItem(photo);
                                                                     }}
-                                                                    className="p-2.5 bg-slate-800/90 backdrop-blur-md rounded-xl text-white shadow-lg opacity-0 transition-all active:scale-90 group-hover:opacity-100 hover:bg-slate-700"
+                                                                    className="p-2.5 bg-slate-800/90 backdrop-blur-md rounded-xl text-white shadow-lg transition-all active:scale-90 hover:bg-slate-700"
                                                                 >
                                                                     <MoreHorizontal className="w-4 h-4" />
                                                                 </button>
                                                             </Tooltip>
                                                         </div>
-                                                        )}
                                                         <div className="absolute top-3 right-14 z-10">
                                                             <Tooltip text={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}>
                                                                     <button
@@ -5272,7 +5276,7 @@ function DashboardContent() {
                                                                     </button>
                                                             </Tooltip>
                                                         </div>
-                                                        <div className="absolute top-3 right-3 z-10">
+                                                        {!isVideo && (<div className="absolute top-3 right-3 z-10">
                                                             <Tooltip text={isVideo ? "Delete Video" : "Delete Image"}>
                                                                 <button
                                                                     onClick={(e) => {
@@ -5284,7 +5288,7 @@ function DashboardContent() {
                                                                     <Trash2 className="w-4 h-4" />
                                                                 </button>
                                                             </Tooltip>
-                                                        </div>
+                                                        </div>)}
                                                         {!isFavouriteFilterActive && activeGalleryItems.length > 1 && (
                                                             <div className="absolute bottom-3 left-3 z-10 flex overflow-hidden rounded-full border border-slate-700 bg-slate-950/80 text-white shadow-lg backdrop-blur-md">
                                                                 <button
@@ -5534,16 +5538,15 @@ function DashboardContent() {
                                                                                         </button>
                                                                                     </div>
                                                                                 )}
-                                                                                {!isVideo && (
-                                                                                <Tooltip text="Photo actions">
+                                                                                <Tooltip text={isVideo ? "Video actions" : "Photo actions"}>
                                                                                     <button
-                                                                                        onClick={() => setPhotoActionItem(photo)}
+                                                                                        aria-label={isVideo ? "Video actions" : "Photo actions"}
+                                                                                        onClick={() => isVideo ? setVideoActionItem(photo) : setPhotoActionItem(photo)}
                                                                                         className="p-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 transition-all active:scale-95 hover:bg-slate-700 hover:text-white"
                                                                                     >
                                                                                         <MoreHorizontal className="w-4 h-4" />
                                                                                     </button>
                                                                                 </Tooltip>
-                                                                                )}
                                                                                 <Tooltip text={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}>
                                                                                         <button
                                                                                             onClick={() => handleToggleEventFavourite(photo.id)}
@@ -6722,6 +6725,9 @@ function DashboardContent() {
                         }
                     }}
                 />
+
+                {videoActionItem && <VideoThumbnailActions ready={videoActionItem.status === "processed"} onClose={() => setVideoActionItem(null)} onChoose={() => { setThumbnailVideo(videoActionItem); setVideoActionItem(null); }} onDelete={() => { void handleDeletePhoto(videoActionItem.id); setVideoActionItem(null); }} />}
+                {thumbnailVideo && <VideoThumbnailPicker video={thumbnailVideo} onClose={() => setThumbnailVideo(null)} onSaved={(id, thumbnailUrl) => setCurrentEventPhotos(previous => previous.map(photo => photo.id === id ? { ...photo, thumbnailUrl } : photo))} />}
 
                 <AnimatePresence>
                     {photoActionItem && (

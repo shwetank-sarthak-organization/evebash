@@ -1,3 +1,4 @@
+import VideoThumbnailPicker, { type ThumbnailVideo } from '../../components/VideoThumbnailPicker';
 import { galleryActionText } from '../../constants/galleryContrast';
 import React, { useCallback, useEffect, useState } from 'react';
 import LoadingScreen from '@/components/LoadingScreen';
@@ -1041,6 +1042,9 @@ export default function EventDetailScreen() {
   const [photos, setPhotos] = useState<any[]>([]);
   const photosRef = React.useRef<any[]>([]);
   photosRef.current = photos;
+  const [videoActionItem, setVideoActionItem] = useState<ThumbnailVideo | null>(null);
+  const [thumbnailVideo, setThumbnailVideo] = useState<ThumbnailVideo | null>(null);
+  const [thumbnailSaving, setThumbnailSaving] = useState(false);
   const [mediaTotals, setMediaTotals] = useState({ photos: 0, videos: 0 });
   const [storageStats, setStorageStats] = useState<{ used: number; limit: number; label: string; percent: number } | null>(null);
   const [retainedMediaIds, setRetainedMediaIds] = useState<Set<string>>(new Set());
@@ -5164,13 +5168,16 @@ export default function EventDetailScreen() {
                                   width: 22,
                                   height: 22,
                                   borderRadius: 11,
-                                  backgroundColor: 'rgba(239,68,68,0.92)',
+                                  backgroundColor: 'rgba(15,23,42,0.92)',
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                 }}
-                                onPress={() => handleDeleteGalleryPhoto(video.id)}
+                                accessibilityRole="button"
+                                accessibilityLabel="Video actions"
+                                hitSlop={10}
+                                onPress={() => setVideoActionItem(video)}
                               >
-                                <IconSymbol name="trash.fill" size={10} color="#fff" />
+                                <IconSymbol name="ellipsis" size={14} color="#fff" />
                               </TouchableOpacity>
                               {!isFavouriteFilterActive && filteredVideoItems.length > 1 && (
                                 <View
@@ -5472,6 +5479,26 @@ export default function EventDetailScreen() {
                   )}
                 </View>
               )}
+
+              {/* Video actions and frame picker share one native modal. */}
+              <Modal visible={Boolean(videoActionItem || thumbnailVideo)} transparent animationType="slide" onRequestClose={() => { if (!thumbnailSaving) { setVideoActionItem(null); setThumbnailVideo(null); } }}>
+                {thumbnailVideo ? (
+                  <View style={{ flex: 1, backgroundColor: '#0f172a', paddingTop: insets.top, paddingBottom: insets.bottom }}>
+                    <VideoThumbnailPicker video={thumbnailVideo} onBusyChange={setThumbnailSaving} onClose={() => { setThumbnailVideo(null); setThumbnailSaving(false); }} onSaved={(id, thumbnailUrl) => setPhotos(previous => previous.map(photo => photo.id === id ? { ...photo, thumbnailUrl } : photo))} />
+                  </View>
+                ) : (
+                  <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
+                    <TouchableOpacity accessibilityLabel="Close video actions" style={{ flex: 1 }} onPress={() => setVideoActionItem(null)} />
+                    <View style={{ padding: 24, paddingBottom: 24 + insets.bottom, gap: 16, backgroundColor: '#0f172a', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+                      <Text accessibilityRole="header" style={{ color: '#fff', fontSize: 22, fontWeight: '700' }}>Video actions</Text>
+                      <TouchableOpacity accessibilityRole="button" disabled={videoActionItem?.status !== 'processed'} onPress={() => { setThumbnailVideo(videoActionItem); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, backgroundColor: '#CA9C68', opacity: videoActionItem?.status === 'processed' ? 1 : 0.4 }}><Text style={{ color: '#0f172a', fontWeight: '700' }}>Change thumbnail</Text></TouchableOpacity>
+                      {videoActionItem?.status !== 'processed' && <Text style={{ color: '#cbd5e1' }}>Available after video processing finishes.</Text>}
+                      <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) handleDeleteGalleryPhoto(videoActionItem.id); setVideoActionItem(null); }} style={{ padding: 16 }}><Text style={{ color: '#fca5a5' }}>Delete video</Text></TouchableOpacity>
+                      <TouchableOpacity accessibilityRole="button" onPress={() => setVideoActionItem(null)} style={{ padding: 16 }}><Text style={{ color: '#fff' }}>Cancel</Text></TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+              </Modal>
 
               {/* ── PREMIUM MEMBER PERMISSIONS MODAL ── */}
               <Modal visible={!!selectedGuest} transparent animationType="fade" onRequestClose={() => setSelectedGuest(null)}>
