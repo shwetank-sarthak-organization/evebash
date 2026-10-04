@@ -22,7 +22,9 @@ export async function saveVideoThumbnail(userId: string, body: Record<string, un
   const id = typeof body.photoId === 'string' ? body.photoId.trim()
     : typeof body.photoId === 'number' && Number.isSafeInteger(body.photoId) && body.photoId > 0
       ? String(body.photoId) : '';
-  if (!id || id.length > 200) throw new ThumbnailError(400, 'A valid video ID is required');
+  // IDs are storage keys with slashes replaced, including the original filename.
+  // Existing video IDs exceed 200 characters; allow full storage-derived IDs.
+  if (!id || id.length > 4096) throw new ThumbnailError(400, 'A valid video ID is required');
   const media = await deps.load(id);
   if (!media) throw new ThumbnailError(404, 'Video not found');
   if (!await deps.canEdit(media, userId)) throw new ThumbnailError(403, 'You cannot change this video thumbnail');

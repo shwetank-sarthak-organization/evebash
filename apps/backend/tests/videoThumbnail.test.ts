@@ -78,3 +78,15 @@ test('rejects missing, malformed and unsafe IDs before database access', async (
     await rejectsStatus(saveVideoThumbnail('owner', { photoId }, f.deps), 400);
   }
 });
+
+test('accepts long storage-derived video IDs without truncation', async () => {
+  for (const length of [201, 219, 1024]) {
+    const prefix = 'events_event-1_videos_';
+    const id = prefix + 'a'.repeat(length - prefix.length - 4) + '.mp4';
+    assert.equal(id.length, length);
+    const f = fixture({ load: async requestedId => { assert.equal(requestedId, id); return { ...sample, id }; } });
+    const result = await saveVideoThumbnail('owner', { ...await input(), photoId: id }, f.deps);
+    assert.equal(result.photoId, id);
+    assert.equal(f.committed.length, 1);
+  }
+});
