@@ -63,3 +63,18 @@ test('replaces only a custom thumbnail belonging to this video', async () => {
   await saveVideoThumbnail('owner', { ...await input(), previousThumbnailUrl: previous }, f.deps);
   assert.deepEqual(f.removed, [key]);
 });
+
+test('accepts numeric database IDs and normalizes them before lookup', async () => {
+  let lookedUp = '';
+  const f = fixture({ load: async id => { lookedUp = id; return { ...sample, id }; } });
+  const result = await saveVideoThumbnail('owner', { ...await input(), photoId: 12345 }, f.deps);
+  assert.equal(lookedUp, '12345');
+  assert.equal(result.photoId, '12345');
+  assert.equal(f.committed.length, 1);
+});
+test('rejects missing, malformed and unsafe IDs before database access', async () => {
+  const f = fixture({ load: async () => { assert.fail('invalid ID must not query database'); } });
+  for (const photoId of [undefined, null, '', '   ', {}, [], true, -1, 0, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+    await rejectsStatus(saveVideoThumbnail('owner', { photoId }, f.deps), 400);
+  }
+});

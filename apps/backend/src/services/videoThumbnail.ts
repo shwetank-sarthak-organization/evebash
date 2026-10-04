@@ -18,7 +18,10 @@ export type ThumbnailDependencies = {
 
 // User input never determines the bucket, destination path, or remote URL to fetch.
 export async function saveVideoThumbnail(userId: string, body: Record<string, unknown>, deps: ThumbnailDependencies) {
-  const id = typeof body.photoId === 'string' ? body.photoId.trim() : '';
+  // Supabase may return numeric primary keys even when the client model declares a string.
+  const id = typeof body.photoId === 'string' ? body.photoId.trim()
+    : typeof body.photoId === 'number' && Number.isSafeInteger(body.photoId) && body.photoId > 0
+      ? String(body.photoId) : '';
   if (!id || id.length > 200) throw new ThumbnailError(400, 'A valid video ID is required');
   const media = await deps.load(id);
   if (!media) throw new ThumbnailError(404, 'Video not found');
