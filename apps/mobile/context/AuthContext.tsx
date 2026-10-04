@@ -1,3 +1,4 @@
+import { PolicyAcceptanceGate } from "../components/PolicyAcceptanceGate";
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
@@ -568,7 +569,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ user, loading, login, signup, authWithPhone, loginWithGoogle, loginWithApple, resetPassword, logout }}>
-      {children}
+      <PolicyAcceptanceGate userId={user?.uid} onSignOut={logout}>{children}</PolicyAcceptanceGate>
     </AuthContext.Provider>
   );
 }

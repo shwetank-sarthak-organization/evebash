@@ -1,5 +1,7 @@
 "use client";
 
+import { POLICY_PENDING_KEY, acceptanceIntent } from "../../../../shared/legal/acceptance";
+
 import React, { useState, Suspense } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -16,6 +18,7 @@ function LoginContent() {
     const [error, setError] = useState("");
     const [status, setStatus] = useState<"idle" | "loading">("idle");
     const [isSignUp, setIsSignUp] = useState(false);
+    const [policiesAccepted, setPoliciesAccepted] = useState(false);
     const [authMethod, setAuthMethod] = useState<"email" | "phone">("email");
     const [showPass, setShowPass] = useState(false);
     const [verificationMessage, setVerificationMessage] = useState("");
@@ -61,6 +64,7 @@ function LoginContent() {
 
     const toggleMode = () => {
         setIsSignUp((v) => !v);
+        setPoliciesAccepted(false);
         setError("");
         setVerificationMessage("");
         setName("");
@@ -95,6 +99,7 @@ function LoginContent() {
         }
 
         if (isSignUp) {
+            if (!policiesAccepted) { setError("Please accept the Terms and acknowledge the Privacy Policy."); return; }
             if (!isPassValid) {
                 setError("Please meet all password requirements.");
                 return;
@@ -113,6 +118,8 @@ function LoginContent() {
 
         try {
             if (isSignUp) {
+                const identity = isPhoneAuth ? `${phone.replace(/\D/g, "")}@phone-login.local` : email;
+                try { sessionStorage.setItem(POLICY_PENDING_KEY, acceptanceIntent(identity)); } catch { /* Confirm after login if storage is unavailable. */ }
                 const result = isPhoneAuth
                     ? await authWithPhone(name, phone, password)
                     : await signup(email, password, name);
@@ -127,6 +134,7 @@ function LoginContent() {
                         router.push(returnTo || "/dashboard");
                     }
                 } else {
+                    try { sessionStorage.removeItem(POLICY_PENDING_KEY); } catch { /* Best effort. */ }
                     setError(result.error || "Failed to create account. Please check your details.");
                     setStatus("idle");
                 }
@@ -332,9 +340,10 @@ function LoginContent() {
                             </div>
                         )}
 
+                        {isSignUp && <label className="my-4 flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" checked={policiesAccepted} onChange={e => setPoliciesAccepted(e.target.checked)} className="mt-1 h-5 w-5 shrink-0" /><span>I agree to the <a href="/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="underline">Terms &amp; Conditions</a> and acknowledge the <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="underline">Privacy Policy</a>.</span></label>}
                         <button
                             type="submit"
-                            disabled={status !== "idle" || (isSignUp && (!isPassValid || (password !== confirmPassword)))}
+                            disabled={status !== "idle" || (isSignUp && (!policiesAccepted || !isPassValid || (password !== confirmPassword)))}
                             className="w-full py-3.5 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-white rounded-xl font-bold text-[15px] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 focus:ring-offset-slate-900 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 mt-2"
                         >
                             {status === "loading" ? (

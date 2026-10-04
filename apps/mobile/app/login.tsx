@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { POLICY_PENDING_KEY, acceptanceIntent } from '../../../shared/legal/acceptance';
 import React, { useState } from 'react';
 import {
   View,
@@ -30,6 +32,7 @@ export default function LoginScreen() {
   const router = useRouter();
 
   const [isSignUp, setIsSignUp] = useState(false);
+  const [policiesAccepted, setPoliciesAccepted] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -88,6 +91,7 @@ export default function LoginScreen() {
       return;
     }
     if (isSignUp) {
+      if (!policiesAccepted) { setError('Please accept the Terms and acknowledge the Privacy Policy.'); return; }
       if (!isPassValid) {
         setError('Please meet all password requirements.');
         return;
@@ -104,6 +108,7 @@ export default function LoginScreen() {
 
     setLoading(true);
     const loginId = isPhoneAuth ? `${phone.replace(/\D/g, '')}@phone-login.local` : email.trim();
+    if (isSignUp) await AsyncStorage.setItem(POLICY_PENDING_KEY, acceptanceIntent(loginId)).catch(() => undefined);
     const result = isSignUp
       ? isPhoneAuth
         ? await authWithPhone(name.trim(), phone.trim(), password)
@@ -118,6 +123,7 @@ export default function LoginScreen() {
         router.replace('/(tabs)/dashboard');
       }
     } else {
+      if (isSignUp) await AsyncStorage.removeItem(POLICY_PENDING_KEY).catch(() => undefined);
       setError(result.error || 'Something went wrong.');
     }
   };
@@ -146,6 +152,7 @@ export default function LoginScreen() {
   };
   const toggleMode = () => {
     setIsSignUp((v) => !v);
+    setPoliciesAccepted(false);
     setError('');
     setVerificationMessage('');
     setName('');
@@ -352,10 +359,16 @@ export default function LoginScreen() {
               )}
 
               {/* Submit */}
+              {isSignUp && <View style={{ marginVertical: 16, gap: 12 }}>
+                <TouchableOpacity accessibilityRole="checkbox" accessibilityState={{ checked: policiesAccepted }} onPress={() => setPoliciesAccepted(!policiesAccepted)} style={{ flexDirection: 'row', gap: 10 }}>
+                  <Text style={{ color: LINK, fontSize: 22 }}>{policiesAccepted ? '☑' : '☐'}</Text><Text style={{ flex: 1, color: '#334155', lineHeight: 22 }}>I agree to the Terms &amp; Conditions and acknowledge the Privacy Policy.</Text>
+                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 20 }}><TouchableOpacity accessibilityRole="link" onPress={() => router.push('/terms-and-conditions')}><Text style={{ color: LINK, textDecorationLine: 'underline' }}>Terms &amp; Conditions</Text></TouchableOpacity><TouchableOpacity accessibilityRole="link" onPress={() => router.push('/privacy-policy')}><Text style={{ color: LINK, textDecorationLine: 'underline' }}>Privacy Policy</Text></TouchableOpacity></View>
+              </View>}
               <TouchableOpacity
-                style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+                style={[styles.submitBtn, (loading || (isSignUp && !policiesAccepted)) && styles.submitBtnDisabled]}
                 onPress={handleSubmit}
-                disabled={loading}
+                disabled={loading || (isSignUp && !policiesAccepted)}
                 activeOpacity={0.85}
               >
                 {loading ? (
@@ -407,7 +420,7 @@ export default function LoginScreen() {
 
             {/* Footer */}
             <Text style={styles.footer}>
-              By continuing, you agree to our{' '}
+              Review our{' '}
               <Text style={styles.footerLink} onPress={() => router.push('/terms-and-conditions')}>Terms</Text>
               {' '}and{' '}
               <Text style={styles.footerLink} onPress={() => router.push('/privacy-policy')}>Privacy Policy</Text>.
