@@ -43,6 +43,23 @@ media_image = (
     )
 )
 
+def _cost_tuning_enabled() -> bool:
+    """
+    MODAL_COST_TUNING=true in the root .env turns on the cost-tuned container settings
+    (shorter idle windows, more FaceIndexer containers). Unset keeps the previous settings.
+    Read from the .env at deploy time; containers get the same value through the Modal secret.
+    """
+    value = os.environ.get("MODAL_COST_TUNING")
+    if value is None and modal.is_local():
+        try:
+            from dotenv import dotenv_values
+            value = dotenv_values(os.path.join(os.path.dirname(__file__), "../.env")).get("MODAL_COST_TUNING")
+        except Exception:
+            value = None
+    return (value or "").strip().lower() == "true"
+
+COST_TUNING = _cost_tuning_enabled()
+
 def verify_qstash_signature(body: bytes, signature: str, url: str) -> bool:
     """
     Verifies Upstash-Signature JWT header against raw body bytes.
@@ -694,8 +711,8 @@ async def face_index_ingress(request: fastapi.Request):
     image=image,
     cpu=1.0,
     memory=2048,
-    max_containers=4,
-    scaledown_window=300,
+    max_containers=12 if COST_TUNING else 4,
+    scaledown_window=45 if COST_TUNING else 300,
     retries=0,
     secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
 )
@@ -890,6 +907,8 @@ def _close_outbox_row_if_unrunnable(supabase, row: dict, photo: dict) -> bool:
 @app.function(
     image=media_image,
     schedule=modal.Cron("* * * * *"),
+    # Runs every minute, so the default 60s idle window kept this container billed nonstop
+    scaledown_window=2 if COST_TUNING else None,
     secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
 )
 def sweep_stuck_jobs():
@@ -1040,6 +1059,8 @@ def sweep_stuck_jobs():
 @app.function(
     image=media_image,
     schedule=modal.Cron("*/1 * * * *"),
+    # Runs every minute, so the default 60s idle window kept this container billed nonstop
+    scaledown_window=2 if COST_TUNING else None,
     secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
 )
 def dispatch_outbox_jobs():
@@ -1364,7 +1385,7 @@ def _notify_video_processed(photo_id: str):
     except Exception as e:
         print(f"[TranscodeVideo] Video-ready callback failed for {photo_id} (non-fatal): {e}")
 
-def _transcode_video_core(request: dict, hardware="cpu"):
+def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_gb=None, function_name=None):
     import boto3
     import tempfile
     import pathlib
@@ -1680,8 +1701,8 @@ def _transcode_video_core(request: dict, hardware="cpu"):
 
         # 7. Log infrastructure cost
         duration = time.time() - start_time
-        cpu_cores = 4.0
-        memory_gb = 8.0 if hardware == "gpu" else 4.0
+        memory_gb = memory_gb or (8.0 if hardware == "gpu" else 4.0)
+        function_name = function_name or f"process_video_{hardware}"
         gpu_type = "l4" if hardware == "gpu" else "None"
         gpu_cost_rate = 0.0222 if hardware == "gpu" else 0.0
         estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222) + gpu_cost_rate)
@@ -1711,13 +1732,18 @@ def _transcode_video_core(request: dict, hardware="cpu"):
                 pass
 
         video_size = raw_video_path.stat().st_size if raw_video_path.exists() else None
-        worker_desc = f"Modal {'GPU' if hardware == 'gpu' else 'CPU'} Worker ({'NVIDIA L4 • 4 vCPU • 8GB RAM' if hardware == 'gpu' else '4 vCPU • 4GB RAM'})"
+        if hardware == "gpu":
+            worker_desc = "Modal GPU Worker (NVIDIA L4 • 4 vCPU • 8GB RAM)"
+        elif cpu_cores == 4.0:
+            worker_desc = "Modal CPU Worker (4 vCPU • 4GB RAM)"
+        else:
+            worker_desc = f"Modal CPU Worker ({cpu_cores:g} cores • {memory_gb:g}GB RAM)"
 
         try:
             video_log_payload = {
                 "photo_id":                photo_id,
                 "event_id":                event_id,
-                "function_name":           f"process_video_{hardware}",
+                "function_name":           function_name,
                 "worker_type":             worker_desc,
                 "media_type":              "video",
                 "media_size":              video_size,
@@ -1740,7 +1766,7 @@ def _transcode_video_core(request: dict, hardware="cpu"):
                 core_payload = {
                     "photo_id":                photo_id,
                     "event_id":                event_id,
-                    "function_name":           f"process_video_{hardware}",
+                    "function_name":           function_name,
                     "cpu_cores":               cpu_cores,
                     "memory_gb":               memory_gb,
                     "gpu_type":                gpu_type,
@@ -1771,23 +1797,40 @@ def _transcode_video_core(request: dict, hardware="cpu"):
     cpu=4.0,
     memory=4096,
     timeout=3600,
+    scaledown_window=10 if COST_TUNING else None,
     secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
 )
 @modal.fastapi_endpoint(method="POST")
 def process_video_cpu(request: dict):
     return _transcode_video_core(request, hardware="cpu")
 
+# Kept deployed as the rollback target while long videos move to process_video_cpu_long
 @app.function(
     image=transcode_image,
     gpu="l4",
     cpu=4.0,
     memory=8192,
     timeout=3600,
+    scaledown_window=10 if COST_TUNING else None,
     secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
 )
 @modal.fastapi_endpoint(method="POST")
 def process_video_gpu(request: dict):
     return _transcode_video_core(request, hardware="gpu")
+
+# Long videos (> 10 min) on 16 CPU cores: 1.6x faster and ~38% cheaper than the L4 path in the
+# Oct 2026 benchmark. Unused until the backend's MODAL_GPU_WEBHOOK_URL points here.
+@app.function(
+    image=transcode_image,
+    cpu=16.0,
+    memory=8192,
+    timeout=3600,
+    scaledown_window=10,
+    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+)
+@modal.fastapi_endpoint(method="POST")
+def process_video_cpu_long(request: dict):
+    return _transcode_video_core(request, hardware="cpu", cpu_cores=16.0, memory_gb=8.0, function_name="process_video_cpu_long")
 
 
 
