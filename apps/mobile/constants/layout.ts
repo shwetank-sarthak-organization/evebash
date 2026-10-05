@@ -29,3 +29,16 @@ export const Radius = {
   sheet: 28,
   pill: 999,
 } as const;
+
+/** Two-column event card grid shared by the Dashboard and Host tabs. */
+export const EventGrid = {
+  sidePadding: Spacing.page,
+  columnGap: Spacing.md,
+  rowGap: Spacing.md,
+  cardHeight: 185,
+  imageHeight: 115,
+  radius: Radius.lg,
+} as const;
+
+export const getEventGridCardWidth = (screenWidth: number) =>
+  (screenWidth - EventGrid.sidePadding * 2 - EventGrid.columnGap) / 2;

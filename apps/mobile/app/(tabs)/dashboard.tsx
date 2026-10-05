@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import {
   View,
   Text,
@@ -37,19 +36,20 @@ import { subscribeToUploadQueue, UploadQueueItem } from '@/lib/uploadQueue';
 import { markStartup } from '@/lib/startupTiming';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { EventGridCard } from '@/components/ui/EventGridCard';
 import type { IconSymbolName } from '@/components/ui/icon-symbol';
-import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { Image as ExpoImage } from 'expo-image';
 import CakeIcon from '@/components/icons/CakeIcon';
 import HandshakeIcon from '@/components/icons/HandshakeIcon';
-import { EveBashLogoBadge } from '@/components/EveBashLogo';
+import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { appAlert, showToast } from '@/lib/feedback';
 import { MidnightColors } from '@/constants/theme';
+import { EventGrid, getEventGridCardWidth } from '@/constants/layout';
 
 const { width, height } = Dimensions.get('window');
 
@@ -193,8 +193,6 @@ export default function DashboardScreen() {
   const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
-
-  const [hasUnreadChats, setHasUnreadChats] = useState(false);
 
   // Notification States
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -513,73 +511,6 @@ export default function DashboardScreen() {
     return () => unsubscribe();
   }, [dismissedNotifIds]);
 
-  useEffect(() => {
-    if (!user?.uid) {
-      setHasUnreadChats(false);
-      return;
-    }
-
-    let isMounted = true;
-
-    const checkUnreadChats = async () => {
-      try {
-        const { data: rooms, error: roomsErr } = await supabase
-          .from('chat_rooms')
-          .select('id, last_read, status')
-          .or(`client_uid.eq.${user.uid},vendor_uid.eq.${user.uid}`)
-          .eq('status', 'active');
-
-        if (roomsErr) throw roomsErr;
-        if (!rooms || rooms.length === 0) {
-          if (isMounted) setHasUnreadChats(false);
-          return;
-        }
-
-        const roomIds = rooms.map(r => r.id);
-
-        const { data: unreadMsgs, error: msgsErr } = await supabase
-          .from('messages')
-          .select('room_id, created_at, sender_id')
-          .in('room_id', roomIds)
-          .neq('sender_id', user.uid);
-
-        if (msgsErr) throw msgsErr;
-
-        const hasUnread = (rooms as any[]).some(room => {
-          const lastReadTimeStr = room.last_read?.[user.uid];
-          const lastReadTime = lastReadTimeStr ? new Date(lastReadTimeStr).getTime() : 0;
-
-          const roomMsgs = (unreadMsgs || []).filter(m => m.room_id === room.id);
-          return roomMsgs.some(msg => {
-            const msgTime = new Date(msg.created_at).getTime();
-            return msgTime > lastReadTime;
-          });
-        });
-
-        if (isMounted) setHasUnreadChats(hasUnread);
-      } catch (err) {
-        console.error("Error checking unread chats:", err);
-      }
-    };
-
-    checkUnreadChats();
-
-    const roomsChannel = supabase
-      .channel(`dashboard-chat-rooms-${user.uid}-${Math.random().toString(36).slice(2, 8)}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_rooms' }, () => {
-        checkUnreadChats();
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
-        checkUnreadChats();
-      })
-      .subscribe();
-
-    return () => {
-      isMounted = false;
-      supabase.removeChannel(roomsChannel);
-    };
-  }, [user?.uid]);
-
   const userRefreshRef = React.useRef(false);
   const onRefresh = () => {
     userRefreshRef.current = true;
@@ -604,45 +535,18 @@ export default function DashboardScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={MidnightColors.gold} />}
       >
         {/* ── HEADER ── */}
-        <LinearGradient
-          colors={isDark ? ['#151C22', '#22302F', MidnightColors.background] : [colors.deepSlate, colors.background]}
-          style={[styles.header, { paddingTop: insets.top + 4 }]}
-        >
-          <View style={styles.headerLeft}>
-            <TouchableOpacity
-              style={{ width: 24, height: 24, justifyContent: 'center', alignItems: 'center', position: 'relative' }}
-              activeOpacity={0.7}
+        <TabScreenHeader
+          title="Dashboard"
+          right={
+            <HeaderAction
               onPress={handleOpenNotifications}
-              accessibilityRole="button"
               accessibilityLabel={hasUnreadNotifications ? 'Notifications, new' : 'Notifications'}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              showBadge={hasUnreadNotifications}
             >
               <IconSymbol name="bell.fill" size={20} color={colors.gold} />
-              {hasUnreadNotifications && <View style={styles.unreadBadge} />}
-            </TouchableOpacity>
-          </View>
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <View style={styles.headingLogoRow}>
-              <EveBashLogoBadge />
-              <Text style={styles.headerTitle}>Dashboard</Text>
-            </View>
-          </View>
-          <View style={styles.headerRight}>
-            <TouchableOpacity
-              style={{ width: 24, height: 24, justifyContent: 'center', alignItems: 'center', position: 'relative' }}
-              activeOpacity={0.7}
-              onPress={() => router.push('/customer-chats')}
-              accessibilityRole="button"
-              accessibilityLabel={hasUnreadChats ? 'Messages, unread' : 'Messages'}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
-              <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <Path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" />
-              </Svg>
-              {hasUnreadChats && <View style={styles.unreadBadge} />}
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
+            </HeaderAction>
+          }
+        />
 
         {loading && !refreshing && events.length === 0
           ? (
@@ -657,7 +561,7 @@ export default function DashboardScreen() {
               <View style={styles.eventsGridContainer}>
                 {[0, 1, 2, 3].map((i) => (
                   <View key={i} style={[styles.aestheticEventCard, { overflow: 'hidden' }]}>
-                    <Skeleton height={100} radius={0} />
+                    <Skeleton height={EventGrid.imageHeight} radius={0} />
                     <View style={{ padding: 10, gap: 8 }}>
                       <Skeleton width="70%" height={12} />
                       <Skeleton width="45%" height={10} />
@@ -718,36 +622,14 @@ export default function DashboardScreen() {
                     const coverImage = resolveEventCoverImage(event.coverImage);
 
                     return (
-                      <TouchableOpacity
+                      <EventGridCard
                         key={event.id}
-                        style={styles.aestheticEventCard}
-                        activeOpacity={0.9}
+                        title={event.title}
+                        date={event.date}
+                        category={event.category}
+                        coverImage={coverImage}
                         onPress={() => router.push(`/events/${event.id}?mode=visitor`)}
-                      >
-                        {/* Top Part: Image Container */}
-                        <View style={styles.aestheticImageContainer}>
-                          <ExpoImage
-                            source={{ uri: coverImage }}
-                            style={StyleSheet.absoluteFill}
-                            contentFit="cover"
-                            contentPosition="center"
-                            transition={400}
-                          />
-                          <LinearGradient
-                            colors={['transparent', 'rgba(0,0,0,0.1)']}
-                            style={StyleSheet.absoluteFill}
-                          />
-                        </View>
-
-                      {/* Bottom Part: Text Details */}
-                      <View style={styles.aestheticTextContainer}>
-                        <Text style={styles.aestheticEventTitle} numberOfLines={1}>{event.title}</Text>
-                        <View style={styles.aestheticEventMeta}>
-                          <IconSymbol name="calendar" size={10} color={colors.gold} />
-                          <Text style={styles.aestheticEventDate}>{event.date}</Text>
-                        </View>
-                      </View>
-                      </TouchableOpacity>
+                      />
                     );
                   })}
 
@@ -806,9 +688,9 @@ export default function DashboardScreen() {
                     <Text style={styles.heroSubtitle}>
                       Create a stunning private gallery for weddings, parties or corporate meets.
                     </Text>
-                    <View style={styles.heroBtn}>
-                      <Text style={styles.heroBtnText}>Create Now</Text>
-                      <IconSymbol name="chevron.right" size={12} color="#ffffff" />
+                    <View style={[styles.catchyActionPill, { alignSelf: 'flex-start' }]}>
+                      <IconSymbol name="plus.circle.fill" size={12} color={MidnightColors.onAccent} />
+                      <Text style={styles.catchyActionPillText}>Create Now</Text>
                     </View>
                   </View>
                   <View style={styles.heroIconContainer}>
@@ -1426,8 +1308,7 @@ export default function DashboardScreen() {
 
 const CARD_W = width * 0.55;
 const CARD_H = 155;
-const DASHBOARD_GRID_SIDE_PADDING = 24;
-const DASHBOARD_GRID_ITEM_WIDTH = '48%' as const;
+const EVENT_CARD_W = getEventGridCardWidth(width);
 
 const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
@@ -1435,23 +1316,6 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   container: { flex: 1, backgroundColor: colors.background },
 
   // ── Header ──
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 20,
-    backgroundColor: colors.background,
-    gap: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: isDark ? 0.3 : 0.05,
-    shadowRadius: 10,
-    elevation: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(202, 156, 104, 0.12)',
-  },
   greetingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   greeting: { fontSize: 13, color: colors.slate400, fontFamily: 'Inter_500Medium', textTransform: 'uppercase', letterSpacing: 1.2 },
   datePill: {
@@ -1461,8 +1325,6 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20,
   },
   datePillText: { fontSize: 10, color: colors.gold, fontFamily: 'Outfit_700Bold', letterSpacing: 0.3 },
-  headerTitle: { fontSize: 28, lineHeight: 38, fontFamily: 'AkayaKanadakaHeader_400Regular', color: colors.white, letterSpacing: 0.5, textAlign: 'center', includeFontPadding: false },
-  headingLogoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 38 },
   avatarRingHeader: {
     padding: 3, borderRadius: 30,
     borderWidth: 1.5, borderColor: colors.gold,
@@ -1475,27 +1337,6 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   },
   avatarFallbackText: {
     fontSize: 22, color: colors.gold, fontFamily: 'Outfit_800ExtraBold',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  headerIconButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
   },
   notificationBadge: {
     position: 'absolute',
@@ -1557,9 +1398,9 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     alignItems: 'center',
     gap: 4,
     backgroundColor: colors.gold,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: isDark ? 0.2 : 0.05,
@@ -1567,7 +1408,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     elevation: 4,
   },
   catchyActionPillText: {
-    fontSize: 10,
+    fontSize: 12,
     color: colors.onAccent,
     fontFamily: 'Outfit_800ExtraBold',
     textTransform: 'uppercase',
@@ -1678,23 +1519,6 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     fontFamily: 'Inter_400Regular',
     marginBottom: 12,
     lineHeight: 16,
-  },
-  heroBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(202, 156, 104, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(202, 156, 104, 0.18)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  heroBtnText: {
-    color: isDark ? '#ffffff' : colors.deepSlate,
-    fontSize: 12,
-    fontFamily: 'Outfit_700Bold',
   },
   // ── How to Host Button ──
   howToHostBtn: {
@@ -1876,7 +1700,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignSelf: 'stretch',
-    paddingHorizontal: DASHBOARD_GRID_SIDE_PADDING,
+    paddingHorizontal: EventGrid.sidePadding,
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     paddingBottom: 10,
@@ -2024,20 +1848,11 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  unreadBadge: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.gold,
-  },
   aestheticEventCard: {
-    width: DASHBOARD_GRID_ITEM_WIDTH,
-    height: 168,
-    borderRadius: 18,
-    marginBottom: 14,
+    width: EVENT_CARD_W,
+    height: EventGrid.cardHeight,
+    borderRadius: EventGrid.radius,
+    marginBottom: EventGrid.rowGap,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(202, 156, 104, 0.16)',
@@ -2048,44 +1863,13 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     shadowRadius: 10,
     elevation: 6,
   },
-  aestheticImageContainer: {
-    width: '100%',
-    height: 100,
-    backgroundColor: colors.surface,
-    position: 'relative',
-  },
-  aestheticTextContainer: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    justifyContent: 'center',
-    flex: 1,
-    backgroundColor: isDark ? 'rgba(14, 20, 26, 0.96)' : '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(202, 156, 104, 0.08)',
-  },
-  aestheticEventTitle: {
-    fontSize: 13,
-    color: colors.white,
-    fontFamily: 'Outfit_700Bold',
-  },
-  aestheticEventMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
-  },
-  aestheticEventDate: {
-    fontSize: 10,
-    color: colors.slate400,
-    fontFamily: 'Inter_500Medium',
-  },
 
   // Explore Card
   aestheticExploreCard: {
-    width: DASHBOARD_GRID_ITEM_WIDTH,
-    height: 168,
-    borderRadius: 18,
-    marginBottom: 14,
+    width: EVENT_CARD_W,
+    height: EventGrid.cardHeight,
+    borderRadius: EventGrid.radius,
+    marginBottom: EventGrid.rowGap,
     overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: 'rgba(202, 156, 104, 0.2)',

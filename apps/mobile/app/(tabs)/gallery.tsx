@@ -21,8 +21,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Image as ExpoImage } from 'expo-image';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { EventGridCard } from '@/components/ui/EventGridCard';
 import Svg, { Path, Rect, Line } from 'react-native-svg';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
@@ -30,8 +30,9 @@ import { formatStorageSize, getPlanDetails, getUsagePercent } from '@/lib/planLi
 import { EVENT_PLACEHOLDER_IMAGES, resolveEventCoverImage } from '@/lib/eventCovers';
 import { supabase } from '@/lib/supabase';
 import { MidnightColors, Fonts } from '../../constants/theme';
+import { EventGrid, getEventGridCardWidth } from '../../constants/layout';
 import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory } from '../../constants/templates';
-import { EveBashLogoBadge } from '@/components/EveBashLogo';
+import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -508,7 +509,6 @@ export default function PortfolioTabScreen() {
     }
   };
 
-  const showQuotaAlert = () => setShowQuotaModal(true);
   const pendingGuestRequests = guestLogs.filter(log => log.status === 'pending');
   const pendingRequestsByEvent = Object.entries(
     pendingGuestRequests.reduce<Record<string, GuestLog[]>>((groups, log) => {
@@ -529,48 +529,23 @@ export default function PortfolioTabScreen() {
         : { name: 'Unknown owner', email: 'Unknown', username: 'Not set' };
 
     return (
-      <TouchableOpacity
+      <EventGridCard
         key={event.id}
-        style={[styles.eventCard, isSharedCard && styles.sharedEventCard]}
-        activeOpacity={0.9}
+        title={event.title}
+        date={event.date}
+        category={event.category}
+        coverImage={coverImage}
+        tall={isSharedCard}
         onPress={() => router.push(`/events/${event.id}?mode=admin`)}
       >
-        {/* Top Part: Image Container */}
-        <View style={[styles.cardImageWrap, isSharedCard && styles.sharedCardImageWrap]}>
-          <ExpoImage
-            source={{ uri: coverImage }}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            contentPosition="center"
-            transition={400}
-          />
-          <LinearGradient
-            colors={['rgba(19, 25, 31,0.15)', 'transparent']}
-            style={StyleSheet.absoluteFill}
-          />
-          {event.category ? (
-            <View style={styles.cardCategoryBadge}>
-              <Text style={styles.cardCategoryText}>{event.category.toUpperCase()}</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {/* Bottom Part: Text Details */}
-        <View style={styles.cardInfoStrip}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{event.title}</Text>
-          <View style={styles.cardMeta}>
-            <IconSymbol name="calendar" size={10} color={colors.gold} />
-            <Text style={styles.cardDate}>{event.date}</Text>
+        {isSharedCard && (
+          <View style={styles.sharedOwnerBlock}>
+            <Text style={styles.sharedOwnerLine}>
+              <Text style={styles.sharedOwnerLabel}>Owner username: </Text>{(ownerDetails.username || 'not set').toLowerCase()}
+            </Text>
           </View>
-          {isSharedCard && (
-            <View style={styles.sharedOwnerBlock}>
-              <Text style={styles.sharedOwnerLine}>
-                <Text style={styles.sharedOwnerLabel}>Owner username: </Text>{(ownerDetails.username || 'not set').toLowerCase()}
-              </Text>
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
+        )}
+      </EventGridCard>
     );
   };
 
@@ -588,46 +563,17 @@ export default function PortfolioTabScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {/* ── HEADER ── */}
-        <LinearGradient
-          colors={isDark ? [MidnightColors.surface, MidnightColors.background] : [colors.deepSlate, colors.background]}
-          style={[styles.header, { paddingTop: insets.top + 4 }]}
-        >
-          <View style={styles.headerLeft}>
-            <TouchableOpacity
-              style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }}
-              activeOpacity={0.7}
-              onPress={showQuotaAlert}
-              accessibilityRole="button"
-              accessibilityLabel="Storage and plan usage"
-            >
-              <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <Rect width={20} height={8} x={2} y={2} rx={2} ry={2} />
-                <Rect width={20} height={8} x={2} y={14} rx={2} ry={2} />
-                <Line x1={6} x2={6.01} y1={6} y2={6} />
-                <Line x1={6} x2={6.01} y1={18} y2={18} />
-              </Svg>
-            </TouchableOpacity>
-          </View>
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <View style={styles.headingLogoRow}>
-              <EveBashLogoBadge />
-              <Text style={styles.headerName}>Host</Text>
-            </View>
-          </View>
-          <View style={styles.headerRight}>
-            <TouchableOpacity
-              style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }}
-              onPress={() => setCreateModalVisible(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Create event"
-            >
-              <Svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <TabScreenHeader
+          title="Host"
+          right={
+            <HeaderAction onPress={() => setCreateModalVisible(true)} accessibilityLabel="Create event">
+              <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <Path d="M5 12h14" />
                 <Path d="M12 5v14" />
               </Svg>
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
+            </HeaderAction>
+          }
+        />
 
 
         {/* ── TABS (Segmented Control Style) ── */}
@@ -682,7 +628,7 @@ export default function PortfolioTabScreen() {
           <View style={styles.grid} accessible accessibilityLabel="Loading your events">
             {[0, 1, 2, 3].map((i) => (
               <View key={i} style={styles.eventCard}>
-                <Skeleton height={120} radius={0} />
+                <Skeleton height={EventGrid.imageHeight} radius={0} />
                 <View style={{ padding: 12, gap: 8 }}>
                   <Skeleton width="70%" height={13} />
                   <Skeleton width="50%" height={10} />
@@ -1504,40 +1450,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   },
 
   // Header
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(202, 156, 104, 0.12)',
-  },
-  headerLeft: {
-    width: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-  },
-  headerRight: {
-    width: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  unreadBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.gold,
-  },
   headerGreeting: { fontSize: 15, color: colors.slate400, fontFamily: 'AkayaKanadaka_400Regular', textAlign: 'center', marginTop: -18 },
-  headerName: { fontSize: 28, lineHeight: 38, color: colors.white, fontFamily: 'AkayaKanadakaHeader_400Regular', letterSpacing: 0.5, textAlign: 'center', includeFontPadding: false },
-  headingLogoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 38 },
   createBtnHeader: {
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -1590,76 +1503,21 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   tabTextActive: { color: colors.gold, fontFamily: Fonts.inter.bold },
 
   // Grid
-  grid: { paddingHorizontal: 16, paddingTop: 16, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start' },
+  grid: { paddingHorizontal: EventGrid.sidePadding, paddingTop: 16, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start' },
   eventCard: {
-    width: (width - 44) / 2,
-    height: 185,
-    borderRadius: 16,
+    width: getEventGridCardWidth(width),
+    height: EventGrid.cardHeight,
+    borderRadius: EventGrid.radius,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(202, 156, 104,0.14)',
     backgroundColor: isDark ? colors.surface : '#ffffff',
-    marginBottom: 12,
+    marginBottom: EventGrid.rowGap,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 10,
     elevation: 6,
-  },
-  sharedEventCard: {
-    height: 260,
-  },
-  cardImageWrap: {
-    width: '100%',
-    height: 115,
-    backgroundColor: isDark ? colors.surface : '#f1f5f9',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  sharedCardImageWrap: {
-    height: 160,
-  },
-  cardCategoryBadge: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    backgroundColor: 'rgba(19, 25, 31,0.65)',
-    borderWidth: 1,
-    borderColor: 'rgba(202, 156, 104,0.3)',
-    borderRadius: 8,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-  },
-  cardCategoryText: {
-    fontSize: 10,
-    color: colors.gold,
-    fontFamily: Fonts.inter.bold,
-    letterSpacing: 0.7,
-  },
-  cardInfoStrip: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    justifyContent: 'center',
-    flex: 1,
-    backgroundColor: isDark ? colors.surface : '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(202, 156, 104, 0.08)',
-  },
-  cardTitle: {
-    fontSize: 14,
-    color: colors.white,
-    fontFamily: Fonts.outfit.bold,
-  },
-  cardMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
-  },
-  cardDate: {
-    fontSize: 11,
-    color: colors.slate400,
-    fontFamily: Fonts.inter.medium,
   },
   sharedOwnerBlock: {
     marginTop: 8,

@@ -13,11 +13,11 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
-import { EveBashLogo } from '@/components/EveBashLogo';
+import { MidnightColors } from '@/constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -165,25 +165,25 @@ export default function LoginScreen() {
     setConfirmPassword('');
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
     <LinearGradient colors={['#1B211F', '#2B2F2E', '#594C3D']} style={styles.gradient}>
-      <SafeAreaView style={styles.safe}>
+      {/* Bottom inset is applied inside the scroll so the card isn't clipped above the nav bar */}
+      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.kav}
         >
           <ScrollView
-            contentContainerStyle={styles.scroll}
+            contentContainerStyle={[styles.scroll, { paddingBottom: 88 + insets.bottom }]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
             {/* Logo / Brand */}
             <View style={styles.brandContainer}>
-              <View style={styles.logoRing}>
-                <EveBashLogo size={46} />
-              </View>
               <Text style={styles.brandName}>EveBash</Text>
-              <Text style={styles.brandTagline}>Your event memories, beautifully preserved</Text>
+              <Text style={styles.brandTagline}>Celebrate. Capture. Connect.</Text>
             </View>
 
             {/* Card */}
@@ -378,7 +378,7 @@ export default function LoginScreen() {
                 accessibilityState={{ disabled: anyLoading || (isSignUp && !policiesAccepted), busy: loading }}
               >
                 {loading ? (
-                  <ActivityIndicator color="#ffffff" size="small" />
+                  <ActivityIndicator color={MidnightColors.gold} size="small" />
                 ) : (
                   <Text style={styles.submitText}>{isSignUp ? 'Create Account' : 'Sign In'}</Text>
                 )}
@@ -456,40 +456,34 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 32,
+    paddingTop: 32,
+    // Extra bottom padding lifts the centred brand + card group
+    paddingBottom: 88,
     minHeight: height,
   },
 
   // Brand
   brandContainer: {
     alignItems: 'center',
-    marginBottom: 36,
-  },
-  logoRing: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(202, 156, 104,0.15)',
-    borderWidth: 2,
-    borderColor: 'rgba(202, 156, 104,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 24,
   },
   brandName: {
     fontFamily: 'AkayaKanadakaHeader_400Regular',
-    fontSize: 32,
-    lineHeight: 42,
+    fontSize: 44,
+    lineHeight: 54,
     includeFontPadding: false,
-    color: '#FFF7EB',
+    color: MidnightColors.gold,
     letterSpacing: 0.5,
     marginBottom: 6,
   },
   brandTagline: {
-    fontSize: 14,
+    fontFamily: 'AkayaKanadakaHeader_400Regular',
+    fontSize: 18,
+    lineHeight: 24,
+    includeFontPadding: false,
     color: '#CDB89E',
-    fontWeight: '400',
     letterSpacing: 0.3,
+    textAlign: 'center',
   },
 
   // Card
@@ -538,7 +532,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   segmentTextActive: {
-    color: '#ffffff',
+    color: MidnightColors.gold,
   },
 
   // Fields
@@ -650,7 +644,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   submitText: {
-    color: '#ffffff',
+    color: MidnightColors.gold,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.3,

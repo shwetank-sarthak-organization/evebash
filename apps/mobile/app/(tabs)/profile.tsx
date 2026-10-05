@@ -11,7 +11,6 @@ import {
   Modal,
   TextInput,
   } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
@@ -33,7 +32,7 @@ import {
 import { removeProfileImage, uploadProfileImage } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { getPlanDetails } from '@/lib/planLimits';
-import { EveBashLogoBadge } from '@/components/EveBashLogo';
+import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
 import { APP_VERSION } from '@/lib/appVersion';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -145,7 +144,6 @@ export default function ProfileScreen() {
   const { colors, isDark } = useAppTheme();
   const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const [isPrivate, setIsPrivate] = useState(user?.isPrivate || false);
   const [updatingPrivacy, setUpdatingPrivacy] = useState(false);
 
@@ -465,30 +463,15 @@ export default function ProfileScreen() {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         
         {/* Profile Header */}
-        <LinearGradient
-          colors={[colors.deepSlate, colors.background]}
-          style={[styles.header, { paddingTop: insets.top + 2 }]}
-        >
-          <View style={styles.profileHeaderBar}>
-            <View style={styles.profileHeaderSide} />
-            <View style={styles.profileHeaderTitleWrap}>
-              <View style={styles.headingLogoRow}>
-                <EveBashLogoBadge />
-                <Text style={styles.headerTitle}>Profile</Text>
-              </View>
-            </View>
-            <View style={styles.profileHeaderSide}>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => router.push('/settings' as any)}
-                style={styles.settingsBtn}
-                accessibilityRole="button"
-                accessibilityLabel="Settings"
-              >
-                <SettingsIcon size={22} color={MidnightColors.gold} />
-              </TouchableOpacity>
-            </View>
-          </View>
+        <TabScreenHeader
+          title="Profile"
+          right={
+            <HeaderAction onPress={() => router.push('/settings' as any)} accessibilityLabel="Settings">
+              <SettingsIcon size={22} color={MidnightColors.gold} />
+            </HeaderAction>
+          }
+        />
+        <View style={styles.header}>
           <View style={styles.profileRow}>
             <View style={styles.avatarRing}>
               {user.profileImage ? (
@@ -525,7 +508,7 @@ export default function ProfileScreen() {
               </View>
             </View>
           </View>
-        </LinearGradient>
+        </View>
 
         <View style={styles.content}>
           
@@ -1074,46 +1057,10 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   container: { 
     flex: 1 
   },
-  header: { 
+  header: {
     position: 'relative',
-    paddingTop: 12,
+    paddingTop: 22,
     paddingBottom: 20,
-  },
-  profileHeaderBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    marginBottom: 22,
-    gap: 14,
-  },
-  profileHeaderSide: {
-    width: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  profileHeaderTitleWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 28,
-    lineHeight: 38,
-    fontFamily: 'AkayaKanadakaHeader_400Regular',
-    color: colors.white,
-    letterSpacing: 0.5,
-    textAlign: 'center',
-    includeFontPadding: false,
-  },
-  headingLogoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 38 },
-  settingsBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
   },
   profileRow: { 
     flexDirection: 'row', 

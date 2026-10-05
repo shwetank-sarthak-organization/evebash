@@ -10,9 +10,9 @@ import {
   View,
   type KeyboardTypeOptions,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
 import { Button } from '@/components/ui/Button';
+import { TabScreenHeader } from '@/components/ui/TabScreenHeader';
 import { useAppTheme } from '@/context/ThemeContext';
 import { MidnightColors } from '@/constants/theme';
 
@@ -48,7 +48,6 @@ type FormField = keyof typeof EMPTY_FORM;
 
 export default function VendorsScreen() {
   const { colors, isDark } = useAppTheme();
-  const insets = useSafeAreaInsets();
   const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [category, setCategory] = useState<string>('');
@@ -125,9 +124,11 @@ export default function VendorsScreen() {
     <KeyboardAvoidingView style={styles.mainContainer} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={{ paddingTop: insets.top + 24, paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
       >
+        <TabScreenHeader title="Vendors" />
+
         <View style={styles.header}>
           <View style={styles.badge}>
             <IconSymbol name="sparkles" size={14} color={colors.gold} />
@@ -219,6 +220,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   },
   header: {
     paddingHorizontal: 24,
+    paddingTop: 24,
     paddingBottom: 24,
     alignItems: 'center',
   },

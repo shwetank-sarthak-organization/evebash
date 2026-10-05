@@ -4,6 +4,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { POLICY_VERSION, POLICY_PENDING_KEY, matchesAcceptanceIntent } from '../../../shared/legal/acceptance';
 
+// Per-user record of the policy version already accepted on this device, so returning
+// users aren't shown the gate while the server check runs. The server stays authoritative.
+const acceptedCacheKey = (userId: string) => `evebash.policy-accepted.${userId}`;
+const rememberAccepted = (userId: string) => AsyncStorage.setItem(acceptedCacheKey(userId), POLICY_VERSION).catch(() => undefined);
+
 export function PolicyAcceptanceGate({ userId, onSignOut, children }: { userId?: string; onSignOut: () => void; children: React.ReactNode }) {
   const [acceptedUser, setAcceptedUser] = useState('');
   const [checked, setChecked] = useState(false);
@@ -11,17 +16,31 @@ export function PolicyAcceptanceGate({ userId, onSignOut, children }: { userId?:
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
+  // Hold the gate until the local record is read, so accepted users don't see it flash
+  const [cacheChecked, setCacheChecked] = useState(false);
   const platform = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web';
   useEffect(() => {
     let active = true;
-    setAcceptedUser(''); setChecked(false); setReady(false); setError('');
+    setAcceptedUser(''); setChecked(false); setReady(false); setError(''); setCacheChecked(false);
     if (!userId) return;
+    let cachedAccepted = false;
     void (async () => {
+      cachedAccepted = (await AsyncStorage.getItem(acceptedCacheKey(userId)).catch(() => null)) === POLICY_VERSION;
+      if (active) { if (cachedAccepted) setAcceptedUser(userId); setCacheChecked(true); }
       const { data, error } = await supabase.rpc('get_policy_acceptance');
       if (error) throw error;
-      if (data?.version !== POLICY_VERSION || typeof data?.accepted !== 'boolean') throw new Error('Please update the app to review the latest policies.');
+      if (data?.version !== POLICY_VERSION || typeof data?.accepted !== 'boolean') {
+        // Policies changed on the server: the local record no longer counts, block as before
+        cachedAccepted = false;
+        if (active) setAcceptedUser('');
+        throw new Error('Please update the app to review the latest policies.');
+      }
       if (!active) return;
-      if (data.accepted) { setAcceptedUser(userId); return; }
+      if (data.accepted) { setAcceptedUser(userId); void rememberAccepted(userId); return; }
+      // Server says not accepted: drop any stale local record and show the gate
+      cachedAccepted = false;
+      await AsyncStorage.removeItem(acceptedCacheKey(userId)).catch(() => undefined);
+      if (active) setAcceptedUser('');
       const { data: sessionData } = await supabase.auth.getSession();
       const email = sessionData.session?.user.email;
       const intent = await AsyncStorage.getItem(POLICY_PENDING_KEY).catch(() => null);
@@ -29,9 +48,13 @@ export function PolicyAcceptanceGate({ userId, onSignOut, children }: { userId?:
         const { error: saveError } = await supabase.rpc('accept_current_policies', { p_version: POLICY_VERSION, p_platform: platform, p_accepted: true });
         if (saveError) throw saveError;
         await AsyncStorage.removeItem(POLICY_PENDING_KEY).catch(() => undefined);
+        void rememberAccepted(userId);
         if (active) setAcceptedUser(userId);
       } else if (active) setReady(true);
-    })().catch(() => { if (active) setError('We could not check your policy acceptance. Please retry.'); });
+    })().catch(() => {
+      // Previously accepted on this device: don't block on a failed check (e.g. offline)
+      if (active && !cachedAccepted) setError('We could not check your policy acceptance. Please retry.');
+    });
     return () => { active = false; };
   }, [userId, retry, platform]);
   const accept = async () => {
@@ -40,12 +63,13 @@ export function PolicyAcceptanceGate({ userId, onSignOut, children }: { userId?:
     try {
       const { error } = await supabase.rpc('accept_current_policies', { p_version: POLICY_VERSION, p_platform: platform, p_accepted: true });
       if (error) throw error;
+      void rememberAccepted(userId);
       setAcceptedUser(userId);
     } catch { setError('Your acceptance could not be saved. Please try again.'); }
     finally { setBusy(false); }
   };
   const open = (path: string) => { void Linking.openURL(`https://www.evebash.com/${path}`).catch(() => setError('Unable to open this policy. Please try again.')); };
-  return <>{children}<Modal visible={Boolean(userId && acceptedUser !== userId)} animationType="fade" onRequestClose={() => {}}>
+  return <>{children}<Modal visible={Boolean(userId && cacheChecked && acceptedUser !== userId)} animationType="fade" onRequestClose={() => {}}>
     <ScrollView style={{ flex: 1, backgroundColor: '#0f172a' }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 28, paddingVertical: 64 }}>
       <Text accessibilityRole="header" style={{ fontSize: 24, fontWeight: '700', color: '#fff' }}>Before you continue</Text>
       <Text style={{ color: '#cbd5e1', marginVertical: 20, lineHeight: 24 }}>Please review EveBash’s terms and privacy information. This does not grant optional permissions for Find You or marketing.</Text>
