@@ -1804,11 +1804,13 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
 def process_video_cpu(request: dict):
     return _transcode_video_core(request, hardware="cpu")
 
-# Kept deployed as the rollback target while long videos move to process_video_cpu_long
+# Long videos (> 10 min). The backend routes them to this URL, so the name stays until the backend
+# changes. With MODAL_COST_TUNING it runs on 16 CPU cores instead of an L4: 1.6x faster and ~38%
+# cheaper in the Oct 2026 benchmark (33-min 1080p60 video).
 @app.function(
     image=transcode_image,
-    gpu="l4",
-    cpu=4.0,
+    gpu=None if COST_TUNING else "l4",
+    cpu=16.0 if COST_TUNING else 4.0,
     memory=8192,
     timeout=3600,
     scaledown_window=10 if COST_TUNING else None,
@@ -1816,21 +1818,9 @@ def process_video_cpu(request: dict):
 )
 @modal.fastapi_endpoint(method="POST")
 def process_video_gpu(request: dict):
+    if COST_TUNING:
+        return _transcode_video_core(request, hardware="cpu", cpu_cores=16.0, memory_gb=8.0, function_name="process_video_cpu_long")
     return _transcode_video_core(request, hardware="gpu")
-
-# Long videos (> 10 min) on 16 CPU cores: 1.6x faster and ~38% cheaper than the L4 path in the
-# Oct 2026 benchmark. Unused until the backend's MODAL_GPU_WEBHOOK_URL points here.
-@app.function(
-    image=transcode_image,
-    cpu=16.0,
-    memory=8192,
-    timeout=3600,
-    scaledown_window=10,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
-)
-@modal.fastapi_endpoint(method="POST")
-def process_video_cpu_long(request: dict):
-    return _transcode_video_core(request, hardware="cpu", cpu_cores=16.0, memory_gb=8.0, function_name="process_video_cpu_long")
 
 
 
