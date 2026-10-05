@@ -204,8 +204,44 @@ def get_selfie_model():
     return _selfie_model
 
 
+def _hand_off_to_fast_pipeline(photos: list) -> dict:
+    """
+    Sends photos the 2-stage pipeline hasn't started yet (e.g. web uploads over 20 MB, which skip the
+    fast-media trigger) to process_photo_preview. Photos already in that pipeline are left alone instead
+    of being resized and face-indexed a second time by process_single_photo.
+    """
+    from supabase import create_client
+
+    ids = [p.get("id") for p in photos if isinstance(p, dict) and p.get("id")]
+    supabase = create_client(os.environ.get("NEXT_PUBLIC_SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_ROLE_KEY"))
+    handed_off = 0
+    for i in range(0, len(ids), 20):  # photo ids are long, so keep each request URL short
+        rows = (
+            supabase.table("photos")
+            .select("id, storage_key, event_id, user_id, asset_version")
+            .in_("id", ids[i:i + 20])
+            .eq("media_type", "photo")
+            .in_("media_status", ["pending", "failed"])
+            .lt("media_attempt", 3)
+            .execute()
+        ).data or []
+        for p in rows:
+            process_photo_preview.spawn({
+                "id": p["id"],
+                "photo_id": p["id"],
+                "storage_key": p.get("storage_key"),
+                "event_id": p.get("event_id"),
+                "user_id": p.get("user_id"),
+                "asset_version": p.get("asset_version") or 1,
+            })
+        handed_off += len(rows)
+    print(f"[Batch] {len(ids)} photo(s): {handed_off} handed to the 2-stage pipeline, {len(ids) - handed_off} already in it")
+    return {"status": "success", "processed": len(ids), "handed_off": handed_off}
+
+
 @app.function(
-    image=image,
+    # The cost-tuned path only hands photos off, so it doesn't need the face-recognition image
+    image=media_image if COST_TUNING else image,
     secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
 )
 @modal.fastapi_endpoint(method="POST")
@@ -220,6 +256,9 @@ def process_media_batch(request: dict):
     photos = request.get("photos", [])
     if not photos:
         return {"status": "no photos provided"}
+
+    if COST_TUNING:
+        return _hand_off_to_fast_pipeline(photos)
 
     results = list(process_single_photo.map(photos))
 
@@ -645,11 +684,16 @@ def process_photo_preview(photo_data: dict):
 
     except Exception as e:
         print(f"[{photo_id}] Fast Preview generation failed: {e}")
+        failed_update = {
+            "media_status": "failed",
+            "processing_error": str(e)[:1000]
+        }
+        error_code = (getattr(e, "response", None) or {}).get("Error", {}).get("Code")
+        if COST_TUNING and error_code in ("NoSuchKey", "404"):
+            # The original isn't in B2, so retrying can't succeed; use up the attempts now
+            failed_update["media_attempt"] = 3
         try:
-            supabase.table("photos").update({
-                "media_status": "failed",
-                "processing_error": str(e)[:1000]
-            }).eq("id", photo_id).execute()
+            supabase.table("photos").update(failed_update).eq("id", photo_id).execute()
         except Exception:
             pass
         return {"status": "error", "photo_id": photo_id, "error": str(e)}
@@ -904,16 +948,9 @@ def _close_outbox_row_if_unrunnable(supabase, row: dict, photo: dict) -> bool:
     return True
 
 
-@app.function(
-    image=media_image,
-    schedule=modal.Cron("* * * * *"),
-    # Runs every minute, so the default 60s idle window kept this container billed nonstop
-    scaledown_window=2 if COST_TUNING else None,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
-)
 def sweep_stuck_jobs():
     """
-    SELF-HEALING RECONCILER CRON (Runs every 60 seconds).
+    SELF-HEALING RECONCILER CRON (every minute; every 5 minutes inside run_media_maintenance with MODAL_COST_TUNING).
     Recovers any stuck or orphaned jobs across both Fast Media and Face AI paths.
     """
     import os
@@ -936,15 +973,17 @@ def sweep_stuck_jobs():
 
     # 1. Sweep stuck media jobs
     try:
-        res = (
+        query = (
             supabase.table("photos")
             .select("id, storage_key, event_id, user_id, asset_version, media_status, media_lease_until")
             .in_("media_status", ["pending", "failed", "processing"])
             .lt("media_attempt", 3)
             .lte("uploaded_at", two_min_ago)
-            .limit(100)
-            .execute()
         )
+        if COST_TUNING:
+            # Videos never get a media_status; without this they were sent to the photo worker 3 times
+            query = query.eq("media_type", "photo")
+        res = query.limit(100).execute()
         for p in (res.data or []):
             lease = p.get("media_lease_until")
             is_expired = lease is None or lease < now.isoformat()
@@ -964,15 +1003,17 @@ def sweep_stuck_jobs():
 
     # 2. Sweep stuck face jobs
     try:
-        res = (
+        query = (
             supabase.table("photos")
             .select("id, storage_key, event_id, user_id, asset_version, preview_url, face_status, face_lease_until")
             .eq("media_status", "ready")
             .in_("face_status", ["pending", "failed", "indexing"])
             .lt("face_attempt", 3)
-            .limit(100)
-            .execute()
         )
+        if COST_TUNING:
+            # Skip videos, and photos whose first face job (spawned by the preview worker) may still be on its way
+            query = query.eq("media_type", "photo").lte("uploaded_at", two_min_ago)
+        res = query.limit(100).execute()
         for p in (res.data or []):
             lease = p.get("face_lease_until")
             is_expired = lease is None or lease < now.isoformat()
@@ -991,44 +1032,47 @@ def sweep_stuck_jobs():
     except Exception as err:
         print(f"[Reconciler] Face sweep error: {err}")
 
-    # 3. Sweep stuck outbox rows
-    try:
-        res = (
-            supabase.table("processing_outbox")
-            .select("*")
-            .in_("status", ["pending", "publishing"])
-            .lte("created_at", five_min_ago)
-            .limit(100)
-            .execute()
-        )
-        for row in (res.data or []):
-            photo_res = supabase.table("photos").select("*").eq("id", row["photo_id"]).maybe_single().execute()
-            p = photo_res.data
-            if p and _close_outbox_row_if_unrunnable(supabase, row, p):
-                continue
-            if p:
-                if row["job_type"] == "media_preview":
-                    process_photo_preview.spawn({
-                        "id": p["id"],
-                        "photo_id": p["id"],
-                        "storage_key": p.get("storage_key"),
-                        "event_id": p.get("event_id"),
-                        "user_id": p.get("user_id"),
-                        "asset_version": row.get("asset_version", 1)
-                    })
-                elif row["job_type"] == "face_index":
-                    FaceIndexer().process.spawn({
-                        "id": p["id"],
-                        "photo_id": p["id"],
-                        "storage_key": p.get("storage_key"),
-                        "event_id": p.get("event_id"),
-                        "user_id": p.get("user_id"),
-                        "asset_version": row.get("asset_version", 1),
-                        "preview_url": p.get("preview_url")
-                    })
-                recovered_outbox += 1
-    except Exception as err:
-        print(f"[Reconciler] Outbox sweep error: {err}")
+    # 3. Sweep stuck outbox rows. With COST_TUNING, run_media_maintenance runs dispatch_outbox_jobs just
+    # before this, and it already re-claims every pending row and expired lease, so this would only
+    # spawn duplicates of the jobs it just dispatched.
+    if not COST_TUNING:
+        try:
+            res = (
+                supabase.table("processing_outbox")
+                .select("*")
+                .in_("status", ["pending", "publishing"])
+                .lte("created_at", five_min_ago)
+                .limit(100)
+                .execute()
+            )
+            for row in (res.data or []):
+                photo_res = supabase.table("photos").select("*").eq("id", row["photo_id"]).maybe_single().execute()
+                p = photo_res.data
+                if p and _close_outbox_row_if_unrunnable(supabase, row, p):
+                    continue
+                if p:
+                    if row["job_type"] == "media_preview":
+                        process_photo_preview.spawn({
+                            "id": p["id"],
+                            "photo_id": p["id"],
+                            "storage_key": p.get("storage_key"),
+                            "event_id": p.get("event_id"),
+                            "user_id": p.get("user_id"),
+                            "asset_version": row.get("asset_version", 1)
+                        })
+                    elif row["job_type"] == "face_index":
+                        FaceIndexer().process.spawn({
+                            "id": p["id"],
+                            "photo_id": p["id"],
+                            "storage_key": p.get("storage_key"),
+                            "event_id": p.get("event_id"),
+                            "user_id": p.get("user_id"),
+                            "asset_version": row.get("asset_version", 1),
+                            "preview_url": p.get("preview_url")
+                        })
+                    recovered_outbox += 1
+        except Exception as err:
+            print(f"[Reconciler] Outbox sweep error: {err}")
 
     if recovered_media > 0 or recovered_face > 0 or recovered_outbox > 0:
         print(f"[Reconciler] Sweep complete: recovered {recovered_media} media, {recovered_face} face, {recovered_outbox} outbox jobs.")
@@ -1056,21 +1100,14 @@ def sweep_stuck_jobs():
             print(f"[Reconciler] Cost log notice: {log_err}")
 
 
-@app.function(
-    image=media_image,
-    schedule=modal.Cron("*/1 * * * *"),
-    # Runs every minute, so the default 60s idle window kept this container billed nonstop
-    scaledown_window=2 if COST_TUNING else None,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
-)
 def dispatch_outbox_jobs():
     """
-    OUTBOX DISPATCHER CRON (Runs every minute as scheduled backup).
+    OUTBOX DISPATCHER CRON (every minute; every 5 minutes inside run_media_maintenance with MODAL_COST_TUNING).
     Claims pending outbox rows atomically and dispatches them to their workers.
     """
     import os
     import time
-    from datetime import datetime, timezone
+    from datetime import datetime, timezone, timedelta
     from supabase import create_client, Client
 
     start_time = time.time()
@@ -1103,10 +1140,20 @@ def dispatch_outbox_jobs():
         return {"dispatched": 0}
 
     dispatched = 0
+    two_min_ago = datetime.now(timezone.utc) - timedelta(minutes=2)
     for row in rows:
         photo_id = row.get("photo_id")
         job_type = row.get("job_type")
         asset_ver = row.get("asset_version", 1)
+
+        if COST_TUNING:
+            # Rows this new were just queued by the upload or the preview worker, and that job is most
+            # likely still in flight. The claim lease expires and the next run checks the row again.
+            try:
+                if datetime.fromisoformat(row["created_at"]) > two_min_ago:
+                    continue
+            except (KeyError, TypeError, ValueError):
+                pass
 
         photo_res = supabase.table("photos").select("*").eq("id", photo_id).maybe_single().execute()
         photo = photo_res.data
@@ -1157,6 +1204,23 @@ def dispatch_outbox_jobs():
         print(f"[OutboxDispatcher] Cost log notice: {log_err}")
 
     return {"dispatched": dispatched}
+
+
+_maintenance_secrets = [modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+
+if COST_TUNING:
+    # One container every 5 minutes instead of two every minute. QStash and the direct spawns are the
+    # main path; this only picks up jobs they dropped, so a few minutes of delay is fine.
+    @app.function(image=media_image, schedule=modal.Cron("*/5 * * * *"), scaledown_window=2, secrets=_maintenance_secrets)
+    def run_media_maintenance():
+        for job in (dispatch_outbox_jobs, sweep_stuck_jobs):
+            try:
+                job()
+            except Exception as err:
+                print(f"[Maintenance] {job.__name__} failed: {err}")
+else:
+    sweep_stuck_jobs = app.function(image=media_image, schedule=modal.Cron("* * * * *"), secrets=_maintenance_secrets)(sweep_stuck_jobs)
+    dispatch_outbox_jobs = app.function(image=media_image, schedule=modal.Cron("*/1 * * * *"), secrets=_maintenance_secrets)(dispatch_outbox_jobs)
 
 
 @app.function(
