@@ -6,6 +6,7 @@ import { pinoHttp } from "pino-http";
 import { PORT, corsOrigins } from "./config.js";
 import { adminRouter } from "./routes/admin.js";
 import { contactMessagesRouter } from "./routes/contactMessages.js";
+import { createVendorLeadsRouter } from "./routes/vendorLeads.js";
 import { findYouRouter } from "./routes/findYou.js";
 import { infrastructureRouter } from "./routes/infrastructure.js";
 import { mediaRouter } from "./routes/media.js";
@@ -68,6 +69,14 @@ const contactMessagesLimiter = rateLimit({
   message: { success: false, error: "Too many contact requests. Please try again later." },
 });
 
+const vendorLeadsLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: "Too many submissions. Please try again later." },
+});
+
 // Health checks for Railway, load balancers, and monitoring tools
 app.get(["/", "/health", "/api/health"], (_request, response) => {
   response.json({
@@ -82,6 +91,7 @@ app.use("/api/admin/control", adminRouter);
 app.use("/api/admin", infrastructureRouter);
 app.use("/api/contact-messages", contactMessagesLimiter, contactMessagesRouter);
 app.use("/api/v1/contact-messages", contactMessagesLimiter, contactMessagesRouter);
+app.use("/api/v1/vendor-leads", vendorLeadsLimiter, createVendorLeadsRouter());
 app.use("/api/find-you", findYouRouter);
 app.use("/api/media", mediaRouter);
 app.use("/api/v1/media", mediaRouter);
