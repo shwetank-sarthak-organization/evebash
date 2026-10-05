@@ -60,6 +60,7 @@ export interface Event {
     createdBy?: string;
     type?: 'main' | 'sub';
     parentId?: string;
+    isPublic?: boolean;
     legacyId?: string;
     joinId?: string;
     category?: string;
@@ -304,6 +305,7 @@ function mapSqlToEvent(e: any): Event {
         createdBy: e.created_by,
         type: e.type,
         parentId: e.parent_id,
+        isPublic: e.is_public === true,
         legacyId: e.legacy_id,
         category: e.category,
         templateId: e.template_id,

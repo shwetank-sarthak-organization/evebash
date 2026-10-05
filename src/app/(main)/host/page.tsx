@@ -866,6 +866,22 @@ function DashboardContent() {
     const [eventName, setEventName] = useState("");
     const [eventDate, setEventDate] = useState(() => formatCreateEventDate(new Date()));
     const [selectedEventId, setSelectedEventId] = useState("");
+    const [videoUploadPermission, setVideoUploadPermission] = useState({ eventId: '', userId: '', allowed: false });
+    const canPostVideos = videoUploadPermission.eventId === selectedEventId && videoUploadPermission.userId === user?.uid && videoUploadPermission.allowed;
+    useEffect(() => {
+        let active = true;
+        if (!selectedEventId || !user?.uid) return;
+        const eventId = selectedEventId, userId = user.uid;
+        void (async () => {
+            const { data } = await supabase.auth.getSession();
+            if (!data.session) return;
+            const response = await fetch(getApiUrl(`/api/media/video-upload-permission?eventId=${encodeURIComponent(eventId)}`), { headers: { Authorization: `Bearer ${data.session.access_token}` } });
+            const result = await response.json();
+            if (active) setVideoUploadPermission({ eventId, userId, allowed: response.ok && result.allowed === true });
+        })().catch(() => { if (active) setVideoUploadPermission({ eventId, userId, allowed: false }); });
+        return () => { active = false; };
+    }, [selectedEventId, user?.uid]);
+
     const [selectedEventName, setSelectedEventName] = useState("");
     const [status, setStatus] = useState<"idle" | "uploading" | "success" | "error">("idle");
     const [message, setMessage] = useState("");
@@ -925,6 +941,17 @@ function DashboardContent() {
     const [renamingEvent, setRenamingEvent] = useState<Event | null>(null);
     const [editDetailsMode, setEditDetailsMode] = useState<"title" | "date">("title");
     const [shareModalEvent, setShareModalEvent] = useState<Event | null>(null);
+    const [visibilityAdminEventId, setVisibilityAdminEventId] = useState('');
+    useEffect(() => {
+        let active = true;
+        setVisibilityAdminEventId('');
+        if (!shareModalEvent || shareModalEvent.parentId) return;
+        const eventId = shareModalEvent.id;
+        void Promise.resolve(supabase.rpc('can_manage_event_visibility', { p_event_id: eventId })).then(({ data, error }) => {
+            if (active && !error && data === true) setVisibilityAdminEventId(eventId);
+        }).catch(() => {});
+        return () => { active = false; };
+    }, [shareModalEvent?.id, shareModalEvent?.parentId, user?.uid]);
     const [savingVisibility, setSavingVisibility] = useState(false);
     const [visibilityError, setVisibilityError] = useState("");
     const changeEventVisibility = async (isPublic: boolean) => {
@@ -936,6 +963,7 @@ function DashboardContent() {
             if (error) throw error;
             setShareModalEvent(previous => previous ? { ...previous, isPublic } : previous);
             setUserEvents(previous => previous.map(item => item.id === shareModalEvent.id ? { ...item, isPublic } : item));
+            setSharedEvents(previous => previous.map(item => item.id === shareModalEvent.id ? { ...item, isPublic } : item));
         } catch (error: any) {
             setVisibilityError(error.message || "Unable to change event visibility");
         } finally { setSavingVisibility(false); }
@@ -2147,6 +2175,9 @@ function DashboardContent() {
             return false;
         }
     };    const uploadFiles = async (files: FileList | File[]) => {
+        if (galleryMediaTab === "videos" && !canPostVideos) {
+            setStatus("error"); setMessage("Only the event owner and event admins can upload videos."); return;
+        }
         const expectedPrefix = galleryMediaTab === "videos" ? "video/" : "image/";
         const selectedFiles = Array.from(files).filter(file => file.type.startsWith(expectedPrefix));
         if (selectedFiles.length === 0 || !selectedEventId) return;
@@ -5330,7 +5361,7 @@ function DashboardContent() {
                                             )}
 
                                             {/* Add Image Button */}
-                                            {!isFavouriteFilterActive && <motion.label
+                                            {!isFavouriteFilterActive && (galleryMediaTab !== "videos" || canPostVideos) && <motion.label
                                                 layout
                                                 className={cn(
                                                     "relative aspect-square rounded-[2rem] border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all hover:bg-slate-900/50 group",
@@ -5366,7 +5397,7 @@ function DashboardContent() {
                                     ) : (
                                         <div className="space-y-4">
                                             {/* Add Image Option as List Item */}
-                                            {!isFavouriteFilterActive && <motion.label
+                                            {!isFavouriteFilterActive && (galleryMediaTab !== "videos" || canPostVideos) && <motion.label
                                                 className={cn(
                                                     "flex items-center p-6 border-2 border-dashed rounded-3xl cursor-pointer transition-all hover:bg-slate-900/50 group",
                                                     status === "uploading" ? "border-sky-500/50 bg-sky-500/5" : "border-slate-700"
@@ -6414,7 +6445,7 @@ function DashboardContent() {
                                 className="relative w-full max-w-md rounded-[2rem] border border-[#CA9C68]/25 bg-slate-800 px-7 py-9 text-center shadow-2xl sm:px-10"
                             >
                                 <h3 className="text-3xl font-black tracking-tight text-white">Share Event</h3>
-                                {!shareModalEvent.parentId && (shareModalEvent.createdBy === user?.uid || shareModalEvent.createdBy === user?.email) && (
+                                {!shareModalEvent.parentId && (shareModalEvent.createdBy === user?.uid || shareModalEvent.createdBy === user?.email || visibilityAdminEventId === shareModalEvent.id) && (
                                     <div className="mt-5 rounded-xl border border-slate-600 p-4 text-left">
                                         <label className="flex items-center justify-between gap-3 text-sm font-bold text-white">
                                             Event visibility
@@ -6847,7 +6878,7 @@ function DashboardContent() {
                                             {[
                                                 { key: "viewAccess", label: "View Access", desc: "Can open and view this event gallery", icon: Eye },
                                                 { key: "canAdmin", label: "Admin Access", desc: "Manage event, sub-galleries, and other guests", icon: ShieldCheck },
-                                                { key: "canUpload", label: "Allow Uploads", desc: "Can add photos and videos to the event", icon: Camera },
+                                                { key: "canUpload", label: "Allow Photo Uploads", desc: "Can add photos to the event. Videos are reserved for the event owner and admins.", icon: Camera },
                                                 { key: "canComment", label: "Allow Comments", desc: "Can react and post comments on media", icon: MessageCircle },
                                             ].map(({ key, label, desc, icon: Icon }) => {
                                                 const isViewAccess = key === "viewAccess";

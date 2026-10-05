@@ -1,3 +1,4 @@
+import EventVisibilityControl from '../../components/EventVisibilityControl';
 import VideoThumbnailPicker, { type ThumbnailVideo } from '../../components/VideoThumbnailPicker';
 import { galleryActionText } from '../../constants/galleryContrast';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -1526,6 +1527,10 @@ export default function EventDetailScreen() {
 
   const handleUploadGalleryMedia = async (mediaType: 'photo' | 'video' = 'photo') => {
     if (!event) return;
+    if (mediaType === 'video' && !canManageEvent && !isOwner) {
+      appAlert('Photos only', 'Only the event owner and event admins can upload videos.');
+      return;
+    }
     if (!user?.uid) {
       appAlert("Login Required", "Please log in before uploading media.");
       return;
@@ -1536,6 +1541,20 @@ export default function EventDetailScreen() {
     if (!activeId) {
       appAlert("Error", "Please select a valid gallery before uploading.");
       return;
+    }
+
+    if (mediaType === 'video') {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const base = process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, '');
+        if (!base || !data.session) throw new Error('Unable to verify video-upload permission. Please try again.');
+        const response = await fetch(`${base}/api/media/video-upload-permission?eventId=${encodeURIComponent(activeId)}`, { headers: { Authorization: `Bearer ${data.session.access_token}` } });
+        const permission = await response.json();
+        if (!response.ok || permission.allowed !== true) throw new Error('Only the event owner and event admins can upload videos.');
+      } catch (error) {
+        appAlert('Video upload unavailable', error instanceof Error ? error.message : 'Unable to verify permission.');
+        return;
+      }
     }
 
     let result: ImagePicker.ImagePickerResult;
@@ -5606,7 +5625,7 @@ export default function EventDetailScreen() {
                         {[
                           { id: 'viewAccess', label: 'View Access', desc: 'Can open and view this event gallery', icon: 'eye.fill' },
                           { id: 'canAdmin', label: 'Admin Access', desc: 'Manage event, sub-galleries, and other guests', icon: 'shield.fill' },
-                          { id: 'canUpload', label: 'Allow Uploads', desc: 'Can add photos and videos to the event', icon: 'camera.fill' },
+                          { id: 'canUpload', label: 'Allow Photo Uploads', desc: 'Can add photos to the event. Videos are reserved for the event owner and admins.', icon: 'camera.fill' },
                           { id: 'canComment', label: 'Allow Comments', desc: 'Can react and post comments on any media', icon: 'bubble.left.fill' },
                         ].map((perm) => {
                           const isViewAccess = perm.id === 'viewAccess';
@@ -7541,8 +7560,9 @@ export default function EventDetailScreen() {
       <Modal visible={showShareModal} transparent animationType="slide" onRequestClose={() => setShowShareModal(false)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowShareModal(false)} />
-          <View style={styles.shareModalContent}>
+          <ScrollView style={{ maxHeight: '85%' }} contentContainerStyle={styles.shareModalContent}>
             <Text style={styles.modalTitle}>Share Event</Text>
+            {showShareModal && !event.parentId && (isOwner || canManageEvent) && <EventVisibilityControl eventId={event.id} onChanged={isPublic => setEvent(previous => previous ? { ...previous, isPublic } : previous)} />}
 
             <View style={styles.qrContainer}>
               <Image
@@ -7567,7 +7587,7 @@ export default function EventDetailScreen() {
             <TouchableOpacity style={styles.closeModalBtn} onPress={() => setShowShareModal(false)}>
               <Text style={styles.closeModalText}>Close</Text>
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
 

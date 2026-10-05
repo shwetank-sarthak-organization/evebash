@@ -1,3 +1,4 @@
+import { canPostEventVideo, isVideoUpload } from "../services/eventVideoPermission.js";
 import { saveVideoThumbnail, ThumbnailError } from "../services/videoThumbnail.js";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
@@ -39,7 +40,7 @@ import { runMediaWatchdog } from "../services/watchdog.js";
 
 export const mediaRouter = Router();
 
-type AsyncRoute = (request: Request, response: Response) => Promise<void>;
+type AsyncRoute = (request: Request, response: Response, next: NextFunction) => Promise<void>;
 
 type PhotoPayload = {
   id: string;
@@ -77,7 +78,7 @@ const VIDEO_EXTENSIONS = new Set(["mp4", "mov", "avi", "mkv", "webm", "m4v", "3g
 
 function asyncRoute(handler: AsyncRoute) {
   return (request: Request, response: Response, next: NextFunction) => {
-    handler(request, response).catch(next);
+    handler(request, response, next).catch(next);
   };
 }
 
@@ -522,6 +523,38 @@ mediaRouter.all("/watchdog/run", asyncRoute(async (request, response) => {
 
   const report = await runMediaWatchdog();
   response.json({ success: true, report });
+}));
+
+mediaRouter.get("/video-upload-permission", asyncRoute(async (request, response) => {
+  const verified = await verifyRequestUser(request);
+  if (!verified) return jsonError(response, 401, "Authorization required");
+  const eventId = String(request.query.eventId || "");
+  response.json({ allowed: Boolean(eventId) && await canPostEventVideo(getSupabaseAdminClient(), verified.user, eventId) });
+}));
+
+// Check both issuance and finalization: older clients and resumable uploads must
+// obey the current event role, not a client-supplied user ID or permission flag.
+mediaRouter.use(asyncRoute(async (request, response, next) => {
+  const uploadPaths = ["/get-upload-url", "/upload/chunk/initiate", "/upload/chunk/part-url", "/upload/chunk/complete-part", "/upload/chunk/complete", "/save-photo", "/save-photo-batch", "/mobile/get-upload-url", "/mobile/save-photo-batch"];
+  if (request.method !== "POST" || !uploadPaths.includes(request.path)) return next();
+  const body = request.body || {};
+  const entries = Array.isArray(body.photos) ? body.photos.map((photo: Record<string, unknown>) => ({ ...photo, eventId: photo.eventId || body.eventId })) : [{ ...body }];
+  if (request.path.startsWith("/upload/chunk/") && body.fileId) {
+    const { data, error } = await getSupabaseAdminClient().from("photos").select("event_id,storage_key,media_type,resource_type").eq("b2_file_id", String(body.fileId)).maybeSingle();
+    if (error) throw error;
+    if (!data) return jsonError(response, 403, "Upload session not found. Start the upload again.");
+    entries.push({ eventId: data.event_id, storageKey: data.storage_key, media_type: data.media_type, resource_type: data.resource_type });
+  }
+  if (request.path === "/upload/chunk/initiate" && body.resourceType === undefined) entries[0].resourceType = "video";
+  const videos = entries.filter(isVideoUpload);
+  if (!videos.length) return next();
+  const verified = await verifyRequestUser(request);
+  if (!verified) return jsonError(response, 401, "Sign in as the event owner or an event admin to upload videos.");
+  const ids = new Set<string>(videos.map((entry: Record<string, unknown>) => String(entry.eventId || String(entry.storageKey || '').match(/^events\/([^/]+)\//)?.[1] || '')));
+  for (const eventId of ids) {
+    if (!eventId || !await canPostEventVideo(getSupabaseAdminClient(), verified.user, eventId)) return jsonError(response, 403, "Only the event owner and event admins can upload videos. Your upload permission allows photos only.");
+  }
+  next();
 }));
 
 mediaRouter.post("/get-upload-url", asyncRoute(async (request, response) => {
