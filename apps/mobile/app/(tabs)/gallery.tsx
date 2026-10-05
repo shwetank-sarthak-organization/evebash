@@ -27,7 +27,7 @@ import Svg, { Path, Rect, Line } from 'react-native-svg';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
 import { formatStorageSize, getPlanDetails, getUsagePercent } from '@/lib/planLimits';
-import { EVENT_PLACEHOLDER_IMAGES, resolveEventCoverImage } from '@/lib/eventCovers';
+import { EVENT_PLACEHOLDER_IMAGES } from '@/lib/eventCovers';
 import { supabase } from '@/lib/supabase';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { EventGrid, getEventGridCardWidth } from '../../constants/layout';
@@ -520,7 +520,6 @@ export default function PortfolioTabScreen() {
   );
 
   const renderEventCard = (event: DatabaseEvent, index: number) => {
-    const coverImage = resolveEventCoverImage(event.coverImage);
     const isSharedCard = activeTab === 'shared';
     const ownerDetails = event.createdBy?.includes('@')
       ? { name: 'Unknown owner', email: event.createdBy, username: 'Not set' }
@@ -534,7 +533,7 @@ export default function PortfolioTabScreen() {
         title={event.title}
         date={event.date}
         category={event.category}
-        coverImage={coverImage}
+        coverImage={event.coverImage}
         tall={isSharedCard}
         onPress={() => router.push(`/events/${event.id}?mode=admin`)}
       >

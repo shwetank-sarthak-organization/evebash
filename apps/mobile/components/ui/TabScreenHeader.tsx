@@ -8,12 +8,14 @@ import { MidnightColors } from '@/constants/theme';
 
 interface TabScreenHeaderProps {
   title: string;
+  /** Replaces the EB logo on the left, e.g. a back button on pushed screens. */
+  left?: React.ReactNode;
   /** Single action shown on the right (e.g. <HeaderAction />). */
   right?: React.ReactNode;
 }
 
 /** Shared top header for the main tabs: EB logo left, title centre, one action right. */
-export function TabScreenHeader({ title, right }: TabScreenHeaderProps) {
+export function TabScreenHeader({ title, left, right }: TabScreenHeaderProps) {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
@@ -24,7 +26,7 @@ export function TabScreenHeader({ title, right }: TabScreenHeaderProps) {
       style={[styles.header, { paddingTop: insets.top + 4 }]}
     >
       <View style={[styles.side, { justifyContent: 'flex-start' }]}>
-        <EveBashLogoBadge />
+        {left ?? <EveBashLogoBadge />}
       </View>
       <View style={styles.center}>
         <Text style={styles.title} accessibilityRole="header">{title}</Text>

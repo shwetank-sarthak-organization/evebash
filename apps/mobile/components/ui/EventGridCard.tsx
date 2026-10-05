@@ -5,12 +5,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Fonts, MidnightColors } from '@/constants/theme';
 import { EventGrid, getEventGridCardWidth } from '@/constants/layout';
 import { useAppTheme } from '@/context/ThemeContext';
+import { EVENT_PLACEHOLDER_IMAGES, resolveEventCoverImage } from '@/lib/eventCovers';
 
 type EventGridCardProps = {
   title: string;
   date?: string;
   category?: string;
-  coverImage: string;
+  /** The event's stored cover image; events without their own cover show the bundled placeholder. */
+  coverImage?: string | null;
   onPress: () => void;
   /** Taller card and image, for cards that show extra details below the date. */
   tall?: boolean;
@@ -20,6 +22,16 @@ type EventGridCardProps = {
 };
 
 const TALL_CARD_HEIGHT = 260;
+const TALL_IMAGE_HEIGHT = 160;
+
+export const EVENT_PLACEHOLDER_ASSET = require('@/assets/images/event-placeholder.jpg');
+
+/** Empty covers and the stock photos saved on event creation both count as "no cover uploaded". */
+function getCardImageSource(coverImage?: string | null) {
+  const trimmed = coverImage?.trim();
+  if (!trimmed || EVENT_PLACEHOLDER_IMAGES.includes(trimmed)) return EVENT_PLACEHOLDER_ASSET;
+  return { uri: resolveEventCoverImage(trimmed) };
+}
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -32,7 +44,6 @@ function formatCardDate(date?: string): string {
   if (monthIndex === -1) return date;
   return `${match[1]} ${MONTHS[monthIndex]} ${match[3].slice(-2)}`;
 }
-const TALL_IMAGE_HEIGHT = 160;
 
 /** Event card used in the two-column event grids on the Dashboard and Host tabs. */
 export function EventGridCard({ title, date, category, coverImage, onPress, tall = false, children, style }: EventGridCardProps) {
@@ -47,7 +58,7 @@ export function EventGridCard({ title, date, category, coverImage, onPress, tall
     >
       <View style={[styles.imageWrap, tall && styles.imageWrapTall]}>
         <ExpoImage
-          source={{ uri: coverImage }}
+          source={getCardImageSource(coverImage)}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           contentPosition="center"

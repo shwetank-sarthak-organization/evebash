@@ -22,7 +22,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
-import { resolveEventCoverImage } from '@/lib/eventCovers';
 import {
   getUserEvents,
   Event as DatabaseEvent,
@@ -36,7 +35,8 @@ import { subscribeToUploadQueue, UploadQueueItem } from '@/lib/uploadQueue';
 import { markStartup } from '@/lib/startupTiming';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { EventGridCard } from '@/components/ui/EventGridCard';
+import { EventGridCard, EVENT_PLACEHOLDER_ASSET } from '@/components/ui/EventGridCard';
+import { HostEventBanner } from '@/components/ui/HostEventBanner';
 import type { IconSymbolName } from '@/components/ui/icon-symbol';
 import { useRouter } from 'expo-router';
 import { Image as ExpoImage } from 'expo-image';
@@ -619,15 +619,13 @@ export default function DashboardScreen() {
                 ) : (
                 <View style={styles.eventsGridContainer}>
                   {events.slice(0, 3).map((event) => {
-                    const coverImage = resolveEventCoverImage(event.coverImage);
-
                     return (
                       <EventGridCard
                         key={event.id}
                         title={event.title}
                         date={event.date}
                         category={event.category}
-                        coverImage={coverImage}
+                        coverImage={event.coverImage}
                         onPress={() => router.push(`/events/${event.id}?mode=visitor`)}
                       />
                     );
@@ -640,9 +638,9 @@ export default function DashboardScreen() {
                   >
                     <View style={{ width: '100%', height: '100%', position: 'relative' }}>
                       <ExpoImage
-                        source={require('@/assets/images/memories_bg.png')}
+                        source={EVENT_PLACEHOLDER_ASSET}
                         style={StyleSheet.absoluteFill}
-                        contentFit="fill"
+                        contentFit="cover"
                         transition={400}
                       />
                       <LinearGradient
@@ -669,35 +667,10 @@ export default function DashboardScreen() {
               </View>
 
               {/* ── SECTION 3: HOST AN EVENT ── */}
-              <TouchableOpacity
-                activeOpacity={0.9}
-                style={[styles.heroCard, { marginBottom: 16 }]}
+              <HostEventBanner
+                style={{ marginBottom: 16 }}
                 onPress={() => router.push('/(tabs)/gallery')}
-              >
-                <LinearGradient
-                  colors={['#151B21', '#10161C']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.heroGradient}
-                >
-                  <View style={styles.heroContent}>
-                    <View style={styles.heroBadge}>
-                      <Text style={styles.heroBadgeText}>FOR HOSTS</Text>
-                    </View>
-                    <Text style={styles.heroTitle}>Host an Event</Text>
-                    <Text style={styles.heroSubtitle}>
-                      Create a stunning private gallery for weddings, parties or corporate meets.
-                    </Text>
-                    <View style={[styles.catchyActionPill, { alignSelf: 'flex-start' }]}>
-                      <IconSymbol name="plus.circle.fill" size={12} color={MidnightColors.onAccent} />
-                      <Text style={styles.catchyActionPillText}>Create Now</Text>
-                    </View>
-                  </View>
-                  <View style={styles.heroIconContainer}>
-                    <IconSymbol name="calendar.badge.plus" size={60} color="rgba(202,156,104,0.22)" />
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
+              />
 
               {/* ── HOST YOUR PERFECT EVENT — HOW TO HOST ── */}
               <TouchableOpacity

@@ -4,42 +4,123 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
   Dimensions,
-  Platform,
   TextInput,
-  } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+  TouchableOpacity,
+} from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Image as ExpoImage } from 'expo-image';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path } from 'react-native-svg';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
+import { EventGridCard } from '@/components/ui/EventGridCard';
+import { HostEventBanner } from '@/components/ui/HostEventBanner';
+import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useAuth } from '@/context/AuthContext';
-import { MidnightColors, Fonts } from '../../constants/theme';
+import { useAppTheme } from '@/context/ThemeContext';
+import { MidnightColors, Fonts } from '@/constants/theme';
+import { EventGrid, getEventGridCardWidth } from '@/constants/layout';
 import { getUserEvents, getApprovedSharedEventsForUser, Event as DatabaseEvent } from '@/lib/database';
-import { resolveEventCoverImage } from '@/lib/eventCovers';
-import { EveBashLogoBadge } from '@/components/EveBashLogo';
-import { appAlert } from '@/lib/feedback';
 
 const { width } = Dimensions.get('window');
+
+type SortKey = 'recent' | 'date_desc' | 'date_asc' | 'name';
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: 'recent', label: 'Recently added' },
+  { key: 'date_desc', label: 'Event date: newest first' },
+  { key: 'date_asc', label: 'Event date: oldest first' },
+  { key: 'name', label: 'Name: A to Z' },
+];
+
+const ALL_TYPES = 'All';
+
+const MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
+/** Event dates are stored as display text ("26 September 2026"); returns a timestamp, or null if unreadable. */
+function eventDateValue(date?: string): number | null {
+  const text = date?.trim();
+  if (!text) return null;
+  const verbal = text.match(/^(\d{1,2})\s+([A-Za-z]+)\.?,?\s+(\d{4})$/);
+  if (verbal) {
+    const month = MONTH_NAMES.findIndex((m) => verbal[2].toLowerCase().startsWith(m));
+    if (month !== -1) return new Date(Number(verbal[3]), month, Number(verbal[1])).getTime();
+  }
+  const parsed = Date.parse(text);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function sortEvents(list: DatabaseEvent[], sortKey: SortKey): DatabaseEvent[] {
+  const sorted = [...list];
+  if (sortKey === 'name') {
+    return sorted.sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' }));
+  }
+  if (sortKey === 'date_desc' || sortKey === 'date_asc') {
+    const direction = sortKey === 'date_desc' ? -1 : 1;
+    return sorted.sort((a, b) => {
+      const da = eventDateValue(a.date);
+      const db = eventDateValue(b.date);
+      // Events without a readable date go last either way
+      if (da === null && db === null) return 0;
+      if (da === null) return 1;
+      if (db === null) return -1;
+      return (da - db) * direction;
+    });
+  }
+  return sorted.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+}
 
 export default function YourEventsScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const insets = useSafeAreaInsets();
+  const { colors, isDark } = useAppTheme();
+  const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const [events, setEvents] = useState<DatabaseEvent[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>('recent');
+  const [typeFilter, setTypeFilter] = useState(ALL_TYPES);
 
-  const filteredEvents = events.filter(event => 
-    event.title.toLowerCase().includes(searchQuery.toLowerCase())
+  // Only offer the types the user's events actually have
+  const availableTypes = React.useMemo(() => {
+    const types = new Map<string, string>();
+    events.forEach((event) => {
+      const category = event.category?.trim();
+      if (category && !types.has(category.toLowerCase())) types.set(category.toLowerCase(), category);
+    });
+    return Array.from(types.values()).sort((a, b) => a.localeCompare(b));
+  }, [events]);
+
+  // A type that no longer exists after a refresh falls back to All
+  const activeType = availableTypes.some((t) => t.toLowerCase() === typeFilter.toLowerCase()) ? typeFilter : ALL_TYPES;
+  const filtersActive = sortKey !== 'recent' || activeType !== ALL_TYPES;
+
+  const trimmedQuery = searchQuery.trim();
+  const filteredEvents = sortEvents(
+    events.filter((event) =>
+      event.title.toLowerCase().includes(trimmedQuery.toLowerCase()) &&
+      (activeType === ALL_TYPES || event.category?.trim().toLowerCase() === activeType.toLowerCase())
+    ),
+    sortKey
   );
 
+  const clearFilters = () => {
+    setSortKey('recent');
+    setTypeFilter(ALL_TYPES);
+    setSearchQuery('');
+  };
+
+  // Bumped on every fetch so a slower, older request can't overwrite newer results
+  const fetchSeq = React.useRef(0);
+
   const fetchData = async () => {
+    const seq = ++fetchSeq.current;
     if (!user) {
       setEvents([]);
       setLoading(false);
@@ -51,27 +132,34 @@ export default function YourEventsScreen() {
       const ownIdentifiers = [user.uid];
       if (user.email) ownIdentifiers.push(user.email);
       if (user.phone) ownIdentifiers.push(user.phone);
-      
+
       const [fetchedMy, fetchedShared] = await Promise.all([
-        getUserEvents(ownIdentifiers, 'main'),
+        getUserEvents(ownIdentifiers, 'main', undefined, undefined, { throwOnError: true }),
         getApprovedSharedEventsForUser(ownIdentifiers),
       ]);
+      if (seq !== fetchSeq.current) return;
 
       const allEvents = Array.from(
         new Map([...fetchedMy, ...fetchedShared].map((e) => [e.id, e])).values()
       );
       setEvents(allEvents);
+      setLoadError(false);
     } catch (err) {
-      console.error('[YourEvents] Fetch error:', err);
+      if (seq === fetchSeq.current) {
+        console.error('[YourEvents] Fetch error:', err);
+        setLoadError(true);
+      }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
-      return;
+      if (seq === fetchSeq.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const onRefresh = () => {
@@ -79,45 +167,81 @@ export default function YourEventsScreen() {
     fetchData();
   };
 
-  const renderEventCard = (event: DatabaseEvent) => {
-    const coverImage = resolveEventCoverImage(event.coverImage);
+  const renderContent = () => {
+    if (loading && !refreshing) {
+      return (
+        <View style={styles.grid} accessible accessibilityLabel="Loading your events">
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} style={styles.skeletonCard}>
+              <Skeleton height={EventGrid.imageHeight} radius={0} />
+              <View style={{ padding: 12, gap: 8 }}>
+                <Skeleton width="70%" height={13} />
+                <Skeleton width="50%" height={10} />
+              </View>
+            </View>
+          ))}
+        </View>
+      );
+    }
+
+    if (loadError && events.length === 0) {
+      return (
+        <ErrorState
+          title="Couldn't load your events"
+          onRetry={() => fetchData()}
+          retrying={loading}
+        />
+      );
+    }
+
+    if (events.length === 0) {
+      return (
+        <View style={styles.emptyState}>
+          <IconSymbol name="photo.on.rectangle" size={40} color={colors.slate400} />
+          <Text style={styles.emptyTitle}>No events yet</Text>
+          <Text style={styles.emptyBody}>Events you host or join will appear here.</Text>
+          <Button
+            title="Join an Event"
+            variant="secondary"
+            icon="qrcode.viewfinder"
+            fullWidth={false}
+            onPress={() => router.push('/(tabs)/dashboard')}
+            style={{ marginTop: 16 }}
+          />
+        </View>
+      );
+    }
+
+    if (filteredEvents.length === 0) {
+      return (
+        <View style={styles.emptyState}>
+          <IconSymbol name="magnifyingglass" size={40} color={colors.slate400} />
+          <Text style={styles.emptyTitle}>No matches</Text>
+          <Text style={styles.emptyBody}>No events match your search or filters.</Text>
+          <Button
+            title="Clear filters"
+            variant="secondary"
+            fullWidth={false}
+            onPress={clearFilters}
+            style={{ marginTop: 16 }}
+          />
+        </View>
+      );
+    }
 
     return (
-      <TouchableOpacity
-        key={event.id}
-        style={styles.eventCard}
-        activeOpacity={0.9}
-        onPress={() => router.push(`/events/${event.id}?mode=visitor`)}
-      >
-        <ExpoImage
-          source={{ uri: coverImage }}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-          transition={400}
-        />
-      <LinearGradient
-        colors={['rgba(19, 25, 31,0.3)', 'rgba(19, 25, 31,0.85)']}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={styles.cardContent}>
-        <View style={styles.cardHeader}>
-          <View style={styles.dateBadge}>
-            <Text style={styles.dateBadgeText}>{event.date}</Text>
-          </View>
-        </View>
-        <Text style={styles.cardTitle} numberOfLines={2}>{event.title}</Text>
-        <View style={styles.cardFooter}>
-          <View style={styles.avatarStack}>
-             {/* Placeholder for participant count if available */}
-             <IconSymbol name="person.2.fill" size={10} color={MidnightColors.gold} />
-             <Text style={styles.participantText}>Memories</Text>
-          </View>
-          <View style={styles.arrowIcon}>
-            <IconSymbol name="chevron.right" size={10} color="#000" />
-          </View>
-        </View>
+      <View style={styles.grid}>
+        {filteredEvents.map((event) => (
+          <EventGridCard
+            key={event.id}
+            title={event.title}
+            date={event.date}
+            category={event.category}
+            coverImage={event.coverImage}
+            onPress={() => router.push(`/events/${event.id}?mode=visitor`)}
+          />
+        ))}
       </View>
-      </TouchableOpacity>
     );
   };
 
@@ -127,359 +251,206 @@ export default function YourEventsScreen() {
 
       <ScrollView
         style={styles.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={MidnightColors.gold} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <LinearGradient
-          colors={['#1B211F', '#13191F']}
-          style={[styles.header, { paddingTop: insets.top + 4 }]}
-        >
-          <View style={styles.headerLeft}>
-            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" 
-              onPress={() => {
-                if (router.canGoBack()) {
-                  router.back();
-                } else {
-                  router.replace('/(tabs)/dashboard');
-                }
-              }} 
-              style={styles.backBtn}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        <TabScreenHeader
+          title="Gallery"
+          right={events.length > 0 ? (
+            <HeaderAction
+              onPress={() => setShowFilters(true)}
+              accessibilityLabel={filtersActive ? 'Sort and filter events, filters on' : 'Sort and filter events'}
+              showBadge={filtersActive}
             >
-              <IconSymbol name="chevron.left" size={24} color="#ffffff" />
-            </TouchableOpacity>
-          </View>
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <View style={styles.headingLogoRow}>
-              <EveBashLogoBadge />
-              <Text style={styles.headerTitle}>Gallery</Text>
-            </View>
-          </View>
-          <View style={styles.headerRight}>
-            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Filter events" 
-              onPress={() => {
-                appAlert("Filters", "Filter and sorting options coming soon!");
-              }}
-              style={styles.headerFilterBtn}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
-              <Svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={MidnightColors.gold} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <Path d="M10 5H3"/><Path d="M12 19H3"/><Path d="M14 3v4"/><Path d="M16 17v4"/><Path d="M21 12h-9"/><Path d="M21 19h-5"/><Path d="M21 5h-7"/><Path d="M8 10v4"/><Path d="M8 12H3"/>
+              <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.gold} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                <Path d="M10 5H3" /><Path d="M12 19H3" /><Path d="M14 3v4" /><Path d="M16 17v4" /><Path d="M21 12h-9" /><Path d="M21 19h-5" /><Path d="M21 5h-7" /><Path d="M8 10v4" /><Path d="M8 12H3" />
               </Svg>
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
-        {/* ── SEARCH ── */}
-        <View style={styles.searchSection}>
-          <View style={styles.searchBox}>
-            <IconSymbol name="magnifyingglass" size={18} color={MidnightColors.slate600} />
-            <TextInput 
-              style={styles.searchInput}
-              placeholder="Search memories..."
-              placeholderTextColor={MidnightColors.slate600}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
-        </View>
+            </HeaderAction>
+          ) : undefined}
+        />
 
-        {/* ── HOST CTA BANNER ── */}
-        <TouchableOpacity 
-          style={styles.heroCard}
-          activeOpacity={0.9}
-          onPress={() => router.push('/(tabs)/gallery')}
-        >
-          <LinearGradient
-            colors={['rgba(202, 156, 104,0.95)', 'rgba(184,134,11,1)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroGradient}
-          >
-            <View style={styles.heroContent}>
-              <View style={styles.heroBadge}>
-                <Text style={styles.heroBadgeText}>FOR HOSTS</Text>
-              </View>
-              <Text style={styles.heroTitle}>Host Your Own Event</Text>
-              <Text style={styles.heroSubtitle}>
-                Create a stunning private gallery for any occasion and collect memories.
-              </Text>
-              <View style={styles.heroBtn}>
-                <Text style={styles.heroBtnText}>Create Now</Text>
-                <IconSymbol name="plus" size={12} color="#ffffff" />
-              </View>
+        {events.length > 0 && (
+          <View style={styles.searchSection}>
+            <View style={styles.searchBox}>
+              <IconSymbol name="magnifyingglass" size={18} color={colors.slate400} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search events..."
+                placeholderTextColor={colors.slate400}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                returnKeyType="search"
+                accessibilityLabel="Search events"
+              />
             </View>
-            <View style={styles.heroIconContainer}>
-              <IconSymbol name="calendar.badge.plus" size={60} color="rgba(255,255,255,0.2)" />
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
-
-        {loading && !refreshing ? (
-          <View style={styles.loaderContainer}>
-            <ActivityIndicator color={MidnightColors.gold} size="large" />
-            <Text style={styles.loadingText}>Fetching your memories...</Text>
-          </View>
-        ) : (
-          <View style={styles.grid}>
-            {events.length === 0 ? (
-              <View style={styles.emptyState}>
-                <View style={styles.emptyIconContainer}>
-                  <IconSymbol name="photo.on.rectangle.angled" size={48} color={MidnightColors.slate700} />
-                </View>
-                <Text style={styles.emptyTitle}>No Memories Found</Text>
-                <Text style={styles.emptyBody}>
-                  {searchQuery 
-                    ? `No events matching "${searchQuery}" found in your collection.`
-                    : "The events you host or join will appear here as beautiful digital albums."}
-                </Text>
-                {!searchQuery && (
-                  <TouchableOpacity 
-                    style={styles.emptyActionBtn}
-                    onPress={() => router.push('/(tabs)/dashboard')}
-                  >
-                    <Text style={styles.emptyActionText}>Join an Event</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ) : (
-              <View style={styles.cardsWrapper}>
-                {filteredEvents.map(renderEventCard)}
-              </View>
-            )}
           </View>
         )}
+
+        {renderContent()}
+
+        <HostEventBanner
+          style={styles.hostBanner}
+          onPress={() => router.push('/(tabs)/gallery')}
+        />
       </ScrollView>
+
+      <BottomSheet visible={showFilters} onClose={() => setShowFilters(false)} style={{ backgroundColor: colors.deepSlate }}>
+        <View style={styles.sheetHeader}>
+          <Text style={styles.sheetTitle}>Sort & filter</Text>
+          {filtersActive && (
+            <TouchableOpacity
+              onPress={() => { setSortKey('recent'); setTypeFilter(ALL_TYPES); }}
+              accessibilityRole="button"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.sheetReset}>Reset</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <Text style={styles.sheetLabel}>SORT BY</Text>
+        <View style={styles.sortList}>
+          {SORT_OPTIONS.map((option) => {
+            const selected = option.key === sortKey;
+            return (
+              <TouchableOpacity
+                key={option.key}
+                style={styles.sortRow}
+                activeOpacity={0.7}
+                onPress={() => setSortKey(option.key)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+              >
+                <Text style={[styles.sortText, selected && styles.sortTextSelected]}>{option.label}</Text>
+                {selected && <IconSymbol name="checkmark" size={18} color={colors.gold} />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {availableTypes.length > 0 && (
+          <>
+            <Text style={styles.sheetLabel}>EVENT TYPE</Text>
+            <View style={styles.chipRow}>
+              {[ALL_TYPES, ...availableTypes].map((type) => {
+                const selected = type.toLowerCase() === activeType.toLowerCase();
+                return (
+                  <TouchableOpacity
+                    key={type}
+                    style={[styles.chip, selected && styles.chipSelected]}
+                    activeOpacity={0.8}
+                    onPress={() => setTypeFilter(type)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                  >
+                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{type}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
+        )}
+
+        <Button
+          title={`Show ${filteredEvents.length} ${filteredEvents.length === 1 ? 'event' : 'events'}`}
+          onPress={() => setShowFilters(false)}
+          style={{ marginTop: 24 }}
+        />
+      </BottomSheet>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: MidnightColors.background },
+const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
-  scrollContent: { paddingBottom: 60, paddingTop: 0 },
-  
-  // Header
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 20,
-    backgroundColor: MidnightColors.background,
-    gap: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  headerLeft: {
-    width: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-  },
-  headerRight: {
-    width: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerFilterBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 28,
-    lineHeight: 38,
-    color: '#ffffff',
-    fontFamily: 'AkayaKanadakaHeader_400Regular',
-    letterSpacing: 0.5,
-    textAlign: 'center',
-    includeFontPadding: false,
-  },
-  headingLogoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 38 },
-  iconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(202, 156, 104, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(202, 156, 104, 0.2)',
-  },
+  scrollContent: { paddingBottom: 60 },
 
-  // Host Banner
-  // Hero Banner Styles
-  heroCard: {
-    marginHorizontal: 20,
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginBottom: 24,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-  },
-  heroGradient: {
-    padding: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  heroContent: {
-    flex: 1,
-  },
-  heroBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-  heroBadgeText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontFamily: Fonts.outfit.extraBold,
-    letterSpacing: 0.8,
-  },
-  heroTitle: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontFamily: Fonts.outfit.extraBold,
-    marginBottom: 2,
-  },
-  heroSubtitle: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
-    fontFamily: Fonts.inter.regular,
-    marginBottom: 12,
-    lineHeight: 16,
-  },
-  heroBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: MidnightColors.background,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  heroBtnText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontFamily: Fonts.outfit.bold,
-  },
-  heroIconContainer: {
-    marginLeft: 8,
-  },
-
-  // Search & Filter
+  // Search
   searchSection: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 12,
-    marginBottom: 20,
+    paddingHorizontal: EventGrid.sidePadding,
+    paddingTop: 16,
   },
   searchBox: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: MidnightColors.deepSlate,
-    paddingHorizontal: 16,
-    height: 50,
-    borderRadius: 16,
+    backgroundColor: isDark ? colors.surface : '#ffffff',
+    paddingHorizontal: 14,
+    height: 46,
+    borderRadius: EventGrid.radius,
     borderWidth: 1,
-    borderColor: MidnightColors.slate800,
+    borderColor: 'rgba(202, 156, 104, 0.14)',
   },
   searchInput: {
     flex: 1,
     marginLeft: 10,
-    color: '#ffffff',
-    fontSize: 15,
+    color: colors.white,
+    fontSize: 14,
     fontFamily: Fonts.inter.regular,
   },
-  filterBtn: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
-    backgroundColor: MidnightColors.gold,
-    justifyContent: 'center',
+
+  // Grid (same as the Host tab)
+  grid: {
+    paddingHorizontal: EventGrid.sidePadding,
+    paddingTop: 16,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  skeletonCard: {
+    width: getEventGridCardWidth(width),
+    height: EventGrid.cardHeight,
+    borderRadius: EventGrid.radius,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(202, 156, 104,0.14)',
+    backgroundColor: isDark ? colors.surface : '#ffffff',
+    marginBottom: EventGrid.rowGap,
+  },
+
+  hostBanner: { marginTop: 12 },
+
+  // Sort & filter sheet
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  sheetTitle: { fontSize: 20, color: colors.white, fontFamily: Fonts.outfit.bold },
+  sheetReset: { fontSize: 14, color: colors.gold, fontFamily: Fonts.inter.semiBold },
+  sheetLabel: { fontSize: 11, color: colors.slate400, fontFamily: Fonts.inter.bold, letterSpacing: 0.8, marginTop: 16, marginBottom: 8 },
+  sortList: {
+    borderRadius: EventGrid.radius,
+    borderWidth: 1,
+    borderColor: 'rgba(202, 156, 104, 0.14)',
+    overflow: 'hidden',
+  },
+  sortRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 48,
+    paddingHorizontal: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(202, 156, 104, 0.12)',
   },
+  sortText: { fontSize: 14, color: colors.white, fontFamily: Fonts.inter.regular },
+  sortTextSelected: { color: colors.gold, fontFamily: Fonts.inter.semiBold },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minHeight: 36,
+    justifyContent: 'center',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(202, 156, 104, 0.25)',
+  },
+  chipSelected: { backgroundColor: colors.gold, borderColor: colors.gold },
+  chipText: { fontSize: 13, color: colors.white, fontFamily: Fonts.inter.medium },
+  chipTextSelected: { color: colors.onAccent, fontFamily: Fonts.inter.bold },
 
-  // Grid / Layout
-  grid: { paddingHorizontal: 20 },
-  cardsWrapper: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  
-  // Event Card
-  eventCard: {
-    width: (width - 54) / 2, height: 260,
-    borderRadius: 28, overflow: 'hidden',
-    backgroundColor: MidnightColors.deepSlate,
-    borderWidth: 1, borderColor: 'rgba(202, 156, 104,0.15)',
-    marginBottom: 16,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-  },
-  cardContent: { flex: 1, padding: 16, justifyContent: 'flex-end' },
-  cardHeader: { position: 'absolute', top: 16, left: 16 },
-  dateBadge: {
-    backgroundColor: 'rgba(19, 25, 31, 0.6)',
-    paddingHorizontal: 8, paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-  },
-  dateBadgeText: { fontSize: 10, color: '#fff', fontFamily: Fonts.inter.bold, textTransform: 'uppercase' },
-  cardTitle: { fontSize: 18, color: '#fff', fontFamily: Fonts.outfit.bold, marginBottom: 12, lineHeight: 22 },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  avatarStack: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  participantText: { fontSize: 10, color: MidnightColors.slate400, fontFamily: Fonts.inter.medium },
-  arrowIcon: {
-    width: 24, height: 24, borderRadius: 8,
-    backgroundColor: MidnightColors.gold,
-    alignItems: 'center', justifyContent: 'center',
-  },
-
-  // States
-  loaderContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 100 },
-  loadingText: { marginTop: 16, color: MidnightColors.slate400, fontSize: 14, fontFamily: Fonts.inter.medium },
-  emptyState: { width: '100%', alignItems: 'center', paddingTop: 80 },
-  emptyIconContainer: {
-    width: 100, height: 100, borderRadius: 50,
-    backgroundColor: 'rgba(202, 156, 104,0.05)',
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 24,
-    borderWidth: 1, borderColor: 'rgba(202, 156, 104,0.1)',
-  },
-  emptyTitle: { fontSize: 24, color: '#fff', fontFamily: Fonts.outfit.bold },
-  emptyBody: { fontSize: 15, color: MidnightColors.slate400, fontFamily: Fonts.inter.regular, textAlign: 'center', marginTop: 12, paddingHorizontal: 30, lineHeight: 22 },
-  emptyActionBtn: {
-    marginTop: 32,
-    backgroundColor: MidnightColors.gold,
-    paddingHorizontal: 32, paddingVertical: 16,
-    borderRadius: 16,
-  },
-  emptyActionText: { color: MidnightColors.onAccent, fontFamily: Fonts.outfit.extraBold, fontSize: 16 },
+  // Empty states (same as the Host tab)
+  emptyState: { width: '100%', alignItems: 'center', paddingVertical: 80 },
+  emptyTitle: { fontSize: 18, color: colors.white, fontFamily: Fonts.outfit.bold, marginTop: 16 },
+  emptyBody: { fontSize: 12, color: colors.slate400, fontFamily: Fonts.inter.regular, textAlign: 'center', marginTop: 8, paddingHorizontal: 40 },
 });
