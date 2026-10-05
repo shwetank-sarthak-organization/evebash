@@ -5227,7 +5227,7 @@ export default function EventDetailScreen() {
                                   color={isFavouriteVideo ? '#13191F' : '#fff'}
                                 />
                               </TouchableOpacity>
-                              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Delete video"
+                              <TouchableOpacity
                                 style={{
                                   position: 'absolute',
                                   top: 4,
