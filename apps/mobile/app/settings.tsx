@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/Button';
 import { appAlert, showToast } from '@/lib/feedback';
 import { haptic } from '@/lib/haptics';
 import * as Clipboard from 'expo-clipboard';
+import { MidnightColors } from '@/constants/theme';
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
@@ -346,7 +347,7 @@ export default function SettingsScreen() {
               onPress={() => setPasswordModalVisible(true)}
             >
               <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-                <IconSymbol name="lock.fill" size={18} color="#CA9C68" />
+                <IconSymbol name="lock.fill" size={18} color={MidnightColors.gold} />
               </View>
               <Text style={styles.actionText}>Change Password</Text>
               <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -354,7 +355,7 @@ export default function SettingsScreen() {
           ) : (
             <View style={[styles.actionItemRow, { opacity: 0.5 }]}>
               <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.05)' }]}>
-                <IconSymbol name="lock.fill" size={18} color="#CDB89E" />
+                <IconSymbol name="lock.fill" size={18} color={MidnightColors.slate400} />
               </View>
               <Text style={[styles.actionText, { color: colors.slate400 }]}>Change Password (Phone Login)</Text>
             </View>
@@ -368,10 +369,10 @@ export default function SettingsScreen() {
             onPress={() => setDeleteModalVisible(true)}
           >
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
-              <IconSymbol name="trash.fill" size={18} color="#ef4444" />
+              <IconSymbol name="trash.fill" size={18} color={MidnightColors.danger} />
             </View>
-            <Text style={[styles.actionText, { color: '#f87171' }]}>Delete Account</Text>
-            <IconSymbol name="chevron.right" size={16} color="#f87171" />
+            <Text style={[styles.actionText, { color: MidnightColors.dangerSoft }]}>Delete Account</Text>
+            <IconSymbol name="chevron.right" size={16} color={MidnightColors.dangerSoft} />
           </TouchableOpacity>
         </View>
 
@@ -380,7 +381,7 @@ export default function SettingsScreen() {
         <View style={styles.settingsCard}>
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={togglePrivacy} disabled={updatingPrivacy} accessibilityRole="switch" accessibilityLabel="Private account" accessibilityState={{ checked: isPrivate, disabled: updatingPrivacy }}>
             <View style={[styles.infoIconBox, { backgroundColor: isPrivate ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)' }]}>
-              <IconSymbol name={isPrivate ? "lock.fill" : "globe"} size={18} color={isPrivate ? "#ef4444" : "#10b981"} />
+              <IconSymbol name={isPrivate ? "lock.fill" : "globe"} size={18} color={isPrivate ? MidnightColors.danger : MidnightColors.success} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.actionText}>Private Account</Text>
@@ -401,7 +402,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={toggleDiscoverability} disabled={updatingSearch} accessibilityRole="switch" accessibilityLabel="Discoverable profile" accessibilityState={{ checked: isDiscoverable, disabled: updatingSearch }}>
             <View style={[styles.infoIconBox, { backgroundColor: isDiscoverable ? 'rgba(16, 185, 129, 0.1)' : 'rgba(100, 116, 139, 0.1)' }]}>
-              <IconSymbol name="magnifyingglass" size={18} color={isDiscoverable ? "#10b981" : "#64748b"} />
+              <IconSymbol name="magnifyingglass" size={18} color={isDiscoverable ? MidnightColors.success : MidnightColors.slate600} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.actionText}>Discoverable Profile</Text>
@@ -507,7 +508,7 @@ export default function SettingsScreen() {
             </View>
             {!clearingCache && (
               <View style={[styles.infoIconBox, { backgroundColor: 'rgba(100, 116, 139, 0.1)' }]}>
-                <IconSymbol name="clock.fill" size={16} color="#64748b" />
+                <IconSymbol name="clock.fill" size={16} color={MidnightColors.slate600} />
               </View>
             )}
           </TouchableOpacity>
@@ -522,7 +523,7 @@ export default function SettingsScreen() {
             onPress={() => setFeedbackModalVisible(true)}
           >
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="bell.fill" size={18} color="#CA9C68" />
+              <IconSymbol name="bell.fill" size={18} color={MidnightColors.gold} />
             </View>
             <Text style={styles.actionText}>Report a Bug / Send Feedback</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -545,7 +546,7 @@ export default function SettingsScreen() {
             ])}
           >
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="envelope.fill" size={16} color="#CA9C68" />
+              <IconSymbol name="envelope.fill" size={16} color={MidnightColors.gold} />
             </View>
             <Text style={styles.actionText}>Contact Customer Support</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -568,7 +569,7 @@ export default function SettingsScreen() {
                   <IconSymbol
                     name={isExpanded ? "chevron.down" : "chevron.right"}
                     size={16}
-                    color="#CA9C68"
+                    color={MidnightColors.gold}
                   />
                 </TouchableOpacity>
                 {isExpanded && (
@@ -587,7 +588,7 @@ export default function SettingsScreen() {
         <View style={styles.settingsCard}>
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={() => router.push('/(tabs)' as any)}>
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="house.fill" size={18} color="#CA9C68" />
+              <IconSymbol name="house.fill" size={18} color={MidnightColors.gold} />
             </View>
             <Text style={styles.actionText}>About EveBash</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -597,7 +598,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={() => openLegalModal('terms')}>
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="doc.on.doc.fill" size={18} color="#CA9C68" />
+              <IconSymbol name="doc.on.doc.fill" size={18} color={MidnightColors.gold} />
             </View>
             <Text style={styles.actionText}>Terms of Service</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -607,7 +608,7 @@ export default function SettingsScreen() {
 
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={() => openLegalModal('privacy')}>
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(202, 156, 104, 0.1)' }]}>
-              <IconSymbol name="shield.fill" size={18} color="#CA9C68" />
+              <IconSymbol name="shield.fill" size={18} color={MidnightColors.gold} />
             </View>
             <Text style={styles.actionText}>Privacy Policy</Text>
             <IconSymbol name="chevron.right" size={16} color={colors.slate400} />
@@ -636,7 +637,7 @@ export default function SettingsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Change Password</Text>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setPasswordModalVisible(false)}>
-                <IconSymbol name="xmark" size={20} color="#64748b" />
+                <IconSymbol name="xmark" size={20} color={MidnightColors.slate600} />
               </TouchableOpacity>
             </View>
 
@@ -649,7 +650,7 @@ export default function SettingsScreen() {
                   onChangeText={setNewPassword}
                   secureTextEntry={true}
                   placeholder="At least 6 characters"
-                  placeholderTextColor="#9A8B78"
+                  placeholderTextColor={MidnightColors.slate600}
                 />
               </View>
 
@@ -661,7 +662,7 @@ export default function SettingsScreen() {
                   onChangeText={setConfirmPassword}
                   secureTextEntry={true}
                   placeholder="Re-enter password"
-                  placeholderTextColor="#9A8B78"
+                  placeholderTextColor={MidnightColors.slate600}
                 />
               </View>
             </View>
@@ -698,11 +699,11 @@ export default function SettingsScreen() {
         onRequestClose={() => setDeleteModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { borderTopColor: '#ef4444', borderTopWidth: 4 }]}>
+          <View style={[styles.modalContent, { borderTopColor: MidnightColors.danger, borderTopWidth: 4 }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: '#ef4444' }]}>Delete Account Permanently?</Text>
+              <Text style={[styles.modalTitle, { color: MidnightColors.danger }]}>Delete Account Permanently?</Text>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setDeleteModalVisible(false)}>
-                <IconSymbol name="xmark" size={20} color="#64748b" />
+                <IconSymbol name="xmark" size={20} color={MidnightColors.slate600} />
               </TouchableOpacity>
             </View>
 
@@ -719,7 +720,7 @@ export default function SettingsScreen() {
                 autoCorrect={false}
                 editable={!deletingAccount}
                 placeholder="DELETE"
-                placeholderTextColor="#9A8B78"
+                placeholderTextColor={MidnightColors.slate600}
               />
             </View>
 
@@ -766,7 +767,7 @@ export default function SettingsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Send Feedback</Text>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setFeedbackModalVisible(false)}>
-                <IconSymbol name="xmark" size={20} color="#64748b" />
+                <IconSymbol name="xmark" size={20} color={MidnightColors.slate600} />
               </TouchableOpacity>
             </View>
 
@@ -791,7 +792,7 @@ export default function SettingsScreen() {
                   value={feedbackText}
                   onChangeText={setFeedbackText}
                   placeholder="Describe your issue or suggest a premium feature..."
-                  placeholderTextColor="#9A8B78"
+                  placeholderTextColor={MidnightColors.slate600}
                   multiline={true}
                   numberOfLines={5}
                 />
@@ -836,7 +837,7 @@ export default function SettingsScreen() {
                 {legalModalType === 'terms' ? 'Terms of Service' : 'Privacy Policy'}
               </Text>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setLegalModalVisible(false)}>
-                <IconSymbol name="xmark" size={20} color="#64748b" />
+                <IconSymbol name="xmark" size={20} color={MidnightColors.slate600} />
               </TouchableOpacity>
             </View>
 
@@ -873,7 +874,7 @@ export default function SettingsScreen() {
   );
 }
 
-const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -961,7 +962,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   infoIconBox: {
     width: 34,
     height: 34,
-    borderRadius: 10,
+    borderRadius: 12,
     backgroundColor: 'rgba(202, 156, 104, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -975,7 +976,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     justifyContent: 'center',
   },
   toggleBtnActive: {
-    backgroundColor: '#10b981',
+    backgroundColor: colors.success,
   },
   toggleDot: {
     width: 20,
@@ -1002,7 +1003,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   segmentPill: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
   },
   segmentPillActive: {
@@ -1014,7 +1015,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     color: colors.slate400,
   },
   segmentPillTextActive: {
-    color: '#13191F',
+    color: colors.onAccent,
     fontFamily: 'Inter_700Bold',
   },
   progressContainer: {
@@ -1149,7 +1150,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: isDark ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.03)',
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    borderRadius: 14,
+    borderRadius: 16,
     height: 48,
     paddingHorizontal: 16,
     fontSize: 14,
@@ -1170,7 +1171,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   categoryPillActive: {
     backgroundColor: 'rgba(202, 156, 104, 0.15)',
-    borderColor: '#CA9C68',
+    borderColor: colors.gold,
   },
   categoryPillText: {
     fontSize: 12,
@@ -1178,7 +1179,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     color: colors.slate400,
   },
   categoryPillTextActive: {
-    color: '#CA9C68',
+    color: colors.gold,
   },
   modalActions: {
     flexDirection: 'row',
@@ -1188,7 +1189,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   cancelBtn: {
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1201,13 +1202,13 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: colors.gold,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
   saveBtnText: {
     fontSize: 14,
     fontFamily: 'Outfit_700Bold',
-    color: '#13191F',
+    color: colors.onAccent,
   },
 });

@@ -164,7 +164,7 @@ export default function YourEventsScreen() {
               style={styles.headerFilterBtn}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
-              <Svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#CA9C68" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <Svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={MidnightColors.gold} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <Path d="M10 5H3"/><Path d="M12 19H3"/><Path d="M14 3v4"/><Path d="M16 17v4"/><Path d="M21 12h-9"/><Path d="M21 19h-5"/><Path d="M21 5h-7"/><Path d="M8 10v4"/><Path d="M8 12H3"/>
               </Svg>
             </TouchableOpacity>
@@ -173,11 +173,11 @@ export default function YourEventsScreen() {
         {/* ── SEARCH ── */}
         <View style={styles.searchSection}>
           <View style={styles.searchBox}>
-            <IconSymbol name="magnifyingglass" size={18} color="#64748b" />
+            <IconSymbol name="magnifyingglass" size={18} color={MidnightColors.slate600} />
             <TextInput 
               style={styles.searchInput}
               placeholder="Search memories..."
-              placeholderTextColor="#9A8B78"
+              placeholderTextColor={MidnightColors.slate600}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -255,7 +255,7 @@ export default function YourEventsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#13191F' },
+  safeArea: { flex: 1, backgroundColor: MidnightColors.background },
   container: { flex: 1 },
   scrollContent: { paddingBottom: 60, paddingTop: 0 },
   
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 20,
-    backgroundColor: '#13191F',
+    backgroundColor: MidnightColors.background,
     gap: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 6,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 8,
     alignSelf: 'flex-start',
     marginBottom: 8,
   },
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#13191F',
+    backgroundColor: MidnightColors.background,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -403,12 +403,12 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1B211F',
+    backgroundColor: MidnightColors.deepSlate,
     paddingHorizontal: 16,
     height: 50,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#2B2F2E',
+    borderColor: MidnightColors.slate800,
   },
   searchInput: {
     flex: 1,
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 16,
-    backgroundColor: '#CA9C68',
+    backgroundColor: MidnightColors.gold,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
   eventCard: {
     width: (width - 54) / 2, height: 260,
     borderRadius: 28, overflow: 'hidden',
-    backgroundColor: '#1B211F',
+    backgroundColor: MidnightColors.deepSlate,
     borderWidth: 1, borderColor: 'rgba(202, 156, 104,0.15)',
     marginBottom: 16,
     elevation: 10,
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
   dateBadge: {
     backgroundColor: 'rgba(19, 25, 31, 0.6)',
     paddingHorizontal: 8, paddingVertical: 4,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
   dateBadgeText: { fontSize: 10, color: '#fff', fontFamily: Fonts.inter.bold, textTransform: 'uppercase' },
@@ -481,5 +481,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32, paddingVertical: 16,
     borderRadius: 16,
   },
-  emptyActionText: { color: '#13191F', fontFamily: Fonts.outfit.extraBold, fontSize: 16 },
+  emptyActionText: { color: MidnightColors.onAccent, fontFamily: Fonts.outfit.extraBold, fontSize: 16 },
 });

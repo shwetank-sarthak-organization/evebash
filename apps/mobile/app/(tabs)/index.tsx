@@ -69,7 +69,7 @@ export default function HomeScreen() {
                 style={styles.primaryButton}
                 onPress={() => user ? router.push('/(tabs)/dashboard') : router.push('/login')}
               >
-                <IconSymbol name={user ? 'square.grid.2x2.fill' : 'person.fill'} size={18} color="#13191F" />
+                <IconSymbol name={user ? 'square.grid.2x2.fill' : 'person.fill'} size={18} color={MidnightColors.onAccent} />
                 <Text style={styles.primaryButtonText}>{user ? 'Open Dashboard' : 'Create Account'}</Text>
               </TouchableOpacity>
 
@@ -309,7 +309,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     gap: 10,
   },
   primaryButtonText: {
-    color: '#13191F',
+    color: colors.onAccent,
     fontFamily: Fonts.outfit.extraBold,
     fontSize: 13,
     letterSpacing: 1.2,
@@ -480,6 +480,6 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     fontSize: 12,
   },
   footerHeart: {
-    color: '#fb7185',
+    color: colors.dangerSoft,
   },
 });

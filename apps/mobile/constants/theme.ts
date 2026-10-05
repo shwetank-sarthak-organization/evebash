@@ -42,6 +42,17 @@ export const MidnightColors = {
   border: 'rgba(202, 156, 104, 0.25)',
   cardBorder: 'rgba(202, 156, 104, 0.12)',
   modalBackdrop: 'rgba(0, 0, 0, 0.65)',
+  /** Raised card surface on the page background */
+  surface: '#10161C',
+  /** Text and icons placed on a gold fill */
+  onAccent: '#13191F',
+  success: '#22C55E',
+  warning: '#FBBF24',
+  danger: '#EF4444',
+  /** Solid red fills (destructive buttons) */
+  dangerStrong: '#DC2626',
+  /** Red text and icons on dark backgrounds */
+  dangerSoft: '#F87171',
 };
 
 export const RoyalColors = {

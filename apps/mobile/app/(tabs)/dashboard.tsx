@@ -49,6 +49,7 @@ import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { appAlert, showToast } from '@/lib/feedback';
+import { MidnightColors } from '@/constants/theme';
 
 const { width, height } = Dimensions.get('window');
 
@@ -97,7 +98,7 @@ export function SwipeableNotificationItem({ children, onDismiss, colors, isDark 
     <View style={{ position: 'relative', overflow: 'hidden', borderRadius: 16, marginBottom: 12 }}>
       {/* Background delete action indicator */}
       <View style={[StyleSheet.absoluteFill, {
-        backgroundColor: colors.gold || '#CA9C68',
+        backgroundColor: colors.gold,
         justifyContent: 'center',
         alignItems: 'flex-end',
         paddingRight: 24,
@@ -600,11 +601,11 @@ export default function DashboardScreen() {
       <ScrollView
         style={styles.container}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#CA9C68" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={MidnightColors.gold} />}
       >
         {/* ── HEADER ── */}
         <LinearGradient
-          colors={isDark ? ['#151C22', '#22302F', '#13191F'] : [colors.deepSlate, colors.background]}
+          colors={isDark ? ['#151C22', '#22302F', MidnightColors.background] : [colors.deepSlate, colors.background]}
           style={[styles.header, { paddingTop: insets.top + 4 }]}
         >
           <View style={styles.headerLeft}>
@@ -679,7 +680,7 @@ export default function DashboardScreen() {
                     activeOpacity={0.8}
                     onPress={() => setShowJoinModal(true)}
                   >
-                    <IconSymbol name="plus.circle.fill" size={12} color={'#13191F'} />
+                    <IconSymbol name="plus.circle.fill" size={12} color={MidnightColors.onAccent} />
                     <Text style={styles.catchyActionPillText}>Join Event</Text>
                   </TouchableOpacity>
                 </View>
@@ -776,7 +777,7 @@ export default function DashboardScreen() {
 
                          <View style={styles.aestheticExploreBtn}>
                             <Text style={styles.aestheticExploreBtnText}>Explore All</Text>
-                            <IconSymbol name="arrow.right" size={12} color={'#13191F'} />
+                            <IconSymbol name="arrow.right" size={12} color={MidnightColors.onAccent} />
                          </View>
                       </View>
                     </View>
@@ -873,7 +874,7 @@ export default function DashboardScreen() {
                         accessibilityLabel="Close"
                         hitSlop={10}
                       >
-                        <IconSymbol name="xmark.circle.fill" size={24} color="#64748b" />
+                        <IconSymbol name="xmark.circle.fill" size={24} color={MidnightColors.slate600} />
                       </TouchableOpacity>
                     </View>
 
@@ -911,7 +912,7 @@ export default function DashboardScreen() {
                             value={joinCode}
                             onChangeText={setJoinCode}
                             placeholder="E.G. A1B2C3"
-                            placeholderTextColor="#9A8B78"
+                            placeholderTextColor={MidnightColors.slate600}
                             autoCapitalize="characters"
                           />
                         </View>
@@ -952,7 +953,7 @@ export default function DashboardScreen() {
                         accessibilityLabel="Close"
                         hitSlop={10}
                       >
-                        <IconSymbol name="xmark.circle.fill" size={24} color="#64748b" />
+                        <IconSymbol name="xmark.circle.fill" size={24} color={MidnightColors.slate600} />
                       </TouchableOpacity>
                     </View>
 
@@ -1125,7 +1126,7 @@ export default function DashboardScreen() {
                                   <IconSymbol
                                     name={NOTIFICATION_ICONS[item.type] || 'bell.fill'}
                                     size={20}
-                                    color={item.type === 'upload_failed' ? '#ef4444' : item.type === 'upload_success' ? '#22c55e' : colors.gold}
+                                    color={item.type === 'upload_failed' ? MidnightColors.danger : item.type === 'upload_success' ? MidnightColors.success : colors.gold}
                                   />
                                 </View>
                                 <View style={styles.notificationTextWrapper}>
@@ -1167,7 +1168,7 @@ export default function DashboardScreen() {
                     <Text style={{
                       fontSize: 14,
                       fontFamily: 'Inter_400Regular',
-                      color: colors.slate400 || '#cbd5e1',
+                      color: colors.slate400,
                       textAlign: 'center',
                       lineHeight: 22,
                       marginBottom: 24
@@ -1209,13 +1210,13 @@ export default function DashboardScreen() {
                       padding: 24,
                       borderRadius: 28,
                       borderWidth: 1.5,
-                      backgroundColor: isDark ? '#1B211F' : '#ffffff',
+                      backgroundColor: isDark ? MidnightColors.deepSlate : '#ffffff',
                       borderColor: statusModalConfig.type === 'success'
                         ? (isDark ? 'rgba(34, 197, 94, 0.4)' : 'rgba(34, 197, 94, 0.2)')
                         : statusModalConfig.type === 'pending'
                         ? (isDark ? 'rgba(202, 156, 104, 0.4)' : 'rgba(202, 156, 104, 0.2)')
                         : (isDark ? 'rgba(239, 68, 68, 0.4)' : 'rgba(239, 68, 68, 0.2)'),
-                      shadowColor: statusModalConfig.type === 'success' ? '#22c55e' : statusModalConfig.type === 'pending' ? colors.gold : '#ef4444',
+                      shadowColor: statusModalConfig.type === 'success' ? MidnightColors.success : statusModalConfig.type === 'pending' ? colors.gold : MidnightColors.danger,
                       shadowOffset: { width: 0, height: 10 },
                       shadowOpacity: isDark ? 0.15 : 0.08,
                       shadowRadius: 20,
@@ -1251,10 +1252,10 @@ export default function DashboardScreen() {
                             : "xmark.circle.fill"}
                           size={32}
                           color={statusModalConfig.type === 'success'
-                            ? "#22c55e"
+                            ? MidnightColors.success
                             : statusModalConfig.type === 'pending'
                             ? colors.gold
-                            : "#ef4444"}
+                            : MidnightColors.danger}
                         />
                       </View>
 
@@ -1263,7 +1264,7 @@ export default function DashboardScreen() {
                         {
                           textAlign: 'center',
                           fontSize: 22,
-                          color: isDark ? '#ffffff' : '#1B211F',
+                          color: isDark ? '#ffffff' : MidnightColors.deepSlate,
                           fontFamily: 'Outfit_800ExtraBold',
                           marginBottom: 8
                         }
@@ -1277,10 +1278,10 @@ export default function DashboardScreen() {
                         fontSize: 16,
                         fontFamily: 'Outfit_700Bold',
                         color: statusModalConfig.type === 'success'
-                          ? "#22c55e"
+                          ? MidnightColors.success
                           : statusModalConfig.type === 'pending'
                           ? colors.gold
-                          : "#ef4444",
+                          : MidnightColors.danger,
                         textAlign: 'center',
                         marginBottom: 16,
                         paddingHorizontal: 16
@@ -1292,7 +1293,7 @@ export default function DashboardScreen() {
                     <Text style={{
                       fontSize: 14,
                       fontFamily: 'Inter_400Regular',
-                      color: isDark ? colors.slate400 : '#475569',
+                      color: isDark ? colors.slate400 : MidnightColors.slate600,
                       textAlign: 'center',
                       lineHeight: 22,
                       marginBottom: statusModalConfig.type === 'pending' ? 28 : 20
@@ -1318,13 +1319,13 @@ export default function DashboardScreen() {
                           name="info.circle"
                           size={18}
                           color={statusModalConfig.type === 'success'
-                            ? "#22c55e"
-                            : "#ef4444"}
+                            ? MidnightColors.success
+                            : MidnightColors.danger}
                         />
                         <Text style={{
                           fontSize: 12,
                           fontFamily: 'Inter_500Medium',
-                          color: isDark ? colors.slate400 : '#475569',
+                          color: isDark ? colors.slate400 : MidnightColors.slate600,
                           flex: 1,
                           lineHeight: 16
                         }}>
@@ -1354,7 +1355,7 @@ export default function DashboardScreen() {
                       padding: 24,
                       borderRadius: 24,
                       borderWidth: 1.5,
-                      backgroundColor: '#1B211F',
+                      backgroundColor: MidnightColors.deepSlate,
                       borderColor: 'rgba(202, 156, 104, 0.3)',
                       alignItems: 'center',
                       alignSelf: 'center',
@@ -1378,13 +1379,13 @@ export default function DashboardScreen() {
                       borderWidth: 1,
                       borderColor: 'rgba(34, 197, 94, 0.35)',
                     }}>
-                      <IconSymbol name="checkmark.circle.fill" size={34} color="#22c55e" />
+                      <IconSymbol name="checkmark.circle.fill" size={34} color={MidnightColors.success} />
                     </View>
 
                     <Text style={{
                       fontSize: 22,
                       fontWeight: 'bold',
-                      color: colors.gold || '#CCA43B',
+                      color: colors.gold,
                       marginBottom: 10,
                       fontFamily: 'Outfit_700Bold',
                       textAlign: 'center',
@@ -1395,7 +1396,7 @@ export default function DashboardScreen() {
 
                     <Text style={{
                       fontSize: 14,
-                      color: '#cbd5e1',
+                      color: MidnightColors.slate300,
                       textAlign: 'center',
                       marginBottom: 24,
                       fontFamily: 'Inter_400Regular',
@@ -1428,7 +1429,7 @@ const CARD_H = 155;
 const DASHBOARD_GRID_SIDE_PADDING = 24;
 const DASHBOARD_GRID_ITEM_WIDTH = '48%' as const;
 
-const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   centered: { justifyContent: 'center', alignItems: 'center' },
   container: { flex: 1, backgroundColor: colors.background },
@@ -1567,7 +1568,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   catchyActionPillText: {
     fontSize: 10,
-    color: '#13191F',
+    color: colors.onAccent,
     fontFamily: 'Outfit_800ExtraBold',
     textTransform: 'uppercase',
     letterSpacing: 0.3,
@@ -1653,7 +1654,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: 'rgba(202, 156, 104,0.1)',
     paddingHorizontal: 6,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 8,
     alignSelf: 'flex-start',
     marginBottom: 8,
     borderWidth: 1,
@@ -1666,7 +1667,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     letterSpacing: 0.8,
   },
   heroTitle: {
-    color: isDark ? '#ffffff' : '#1B211F',
+    color: isDark ? '#ffffff' : colors.deepSlate,
     fontSize: 18,
     fontFamily: 'Outfit_800ExtraBold',
     marginBottom: 2,
@@ -1691,7 +1692,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     alignSelf: 'flex-start',
   },
   heroBtnText: {
-    color: isDark ? '#ffffff' : '#1B211F',
+    color: isDark ? '#ffffff' : colors.deepSlate,
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },
@@ -1721,7 +1722,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   modalTitle: { fontSize: 24, color: colors.white, fontFamily: 'Outfit_800ExtraBold', marginBottom: 12, letterSpacing: -0.5 },
   modalText: { fontSize: 16, color: colors.slate400, fontFamily: 'Inter_400Regular', lineHeight: 26, marginBottom: 28 },
   modalCloseBtn: { backgroundColor: colors.gold, paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
-  modalCloseBtnText: { color: '#1B211F', fontFamily: 'Outfit_800ExtraBold', fontSize: 14, textTransform: 'uppercase', letterSpacing: 0.8 },
+  modalCloseBtnText: { color: colors.deepSlate, fontFamily: 'Outfit_800ExtraBold', fontSize: 14, textTransform: 'uppercase', letterSpacing: 0.8 },
 
   // ── Join Event Modal Specific ──
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
@@ -1747,10 +1748,10 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderRadius: 20,
     marginTop: 10,
   },
-  submitBtnText: { color: '#1B211F', fontFamily: 'Outfit_800ExtraBold', fontSize: 16, textTransform: 'uppercase', letterSpacing: 1 },
+  submitBtnText: { color: colors.deepSlate, fontFamily: 'Outfit_800ExtraBold', fontSize: 16, textTransform: 'uppercase', letterSpacing: 1 },
   modalDivider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 24 },
   dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
-  dividerText: { color: '#9A8B78', fontSize: 12, fontFamily: 'Inter_700Bold' },
+  dividerText: { color: colors.slate600, fontSize: 12, fontFamily: 'Inter_700Bold' },
   scanBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1843,7 +1844,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     gap: 8,
   },
   cardActionBtnMainText: {
-    color: '#13191F',
+    color: colors.onAccent,
     fontSize: 14,
     fontFamily: 'Outfit_800ExtraBold',
   },
@@ -2013,12 +2014,12 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: colors.gold,
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 14,
+    borderRadius: 16,
     width: '100%',
   },
   miniGalleryBtnText: {
     fontSize: 12,
-    color: '#13191F',
+    color: colors.onAccent,
     fontFamily: 'Outfit_800ExtraBold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -2030,7 +2031,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.gold || '#CA9C68',
+    backgroundColor: colors.gold,
   },
   aestheticEventCard: {
     width: DASHBOARD_GRID_ITEM_WIDTH,
@@ -2040,7 +2041,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(202, 156, 104, 0.16)',
-    backgroundColor: isDark ? '#10161C' : '#ffffff',
+    backgroundColor: isDark ? colors.surface : '#ffffff',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: isDark ? 0.3 : 0.05,
@@ -2050,7 +2051,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   aestheticImageContainer: {
     width: '100%',
     height: 100,
-    backgroundColor: '#0E141A',
+    backgroundColor: colors.surface,
     position: 'relative',
   },
   aestheticTextContainer: {
@@ -2088,7 +2089,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: 'rgba(202, 156, 104, 0.2)',
-    backgroundColor: '#10161C',
+    backgroundColor: colors.surface,
     shadowColor: colors.gold,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: isDark ? 0.15 : 0.03,
@@ -2139,7 +2140,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   aestheticExploreBtnText: {
     fontSize: 11,
-    color: '#13191F',
+    color: colors.onAccent,
     fontFamily: 'Outfit_800ExtraBold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -2179,7 +2180,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 16,
-    backgroundColor: isDark ? '#1B211F' : '#ffffff',
+    backgroundColor: isDark ? colors.deepSlate : '#ffffff',
     marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.cardBorder,

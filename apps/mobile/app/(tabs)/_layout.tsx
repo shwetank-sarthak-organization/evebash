@@ -60,8 +60,18 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
+        name="vendors"
+        options={{
+          title: 'Vendors',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="briefcase.fill" color={color} />,
+        }}
+      />
+
+      <Tabs.Screen
         name="businesses"
         options={{
+          // Hidden for v1; restore by removing href: null (Phase 2)
+          href: null,
           title: 'EB Business',
           tabBarIcon: ({ color }) => (
             <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -92,6 +102,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="explore-business"
         options={{
+          // Hidden for v1; restore by removing href: null (Phase 2)
+          href: null,
           title: 'EB Network',
           tabBarIcon: ({ color }) => (
             <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

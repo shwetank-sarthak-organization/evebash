@@ -24,13 +24,13 @@ import {
 import { Radius, Spacing } from '@/constants/layout';
 import { FontFamily, FontSize } from '@/constants/typography';
 
-const DANGER = '#DC2626';
+const DANGER = MidnightColors.dangerStrong;
 
 // Cached "reduce motion" setting so the toast can skip its slide
 let reduceMotion = false;
 AccessibilityInfo.isReduceMotionEnabled().then((value) => { reduceMotion = value; }).catch(() => {});
 AccessibilityInfo.addEventListener('reduceMotionChanged', (value) => { reduceMotion = value; });
-const SUCCESS = '#22C55E';
+const SUCCESS = MidnightColors.success;
 
 /**
  * Renders the app-wide toast and (on Android) the themed alert dialog. Mount once at the root.

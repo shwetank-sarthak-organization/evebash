@@ -4,6 +4,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppTheme } from '@/context/ThemeContext';
 import { MidnightColors } from '@/constants/theme';
 import { Stack, useRouter } from 'expo-router';
+import { Button } from '@/components/ui/Button';
 
 export default function ContactUsScreen() {
   const router = useRouter();
@@ -98,17 +99,17 @@ export default function ContactUsScreen() {
           
           <View style={styles.infoItem}>
             <View style={styles.iconBox}>
-              <IconSymbol name="house.fill" size={24} color="#0284c7" />
+              <IconSymbol name="house.fill" size={24} color={MidnightColors.gold} />
             </View>
             <View style={styles.infoTextContainer}>
-              <Text style={styles.infoLabel}>STUDIO ADDRESS</Text>
+              <Text style={styles.infoLabel}>ADDRESS</Text>
               <Text style={styles.infoText}>Dehradun, Uttarakhand, India - 248001</Text>
             </View>
           </View>
 
           <View style={styles.infoItem}>
             <View style={styles.iconBox}>
-              <IconSymbol name="phone.fill" size={24} color="#0284c7" />
+              <IconSymbol name="phone.fill" size={24} color={MidnightColors.gold} />
             </View>
             <View style={styles.infoTextContainer}>
               <Text style={styles.infoLabel}>PHONE</Text>
@@ -119,7 +120,7 @@ export default function ContactUsScreen() {
 
           <View style={styles.infoItem}>
             <View style={styles.iconBox}>
-              <IconSymbol name="envelope.fill" size={24} color="#0284c7" />
+              <IconSymbol name="envelope.fill" size={24} color={MidnightColors.gold} />
             </View>
             <View style={styles.infoTextContainer}>
               <Text style={styles.infoLabel}>EMAIL</Text>
@@ -129,7 +130,7 @@ export default function ContactUsScreen() {
 
           <View style={styles.infoItem}>
             <View style={styles.iconBox}>
-              <IconSymbol name="clock.fill" size={24} color="#0284c7" />
+              <IconSymbol name="clock.fill" size={24} color={MidnightColors.gold} />
             </View>
             <View style={styles.infoTextContainer}>
               <Text style={styles.infoLabel}>BUSINESS HOURS</Text>
@@ -207,9 +208,7 @@ export default function ContactUsScreen() {
           {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
           {submitSuccess ? <Text style={styles.successText}>{submitSuccess}</Text> : null}
 
-          <TouchableOpacity style={[styles.submitButton, submitting && styles.submitButtonDisabled]} onPress={handleSubmit} disabled={submitting}>
-            <Text style={styles.submitButtonText}>{submitting ? 'SENDING...' : 'SEND MESSAGE'}</Text>
-          </TouchableOpacity>
+          <Button title="Send Message" icon="paperplane.fill" onPress={handleSubmit} loading={submitting} style={{ marginTop: 8 }} />
         </View>
         
         <View style={{ height: 40 }} />
@@ -283,7 +282,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: isDark ? 'rgba(56,189,248,0.12)' : '#f0f9ff',
+    backgroundColor: 'rgba(202, 156, 104, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -350,28 +349,12 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   textArea: {
     minHeight: 120,
   },
-  submitButton: {
-    backgroundColor: '#1B211F',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#64748b',
-  },
-  submitButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
   errorText: {
     color: '#be123c',
     backgroundColor: '#fff1f2',
     borderColor: '#fecdd3',
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 12,
@@ -383,7 +366,7 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     backgroundColor: '#ecfdf5',
     borderColor: '#a7f3d0',
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 12,

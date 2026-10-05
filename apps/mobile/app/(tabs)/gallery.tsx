@@ -589,7 +589,7 @@ export default function PortfolioTabScreen() {
       >
         {/* ── HEADER ── */}
         <LinearGradient
-          colors={isDark ? ['#10161C', '#13191F'] : [colors.deepSlate, colors.background]}
+          colors={isDark ? [MidnightColors.surface, MidnightColors.background] : [colors.deepSlate, colors.background]}
           style={[styles.header, { paddingTop: insets.top + 4 }]}
         >
           <View style={styles.headerLeft}>
@@ -856,7 +856,7 @@ export default function PortfolioTabScreen() {
                         }
                       }}
                     >
-                      <Text style={[styles.modalActionText, { color: '#ef4444' }]}>Reject</Text>
+                      <Text style={[styles.modalActionText, { color: MidnightColors.danger }]}>Reject</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -1049,14 +1049,14 @@ export default function PortfolioTabScreen() {
               <View style={styles.quotaMetricRow}>
                 <View style={styles.quotaMetricTop}>
                   <View style={styles.quotaMetricLeft}>
-                    <View style={[styles.quotaDot, { backgroundColor: '#818cf8' }]} />
+                    <View style={[styles.quotaDot, { backgroundColor: MidnightColors.gold }]} />
                     <Text style={styles.quotaMetricLabel}>Events</Text>
                   </View>
                   <View style={styles.quotaMetricRight}>
                     <Text style={styles.quotaMetricValue}>{mainEventCount}</Text>
                     <Text style={styles.quotaMetricMax}> / {planDetails.eventLabel}</Text>
-                    <View style={[styles.quotaPercentChip, { backgroundColor: 'rgba(129,140,248,0.12)' }]}>
-                      <Text style={[styles.quotaPercentText, { color: '#818cf8' }]}>
+                    <View style={[styles.quotaPercentChip, { backgroundColor: 'rgba(202, 156, 104, 0.12)' }]}>
+                      <Text style={[styles.quotaPercentText, { color: MidnightColors.gold }]}>
                         {planDetails.eventLimit === Infinity ? '∞' : `${Math.round(eventPercent)}%`}
                       </Text>
                     </View>
@@ -1064,7 +1064,7 @@ export default function PortfolioTabScreen() {
                 </View>
                 <View style={styles.quotaBarTrack}>
                   <LinearGradient
-                    colors={['#818cf8', '#a5b4fc']}
+                    colors={[MidnightColors.gold, MidnightColors.slate400]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={[
@@ -1232,8 +1232,8 @@ export default function PortfolioTabScreen() {
                     if (targetEvent) handleDeleteEvent(targetEvent);
                   }}
                 >
-                  <IconSymbol name="trash.fill" size={20} color="#ef4444" />
-                  <Text style={[styles.optionText, { color: '#ef4444' }]}>Delete Event</Text>
+                  <IconSymbol name="trash.fill" size={20} color={MidnightColors.danger} />
+                  <Text style={[styles.optionText, { color: MidnightColors.danger }]}>Delete Event</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -1376,7 +1376,7 @@ export default function PortfolioTabScreen() {
   );
 }
 
-const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
   scrollContent: { paddingBottom: 40 },
@@ -1452,7 +1452,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: 'rgba(202, 156, 104, 0.1)',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 8,
     alignSelf: 'flex-start',
     marginBottom: 8,
     borderWidth: 1,
@@ -1484,7 +1484,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: '#ff0000',
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: 12,
     alignSelf: 'flex-start',
   },
   howToHostYtBtnText: {
@@ -1541,7 +1541,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   createBtnHeader: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: 'rgba(202, 156, 104,0.1)',
     borderWidth: 1,
     borderColor: 'rgba(202, 156, 104,0.3)',
@@ -1562,8 +1562,8 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 14,
     padding: 4,
-    borderRadius: 14,
-    backgroundColor: '#0D1318',
+    borderRadius: 16,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: 'rgba(202, 156, 104, 0.14)',
   },
@@ -1576,11 +1576,11 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingVertical: 10,
     position: 'relative',
     overflow: 'visible',
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  tabBadge: { position: 'absolute', top: 4, right: 8, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: colors.background },
+  tabBadge: { position: 'absolute', top: 4, right: 8, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: colors.background },
   tabBadgeText: { color: colors.white, fontSize: 10, fontFamily: Fonts.inter.bold },
   tabButtonActive: {
     backgroundColor: 'rgba(202, 156, 104, 0.1)',
@@ -1598,7 +1598,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(202, 156, 104,0.14)',
-    backgroundColor: isDark ? '#0D1318' : '#ffffff',
+    backgroundColor: isDark ? colors.surface : '#ffffff',
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
@@ -1612,7 +1612,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   cardImageWrap: {
     width: '100%',
     height: 115,
-    backgroundColor: isDark ? '#10161C' : '#f1f5f9',
+    backgroundColor: isDark ? colors.surface : '#f1f5f9',
     position: 'relative',
     overflow: 'hidden',
   },
@@ -1626,7 +1626,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: 'rgba(19, 25, 31,0.65)',
     borderWidth: 1,
     borderColor: 'rgba(202, 156, 104,0.3)',
-    borderRadius: 7,
+    borderRadius: 8,
     paddingHorizontal: 7,
     paddingVertical: 2,
   },
@@ -1641,7 +1641,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingVertical: 10,
     justifyContent: 'center',
     flex: 1,
-    backgroundColor: isDark ? '#0D1318' : '#ffffff',
+    backgroundColor: isDark ? colors.surface : '#ffffff',
     borderTopWidth: 1,
     borderTopColor: 'rgba(202, 156, 104, 0.08)',
   },
@@ -1737,7 +1737,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: isDark ? '#000000' : '#ffffff',
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 12,
     width: '100%',
     borderWidth: 1,
@@ -1753,12 +1753,12 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   requestEventLabel: { color: colors.slate400, fontSize: 10, fontFamily: Fonts.inter.medium },
   requestEventTitle: { color: colors.gold, fontSize: 10, fontFamily: Fonts.inter.bold, flex: 1 },
   requestActionsMini: { flexDirection: 'row', gap: 10, paddingRight: 4 },
-  miniActionBtnGreen: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#10b981', alignItems: 'center', justifyContent: 'center' },
-  miniActionBtnRed: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center' },
+  miniActionBtnGreen: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center' },
+  miniActionBtnRed: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center' },
 
   // Request Modal Styles
   ironCladWrapper: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
-  premiumRequestModal: { width: width * 0.85, borderRadius: 32, padding: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  premiumRequestModal: { width: width * 0.85, borderRadius: 28, padding: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   largeAvatar: { width: 80, height: 80, borderRadius: 40, overflow: 'hidden', marginBottom: 16 },
   avatarGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   largeAvatarText: { color: MidnightColors.background, fontSize: 32, fontFamily: Fonts.outfit.extraBold },
@@ -1935,7 +1935,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 20,
     paddingVertical: 14,
-    borderRadius: 18,
+    borderRadius: 20,
   },
   quotaUpgradeBtnText: {
     fontSize: 14,
@@ -1982,7 +1982,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     gap: 7,
     paddingHorizontal: 12,
     paddingVertical: 11,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
@@ -2123,7 +2123,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   premiumModalContent: {
     width: width * 0.85,
     alignSelf: 'center',
-    borderRadius: 32,
+    borderRadius: 28,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
@@ -2140,11 +2140,11 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   premiumModalSub: { color: MidnightColors.gold, fontSize: 10, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', marginTop: 1, opacity: 0.8 },
   closeModalCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
   permissionsScroll: { padding: 16 },
-  userInfoToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.025)', padding: 10, borderRadius: 14, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)', gap: 10 },
+  userInfoToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.025)', padding: 10, borderRadius: 16, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)', gap: 10 },
   userInfoToggleActive: { backgroundColor: 'rgba(202, 156, 104, 0.06)', borderColor: 'rgba(202, 156, 104, 0.18)' },
-  userInfoToggleIcon: { width: 30, height: 30, borderRadius: 10, backgroundColor: 'rgba(202, 156, 104, 0.1)', alignItems: 'center', justifyContent: 'center' },
+  userInfoToggleIcon: { width: 30, height: 30, borderRadius: 12, backgroundColor: 'rgba(202, 156, 104, 0.1)', alignItems: 'center', justifyContent: 'center' },
   userInfoToggleTitle: { color: '#fff', fontSize: 13, fontFamily: Fonts.outfit.bold },
-  userInfoToggleSub: { color: '#CDB89E', fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 1 },
+  userInfoToggleSub: { color: colors.slate400, fontSize: 10, fontFamily: Fonts.inter.medium, marginTop: 1 },
   userInfoPanel: { backgroundColor: 'rgba(255,255,255,0.025)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', padding: 10, marginBottom: 10 },
   userInfoProfileRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   userInfoLargeAvatar: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden' },
@@ -2153,6 +2153,6 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   userInfoHandle: { color: MidnightColors.gold, fontSize: 11, fontFamily: Fonts.inter.bold, marginTop: 2 },
   userInfoDetails: { gap: 6 },
   userInfoDetailRow: { backgroundColor: 'rgba(27, 33, 31, 0.7)', padding: 9, borderRadius: 12 },
-  userInfoDetailLabel: { color: '#CDB89E', fontSize: 10, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', marginBottom: 2, letterSpacing: 0.8 },
+  userInfoDetailLabel: { color: colors.slate400, fontSize: 10, fontFamily: Fonts.inter.bold, textTransform: 'uppercase', marginBottom: 2, letterSpacing: 0.8 },
   userInfoDetailValue: { color: '#fff', fontSize: 12, fontFamily: Fonts.inter.medium },
 });

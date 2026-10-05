@@ -37,7 +37,7 @@ type ButtonProps = {
   textStyle?: StyleProp<TextStyle>;
 };
 
-const DANGER = '#DC2626';
+const DANGER = MidnightColors.dangerStrong;
 
 const VARIANTS: Record<ButtonVariant, { bg: string; border: string; text: string; spinner: string }> = {
   primary: { bg: MidnightColors.gold, border: MidnightColors.gold, text: MidnightColors.background, spinner: MidnightColors.background },
