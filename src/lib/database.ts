@@ -2343,7 +2343,8 @@ export async function deleteEvent(eventId: string): Promise<boolean> {
 
         // 2. Fetch photos metadata and delete B2 assets for all photos associated with this event
         const { data: photos } = await supabase.from('photos').select('id, size, overhead_size, media_type, uploaded_at').eq('event_id', eventId);
-        const { data: eventData } = await supabase.from('events').select('title, created_by, created_at').eq('id', eventId).maybeSingle();
+        // events has no created_at column: asking for it failed the whole lookup, so the ledger row below had no owner and was rejected
+        const { data: eventData } = await supabase.from('events').select('title, created_by').eq('id', eventId).maybeSingle();
 
         if (photos && photos.length > 0) {
             console.log(`[deleteEvent] Cleaning up B2 files for ${photos.length} photos under event ${eventId}`);
@@ -2363,7 +2364,7 @@ export async function deleteEvent(eventId: string): Promise<boolean> {
             const earliestUpload = photos && photos.length > 0
                 ? photos.map((p: any) => p.uploaded_at).filter(Boolean).sort()[0]
                 : null;
-            const eventCreatedAt = eventData?.created_at || earliestUpload || new Date().toISOString();
+            const eventCreatedAt = earliestUpload || new Date().toISOString();
 
             const ledgerPayload: Record<string, any> = {
                 event_id: eventId,
@@ -2381,7 +2382,8 @@ export async function deleteEvent(eventId: string): Promise<boolean> {
             if (insErr) {
                 // Fallback without event_created_at if column not yet migrated
                 delete ledgerPayload.event_created_at;
-                await supabase.from('deleted_events_archive').insert(ledgerPayload);
+                const { error: retryErr } = await supabase.from('deleted_events_archive').insert(ledgerPayload);
+                if (retryErr) console.warn('[deleteEvent] Could not record deletion ledger (non-blocking):', retryErr.message);
             }
         } catch (archiveErr) {
             console.warn('[deleteEvent] Could not record deletion ledger (non-blocking):', archiveErr);
