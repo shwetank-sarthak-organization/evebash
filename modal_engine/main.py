@@ -43,22 +43,24 @@ media_image = (
     )
 )
 
-def _cost_tuning_enabled() -> bool:
+def _env_flag(name: str) -> bool:
     """
-    MODAL_COST_TUNING=true in the root .env turns on the cost-tuned container settings
-    (shorter idle windows, more FaceIndexer containers). Unset keeps the previous settings.
-    Read from the .env at deploy time; containers get the same value through the Modal secret.
+    True when `name`=true in the root .env. Read from the .env at deploy time; containers get the
+    same value through the Modal secret, so both evaluations of the decorators agree.
     """
-    value = os.environ.get("MODAL_COST_TUNING")
+    value = os.environ.get(name)
     if value is None and modal.is_local():
         try:
             from dotenv import dotenv_values
-            value = dotenv_values(os.path.join(os.path.dirname(__file__), "../.env")).get("MODAL_COST_TUNING")
+            value = dotenv_values(os.path.join(os.path.dirname(__file__), "../.env")).get(name)
         except Exception:
             value = None
     return (value or "").strip().lower() == "true"
 
-COST_TUNING = _cost_tuning_enabled()
+# Cost-tuned container settings (shorter idle windows, more FaceIndexer containers, 16-core long videos).
+COST_TUNING = _env_flag("MODAL_COST_TUNING")
+# Video endpoints check the QStash signature, start the transcode in the background and reply at once.
+VIDEO_ASYNC = _env_flag("MODAL_VIDEO_ASYNC")
 
 def verify_qstash_signature(body: bytes, signature: str, url: str) -> bool:
     """
@@ -1856,35 +1858,128 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
             pass
         raise fastapi.HTTPException(status_code=500, detail=f"Transcoding failed: {error_details}")
 
-@app.function(
-    image=transcode_image,
-    cpu=4.0,
-    memory=4096,
-    timeout=3600,
-    scaledown_window=10 if COST_TUNING else None,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
-)
-@modal.fastapi_endpoint(method="POST")
-def process_video_cpu(request: dict):
-    return _transcode_video_core(request, hardware="cpu")
+_video_secrets = [modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
 
-# Long videos (> 10 min). The backend routes them to this URL, so the name stays until the backend
-# changes. With MODAL_COST_TUNING it runs on 16 CPU cores instead of an L4: 1.6x faster and ~38%
-# cheaper in the Oct 2026 benchmark (33-min 1080p60 video).
-@app.function(
-    image=transcode_image,
-    gpu=None if COST_TUNING else "l4",
-    cpu=16.0 if COST_TUNING else 4.0,
-    memory=8192,
-    timeout=3600,
-    scaledown_window=10 if COST_TUNING else None,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
-)
-@modal.fastapi_endpoint(method="POST")
-def process_video_gpu(request: dict):
+# Long videos (> 10 min). With MODAL_COST_TUNING they run on 16 CPU cores instead of an L4: 1.6x faster
+# and ~38% cheaper in the Oct 2026 benchmark (33-min 1080p60 video).
+_long_video_resources = {
+    "gpu": None if COST_TUNING else "l4",
+    "cpu": 16.0 if COST_TUNING else 4.0,
+    "memory": 8192,
+}
+
+def _transcode_long(request: dict):
     if COST_TUNING:
         return _transcode_video_core(request, hardware="cpu", cpu_cores=16.0, memory_gb=8.0, function_name="process_video_cpu_long")
     return _transcode_video_core(request, hardware="gpu")
+
+def _transcode_short(request: dict):
+    return _transcode_video_core(request, hardware="cpu")
+
+if VIDEO_ASYNC:
+    def _transcode_once(payload: dict, transcode):
+        """
+        Skips a second transcode of a video that is already being transcoded, e.g. when the backend
+        watchdog re-queues a long video whose first run is still going.
+        """
+        import time
+
+        storage_key = payload.get("storage_key") or payload.get("object_key") or ""
+        photo_id = payload.get("photo_id") or payload.get("id") or storage_key.replace("/", "_")
+        locks = modal.Dict.from_name("video-transcode-locks", create_if_missing=True)
+        now = time.time()
+        if not locks.put(photo_id, now, skip_if_exists=True):
+            if now - locks.get(photo_id, now) < 3600 + 120:
+                print(f"[TranscodeVideo] {photo_id} is already being transcoded; skipping this copy")
+                return {"status": "skipped", "photo_id": photo_id}
+            locks[photo_id] = now  # older than the function timeout: its run died without releasing it
+        try:
+            return transcode(payload)
+        finally:
+            try:
+                locks.pop(photo_id, None)
+            except Exception as err:
+                print(f"[TranscodeVideo] Could not release lock for {photo_id}: {err}")
+
+    # QStash no longer retries a failed transcode (it only waits for the 202), so Modal does: same count
+    _video_retries = modal.Retries(max_retries=3, initial_delay=10.0, backoff_coefficient=2.0)
+
+    @app.function(
+        image=transcode_image,
+        cpu=4.0,
+        memory=4096,
+        timeout=3600,
+        scaledown_window=10 if COST_TUNING else None,
+        retries=_video_retries,
+        max_containers=10,
+        secrets=_video_secrets,
+    )
+    def transcode_video_short(payload: dict):
+        return _transcode_once(payload, _transcode_short)
+
+    @app.function(
+        image=transcode_image,
+        **_long_video_resources,
+        timeout=3600,
+        scaledown_window=10 if COST_TUNING else None,
+        retries=_video_retries,
+        max_containers=5,
+        secrets=_video_secrets,
+    )
+    def transcode_video_long(payload: dict):
+        return _transcode_once(payload, _transcode_long)
+
+    async def _accept_video_job(request, worker):
+        """Checks the QStash signature, starts the transcode in the background and replies 202 at once."""
+        import json
+        from fastapi.responses import JSONResponse
+
+        body = await request.body()
+        verify_qstash_signature(body, request.headers.get("Upstash-Signature", ""), str(request.url))
+        try:
+            payload = json.loads(body.decode("utf-8")) if body else {}
+        except ValueError:
+            raise fastapi.HTTPException(status_code=400, detail="Body must be JSON")
+        if not isinstance(payload, dict) or not (payload.get("storage_key") or payload.get("object_key")):
+            raise fastapi.HTTPException(status_code=400, detail="Missing required storage_key or photo_id")
+        await worker.spawn.aio(payload)
+        return JSONResponse({"accepted": True, "photo_id": payload.get("photo_id") or payload.get("id")}, status_code=202)
+
+    # Same names as before, so the backend's URLs don't change
+    @app.function(image=media_image, secrets=_video_secrets)
+    @modal.concurrent(max_inputs=20)
+    @modal.fastapi_endpoint(method="POST")
+    async def process_video_cpu(request: fastapi.Request):
+        return await _accept_video_job(request, transcode_video_short)
+
+    @app.function(image=media_image, secrets=_video_secrets)
+    @modal.concurrent(max_inputs=20)
+    @modal.fastapi_endpoint(method="POST")
+    async def process_video_gpu(request: fastapi.Request):
+        return await _accept_video_job(request, transcode_video_long)
+else:
+    @app.function(
+        image=transcode_image,
+        cpu=4.0,
+        memory=4096,
+        timeout=3600,
+        scaledown_window=10 if COST_TUNING else None,
+        secrets=_video_secrets,
+    )
+    @modal.fastapi_endpoint(method="POST")
+    def process_video_cpu(request: dict):
+        return _transcode_short(request)
+
+    @app.function(
+        image=transcode_image,
+        **_long_video_resources,
+        timeout=3600,
+        scaledown_window=10 if COST_TUNING else None,
+        secrets=_video_secrets,
+    )
+    @modal.fastapi_endpoint(method="POST")
+    def process_video_gpu(request: dict):
+        return _transcode_long(request)
 
 
 
