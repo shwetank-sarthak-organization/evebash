@@ -229,7 +229,30 @@ function clearResumeState(fileName: string, fileSize: number) {
 
 // ─── Parallel + Resumable Chunk Upload ─────────────────────────────────────────
 
+// Chunked uploads running in this tab. A second upload of the same file resumes the same B2 session,
+// and whichever copy finishes first closes it under the other ("No active upload" on the remaining parts).
+const activeChunkUploads = new Set<string>();
+
 async function uploadLargeFileInChunks(
+    file: File,
+    eventId: string,
+    onProgress?: (percent: number) => void,
+    signal?: AbortSignal,
+    onFinalizing?: () => void
+) {
+    const key = `${eventId}:${file.name}:${file.size}`;
+    if (activeChunkUploads.has(key)) {
+        throw new Error(`${file.name} is already uploading, so this copy was skipped.`);
+    }
+    activeChunkUploads.add(key);
+    try {
+        return await uploadChunks(file, eventId, onProgress, signal, onFinalizing);
+    } finally {
+        activeChunkUploads.delete(key);
+    }
+}
+
+async function uploadChunks(
     file: File,
     eventId: string,
     onProgress?: (percent: number) => void,
