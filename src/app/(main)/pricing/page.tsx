@@ -212,6 +212,18 @@ const planVisuals: Record<string, {
     },
 };
 
+// Shown first so visitors compare a few clear options; the rest sit behind "See all plans".
+const featuredPlanIds = ["free", "starter", "premium", "ultimate"];
+
+const includedInEveryPlan = [
+    "Find You: guests find their photos with a selfie",
+    "Download All for guests",
+    "Share by link or QR code",
+    "Favourites, likes and comments",
+    "Photo and video galleries",
+    "Gallery design templates",
+];
+
 function getPlanPrice(plan: PricingPlan, billingCycle: BillingCycle) {
     if (billingCycle === "monthly") return plan.monthlyPrice;
     if (billingCycle === "threeMonths") return plan.threeMonthPrice;
@@ -257,11 +269,15 @@ function loadRazorpayScript() {
 export default function Pricing() {
     const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
     const [plans, setPlans] = useState<PricingPlan[]>([]);
+    const [showAllPlans, setShowAllPlans] = useState(false);
     const [pricingStatus, setPricingStatus] = useState<"loading" | "ready" | "unavailable">("loading");
     const [checkoutPlanId, setCheckoutPlanId] = useState<string | null>(null);
     const [checkoutMessage, setCheckoutMessage] = useState<CheckoutMessage | null>(null);
     const [currentSubscription, setCurrentSubscription] = useState<CurrentSubscription | null>(null);
     const [confirmPlan, setConfirmPlan] = useState<PricingPlan | null>(null);
+    const featuredPlans = plans.filter((plan) => featuredPlanIds.includes(plan.id));
+    const visiblePlans = showAllPlans || featuredPlans.length < 2 ? plans : featuredPlans;
+    const hiddenPlanCount = plans.length - visiblePlans.length;
     const selectedCycle = billingCycles.find((cycle) => cycle.key === billingCycle) || billingCycles[0];
     const newPlanStartDate = new Date();
     const newPlanEndDate = addMonths(newPlanStartDate, cycleDurationsInMonths[billingCycle]);
@@ -540,9 +556,9 @@ export default function Pricing() {
 
                 {/* Header */}
                 <div className="text-center mb-16 space-y-4">
-                    <h1 className="font-serif text-4xl text-[var(--site-text)] md:text-5xl">Simple, Transparent Pricing</h1>
+                    <h1 className="font-serif text-4xl text-[var(--site-text)] md:text-5xl">Simple, transparent pricing</h1>
                     <p className="mx-auto max-w-2xl text-lg font-light text-[var(--site-subtle)]">
-                        From free to enterprise — find the plan that fits your story.
+                        Start free with one event. Every plan includes the full guest gallery; paid plans add events and storage.
                     </p>
                 </div>
 
@@ -557,7 +573,7 @@ export default function Pricing() {
                                     onClick={() => setBillingCycle(cycle.key)}
                                     className={`rounded-xl px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-all ${
                                         isActive
-                                            ? "bg-sky-600 text-white shadow-lg shadow-sky-500/20"
+                                            ? "bg-[#CA9C68] text-[#13191F] shadow-lg shadow-[#CA9C68]/20"
                                             : "text-[var(--site-muted)] hover:bg-[var(--site-card-muted)] hover:text-[var(--site-text)]"
                                     }`}
                                 >
@@ -572,10 +588,10 @@ export default function Pricing() {
                     <div
                         className={`mx-auto mb-8 max-w-2xl rounded-2xl border px-5 py-4 text-center text-sm font-medium ${
                             checkoutMessage.type === "success"
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                                ? "border-emerald-500/30 bg-emerald-900/30 text-emerald-300"
                                 : checkoutMessage.type === "info"
-                                    ? "border-sky-200 bg-sky-50 text-sky-800"
-                                    : "border-rose-200 bg-rose-50 text-rose-800"
+                                    ? "border-[#CA9C68]/30 bg-[#CA9C68]/10 text-[var(--site-subtle)]"
+                                    : "border-rose-500/30 bg-rose-900/30 text-rose-300"
                         }`}
                     >
                         {checkoutMessage.text}
@@ -590,13 +606,13 @@ export default function Pricing() {
                 )}
 
                 {pricingStatus === "unavailable" && (
-                    <div className="mx-auto max-w-2xl rounded-2xl border border-amber-200 bg-amber-50 p-10 text-center shadow-sm">
-                        <p className="text-sm font-bold uppercase tracking-widest text-amber-700">Pricing Unavailable</p>
-                        <h2 className="mt-3 font-serif text-2xl text-slate-900">Pricing is temporarily unavailable.</h2>
-                        <p className="mt-3 text-sm leading-6 text-slate-700">
+                    <div className="mx-auto max-w-2xl rounded-2xl border border-amber-500/30 bg-amber-900/20 p-10 text-center shadow-sm">
+                        <p className="text-sm font-bold uppercase tracking-widest text-amber-300">Pricing Unavailable</p>
+                        <h2 className="mt-3 font-serif text-2xl text-[var(--site-text)]">Pricing is temporarily unavailable.</h2>
+                        <p className="mt-3 text-sm leading-6 text-[var(--site-subtle)]">
                             We could not load the latest pricing plans right now. Please try again shortly or contact support.
                         </p>
-                        <Link href="/contact-us" className="mt-6 inline-block rounded-xl bg-slate-900 px-5 py-3 text-xs font-bold uppercase tracking-widest text-white transition-colors hover:bg-slate-800">
+                        <Link href="/contact-us" className="mt-6 inline-block rounded-xl bg-[#CA9C68] px-5 py-3 text-xs font-bold uppercase tracking-widest text-[#13191F] transition-colors hover:bg-[#D9AE7E]">
                             Contact Support
                         </Link>
                     </div>
@@ -604,14 +620,15 @@ export default function Pricing() {
 
                 {/* Pricing Cards */}
                 {pricingStatus === "ready" && (
+                <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-start">
-                    {plans.map((plan) => {
+                    {visiblePlans.map((plan) => {
                         const visual = planVisuals[plan.id] || planVisuals.starter;
                         const price = getPlanPrice(plan, billingCycle);
                         const actualPrice = getPlanActualPrice(plan, billingCycle);
                         const savings = Math.max(actualPrice - price, 0);
                         const cta = plan.id === "free" ? "Get Started" : `Choose ${plan.name}`;
-                        const ctaHref = plan.id === "free" ? "/login" : "/contact-us";
+                        const ctaHref = plan.id === "free" ? "/login?mode=signup" : "/contact-us";
                         const isCheckingOut = checkoutPlanId === plan.id;
 
                         return (
@@ -680,6 +697,30 @@ export default function Pricing() {
                         );
                     })}
                 </div>
+                {hiddenPlanCount > 0 && (
+                    <div className="mt-8 flex justify-center">
+                        <button
+                            type="button"
+                            onClick={() => setShowAllPlans(true)}
+                            className="rounded-full border border-[var(--site-border)] px-6 py-3 text-sm font-semibold text-[var(--site-text)] transition-colors hover:border-[#CA9C68]/60 hover:bg-[#CA9C68]/10"
+                        >
+                            See all {plans.length} plans
+                        </button>
+                    </div>
+                )}
+
+                <div className="mx-auto mt-12 max-w-4xl rounded-2xl border border-[var(--site-border)] bg-[var(--site-card)] p-6 md:p-8">
+                    <h2 className="text-center font-serif text-xl text-[var(--site-text)]">Included in every plan</h2>
+                    <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {includedInEveryPlan.map((feature) => (
+                            <li key={feature} className="flex items-start gap-2 text-sm text-[var(--site-subtle)]">
+                                <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#CA9C68]" />
+                                {feature}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+                </>
                 )}
 
                 {/* Fair Usage Policy Note */}
@@ -697,7 +738,7 @@ export default function Pricing() {
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6">
                         <div className="w-full max-w-lg rounded-2xl border border-[var(--site-border)] bg-[var(--site-card)] p-6 shadow-2xl">
                             <div className="space-y-2">
-                                <p className="text-xs font-black uppercase tracking-widest text-sky-600">
+                                <p className="text-xs font-black uppercase tracking-widest text-[#CA9C68]">
                                     {confirmPlanIsDowngrade ? "Schedule Plan Downgrade" : "Confirm Plan Change"}
                                 </p>
                                 <h2 className="font-serif text-2xl font-bold text-[var(--site-text)]">
@@ -721,22 +762,22 @@ export default function Pricing() {
 
                                 <div className={`rounded-xl border p-4 ${
                                     confirmPlanIsDowngrade
-                                        ? "border-amber-200 bg-amber-50"
-                                        : "border-emerald-200 bg-emerald-50"
+                                        ? "border-amber-500/30 bg-amber-900/20"
+                                        : "border-emerald-500/30 bg-emerald-900/20"
                                 }`}>
                                     <p className={`text-[11px] font-black uppercase tracking-widest ${
-                                        confirmPlanIsDowngrade ? "text-amber-700" : "text-emerald-700"
+                                        confirmPlanIsDowngrade ? "text-amber-300" : "text-emerald-300"
                                     }`}>
                                         {confirmPlanIsDowngrade ? "Scheduled Plan" : "New Plan After Payment"}
                                     </p>
-                                    <p className="mt-1 font-semibold text-slate-900">{confirmPlan.name} ({confirmPlan.storageLabel})</p>
-                                    <p className="mt-1 text-slate-700">
+                                    <p className="mt-1 font-semibold text-[var(--site-text)]">{confirmPlan.name} ({confirmPlan.storageLabel})</p>
+                                    <p className="mt-1 text-[var(--site-subtle)]">
                                         Starts {formatDate(scheduledPlanStartDate)} and ends {formatDate(scheduledPlanEndDate)}
                                     </p>
                                 </div>
                             </div>
 
-                            <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                            <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-900/20 p-4 text-sm leading-6 text-amber-200">
                                 {confirmPlanIsDowngrade
                                     ? "Downgrades are scheduled for the next billing cycle so your current paid storage is not reduced early."
                                     : "Your current plan period will be replaced by this new plan period. The upgraded storage and limits will apply immediately after payment verification."}
@@ -757,7 +798,7 @@ export default function Pricing() {
                                         setConfirmPlan(null);
                                         handleCheckout(plan);
                                     }}
-                                    className="rounded-xl bg-slate-900 px-5 py-3 text-xs font-bold uppercase tracking-widest text-white transition-colors hover:bg-slate-800"
+                                    className="rounded-xl bg-[#CA9C68] px-5 py-3 text-xs font-bold uppercase tracking-widest text-[#13191F] transition-colors hover:bg-[#D9AE7E]"
                                 >
                                     Continue to Payment
                                 </button>
@@ -773,7 +814,7 @@ export default function Pricing() {
                         Running a large studio or enterprise operation? Let&apos;s build a plan tailored to your exact needs.
                     </p>
                     <Link href="/contact-us" className="inline-block">
-                        <span className="text-sky-600 font-semibold border-b-2 border-transparent hover:border-sky-600 transition-all duration-300">
+                        <span className="text-[#CA9C68] font-semibold border-b-2 border-transparent hover:border-[#CA9C68] transition-all duration-300">
                             Contact Us for Custom Quote &rarr;
                         </span>
                     </Link>

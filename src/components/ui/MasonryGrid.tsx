@@ -214,23 +214,27 @@ function PhotoCard({
                                     : "text-stone-500 group-hover/like:text-rose-500 group-hover/like:scale-110"
                             )}
                         />
-                        <span className="text-xs font-bold text-stone-600 tracking-wider">
-                            {likes.length}
-                        </span>
+                        {likes.length > 0 && (
+                            <span className="text-xs font-bold text-stone-600 tracking-wider">
+                                {likes.length}
+                            </span>
+                        )}
                     </button>
 
                     {/* Comment Option */}
                     <button type="button"
                         className="flex items-center space-x-1.5 group/comment"
-                        aria-label="Comments"
+                        aria-label={commentsCount > 0 ? `${commentsCount} comments` : "Comments"}
                     >
                         <MessageCircle
                             size={19}
                             className="text-stone-500 group-hover/comment:text-amber-600 transition-all duration-300"
                         />
-                        <span className="text-xs font-bold text-stone-600 tracking-wider">
-                            {commentsCount}
-                        </span>
+                        {commentsCount > 0 && (
+                            <span className="text-xs font-bold text-stone-600 tracking-wider">
+                                {commentsCount}
+                            </span>
+                        )}
                     </button>
                 </div>
 
@@ -241,6 +245,7 @@ function PhotoCard({
                         disabled={isDownloading}
                         className="p-1 text-stone-500 hover:text-slate-800 hover:scale-110 transition-all disabled:opacity-50"
                         title="Download Original"
+                        aria-label="Download original"
                     >
                         {isDownloading ? (
                             <svg className="animate-spin h-5 w-5 text-stone-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

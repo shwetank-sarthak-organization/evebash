@@ -79,7 +79,7 @@ export default function ClientGallery({ params }: { params: Promise<{ client: st
 
                 <div className="absolute inset-0 flex flex-col justify-end items-center text-center px-4 pb-20">
                     <ScrollReveal direction="up" delay={0.3}>
-                        <h1 className="text-4xl md:text-7xl font-bold text-white drop-shadow-xl mb-6 italic tracking-tight">{data.title}</h1>
+                        <h1 className="text-4xl md:text-7xl font-bold text-white drop-shadow-xl mb-6 tracking-tight">{data.title}</h1>
                     </ScrollReveal>
                     <ScrollReveal direction="up" delay={0.5}>
                         <p className="text-white/90 text-lg md:text-xl max-w-2xl font-sans font-light drop-shadow-lg tracking-wide">
@@ -102,13 +102,12 @@ export default function ClientGallery({ params }: { params: Promise<{ client: st
                     <span className="text-xs font-bold uppercase tracking-[0.3em] text-[var(--site-muted)]">Curated Collection</span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+                <div className="flex flex-wrap justify-center gap-10">
                     {events.map((event, index) => (
-                        <ScrollReveal key={event.id} delay={index * 0.1}>
-                            <Link 
-                                href={`/events/${event.id}`} 
-                                target="_blank"
-                                rel="noopener noreferrer"
+                        <div key={event.id} className="w-full md:w-[calc(50%-1.25rem)] lg:w-[calc(25%-1.875rem)]">
+                        <ScrollReveal delay={index * 0.1}>
+                            <Link
+                                href={`/events/${event.id}`}
                                 className="group relative block aspect-[3/4] w-full overflow-hidden rounded-[2rem] bg-[var(--site-card)] shadow-md transition-all duration-700 hover:shadow-2xl"
                             >
                                 {/* Image */}
@@ -124,22 +123,19 @@ export default function ClientGallery({ params }: { params: Promise<{ client: st
                                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent opacity-60 group-hover:opacity-80 transition-all duration-500"></div>
 
                                 {/* Content */}
-                                <div className="absolute bottom-0 left-0 p-8 w-full transform translate-y-4 group-hover:translate-y-0 transition-all duration-500">
-                                    <p className="text-royal-gold text-[10px] font-bold uppercase tracking-[0.2em] mb-3 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">{event.category}</p>
-                                    <h3 className="text-2xl font-bold text-white mb-4 italic tracking-tight">{event.title}</h3>
-                                    <div className="flex items-center text-white/70 text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all duration-500">
+                                <div className="absolute bottom-0 left-0 p-8 w-full transition-all duration-500 md:translate-y-4 md:group-hover:translate-y-0">
+                                    <p className="text-royal-gold text-[10px] font-bold uppercase tracking-[0.2em] mb-3 transition-opacity duration-500 delay-100 md:opacity-0 md:group-hover:opacity-100">{event.category}</p>
+                                    <h3 className="text-2xl font-bold text-white mb-4 tracking-tight">{event.title}</h3>
+                                    <div className="flex items-center text-white/70 text-[10px] font-bold uppercase tracking-widest transition-all duration-500 md:opacity-0 md:group-hover:opacity-100 md:group-focus-visible:opacity-100">
                                         Open Gallery <ArrowRight className="w-3 h-3 ml-2 group-hover:translate-x-1 transition-transform" />
                                     </div>
                                 </div>
                             </Link>
                         </ScrollReveal>
+                        </div>
                     ))}
                 </div>
             </div>
-            
-            <footer className="py-20 text-center font-sans text-sm text-[var(--site-muted)]">
-                <p>© 2026 EveBash. Elegant Memories.</p>
-            </footer>
             </>
             )}
         </div>

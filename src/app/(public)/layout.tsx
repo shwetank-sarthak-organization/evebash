@@ -1,13 +1,25 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "../globals.css";
+import { inter, playfair } from "../fonts";
 
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-    title: "EveBash | Premium Wedding Photography",
-    description: "Capturing life's most beautiful moments.",
+    metadataBase: new URL("https://www.evebash.com"),
+    title: {
+        default: "EveBash | Event photo sharing with selfie search",
+        template: "%s · EveBash",
+    },
+    description: "Create an event, share one link or QR code, and every guest finds their photos with a selfie.",
+    applicationName: "EveBash",
+    openGraph: {
+        type: "website",
+        siteName: "EveBash",
+        locale: "en_IN",
+    },
+    twitter: { card: "summary_large_image" },
     icons: {
         icon: [
             { url: "/evebash-logo-gold.svg", type: "image/svg+xml" },
@@ -18,13 +30,17 @@ export const metadata: Metadata = {
     },
 };
 
+export const viewport: Viewport = {
+    themeColor: "#13191F",
+};
+
 export default function PublicLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
+        <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" className={`${inter.variable} ${playfair.variable}`}>
             <head>
                 <link rel="icon" href="/evebash-logo-gold.svg" type="image/svg+xml" />
                 <link rel="alternate icon" href="/evebash-logo-gold.png" type="image/png" />

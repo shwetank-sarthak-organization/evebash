@@ -54,7 +54,7 @@ export default function ContactUs() {
                 <div className="text-center mb-16 space-y-4">
                     <h1 className="text-4xl md:text-5xl font-serif text-[var(--site-text)]">Get in Touch</h1>
                     <p className="text-[var(--site-subtle)] text-lg max-w-2xl mx-auto font-light">
-                        We&apos;d love to hear about your story. Send us a message and let&apos;s start planning something beautiful.
+                        Questions about EveBash, pricing, or setting up your event? Send us a message and we&apos;ll get back to you.
                     </p>
                 </div>
 
@@ -65,39 +65,39 @@ export default function ContactUs() {
                             <h2 className="text-2xl font-serif text-[var(--site-text)] mb-6 border-b border-[var(--site-border)] pb-4">Contact Information</h2>
                             <div className="space-y-8">
                                 <div className="flex items-start group">
-                                    <div className="p-3 bg-sky-500/10 rounded-lg group-hover:bg-sky-500/15 transition-colors">
-                                        <MapPin className="w-6 h-6 text-sky-600" />
+                                    <div className="p-3 bg-[#CA9C68]/10 rounded-lg group-hover:bg-[#CA9C68]/15 transition-colors">
+                                        <MapPin className="w-6 h-6 text-[#CA9C68]" />
                                     </div>
                                     <div className="ml-4">
-                                        <h3 className="font-bold text-[var(--site-text)] text-sm uppercase tracking-wide mb-1">Studio Address</h3>
+                                        <h3 className="font-bold text-[var(--site-text)] text-sm uppercase tracking-wide mb-1">Address</h3>
                                         <p className="text-[var(--site-subtle)] leading-relaxed">Dehradun, Uttarakhand, India - 248001</p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-start group">
-                                    <div className="p-3 bg-sky-500/10 rounded-lg group-hover:bg-sky-500/15 transition-colors">
-                                        <Phone className="w-6 h-6 text-sky-600" />
+                                    <div className="p-3 bg-[#CA9C68]/10 rounded-lg group-hover:bg-[#CA9C68]/15 transition-colors">
+                                        <Phone className="w-6 h-6 text-[#CA9C68]" />
                                     </div>
                                     <div className="ml-4">
                                         <h3 className="font-bold text-[var(--site-text)] text-sm uppercase tracking-wide mb-1">Phone</h3>
-                                        <p className="text-[var(--site-subtle)]">+91 98712 64964</p>
-                                        <p className="text-[var(--site-subtle)]">+91 85350 29872</p>
+                                        <p><a href="tel:+919871264964" className="text-[var(--site-subtle)] hover:text-[#CA9C68] transition-colors">+91 98712 64964</a></p>
+                                        <p><a href="tel:+918535029872" className="text-[var(--site-subtle)] hover:text-[#CA9C68] transition-colors">+91 85350 29872</a></p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-start group">
-                                    <div className="p-3 bg-sky-500/10 rounded-lg group-hover:bg-sky-500/15 transition-colors">
-                                        <Mail className="w-6 h-6 text-sky-600" />
+                                    <div className="p-3 bg-[#CA9C68]/10 rounded-lg group-hover:bg-[#CA9C68]/15 transition-colors">
+                                        <Mail className="w-6 h-6 text-[#CA9C68]" />
                                     </div>
                                     <div className="ml-4">
                                         <h3 className="font-bold text-[var(--site-text)] text-sm uppercase tracking-wide mb-1">Email</h3>
-                                        <p className="text-[var(--site-subtle)]">support@evebash.com</p>
+                                        <p><a href="mailto:support@evebash.com" className="text-[var(--site-subtle)] hover:text-[#CA9C68] transition-colors">support@evebash.com</a></p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-start group">
-                                    <div className="p-3 bg-sky-500/10 rounded-lg group-hover:bg-sky-500/15 transition-colors">
-                                        <Clock className="w-6 h-6 text-sky-600" />
+                                    <div className="p-3 bg-[#CA9C68]/10 rounded-lg group-hover:bg-[#CA9C68]/15 transition-colors">
+                                        <Clock className="w-6 h-6 text-[#CA9C68]" />
                                     </div>
                                     <div className="ml-4">
                                         <h3 className="font-bold text-[var(--site-text)] text-sm uppercase tracking-wide mb-1">Business Hours</h3>
@@ -123,7 +123,7 @@ export default function ContactUs() {
                                         value={form.firstName}
                                         onChange={event => updateField("firstName", event.target.value)}
                                         required
-                                        className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 transition-all"
+                                        className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-[#CA9C68] focus:ring-4 focus:ring-[#CA9C68]/10 transition-all"
                                         placeholder="John"
                                     />
                                 </div>
@@ -135,7 +135,7 @@ export default function ContactUs() {
                                         value={form.lastName}
                                         onChange={event => updateField("lastName", event.target.value)}
                                         required
-                                        className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 transition-all"
+                                        className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-[#CA9C68] focus:ring-4 focus:ring-[#CA9C68]/10 transition-all"
                                         placeholder="Doe"
                                     />
                                 </div>
@@ -149,7 +149,7 @@ export default function ContactUs() {
                                     value={form.email}
                                     onChange={event => updateField("email", event.target.value)}
                                     required
-                                    className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 transition-all"
+                                    className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-[#CA9C68] focus:ring-4 focus:ring-[#CA9C68]/10 transition-all"
                                     placeholder="john@example.com"
                                 />
                             </div>
@@ -162,18 +162,18 @@ export default function ContactUs() {
                                     value={form.message}
                                     onChange={event => updateField("message", event.target.value)}
                                     required
-                                    className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 transition-all"
-                                    placeholder="Tell us more about your event..."
+                                    className="w-full px-4 py-3 bg-[var(--site-input)] border border-[var(--site-border)] rounded-lg text-[var(--site-text)] placeholder:text-[var(--site-muted)] focus:outline-none focus:border-[#CA9C68] focus:ring-4 focus:ring-[#CA9C68]/10 transition-all"
+                                    placeholder="Tell us about your event or question..."
                                 />
                             </div>
 
                             {submitError && (
-                                <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+                                <p role="alert" className="rounded-lg border border-rose-500/30 bg-rose-900/30 px-4 py-3 text-sm font-medium text-rose-300">
                                     {submitError}
                                 </p>
                             )}
                             {submitSuccess && (
-                                <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+                                <p role="status" className="rounded-lg border border-emerald-500/30 bg-emerald-900/30 px-4 py-3 text-sm font-medium text-emerald-300">
                                     {submitSuccess}
                                 </p>
                             )}
@@ -181,9 +181,9 @@ export default function ContactUs() {
                             <button
                                 type="submit"
                                 disabled={submitting}
-                                className="w-full py-4 bg-slate-900 text-white font-bold uppercase tracking-widest hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-500 transition-colors duration-300 rounded-lg shadow-lg"
+                                className="w-full py-4 bg-[#CA9C68] text-[#13191F] font-bold hover:bg-[#D9AE7E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1B211F] disabled:cursor-not-allowed disabled:opacity-60 transition-colors duration-300 rounded-lg shadow-lg"
                             >
-                                {submitting ? "Sending..." : "Send Message"}
+                                {submitting ? "Sending..." : "Send message"}
                             </button>
                         </form>
                     </div>

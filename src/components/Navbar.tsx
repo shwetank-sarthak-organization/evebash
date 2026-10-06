@@ -95,12 +95,20 @@ export default function Navbar() {
                                 )}
                             </Link>
                         ) : (
-                            <Link
-                                href="/login"
-                                className="px-5 py-2 bg-[#CA9C68] text-[#13191F] text-sm font-bold rounded-full hover:bg-[#D7AE7D] transition-colors shadow-sm"
-                            >
-                                Login
-                            </Link>
+                            <div className="flex items-center gap-5">
+                                <Link
+                                    href="/login"
+                                    className="text-sm font-medium text-[var(--site-muted)] transition-colors hover:text-[var(--site-text)]"
+                                >
+                                    Log in
+                                </Link>
+                                <Link
+                                    href="/login?mode=signup"
+                                    className="px-5 py-2 bg-[#CA9C68] text-[#13191F] text-sm font-bold rounded-full hover:bg-[#D7AE7D] transition-colors shadow-sm"
+                                >
+                                    Create event free
+                                </Link>
+                            </div>
                         )}
                     </div>
 
@@ -173,13 +181,22 @@ export default function Navbar() {
                                 </button>
                             </>
                         ) : (
-                            <Link
-                                href="/login"
-                                onClick={() => setIsOpen(false)}
-                                className="block w-full text-center px-4 py-3 bg-[#CA9C68] text-[#13191F] rounded-lg text-lg font-medium hover:bg-[#D7AE7D] transition-colors"
-                            >
-                                Login
-                            </Link>
+                            <>
+                                <Link
+                                    href="/login?mode=signup"
+                                    onClick={() => setIsOpen(false)}
+                                    className="block w-full text-center px-4 py-3 bg-[#CA9C68] text-[#13191F] rounded-lg text-lg font-medium hover:bg-[#D7AE7D] transition-colors"
+                                >
+                                    Create event free
+                                </Link>
+                                <Link
+                                    href="/login"
+                                    onClick={() => setIsOpen(false)}
+                                    className="block w-full text-center px-4 py-3 rounded-lg border border-[var(--site-border)] text-lg font-medium text-[var(--site-muted)] hover:bg-[var(--site-card-muted)] hover:text-[var(--site-text)] transition-colors"
+                                >
+                                    Log in
+                                </Link>
+                            </>
                         )}
                     </div>
                 </div>

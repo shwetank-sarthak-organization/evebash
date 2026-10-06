@@ -388,6 +388,7 @@ export function Lightbox({
                                     className="p-2.5 rounded-full transition-all disabled:opacity-40"
                                     style={{ color: isFavourite ? "#CA9C68" : viewerTheme.muted }}
                                     title={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}
+                                    aria-label={isFavourite ? "Remove from primary gallery" : "Add to primary gallery"}
                                 >
                                     {isTogglingFavourite ? (
                                         <Loader2 size={20} className="animate-spin" />
@@ -404,6 +405,7 @@ export function Lightbox({
                                         className="p-2.5 rounded-full transition-all disabled:opacity-40"
                                         style={{ color: viewerTheme.muted }}
                                         title="Rotate left"
+                                        aria-label="Rotate left"
                                     >
                                         {isRotating ? <Loader2 size={20} className="animate-spin" /> : <RotateCcw size={20} />}
                                     </button>
@@ -413,6 +415,7 @@ export function Lightbox({
                                         className="p-2.5 rounded-full transition-all disabled:opacity-40"
                                         style={{ color: viewerTheme.muted }}
                                         title="Rotate right"
+                                        aria-label="Rotate right"
                                     >
                                         {isRotating ? <Loader2 size={20} className="animate-spin" /> : <RotateCw size={20} />}
                                     </button>
@@ -424,6 +427,7 @@ export function Lightbox({
                                     className="p-2.5 rounded-full transition-all"
                                     style={{ color: viewerTheme.muted }}
                                     title="Download"
+                                    aria-label="Download"
                                 >
                                     <Download size={20} />
                                 </button>
@@ -432,6 +436,7 @@ export function Lightbox({
                                 onClick={onClose}
                                 className="p-2.5 rounded-full transition-all"
                                 style={{ color: viewerTheme.muted }}
+                                aria-label="Close viewer"
                             >
                                 <X size={24} />
                             </button>
@@ -560,6 +565,8 @@ export function Lightbox({
                                 <button
                                     onClick={handleToggleLike}
                                     className="flex flex-col items-center space-y-1"
+                                    aria-label={isLiked ? "Unlike photo" : "Like photo"}
+                                    aria-pressed={isLiked}
                                 >
                                     <Heart
                                         size={32}
@@ -576,6 +583,7 @@ export function Lightbox({
                                         }, 100);
                                     }}
                                     className="flex flex-col items-center space-y-1"
+                                    aria-label="Show comments"
                                 >
                                     <MessageCircle size={32} className="drop-shadow-lg transition-colors" style={{ color: viewerTheme.text }} />
                                     <span className="text-[10px] font-bold drop-shadow-md" style={{ color: viewerTheme.text }}>{comments.length}</span>

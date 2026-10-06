@@ -2,26 +2,43 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Mail, Phone, MapPin } from "lucide-react";
 
 export default function Footer() {
     const pathname = usePathname();
     const isEventPage = pathname.startsWith("/events/");
 
     if (pathname === '/login') return null;
+
+    // Guests on an event gallery get a light brand line instead of the marketing footer.
+    if (isEventPage) {
+        return (
+            <footer
+                className="event-footer border-t py-8"
+                style={{
+                    backgroundColor: "var(--event-template-primary)",
+                    borderColor: "var(--event-template-border)",
+                    color: "var(--event-template-muted)",
+                }}
+            >
+                <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 text-sm sm:flex-row sm:px-6 lg:px-8">
+                    <p>
+                        Made with{" "}
+                        <Link href="/" className="font-semibold underline-offset-4 hover:underline">EveBash</Link>
+                        {" · "}
+                        <Link href="/login?mode=signup" className="font-semibold underline-offset-4 hover:underline">Create your own event free</Link>
+                    </p>
+                    <div className="flex gap-5">
+                        <Link href="/privacy-policy" className="underline-offset-4 hover:underline">Privacy</Link>
+                        <Link href="/terms-and-conditions" className="underline-offset-4 hover:underline">Terms</Link>
+                    </div>
+                </div>
+            </footer>
+        );
+    }
+
     return (
-        <footer
-            className={cn(
-                "bg-[var(--site-bg)] text-[var(--site-muted)] pt-16 pb-8 border-t border-[var(--site-border)]",
-                isEventPage && "event-footer"
-            )}
-            style={isEventPage ? {
-                backgroundColor: "var(--event-template-primary)",
-                borderColor: "var(--event-template-border)",
-                color: "var(--event-template-muted)",
-            } : undefined}
-        >
+        <footer className="bg-[var(--site-bg)] text-[var(--site-muted)] pt-16 pb-8 border-t border-[var(--site-border)]">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-4">
                     {/* Brand Section */}
@@ -32,32 +49,15 @@ export default function Footer() {
                             </h3>
                         </Link>
                         <p className="text-[var(--site-muted)] leading-relaxed font-light text-base">
-                            Capturing the most precious moments of your life with elegance and style.
-                            We believe every picture tells a story, and we are here to tell yours.
+                            Event photo galleries where every guest finds their own photos with a selfie.
+                            Share one link or QR code, and everyone gets their memories.
                         </p>
-                        <div className="flex space-x-6 pt-4">
-                            <a href="#" className="text-[var(--site-muted)] hover:text-[#CA9C68] transition-colors transform hover:-translate-y-1 duration-300">
-                                <Instagram className="w-5 h-5" />
-                            </a>
-                            <a href="#" className="text-[var(--site-muted)] hover:text-[#CA9C68] transition-colors transform hover:-translate-y-1 duration-300">
-                                <Facebook className="w-5 h-5" />
-                            </a>
-                            <a href="#" className="text-[var(--site-muted)] hover:text-[#CA9C68] transition-colors transform hover:-translate-y-1 duration-300">
-                                <Twitter className="w-5 h-5" />
-                            </a>
-                        </div>
                     </div>
 
                     {/* Quick Links */}
                     <div className="space-y-6 lg:pl-8">
                         <h4 className="font-serif text-lg text-[var(--site-text)] font-semibold tracking-wide">Explore</h4>
                         <ul className="space-y-3 text-base">
-                            <li>
-                                <Link href="/" className="text-[var(--site-muted)] hover:text-[#CA9C68] transition-colors flex items-center group">
-                                    <span className="w-1 h-1 rounded-full bg-[var(--site-muted)] mr-2 group-hover:bg-[#CA9C68] transition-colors"></span>
-                                    About Us
-                                </Link>
-                            </li>
                             <li>
                                 <Link href="/sample-galleries" className="text-[var(--site-muted)] hover:text-[#CA9C68] transition-colors flex items-center group">
                                     <span className="w-1 h-1 rounded-full bg-[var(--site-muted)] mr-2 group-hover:bg-[#CA9C68] transition-colors"></span>
@@ -129,26 +129,20 @@ export default function Footer() {
                             <div className="flex items-center">
                                 <Phone className="w-4 h-4 text-[#CA9C68] shrink-0" />
                                 <div className="ml-3">
-                                    <p>+91 98712 64964</p>
-                                    <p>+91 85350 29872</p>
+                                    <p><a href="tel:+919871264964" className="hover:text-[#CA9C68] transition-colors">+91 98712 64964</a></p>
+                                    <p><a href="tel:+918535029872" className="hover:text-[#CA9C68] transition-colors">+91 85350 29872</a></p>
                                 </div>
                             </div>
                             <div className="flex items-center">
                                 <Mail className="w-4 h-4 text-[#CA9C68] shrink-0" />
-                                <p className="ml-3">support@evebash.com</p>
+                                <a href="mailto:support@evebash.com" className="ml-3 hover:text-[#CA9C68] transition-colors">support@evebash.com</a>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Copyright */}
-                <div
-                    className="mt-16 pt-8 border-t border-[var(--site-border)] flex flex-col md:flex-row justify-between items-center bg-[var(--site-bg)]"
-                    style={isEventPage ? {
-                        backgroundColor: "var(--event-template-primary)",
-                        borderColor: "var(--event-template-border)",
-                    } : undefined}
-                >
+                <div className="mt-16 pt-8 border-t border-[var(--site-border)] flex flex-col md:flex-row justify-between items-center bg-[var(--site-bg)]">
                     <p className="text-sm text-[var(--site-muted)]">
                         &copy; {new Date().getFullYear()} EveBash. All rights reserved.
                     </p>

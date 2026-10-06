@@ -95,7 +95,7 @@ export function FindYouSection({ eventId, legacyId, parentId, eventSlug, lightbo
                 if (matches.length === 0) {
                     setStatusMessage("No matching photos found. Try a clearer selfie facing forward!");
                 } else {
-                    setStatusMessage(`Found ${matches.length} photo${matches.length === 1 ? "" : "s"} of you! 🎉`);
+                    setStatusMessage(`Found ${matches.length} photo${matches.length === 1 ? "" : "s"} of you!`);
                 }
             } catch (error) {
                 console.error("Matching error:", error);

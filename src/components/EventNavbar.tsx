@@ -400,6 +400,8 @@ export function EventNavbar({
                             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                             className="p-2 rounded-full active:scale-95 transition-transform"
                             style={hasTemplateChrome ? { color: navTextColor } : undefined}
+                            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+                            aria-expanded={mobileMenuOpen}
                         >
                             {mobileMenuOpen ? (
                                 <X className={hasTemplateChrome ? "" : "text-slate-900"} />

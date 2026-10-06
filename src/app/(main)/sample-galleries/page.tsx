@@ -32,19 +32,19 @@ export default function SampleGalleries() {
                     <ScrollReveal direction="up">
                         <div className="inline-flex items-center space-x-3 px-4 py-2 bg-royal-gold/10 rounded-full text-royal-gold text-xs font-bold uppercase tracking-widest mb-4 border border-royal-gold/20">
                             <Camera className="w-4 h-4" />
-                            <span>Portfolio Showcase</span>
+                            <span>Try it as a guest</span>
                         </div>
                     </ScrollReveal>
                     
                     <ScrollReveal direction="up" delay={0.1}>
-                        <h1 className="text-5xl md:text-7xl font-bold text-[var(--site-text)] italic tracking-tight">
+                        <h1 className="text-5xl md:text-7xl font-bold text-[var(--site-text)] tracking-tight">
                             Sample <span className="text-royal-gold">Galleries</span>
                         </h1>
                     </ScrollReveal>
                     
                     <ScrollReveal direction="up" delay={0.2}>
                         <p className="text-[var(--site-subtle)] text-lg md:text-xl max-w-2xl mx-auto font-sans leading-relaxed">
-                            Experience the artistry of storytelling through our curated collection of beautiful wedding memories.
+                            Open a real EveBash event gallery and explore it the way your guests will: browse, find your photos with a selfie, and download.
                         </p>
                     </ScrollReveal>
                 </header>
@@ -56,13 +56,12 @@ export default function SampleGalleries() {
                         No sample galleries are available yet.
                     </div>
                 ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+                <div className="flex flex-wrap justify-center gap-12">
                     {albums.map((album, index) => (
-                        <ScrollReveal key={album.id} delay={index * 0.1 + 0.3}>
-                            <Link 
-                                href={`/sample-galleries/${album.id}`} 
-                                target="_blank"
-                                rel="noopener noreferrer"
+                        <div key={album.id} className="w-full md:w-[calc(50%-1.5rem)] lg:w-[calc(33.333%-2rem)]">
+                        <ScrollReveal delay={index * 0.1 + 0.3}>
+                            <Link
+                                href={`/sample-galleries/${album.id}`}
                                 className="group block relative aspect-[4/5] rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 border border-[var(--site-border)] bg-[var(--site-card)]"
                             >
                                 <div className="absolute inset-0">
@@ -79,26 +78,23 @@ export default function SampleGalleries() {
                                 <div className="absolute bottom-0 left-0 p-8 w-full text-left">
                                     <div className="flex justify-between items-center mb-3">
                                         <span className="text-royal-gold text-xs font-bold uppercase tracking-[0.2em]">{album.category || "Event"}</span>
-                                        <span className="text-white/80 text-sm italic">{album.date}</span>
+                                        <span className="text-white/80 text-sm">{album.date}</span>
                                     </div>
-                                    <h3 className="text-3xl font-bold text-white mb-6 group-hover:text-royal-gold transition-colors duration-300 italic tracking-tight">
+                                    <h3 className="text-3xl font-bold text-white mb-6 group-hover:text-royal-gold transition-colors duration-300 tracking-tight">
                                         {album.title}
                                     </h3>
-                                    <div className="flex items-center text-white text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-500">
+                                    <div className="flex items-center text-white text-xs font-bold uppercase tracking-widest transition-all duration-500 md:translate-y-4 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:group-focus-visible:translate-y-0 md:group-focus-visible:opacity-100">
                                         View Collection
                                         <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-2 transition-transform" />
                                     </div>
                                 </div>
                             </Link>
                         </ScrollReveal>
+                        </div>
                     ))}
                 </div>
                 )}
             </div>
-
-            <footer className="py-20 text-center text-[var(--site-muted)] font-sans text-sm">
-                <p>© 2026 EveBash. Crafted with elegance.</p>
-            </footer>
         </div>
     );
 }
