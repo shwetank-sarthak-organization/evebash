@@ -24,7 +24,7 @@ type EventGridCardProps = {
 const TALL_CARD_HEIGHT = 260;
 const TALL_IMAGE_HEIGHT = 160;
 
-export const EVENT_PLACEHOLDER_ASSET = require('@/assets/images/memories_bg.png');
+export const EVENT_PLACEHOLDER_ASSET = require('@/assets/images/event-placeholder.jpg');
 
 /** Empty covers and the stock photos saved on event creation both count as "no cover uploaded". */
 function getCardImageSource(coverImage?: string | null) {

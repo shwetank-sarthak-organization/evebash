@@ -11,10 +11,10 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
 import { useRouter } from 'expo-router';
 import { updateUserPrivacy, updateUserProfile, submitFeedback } from '@/lib/database';
 import { supabase } from '@/lib/supabase';
@@ -31,7 +31,6 @@ export default function SettingsScreen() {
   const { colors, isDark } = useAppTheme();
   const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const router = useRouter();
-  const insets = useSafeAreaInsets();
 
   // Core Privacy Toggles
   const [isPrivate, setIsPrivate] = useState(user?.isPrivate || false);
@@ -303,21 +302,19 @@ export default function SettingsScreen() {
   const isEmailLogin = user?.email && !user.email.endsWith('@phone-login.local');
 
   return (
-    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile')}
-          style={styles.backBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <IconSymbol name="chevron.left" size={20} color={colors.white} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
-        <View style={{ width: 36 }} />
-      </View>
+    <View style={styles.safeArea}>
+      {/* Same header as the main tabs; back button in place of the logo since Settings has no tab bar */}
+      <TabScreenHeader
+        title="Settings"
+        left={
+          <HeaderAction
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile')}
+            accessibilityLabel="Back"
+          >
+            <IconSymbol name="chevron.left" size={24} color={colors.gold} />
+          </HeaderAction>
+        }
+      />
 
       <ScrollView
         style={styles.container}
@@ -878,26 +875,6 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontFamily: 'Outfit_700Bold',
-    color: colors.white,
   },
   container: {
     flex: 1,

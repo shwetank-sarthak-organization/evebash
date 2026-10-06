@@ -584,7 +584,7 @@ export default function PortfolioTabScreen() {
             <IconSymbol
               name="camera.fill"
               size={14}
-              color={activeTab === 'my' ? colors.gold : colors.slate400}
+              color={activeTab === 'my' ? colors.onAccent : colors.slate400}
             />
             <Text style={[styles.tabText, activeTab === 'my' && styles.tabTextActive]}>My Events</Text>
           </TouchableOpacity>
@@ -596,7 +596,7 @@ export default function PortfolioTabScreen() {
             <IconSymbol
               name="person.2.fill"
               size={14}
-              color={activeTab === 'shared' ? colors.gold : colors.slate400}
+              color={activeTab === 'shared' ? colors.onAccent : colors.slate400}
             />
             <Text style={[styles.tabText, activeTab === 'shared' && styles.tabTextActive]}>Shared</Text>
           </TouchableOpacity>
@@ -608,7 +608,7 @@ export default function PortfolioTabScreen() {
               <IconSymbol
                 name="envelope.fill"
                 size={14}
-                color={activeTab === 'requests' ? colors.gold : colors.slate400}
+                color={activeTab === 'requests' ? colors.onAccent : colors.slate400}
               />
               <Text style={[styles.tabText, activeTab === 'requests' && styles.tabTextActive]}>Requests</Text>
 
@@ -1494,12 +1494,13 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
   },
   tabBadge: { position: 'absolute', top: 4, right: 8, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: colors.background },
   tabBadgeText: { color: colors.white, fontSize: 10, fontFamily: Fonts.inter.bold },
+  // Selected tab uses the Dashboard "Join Event" button colours
   tabButtonActive: {
-    backgroundColor: 'rgba(202, 156, 104, 0.1)',
-    borderColor: 'rgba(202, 156, 104, 0.32)',
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
   },
   tabText: { fontSize: 13, color: colors.slate400, fontFamily: Fonts.inter.medium },
-  tabTextActive: { color: colors.gold, fontFamily: Fonts.inter.bold },
+  tabTextActive: { color: colors.onAccent, fontFamily: Fonts.inter.bold },
 
   // Grid
   grid: { paddingHorizontal: EventGrid.sidePadding, paddingTop: 16, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start' },
