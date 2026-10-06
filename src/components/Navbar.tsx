@@ -98,7 +98,7 @@ export default function Navbar() {
                             <div className="flex items-center gap-5">
                                 <Link
                                     href="/login"
-                                    className="text-sm font-medium text-[var(--site-muted)] transition-colors hover:text-[var(--site-text)]"
+                                    className="inline-flex items-center pb-1 border-b-2 border-transparent text-sm font-medium text-[var(--site-muted)] transition-colors hover:text-[var(--site-text)] hover:border-[#906D4B]"
                                 >
                                     Log in
                                 </Link>
