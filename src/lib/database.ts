@@ -1093,59 +1093,6 @@ export async function deleteCoverUsagePhoto(eventId: string, coverUrl: string): 
 }
 
 /**
- * Fetches all face descriptors from the faces table.
- */
-export async function getAllFaceEncodings(): Promise<FaceRecord[]> {
-    try {
-        const { data, error } = await supabase.from('faces').select('*');
-        if (error) throw error;
-        return (data || []).map(f => ({
-            id: f.id,
-            imageId: f.image_id,
-            descriptor: f.descriptor,
-            eventId: f.event_id,
-            imageUrl: f.image_url,
-            width: f.width,
-            height: f.height,
-            createdAt: f.created_at
-        }));
-    } catch (error) {
-        console.error("Error fetching face index:", error);
-        return [];
-    }
-}
-
-/**
- * Fetches face descriptors for a specific event (and its legacy ID).
- */
-export async function getEventFaceEncodings(eventIds: string | string[], legacyIds?: string[]): Promise<FaceRecord[]> {
-    try {
-        const ids = Array.isArray(eventIds) ? eventIds : [eventIds];
-        if (legacyIds) ids.push(...legacyIds);
-
-        const { data, error } = await supabase
-            .from('faces')
-            .select('*')
-            .in('event_id', ids);
-
-        if (error) throw error;
-        return (data || []).map(f => ({
-            id: f.id,
-            imageId: f.image_id,
-            descriptor: typeof f.descriptor === 'string' ? JSON.parse(f.descriptor) : f.descriptor,
-            eventId: f.event_id,
-            imageUrl: f.image_url,
-            width: f.width,
-            height: f.height,
-            createdAt: f.created_at
-        }));
-    } catch (error) {
-        console.error("Error fetching event face index:", error);
-        return [];
-    }
-}
-
-/**
  * Checks if a phone number is allow-listed.
  */
 export async function getAllowedUser(phone: string): Promise<any | null> {
