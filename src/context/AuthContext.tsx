@@ -7,9 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { getApiUrl } from "@/lib/apiBase";
 import {
     createUserProfile,
-    getAllowedUser,
     getUserProfile,
-    logGuestLogin,
     updateUserProfile,
 } from "@/lib/database";
 
@@ -51,7 +49,6 @@ interface AuthContextType {
     signup: (email: string, password: string, name: string) => Promise<{success: boolean, error?: string, needsEmailVerification?: boolean}>;
     loginWithGoogle: () => Promise<boolean>;
     resetPassword: (email: string) => Promise<boolean>;
-    loginWithPhoneSimple: (name: string, phone: string) => Promise<boolean>;
     authWithPhone: (name: string, phone: string, password: string) => Promise<{success: boolean, error?: string}>;
     authWithEmail: (name: string, email: string, password: string) => Promise<{success: boolean, error?: string}>;
     logout: () => void;
@@ -467,42 +464,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const loginWithPhoneSimple = async (name: string, phone: string) => {
-        try {
-            const phoneUid = `phone_${phone.replace(/\D/g, "")}`;
-            const isMasterAdmin = phone === "8535029872";
-            const allowedUser = await getAllowedUser(phone);
-
-            if (!isMasterAdmin && !allowedUser) {
-                return false;
-            }
-
-            const assignedRole = isMasterAdmin ? "admin" : (allowedUser?.role || "user");
-            await createUserProfile(phoneUid, name || allowedUser?.name || "Guest", "", phone, assignedRole);
-
-            const profile = await getUserProfile(phoneUid);
-            const userData: AppUser = {
-                uid: phoneUid,
-                name: profile?.name || name || allowedUser?.name || "Guest",
-                phone: profile?.phone || phone,
-                role: profile?.role || assignedRole,
-                roleType: profile?.roleType || (profile?.delegatedBy ? "event" : "primary"),
-                assignedEvents: profile?.assignedEvents || [],
-                profileImage: profile?.profileImage,
-                email: null,
-                delegatedBy: profile?.delegatedBy,
-                username: profile?.username,
-            };
-
-            syncUserSession(userData);
-            await logGuestLogin(userData.name, phone);
-            return true;
-        } catch (error) {
-            console.error("Simple phone login error:", error);
-            return false;
-        }
-    };
-
     const authWithEmailLogic = async (name: string, email: string, password: string, phone = "") => {
         const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -576,7 +537,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, signup, loginWithGoogle, resetPassword, loginWithPhoneSimple, authWithPhone, authWithEmail, logout, loading }}>
+        <AuthContext.Provider value={{ user, login, signup, loginWithGoogle, resetPassword, authWithPhone, authWithEmail, logout, loading }}>
             <PolicyAcceptanceGate userId={user?.uid} onSignOut={logout}>{children}</PolicyAcceptanceGate>
         </AuthContext.Provider>
     );

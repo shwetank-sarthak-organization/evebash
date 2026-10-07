@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
             userAgent: "*",
             allow: "/",
             // Event galleries contain guests' photos; keep them out of search results.
-            disallow: ["/api/", "/events/", "/tenant/", "/dashboard", "/host", "/profile"],
+            disallow: ["/api/", "/events/", "/dashboard", "/host", "/profile"],
         },
         sitemap: "https://www.evebash.com/sitemap.xml",
     };
