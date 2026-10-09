@@ -4316,7 +4316,7 @@ function DashboardContent() {
                                                     )}
                                                 >
                                                     {isActive && (
-                                                        <span className="absolute left-0 top-0 h-[3px] w-2/3 rounded-r-full bg-[#CA9C68]" />
+                                                        <span className="absolute inset-x-0 top-0 h-[3px] bg-[#CA9C68]" />
                                                     )}
                                                     <Icon className="h-6 w-6 shrink-0 text-[#CA9C68] sm:h-8 sm:w-8" />
                                                     <span className="mx-2.5 h-10 w-px shrink-0 bg-white/10 sm:mx-5 sm:h-12" />
