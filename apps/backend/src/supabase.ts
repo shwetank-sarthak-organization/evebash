@@ -24,3 +24,18 @@ export function getSupabaseAdminClient() {
     },
   });
 }
+
+// Acts as the signed-in user, so database functions and RLS see their identity
+export function getSupabaseUserClient(accessToken: string) {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Supabase public environment variables are not configured");
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}

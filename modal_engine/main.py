@@ -61,6 +61,8 @@ def _env_flag(name: str) -> bool:
 COST_TUNING = _env_flag("MODAL_COST_TUNING")
 # Video endpoints check the QStash signature, start the transcode in the background and reply at once.
 VIDEO_ASYNC = _env_flag("MODAL_VIDEO_ASYNC")
+# Selfie search accepts only requests carrying the backend's internal secret (X-EveBash-Secret).
+FIND_YOU_REQUIRE_SECRET = _env_flag("MODAL_FIND_YOU_REQUIRE_SECRET")
 
 def verify_qstash_signature(body: bytes, signature: str, url: str) -> bool:
     """
@@ -1225,12 +1227,7 @@ else:
     dispatch_outbox_jobs = app.function(image=media_image, schedule=modal.Cron("*/1 * * * *"), secrets=_maintenance_secrets)(dispatch_outbox_jobs)
 
 
-@app.function(
-    image=image,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
-)
-@modal.fastapi_endpoint(method="POST")
-def find_matching_photos(request: dict):
+def _find_matching_photos_core(request: dict):
     """
     Guest Selfie Matching endpoint.
     Accepts selfie_base64 + event_ids, returns matched photos.
@@ -1413,6 +1410,37 @@ def find_matching_photos(request: dict):
         print(f"[find_matching_photos] Error: {e}")
         log_selfie_cost(0)
         return {"error": str(e), "matches": []}
+
+
+def _find_you_secret_ok(provided: str) -> bool:
+    """Same secret precedence as the backend's getInternalJobSecret (apps/backend/src/auth.ts)."""
+    import hmac
+    expected = (os.environ.get("INTERNAL_JOB_SECRET") or os.environ.get("CRON_SECRET") or os.environ.get("QSTASH_TOKEN") or "").strip()
+    return bool(expected) and hmac.compare_digest((provided or "").strip().encode("utf-8"), expected.encode("utf-8"))
+
+
+_find_you_secrets = [modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+
+if FIND_YOU_REQUIRE_SECRET:
+    @app.function(image=image, secrets=_find_you_secrets)
+    @modal.fastapi_endpoint(method="POST")
+    async def find_matching_photos(request: fastapi.Request):
+        # The backend checks the caller's gallery access first; anything else calling this URL is refused
+        import asyncio
+        if not _find_you_secret_ok(request.headers.get("X-EveBash-Secret", "")):
+            raise fastapi.HTTPException(status_code=401, detail="Unauthorized")
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        return await asyncio.to_thread(_find_matching_photos_core, body)
+else:
+    @app.function(image=image, secrets=_find_you_secrets)
+    @modal.fastapi_endpoint(method="POST")
+    def find_matching_photos(request: dict):
+        return _find_matching_photos_core(request)
 
 
 # ---------------------------------------------------------------------------
