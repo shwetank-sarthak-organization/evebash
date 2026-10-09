@@ -35,6 +35,8 @@ interface PhotoViewerProps {
   isPhotoFavourite?: (photo: any) => boolean;
   onTogglePhotoFavourite?: (photo: any) => Promise<void> | void;
   onRotatePhoto?: (photo: any, direction: 'left' | 'right') => Promise<void> | void;
+  /** Logged-out public view: no likes, comments, share or download, and no reads of likes/comments */
+  readOnly?: boolean;
 }
 
 
@@ -740,6 +742,7 @@ export default function PhotoViewer({
   isPhotoFavourite,
   onTogglePhotoFavourite,
   onRotatePhoto,
+  readOnly = false,
 }: PhotoViewerProps) {
   const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
   const viewerInsets = useSafeAreaInsets();
@@ -994,7 +997,7 @@ export default function PhotoViewer({
   };
 
   useEffect(() => {
-    if (!visible || !currentPhoto?.id) return;
+    if (!visible || !currentPhoto?.id || readOnly) return;
 
     const unsubscribe = onPhotoInteractions(currentPhoto.id, (data) => {
       setLikes(data.likes || []);
@@ -1002,7 +1005,7 @@ export default function PhotoViewer({
     });
 
     return () => unsubscribe();
-  }, [visible, currentPhoto?.id]);
+  }, [visible, currentPhoto?.id, readOnly]);
 
   const handleToggleLike = async () => {
     if (!currentPhoto?.id || isLiking) return;
@@ -1629,6 +1632,7 @@ export default function PhotoViewer({
 
               <View style={localStyles.dashboardImageDetails}>
                 <View style={localStyles.dashboardImageActionsFlow}>
+                  {!readOnly && (<>
                   <TouchableOpacity style={styles.viewerAction} onPress={handleToggleLike} disabled={isLiking} accessibilityRole="button" accessibilityLabel={isLiked ? 'Unlike' : 'Like'} accessibilityState={{ selected: isLiked }}>
                     <LucideHeartIcon
                       size={30}
@@ -1650,6 +1654,7 @@ export default function PhotoViewer({
                     <LucideDownloadIcon size={30} color={viewerTheme.controlText} strokeWidth={2} />
                     <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Download</Text>
                   </TouchableOpacity>
+                  </>)}
                 </View>
 
               </View>
@@ -1709,6 +1714,7 @@ export default function PhotoViewer({
             )}
 
             <View style={[styles.viewerActions, showComments ? styles.viewerActionsRaised : styles.viewerActionsDocked]}>
+              {!readOnly && (<>
               <TouchableOpacity style={styles.viewerAction} onPress={handleToggleLike} disabled={isLiking} accessibilityRole="button" accessibilityLabel={isLiked ? 'Unlike' : 'Like'} accessibilityState={{ selected: isLiked }}>
                 <IconSymbol name={isLiked ? "heart.fill" : "heart"} size={30} color={isLiked ? "#f43f5e" : viewerTheme.controlText} />
                 <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{likes.length}</Text>
@@ -1727,6 +1733,7 @@ export default function PhotoViewer({
                 <IconSymbol name="arrow.down.to.line.compact" size={30} color={viewerTheme.controlText} />
                 <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Download</Text>
               </TouchableOpacity>
+              </>)}
             </View>
 
             {!showComments && (

@@ -5,12 +5,15 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { EventNavbar } from "@/components/EventNavbar";
 import {
     Event,
+    OpenedGallery,
     Photo,
     getEventById,
     getEventPhotosPaginated,
     getFavouritePhotosForEvents,
     getSubEvents,
+    openGallery,
 } from "@/lib/database";
+import { useAuth } from "@/context/AuthContext";
 import { downloadGalleryAsZip } from "@/lib/zipDownload";
 import { getWebTemplateChrome } from "@/lib/webTemplateTheme";
 
@@ -25,6 +28,8 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
     const searchParams = useSearchParams();
     const isShared = searchParams.get("shared") === "true";
     const sharedQuery = isShared ? "?shared=true" : "";
+    const { user, loading: authLoading } = useAuth();
+    const [isPublicView, setIsPublicView] = useState(false);
     const [event, setEvent] = useState<Event | null>(null);
     const [mainEvent, setMainEvent] = useState<Event | null>(null);
     const [subEvents, setSubEvents] = useState<Event[]>([]);
@@ -32,10 +37,50 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
     const [zipProgress, setZipProgress] = useState(0);
 
     useEffect(() => {
+        if (authLoading) return;
         let active = true;
 
+        function clearNavigation() {
+            setIsPublicView(false);
+            setEvent(null);
+            setMainEvent(null);
+            setSubEvents([]);
+        }
+
         async function loadNavigation() {
-            const currentEvent = await getEventById(slug);
+            // Same link check as the gallery page: only members and managers read the gallery tables directly
+            let opened: OpenedGallery;
+            try {
+                opened = await openGallery(slug);
+            } catch (error) {
+                console.error("[EventRouteShell] Could not open gallery link:", error);
+                if (active) clearNavigation();
+                return;
+            }
+            if (!active) return;
+
+            if (opened.access === "public_view" && opened.event) {
+                const currentEvent = opened.event;
+                const rootEvent = currentEvent.parentId ? (await openGallery(currentEvent.parentId)).event : currentEvent;
+                if (!active) return;
+                if (!rootEvent) {
+                    clearNavigation();
+                    return;
+                }
+                setIsPublicView(true);
+                setEvent(currentEvent);
+                setMainEvent(rootEvent);
+                setSubEvents(opened.subEvents);
+                return;
+            }
+
+            // Private galleries the viewer can't open get no navigation (it would list sub-gallery names)
+            if (opened.access !== "manage" && opened.access !== "member") {
+                clearNavigation();
+                return;
+            }
+
+            const currentEvent = await getEventById(opened.eventId || slug);
             if (!active || !currentEvent) return;
 
             const rootEvent = currentEvent.parentId
@@ -46,16 +91,17 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
             const galleries = await getSubEvents(rootEvent.id, rootEvent.legacyId);
             if (!active) return;
 
+            setIsPublicView(false);
             setEvent(currentEvent);
             setMainEvent(rootEvent);
             setSubEvents(galleries.filter((gallery) => gallery.id !== rootEvent.id));
         }
 
-        void loadNavigation();
+        void loadNavigation().catch((error) => console.error("[EventRouteShell] Navigation failed:", error));
         return () => {
             active = false;
         };
-    }, [slug]);
+    }, [slug, authLoading, user?.uid]);
 
     const activePage = pathname.endsWith("/find-you")
         ? "find-you"
@@ -147,7 +193,7 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
                 activePage={activePage}
                 onSelectGallery={(gallery) => router.push(`/events/${gallery?.id || mainEvent.id}${sharedQuery}`)}
                 onFindYou={() => router.push(`/events/${mainEvent.id}/find-you${sharedQuery}`)}
-                onDownloadZip={handleDownloadZip}
+                onDownloadZip={isPublicView ? undefined : handleDownloadZip}
                 isZipping={isZipping}
                 zipProgress={zipProgress}
                 chromeBackgroundColor={chrome.background}
@@ -156,7 +202,7 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
                 chromeBorderColor={chrome.border}
             />
         );
-    }, [activePage, chrome, event, handleDownloadZip, isShared, isZipping, mainEvent, router, sharedQuery, subEvents, zipProgress]);
+    }, [activePage, chrome, event, handleDownloadZip, isPublicView, isShared, isZipping, mainEvent, router, sharedQuery, subEvents, zipProgress]);
 
     return (
         <div

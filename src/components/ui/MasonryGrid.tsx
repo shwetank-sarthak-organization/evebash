@@ -30,6 +30,8 @@ interface MasonryGridProps {
     className?: string;
     eventSlug?: string;
     disableDownload?: boolean;
+    /** Logged-out public view: no likes, comments or downloads, and no reads of likes/comments */
+    readOnly?: boolean;
     gridClassName?: string;
     itemClassName?: string;
     lightboxClassName?: string;
@@ -47,6 +49,7 @@ interface PhotoCardProps {
     index: number;
     eventSlug?: string;
     disableDownload?: boolean;
+    readOnly?: boolean;
     itemClassName?: string;
     onViewPhoto: (photo: Photo) => void;
     onLikeChange?: () => void;
@@ -61,6 +64,7 @@ function PhotoCard({
     index,
     eventSlug,
     disableDownload = false,
+    readOnly = false,
     itemClassName,
     onViewPhoto,
     onLikeChange
@@ -98,12 +102,13 @@ function PhotoCard({
     }, [photo.src, photo.thumbnailUrl]);
 
     useEffect(() => {
+        if (readOnly) return;
         const unsubscribe = onPhotoInteractions(photo.id, (data) => {
             setLikes(data.likes);
             setCommentsCount(data.comments.length);
         });
         return () => unsubscribe();
-    }, [photo.id]);
+    }, [photo.id, readOnly]);
 
     const handleToggleLike = async (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -196,6 +201,7 @@ function PhotoCard({
             </button>
 
             {/* Bottom Instagram-style Bar */}
+            {!readOnly && (
             <div className="gallery-card-actions flex items-center justify-between px-4 py-3 bg-stone-50/70 border-t border-stone-100">
                 <div className="flex items-center space-x-4">
                     {/* Like Option */}
@@ -258,6 +264,7 @@ function PhotoCard({
                     </button>
                 )}
             </div>
+            )}
         </motion.div>
     );
 }
@@ -267,6 +274,7 @@ export function MasonryGrid({
     className,
     eventSlug,
     disableDownload = false,
+    readOnly = false,
     gridClassName,
     itemClassName,
     lightboxClassName,
@@ -310,6 +318,7 @@ export function MasonryGrid({
                         index={index}
                         eventSlug={eventSlug}
                         disableDownload={disableDownload}
+                        readOnly={readOnly}
                         itemClassName={itemClassName}
                         onViewPhoto={setViewingPhoto}
                         onLikeChange={onLikeChange}
@@ -325,9 +334,11 @@ export function MasonryGrid({
                         theme={resolvedPageFlipTheme}
                         loop
                         showThumbnails={showPageFlipThumbnails}
-                        showDownload={!disableDownload}
+                        showDownload={!disableDownload && !readOnly}
+                        showLikes={!readOnly}
+                        showComments={!readOnly}
                         viewerLayout={resolvedViewerLayout}
-                        commentsMode={commentsMode}
+                        commentsMode={readOnly ? "overlay" : commentsMode}
                         onClose={() => setViewingPhoto(null)}
                         onIndexChange={(index) => setViewingPhoto(photos[index] || null)}
                     />

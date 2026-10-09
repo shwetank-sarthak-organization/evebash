@@ -1029,6 +1029,79 @@ export async function getEventById(eventId: string): Promise<Event | null> {
     }
 }
 
+// --- Gallery links (supabase/migrations/20261007000000_rls_part1_gallery_link_functions.sql) ---
+
+/** What the current viewer may do with a gallery link, as decided by open_gallery() */
+export type GalleryAccess = 'manage' | 'member' | 'public_view' | 'pending' | 'rejected' | 'none' | 'login_required' | 'not_found';
+
+export interface OpenedGallery {
+    access: GalleryAccess;
+    /** The gallery's own id; links may use a join code or legacy id */
+    eventId?: string;
+    title?: string;
+    /** public_view only: display fields of the gallery and the sub-galleries of its top-level event */
+    event?: Event;
+    subEvents: Event[];
+}
+
+/**
+ * Resolves a gallery link (id, legacy id or join code) for the current viewer.
+ * Opening a public gallery while logged in joins it. Throws if the lookup fails.
+ */
+export async function openGallery(ref: string): Promise<OpenedGallery> {
+    const { data, error } = await supabase.rpc('open_gallery', { p_ref: decodeURIComponent(ref) });
+    if (error) throw error;
+
+    const result = (data || {}) as any;
+    const event: Event | undefined = result.event ? { ...mapSqlToEvent(result.event), isPublic: true } : undefined;
+    const rootId = event?.parentId || event?.id;
+    const subEvents: Event[] = Array.isArray(result.sub_events)
+        ? result.sub_events
+            .map((sub: any) => ({ ...mapSqlToEvent(sub), type: 'sub' as const, parentId: rootId, isPublic: true }))
+            .sort((a: Event, b: Event) => (a.title || "").localeCompare(b.title || ""))
+        : [];
+
+    return {
+        access: (result.access || 'not_found') as GalleryAccess,
+        eventId: result.event_id || event?.id,
+        title: result.title || event?.title,
+        event,
+        subEvents,
+    };
+}
+
+/** Previews and video streams of a public gallery, for viewers who aren't logged in. Never photo originals. */
+export async function getPublicGalleryMedia(eventId: string, limit = 60, offset = 0): Promise<Photo[]> {
+    const { data, error } = await supabase.rpc('get_public_gallery_media', { p_event_id: eventId, p_limit: limit, p_offset: offset });
+    if (error) throw error;
+
+    return (data || []).map((row: any): Photo => {
+        const isVideo = row.media_type === 'video';
+        return {
+            id: row.id,
+            eventId: row.event_id,
+            storageKey: '',
+            // Photos carry the preview image and videos the HLS stream, so `url` is never an original
+            url: (isVideo ? row.stream_url : row.preview_url) || '',
+            thumbnailUrl: row.thumbnail_url || undefined,
+            width: row.width ?? undefined,
+            height: row.height ?? undefined,
+            mediaType: isVideo ? 'video' : 'photo',
+            resourceType: isVideo ? 'video' : 'image',
+            order: row.sort_order ?? undefined,
+            status: 'processed',
+            uploadedAt: row.uploaded_at,
+        };
+    });
+}
+
+/** Logged-in viewer asks to join a gallery: public ones approve at once, private ones wait for the host. */
+export async function requestGalleryAccess(ref: string): Promise<string> {
+    const { data, error } = await supabase.rpc('request_gallery_access', { p_ref: decodeURIComponent(ref) });
+    if (error) throw error;
+    return String(data || 'pending');
+}
+
 export async function getSubEvents(parentId: string, legacyParentId?: string): Promise<Event[]> {
     if (!parentId) return [];
     try {

@@ -10,7 +10,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { getEventById, getSubEvents, logGuestLogin, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getUsers, UserProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery } from '@/lib/database';
+import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getUsers, UserProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { styles, FunkyFonts } from '../../components/eventStyles';
@@ -27,14 +27,13 @@ import Sortable from 'react-native-sortables';
 import { supabase } from '@/lib/supabase';
 import { getGridThumbnail } from '@/lib/imageUrl';
 import { resolveEventCoverImage } from '@/lib/eventCovers';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getPlanDetails, getUsagePercent } from '@/lib/planLimits';
 import { getSubscriptionStatus } from '@/lib/subscriptionStatus';
 
 // ── Extracted modular components ──
 import { ThemeHeader } from '../../components/event/ThemeHeader';
 import { ThemeDivider } from '../../components/event/ThemeDivider';
-import { GatedAccessPanel } from '../../components/event/GatedAccessPanel';
+import { GalleryAccessGate, GalleryGateState } from '../../components/event/GalleryAccessGate';
 import { RenameEventModal } from '../../components/event/modals/RenameEventModal';
 import { SubEventModal } from '../../components/event/modals/SubEventModal';
 import { TemplateSelectionModal } from '../../components/event/modals/TemplateSelectionModal';
@@ -54,6 +53,8 @@ function updateGuestStatusWithFeedback(logId: string, status: 'pending' | 'appro
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_GRID_GAP = 3;
 const PHOTO_PAGE_SIZE = 20;
+// Logged-out public view pages through previews (get_public_gallery_media)
+const PUBLIC_PAGE_SIZE = 60;
 // Visitor templates that draw their own back/share buttons inside the hero instead of the native header
 const NATIVE_HEADER_HIDDEN_TEMPLATES = ['classic', 'hero', 'pop', 'ethereal', 'cyber_tech', 'retro_arcade', 'academic_editorial', 'neon_carnival', 'garden', 'bohemian', 'tech_sleek', 'executive'];
 const FREE_PLAN_VIDEO_LIMIT_BYTES = 200 * 1024 * 1024;
@@ -625,10 +626,13 @@ export default function EventDetailScreen() {
   const [showRequestInfo, setShowRequestInfo] = useState(false);
   const [subEvents, setSubEvents] = useState<DatabaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [guestStatus, setGuestStatus] = useState<string | null>(null);
-  const [guestName, setGuestName] = useState('');
-  const [guestPhone, setGuestPhone] = useState('');
-  const [submittedIdentifier, setSubmittedIdentifier] = useState<string | null>(null);
+  // What this viewer may do with the link (open_gallery)
+  const [galleryAccess, setGalleryAccess] = useState<GalleryAccess | null>(null);
+  const [galleryOpenFailed, setGalleryOpenFailed] = useState(false);
+  const [gateTitle, setGateTitle] = useState('');
+  const [requestingAccess, setRequestingAccess] = useState(false);
+  const isPublicView = galleryAccess === 'public_view';
+  const hasMemberAccess = galleryAccess === 'manage' || galleryAccess === 'member';
 
   const [isOwner, setIsOwner] = useState(false);
   const [isSharedEventAdmin, setIsSharedEventAdmin] = useState(false);
@@ -748,7 +752,7 @@ export default function EventDetailScreen() {
     };
   }, [normalizeEmailValue, normalizePhoneValue, selectedRequest]);
 
-  const canViewContent = isOwner || isPrivilegedViewer || guestStatus === 'approved';
+  const canViewContent = isOwner || isPrivilegedViewer || hasMemberAccess || isPublicView;
   const isFreePlanUser = !user?.delegatedBy && isFreePlanRole(user?.role);
 
   const [activeTab, setActiveTab] = useState<'galleries' | 'permissions' | 'design' | 'partners'>((tab as any) || 'galleries');
@@ -1120,7 +1124,7 @@ export default function EventDetailScreen() {
   const effectiveSourceGalleryFilter = sourceGalleryOptions.some(option => option.id === sourceGalleryFilter)
     ? sourceGalleryFilter
     : 'all';
-  const isFavouriteFilterActive = !isPrimaryGalleryView && showOnlyFavourites;
+  const isFavouriteFilterActive = !isPrimaryGalleryView && !isPublicView && showOnlyFavourites;
   const sourceFilteredMediaItems = React.useMemo(() => {
     if (!isPrimaryGalleryView || effectiveSourceGalleryFilter === 'all') return selectedMediaItems;
     const source = sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter);
@@ -1200,7 +1204,7 @@ export default function EventDetailScreen() {
 
   const viewerIdentity = React.useMemo(() => user
     ? { id: user.uid, name: user.name || user.email?.split('@')[0] || 'User' }
-    : { id: guestPhone || 'anonymous', name: guestName || 'Guest' }, [user, guestPhone, guestName]);
+    : { id: 'anonymous', name: 'Guest' }, [user]);
 
   const getPrimaryFavouriteEventIds = useCallback((
     mainEvent: DatabaseEvent | null = event,
@@ -1237,12 +1241,71 @@ export default function EventDetailScreen() {
     );
   }, [normalizeEmailValue, normalizePhoneValue, user]);
 
+  // Logged out, public gallery: read-only previews and video streams (never originals), nothing read from the tables
+  const loadPublicPhotos = async (eventId: string, page = 0) => {
+    const media = await getPublicGalleryMedia(eventId, PUBLIC_PAGE_SIZE, page * PUBLIC_PAGE_SIZE);
+    setPhotos(prev => page === 0 ? media : [...prev, ...media]);
+    // Totals aren't known up front, so the counts follow what has loaded
+    setMediaTotals({ photos: 0, videos: 0 });
+    setPhotoPage(page);
+    setHasMorePhotos(media.length === PUBLIC_PAGE_SIZE);
+  };
+
+  const showPublicGallery = async (eventData: DatabaseEvent, galleries: DatabaseEvent[]) => {
+    setEvent(eventData);
+    setIsOwner(false);
+    // A sub-gallery link shows that gallery on its own, as it does for members
+    setSubEvents(eventData.parentId ? [] : galleries);
+    setLinkedVendors([]);
+    setGuestLogs([]);
+    setRetainedMediaIds(new Set());
+    setEventFavouritePhotoIds(new Set());
+    await loadPublicPhotos(eventData.id, 0);
+  };
+
   const loadEvent = async () => {
     setLoading(true);
     setIsSharedEventAdmin(false);
+    setGalleryOpenFailed(false);
     const perfStart = Date.now();
     console.log('[PERF] Starting loadEvent fetching pipeline...');
+    let redirecting = false;
     try {
+      // What this viewer may do with the link. Logged-in viewers of a public gallery join it here.
+      let opened: OpenedGallery;
+      try {
+        opened = await openGallery(id);
+      } catch (err) {
+        console.error('[EventDetail] Could not open gallery link:', err);
+        setGalleryAccess(null);
+        setEvent(null);
+        setGalleryOpenFailed(true);
+        return;
+      }
+
+      // Join codes and legacy ids continue on the gallery's own route, which the rest of the screen relies on
+      if (opened.eventId && opened.eventId !== decodeURIComponent(id)) {
+        redirecting = true;
+        const params = Object.fromEntries(
+          Object.entries({ shared, guestView, tab, share, mode, id: opened.eventId }).filter(([, value]) => value != null)
+        );
+        router.replace({ pathname: '/events/[id]', params } as any);
+        return;
+      }
+
+      setGalleryAccess(opened.access);
+      setGateTitle(opened.title || '');
+
+      if (opened.access === 'public_view' && opened.event) {
+        await showPublicGallery(opened.event, opened.subEvents);
+        return;
+      }
+      // Not found, or a private gallery the viewer can't see yet: nothing of it is loaded
+      if (opened.access !== 'manage' && opened.access !== 'member') {
+        setEvent(null);
+        return;
+      }
+
       const eventData = await getEventById(id);
       if (eventData) {
         // Ensure joinId exists
@@ -1343,12 +1406,25 @@ export default function EventDetailScreen() {
       console.error('[EventDetail] Load error:', err);
       setMediaTotals({ photos: 0, videos: 0 });
     } finally {
-      setLoading(false);
+      if (!redirecting) setLoading(false);
     }
   };
 
   // silent (realtime refresh): no spinner, keep the pages already scrolled through, keep the grid on error
   const loadPhotos = async (eventId: string, legacyId?: string, { silent = false } = {}) => {
+    if (isPublicView) {
+      setLoadingPhotos(true);
+      try {
+        await loadPublicPhotos(eventId, 0);
+      } catch (err) {
+        console.error('[EventDetail] Public photos load error:', err);
+        setPhotos([]);
+        setHasMorePhotos(false);
+      } finally {
+        setLoadingPhotos(false);
+      }
+      return;
+    }
     if (!silent) setLoadingPhotos(true);
     const pageCount = silent ? photoPageRef.current + 1 : 1;
     const perfPhotosStart = Date.now();
@@ -1379,6 +1455,11 @@ export default function EventDetailScreen() {
 
   const loadPrimaryGalleryPhotos = useCallback(async ({ silent = false } = {}) => {
     if (!event) return;
+    if (isPublicView) {
+      // get_public_gallery_media already returns the host's favourites for a top-level gallery's Home tab
+      await loadPhotos(event.id);
+      return;
+    }
     if (!silent) setLoadingPhotos(true);
     try {
       const favouritePhotos = await getFavouritePhotosForEvents(getPrimaryFavouriteEventIds());
@@ -1419,7 +1500,7 @@ export default function EventDetailScreen() {
     } finally {
       if (!silent) setLoadingPhotos(false);
     }
-  }, [event, getPrimaryFavouriteEventIds]);
+  }, [event, getPrimaryFavouriteEventIds, isPublicView]);
 
   const handleLoadMorePhotos = async () => {
     // The ref blocks double-loads from rapid scroll events before state updates land
@@ -1435,6 +1516,10 @@ export default function EventDetailScreen() {
       : (activeSubEvent ? activeSubEvent.legacyId : event.legacyId);
 
     try {
+      if (isPublicView) {
+        await loadPublicPhotos(activeId, nextPage);
+        return;
+      }
       const { photos: nextPhotos, hasMore, totalPhotos, totalVideos } = await getEventPhotosPaginated(activeId, legacyId, nextPage, PHOTO_PAGE_SIZE);
       setPhotos(prev => [...prev, ...nextPhotos]);
       setMediaTotals({ photos: totalPhotos, videos: totalVideos });
@@ -1997,7 +2082,7 @@ export default function EventDetailScreen() {
   };
 
   useEffect(() => {
-    if (!liveGalleryId || liveGalleryId === 'event-partners' || liveGalleryId === 'find-you') return;
+    if (!liveGalleryId || liveGalleryId === 'event-partners' || liveGalleryId === 'find-you' || !hasMemberAccess) return;
 
     let refreshTimer: ReturnType<typeof setTimeout> | null = null;
     const handleMediaChange = (payload: any) => {
@@ -2028,7 +2113,7 @@ export default function EventDetailScreen() {
       if (refreshTimer) clearTimeout(refreshTimer);
       supabase.removeChannel(channel);
     };
-  }, [liveGalleryId, liveGalleryLegacyId]);
+  }, [liveGalleryId, liveGalleryLegacyId, hasMemberAccess]);
 
   // Poll face indexing status when upload completes in mobile app
   useEffect(() => {
@@ -2090,219 +2175,22 @@ export default function EventDetailScreen() {
     };
   }, [showUploadCompleteModal, id, activeSubEvent?.id, selectedAdminGallery?.id]);
 
-  useEffect(() => {
-    if (user) {
-      setGuestName(user.name || '');
-      const identifier = user.phone || user.email || user.uid || '';
-      setGuestPhone(identifier);
-      setSubmittedIdentifier(identifier);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    const loadStoredGuestInfo = async () => {
-      if (!user) {
-        try {
-          const storedName = await AsyncStorage.getItem('@guest_name');
-          const storedPhone = await AsyncStorage.getItem('@guest_phone');
-          if (storedName) setGuestName(storedName);
-          if (storedPhone) {
-            setGuestPhone(storedPhone);
-            setSubmittedIdentifier(storedPhone);
-          }
-        } catch (e) {
-          console.error('[EventDetail] Failed to load guest info from storage:', e);
-        }
-      }
-    };
-    loadStoredGuestInfo();
-  }, [user]);
-
-  useEffect(() => {
-    if (!id || isOwner || isPrivilegedViewer) {
-      return;
-    }
-
-    let unsubscribe: (() => void) | null = null;
-    let isActive = true;
-
-    const checkGuestAccess = async () => {
-      const identifiers: string[] = [];
-      if (user) {
-        if (user.phone) identifiers.push(user.phone);
-        if (user.email) identifiers.push(user.email);
-        if (user.uid) identifiers.push(user.uid);
-      } else if (submittedIdentifier) {
-        const normalized = submittedIdentifier.replace(/\D/g, '');
-        if (normalized) identifiers.push(normalized);
-      }
-
-      if (identifiers.length === 0) {
-        if (isActive) setGuestStatus(null);
-        return;
-      }
-
-      let foundLogId: string | null = null;
-      let foundStatus: string | null = null;
-
-      for (const identifier of identifiers) {
-        const logId = `${identifier}_${id}`;
-        try {
-          const { data: guestData, error } = await supabase
-            .from('guests')
-            .select('status')
-            .eq('id', logId)
-            .maybeSingle();
-
-          if (error) throw error;
-          if (guestData) {
-            foundLogId = logId;
-            foundStatus = guestData.status || 'pending';
-            break;
-          }
-        } catch (err) {
-          console.error('[GuestCheck] Error fetching document:', err);
-        }
-      }
-
-      if (!isActive) return;
-
-      if (foundLogId && foundStatus) {
-        setGuestStatus(foundStatus);
-
-        const fetchGuestStatus = async () => {
-          try {
-            const { data, error } = await supabase
-              .from('guests')
-              .select('status')
-              .eq('id', foundLogId as string)
-              .maybeSingle();
-            if (error) throw error;
-            if (data && isActive) {
-              setGuestStatus(data.status || 'pending');
-            }
-          } catch (err) {
-            console.error("Error updating guest status real-time:", err);
-          }
-        };
-
-        // Create a completely unique channel name so React re-renders don't try to attach listeners to an already-subscribed channel
-        const uniqueChannelName = `guest-status-${foundLogId}-${Math.random().toString(36).substring(7)}`;
-        const channel = supabase
-          .channel(uniqueChannelName)
-          .on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: 'guests',
-            filter: `id=eq.${foundLogId}`
-          }, () => {
-            fetchGuestStatus();
-          })
-          .subscribe();
-
-        unsubscribe = () => {
-          supabase.removeChannel(channel);
-        };
-      } else {
-        setGuestStatus(null);
-      }
-    };
-
-    checkGuestAccess();
-
-    return () => {
-      isActive = false;
-      if (unsubscribe) unsubscribe();
-    };
-  }, [id, user, submittedIdentifier, isOwner, isPrivilegedViewer]);
-
-  const handleGuestAccess = async () => {
-    const nameToSubmit = user ? (user.name || guestName || 'Guest') : guestName.trim();
-    const rawPhone = user ? (user.phone || user.email || user.uid) : guestPhone.trim();
-
-    if (!nameToSubmit) {
-      appAlert("Error", "Please enter your name.");
-      return;
-    }
-    if (!rawPhone) {
-      appAlert("Error", "Please enter your phone number or email.");
-      return;
-    }
-
-    const normalizedIdentifier = (!user && !rawPhone.includes('@'))
-      ? rawPhone.replace(/\D/g, '')
-      : rawPhone;
-
-    if (!normalizedIdentifier) {
-      appAlert("Error", "Invalid phone number or email.");
-      return;
-    }
-
-    setUpdating(true);
+  const handleRequestAccess = async () => {
+    if (requestingAccess || !id) return;
+    setRequestingAccess(true);
     try {
-      const success = await logGuestLogin(
-        nameToSubmit,
-        normalizedIdentifier,
-        id,
-        event?.parentId || event?.id,
-        event?.title,
-        event?.createdBy,
-        'pending'
-      );
-      if (success) {
-        if (!user) {
-          try {
-            await AsyncStorage.setItem('@guest_name', nameToSubmit);
-            await AsyncStorage.setItem('@guest_phone', normalizedIdentifier);
-          } catch (e) {
-            console.error('[GuestAccess] Failed to save credentials to AsyncStorage:', e);
-          }
-        }
-        setSubmittedIdentifier(normalizedIdentifier);
-        const logId = `${normalizedIdentifier}_${id}`;
-        setGuestStatus('pending');
-
-        const fetchGuestStatus = async () => {
-          try {
-            const { data, error } = await supabase
-              .from('guests')
-              .select('status')
-              .eq('id', logId)
-              .maybeSingle();
-            if (error) throw error;
-            if (data) {
-              setGuestStatus(data.status || 'pending');
-            }
-          } catch (err) {
-            console.error("Error updating guest status real-time:", err);
-          }
-        };
-
-        const channel = supabase
-          .channel(`guest-status-new-${logId}`)
-          .on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: 'guests',
-            filter: `id=eq.${logId}`
-          }, () => {
-            fetchGuestStatus();
-          })
-          .subscribe();
+      const status = await requestGalleryAccess(id);
+      if (status === 'pending') {
+        setGalleryAccess('pending');
       } else {
-        appAlert("Error", "Failed to send access request.");
+        await loadEvent();
       }
     } catch (err) {
-      console.error('[GuestAccess] Request error:', err);
-      appAlert("Error", "An error occurred while sending the request.");
+      console.error('[GalleryAccess] Request failed:', err);
+      appAlert('Request failed', "We couldn't send your request. Please try again.");
     } finally {
-      setUpdating(false);
+      setRequestingAccess(false);
     }
-  };
-
-  const handleRequestAccessAgain = () => {
-    setGuestStatus(null);
-    setSubmittedIdentifier(null);
   };
 
   const handleChangeCover = async () => {
@@ -2749,6 +2637,28 @@ export default function EventDetailScreen() {
       <>
         <Stack.Screen options={{ headerShown: false }} />
         <LoadingScreen message="Loading event" />
+      </>
+    );
+  }
+
+  const galleryGate: GalleryGateState | null = galleryOpenFailed
+    ? 'error'
+    : galleryAccess === 'login_required' || galleryAccess === 'none' || galleryAccess === 'pending' || galleryAccess === 'rejected'
+      ? galleryAccess
+      : null;
+  if (galleryGate) {
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <GalleryAccessGate
+          state={galleryGate}
+          title={gateTitle}
+          requesting={requestingAccess}
+          onLogin={() => router.push('/login')}
+          onRequestAccess={handleRequestAccess}
+          onRetry={loadEvent}
+          onBack={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
+        />
       </>
     );
   }
@@ -6047,25 +5957,7 @@ export default function EventDetailScreen() {
             </>
           ) : (
             <>
-              {!canViewContent ? (
-                <GatedAccessPanel
-                  event={event}
-                  selectedTemplate={selectedTemplate}
-                  isThemeDark={isThemeDark}
-                  guestStatus={guestStatus}
-                  guestName={guestName}
-                  setGuestName={setGuestName}
-                  guestPhone={guestPhone}
-                  setGuestPhone={setGuestPhone}
-                  user={user}
-                  updating={updating}
-                  handleGuestAccess={handleGuestAccess}
-                  handleRequestAccessAgain={handleRequestAccessAgain}
-                  styles={styles}
-                />
-              ) : (
-                <>
-                  {/* ── VISITOR IMMERSIVE CONTENT ── */}
+                  {/* ── VISITOR IMMERSIVE CONTENT ── (the link check in loadEvent decides who gets here) */}
                   <View style={[styles.visitorContent, { backgroundColor: pageBackground }]}>
                 {(event as any).showWelcomeCard !== false && activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you' && (
                   <View style={[
@@ -6827,7 +6719,7 @@ export default function EventDetailScreen() {
                   </View>
                   <IconSymbol name="chevron.down" size={16} color={selectedTemplate.muted} />
                 </TouchableOpacity>
-                ) : (
+                ) : isPublicView ? null : (
                 <TouchableOpacity
                   accessibilityRole="switch"
                   accessibilityState={{ checked: showOnlyFavourites }}
@@ -7339,34 +7231,17 @@ export default function EventDetailScreen() {
 
                 <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />
 
-                {/* Join Prompt for non-logged in users */}
-                {!user && (
+                {/* Logged-out visitors of a public gallery see previews only */}
+                {isPublicView && (
                   <View style={styles.guestSection}>
                     <Text style={styles.guestTitle}>Enter the Celebration</Text>
-                    <Text style={styles.guestSub}>Join to view all photos and interactions</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Your Name"
-                      placeholderTextColor={MidnightColors.slate400}
-                      value={guestName}
-                      onChangeText={setGuestName}
-                    />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Phone Number"
-                      placeholderTextColor={MidnightColors.slate400}
-                      keyboardType="phone-pad"
-                      value={guestPhone}
-                      onChangeText={setGuestPhone}
-                    />
-                    <TouchableOpacity style={styles.accessBtn} onPress={handleGuestAccess}>
-                      <Text style={styles.accessBtnText}>Request Access</Text>
+                    <Text style={styles.guestSub}>Log in to join this gallery, see full-size photos, like and comment</Text>
+                    <TouchableOpacity style={styles.accessBtn} onPress={() => router.push('/login')} accessibilityRole="button">
+                      <Text style={styles.accessBtnText}>Log in to join</Text>
                     </TouchableOpacity>
                   </View>
                 )}
                   </View>
-                </>
-              )}
             </>
           )}
         </View>
@@ -7507,6 +7382,7 @@ export default function EventDetailScreen() {
         isPhotoFavourite={showAdminView ? ((photo) => !!photo?.id && eventFavouritePhotoIds.has(photo.id)) : undefined}
         onTogglePhotoFavourite={showAdminView ? ((photo) => photo?.id ? handleToggleEventFavourite(photo.id) : undefined) : undefined}
         onRotatePhoto={showAdminView ? ((photo, direction) => photo?.id ? handleRotateGalleryPhoto(photo.id, direction) : undefined) : undefined}
+        readOnly={isPublicView}
       />
 
       <Modal

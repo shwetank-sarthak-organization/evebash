@@ -111,7 +111,7 @@ export function PageFlipSocialBar({
   const initializedSidePanelRef = useRef(commentDrawerOpen);
   const isLiked = likes.some((like) => like.userId === identity.id);
   const useSidePanelComments = commentsMode === "side-panel";
-  const commentDrawerVisible = commentDrawerOpen && !(useSidePanelComments && commentsPanelSuppressed);
+  const commentDrawerVisible = showComments && commentDrawerOpen && !(useSidePanelComments && commentsPanelSuppressed);
   const handleCloseComments = useCallback(() => {
     const shouldCloseViewer =
       useSidePanelComments &&
@@ -134,12 +134,13 @@ export function PageFlipSocialBar({
   }, [useSidePanelComments]);
 
   useEffect(() => {
+    if (!showLikes && !showComments) return;
     const unsubscribe = onPhotoInteractions(item.id, (data) => {
       setLikes(data.likes);
       setComments(data.comments);
     });
     return () => unsubscribe();
-  }, [item.id]);
+  }, [item.id, showLikes, showComments]);
 
   useEffect(() => {
     if (!commentDrawerVisible) return;
