@@ -40,6 +40,10 @@ import { TemplateSelectionModal } from '../../components/event/modals/TemplateSe
 import { GalleryDescriptionModal } from '../../components/event/modals/GalleryDescriptionModal';
 import { useGuestAccess } from '../../hooks/useGuestAccess';
 import { FindYouPanel } from '../../components/event/FindYouPanel';
+import GalleriesIcon from '../../components/icons/GalleriesIcon';
+import PermissionsIcon from '../../components/icons/PermissionsIcon';
+import DesignIcon from '../../components/icons/DesignIcon';
+import PartnersIcon from '../../components/icons/PartnersIcon';
 import { haptic } from '@/lib/haptics';
 import { appAlert, showToast } from '@/lib/feedback';
 
@@ -4742,12 +4746,14 @@ export default function EventDetailScreen() {
                   style={[styles.tab, activeTab === 'galleries' && styles.activeTab]}
                   onPress={() => { setActiveTab('galleries'); setGalleryMediaTab('photos'); setSelectedAdminGallery(undefined); }}
                 >
+                  <GalleriesIcon size={18} color={activeTab === 'galleries' ? MidnightColors.gold : MidnightColors.slate400} />
                   <Text style={[styles.tabText, activeTab === 'galleries' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Galleries</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.tab, activeTab === 'permissions' && styles.activeTab]}
                   onPress={() => setActiveTab('permissions')}
                 >
+                  <PermissionsIcon size={18} color={activeTab === 'permissions' ? MidnightColors.gold : MidnightColors.slate400} />
                   <Text style={[styles.tabText, activeTab === 'permissions' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Permissions</Text>
                   {guestLogs.filter(l => l.status === 'pending').length > 0 && (
                     <View style={styles.badge}>
@@ -4759,12 +4765,14 @@ export default function EventDetailScreen() {
                   style={[styles.tab, activeTab === 'design' && styles.activeTab]}
                   onPress={() => { setActiveTab('design'); setGalleryMediaTab('photos'); setSelectedAdminGallery(undefined); }}
                 >
+                  <DesignIcon size={18} color={activeTab === 'design' ? MidnightColors.gold : MidnightColors.slate400} />
                   <Text style={[styles.tabText, activeTab === 'design' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Design</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.tab, activeTab === 'partners' && styles.activeTab]}
                   onPress={() => { setActiveTab('partners'); setGalleryMediaTab('photos'); setSelectedAdminGallery(undefined); }}
                 >
+                  <PartnersIcon size={18} color={activeTab === 'partners' ? MidnightColors.gold : MidnightColors.slate400} />
                   <Text style={[styles.tabText, activeTab === 'partners' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Partners</Text>
                 </TouchableOpacity>
               </View>
@@ -5927,8 +5935,12 @@ export default function EventDetailScreen() {
                       paddingVertical: 4,
                       alignSelf: 'flex-start',
                       borderWidth: 1,
-                      borderColor: 'rgba(204, 164, 59, 0.3)'
+                      borderColor: 'rgba(204, 164, 59, 0.3)',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6
                     }}>
+                      <PartnersIcon size={12} color={MidnightColors.gold} />
                       <Text style={{ color: MidnightColors.gold, fontSize: 10, fontFamily: Fonts.outfit.bold, textTransform: 'uppercase', letterSpacing: 1.5 }}>
                         Event Partners · Phase 2
                       </Text>

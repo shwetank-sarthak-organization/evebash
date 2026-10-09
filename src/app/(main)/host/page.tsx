@@ -5,6 +5,7 @@ import { MoveToGalleryDialog } from "@/components/MoveToGalleryDialog";
 import { GalleriesIcon } from "@/components/GalleriesIcon";
 import { PermissionsIcon } from "@/components/PermissionsIcon";
 import { DesignIcon } from "@/components/DesignIcon";
+import { PartnersIcon } from "@/components/PartnersIcon";
 import React, { useState, useEffect, Suspense, useTransition, useRef, useCallback } from "react";
 import LoadingScreen from "@/components/LoadingScreen";
 import { useAuth } from "@/context/AuthContext";
@@ -4361,7 +4362,7 @@ function DashboardContent() {
                                                 "flex h-10 w-10 items-center justify-center rounded-2xl",
                                                 activeEventDetailTab === "design" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
                                             )}>
-                                                <LayoutDashboard className="h-5 w-5" />
+                                                <DesignIcon className="h-5 w-5" />
                                             </span>
                                             <span>
                                                 <span className="block text-base font-black text-white">Design</span>
@@ -4380,7 +4381,7 @@ function DashboardContent() {
                                                 "flex h-10 w-10 items-center justify-center rounded-2xl",
                                                 activeEventDetailTab === "partners" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
                                             )}>
-                                                <Users className="h-5 w-5" />
+                                                <PartnersIcon className="h-5 w-5" />
                                             </span>
                                             <span>
                                                 <span className="block text-base font-black text-white">Partners</span>
@@ -4643,7 +4644,7 @@ function DashboardContent() {
                                             <div className="space-y-6">
                                                 <div className="rounded-[1.8rem] border border-[#CA9C68]/20 bg-slate-900/60 p-6 text-left shadow-xl backdrop-blur-md sm:p-8">
                                                     <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#CA9C68]/30 bg-[#CA9C68]/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.2em] text-[#CA9C68]">
-                                                        <Users className="h-4 w-4 text-[#CA9C68]" />
+                                                        <PartnersIcon className="h-4 w-4 text-[#CA9C68]" />
                                                         <span>Event Partners · Phase 2</span>
                                                     </div>
                                                     <h4 className="text-2xl font-black tracking-tight text-white sm:text-3xl">

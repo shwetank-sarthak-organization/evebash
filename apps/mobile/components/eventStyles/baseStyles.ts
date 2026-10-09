@@ -1760,7 +1760,7 @@ headerGreeting: {
 
   // Tabs
   tabBar: { flexDirection: 'row', gap: 4, marginBottom: 24, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
-  tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', gap: 5 },
   activeTab: { borderBottomWidth: 2, borderBottomColor: MidnightColors.gold },
   tabText: { color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.outfit.bold },
   activeTabText: { color: MidnightColors.gold },
