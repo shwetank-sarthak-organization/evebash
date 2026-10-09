@@ -2,34 +2,35 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 
-export default function EventVisibilityControl({ eventId, onChanged }: { eventId: string; onChanged: (isPublic: boolean) => void }) {
-  const [isPublic, setIsPublic] = useState(false);
-  const [allowed, setAllowed] = useState(false);
-  const [loading, setLoading] = useState(true);
+// The owner always gets the switch (checked on the device, as on the website). can_manage_event_visibility only adds
+// other people allowed to change it; if that check fails or doesn't exist yet, the owner still can. Saving is
+// re-checked by set_event_public_viewing in the database.
+export default function EventVisibilityControl({ eventId, isPublic, isOwner, onChanged }: { eventId: string; isPublic: boolean; isOwner: boolean; onChanged: (isPublic: boolean) => void }) {
+  const [allowedByServer, setAllowedByServer] = useState(false);
+  const [checking, setChecking] = useState(!isOwner);
   const [saving, setSaving] = useState(false);
   const [confirmPublic, setConfirmPublic] = useState(false);
   const [error, setError] = useState('');
-  const [retry, setRetry] = useState(0);
+  const allowed = isOwner || allowedByServer;
+  const loading = !allowed && checking;
   useEffect(() => {
     let active = true;
-    setLoading(true); setAllowed(false); setError(''); setConfirmPublic(false);
-    void (async () => {
-      const [permission, event] = await Promise.all([
-        supabase.rpc('can_manage_event_visibility', { p_event_id: eventId }),
-        supabase.from('events').select('is_public').eq('id', eventId).single(),
-      ]);
-      if (permission.error || event.error) throw permission.error || event.error;
-      if (active) { setAllowed(permission.data === true); setIsPublic(event.data.is_public === true); }
-    })().catch(() => { if (active) setError('Unable to load visibility settings. Please retry.'); }).finally(() => { if (active) setLoading(false); });
+    setAllowedByServer(false); setError(''); setConfirmPublic(false);
+    if (isOwner) { setChecking(false); return; }
+    setChecking(true);
+    void Promise.resolve(supabase.rpc('can_manage_event_visibility', { p_event_id: eventId }))
+      .then(({ data, error }) => { if (active && !error) setAllowedByServer(data === true); })
+      .catch(() => {})
+      .finally(() => { if (active) setChecking(false); });
     return () => { active = false; };
-  }, [eventId, retry]);
+  }, [eventId, isOwner]);
   const save = async (next: boolean) => {
     if (!allowed || saving) return;
     setSaving(true); setError('');
     try {
       const { data, error } = await supabase.rpc('set_event_public_viewing', { event_id: eventId, public_viewing: next });
       if (error || typeof data !== 'boolean') throw error || new Error('Invalid response');
-      setIsPublic(data); setConfirmPublic(false); onChanged(data);
+      setConfirmPublic(false); onChanged(data);
     } catch { setError('Unable to change visibility. Check your event admin access and try again.'); }
     finally { setSaving(false); }
   };
@@ -44,6 +45,6 @@ export default function EventVisibilityControl({ eventId, onChanged }: { eventId
       {confirmPublic && <View style={{ marginTop: 12, gap: 10 }}><Text style={{ color: '#fff' }}>Make this event and its sub-galleries viewable by anyone with the link?</Text><TouchableOpacity accessibilityRole="button" disabled={saving} onPress={() => void save(true)} style={{ padding: 12, backgroundColor: '#CA9C68', borderRadius: 8 }}><Text style={{ color: '#0f172a', textAlign: 'center' }}>Make public</Text></TouchableOpacity><TouchableOpacity accessibilityRole="button" disabled={saving} onPress={() => setConfirmPublic(false)} style={{ padding: 12 }}><Text style={{ color: '#fff', textAlign: 'center' }}>Cancel</Text></TouchableOpacity></View>}
       {saving && <ActivityIndicator color="#CA9C68" style={{ marginTop: 10 }} />}
     </>}
-    {!!error && <><Text accessibilityRole="alert" style={{ color: '#fca5a5', marginTop: 10 }}>{error}</Text>{!allowed && <TouchableOpacity accessibilityRole="button" onPress={() => setRetry(n => n + 1)} style={{ padding: 12 }}><Text style={{ color: '#fff' }}>Retry</Text></TouchableOpacity>}</>}
+    {!!error && <Text accessibilityRole="alert" style={{ color: '#fca5a5', marginTop: 10 }}>{error}</Text>}
   </View>;
 }

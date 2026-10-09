@@ -5517,6 +5517,15 @@ export default function EventDetailScreen() {
 
               {activeTab === 'permissions' && (
                 <View style={styles.section}>
+                  {/* Public/private switch for the main gallery (sub-galleries follow it), as on the website */}
+                  {!event.parentId && (isOwner || canManageEvent) && (
+                    <EventVisibilityControl
+                      eventId={event.id}
+                      isPublic={!!event.isPublic}
+                      isOwner={isOwner || (!!user?.email && user.email === event.createdBy)}
+                      onChanged={isPublic => setEvent(previous => previous ? { ...previous, isPublic } : previous)}
+                    />
+                  )}
                   <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Guest List</Text>
                   </View>
@@ -7665,7 +7674,6 @@ export default function EventDetailScreen() {
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowShareModal(false)} />
           <ScrollView style={{ maxHeight: '85%' }} contentContainerStyle={styles.shareModalContent}>
             <Text style={styles.modalTitle}>Share Event</Text>
-            {showShareModal && !event.parentId && (isOwner || canManageEvent) && <EventVisibilityControl eventId={event.id} onChanged={isPublic => setEvent(previous => previous ? { ...previous, isPublic } : previous)} />}
 
             <View style={styles.qrContainer}>
               <Image

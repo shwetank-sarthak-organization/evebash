@@ -2,6 +2,9 @@
 
 import { VideoThumbnailPicker, VideoThumbnailActions } from "@/components/VideoThumbnailPicker";
 import { MoveToGalleryDialog } from "@/components/MoveToGalleryDialog";
+import { GalleriesIcon } from "@/components/GalleriesIcon";
+import { PermissionsIcon } from "@/components/PermissionsIcon";
+import { DesignIcon } from "@/components/DesignIcon";
 import React, { useState, useEffect, Suspense, useTransition, useRef, useCallback } from "react";
 import LoadingScreen from "@/components/LoadingScreen";
 import { useAuth } from "@/context/AuthContext";
@@ -4315,7 +4318,7 @@ function DashboardContent() {
                                                 "flex h-10 w-10 items-center justify-center rounded-2xl",
                                                 activeEventDetailTab === "galleries" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
                                             )}>
-                                                <Camera className="h-5 w-5" />
+                                                <GalleriesIcon className="h-5 w-5" />
                                             </span>
                                             <span>
                                                 <span className="block text-base font-black text-white">Galleries</span>
@@ -4334,7 +4337,7 @@ function DashboardContent() {
                                                 "flex h-10 w-10 items-center justify-center rounded-2xl",
                                                 activeEventDetailTab === "permissions" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
                                             )}>
-                                                <ShieldCheck className="h-5 w-5" />
+                                                <PermissionsIcon className="h-5 w-5" />
                                             </span>
                                             <span>
                                                 <span className="block text-base font-black text-white">Permissions</span>
@@ -5796,7 +5799,7 @@ function DashboardContent() {
                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                                         <div className="flex items-center space-x-4">
                                             <div className="w-12 h-12 bg-slate-900 rounded-[1.2rem] flex items-center justify-center text-white shadow-xl shadow-slate-200">
-                                                <ShieldCheck size={24} />
+                                                <PermissionsIcon className="h-6 w-6" />
                                             </div>
                                             <div>
                                                 <h2 className="text-3xl font-bold mb-1 font-serif text-slate-200">Permissions & Traffic</h2>
