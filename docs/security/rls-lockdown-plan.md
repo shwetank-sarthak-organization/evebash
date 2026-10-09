@@ -126,6 +126,29 @@ Also confirmed:
 
 Not covered: realtime subscriptions, and the app screens themselves (step 4).
 
+## Part 1: functions only (step 4, 2026-10-07)
+
+`supabase/migrations/20261007000000_rls_part1_gallery_link_functions.sql` is sections 1–3 of the draft without
+`can_manage_event_visibility` / `set_event_public_viewing` (those would switch on the host visibility toggle, so
+they wait for part 2). New objects only: RLS, triggers and policies are unchanged, so existing screens behave as before.
+Tests: `rls-lockdown-part1-tests.sql`. Rollback: `rls-lockdown-part1-rollback.sql`.
+
+Draft changes made while preparing it (both suites re-run):
+
+- `get_public_gallery_media` leaves out cover uploads (`__cover_usage__`) and rows still uploading, and a top-level
+  gallery's Home tab returns the host's favourites from its family, as members see it
+- `profile_cards`: Supabase's default privileges gave logged-in users insert/update/delete on new views, and the view
+  is auto-updatable, so anyone logged in could have renamed or deleted any profile through it. Writes are now revoked.
+- `request_gallery_access` / `archive_deleted_event` no longer keep the default anon EXECUTE grant
+
+Dry runs on the live DB (always rolled back, nothing persisted): part 1 **70/70**, full lockdown **118/118**.
+Status: **applied 2026-10-09**.
+
+Request rules (decided 2026-10-09, `20261009000000_gallery_requests_after_rejection.sql`): a rejection isn't final.
+A rejected guest of a private gallery sees the normal request screen, and asking again makes them pending (no cooldown).
+Opening a public gallery joins it, including for anyone whose earlier request was pending or rejected.
+Dry runs: part 1 77/77, full lockdown 124/124. Not applied yet.
+
 ## Test plan (step 3)
 
 Apply to a **copy** of the database first (a Supabase branch or a separate free project with the same

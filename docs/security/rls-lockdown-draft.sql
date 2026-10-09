@@ -143,14 +143,17 @@ alter table public.deleted_events_archive add column if not exists event_created
 -- Names and avatars for likes/comments, without exposing email or phone
 create or replace view public.profile_cards as
   select id, name, profile_image from public.profiles;
-revoke all on public.profile_cards from anon;
+-- Supabase's default privileges give anon and authenticated full rights on new relations, and this view is
+-- auto-updatable (it runs as its owner, past RLS), so take writes away from both before granting read.
+revoke all on public.profile_cards from anon, authenticated;
 grant select on public.profile_cards to authenticated;
 
 -- ════════════════════════════════════════════════════════════════════════════════
 -- 3. Functions the apps call
 -- ════════════════════════════════════════════════════════════════════════════════
 -- Opens a gallery from a link/QR reference (id, legacy id or join code).
--- Returns access: manage | member | public_view | pending | rejected | none | login_required | not_found
+-- Returns access: manage | member | public_view | pending | none | login_required | not_found
+-- (a rejected guest gets none, so they can ask again)
 create or replace function public.open_gallery(p_ref text) returns jsonb
 language plpgsql volatile security definer set search_path = '' as $$
 declare
@@ -172,11 +175,13 @@ begin
      where g.user_id = v_uid and g.event_id in (v_id, v_root.id)
      order by (g.status = 'approved') desc limit 1;
     if v_status = 'approved' then return jsonb_build_object('access', 'member', 'event_id', v_id); end if;
-    if v_status = 'rejected' then return jsonb_build_object('access', 'rejected', 'title', v_root.title); end if;
     if v_root.is_public then
-      perform public.request_gallery_access(v_id);  -- public galleries are joined on open
-      return jsonb_build_object('access', 'member', 'event_id', v_id);
+      -- Public galleries are joined on open, including by people whose earlier request was pending or rejected
+      v_status := public.request_gallery_access(v_id);
+      if v_status = 'approved' then return jsonb_build_object('access', 'member', 'event_id', v_id); end if;
     end if;
+    -- A rejection isn't final: a rejected guest sees the same "request access" screen as someone who never asked
+    if v_status = 'rejected' then v_status := null; end if;
     return jsonb_build_object('access', coalesce(v_status, 'none'), 'event_id', v_id, 'title', v_root.title);
   end if;
 
@@ -202,21 +207,49 @@ end $$;
 
 -- Previews and video streams of a public gallery, for viewers who aren't logged in.
 -- Photo originals (photos.url) are never returned.
+-- A top-level gallery's Home tab shows the host's favourites from it and its sub-galleries when there are any,
+-- as members see it; otherwise the gallery's own media. Cover uploads and unfinished media are left out, as in the apps.
 create or replace function public.get_public_gallery_media(p_event_id text, p_limit int default 60, p_offset int default 0)
 returns table (id text, event_id text, media_type text, preview_url text, thumbnail_url text, stream_url text,
                width int, height int, duration numeric, sort_order int, uploaded_at timestamptz)
 language sql stable security definer set search_path = '' as $$
-  select p.id, p.event_id, p.media_type,
-         coalesce(p.preview_url, p.thumbnail_url),
-         p.thumbnail_url,
-         case when p.media_type = 'video' then p.url end,      -- HLS master playlist, not the uploaded file
-         p.width, p.height, p.duration, p."order", p.uploaded_at
-    from public.photos p
-   where p.event_id = p_event_id
-     and coalesce((select r.is_public from public.events r where r.id = eb_private.root_event_id(p_event_id)), false)
-     and (p.media_type is distinct from 'video' or p.status = 'processed')
-     and coalesce(p.preview_url, p.thumbnail_url) is not null
-   order by p."order" nulls last, p.uploaded_at desc
+  with gallery as (
+    select e.id, e.parent_id is null as is_top_level
+      from public.events e
+     where e.id = p_event_id
+       and coalesce((select r.is_public from public.events r where r.id = eb_private.root_event_id(p_event_id)), false)
+  ),
+  family as (
+    select g.id from gallery g where g.is_top_level
+    union
+    select s.id from public.events s join gallery g on s.parent_id = g.id where g.is_top_level
+  ),
+  favourites as (
+    select f.photo_id, max(f.created_at) as picked_at
+      from public.event_favourite_photos f
+     where f.event_id in (select family.id from family)
+     group by f.photo_id
+  ),
+  media as (
+    select p.*, fav.picked_at
+      from favourites fav join public.photos p on p.id = fav.photo_id
+     where p.event_id in (select family.id from family)
+    union all
+    select p.*, null::timestamptz
+      from public.photos p
+     where p.event_id = (select g.id from gallery g) and not exists (select 1 from favourites)
+  )
+  select m.id, m.event_id, m.media_type,
+         coalesce(m.preview_url, m.thumbnail_url),
+         m.thumbnail_url,
+         case when m.media_type = 'video' then m.url end,      -- HLS master playlist, not the uploaded file
+         m.width, m.height, m.duration, m."order", m.uploaded_at
+    from media m
+   where (m.media_type is distinct from 'video' or m.status = 'processed')
+     and m.status is distinct from 'uploading'
+     and not coalesce(m.tags @> array['__cover_usage__']::text[], false)
+     and coalesce(m.preview_url, m.thumbnail_url) is not null
+   order by m.picked_at desc nulls last, m."order" nulls last, m.uploaded_at desc
    limit least(greatest(coalesce(p_limit, 60), 1), 200) offset greatest(coalesce(p_offset, 0), 0)
 $$;
 
@@ -240,7 +273,10 @@ begin
           v_root.id, v_root.created_by, v_root.title,
           case when v_root.is_public then 'approved' else 'pending' end,
           v_uid, now(), true)
-  on conflict (id) do update set login_at = now()
+  -- Asking again: approved stays approved; pending or rejected becomes pending (private) or approved (public)
+  on conflict (id) do update
+    set login_at = now(),
+        status = case when public.guests.status = 'approved' then 'approved' else excluded.status end
   returning status into v_status;
   return v_status;
 end $$;
@@ -292,19 +328,20 @@ begin
   return public_viewing;
 end $$;
 
--- Postgres grants EXECUTE to PUBLIC by default, so revoke from PUBLIC before granting
-revoke execute on function public.open_gallery(text) from public;
-revoke execute on function public.get_public_gallery_media(text, int, int) from public;
-revoke execute on function public.request_gallery_access(text) from public;
-revoke execute on function public.archive_deleted_event(text, int, int, bigint, text, timestamptz) from public;
-revoke execute on function public.is_phone_allowed(text) from public;
+-- Postgres grants EXECUTE to PUBLIC, and Supabase's default privileges to anon and authenticated, on new
+-- functions, so revoke from all three before granting
+revoke execute on function public.open_gallery(text) from public, anon, authenticated;
+revoke execute on function public.get_public_gallery_media(text, int, int) from public, anon, authenticated;
+revoke execute on function public.request_gallery_access(text) from public, anon, authenticated;
+revoke execute on function public.archive_deleted_event(text, int, int, bigint, text, timestamptz) from public, anon, authenticated;
+revoke execute on function public.is_phone_allowed(text) from public, anon, authenticated;
 grant execute on function public.open_gallery(text) to anon, authenticated;
 grant execute on function public.get_public_gallery_media(text, int, int) to anon, authenticated;
 grant execute on function public.is_phone_allowed(text) to anon, authenticated;
 grant execute on function public.request_gallery_access(text) to authenticated;
 grant execute on function public.archive_deleted_event(text, int, int, bigint, text, timestamptz) to authenticated;
-revoke execute on function public.can_manage_event_visibility(text) from public;
-revoke execute on function public.set_event_public_viewing(text, boolean) from public;
+revoke execute on function public.can_manage_event_visibility(text) from public, anon;
+revoke execute on function public.set_event_public_viewing(text, boolean) from public, anon;
 grant execute on function public.can_manage_event_visibility(text) to authenticated;
 grant execute on function public.set_event_public_viewing(text, boolean) to authenticated;
 

@@ -1,6 +1,7 @@
 -- Step 3 tests for rls-lockdown-draft.sql. Run: BEGIN + draft (without its begin/commit) + this file, in ONE request.
 -- The final statement raises STEP3_RESULTS[...] which also rolls everything back. Never add a COMMIT.
--- Last run 2026-10-06 on the live DB: 111/111 passed, nothing persisted.
+-- Last run 2026-10-09 on the live DB: 124/124 passed, nothing persisted (adds pending/rejected requests on a
+-- gallery made public).
 -- ════════════════════════════════════════════════════════════════════════════════
 -- STEP 3 TESTS. Runs after the draft inside the same transaction, which is always rolled back:
 -- the last statement raises an error carrying the results, so nothing is ever committed.
@@ -13,7 +14,9 @@ insert into public.profiles (id, name, email, phone, role) values
   ('33333333-3333-4333-8333-333333333333', 'Step3 Member',      'member@step3.test', '+910000000003', 'user'),
   ('44444444-4444-4444-8444-444444444444', 'Step3 Random',      'random@step3.test', '+910000000004', 'user'),
   ('55555555-5555-4555-8555-555555555555', 'Step3 Admin',       'admin@step3.test',  '+910000000005', 'admin'),
-  ('66666666-6666-4666-8666-666666666666', 'Step3 Other Host',  'other@step3.test',  '+910000000006', 'standard');
+  ('66666666-6666-4666-8666-666666666666', 'Step3 Other Host',  'other@step3.test',  '+910000000006', 'standard'),
+  ('77777777-7777-4777-8777-777777777777', 'Step3 Pending',     'pending@step3.test',  '+910000000007', 'user'),
+  ('88888888-8888-4888-8888-888888888888', 'Step3 Rejected',    'rejected@step3.test', '+910000000008', 'user');
 
 insert into public.events (id, title, created_by, is_public, parent_id, join_id) values
   ('step3-private',    'Step3 Private',    '11111111-1111-4111-8111-111111111111', false, null, 'step3-join-private'),
@@ -35,11 +38,30 @@ insert into public.guests (id, name, phone, event_id, status, can_admin, can_upl
   ('u_22222222-2222-4222-8222-222222222222_step3-private', 'Step3 Guest Admin', '+910000000002', 'step3-private', 'approved', true,  true,  true, '22222222-2222-4222-8222-222222222222'),
   ('u_33333333-3333-4333-8333-333333333333_step3-private', 'Step3 Member',      '+910000000003', 'step3-private', 'approved', false, false, true, '33333333-3333-4333-8333-333333333333');
 
+-- Requests made while step3-public was private, one still pending and one rejected (2026-10-09: opening it now joins)
+insert into public.guests (id, name, phone, event_id, status, can_admin, can_upload, can_comment, user_id) values
+  ('u_77777777-7777-4777-8777-777777777777_step3-public', 'Step3 Pending',  '+910000000007', 'step3-public', 'pending',  false, false, true, '77777777-7777-4777-8777-777777777777'),
+  ('u_88888888-8888-4888-8888-888888888888_step3-public', 'Step3 Rejected', '+910000000008', 'step3-public', 'rejected', false, false, true, '88888888-8888-4888-8888-888888888888');
+
 insert into public.likes (photo_id, user_id) values ('step3-p1', '33333333-3333-4333-8333-333333333333');
 insert into public.comments (photo_id, user_id, text) values ('step3-p1', '33333333-3333-4333-8333-333333333333', 'step3 comment');
 insert into public.faces (image_id, descriptor, event_id, image_url, width, height) values ('step3-p1', '{0.1,0.2,0.3}', 'step3-private', 'https://m.test/step3/p1-preview.webp', 100, 100);
 insert into public.event_favourite_photos (event_id, photo_id, marked_by) values ('step3-private', 'step3-p1', '11111111-1111-4111-8111-111111111111');
 insert into public.faces (image_id, descriptor, event_id, image_url, width, height) values ('step3-p2s', '{0.4}', 'step3-public-sub', 'https://m.test/step3/p2s-preview.webp', 100, 100);
+
+-- Added 2026-10-07 for get_public_gallery_media: cover uploads and uploading rows are left out; a top-level gallery's
+-- Home tab shows the host's favourites from its family (a stray favourite of another gallery's photo must not leak)
+insert into public.events (id, title, created_by, is_public, parent_id) values
+  ('step3-fav',     'Step3 Fav',     '11111111-1111-4111-8111-111111111111', true,  null),
+  ('step3-fav-sub', 'Step3 Fav Sub', '11111111-1111-4111-8111-111111111111', false, 'step3-fav');
+insert into public.photos (id, event_id, storage_key, url, preview_url, thumbnail_url, media_type, status, tags, user_id) values
+  ('step3-c2', 'step3-public',  'step3/c2.jpg', 'https://m.test/step3/c2.jpg', 'https://m.test/step3/c2-preview.webp', 'https://m.test/step3/c2-thumb.webp', 'photo', 'processed', '{__cover_usage__}', '11111111-1111-4111-8111-111111111111'),
+  ('step3-u2', 'step3-public',  'step3/u2.jpg', 'https://m.test/step3/u2.jpg', 'https://m.test/step3/u2-preview.webp', 'https://m.test/step3/u2-thumb.webp', 'photo', 'uploading', null, '11111111-1111-4111-8111-111111111111'),
+  ('step3-f1', 'step3-fav-sub', 'step3/f1.jpg', 'https://m.test/step3/f1.jpg', 'https://m.test/step3/f1-preview.webp', 'https://m.test/step3/f1-thumb.webp', 'photo', 'processed', null, '11111111-1111-4111-8111-111111111111'),
+  ('step3-f2', 'step3-fav-sub', 'step3/f2.jpg', 'https://m.test/step3/f2.jpg', 'https://m.test/step3/f2-preview.webp', 'https://m.test/step3/f2-thumb.webp', 'photo', 'processed', null, '11111111-1111-4111-8111-111111111111');
+insert into public.event_favourite_photos (event_id, photo_id, marked_by) values
+  ('step3-fav-sub', 'step3-f1', '11111111-1111-4111-8111-111111111111'),
+  ('step3-fav-sub', 'step3-p1', '11111111-1111-4111-8111-111111111111');
 
 -- Results table and a helper that tries a write, records the outcome, then undoes it
 create temp table _r (n serial, who text, check_name text, expected text, actual text);
@@ -105,6 +127,11 @@ insert into _r (who, check_name, expected, actual) values
   ('anon', 'can submit tenant access request',   'rows=1',  pg_temp.try_write($$insert into public.pending_requests (phone, name, requested_at) values ('+919999999999', 'step3', now())$$)),
   ('anon', 'cannot request gallery access',      'blocked', pg_temp.try_call($$select public.request_gallery_access('step3-private')$$)),
   ('anon', 'tenant allowlist check works',       'false',   pg_temp.try_call($$select public.is_phone_allowed('+910000000000')::text$$));
+insert into _r (who, check_name, expected, actual) values
+  ('anon', 'public media skips cover uploads and uploading rows', '0', (select count(*) from public.get_public_gallery_media('step3-public') m where m.id in ('step3-c2', 'step3-u2'))::text),
+  ('anon', 'home shows host favourites only',    'step3-f1', (select string_agg(m.id, ',') from public.get_public_gallery_media('step3-fav') m)),
+  ('anon', 'sub-gallery shows all its media',    '2', (select count(*) from public.get_public_gallery_media('step3-fav-sub'))::text),
+  ('anon', 'cannot read profile_cards',          'blocked', pg_temp.try_call($$select count(*)::text from public.profile_cards$$));
 reset role;
 
 -- ── Random logged-in user (not a member of anything) ───────────────────────────
@@ -147,7 +174,28 @@ insert into _r (who, check_name, expected, actual) values
   ('random', 'can create own public gallery',     'rows=1', pg_temp.try_write($$insert into public.events (id, title, created_by, is_public) values ('step3-mine-pub', 'x', '44444444-4444-4444-8444-444444444444', true)$$)),
   ('random', 'cannot mark sample gallery',        'blocked', pg_temp.try_write($$insert into public.events (id, title, created_by, is_sample_gallery) values ('step3-sample', 'x', '44444444-4444-4444-8444-444444444444', true)$$)),
   ('random', 'cannot add favourites in joined gallery', 'blocked', pg_temp.try_write($$insert into public.event_favourite_photos (event_id, photo_id) values ('step3-public', 'step3-p2')$$)),
-  ('random', 'cannot archive others'' gallery',   'blocked', pg_temp.try_call($$select 'ok' from (select public.archive_deleted_event('step3-private', 1, 0, 10, 'x')) x$$));
+  ('random', 'cannot archive others'' gallery',   'blocked', pg_temp.try_call($$select 'ok' from (select public.archive_deleted_event('step3-private', 1, 0, 10, 'x')) x$$)),
+  ('random', 'cannot rename someone via profile_cards', 'blocked', pg_temp.try_write($$update public.profile_cards set name = 'x' where id = '11111111-1111-4111-8111-111111111111'$$)),
+  ('random', 'cannot delete via profile_cards',   'blocked', pg_temp.try_write($$delete from public.profile_cards where id = '11111111-1111-4111-8111-111111111111'$$));
+reset role;
+
+-- ── Pending and rejected requests on a gallery that is now public ─────────────
+select set_config('request.jwt.claims', '{"sub":"77777777-7777-4777-8777-777777777777","role":"authenticated","email":"pending@step3.test"}', true);
+set local role authenticated;
+insert into _r (who, check_name, expected, actual) values
+  ('pending', 'sees nothing before opening',       '0', (select count(*) from public.events where id = 'step3-public')::text),
+  ('pending', 'opening the public gallery joins',  'member', public.open_gallery('step3-public') ->> 'access');
+insert into _r (who, check_name, expected, actual) values
+  ('pending', 'then sees the gallery',             '1', (select count(*) from public.events where id = 'step3-public')::text),
+  ('pending', 'and its photos with originals',     'yes', case when exists (select 1 from public.photos where id = 'step3-p2' and url like '%/p2.jpg') then 'yes' else 'no' end);
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"88888888-8888-4888-8888-888888888888","role":"authenticated","email":"rejected@step3.test"}', true);
+set local role authenticated;
+insert into _r (who, check_name, expected, actual) values
+  ('rejected', 'opening the public gallery joins', 'member', public.open_gallery('step3-public') ->> 'access');
+insert into _r (who, check_name, expected, actual) values
+  ('rejected', 'then sees the gallery',            '1', (select count(*) from public.events where id = 'step3-public')::text);
 reset role;
 
 -- ── Approved member of the private gallery ─────────────────────────────────────
@@ -226,7 +274,8 @@ insert into _r (who, check_name, expected, actual) values
   ('db', 'deletion record written with real owner', 'yes', case when exists (select 1 from public.deleted_events_archive where event_id = 'step3-empty' and user_id = '11111111-1111-4111-8111-111111111111') then 'yes' else 'no' end),
   ('db', 'owner deleted sub-gallery',               '0', (select count(*) from public.events where id = 'step3-public-sub')::text),
   ('db', 'its photos removed automatically',        '0', (select count(*) from public.photos where id = 'step3-p2s')::text),
-  ('db', 'its face scans removed automatically',    '0', (select count(*) from public.faces where event_id = 'step3-public-sub')::text);
+  ('db', 'its face scans removed automatically',    '0', (select count(*) from public.faces where event_id = 'step3-public-sub')::text),
+  ('db', 'anon cannot run request_gallery_access',  'false', has_function_privilege('anon', 'public.request_gallery_access(text)', 'execute')::text);
 
 -- ── Results (raising here rolls back the whole transaction) ────────────────────
 do $$
