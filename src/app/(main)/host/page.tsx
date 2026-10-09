@@ -35,6 +35,8 @@ import {
     Users,
     Store,
     Share2,
+    Maximize2,
+    Minimize2,
     Phone,
     Globe,
     Crown,
@@ -4172,7 +4174,7 @@ function DashboardContent() {
 
                             {manageLevel === "event-details" && selectedMainEvent && (
                                 <div className="space-y-8">
-                                    <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-xl">
+                                    <div className="relative overflow-hidden rounded-[2rem] border border-[#CA9C68]/25 bg-neutral-950 shadow-2xl shadow-black/50">
                                         <div
                                             ref={(node) => {
                                                 if (activeEventDetailEvent && coverPositionEvent?.id === activeEventDetailEvent.id) {
@@ -4196,7 +4198,8 @@ function DashboardContent() {
                                                 className="h-full w-full select-none"
                                                 style={getCoverImageStyle(activeEventDetailEvent)}
                                             />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
+                                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#080a14] via-[#080a14]/55 to-black/10" />
+                                            <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/45 to-transparent" />
                                             {activeEventDetailEvent && coverPositionEvent?.id === activeEventDetailEvent.id && (
                                                 <div className="pointer-events-none absolute inset-x-6 top-6 z-20 rounded-full border border-white/15 bg-black/60 px-4 py-2 text-center text-xs font-black uppercase tracking-[0.2em] text-white/90 backdrop-blur-md">
                                                     Drag image
@@ -4211,32 +4214,34 @@ function DashboardContent() {
                                                 </div>
                                             )}
                                             {!coverPositionEvent && (
-                                            <div className="absolute right-6 top-6 z-10 flex flex-wrap justify-end gap-2">
+                                            <div className="absolute right-3 top-3 z-10 flex items-start gap-0.5 sm:right-6 sm:top-5 sm:gap-2">
                                                 {activeEventDetailEvent && (
                                                     <>
                                                         <button
                                                             onClick={() => handleToggleCoverMode(activeEventDetailEvent)}
                                                             disabled={status === "uploading"}
-                                                            className="flex items-center gap-2 rounded-full border border-white/30 bg-slate-950/40 px-4 py-2 text-xs font-black uppercase tracking-widest text-white shadow-lg backdrop-blur-md transition-colors hover:bg-slate-950/60 disabled:cursor-not-allowed disabled:opacity-60"
+                                                            className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
                                                         >
-                                                            <RefreshCw className="h-4 w-4" />
-                                                            <span>{(activeEventDetailEvent.coverMode || "fill") === "fill" ? "Fit" : "Fill"}</span>
+                                                            {(activeEventDetailEvent.coverMode || "fill") === "fill"
+                                                                ? <Maximize2 className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
+                                                                : <Minimize2 className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />}
+                                                            <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs">{(activeEventDetailEvent.coverMode || "fill") === "fill" ? "Fit" : "Fill"}</span>
                                                         </button>
                                                         {(activeEventDetailEvent.coverMode || "fill") === "fill" && (
                                                             <button
                                                                 onClick={() => openCoverPosition(activeEventDetailEvent)}
                                                                 disabled={status === "uploading"}
-                                                                className="flex items-center gap-2 rounded-full border border-white/30 bg-slate-950/40 px-4 py-2 text-xs font-black uppercase tracking-widest text-white shadow-lg backdrop-blur-md transition-colors hover:bg-slate-950/60 disabled:cursor-not-allowed disabled:opacity-60"
+                                                                className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
                                                             >
-                                                                <Settings className="h-4 w-4" />
-                                                                <span>Position</span>
+                                                                <Settings className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
+                                                                <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs">Position</span>
                                                             </button>
                                                         )}
                                                     </>
                                                 )}
-                                                <label className="flex cursor-pointer items-center gap-2 rounded-full border border-white/30 bg-slate-950/40 px-4 py-2 text-xs font-black uppercase tracking-widest text-white shadow-lg backdrop-blur-md transition-colors hover:bg-slate-950/60">
-                                                    <Camera className="h-4 w-4" />
-                                                    <span>Change Cover</span>
+                                                <label className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3 cursor-pointer">
+                                                    <ImageIcon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
+                                                    <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs">Change Cover</span>
                                                     <input
                                                         type="file"
                                                         accept="image/*"
@@ -4248,42 +4253,40 @@ function DashboardContent() {
                                                 <button
                                                     onClick={() => activeEventDetailEvent && handleRemoveCoverForEvent(activeEventDetailEvent)}
                                                     disabled={status === "uploading"}
-                                                    className="rounded-full border border-rose-300/40 bg-rose-500/20 px-4 py-2 text-xs font-black uppercase tracking-widest text-rose-100 shadow-lg backdrop-blur-md transition-colors hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                                                    className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3 hover:text-rose-200"
                                                 >
-                                                    Remove Cover
+                                                    <Trash2 className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
+                                                    <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs">Remove Cover</span>
                                                 </button>
                                             </div>
                                             )}
-                                            <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8">
-                                                <h3 className="text-3xl font-bold text-white sm:text-4xl">{activeEventDetailEvent?.title || selectedMainEvent.title}</h3>
-                                                <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                                    <div className="flex items-center gap-2 text-sm font-bold text-slate-300">
-                                                        <Calendar className="h-4 w-4 text-[#CA9C68]" />
-                                                        <span>{formatEventDate(activeEventDetailEvent?.date || selectedMainEvent.date)}</span>
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        <button
-                                                            onClick={(e) => activeEventDetailEvent && handleRenameClick(e, activeEventDetailEvent, "title")}
-                                                            className="flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-white backdrop-blur-md transition-colors hover:bg-white/20"
-                                                        >
-                                                            <Pencil className="h-4 w-4" />
-                                                            <span>Edit Title</span>
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => activeEventDetailEvent && handleRenameClick(e, activeEventDetailEvent, "date")}
-                                                            className="flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-white backdrop-blur-md transition-colors hover:bg-white/20"
-                                                        >
-                                                            <Calendar className="h-4 w-4" />
-                                                            <span>Edit Date</span>
-                                                        </button>
-                                                        <button
-                                                            onClick={() => activeEventDetailEvent && handleShareEventLink(activeEventDetailEvent)}
-                                                            className="flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-white backdrop-blur-md transition-colors hover:bg-white/20"
-                                                        >
-                                                            <Share2 className="h-4 w-4" />
-                                                            <span>Share</span>
-                                                        </button>
-                                                    </div>
+                                            <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-4 p-6 sm:flex-row sm:items-end sm:justify-between sm:p-8">
+                                                <div className="min-w-0">
+                                                    <h3 className="line-clamp-2 break-words font-serif text-5xl font-semibold leading-none text-[#F5EFE6] sm:text-7xl">{activeEventDetailEvent?.title || selectedMainEvent.title}</h3>
+                                                    <p className="mt-3 font-sans text-base text-white/85 sm:text-xl">{formatEventDate(activeEventDetailEvent?.date || selectedMainEvent.date)}</p>
+                                                </div>
+                                                <div className="flex shrink-0 items-end gap-1 sm:gap-3">
+                                                    <button
+                                                        onClick={(e) => activeEventDetailEvent && handleRenameClick(e, activeEventDetailEvent, "title")}
+                                                        className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
+                                                    >
+                                                        <Pencil className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.5} />
+                                                        <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs sm:text-sm">Edit Title</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => activeEventDetailEvent && handleRenameClick(e, activeEventDetailEvent, "date")}
+                                                        className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
+                                                    >
+                                                        <Calendar className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.5} />
+                                                        <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs sm:text-sm">Edit Date</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => activeEventDetailEvent && handleShareEventLink(activeEventDetailEvent)}
+                                                        className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-white/85 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3"
+                                                    >
+                                                        <Share2 className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.5} />
+                                                        <span className="text-center text-[10px] font-medium uppercase leading-tight tracking-wider sm:text-xs sm:text-sm">Share</span>
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
