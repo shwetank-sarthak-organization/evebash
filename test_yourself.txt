@@ -1,0 +1,366 @@
+EVEBASH - TEST YOURSELF
+=======================
+Things to check by hand on a real device (website and/or phone app).
+Share this file in chats and keep it in the repo so everyone knows what is tested.
+
+HOW TO USE
+- Status:   TODO | PASS | FAIL | BLOCKED | RETEST
+- Priority: High (launch blocker, test first) | Medium | Low
+- When you test, fill:
+    Done by           tester name
+    Device / browser  e.g. "iPhone 13, iOS 18" or "Chrome 129 on Mac"
+    Build / version   app version (e.g. 1.2.4) or website commit / date deployed
+    Date tested       YYYY-MM-DD
+    Account used      host / guest / logged out + which test account
+    Screenshot        file name or link (required for FAIL)
+    Fix ref           commit or chat that fixed a FAIL (filled by developer)
+    Feedback          what you saw
+- If it FAILS: write exactly what happened + screenshot. Developer fills Fix ref and
+  sets Status to RETEST; tester re-tests and sets PASS or FAIL.
+- New tests go at the bottom with the next number. Never reuse a number.
+- Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
+
+Last updated: 2026-10-09
+
+--------------------------------------------------------------------------------
+#1  Find You still works for your own gallery
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Find You now needs login and gallery access. Check real users are not blocked.
+Detail:    Backend flag FIND_YOU_REQUIRE_ACCESS=true went live 2026-10-09 (commit 5021ce4).
+How to test:
+  1. Log in. Open a gallery you created that has photos of you.
+  2. Open Find You, take/upload a selfie.
+  3. Expect: your photos are found. NOT "no access" / "log in" / error.
+  4. Repeat on a gallery you joined as a guest (not created).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#2  Find You asks logged-out visitors to log in
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Logged-out users must not use Find You.
+Detail:    Logged out, the Find You / partners pages should show a login prompt.
+How to test:
+  1. Log out (or use a private/incognito window).
+  2. Open a gallery link, tap Find You.
+  3. Expect: "log in" prompt, no search runs.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#3  Public gallery link - logged out = view only
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Anyone with link/QR of a PUBLIC gallery can view previews, nothing else.
+Detail:    No download, like, comment or Find You while logged out.
+How to test:
+  1. Make one test gallery public (host settings). Copy its link / QR.
+  2. Open the link logged out (incognito on web).
+  3. Expect: photos and videos visible and playable.
+  4. Expect: no download, like, comment buttons work (they ask to log in or are hidden).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#4  Public gallery link - logged in = joins at once
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     A logged-in user opening a public gallery link joins immediately.
+How to test:
+  1. With a second account (not the host), log in and open the public gallery link.
+  2. Expect: gallery opens straight away, you can like, comment, download.
+  3. Host side: the user appears in the guest list.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#5  Private gallery - request and host approval
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Private gallery needs host approval. Rejection is not final.
+How to test:
+  1. Second account opens a PRIVATE gallery link -> "Request access" screen.
+  2. Tap Request. Expect: "waiting for approval".
+  3. Host: notification / request appears. Approve -> guest can now open the gallery.
+  4. Repeat with a new account, host REJECTS -> guest sees the normal Request screen
+     again and can ask again (goes back to waiting).
+  5. Logged out on a private link: expect "log in", no photos visible.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#6  Join with join code
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App (dashboard)
+Brief:     Joining by typing the gallery code still works.
+How to test:
+  1. Second account, dashboard -> Join with code -> enter a public gallery code.
+  2. Expect: joined at once. With a private gallery code: request sent, waits for host.
+  3. Wrong code: clear "not found" message.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#7  Host view of own gallery unchanged
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Host can still do everything on their gallery.
+How to test:
+  1. As host open your gallery: upload, delete photo, edit settings, sub-galleries,
+     guest list, approve requests, comments, likes, favourites (Home tab).
+  2. Expect: nothing missing or broken compared to before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#8  Guest admin - can manage, cannot delete gallery
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     A guest made admin manages the gallery but can't delete it.
+How to test:
+  1. Host makes a guest an admin (guest list -> admin).
+  2. As that guest: approve requests, upload, manage photos -> should work.
+  3. Try deleting the gallery -> expect: not allowed / option hidden.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#9  Delete gallery (host)
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Deleting a gallery works (it used to give a 400 error).
+How to test:
+  1. Create a throwaway gallery with 2-3 photos. Delete it.
+  2. Expect: deleted with no error, gone from dashboard, link now shows "not found".
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#10 Likes and comments show names
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Names/avatars on likes and comments still show.
+How to test:
+  1. Logged in, like and comment on a photo with two accounts.
+  2. Expect: correct names and pictures on both, on web and app.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#11 Chat opens and sends
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Chat screen was broken by an ambiguous query; fixed in 982237b.
+How to test:
+  1. Open chats, open a conversation, send a message both ways.
+  2. Expect: list loads with names, messages send and arrive.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#12 Sample gallery opens logged out
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     The sample "Wedding" gallery is read-only for anyone.
+How to test:
+  1. Logged out, open the sample gallery from the homepage / app.
+  2. Expect: opens, photos visible, no like/comment/download.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#13 Sign-up username
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Sign-up still picks a free username.
+How to test:
+  1. Create a new test account (use a name that probably exists, e.g. "Test User").
+  2. Expect: sign-up finishes, no "username taken" loop or error.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#14 Host guest panel shows guest details
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Guest list shows names/photos of joined guests.
+How to test:
+  1. Host opens guest list of a gallery with 2+ guests.
+  2. Expect: names and avatars shown, not blank / "Unknown".
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#15 Photo upload processing
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Uploaded photos get thumbnails and faces indexed.
+How to test:
+  1. Upload 20-50 photos.
+  2. Expect: all show previews within a few minutes, none stuck "processing".
+  3. Find You on that gallery finds the people in them.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#16 Video upload - short and long
+Status:    TODO
+Priority:  High
+Platform:  Website + App
+Brief:     Videos process once and play.
+How to test:
+  1. Upload a short video (<1 min) and a long one (10+ min).
+  2. Expect: both become playable (long can take ~5 min), no duplicate copies,
+     no "failed".
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#17 Refresh during web upload
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     Refreshing mid-upload must not create broken/duplicate files.
+How to test:
+  1. Start uploading a large video on the website, refresh the page halfway.
+  2. Upload it again.
+  3. Expect: no console error spam, one clean copy in the gallery.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#18 Move photos between galleries  (KNOWN BROKEN)
+Status:    BLOCKED
+Priority:  Medium
+Platform:  Website + App
+Brief:     Moving media to another gallery fails (DB function missing). Shwetank's area.
+How to test:
+  1. After the fix is applied: move 2 photos from one gallery to a sub-gallery.
+  2. Expect: they move, show in the new place, gone from the old one.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
