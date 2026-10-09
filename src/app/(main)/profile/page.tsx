@@ -31,7 +31,7 @@ import {
     getApprovedSharedEventsForUser,
     getUserEventCount,
     getUserPhotosCount,
-    getUserTotalStorage,
+    getUserStorageBreakdown,
     isValidUsername,
     isUsernameUnique,
     updateUserPrivacy,
@@ -43,17 +43,11 @@ import { getApiUrl } from "@/lib/apiBase";
 import { getPlanDetails } from "@/lib/planLimits";
 import { getSubscriptionStatus } from "@/lib/subscriptionStatus";
 import { cn } from "@/lib/utils";
+import { StorageBreakdownCard } from "@/components/StorageBreakdownCard";
 
 const personaOptions = ["Guest", "Host / Organizer", "Vendor / Business"];
 const genderOptions = ["Male", "Female", "Other", "Prefer not to say"];
 const relationshipOptions = ["Single", "Engaged", "Married", "Prefer not to say"];
-
-function formatBytes(bytes: number) {
-    if (!bytes) return "0 KB";
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-}
 
 function formatJoinedDate(value: any) {
     if (!value) return "Not available";
@@ -151,7 +145,7 @@ export default function ProfilePage() {
     const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const [storageUsed, setStorageUsed] = useState(0);
+    const [storageUsage, setStorageUsage] = useState({ events: 0, vault: 0, total: 0 });
     const [photosCount, setPhotosCount] = useState(0);
     const [eventCount, setEventCount] = useState(0);
     const [joinedCount, setJoinedCount] = useState(0);
@@ -242,12 +236,12 @@ export default function ProfilePage() {
             try {
                 const identifiers = [user.uid, user.email, user.phone].filter(Boolean) as string[];
                 const [storage, photos, hosted, joined] = await Promise.all([
-                    getUserTotalStorage(identifiers),
+                    getUserStorageBreakdown(identifiers),
                     getUserPhotosCount(user.uid),
                     getUserEventCount(user.uid),
                     getApprovedSharedEventsForUser(identifiers),
                 ]);
-                setStorageUsed(storage);
+                setStorageUsage(storage);
                 setPhotosCount(photos);
                 setEventCount(hosted);
                 setJoinedCount(joined.length);
@@ -590,11 +584,12 @@ export default function ProfilePage() {
                                     </div>
                                 </div>
                                 <div className="mt-5 space-y-3">
-                                    <div className="rounded-2xl bg-slate-900 p-4">
-                                        <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Storage Used</p>
-                                        <p className="mt-1 text-xl font-black text-white">{formatBytes(storageUsed)}</p>
-                                        <p className="mt-1 text-[11px] font-medium text-slate-500">Includes original media & streaming assets</p>
-                                    </div>
+                                    <StorageBreakdownCard
+                                        usage={storageUsage}
+                                        planBytes={activePlan.storageBytes}
+                                        planLabel={activePlan.storageLabel}
+                                        loading={loadingStats}
+                                    />
                                     <div className="rounded-2xl bg-slate-900 p-4">
                                         <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Active Plan</p>
                                         <p className="mt-1 text-xl font-black text-emerald-300">{activePlan.name}</p>

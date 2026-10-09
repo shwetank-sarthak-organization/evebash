@@ -2484,7 +2484,12 @@ export async function updateSubEventsOrder(orderedIds: string[]): Promise<boolea
 /**
  * Calculates the total size of all photos uploaded by a specific user.
  */
-export async function getUserTotalStorage(identifiers: string | string[]): Promise<number> {
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export type StorageBreakdown = { events: number; vault: number; total: number };
+
+/** Bytes used by event media (originals plus streaming/preview assets). */
+export async function getUserEventStorage(identifiers: string | string[]): Promise<number> {
     try {
         const ids = Array.isArray(identifiers) ? identifiers : [identifiers];
         const { data, error } = await supabase
@@ -2495,9 +2500,41 @@ export async function getUserTotalStorage(identifiers: string | string[]): Promi
         if (error) throw error;
         return (data || []).reduce((acc, p: any) => acc + (Number(p.size) || 0) + (Number(p.overhead_size) || 0), 0);
     } catch (error) {
-        console.error("Error calculating total storage:", error);
+        console.error("Error calculating event storage:", error);
         return 0;
     }
+}
+
+/**
+ * Bytes used by EB Vault, from its running total. Returns 0 until the Vault
+ * tables exist, so storage totals keep working before Vault launches.
+ */
+export async function getUserVaultStorage(identifiers: string | string[]): Promise<number> {
+    try {
+        // Vault rows are keyed by the auth user id; emails/phones in the identifier list don't apply.
+        const ids = (Array.isArray(identifiers) ? identifiers : [identifiers]).filter(id => UUID_PATTERN.test(id));
+        if (ids.length === 0) return 0;
+        const { data, error } = await supabase
+            .from('vault_accounts')
+            .select('used_bytes')
+            .in('owner_id', ids);
+
+        if (error) return 0;
+        return (data || []).reduce((acc, row: any) => acc + (Number(row.used_bytes) || 0), 0);
+    } catch {
+        return 0;
+    }
+}
+
+/** Event and Vault usage share one plan-wide storage limit. */
+export async function getUserStorageBreakdown(identifiers: string | string[]): Promise<StorageBreakdown> {
+    const [events, vault] = await Promise.all([getUserEventStorage(identifiers), getUserVaultStorage(identifiers)]);
+    return { events, vault, total: events + vault };
+}
+
+/** Total plan storage used, events plus Vault; upload limit checks use this. */
+export async function getUserTotalStorage(identifiers: string | string[]): Promise<number> {
+    return (await getUserStorageBreakdown(identifiers)).total;
 }
 
 export async function getUserPhotosCount(uid: string): Promise<number> {

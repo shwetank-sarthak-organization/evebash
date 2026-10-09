@@ -26,8 +26,11 @@ import {
   updateUserProfile,
   getUserPhotosCount,
   getUserEventCount,
-  getApprovedSharedEventsForUser
+  getApprovedSharedEventsForUser,
+  getUserStorageBreakdown,
+  type StorageBreakdown,
 } from '@/lib/database';
+import { StorageBreakdownCard } from '@/components/StorageBreakdownCard';
 
 import { removeProfileImage, uploadProfileImage } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
@@ -379,6 +382,8 @@ export default function ProfileScreen() {
     if (user.isPrivate !== undefined) setIsPrivate(user.isPrivate);
   }, [user?.uid]);
 
+  const [storageUsage, setStorageUsage] = useState<StorageBreakdown | null>(null);
+
   // Fetch activity stats
   useEffect(() => {
     if (!user?.uid) return;
@@ -387,11 +392,13 @@ export default function ProfileScreen() {
       try {
         const identifiers = [user.uid, user.email, user.phone].filter(Boolean) as string[];
         // Independent requests, so fetch them together
-        const [pCount, organizedCount, joinedEvents] = await Promise.all([
+        const [pCount, organizedCount, joinedEvents, storage] = await Promise.all([
           getUserPhotosCount(user.uid),
           getUserEventCount(user.uid),
           getApprovedSharedEventsForUser(identifiers),
+          getUserStorageBreakdown(identifiers),
         ]);
+        setStorageUsage(storage);
         
         setActivityStats({
           photosCount: pCount,
@@ -674,6 +681,14 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.divider} />
+
+            <StorageBreakdownCard
+              usage={storageUsage}
+              planBytes={planDetails.storageBytes}
+              planLabel={planDetails.storageLabel}
+            />
+
+            <View style={{ height: 12 }} />
 
             <TouchableOpacity style={styles.usageCard} activeOpacity={0.8} onPress={() => router.push('/(tabs)/usage')}>
               <LinearGradient
