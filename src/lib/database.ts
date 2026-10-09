@@ -425,27 +425,45 @@ async function getVisiblePhotoIdsForExpiredOwner(ownerProfile: { id?: string; em
     return visibleIds;
 }
 
+type MediaPlanLimit = { state: 'active' | 'grace' | 'expired'; retainedIds: Set<string> };
+
+/**
+ * Expired-plan media limit for a gallery (grace: past the plan's end date; expired: more than 7 days past, when only
+ * the oldest media within the free allowance shows). Worked out in the database by get_media_plan_limit, because the
+ * owner's profile and other galleries aren't readable to guests once RLS is on. Falls back to the device-side lookup
+ * below until that function exists.
+ */
+async function getMediaPlanLimit(eventIds: string[]): Promise<MediaPlanLimit> {
+    const ids = eventIds.filter(Boolean);
+    if (ids.length === 0) return { state: 'active', retainedIds: new Set() };
+
+    const { data, error } = await supabase.rpc('get_media_plan_limit', { p_event_id: ids[0] });
+    if (!error) {
+        const state = data?.state === 'grace' || data?.state === 'expired' ? data.state : 'active';
+        return { state, retainedIds: new Set<string>(Array.isArray(data?.retained_ids) ? data.retained_ids : []) };
+    }
+
+    const ownerProfile = await getEventOwnerExpiryProfile(ids);
+    if (!ownerProfile || !isPastPlanEndDate(ownerProfile)) return { state: 'active', retainedIds: new Set() };
+    return {
+        state: isBeyondPlanGracePeriod(ownerProfile) ? 'expired' : 'grace',
+        retainedIds: await getVisiblePhotoIdsForExpiredOwner(ownerProfile),
+    };
+}
+
 async function filterPhotosForPlanExpiry(photos: Photo[], eventIds: string[]): Promise<Photo[]> {
     if (photos.length === 0) return photos;
 
-    let ownerProfile = null;
+    let planLimit: MediaPlanLimit;
     try {
-        ownerProfile = await getEventOwnerExpiryProfile(eventIds);
+        planLimit = await getMediaPlanLimit(eventIds);
     } catch (error) {
         console.warn("[PlanExpiry] Skipping media visibility filter:", error);
         return photos;
     }
 
-    if (!isBeyondPlanGracePeriod(ownerProfile)) return photos;
-    if (!ownerProfile) return photos;
-
-    try {
-        const visibleIds = await getVisiblePhotoIdsForExpiredOwner(ownerProfile);
-        return photos.filter(photo => visibleIds.has(photo.id));
-    } catch (error) {
-        console.warn("[PlanExpiry] Skipping expired-owner visibility filter:", error);
-        return photos;
-    }
+    if (planLimit.state !== 'expired') return photos;
+    return photos.filter(photo => planLimit.retainedIds.has(photo.id));
 }
 
 function getCoverUsagePhotoId(eventId: string, storageKey: string, url: string): string {
@@ -666,6 +684,10 @@ export async function getEvents(): Promise<Event[]> {
  */
 export async function getSampleGalleryEvents(): Promise<Event[]> {
     try {
+        // Listed by get_sample_galleries, which logged-out visitors can call once RLS is on; until it exists, read the table
+        const { data: samples, error: samplesError } = await supabase.rpc('get_sample_galleries');
+        if (!samplesError && Array.isArray(samples)) return samples.map(mapSqlToEvent);
+
         const { data, error } = await supabase
             .from('events')
             .select('*')
@@ -747,13 +769,13 @@ export async function getEventPhotosPaginated(
     try {
         const ids = legacyId && legacyId !== eventId ? [eventId, legacyId] : [eventId];
 
-        let ownerProfile = null;
+        let planLimit: MediaPlanLimit | null = null;
         try {
-            ownerProfile = await getEventOwnerExpiryProfile(ids);
+            planLimit = await getMediaPlanLimit(ids);
         } catch (error) {
             console.warn("[PlanExpiry] Skipping paginated media visibility filter:", error);
         }
-        const shouldApplyExpiryVisibility = isBeyondPlanGracePeriod(ownerProfile);
+        const shouldApplyExpiryVisibility = planLimit?.state === 'expired';
 
         if (shouldApplyExpiryVisibility) {
             const { data, error } = await supabase
@@ -766,13 +788,7 @@ export async function getEventPhotosPaginated(
             if (error) throw error;
 
             const rawPhotos = (data || []).map(mapSqlToPhoto).filter(isMediaVisibleInGallery);
-            let visibleIds = new Set<string>();
-            try {
-                visibleIds = ownerProfile ? await getVisiblePhotoIdsForExpiredOwner(ownerProfile) : new Set<string>();
-            } catch (error) {
-                console.warn("[PlanExpiry] Skipping paginated expired-owner visibility filter:", error);
-                visibleIds = new Set(rawPhotos.map(photo => photo.id));
-            }
+            const visibleIds = planLimit?.retainedIds ?? new Set<string>();
             const visiblePhotos = rawPhotos.filter(photo => visibleIds.has(photo.id));
             const start = page * limit;
             const photosToReturn = visiblePhotos.slice(start, start + limit);
@@ -798,12 +814,8 @@ export async function getEventPhotosPaginated(
         const mediaCounts = getMediaCounts(countedPhotos);
         let retainedMediaIds = countedPhotos.map(photo => photo.id);
 
-        if (isPastPlanEndDate(ownerProfile) && ownerProfile) {
-            try {
-                retainedMediaIds = Array.from(await getVisiblePhotoIdsForExpiredOwner(ownerProfile));
-            } catch (error) {
-                console.warn("[PlanExpiry] Skipping grace-period retained media marker:", error);
-            }
+        if (planLimit && planLimit.state !== 'active') {
+            retainedMediaIds = Array.from(planLimit.retainedIds);
         }
 
         // Fetch one extra item to quickly determine if there are more items to load
@@ -1574,6 +1586,11 @@ export async function isUsernameUnique(username: string, excludeUid?: string): P
         const normalizedUsername = username.trim().toLowerCase();
         if (!isValidUsername(normalizedUsername)) return false;
 
+        // is_username_available answers without reading anyone's profile (other people's profiles aren't readable once
+        // RLS is on). It treats your own username as free. Until the function exists, fall back to the direct lookup.
+        const { data: available, error: availabilityError } = await supabase.rpc('is_username_available', { p_username: normalizedUsername });
+        if (!availabilityError && typeof available === 'boolean') return available;
+
         let queryBuilder = supabase
             .from('profiles')
             .select('id')
@@ -1793,6 +1810,42 @@ export async function getUsers(): Promise<any[]> {
         console.error("Error fetching users:", error);
         return [];
     }
+}
+
+export interface GuestProfile {
+    id?: string;
+    name?: string;
+    username?: string;
+    email?: string;
+    phone?: string;
+    profileImage?: string;
+}
+
+/**
+ * Profile details of a guest row, for the gallery host's guest panel. Rows made by request_gallery_access carry the
+ * account (user_id): name and photo come from profile_cards, which hosts can still read once RLS is on (username and
+ * email are private then). Older phone/email rows keep the direct profile lookup, which works until the lockdown;
+ * after it the panel shows the guest row's own name and phone.
+ */
+export async function getGuestProfile(log: { userId?: string; email?: string; phone?: string }): Promise<GuestProfile | null> {
+    if (log.userId) {
+        const { data, error } = await supabase.from('profile_cards').select('id, name, profile_image').eq('id', log.userId).maybeSingle();
+        if (error) throw error;
+        return data ? { id: data.id, name: data.name, profileImage: data.profile_image } : null;
+    }
+
+    const identifiers = [log.email, log.phone].filter(Boolean) as string[];
+    if (identifiers.length === 0) return null;
+    const filters = identifiers.flatMap((identifier) => [`id.eq.${identifier}`, `email.eq.${identifier}`, `phone.eq.${identifier}`]);
+    const { data } = await supabase.from('profiles').select('*').or(filters.join(',')).limit(1).maybeSingle();
+    return data ? {
+        id: data.id,
+        name: data.name,
+        username: data.username,
+        email: data.email,
+        phone: data.phone,
+        profileImage: data.profile_image,
+    } : null;
 }
 
 /**

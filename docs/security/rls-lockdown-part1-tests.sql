@@ -52,6 +52,33 @@ insert into public.guests (id, name, phone, event_id, status, can_admin, can_upl
   ('u_77777777-7777-4777-8777-777777777777_part1-public',  'Part1 Rejected',    '+910000000007', 'part1-public',  'rejected', false, false, true,  '77777777-7777-4777-8777-777777777777'),
   ('u_88888888-8888-4888-8888-888888888888_part1-public',  'Part1 Pending',     '+910000000008', 'part1-public',  'pending',  false, false, true,  '88888888-8888-4888-8888-888888888888');
 
+-- D/E data (2026-10-09): an expired paid owner, a paid owner in grace, and a private sample gallery
+insert into public.profiles (id, name, email, phone, role, plan_end_date) values
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'part1 Expired Host', 'expired@part1.test', '+910000000010', 'standard', current_date - 10),
+  ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'part1 Grace Host',   'grace@part1.test',   '+910000000011', 'standard', current_date - 3);
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","role":"authenticated"}', true);
+insert into public.events (id, title, created_by, is_public, parent_id) values
+  ('part1-exp',  'part1 Expired',       'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true,  null),
+  ('part1-exp2', 'part1 Expired Other', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', false, null);
+select set_config('request.jwt.claims', '{"sub":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","role":"authenticated"}', true);
+insert into public.events (id, title, created_by, is_public, parent_id) values
+  ('part1-grace', 'part1 Grace', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', true, null);
+select set_config('request.jwt.claims', '', true);
+insert into public.events (id, title, created_by, is_public, parent_id, is_sample_gallery) values
+  ('part1-sample',     'part1 Sample',     '11111111-1111-4111-8111-111111111111', false, null, true),
+  ('part1-sample-sub', 'part1 Sample Sub', '11111111-1111-4111-8111-111111111111', false, 'part1-sample', false);
+insert into public.photos (id, event_id, storage_key, url, preview_url, thumbnail_url, media_type, status, size, uploaded_at, user_id) values
+  ('part1-eold', 'part1-exp2',  'x/eold.jpg', 'https://m.test/x/eold.jpg', 'https://m.test/x/eold-p.webp', 'https://m.test/x/eold-t.webp', 'photo', 'processed', 629145600, '2020-01-01', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  ('part1-ea',   'part1-exp',   'x/ea.jpg',   'https://m.test/x/ea.jpg',   'https://m.test/x/ea-p.webp',   'https://m.test/x/ea-t.webp',   'photo', 'processed', 314572800, '2020-01-02', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  ('part1-eb',   'part1-exp',   'x/eb.jpg',   'https://m.test/x/eb.jpg',   'https://m.test/x/eb-p.webp',   'https://m.test/x/eb-t.webp',   'photo', 'processed', 209715200, '2020-01-03', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  ('part1-ga',   'part1-grace', 'x/ga.jpg',   'https://m.test/x/ga.jpg',   'https://m.test/x/ga-p.webp',   'https://m.test/x/ga-t.webp',   'photo', 'processed', 943718400, '2020-01-01', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),
+  ('part1-gb',   'part1-grace', 'x/gb.jpg',   'https://m.test/x/gb.jpg',   'https://m.test/x/gb-p.webp',   'https://m.test/x/gb-t.webp',   'photo', 'processed', 943718400, '2020-01-02', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),
+  ('part1-sp',   'part1-sample-sub', 'x/sp.jpg', 'https://m.test/x/sp.jpg', 'https://m.test/x/sp-p.webp', 'https://m.test/x/sp-t.webp', 'photo', 'processed', 1000, '2020-01-01', '11111111-1111-4111-8111-111111111111');
+
+-- Usernames for the is_username_available checks (2026-10-09)
+update public.profiles set username = 'part1owner' where id = '11111111-1111-4111-8111-111111111111';
+update public.profiles set username = 'part1random' where id = '44444444-4444-4444-8444-444444444444';
+
 create temp table _r (n serial, who text, check_name text, expected text, actual text);
 grant insert, select on _r to anon, authenticated;
 grant usage on sequence _r_n_seq to anon, authenticated;
@@ -149,6 +176,12 @@ insert into _r (who, check_name, expected, actual) values
   ('random', 'cannot rename someone via profile_cards', 'blocked', pg_temp.try_write($$update public.profile_cards set name = 'x' where id = '11111111-1111-4111-8111-111111111111'$$)),
   ('random', 'cannot delete via profile_cards',   'blocked', pg_temp.try_write($$delete from public.profile_cards where id = '11111111-1111-4111-8111-111111111111'$$)),
   ('random', 'cannot archive others'' gallery',   'blocked', pg_temp.try_call($$select 'ok' from (select public.archive_deleted_event('part1-private', 1, 0, 10, 'x')) x$$));
+insert into _r (who, check_name, expected, actual) values
+  ('random', 'username taken by someone else',    'false', public.is_username_available('part1owner')::text),
+  ('random', 'username check ignores case/spaces', 'false', public.is_username_available(' Part1Owner ')::text),
+  ('random', 'own username counts as free',       'true',  public.is_username_available('part1random')::text),
+  ('random', 'unused username is free',           'true',  public.is_username_available('part1-unused-name')::text),
+  ('random', 'anon cannot check usernames',       'false', has_function_privilege('anon', 'public.is_username_available(text)', 'execute')::text);
 reset role;
 
 -- ── Approved member, rejected guest, guest admin, owner, platform admin ────────
@@ -198,6 +231,51 @@ select set_config('request.jwt.claims', '{"sub":"55555555-5555-4555-8555-5555555
 set local role authenticated;
 insert into _r (who, check_name, expected, actual) values
   ('admin', 'platform admin manages any gallery', 'manage', public.open_gallery('part1-other') ->> 'access');
+reset role;
+
+-- ── D: expired-plan limit, E: sample galleries (2026-10-09) ────────────────────
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
+set local role anon;
+insert into _r (who, check_name, expected, actual) values
+  ('anon', 'expired owner: only media within 1 GB', 'part1-ea', (select string_agg(m.id, ',') from public.get_public_gallery_media('part1-exp') m)),
+  ('anon', 'grace owner: everything still shows', '2', (select count(*) from public.get_public_gallery_media('part1-grace'))::text),
+  ('anon', 'cannot ask for plan limits', 'blocked', pg_temp.try_call($$select public.get_media_plan_limit('part1-exp')::text$$)),
+  ('anon', 'private sample gallery opens read-only', 'public_view', public.open_gallery('part1-sample') ->> 'access'),
+  ('anon', 'sample flag in the payload', 'true', public.open_gallery('part1-sample') -> 'event' ->> 'is_sample_gallery'),
+  ('anon', 'sample sub-gallery media', '1', (select count(*) from public.get_public_gallery_media('part1-sample-sub'))::text),
+  ('anon', 'sample list has the gallery, not its sub', '1', (select count(*) from jsonb_array_elements(public.get_sample_galleries()) x where x ->> 'id' like 'part1-sample%')::text),
+  ('anon', 'ordinary private gallery still asks to log in', 'login_required', public.open_gallery('part1-exp2') ->> 'access');
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-8444-444444444444","role":"authenticated","email":"random@part1.test"}', true);
+set local role authenticated;
+insert into _r (who, check_name, expected, actual) values
+  ('random', 'sample gallery: read-only, not joined', 'public_view', public.open_gallery('part1-sample') ->> 'access'),
+  ('random', 'cannot see plan limits of a gallery they cannot see', 'null', coalesce(public.get_media_plan_limit('part1-exp2')::text, 'null'));
+insert into _r (who, check_name, expected, actual) values
+  ('random', 'opening a sample adds no guest row', '0', (select count(*) from public.guests where event_id like 'part1-sample%' and user_id = '44444444-4444-4444-8444-444444444444')::text);
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","role":"authenticated","email":"expired@part1.test"}', true);
+set local role authenticated;
+insert into _r (who, check_name, expected, actual) values
+  ('expired_host', 'own gallery: expired', 'expired', public.get_media_plan_limit('part1-exp') ->> 'state'),
+  ('expired_host', 'retained ids only from this gallery', '["part1-ea"]', (public.get_media_plan_limit('part1-exp') -> 'retained_ids')::text),
+  ('expired_host', 'other gallery keeps its old item', '["part1-eold"]', (public.get_media_plan_limit('part1-exp2') -> 'retained_ids')::text);
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","role":"authenticated","email":"grace@part1.test"}', true);
+set local role authenticated;
+insert into _r (who, check_name, expected, actual) values
+  ('grace_host', 'own gallery: grace', 'grace', public.get_media_plan_limit('part1-grace') ->> 'state'),
+  ('grace_host', 'grace flags the item over 1 GB', '["part1-ga"]', (public.get_media_plan_limit('part1-grace') -> 'retained_ids')::text);
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated","email":"owner@part1.test"}', true);
+set local role authenticated;
+insert into _r (who, check_name, expected, actual) values
+  ('owner', 'unpaid/no end date: no limit', 'active', public.get_media_plan_limit('part1-public') ->> 'state'),
+  ('owner', 'own sample gallery: manage', 'manage', public.open_gallery('part1-sample') ->> 'access');
 reset role;
 
 -- ── Facts checked as postgres ──────────────────────────────────────────────────

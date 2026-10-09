@@ -1,7 +1,7 @@
 -- Step 3 tests for rls-lockdown-draft.sql. Run: BEGIN + draft (without its begin/commit) + this file, in ONE request.
 -- The final statement raises STEP3_RESULTS[...] which also rolls everything back. Never add a COMMIT.
--- Last run 2026-10-09 on the live DB: 124/124 passed, nothing persisted (adds pending/rejected requests on a
--- gallery made public).
+-- Last run 2026-10-09 on the live DB: 147/147 passed, nothing persisted (adds username check, expired-plan limit
+-- and sample galleries).
 -- ════════════════════════════════════════════════════════════════════════════════
 -- STEP 3 TESTS. Runs after the draft inside the same transaction, which is always rolled back:
 -- the last statement raises an error carrying the results, so nothing is ever committed.
@@ -64,6 +64,30 @@ insert into public.event_favourite_photos (event_id, photo_id, marked_by) values
   ('step3-fav-sub', 'step3-p1', '11111111-1111-4111-8111-111111111111');
 
 -- Results table and a helper that tries a write, records the outcome, then undoes it
+-- D/E data (2026-10-09): an expired paid owner, a paid owner in grace, and a private sample gallery
+insert into public.profiles (id, name, email, phone, role, plan_end_date) values
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'step3 Expired Host', 'expired@step3.test', '+910000000010', 'standard', current_date - 10),
+  ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'step3 Grace Host',   'grace@step3.test',   '+910000000011', 'standard', current_date - 3);
+insert into public.events (id, title, created_by, is_public, parent_id) values
+  ('step3-exp',  'step3 Expired',       'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true,  null),
+  ('step3-exp2', 'step3 Expired Other', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', false, null);
+insert into public.events (id, title, created_by, is_public, parent_id) values
+  ('step3-grace', 'step3 Grace', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', true, null);
+insert into public.events (id, title, created_by, is_public, parent_id, is_sample_gallery) values
+  ('step3-sample',     'step3 Sample',     '11111111-1111-4111-8111-111111111111', false, null, true),
+  ('step3-sample-sub', 'step3 Sample Sub', '11111111-1111-4111-8111-111111111111', false, 'step3-sample', false);
+insert into public.photos (id, event_id, storage_key, url, preview_url, thumbnail_url, media_type, status, size, uploaded_at, user_id) values
+  ('step3-eold', 'step3-exp2',  'x/eold.jpg', 'https://m.test/x/eold.jpg', 'https://m.test/x/eold-p.webp', 'https://m.test/x/eold-t.webp', 'photo', 'processed', 629145600, '2020-01-01', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  ('step3-ea',   'step3-exp',   'x/ea.jpg',   'https://m.test/x/ea.jpg',   'https://m.test/x/ea-p.webp',   'https://m.test/x/ea-t.webp',   'photo', 'processed', 314572800, '2020-01-02', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  ('step3-eb',   'step3-exp',   'x/eb.jpg',   'https://m.test/x/eb.jpg',   'https://m.test/x/eb-p.webp',   'https://m.test/x/eb-t.webp',   'photo', 'processed', 209715200, '2020-01-03', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  ('step3-ga',   'step3-grace', 'x/ga.jpg',   'https://m.test/x/ga.jpg',   'https://m.test/x/ga-p.webp',   'https://m.test/x/ga-t.webp',   'photo', 'processed', 943718400, '2020-01-01', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),
+  ('step3-gb',   'step3-grace', 'x/gb.jpg',   'https://m.test/x/gb.jpg',   'https://m.test/x/gb-p.webp',   'https://m.test/x/gb-t.webp',   'photo', 'processed', 943718400, '2020-01-02', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),
+  ('step3-sp',   'step3-sample-sub', 'x/sp.jpg', 'https://m.test/x/sp.jpg', 'https://m.test/x/sp-p.webp', 'https://m.test/x/sp-t.webp', 'photo', 'processed', 1000, '2020-01-01', '11111111-1111-4111-8111-111111111111');
+
+-- Usernames for the is_username_available checks (2026-10-09)
+update public.profiles set username = 'step3owner' where id = '11111111-1111-4111-8111-111111111111';
+update public.profiles set username = 'step3random' where id = '44444444-4444-4444-8444-444444444444';
+
 create temp table _r (n serial, who text, check_name text, expected text, actual text);
 grant insert, select on _r to anon, authenticated;
 grant usage on sequence _r_n_seq to anon, authenticated;
@@ -177,6 +201,12 @@ insert into _r (who, check_name, expected, actual) values
   ('random', 'cannot archive others'' gallery',   'blocked', pg_temp.try_call($$select 'ok' from (select public.archive_deleted_event('step3-private', 1, 0, 10, 'x')) x$$)),
   ('random', 'cannot rename someone via profile_cards', 'blocked', pg_temp.try_write($$update public.profile_cards set name = 'x' where id = '11111111-1111-4111-8111-111111111111'$$)),
   ('random', 'cannot delete via profile_cards',   'blocked', pg_temp.try_write($$delete from public.profile_cards where id = '11111111-1111-4111-8111-111111111111'$$));
+insert into _r (who, check_name, expected, actual) values
+  ('random', 'username taken by someone else',    'false', public.is_username_available('step3owner')::text),
+  ('random', 'username check ignores case/spaces', 'false', public.is_username_available(' Step3Owner ')::text),
+  ('random', 'own username counts as free',       'true',  public.is_username_available('step3random')::text),
+  ('random', 'unused username is free',           'true',  public.is_username_available('step3-unused-name')::text),
+  ('random', 'anon cannot check usernames',       'false', has_function_privilege('anon', 'public.is_username_available(text)', 'execute')::text);
 reset role;
 
 -- ── Pending and rejected requests on a gallery that is now public ─────────────
@@ -266,6 +296,51 @@ insert into _r (who, check_name, expected, actual) values
   ('admin', 'can change a user''s plan',          'rows=1', pg_temp.try_write($$update public.profiles set role = 'standard' where id = '44444444-4444-4444-8444-444444444444'$$)),
   ('admin', 'can mark sample gallery',            'rows=1', pg_temp.try_write($$update public.events set is_sample_gallery = true where id = 'step3-public'$$)),
   ('admin', 'can delete any gallery',             'rows=1', pg_temp.try_write($$delete from public.events where id = 'step3-empty'$$));
+reset role;
+
+-- ── D: expired-plan limit, E: sample galleries (2026-10-09) ────────────────────
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
+set local role anon;
+insert into _r (who, check_name, expected, actual) values
+  ('anon', 'expired owner: only media within 1 GB', 'step3-ea', (select string_agg(m.id, ',') from public.get_public_gallery_media('step3-exp') m)),
+  ('anon', 'grace owner: everything still shows', '2', (select count(*) from public.get_public_gallery_media('step3-grace'))::text),
+  ('anon', 'cannot ask for plan limits', 'blocked', pg_temp.try_call($$select public.get_media_plan_limit('step3-exp')::text$$)),
+  ('anon', 'private sample gallery opens read-only', 'public_view', public.open_gallery('step3-sample') ->> 'access'),
+  ('anon', 'sample flag in the payload', 'true', public.open_gallery('step3-sample') -> 'event' ->> 'is_sample_gallery'),
+  ('anon', 'sample sub-gallery media', '1', (select count(*) from public.get_public_gallery_media('step3-sample-sub'))::text),
+  ('anon', 'sample list has the gallery, not its sub', '1', (select count(*) from jsonb_array_elements(public.get_sample_galleries()) x where x ->> 'id' like 'step3-sample%')::text),
+  ('anon', 'ordinary private gallery still asks to log in', 'login_required', public.open_gallery('step3-exp2') ->> 'access');
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-8444-444444444444","role":"authenticated","email":"random@step3.test"}', true);
+set local role authenticated;
+insert into _r (who, check_name, expected, actual) values
+  ('random', 'sample gallery: read-only, not joined', 'public_view', public.open_gallery('step3-sample') ->> 'access'),
+  ('random', 'cannot see plan limits of a gallery they cannot see', 'null', coalesce(public.get_media_plan_limit('step3-exp2')::text, 'null'));
+insert into _r (who, check_name, expected, actual) values
+  ('random', 'opening a sample adds no guest row', '0', (select count(*) from public.guests where event_id like 'step3-sample%' and user_id = '44444444-4444-4444-8444-444444444444')::text);
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","role":"authenticated","email":"expired@step3.test"}', true);
+set local role authenticated;
+insert into _r (who, check_name, expected, actual) values
+  ('expired_host', 'own gallery: expired', 'expired', public.get_media_plan_limit('step3-exp') ->> 'state'),
+  ('expired_host', 'retained ids only from this gallery', '["step3-ea"]', (public.get_media_plan_limit('step3-exp') -> 'retained_ids')::text),
+  ('expired_host', 'other gallery keeps its old item', '["step3-eold"]', (public.get_media_plan_limit('step3-exp2') -> 'retained_ids')::text);
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","role":"authenticated","email":"grace@step3.test"}', true);
+set local role authenticated;
+insert into _r (who, check_name, expected, actual) values
+  ('grace_host', 'own gallery: grace', 'grace', public.get_media_plan_limit('step3-grace') ->> 'state'),
+  ('grace_host', 'grace flags the item over 1 GB', '["step3-ga"]', (public.get_media_plan_limit('step3-grace') -> 'retained_ids')::text);
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated","email":"owner@step3.test"}', true);
+set local role authenticated;
+insert into _r (who, check_name, expected, actual) values
+  ('owner', 'unpaid/no end date: no limit', 'active', public.get_media_plan_limit('step3-public') ->> 'state'),
+  ('owner', 'own sample gallery: manage', 'manage', public.open_gallery('step3-sample') ->> 'access');
 reset role;
 
 -- ── Facts checked as postgres (not subject to the rules) ───────────────────────

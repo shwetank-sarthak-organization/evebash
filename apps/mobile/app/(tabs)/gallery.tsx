@@ -49,7 +49,7 @@ import {
   createEvent,
   updateEvent,
   deleteEvent,
-  getUsers,
+  getGuestProfile,
   getUserById,
   UserProfile
 } from '@/lib/database';
@@ -285,8 +285,6 @@ export default function PortfolioTabScreen() {
     fetchData().finally(() => { userRefreshRef.current = false; });
   };
 
-  const normalizePhoneValue = (val?: string | null) => (val || '').replace(/\D/g, '');
-  const normalizeEmailValue = (val?: string | null) => (val || '').trim().toLowerCase();
 
   useEffect(() => {
     let isActive = true;
@@ -300,17 +298,7 @@ export default function PortfolioTabScreen() {
 
       setLoadingRequestProfile(true);
       try {
-        const users = await getUsers();
-        const requestEmail = normalizeEmailValue(selectedRequest.email || selectedRequest.phone);
-        const requestPhone = normalizePhoneValue(selectedRequest.phone);
-        const profile = users.find((candidate) => {
-          const candidateEmail = normalizeEmailValue(candidate.email);
-          const candidatePhone = normalizePhoneValue(candidate.phone);
-          return (
-            (!!requestEmail && requestEmail === candidateEmail) ||
-            (!!requestPhone && requestPhone === candidatePhone)
-          );
-        }) || null;
+        const profile = await getGuestProfile(selectedRequest);
 
         if (isActive) {
           setSelectedRequestProfile(profile);

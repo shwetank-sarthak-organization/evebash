@@ -67,6 +67,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     createEvent,
     createUserProfile,
+    getGuestProfile,
     getUserEvents,
     Event,
     Photo,
@@ -1733,31 +1734,9 @@ function DashboardContent() {
         let isMounted = true;
 
         const loadSelectedGuestProfile = async () => {
-            const possibleIdentifiers = [
-                selectedGuestLog.email,
-                selectedGuestLog.phone,
-            ].filter(Boolean) as string[];
-
             setLoadingGuestProfile(true);
             try {
-                const filters = possibleIdentifiers.flatMap((identifier) => [
-                    `id.eq.${identifier}`,
-                    `email.eq.${identifier}`,
-                    `phone.eq.${identifier}`,
-                ]);
-                const { data } = filters.length > 0
-                    ? await supabase.from("profiles").select("*").or(filters.join(",")).limit(1).maybeSingle()
-                    : { data: null };
-
-                const matchedProfile = data ? {
-                    id: data.id,
-                    name: data.name,
-                    username: data.username,
-                    email: data.email,
-                    phone: data.phone,
-                    profileImage: data.profile_image,
-                } : null;
-
+                const matchedProfile = await getGuestProfile(selectedGuestLog);
                 if (isMounted) setSelectedGuestProfile(matchedProfile);
             } catch (error) {
                 console.error("Error loading guest profile:", error);

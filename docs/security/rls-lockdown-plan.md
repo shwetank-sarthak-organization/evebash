@@ -147,7 +147,17 @@ Status: **applied 2026-10-09**.
 Request rules (decided 2026-10-09, `20261009000000_gallery_requests_after_rejection.sql`): a rejection isn't final.
 A rejected guest of a private gallery sees the normal request screen, and asking again makes them pending (no cooldown).
 Opening a public gallery joins it, including for anyone whose earlier request was pending or rejected.
-Dry runs: part 1 77/77, full lockdown 124/124. Not applied yet.
+Dry runs: part 1 77/77, full lockdown 124/124. Applied 2026-10-09.
+
+Client fixes found by the 2026-10-09 access re-scan (would break for guests or logged-out visitors once RLS is on):
+
+- B `is_username_available`: the username check read every profile (`20261009010000_is_username_available.sql`)
+- D `get_media_plan_limit` + `eb_private.media_plan_limit`: the expired-plan media limit is worked out in the database;
+  `get_public_gallery_media` applies it for logged-out viewers
+- E sample galleries: viewable read-only by anyone through `open_gallery` / `get_public_gallery_media` (never joined),
+  listed by `get_sample_galleries` (D and E: `20261009020000_plan_limit_and_sample_galleries.sql`)
+
+Dry runs 2026-10-09 (rolled back): part 1 + migrations 100/100, full lockdown 147/147. B, D, E applied 2026-10-09.
 
 ## Test plan (step 3)
 

@@ -6,6 +6,7 @@ import { ChevronRight, MapPin, Star, Users, Store } from "lucide-react";
 import LoadingScreen from "@/components/LoadingScreen";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Business, Event, getBusinessById, getEventById } from "@/lib/database";
+import { RequireLogin } from "../RequireLogin";
 
 function getVendorLocation(business: Business) {
     return business.location?.address || "Location not listed";
@@ -152,8 +153,14 @@ export default function EventPartnersPage({ params }: { params: Promise<{ slug: 
     const { slug } = React.use(params);
 
     return (
-        <Suspense fallback={<LoadingScreen message="Loading event partners" />}>
-            <EventPartnersContent slug={slug} />
-        </Suspense>
+        <RequireLogin
+            heading="Log in to see the event partners"
+            body="The vendors behind this event are shown to signed-in guests. Log in or create an account to see them."
+            returnTo={`/events/${slug}/event-partners`}
+        >
+            <Suspense fallback={<LoadingScreen message="Loading event partners" />}>
+                <EventPartnersContent slug={slug} />
+            </Suspense>
+        </RequireLogin>
     );
 }

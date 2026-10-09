@@ -10,7 +10,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getUsers, UserProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery } from '@/lib/database';
+import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, GuestProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery } from '@/lib/database';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { styles, FunkyFonts } from '../../components/eventStyles';
@@ -621,10 +621,10 @@ export default function EventDetailScreen() {
   const [event, setEvent] = useState<DatabaseEvent | null>(null);
   const [selectedGuest, setSelectedGuest] = useState<GuestLog | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<GuestLog | null>(null);
-  const [selectedGuestProfile, setSelectedGuestProfile] = useState<UserProfile | null>(null);
+  const [selectedGuestProfile, setSelectedGuestProfile] = useState<GuestProfile | null>(null);
   const [loadingGuestProfile, setLoadingGuestProfile] = useState(false);
   const [showGuestInfo, setShowGuestInfo] = useState(false);
-  const [selectedRequestProfile, setSelectedRequestProfile] = useState<UserProfile | null>(null);
+  const [selectedRequestProfile, setSelectedRequestProfile] = useState<GuestProfile | null>(null);
   const [loadingRequestProfile, setLoadingRequestProfile] = useState(false);
   const [showRequestInfo, setShowRequestInfo] = useState(false);
   const [subEvents, setSubEvents] = useState<DatabaseEvent[]>([]);
@@ -675,17 +675,7 @@ export default function EventDetailScreen() {
 
       setLoadingGuestProfile(true);
       try {
-        const users = await getUsers();
-        const guestEmail = normalizeEmailValue(selectedGuest.email || selectedGuest.phone);
-        const guestPhone = normalizePhoneValue(selectedGuest.phone);
-        const profile = users.find((candidate) => {
-          const candidateEmail = normalizeEmailValue(candidate.email);
-          const candidatePhone = normalizePhoneValue(candidate.phone);
-          return (
-            (!!guestEmail && guestEmail === candidateEmail) ||
-            (!!guestPhone && guestPhone === candidatePhone)
-          );
-        }) || null;
+        const profile = await getGuestProfile(selectedGuest);
 
         if (isActive) {
           setSelectedGuestProfile(profile);
@@ -707,7 +697,7 @@ export default function EventDetailScreen() {
     return () => {
       isActive = false;
     };
-  }, [normalizeEmailValue, normalizePhoneValue, selectedGuest]);
+  }, [selectedGuest]);
 
   useEffect(() => {
     let isActive = true;
@@ -721,17 +711,7 @@ export default function EventDetailScreen() {
 
       setLoadingRequestProfile(true);
       try {
-        const users = await getUsers();
-        const requestEmail = normalizeEmailValue(selectedRequest.email || selectedRequest.phone);
-        const requestPhone = normalizePhoneValue(selectedRequest.phone);
-        const profile = users.find((candidate) => {
-          const candidateEmail = normalizeEmailValue(candidate.email);
-          const candidatePhone = normalizePhoneValue(candidate.phone);
-          return (
-            (!!requestEmail && requestEmail === candidateEmail) ||
-            (!!requestPhone && requestPhone === candidatePhone)
-          );
-        }) || null;
+        const profile = await getGuestProfile(selectedRequest);
 
         if (isActive) {
           setSelectedRequestProfile(profile);
@@ -753,7 +733,7 @@ export default function EventDetailScreen() {
     return () => {
       isActive = false;
     };
-  }, [normalizeEmailValue, normalizePhoneValue, selectedRequest]);
+  }, [selectedRequest]);
 
   const canViewContent = isOwner || isPrivilegedViewer || hasMemberAccess || isPublicView;
   const isFreePlanUser = !user?.delegatedBy && isFreePlanRole(user?.role);
@@ -6302,7 +6282,22 @@ export default function EventDetailScreen() {
 
                 <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />
 
-                {activeSubEvent?.id === 'find-you' ? (
+                {/* Find You and Event partners are for signed-in guests; logged-out visitors get a log-in prompt */}
+                {isPublicView && !user && (activeSubEvent?.id === 'find-you' || activeSubEvent?.id === 'event-partners') ? (
+                  <View style={styles.guestSection}>
+                    <Text style={styles.guestTitle}>
+                      {activeSubEvent?.id === 'find-you' ? 'Find yourself in the photos' : 'Meet the event partners'}
+                    </Text>
+                    <Text style={styles.guestSub}>
+                      {activeSubEvent?.id === 'find-you'
+                        ? "Log in to use Find You: take a selfie and we'll show the photos you're in."
+                        : 'Log in to see the vendors behind this event.'}
+                    </Text>
+                    <TouchableOpacity style={styles.accessBtn} onPress={() => router.push('/login')} accessibilityRole="button">
+                      <Text style={styles.accessBtnText}>Log in</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : activeSubEvent?.id === 'find-you' ? (
                   <FindYouPanel
                     eventId={event.id}
                     legacyId={event.legacyId}
@@ -7254,7 +7249,7 @@ export default function EventDetailScreen() {
                 <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />
 
                 {/* Logged-out visitors of a public gallery see previews only */}
-                {isPublicView && (
+                {isPublicView && !user && activeSubEvent?.id !== 'find-you' && activeSubEvent?.id !== 'event-partners' && (
                   <View style={styles.guestSection}>
                     <Text style={styles.guestTitle}>Enter the Celebration</Text>
                     <Text style={styles.guestSub}>Log in to join this gallery, see full-size photos, like and comment</Text>

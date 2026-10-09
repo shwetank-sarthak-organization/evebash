@@ -7,7 +7,7 @@ import { notFound } from "next/navigation";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { ChevronLeft, ArrowRight } from "lucide-react";
-import { Event, getEventById, getSubEvents } from "@/lib/database";
+import { Event, getEventById, getSubEvents, openGallery } from "@/lib/database";
 
 export default function ClientGallery({ params }: { params: Promise<{ client: string }> }) {
     const { client } = use(params);
@@ -28,7 +28,12 @@ export default function ClientGallery({ params }: { params: Promise<{ client: st
         let mounted = true;
 
         async function loadSampleGallery() {
-            const event = await getEventById(client);
+            // open_gallery shows sample galleries read-only to anyone (the events table isn't readable to visitors once
+            // RLS is on); members and owners get "member"/"manage" and keep reading the tables directly
+            const opened = await openGallery(client).catch(() => null);
+            if (!mounted) return;
+            const publicView = opened?.access === "public_view" ? opened : null;
+            const event = publicView?.event || (opened && opened.access !== "not_found" ? await getEventById(client) : null);
             if (!mounted) return;
 
             if (!event?.isSampleGallery) {
@@ -38,7 +43,7 @@ export default function ClientGallery({ params }: { params: Promise<{ client: st
                 return;
             }
 
-            const subEvents = await getSubEvents(event.id, event.legacyId);
+            const subEvents = publicView ? publicView.subEvents : await getSubEvents(event.id, event.legacyId);
             if (!mounted) return;
             setData(event);
             setEvents(subEvents.length > 0 ? subEvents : [event]);

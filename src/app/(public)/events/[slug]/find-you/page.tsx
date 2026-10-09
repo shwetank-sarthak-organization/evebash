@@ -8,6 +8,7 @@ import { MasonryGrid } from "@/components/ui/MasonryGrid";
 import { getEventById, getSubEvents, Event } from "@/lib/database";
 import { getWebTemplateChrome } from "@/lib/webTemplateTheme";
 import { getApiUrl } from "@/lib/apiBase";
+import { RequireLogin } from "../RequireLogin";
 
 type MatchedPhoto = {
     id: string;
@@ -30,7 +31,7 @@ type FaceSearchMatch = {
     eventId?: string;
 };
 
-export default function FindYouPage({ params }: { params: Promise<{ slug: string }> }) {
+function FindYouContent({ slug }: { slug: string }) {
     const [templateId, setTemplateId] = useState("hero");
     const theme = getWebTemplateChrome(templateId);
     const [subEvents, setSubEvents] = useState<Event[]>([]);
@@ -40,9 +41,6 @@ export default function FindYouPage({ params }: { params: Promise<{ slug: string
     const [matchedPhotos, setMatchedPhotos] = useState<MatchedPhoto[]>([]);
     const [statusMessage, setStatusMessage] = useState("Loading AI Models...");
     const [selfieUrl, setSelfieUrl] = useState<string | null>(null);
-
-    // Unwrap params
-    const { slug } = React.use(params);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -278,5 +276,19 @@ export default function FindYouPage({ params }: { params: Promise<{ slug: string
                 )}
             </section>
         </main>
+    );
+}
+
+export default function FindYouPage({ params }: { params: Promise<{ slug: string }> }) {
+    const { slug } = React.use(params);
+
+    return (
+        <RequireLogin
+            heading="Log in to use Find You"
+            body="Find You uses a selfie to find the photos you're in. Log in or create an account to use it."
+            returnTo={`/events/${slug}/find-you`}
+        >
+            <FindYouContent slug={slug} />
+        </RequireLogin>
     );
 }
