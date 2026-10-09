@@ -1,0 +1,262 @@
+EVEBASH ACTIVE ISSUES
+=====================
+
+How to use this file (people and Claude sessions alike):
+- Read this file before starting work, and check whether your change fixes or touches any issue here.
+- New issue: add it at the end of ACTIVE ISSUES with the "Next issue number" below, then increase that number by 1.
+- Numbers are never reused. If #1 is fixed and removed, the next new issue still takes the next number.
+- Starting work on an issue: set Status to "In progress" and Owner to your name.
+- Fixed (merged to staging): move the whole entry to RECENTLY FIXED, set Status to "Fixed", and add
+  "Fixed in: <commit> (YYYY-MM-DD)". Delete entries from RECENTLY FIXED once they are older than 7 days.
+- Dates are YYYY-MM-DD.
+
+Field values:
+- Platform:   App | Website | Both | Analytics dashboard   (backend, Modal or database work is noted in the issue text)
+- Priority:   Critical | High | Medium | Low
+- Status:     Open | In progress | Blocked | Fixed
+- Owner:      a name, or Unassigned
+- Blocked by: what it waits on (a decision, another issue, a person), or "-"
+- Found in:   where it was spotted (an audit, a tester report, a chat)
+
+Next issue number: 22
+
+=====================================================================
+ACTIVE ISSUES
+=====================================================================
+
+#1
+Listed: 2026-10-09
+Platform: App
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Website vs app consistency audit (2026-10-05)
+Issue: Deleting a gallery in the app doesn't delete its sub-galleries (the website does). Mobile deleteEvent in apps/mobile/lib/database.ts doesn't recurse into sub-galleries.
+How to reproduce: In the app, create a gallery with a sub-gallery and a photo in it, then delete the main gallery. The sub-gallery row and its media stay in the database (check events where parent_id = the deleted id).
+
+#2
+Listed: 2026-10-09
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Website vs app consistency audit (2026-10-05)
+Issue: App Find You only searches the main gallery, not its sub-galleries (apps/mobile/components/event/FindYouPanel).
+How to reproduce: Upload a photo of yourself to a sub-gallery only. Run Find You from the main gallery in the app: no match. Do the same on the website: the photo is found.
+
+#3
+Listed: 2026-10-09
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Website vs app consistency audit (2026-10-05)
+Issue: App sub-gallery covers get a broken double "-preview.webp" URL. The app's image URL helper (apps/mobile/lib/imageUrl) lacks the website's guard for already-resized files.
+How to reproduce: Set a sub-gallery cover in the app, then open the main gallery. The sub-gallery card shows no cover; its image URL ends in "-preview.webp-preview.webp".
+
+#4
+Listed: 2026-10-09
+Platform: Both
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Modal cost audit (2026-10-05)
+Issue: Find You compares only the first 1,000 faces of a gallery, so people in big galleries get missed. The faces query in Modal's find_matching_photos isn't paginated (backend/Modal).
+How to reproduce: Use a gallery with more than 1,000 indexed faces (one with 1,751 existed on 2026-10-05). Run Find You for someone who appears only in later-indexed photos: they're not found.
+
+#5
+Listed: 2026-10-09
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Gallery access work, item A1 (2026-10-07)
+Issue: After "Log in to request access" in the app, logging in lands on the dashboard instead of returning to the gallery (apps/mobile/app/login.tsx and the screens that open it).
+How to reproduce: Logged out, open a private gallery link in the app, tap "Log in" and sign in. You land on the dashboard; the gallery has to be opened again from the link.
+
+#6
+Listed: 2026-10-09
+Platform: Both
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Website vs app consistency audit (2026-10-05)
+Issue: Storage and plan limits only apply on the website. The app and backend don't block uploads over the plan's storage, and the app's storage totals ignore overhead_size. Ideally enforced in the backend so both platforms follow it.
+How to reproduce: With a free account near its 1 GB limit, upload past the limit from the website (blocked) and from the app (allowed). Compare the storage used shown on each.
+
+#7
+Listed: 2026-10-09
+Platform: Both
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Website vs app consistency audit (2026-10-05)
+Issue: Scheduled plan changes are only applied when the website loads ("apply-pending" in the website's AuthContext). App-only users never get them. Should move to the backend.
+How to reproduce: Give a test account a pending plan change whose start date has passed. Open only the app: the plan stays the same. Open the website: the change applies.
+
+#8
+Listed: 2026-10-09
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Website vs app consistency audit (2026-10-05); push review during the lockdown (2026-10-09)
+Issue: "Your access was approved" push to the guest never arrives: the website calls Expo directly from the browser, which CORS blocks. Should be sent by the backend, like the new access-request push (apps/backend/src/routes/notifications.ts).
+How to reproduce: As a host on the website, approve a guest who has the app installed. The guest gets no push; the browser console shows a CORS error for exp.host.
+
+#9
+Listed: 2026-10-09
+Platform: Analytics dashboard
+Priority: Low
+Status: Blocked
+Owner: Unassigned
+Blocked by: #21 (lockdown part 2: the save function only allows platform admins after it)
+Found in: Visibility switch work (2026-10-09)
+Issue: No public/private switch for galleries in the admin dashboard. Platform admins can't change visibility of galleries they don't own anywhere on the website.
+How to reproduce: Open a gallery in the admin dashboard Events grid: there is no visibility control.
+
+#10
+Listed: 2026-10-09
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: Agreement with Shwetank (for the hidden manager screen)
+Found in: Lockdown access re-scan (2026-10-09)
+Issue: Leftover dead code: the hidden manager screen on the website Host page (/host?view=permissions, updateUserRole), the backend's old tenant routes (apps/backend/src/routes/tenantAuth.ts), and the app's unused events/sub/edit screen, hooks/useEventState.ts and addPhoto.
+How to reproduce: Code check: search for callers of these screens and functions; none are linked from the app or website.
+
+#11
+Listed: 2026-10-09
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: SEO audit (2026-10-04)
+Issue: SEO gaps: every page shares one title and description, no Open Graph/Twitter tags on most pages, no canonical tags, and gallery pages (/events/*) are indexable. Needs a server layout.tsx per route segment for metadata.
+How to reproduce: View source of /pricing, /contact and /sample-galleries: same <title> and description, no og: tags or canonical link.
+
+#12
+Listed: 2026-10-09
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Website UI review (2026-10-03)
+Issue: Off-brand blue instead of gold on login (button, forgot link, password field), the contact page and the pricing toggle; footer social icons link to "#".
+How to reproduce: Open /login, /contact and /pricing: blue controls. Click a footer social icon: the page jumps to the top.
+
+#13
+Listed: 2026-10-09
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: SEO audit (2026-10-04)
+Issue: Slow homepage hero on mobile (LCP about 4.4 s): the hero image sits inside a framer-motion parallax and the hero text starts at opacity 0.
+How to reproduce: Run Lighthouse (mobile) on the homepage: LCP around 4.4 s, LCP element is the hero image.
+
+#14
+Listed: 2026-10-09
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Modal cost audit (2026-10-05)
+Issue: Modal cost flags MODAL_COST_TUNING and MODAL_VIDEO_ASYNC must be set in the .env of whoever deploys; a deploy without them silently restores the old, costlier settings. Bake them in and remove the flags (Modal).
+How to reproduce: Code check: modal_engine/main.py reads both flags at deploy time; deploying from a .env without them brings back per-minute crons and synchronous video transcoding.
+
+#15
+Listed: 2026-10-09
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Modal cost audit (2026-10-05)
+Issue: The old upload-processing path (trigger-modal-batch from the mobile upload queue and the website Host page) is still live, and it left 394 duplicate rows in the faces table. Remove the path and clean up the duplicates (backend/Modal/database).
+How to reproduce: Count faces rows that share the same image and descriptor: about 394 duplicates on 2026-10-05. Upload from the app and watch Modal logs: process_media_batch runs alongside the new pipeline.
+
+#16
+Listed: 2026-10-09
+Platform: App
+Priority: High
+Status: Blocked
+Owner: Sarthak (decision)
+Blocked by: Decision: which domain share links use (suggested www.evebash.com)
+Found in: Website UI review (2026-10-03); consistency audit (2026-10-05)
+Issue: App share links and QR codes point to wedalbum.app, which opens a different site with a blank page; business share uses wedalbum.com (a domain-for-sale page); the QR scanner only accepts wedalbum.app.
+How to reproduce: In the app, share a gallery and open the link in a browser: blank page on a different site. Scan an evebash.com QR in the app: not accepted.
+
+#17
+Listed: 2026-10-09
+Platform: App
+Priority: High
+Status: Blocked
+Owner: Sarthak (decision)
+Blocked by: Decision: the app's final iOS bundle ID
+Found in: Store launch review (2026-10-03)
+Issue: iOS bundle ID is still the placeholder com.anonymous.wed-albummobile (apps/mobile/app.json). It becomes permanent at the first App Store upload.
+How to reproduce: Check ios.bundleIdentifier in apps/mobile/app.json.
+
+#18
+Listed: 2026-10-09
+Platform: App
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Store launch review (2026-10-03)
+Issue: Google sign-in will fail (DEVELOPER_ERROR) on Play and EAS-signed Android builds: Firebase only has the debug-keystore SHA-1. Add the Play app-signing and EAS upload-key SHA-1s before store release.
+How to reproduce: Install an EAS-signed or Play build and tap "Continue with Google": DEVELOPER_ERROR.
+
+#19
+Listed: 2026-10-09
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Access-request push work (2026-10-09)
+Issue: The EAS production build profile doesn't set EXPO_PUBLIC_API_BASE_URL (development and staging do). Uploads and the access-request push need it; confirm it's set in EAS environment settings before the first store build.
+How to reproduce: Check build.production.env in apps/mobile/eas.json and the EAS project's environment variables.
+
+#20
+Listed: 2026-10-09
+Platform: Both
+Priority: Medium
+Status: Blocked
+Owner: Unassigned
+Blocked by: Phase 2 (business features)
+Found in: Lockdown access re-scan (2026-10-09)
+Issue: Phase 2 business features will break once RLS lockdown part 2 is on: enquiry and vendor-chat pushes read other users' push tokens, business view counts edit someone else's row, and logged-out visitors can't browse vendors (EB Network, Explore).
+How to reproduce: After part 2: send an enquiry or chat message (no push to the other person), open a vendor page (view count doesn't change), open EB Network logged out (empty).
+
+#21
+Listed: 2026-10-09
+Platform: Both
+Priority: Critical
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Testers on a new app build from staging; an agreed quiet window
+Found in: Supabase access check (2026-10-06)
+Issue: Supabase RLS lockdown part 2 is not applied yet: most tables can still be read and changed with the public app key (launch blocker). Everything is ready: run sheet https://claude.ai/artifact/WQCggv3QSkj6MSdewUKpTZ, draft docs/security/rls-lockdown-draft.sql, tested rollback docs/security/rls-lockdown-part2-rollback.sql.
+How to reproduce: With only the public anon key, request /rest/v1/profiles?select=id,role: every profile comes back.
+
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
+(none yet)
