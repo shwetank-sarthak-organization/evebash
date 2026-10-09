@@ -19,6 +19,11 @@ import { runMediaWatchdog } from "./services/watchdog.js";
 import { startWatchdogScheduler } from "./services/watchdogScheduler.js";
 import { createSignupRouter } from "./routes/signup.js";
 import { accountRouter } from "./routes/account.js";
+import { createVaultRouter } from "./routes/vault.js";
+import { getVaultBucketSettings, isVaultEnabled } from "./vault/config.js";
+import { createSupabaseVaultRepository } from "./vault/repository.js";
+import { createS3VaultStorage } from "./vault/storage.js";
+import { runVaultMaintenance, startVaultMaintenanceScheduler } from "./services/vaultMaintenance.js";
 
 // ── Process-Level Crash Protection ──────────────────────────────────────────
 // Prevent unhandled promise rejections from crashing the process (Node 16+)
@@ -108,6 +113,19 @@ app.use("/api/v1/permissions", permissionsRouter);
 app.use("/api/v1/signup", createSignupRouter());
 app.use("/api/v1/account", accountRouter);
 
+// EB Vault: off unless VAULT_ENABLED=true and the private Vault bucket is configured.
+const vaultRepository = createSupabaseVaultRepository();
+const vaultBucket = getVaultBucketSettings();
+const vaultStorage = isVaultEnabled() && vaultBucket ? createS3VaultStorage(vaultBucket) : null;
+const vaultLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, code: "rate_limited", error: "Too many requests. Please slow down and try again." },
+});
+app.use("/api/v1/vault", vaultLimiter, createVaultRouter({ repo: vaultRepository, storage: vaultStorage }));
+
 app.use((_request, response) => {
   response.status(404).json({ success: false, error: "Route not found." });
 });
@@ -158,6 +176,9 @@ const safeRunWatchdog = async (context: string) => {
 };
 
 const stopWatchdogScheduler = startWatchdogScheduler(safeRunWatchdog);
+const stopVaultMaintenance = vaultStorage
+  ? startVaultMaintenanceScheduler(() => runVaultMaintenance(vaultRepository, vaultStorage))
+  : () => {};
 
 function handleShutdown(signal: string) {
   if (isShuttingDown) return;
@@ -165,6 +186,7 @@ function handleShutdown(signal: string) {
   console.log(`[EveBashBackend] Received ${signal}. Starting graceful shutdown...`);
 
   stopWatchdogScheduler();
+  stopVaultMaintenance();
 
   // Stop accepting new connections
   server.close(() => {
