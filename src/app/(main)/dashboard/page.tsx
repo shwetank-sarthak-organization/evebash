@@ -7,9 +7,9 @@ import { useRouter } from "next/navigation";
 import {
     Event,
     getApprovedSharedEventsForUser,
-    getEventByJoinId,
     getUserEvents,
-    logGuestLogin,
+    openGallery,
+    requestGalleryAccess,
 } from "@/lib/database";
 import {
     ArrowLeft,
@@ -258,44 +258,31 @@ export default function DashboardHub() {
         setJoinMessage("");
 
         try {
-            const event = await getEventByJoinId(finalCode);
+            // The join code is resolved by open_gallery (the events table isn't readable to non-members once RLS is
+            // on). Public galleries are joined right here; private ones need a request the host approves.
+            const opened = await openGallery(finalCode);
 
-            if (!event) {
+            if (opened.access === "not_found") {
                 setJoinMessageType("error");
                 setJoinMessage("Invalid Join ID. Please check the code and try again.");
                 return;
             }
 
-            const guestName = user.name || "Anonymous Guest";
-            const guestId = user.phone || user.email || user.uid;
-
-            if (!guestId) {
-                throw new Error("User identifier not found.");
+            let status: string = opened.access === "manage" || opened.access === "member" ? "approved" : opened.access;
+            if (status === "none") {
+                status = await requestGalleryAccess(finalCode);
             }
 
-            const success = await logGuestLogin(
-                guestName,
-                guestId,
-                event.id,
-                event.parentId || undefined,
-                event.title || "Untitled Event",
-                event.createdBy || undefined,
-                "pending"
-            );
-
-            if (success) {
-                setJoinMessageType("success");
-                setJoinMessage("Request sent. You will see the event in your collections once approved.");
-                setTimeout(() => {
-                    setShowJoinModal(false);
-                    setJoinCode("");
-                    setJoinMessage("");
-                    fetchData();
-                }, 2500);
-            } else {
-                setJoinMessageType("error");
-                setJoinMessage("Request could not be submitted. Please try again.");
-            }
+            setJoinMessageType("success");
+            setJoinMessage(status === "approved"
+                ? "You're in. The event is now in your collections."
+                : "Request sent. You will see the event in your collections once approved.");
+            setTimeout(() => {
+                setShowJoinModal(false);
+                setJoinCode("");
+                setJoinMessage("");
+                fetchData();
+            }, 2500);
         } catch (err) {
             console.error("[Join] Error:", err);
             setJoinMessageType("error");

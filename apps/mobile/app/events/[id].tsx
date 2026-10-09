@@ -38,7 +38,6 @@ import { RenameEventModal } from '../../components/event/modals/RenameEventModal
 import { SubEventModal } from '../../components/event/modals/SubEventModal';
 import { TemplateSelectionModal } from '../../components/event/modals/TemplateSelectionModal';
 import { GalleryDescriptionModal } from '../../components/event/modals/GalleryDescriptionModal';
-import { useGuestAccess } from '../../hooks/useGuestAccess';
 import { FindYouPanel } from '../../components/event/FindYouPanel';
 import GalleriesIcon from '../../components/icons/GalleriesIcon';
 import PermissionsIcon from '../../components/icons/PermissionsIcon';
@@ -1239,6 +1238,8 @@ export default function EventDetailScreen() {
     const logIdPrefix = log.id?.split('_')[0] || '';
 
     return (
+      // Rows made by request_gallery_access are tied to the account
+      (!!userUid && log.userId === userUid) ||
       (!!userUid && (logIdPrefix === userUid || log.phone === userUid || log.email === userUid)) ||
       (!!userEmail && (logEmail === userEmail || normalizeEmailValue(logIdPrefix) === userEmail)) ||
       (!!userPhone && (logPhone === userPhone || normalizePhoneValue(logIdPrefix) === userPhone))

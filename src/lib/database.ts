@@ -222,6 +222,8 @@ export interface GuestLog {
     canAdmin?: boolean;
     canUpload?: boolean;
     canComment?: boolean;
+    /** Account that joined (rows made by request_gallery_access / open_gallery) */
+    userId?: string;
 }
 
 export interface Like {
@@ -500,7 +502,8 @@ function guestLogMatchesIdentifier(g: any, identifier: string): boolean {
 
     const derivedEmail = getGuestLogEmail(g);
     const idPrefix = typeof g.id === "string" ? g.id.split("_")[0] : undefined;
-    const candidates = [g.phone, g.email, derivedEmail, idPrefix]
+    // user_id: rows made by request_gallery_access are tied to the account, not a phone number
+    const candidates = [g.phone, g.email, derivedEmail, idPrefix, g.user_id]
         .filter(Boolean)
         .map(value => String(value).trim().toLowerCase());
 
@@ -521,7 +524,8 @@ function mapSqlToGuestLog(g: any): GuestLog {
         status: g.status,
         canAdmin: g.can_admin,
         canUpload: g.can_upload,
-        canComment: g.can_comment
+        canComment: g.can_comment,
+        userId: g.user_id || undefined
     };
 }
 
@@ -1112,60 +1116,6 @@ export async function getAllowedUser(phone: string): Promise<any | null> {
 }
 
 /**
- * Logs a successful login or event access to the guests table.
- */
-export async function logGuestLogin(
-    name: string, 
-    phone: string, 
-    eventId?: string, 
-    parentEventId?: string, 
-    eventTitle?: string, 
-    ownerId?: string, 
-    status: 'pending' | 'approved' | 'rejected' = 'pending'
-) {
-    try {
-        const logId = eventId ? `${phone}_${eventId}` : phone;
-
-        // Fetch existing status
-        const { data: existing } = await supabase
-            .from('guests')
-            .select('status')
-            .eq('id', logId)
-            .maybeSingle();
-
-        const { error } = await supabase.from('guests').upsert({
-            id: logId,
-            name,
-            phone,
-            event_id: eventId || null,
-            parent_event_id: parentEventId || null,
-            parent_event_owner_id: ownerId || null,
-            event_title: eventTitle || "General Access",
-            login_at: new Date().toISOString(),
-            status: existing?.status || status
-        });
-        if (error) throw error;
-
-        // Send push notification to the event owner if it's a new pending request
-        if (!existing && status === 'pending' && ownerId) {
-            sendPushNotification(
-                ownerId,
-                "New Guest Access Request 🔔",
-                `${name} is requesting access to your event "${eventTitle || 'Wedding'}".`,
-                { eventId: eventId || null, guestName: name },
-                'eventInvites'
-            ).catch(err => {
-                console.error("[PushNotifications] Error sending guest request notification:", err);
-            });
-        }
-        return true;
-    } catch (error) {
-        console.error("Error logging guest login:", error);
-        return false;
-    }
-}
-
-/**
  * Updates the status of a guest request.
  */
 export async function updateGuestStatus(logId: string, status: 'pending' | 'approved' | 'rejected') {
@@ -1261,28 +1211,6 @@ export async function deleteGuest(logId: string) {
         console.error("Error deleting guest:", error);
         return false;
     }
-}
-
-/**
- * Real-time listener for guest status changes.
- */
-export function onGuestStatusChange(logId: string, callback: (status: string) => void) {
-    const channel = supabase
-        .channel(`guest-status-${logId}`)
-        .on(
-            'postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'guests', filter: `id=eq.${logId}` },
-            (payload) => {
-                if (payload.new && payload.new.status) {
-                    callback(payload.new.status);
-                }
-            }
-        )
-        .subscribe();
-
-    return () => {
-        supabase.removeChannel(channel);
-    };
 }
 
 /**
@@ -2232,48 +2160,6 @@ export function generateEventJoinId(eventId: string): string {
     return `${prefix}-${randomSuffix}`;
 }
 
-export async function getEventByJoinId(joinId: string): Promise<Event | null> {
-    try {
-        const cleanJoinId = joinId.toUpperCase().trim();
-        let { data, error } = await supabase
-            .from('events')
-            .select('*')
-            .eq('join_id', cleanJoinId);
-
-        if (error) throw error;
-
-        if (!data || data.length === 0) {
-            const { data: allEvents, error: allErr } = await supabase
-                .from('events')
-                .select('*')
-                .not('join_id', 'is', null);
-
-            if (!allErr && allEvents) {
-                const targetNormalized = cleanJoinId.replace(/[^A-Z0-9]/g, '');
-                const matches = allEvents.filter(e => {
-                    if (!e.join_id) return false;
-                    const dbNormalized = e.join_id.toUpperCase().replace(/[^A-Z0-9]/g, '');
-                    return dbNormalized === targetNormalized;
-                });
-                if (matches.length > 0) {
-                    data = matches;
-                }
-            }
-        }
-
-        if (!data || data.length === 0) return null;
-
-        if (data.length > 1) {
-            const mainEvent = data.find(e => e.type === 'main');
-            if (mainEvent) return mapSqlToEvent(mainEvent);
-        }
-        return mapSqlToEvent(data[0]);
-    } catch (error) {
-        console.error("Error fetching event by joinId:", error);
-        return null;
-    }
-}
-
 /**
  * Deletes a specific photo record.
  */
@@ -2363,8 +2249,6 @@ export async function deleteEvent(eventId: string): Promise<boolean> {
 
         // 2. Fetch photos metadata and delete B2 assets for all photos associated with this event
         const { data: photos } = await supabase.from('photos').select('id, size, overhead_size, media_type, uploaded_at').eq('event_id', eventId);
-        // events has no created_at column: asking for it failed the whole lookup, so the ledger row below had no owner and was rejected
-        const { data: eventData } = await supabase.from('events').select('title, created_by').eq('id', eventId).maybeSingle();
 
         if (photos && photos.length > 0) {
             console.log(`[deleteEvent] Cleaning up B2 files for ${photos.length} photos under event ${eventId}`);
@@ -2386,25 +2270,17 @@ export async function deleteEvent(eventId: string): Promise<boolean> {
                 : null;
             const eventCreatedAt = earliestUpload || new Date().toISOString();
 
-            const ledgerPayload: Record<string, any> = {
-                event_id: eventId,
-                user_id: eventData?.created_by || null,
-                event_title: eventData?.title || 'Untitled Gallery',
-                photos_count: photosCount,
-                videos_count: videosCount,
-                total_bytes: totalBytes,
-                estimated_modal_cost_inr: 0,
-                deleted_by: 'user_web',
-                event_created_at: eventCreatedAt,
-            };
-
-            const { error: insErr } = await supabase.from('deleted_events_archive').insert(ledgerPayload);
-            if (insErr) {
-                // Fallback without event_created_at if column not yet migrated
-                delete ledgerPayload.event_created_at;
-                const { error: retryErr } = await supabase.from('deleted_events_archive').insert(ledgerPayload);
-                if (retryErr) console.warn('[deleteEvent] Could not record deletion ledger (non-blocking):', retryErr.message);
-            }
+            // archive_deleted_event writes the record with the gallery's real owner and title; only people who
+            // may manage the gallery can call it (the archive table itself is admin-only once RLS is on)
+            const { error: archiveError } = await supabase.rpc('archive_deleted_event', {
+                p_event_id: eventId,
+                p_photos_count: photosCount,
+                p_videos_count: videosCount,
+                p_total_bytes: totalBytes,
+                p_deleted_by: 'user_web',
+                p_event_created_at: eventCreatedAt,
+            });
+            if (archiveError) console.warn('[deleteEvent] Could not record deletion ledger (non-blocking):', archiveError.message);
         } catch (archiveErr) {
             console.warn('[deleteEvent] Could not record deletion ledger (non-blocking):', archiveErr);
         }
@@ -2709,9 +2585,13 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
 
     const fetchAndTrigger = async () => {
         // Fetch profiles alongside likes/comments using Postgres joins
+        // Signed in: names come from profile_cards (name and photo only), since other people's profiles aren't
+        // readable once RLS is on. Signed out keeps the old embed; likes and comments are members-only after the lockdown.
+        const { data: { session } } = await supabase.auth.getSession();
+        const people = session ? 'profiles:profile_cards(name, profile_image)' : 'profiles(name, profile_image)';
         const [likesRes, commentsRes] = await Promise.all([
-            supabase.from('likes').select('id, created_at, user_id, profiles(name, profile_image)').eq('photo_id', photoId),
-            supabase.from('comments').select('id, text, created_at, user_id, parent_id, profiles(name, profile_image)').eq('photo_id', photoId)
+            supabase.from('likes').select(`id, created_at, user_id, ${people}`).eq('photo_id', photoId),
+            supabase.from('comments').select(`id, text, created_at, user_id, parent_id, ${people}`).eq('photo_id', photoId)
         ]);
 
         if (!likesRes.error && likesRes.data) {

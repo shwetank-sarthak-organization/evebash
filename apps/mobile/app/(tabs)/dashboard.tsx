@@ -26,10 +26,10 @@ import {
   getUserEvents,
   Event as DatabaseEvent,
   getApprovedSharedEventsForUser,
-  getEventByJoinId,
-  logGuestLogin,
   getNotifications,
-  checkGuestRequestStatus,
+  openGallery,
+  requestGalleryAccess,
+  getGalleryRequestStatus,
 } from '@/lib/database';
 import { subscribeToUploadQueue, UploadQueueItem } from '@/lib/uploadQueue';
 import { markStartup } from '@/lib/startupTiming';
@@ -299,24 +299,12 @@ export default function DashboardScreen() {
     if (!selectedRequestEvent || !user) return;
     setSendingRequest(true);
     try {
-      const guestName = user.name || 'Anonymous Guest';
-      const guestId = user.phone || user.email || user.uid;
-      if (!guestId) {
-        appAlert("Error", "You must be logged in to request access.");
-        return;
-      }
-
-      const success = await logGuestLogin(
-        guestName,
-        guestId,
-        selectedRequestEvent.targetId,
-        selectedRequestEvent.eventParentId || undefined,
-        selectedRequestEvent.eventTitle || 'Untitled Event',
-        selectedRequestEvent.eventCreatorId || undefined,
-        'pending'
-      );
-
-      if (success) {
+      // Tied to the signed-in account; a public gallery is joined at once
+      const status = await requestGalleryAccess(selectedRequestEvent.targetId);
+      if (status === 'approved') {
+        setShowRequestAccessModal(false);
+        router.push(`/events/${selectedRequestEvent.targetId}?mode=visitor`);
+      } else {
         // Close Request Access Modal immediately
         setShowRequestAccessModal(false);
         // Show Status Modal with details
@@ -327,9 +315,6 @@ export default function DashboardScreen() {
           eventName: selectedRequestEvent.eventTitle || undefined
         });
         setShowStatusModal(true);
-      } else {
-        setShowRequestAccessModal(false);
-        appAlert("Request Failed", "Failed to submit request. Please try again later.");
       }
     } catch (err) {
       console.error("Error submitting guest request:", err);
@@ -378,45 +363,32 @@ export default function DashboardScreen() {
 
     setJoining(true);
     try {
-      console.log('[Join] Looking for event with code:', finalCode);
-      const event = await getEventByJoinId(finalCode);
+      // The join code is resolved by open_gallery (the events table isn't readable to non-members once RLS is on).
+      // Public galleries are joined right here; private ones need a request the host approves.
+      const opened = await openGallery(finalCode);
 
-      if (event) {
-        console.log('[Join] Event found:', event.title);
-
-        // Submit access request
-        const guestName = user.name || 'Anonymous Guest';
-        const guestId = user.phone || user.email || user.uid;
-
-        if (!guestId) {
-          throw new Error("User identifier not found.");
+      if (opened.access === 'not_found') {
+        appAlert("Invalid Code", "We couldn't find an event with that Join ID. Please check the code and try again.");
+      } else {
+        let status: string = opened.access === 'manage' || opened.access === 'member' ? 'approved' : opened.access;
+        if (status === 'none') {
+          status = await requestGalleryAccess(finalCode);
         }
-
-        const success = await logGuestLogin(
-          guestName,
-          guestId,
-          event.id,
-          event.parentId || undefined,
-          event.title || 'Untitled Event',
-          event.createdBy || undefined,
-          'pending'
-        );
-
-        if (success) {
+        const closeJoin = () => {
+          setShowJoinModal(false);
+          setIsScanning(false);
+          setJoinCode('');
+        };
+        if (status === 'approved') {
+          closeJoin();
+          router.push(`/events/${opened.eventId}?mode=visitor`);
+        } else {
           appAlert(
             "Request Sent",
             "Your request to join this event has been sent to the admin. You will see the event in your collections once approved.",
-            [{ text: "OK", onPress: () => {
-              setShowJoinModal(false);
-              setIsScanning(false);
-              setJoinCode('');
-            }}]
+            [{ text: "OK", onPress: closeJoin }]
           );
-        } else {
-          appAlert("Error", "The join request could not be submitted. Please try again.");
         }
-      } else {
-        appAlert("Invalid Code", "We couldn't find an event with that Join ID. Please check the code and try again.");
       }
     } catch (err: any) {
       console.error('[Join] Error:', err);
@@ -941,10 +913,9 @@ export default function DashboardScreen() {
                                       return;
                                     }
 
-                                    // 2. Query Supabase database check for latest guest log status
-                                    const guestId = user?.phone || user?.email || user?.uid;
-                                    if (guestId) {
-                                      const dbStatus = await checkGuestRequestStatus(guestId, item.targetId);
+                                    // 2. Where the user stands with the gallery (a rejected request can be sent again)
+                                    if (user) {
+                                      const dbStatus = await getGalleryRequestStatus(item.targetId).catch(() => null);
                                       if (dbStatus === 'approved') {
                                         router.push(`/events/${item.targetId}?mode=visitor`);
                                         return;
@@ -953,15 +924,6 @@ export default function DashboardScreen() {
                                           title: "Request Pending",
                                           message: `You have already sent an access request. Please wait for the creator to approve it.`,
                                           type: 'pending',
-                                          eventName: item.eventTitle || undefined
-                                        });
-                                        setShowStatusModal(true);
-                                        return;
-                                      } else if (dbStatus === 'rejected') {
-                                        setStatusModalConfig({
-                                          title: "Access Declined",
-                                          message: `Your request to join this private event was declined by the creator. Please get in touch with them directly.`,
-                                          type: 'rejected',
                                           eventName: item.eventTitle || undefined
                                         });
                                         setShowStatusModal(true);

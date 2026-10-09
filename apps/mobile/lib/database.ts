@@ -247,6 +247,8 @@ export interface GuestLog {
     canAdmin?: boolean;
     canUpload?: boolean;
     canComment?: boolean;
+    /** Account that joined (rows made by request_gallery_access / open_gallery) */
+    userId?: string;
 }
 
 export interface Enquiry {
@@ -574,7 +576,8 @@ function guestLogMatchesIdentifier(g: any, identifier: string): boolean {
 
     const derivedEmail = getGuestLogEmail(g);
     const idPrefix = typeof g.id === "string" ? g.id.split("_")[0] : undefined;
-    const candidates = [g.phone, g.email, derivedEmail, idPrefix]
+    // user_id: rows made by request_gallery_access are tied to the account, not a phone number
+    const candidates = [g.phone, g.email, derivedEmail, idPrefix, g.user_id]
         .filter(Boolean)
         .map(value => String(value).trim().toLowerCase());
 
@@ -595,7 +598,8 @@ function mapSqlToGuestLog(g: any): GuestLog {
         status: g.status,
         canAdmin: g.can_admin,
         canUpload: g.can_upload,
-        canComment: g.can_comment
+        canComment: g.can_comment,
+        userId: g.user_id || undefined
     };
 }
 
@@ -1102,6 +1106,17 @@ export async function requestGalleryAccess(ref: string): Promise<string> {
     return String(data || 'pending');
 }
 
+/**
+ * Where the signed-in user stands with a gallery: 'approved' (member or manager), 'pending', or null (can ask to join,
+ * including after an earlier rejection). Like opening the link, this joins a public gallery.
+ */
+export async function getGalleryRequestStatus(ref: string): Promise<'approved' | 'pending' | null> {
+    const opened = await openGallery(ref);
+    if (opened.access === 'manage' || opened.access === 'member') return 'approved';
+    if (opened.access === 'pending') return 'pending';
+    return null;
+}
+
 export async function getSubEvents(parentId: string, legacyParentId?: string): Promise<Event[]> {
     if (!parentId) return [];
     try {
@@ -1546,9 +1561,13 @@ export function onPhotoInteractions(photoId: string, callback: (data: { likes: a
     let currentComments: any[] = [];
 
     const fetchAndTrigger = async () => {
+        // Signed in: names come from profile_cards (name and photo only), since other people's profiles aren't
+        // readable once RLS is on. Signed out keeps the old embed; likes and comments are members-only after the lockdown.
+        const { data: { session } } = await supabase.auth.getSession();
+        const people = session ? 'profiles:profile_cards(name, profile_image)' : 'profiles(name, profile_image)';
         const [likesRes, commentsRes] = await Promise.all([
-            supabase.from('likes').select('id, created_at, user_id, profiles(name, profile_image)').eq('photo_id', photoId),
-            supabase.from('comments').select('id, text, created_at, user_id, parent_id, profiles(name, profile_image)').eq('photo_id', photoId)
+            supabase.from('likes').select(`id, created_at, user_id, ${people}`).eq('photo_id', photoId),
+            supabase.from('comments').select(`id, text, created_at, user_id, parent_id, ${people}`).eq('photo_id', photoId)
         ]);
 
         if (!likesRes.error && likesRes.data) {
@@ -1672,94 +1691,6 @@ export async function getApprovedSharedEventsForUser(identifiers: string | strin
         console.error("Error fetching approved shared events:", error);
         return [];
     }
-}
-
-export async function logGuestLogin(
-    name: string, 
-    phone: string, 
-    eventId?: string, 
-    parentEventId?: string, 
-    eventTitle?: string, 
-    ownerId?: string, 
-    status: 'pending' | 'approved' | 'rejected' = 'pending'
-) {
-    if (!phone) return false;
-    try {
-        const logId = eventId ? `${phone}_${eventId}` : phone;
-
-        const { data: existing } = await supabase
-            .from('guests')
-            .select('status')
-            .eq('id', logId)
-            .maybeSingle();
-
-        const { error } = await supabase.from('guests').upsert({
-            id: logId,
-            name,
-            phone,
-            event_id: eventId || null,
-            parent_event_id: parentEventId || null,
-            parent_event_owner_id: ownerId || null,
-            event_title: eventTitle || null,
-            login_at: new Date().toISOString(),
-            status: existing?.status || status
-        });
-
-        if (error) throw error;
-
-        // Notify event owner when a new guest joins their event
-        if (ownerId && ownerId !== phone) {
-            const isNew = !existing;
-            if (isNew) {
-                sendPushNotificationDirectly(
-                    ownerId,
-                    '🎉 New guest joined',
-                    `${name} just joined "${eventTitle || 'your event'}"`,
-                    { eventId: eventId || '' }
-                ).catch(() => {});
-            }
-        }
-
-        return true;
-    } catch (error) {
-        console.error("Error logging guest login:", error);
-        return false;
-    }
-}
-
-export async function checkGuestRequestStatus(userId: string, eventId: string): Promise<'pending' | 'approved' | 'rejected' | null> {
-    try {
-        const { data, error } = await supabase
-            .from('guests')
-            .select('status')
-            .eq('id', `${userId}_${eventId}`)
-            .maybeSingle();
-
-        if (error) throw error;
-        return data ? (data.status as any) : null;
-    } catch (e) {
-        console.error("Error checking guest request status:", e);
-        return null;
-    }
-}
-
-export function onGuestStatusChange(logId: string, callback: (status: string) => void) {
-    const channel = supabase
-        .channel(`guest-status-${logId}`)
-        .on(
-            'postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'guests', filter: `id=eq.${logId}` },
-            (payload) => {
-                if (payload.new && payload.new.status) {
-                    callback(payload.new.status);
-                }
-            }
-        )
-        .subscribe();
-
-    return () => {
-        supabase.removeChannel(channel);
-    };
 }
 
 export async function getGuestLogs(ownerIds?: string | string[]): Promise<GuestLog[]> {
@@ -2018,8 +1949,6 @@ export async function deleteEvent(eventId: string) {
     try {
         // Fetch photos metadata and delete B2 assets for all photos associated with this event
         const { data: photos } = await supabase.from('photos').select('id, size, media_type, uploaded_at').eq('event_id', eventId);
-        // events has no created_at column: asking for it failed the whole lookup, so the ledger row below had no owner and was rejected
-        const { data: eventData } = await supabase.from('events').select('title, created_by').eq('id', eventId).maybeSingle();
 
         if (photos && photos.length > 0) {
             console.log(`[deleteEvent] Cleaning up B2 files for ${photos.length} photos under event ${eventId}`);
@@ -2036,24 +1965,17 @@ export async function deleteEvent(eventId: string) {
                 : null;
             const eventCreatedAt = earliestUpload || new Date().toISOString();
 
-            const ledgerPayload: Record<string, any> = {
-                event_id: eventId,
-                user_id: eventData?.created_by || null,
-                event_title: eventData?.title || 'Untitled Gallery',
-                photos_count: photosCount,
-                videos_count: videosCount,
-                total_bytes: totalBytes,
-                estimated_modal_cost_inr: 0,
-                deleted_by: 'user_mobile',
-                event_created_at: eventCreatedAt,
-            };
-
-            const { error: insErr } = await supabase.from('deleted_events_archive').insert(ledgerPayload);
-            if (insErr) {
-                delete ledgerPayload.event_created_at;
-                const { error: retryErr } = await supabase.from('deleted_events_archive').insert(ledgerPayload);
-                if (retryErr) console.warn('[deleteEvent] Could not record deletion ledger (non-blocking):', retryErr.message);
-            }
+            // archive_deleted_event writes the record with the gallery's real owner and title; only people who
+            // may manage the gallery can call it (the archive table itself is admin-only once RLS is on)
+            const { error: archiveError } = await supabase.rpc('archive_deleted_event', {
+                p_event_id: eventId,
+                p_photos_count: photosCount,
+                p_videos_count: videosCount,
+                p_total_bytes: totalBytes,
+                p_deleted_by: 'user_mobile',
+                p_event_created_at: eventCreatedAt,
+            });
+            if (archiveError) console.warn('[deleteEvent] Could not record deletion ledger (non-blocking):', archiveError.message);
         } catch (archiveErr) {
             console.warn('[deleteEvent] Could not record deletion ledger (non-blocking):', archiveErr);
         }
@@ -2476,7 +2398,7 @@ export async function getReviewsForBusiness(bizId: string): Promise<any[]> {
   try {
     const { data, error } = await supabase
         .from('business_ratings')
-        .select('*, profiles(name)')
+        .select('*, profiles:profile_cards(name)')
         .eq('business_id', bizId)
         .order('created_at', { ascending: false });
 
@@ -2693,7 +2615,7 @@ export async function getEnquiriesForBusiness(businessId: string, userId: string
     try {
         const { data, error } = await supabase
             .from('enquiries')
-            .select('*, profiles:profiles!enquiries_user_id_fkey(name)')
+            .select('*, profiles:profile_cards!enquiries_user_id_fkey(name)')
             .eq('vendor_owner_id', userId);
 
         if (error) throw error;
@@ -2792,7 +2714,7 @@ export function onChatMessages(roomId: string, callback: (messages: ChatMessage[
   const fetchAndTrigger = async () => {
       const { data, error } = await supabase
         .from('messages')
-        .select('*, profiles(name)')
+        .select('*, profiles:profile_cards(name)')
         .eq('room_id', roomId)
         .order('created_at', { ascending: true });
 
@@ -2825,16 +2747,16 @@ export async function getUserChatRooms(userId: string, role: 'client' | 'vendor'
     const field = role === 'client' ? 'client_uid' : 'vendor_uid';
     const { data, error } = await supabase
         .from('chat_rooms')
-        .select('*, profiles(name)')
+        .select('*, client:profile_cards!chat_rooms_client_uid_fkey(name), vendor:profile_cards!chat_rooms_vendor_uid_fkey(name)')
         .eq(field, userId);
 
     if (error) throw error;
     return (data || []).map(r => ({
         id: r.id,
         clientUid: r.client_uid,
-        clientName: role === 'client' ? 'My Chat' : (r.profiles?.name || 'Client'),
+        clientName: role === 'client' ? 'My Chat' : (r.client?.name || 'Client'),
         vendorUid: r.vendor_uid,
-        vendorName: role === 'vendor' ? 'My Chat' : (r.profiles?.name || 'Vendor'),
+        vendorName: role === 'vendor' ? 'My Chat' : (r.vendor?.name || 'Vendor'),
         businessId: 'vendor-listing',
         createdAt: r.created_at,
         status: r.status,
@@ -2886,48 +2808,6 @@ export function generateEventJoinId(eventId: string): string {
 
     const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
     return `${prefix}-${randomSuffix}`;
-}
-
-export async function getEventByJoinId(joinId: string): Promise<Event | null> {
-    try {
-        const cleanJoinId = joinId.toUpperCase().trim();
-        let { data, error } = await supabase
-            .from('events')
-            .select('*')
-            .eq('join_id', cleanJoinId);
-
-        if (error) throw error;
-
-        if (!data || data.length === 0) {
-            const { data: allEvents, error: allErr } = await supabase
-                .from('events')
-                .select('*')
-                .not('join_id', 'is', null);
-
-            if (!allErr && allEvents) {
-                const targetNormalized = cleanJoinId.replace(/[^A-Z0-9]/g, '');
-                const matches = allEvents.filter(e => {
-                    if (!e.join_id) return false;
-                    const dbNormalized = e.join_id.toUpperCase().replace(/[^A-Z0-9]/g, '');
-                    return dbNormalized === targetNormalized;
-                });
-                if (matches.length > 0) {
-                    data = matches;
-                }
-            }
-        }
-
-        if (!data || data.length === 0) return null;
-
-        if (data.length > 1) {
-            const mainEvent = data.find(e => e.type === 'main');
-            if (mainEvent) return mapSqlToEvent(mainEvent);
-        }
-        return mapSqlToEvent(data[0]);
-    } catch (error) {
-        console.error("Error fetching event by joinId:", error);
-        return null;
-    }
 }
 
 export async function deleteGuest(logId: string) {

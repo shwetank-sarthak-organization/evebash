@@ -49,7 +49,7 @@ export default function ChatScreen() {
       try {
         const { data: r, error } = await supabase
           .from('chat_rooms')
-          .select('*, profiles(name)')
+          .select('*, client:profile_cards!chat_rooms_client_uid_fkey(name), vendor:profile_cards!chat_rooms_vendor_uid_fkey(name)')
           .eq('id', roomId as string)
           .maybeSingle();
 
@@ -58,9 +58,9 @@ export default function ChatScreen() {
           setChatRoom({
             id: r.id,
             clientUid: r.client_uid,
-            clientName: r.profiles?.name || 'Client',
+            clientName: r.client?.name || 'Client',
             vendorUid: r.vendor_uid,
-            vendorName: r.profiles?.name || 'Vendor',
+            vendorName: r.vendor?.name || 'Vendor',
             businessId: 'vendor-listing',
             createdAt: r.created_at,
             status: r.status,

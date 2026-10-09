@@ -36,8 +36,8 @@ import {
   getTopRatedBusinesses,
   toggleShortlistBusiness,
   getBusinessActivities,
-  logGuestLogin,
-  checkGuestRequestStatus,
+  requestGalleryAccess,
+  getGalleryRequestStatus,
 } from '@/lib/database';
 
 const { width } = Dimensions.get('window');
@@ -410,21 +410,8 @@ export default function SocialScreen() {
         return;
       }
 
-      // 3. Check guest status
-      const identifiers: string[] = [];
-      if (user.phone) identifiers.push(user.phone);
-      if (user.email) identifiers.push(user.email);
-      if (user.uid) identifiers.push(user.uid);
-
-      let foundStatus: 'none' | 'pending' | 'approved' | 'rejected' = 'none';
-
-      for (const identifier of identifiers) {
-        const status = await checkGuestRequestStatus(identifier, eventId);
-        if (status) {
-          foundStatus = status;
-          break;
-        }
-      }
+      // 3. Where the user stands with the gallery (tied to the account; a rejected request can be sent again)
+      const foundStatus = (await getGalleryRequestStatus(eventId)) || 'none';
 
       if (foundStatus === 'approved') {
         router.push(`/events/${eventId}`);
@@ -445,24 +432,13 @@ export default function SocialScreen() {
     if (!selectedEvent || !user || requestingAccess) return;
     setRequestingAccess(true);
     try {
-      const nameToSubmit = user.name || user.email?.split('@')[0] || 'Guest';
-      const rawPhone = user.phone || user.email || user.uid;
-
-      const success = await logGuestLogin(
-        nameToSubmit,
-        rawPhone,
-        selectedEvent.id,
-        selectedEvent.parentId || selectedEvent.id,
-        selectedEvent.title,
-        selectedEvent.createdBy,
-        'pending'
-      );
-
-      if (success) {
+      const status = await requestGalleryAccess(selectedEvent.id);
+      if (status === 'approved') {
+        setAccessModalVisible(false);
+        router.push(`/events/${selectedEvent.id}`);
+      } else {
         setAccessStatus('pending');
         Alert.alert("Request Sent", "Your request to join the event has been sent to the creator.");
-      } else {
-        Alert.alert("Error", "Failed to send request. Please try again.");
       }
     } catch (err) {
       console.error("Error sending join request:", err);
