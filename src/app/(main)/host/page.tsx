@@ -4310,84 +4310,49 @@ function DashboardContent() {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-3 rounded-[1.75rem] border border-white/10 bg-neutral-950/90 p-2 sm:grid-cols-4">
-                                        <button
-                                            onClick={() => setActiveEventDetailTab("galleries")}
-                                            className="group flex min-h-24 flex-col justify-between rounded-[1.35rem] border border-white/10 bg-neutral-900 p-4 text-left transition-colors hover:bg-neutral-800"
-                                        >
-                                            <div className="flex items-center gap-2.5">
-                                                <span className={cn(
-                                                    "flex h-8 w-8 items-center justify-center rounded-xl shrink-0 transition-colors",
-                                                    activeEventDetailTab === "galleries" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
-                                                )}>
-                                                    <GalleriesIcon className="h-4.5 w-4.5" />
-                                                </span>
-                                                <span className="text-base font-black text-white">Galleries</span>
-                                            </div>
-                                            <span className="mt-2 block text-xs font-bold text-slate-400">Photos and Videos</span>
-                                        </button>
-
-                                        <button
-                                            onClick={() => {
-                                                setActiveEventDetailTab("permissions");
-                                                setManageMode("list");
-                                            }}
-                                            className="group relative flex min-h-24 flex-col justify-between rounded-[1.35rem] border border-white/10 bg-neutral-900 p-4 text-left transition-colors hover:bg-neutral-800"
-                                        >
-                                            <div className="flex items-center gap-2.5">
-                                                <span className={cn(
-                                                    "flex h-8 w-8 items-center justify-center rounded-xl shrink-0 transition-colors",
-                                                    activeEventDetailTab === "permissions" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
-                                                )}>
-                                                    <PermissionsIcon className="h-4.5 w-4.5" />
-                                                </span>
-                                                <span className="text-base font-black text-white">Permissions</span>
-                                            </div>
-                                            <span className="mt-2 block text-xs font-bold text-slate-400">Event access control</span>
-                                            {eventDetailLogs.filter(log => log.status === "pending").length > 0 && (
-                                                <span className="absolute right-3.5 top-3.5 rounded-full bg-[#CA9C68] px-2 py-0.5 text-[10px] font-black text-slate-950">
-                                                    {eventDetailLogs.filter(log => log.status === "pending").length}
-                                                </span>
-                                            )}
-                                        </button>
-
-                                        <button
-                                            onClick={() => {
-                                                setActiveEventDetailTab("design");
-                                                setManageMode("list");
-                                            }}
-                                            className="group flex min-h-24 flex-col justify-between rounded-[1.35rem] border border-white/10 bg-neutral-900 p-4 text-left transition-colors hover:bg-neutral-800"
-                                        >
-                                            <div className="flex items-center gap-2.5">
-                                                <span className={cn(
-                                                    "flex h-8 w-8 items-center justify-center rounded-xl shrink-0 transition-colors",
-                                                    activeEventDetailTab === "design" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
-                                                )}>
-                                                    <DesignIcon className="h-4.5 w-4.5" />
-                                                </span>
-                                                <span className="text-base font-black text-white">Design</span>
-                                            </div>
-                                            <span className="mt-2 block text-xs font-bold text-slate-400">Theme and style</span>
-                                        </button>
-
-                                        <button
-                                            onClick={() => {
-                                                setActiveEventDetailTab("partners");
-                                                setManageMode("list");
-                                            }}
-                                            className="group flex min-h-24 flex-col justify-between rounded-[1.35rem] border border-white/10 bg-neutral-900 p-4 text-left transition-colors hover:bg-neutral-800"
-                                        >
-                                            <div className="flex items-center gap-2.5">
-                                                <span className={cn(
-                                                    "flex h-8 w-8 items-center justify-center rounded-xl shrink-0 transition-colors",
-                                                    activeEventDetailTab === "partners" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
-                                                )}>
-                                                    <PartnersIcon className="h-4.5 w-4.5" />
-                                                </span>
-                                                <span className="text-base font-black text-white">Partners</span>
-                                            </div>
-                                            <span className="mt-2 block text-xs font-bold text-slate-400">Linked vendors</span>
-                                        </button>
+                                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                        {([
+                                            { id: "galleries", label: "Galleries", subtitle: "Photos and Videos", Icon: GalleriesIcon },
+                                            { id: "permissions", label: "Permissions", subtitle: "Event access control", Icon: PermissionsIcon },
+                                            { id: "design", label: "Design", subtitle: "Theme and style", Icon: DesignIcon },
+                                            { id: "partners", label: "Partners", subtitle: "Linked vendors", Icon: PartnersIcon },
+                                        ] as const).map(({ id, label, subtitle, Icon }) => {
+                                            const isActive = activeEventDetailTab === id;
+                                            const pendingCount = id === "permissions"
+                                                ? eventDetailLogs.filter(log => log.status === "pending").length
+                                                : 0;
+                                            return (
+                                                <button
+                                                    key={id}
+                                                    onClick={() => {
+                                                        setActiveEventDetailTab(id);
+                                                        if (id !== "galleries") setManageMode("list");
+                                                    }}
+                                                    aria-pressed={isActive}
+                                                    className={cn(
+                                                        "group relative flex min-h-[5.5rem] items-center overflow-hidden rounded-2xl border px-3 py-4 text-left transition-colors sm:px-5 sm:py-5",
+                                                        isActive
+                                                            ? "border-[#CA9C68]/70 bg-gradient-to-br from-[#CA9C68]/[0.09] via-neutral-950 to-neutral-950"
+                                                            : "border-white/10 bg-gradient-to-br from-white/[0.04] to-neutral-950 hover:border-white/20 hover:from-white/[0.07]"
+                                                    )}
+                                                >
+                                                    {isActive && (
+                                                        <span className="absolute left-0 top-0 h-[3px] w-2/3 rounded-r-full bg-[#CA9C68]" />
+                                                    )}
+                                                    <Icon className="h-6 w-6 shrink-0 text-[#CA9C68] sm:h-8 sm:w-8" />
+                                                    <span className="mx-2.5 h-10 w-px shrink-0 bg-white/10 sm:mx-5 sm:h-12" />
+                                                    <span className="min-w-0">
+                                                        <span className="block truncate text-sm font-semibold text-white sm:text-lg">{label}</span>
+                                                        <span className="mt-0.5 block text-[11px] leading-snug text-neutral-400 sm:mt-1 sm:text-sm">{subtitle}</span>
+                                                    </span>
+                                                    {pendingCount > 0 && (
+                                                        <span className="absolute right-2 top-2 rounded-full bg-[#CA9C68] px-1.5 py-0.5 text-[10px] leading-none sm:right-3 sm:top-3 sm:px-2 font-black text-slate-950">
+                                                            {pendingCount}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
 
                                     <div className={cn(
