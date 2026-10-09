@@ -11,10 +11,10 @@ export default function FinalCta() {
                     <div aria-hidden className="pointer-events-none absolute -bottom-24 left-1/2 h-64 w-[36rem] -translate-x-1/2 rounded-full bg-royal-gold/15 blur-3xl" />
                     <div className="relative">
                         <h2 className={cn(displayFont.className, "text-3xl font-semibold leading-tight text-[var(--site-text)] md:text-4xl")}>
-                            Ready for your next event?
+                            Ready to deliver your next event?
                         </h2>
                         <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-[var(--site-subtle)] md:text-lg">
-                            Create your first event free and share it with your guests today.
+                            Set up your event, upload your photos and videos, and share them with your clients and guests.
                         </p>
                         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
                             <PrimaryButton href="/login?mode=signup">

@@ -8,9 +8,9 @@ import PricingPreview from "@/components/home/PricingPreview";
 import HomeFaq from "@/components/home/HomeFaq";
 import FinalCta from "@/components/home/FinalCta";
 
-const title = "EveBash | Event photo sharing with selfie search";
+const title = "EveBash | Event media platform for photographers and organizers";
 const description =
-    "Create an event, share one link or QR code, and every guest finds their photos with a selfie. Free for your first event.";
+    "Upload an event's photos and videos, organize them into albums, and share one gallery where clients and guests view, find and download their memories.";
 
 export const metadata: Metadata = {
     title: { absolute: title },

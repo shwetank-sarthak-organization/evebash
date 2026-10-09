@@ -4,8 +4,12 @@ import { SectionHeader } from "./HomeUI";
 
 const faqs = [
     {
-        question: "Do guests need to install an app?",
-        answer: "No. Guests open the gallery link, or scan the QR code, in their phone's browser.",
+        question: "What is EveBash?",
+        answer: "An event media platform. Photographers and event organizers upload an event's photos and videos, organize them into albums, and share one gallery where clients and guests view, find and download their memories.",
+    },
+    {
+        question: "Is there a mobile app?",
+        answer: "Yes. EveBash works on the web and in the EveBash app for Android and iOS. Guests can open a gallery link or scan its QR code in their browser, or use the app.",
     },
     {
         question: "How does Find You work?",

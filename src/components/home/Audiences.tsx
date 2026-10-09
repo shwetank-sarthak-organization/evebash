@@ -1,4 +1,4 @@
-import { Camera, Check, Users } from "lucide-react";
+import { Camera, CalendarCheck, Check, Users } from "lucide-react";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { displayFont, PrimaryButton, SecondaryButton, SectionHeader } from "./HomeUI";
 import { cn } from "@/lib/utils";
@@ -6,25 +6,36 @@ import { cn } from "@/lib/utils";
 const audiences = [
     {
         icon: Camera,
-        label: "For photographers and studios",
-        title: "Deliver galleries your clients will share",
+        label: "For photographers",
+        title: "Deliver galleries your clients will love",
         points: [
-            "Run many events from one account, up to 1,000 on larger plans",
-            "Choose a gallery design for each event",
-            "Guests find their own photos, so fewer \"please send me mine\" messages",
+            "Upload photos and videos straight after the shoot",
+            "Organize every event into albums",
+            "Plans from 10 GB to 1 TB as your work grows",
         ],
         cta: { href: "/pricing", label: "Compare plans", primary: false },
     },
     {
-        icon: Users,
-        label: "For couples and hosts",
+        icon: CalendarCheck,
+        label: "For event organizers",
         title: "Every photo from your event, in one place",
         points: [
-            "Free for your first event",
-            "One link for all your guests",
-            "Everyone downloads their own photos",
+            "One gallery for the whole event",
+            "Share it with every guest by link or QR code",
+            "Choose who can view each event",
         ],
-        cta: { href: "/login?mode=signup", label: "Start free", primary: true },
+        cta: { href: "/login?mode=signup", label: "Create an event", primary: true },
+    },
+    {
+        icon: Users,
+        label: "For guests and clients",
+        title: "Your memories, ready when you are",
+        points: [
+            "Open the gallery on the web or in the app",
+            "Find your own photos with a selfie",
+            "Share and download in full quality",
+        ],
+        cta: { href: "/sample-galleries", label: "See a sample gallery", primary: false },
     },
 ];
 
@@ -33,10 +44,10 @@ export default function Audiences() {
         <section className="bg-[var(--site-bg)] py-16 md:py-24">
             <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
                 <ScrollReveal>
-                    <SectionHeader eyebrow="Who it's for" title="Built for the people behind the camera, and the people in front of it" />
+                    <SectionHeader eyebrow="Who it's for" title="One platform for everyone at the event" />
                 </ScrollReveal>
 
-                <div className="mt-12 grid gap-6 lg:grid-cols-2">
+                <div className="mt-12 grid gap-6 lg:grid-cols-3">
                     {audiences.map(({ icon: Icon, label, title, points, cta }, index) => {
                         const Button = cta.primary ? PrimaryButton : SecondaryButton;
                         return (

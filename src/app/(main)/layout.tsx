@@ -11,10 +11,10 @@ import MainWrapper from "@/components/MainWrapper";
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.evebash.com"),
   title: {
-    default: "EveBash | Event photo sharing with selfie search",
+    default: "EveBash | Event media platform for photographers and organizers",
     template: "%s · EveBash",
   },
-  description: "Create an event, share one link or QR code, and every guest finds their photos with a selfie.",
+  description: "Upload, organize and share every event's photos and videos with your clients and guests.",
   applicationName: "EveBash",
   openGraph: {
     type: "website",

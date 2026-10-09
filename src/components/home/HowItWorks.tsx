@@ -1,4 +1,4 @@
-import { CalendarPlus, QrCode, ScanFace } from "lucide-react";
+import { CalendarPlus, FolderUp, QrCode, ScanFace } from "lucide-react";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { SectionHeader } from "./HomeUI";
 
@@ -6,17 +6,22 @@ const steps = [
     {
         icon: CalendarPlus,
         title: "Create your event",
-        text: "Sign up free, name your event and upload your photos and videos.",
+        text: "Sign up free, name your event and pick a gallery design.",
+    },
+    {
+        icon: FolderUp,
+        title: "Upload and organize",
+        text: "Add photos and videos, and sort them into albums like Haldi, Mehendi and Reception.",
     },
     {
         icon: QrCode,
-        title: "Share one link or QR code",
+        title: "Share by link or QR code",
         text: "Send the link on WhatsApp, or print the QR code for tables and the entrance.",
     },
     {
         icon: ScanFace,
-        title: "Guests find their photos",
-        text: "Each guest takes a selfie and sees the photos they appear in, ready to save.",
+        title: "Guests view and download",
+        text: "Clients and guests browse the gallery, find their own photos with a selfie, and save them.",
     },
 ];
 
@@ -25,10 +30,10 @@ export default function HowItWorks() {
         <section className="bg-[var(--site-surface)] py-16 md:py-24">
             <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
                 <ScrollReveal>
-                    <SectionHeader eyebrow="How it works" title="Three steps from camera to guests" />
+                    <SectionHeader eyebrow="How it works" title="From upload to every guest, in four steps" />
                 </ScrollReveal>
 
-                <ol className="mt-12 grid gap-6 md:grid-cols-3">
+                <ol className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                     {steps.map(({ icon: Icon, title, text }, index) => (
                         <li key={title}>
                             <ScrollReveal delay={index * 0.1} className="h-full">

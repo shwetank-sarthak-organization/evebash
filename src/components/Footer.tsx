@@ -49,8 +49,8 @@ export default function Footer() {
                             </h3>
                         </Link>
                         <p className="text-[var(--site-muted)] leading-relaxed font-light text-base">
-                            Event photo galleries where every guest finds their own photos with a selfie.
-                            Share one link or QR code, and everyone gets their memories.
+                            An event media platform for photographers and event organizers.
+                            Upload, organize and share every event&apos;s photos and videos with your clients and guests.
                         </p>
                     </div>
 

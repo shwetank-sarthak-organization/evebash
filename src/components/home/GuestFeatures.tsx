@@ -1,14 +1,17 @@
-import { Download, Heart, Images, LayoutTemplate, QrCode, Smartphone } from "lucide-react";
+import { Download, FolderTree, Heart, Images, LayoutTemplate, LockKeyhole, QrCode, ScanFace, Smartphone } from "lucide-react";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { SectionHeader } from "./HomeUI";
 
 const features = [
     { icon: Images, title: "Photos and videos", text: "Upload both. Videos play right inside the gallery." },
-    { icon: Download, title: "Download all", text: "Guests save a single photo or the whole gallery in one go." },
-    { icon: Heart, title: "Favourites, likes and comments", text: "Guests mark the shots they love and leave a note." },
-    { icon: Smartphone, title: "No app for guests", text: "The gallery opens in any phone or computer browser." },
+    { icon: FolderTree, title: "Albums and categories", text: "Organize each event into albums, so every ceremony has its own place." },
+    { icon: LockKeyhole, title: "Access control", text: "Decide who sees each event: an open gallery, or one only invited guests can view." },
     { icon: QrCode, title: "Link or QR code", text: "Share it in a message, or print it for the venue." },
+    { icon: ScanFace, title: "Find You", text: "Guests upload a selfie and see the photos they appear in." },
+    { icon: Download, title: "Download all", text: "Clients and guests save a single photo or the whole gallery in one go." },
+    { icon: Heart, title: "Favourites, likes and comments", text: "Guests mark the shots they love and leave a note." },
     { icon: LayoutTemplate, title: "Gallery designs", text: "Pick a template that matches the feel of your event." },
+    { icon: Smartphone, title: "Web, Android and iOS", text: "Open galleries in any browser, or in the EveBash app on Android and iOS." },
 ];
 
 export default function GuestFeatures() {
@@ -17,8 +20,9 @@ export default function GuestFeatures() {
             <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
                 <ScrollReveal>
                     <SectionHeader
-                        eyebrow="The gallery"
-                        title="Everything guests need, nothing they have to learn"
+                        eyebrow="The platform"
+                        title="Everything an event's photos and videos need"
+                        description="Upload, organize, share and download, all in one place."
                     />
                 </ScrollReveal>
 

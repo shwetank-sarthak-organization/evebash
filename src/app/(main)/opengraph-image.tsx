@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "EveBash: every guest finds their photos with a selfie";
+export const alt = "EveBash: deliver every event's memories, beautifully organized";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -23,11 +23,11 @@ export default function OpengraphImage() {
                     EveBash
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", marginTop: 28, fontSize: 76, fontWeight: 700, lineHeight: 1.1 }}>
-                    <span>Every guest finds their photos.</span>
-                    <span style={{ color: "#CA9C68" }}>Just a selfie.</span>
+                    <span>Deliver every event&apos;s memories,</span>
+                    <span style={{ color: "#CA9C68" }}>beautifully organized.</span>
                 </div>
                 <div style={{ display: "flex", marginTop: 36, fontSize: 30, color: "#E2CFB7" }}>
-                    Share one link or QR code · Free for your first event
+                    Upload · Organize · Share · Download
                 </div>
             </div>
         ),

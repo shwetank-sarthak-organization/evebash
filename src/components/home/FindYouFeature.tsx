@@ -10,7 +10,7 @@ const matches = [
 ];
 
 const points = [
-    "Works in the phone's browser, with nothing to install",
+    "Works on the web and in the EveBash app for Android and iOS",
     "Guests can still browse the full gallery",
     "Save one photo or download them all",
 ];
