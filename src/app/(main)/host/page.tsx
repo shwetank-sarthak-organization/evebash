@@ -1,6 +1,7 @@
 "use client";
 
 import { VideoThumbnailPicker, VideoThumbnailActions } from "@/components/VideoThumbnailPicker";
+import { MoveToGalleryDialog } from "@/components/MoveToGalleryDialog";
 import React, { useState, useEffect, Suspense, useTransition, useRef, useCallback } from "react";
 import LoadingScreen from "@/components/LoadingScreen";
 import { useAuth } from "@/context/AuthContext";
@@ -52,7 +53,10 @@ import {
     Briefcase,
     GraduationCap,
     Download,
-    Layers3
+    Layers3,
+    FolderInput,
+    CheckSquare,
+    Square
 } from "lucide-react";
 import { cn, formatEventDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -89,6 +93,7 @@ import {
 	    getFavouritePhotosForEvents,
 	    generateEventJoinId,
 	    setEventSampleGalleryStatus,
+	    movePhotosToGallery,
 	} from "@/lib/database";
 import { uploadEventImage, validateVideoFile } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
@@ -709,6 +714,9 @@ function DashboardContent() {
     const [thumbnailVideo, setThumbnailVideo] = useState<Photo | null>(null);
     const [galleryViewMode, setGalleryViewMode] = useState<"grid" | "list">("grid");
     const [galleryMediaTab, setGalleryMediaTab] = useState<"photos" | "videos">("photos");
+    const [isSelectingMedia, setIsSelectingMedia] = useState(false);
+    const [selectedMediaIds, setSelectedMediaIds] = useState<Set<string>>(new Set());
+    const [mediaToMove, setMediaToMove] = useState<Photo[] | null>(null);
     const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
     const [sourceGalleryFilter, setSourceGalleryFilter] = useState("all");
     const [isDraggingPhotos, setIsDraggingPhotos] = useState(false);
@@ -866,6 +874,10 @@ function DashboardContent() {
     const [eventName, setEventName] = useState("");
     const [eventDate, setEventDate] = useState(() => formatCreateEventDate(new Date()));
     const [selectedEventId, setSelectedEventId] = useState("");
+    useEffect(() => {
+        setIsSelectingMedia(false);
+        setSelectedMediaIds(new Set());
+    }, [selectedEventId, galleryMediaTab]);
     const [videoUploadPermission, setVideoUploadPermission] = useState({ eventId: '', userId: '', allowed: false });
     const canPostVideos = videoUploadPermission.eventId === selectedEventId && videoUploadPermission.userId === user?.uid && videoUploadPermission.allowed;
     useEffect(() => {
@@ -3267,6 +3279,42 @@ function DashboardContent() {
         }
     };
 
+    const toggleMediaSelection = (photoId: string) => {
+        setSelectedMediaIds(prev => {
+            const next = new Set(prev);
+            if (next.has(photoId)) next.delete(photoId); else next.add(photoId);
+            return next;
+        });
+    };
+
+    const exitMediaSelection = () => {
+        setIsSelectingMedia(false);
+        setSelectedMediaIds(new Set());
+    };
+
+    // Returns an error message for the dialog, or null when the move succeeded.
+    const handleMoveMedia = async (targetGalleryId: string): Promise<string | null> => {
+        if (!mediaToMove || mediaToMove.length === 0) return null;
+        const ids = mediaToMove.map(item => item.id);
+        const result = await movePhotosToGallery(ids, targetGalleryId);
+        if (result.error) return result.error;
+
+        const movedIds = new Set(ids);
+        const targetLabel = targetGalleryId === selectedMainEvent?.id
+            ? "Primary Gallery"
+            : eventDetailGalleries.find(gallery => gallery.id === targetGalleryId)?.title || "the selected gallery";
+        // The Primary Gallery view lists every gallery's media, so items stay and only change source there.
+        setCurrentEventPhotos(prev => isPrimaryGalleryView
+            ? prev.map(item => movedIds.has(item.id) ? { ...item, eventId: targetGalleryId } : item)
+            : prev.filter(item => !movedIds.has(item.id)));
+        setMediaToMove(null);
+        exitMediaSelection();
+        setStatus("success");
+        setMessage(`Moved ${ids.length === 1 ? "1 item" : `${ids.length} items`} to ${targetLabel}.`);
+        setTimeout(() => { setStatus("idle"); setMessage(""); }, 2500);
+        return null;
+    };
+
     const handleToggleEventFavourite = async (photoId: string) => {
         if (!selectedMainEventId || !user?.uid) return;
 
@@ -3375,6 +3423,10 @@ function DashboardContent() {
         ? sourceFilteredMediaItems.filter(photo => eventFavouritePhotoIds.has(photo.id))
         : sourceFilteredMediaItems;
     const activeFavouriteCount = selectedMediaItems.filter(photo => eventFavouritePhotoIds.has(photo.id)).length;
+    const moveTargetGalleries = [selectedMainEvent, ...eventDetailGalleries]
+        .filter((gallery): gallery is Event => !!gallery)
+        .map(gallery => ({ id: gallery.id, label: gallery.id === selectedMainEvent?.id ? "Primary Gallery" : gallery.title }));
+    const canMoveMedia = moveTargetGalleries.length > 1;
     const stripUrlQuery = (value?: string | null) => (value || "").split("?")[0];
     const createdEvents = userEvents.filter(evt => evt.createdBy && ownEventIdentifiers.has(evt.createdBy));
     const legacySharedEvents = userEvents.filter(evt => !evt.createdBy || !ownEventIdentifiers.has(evt.createdBy));
@@ -5230,6 +5282,59 @@ function DashboardContent() {
                                         </div>
                                     )}
 
+                                    {canMoveMedia && galleryViewMode === "grid" && activeGalleryItems.length > 0 && (
+                                        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-700 bg-slate-900/45 px-4 py-3">
+                                            {isSelectingMedia ? (
+                                                <>
+                                                    <span className="text-sm font-bold text-slate-200" aria-live="polite">
+                                                        {selectedMediaIds.size} selected
+                                                    </span>
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSelectedMediaIds(
+                                                                selectedMediaIds.size === activeGalleryItems.length
+                                                                    ? new Set()
+                                                                    : new Set(activeGalleryItems.map(item => item.id))
+                                                            )}
+                                                            className="rounded-full border border-slate-600 px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-200 hover:border-slate-400"
+                                                        >
+                                                            {selectedMediaIds.size === activeGalleryItems.length ? "Clear" : "Select all"}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={selectedMediaIds.size === 0}
+                                                            onClick={() => setMediaToMove(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
+                                                            className="flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-950 disabled:opacity-40"
+                                                        >
+                                                            <FolderInput className="h-4 w-4" />
+                                                            <span>Move to…</span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={exitMediaSelection}
+                                                            className="rounded-full px-3 py-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span className="text-sm font-semibold text-slate-400">Uploaded to the wrong gallery? Move items within this event.</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setIsSelectingMedia(true)}
+                                                        className="flex items-center gap-2 rounded-full border border-[#CA9C68]/40 bg-[#CA9C68]/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-[#CA9C68] hover:bg-[#CA9C68]/20"
+                                                    >
+                                                        <CheckSquare className="h-4 w-4" />
+                                                        <span>Select</span>
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+
                                     {galleryViewMode === "grid" ? (
                                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                                             {/* Existing Photos Grid */}
@@ -5243,8 +5348,23 @@ function DashboardContent() {
                                                     <motion.div
                                                         key={photo.id}
                                                         layout
-                                                        className="group relative aspect-square bg-stone-100 shadow-sm border border-slate-700 cursor-zoom-in"
+                                                        className={cn(
+                                                            "group relative aspect-square bg-stone-100 shadow-sm border border-slate-700",
+                                                            isSelectingMedia ? "cursor-pointer" : "cursor-zoom-in",
+                                                            isSelectingMedia && selectedMediaIds.has(photo.id) && "ring-4 ring-[#CA9C68] ring-inset"
+                                                        )}
+                                                        role={isSelectingMedia ? "checkbox" : undefined}
+                                                        aria-checked={isSelectingMedia ? selectedMediaIds.has(photo.id) : undefined}
+                                                        aria-label={isSelectingMedia ? `Select ${isVideo ? "video" : "photo"} ${index + 1}` : undefined}
+                                                        tabIndex={isSelectingMedia ? 0 : undefined}
+                                                        onKeyDown={isSelectingMedia ? (e) => {
+                                                            if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggleMediaSelection(photo.id); }
+                                                        } : undefined}
                                                         onClick={() => {
+                                                            if (isSelectingMedia) {
+                                                                toggleMediaSelection(photo.id);
+                                                                return;
+                                                            }
                                                             setViewingPhoto({
                                                                 id: photo.id,
                                                                 src: photo.url,
@@ -5275,6 +5395,11 @@ function DashboardContent() {
                                                             )}
                                                         </div>
 
+                                                        {isSelectingMedia ? (
+                                                            <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-lg bg-slate-950/80 p-1.5 text-[#CA9C68] shadow-lg">
+                                                                {selectedMediaIds.has(photo.id) ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5 text-white" />}
+                                                            </div>
+                                                        ) : (<>
                                                         <div className={cn("absolute top-3 z-10", isVideo ? "right-3" : "left-3")}>
                                                             <Tooltip text={isVideo ? "Video actions" : "Photo actions"}>
                                                                 <button
@@ -5348,6 +5473,7 @@ function DashboardContent() {
                                                                 </button>
                                                             </div>
                                                         )}
+                                                        </>)}
 
                                                     </motion.div>
                                                 );
@@ -6757,7 +6883,16 @@ function DashboardContent() {
                     }}
                 />
 
-                {videoActionItem && <VideoThumbnailActions ready={videoActionItem.status === "processed"} onClose={() => setVideoActionItem(null)} onChoose={() => { setThumbnailVideo(videoActionItem); setVideoActionItem(null); }} onDelete={() => { void handleDeletePhoto(videoActionItem.id); setVideoActionItem(null); }} />}
+                {videoActionItem && <VideoThumbnailActions ready={videoActionItem.status === "processed"} onClose={() => setVideoActionItem(null)} onChoose={() => { setThumbnailVideo(videoActionItem); setVideoActionItem(null); }} onDelete={() => { void handleDeletePhoto(videoActionItem.id); setVideoActionItem(null); }} onMove={canMoveMedia ? () => { setMediaToMove([videoActionItem]); setVideoActionItem(null); } : undefined} />}
+                {mediaToMove && (
+                    <MoveToGalleryDialog
+                        itemCount={mediaToMove.length}
+                        galleries={moveTargetGalleries}
+                        currentGalleryIds={Array.from(new Set(mediaToMove.map(item => item.eventId)))}
+                        onClose={() => setMediaToMove(null)}
+                        onMove={handleMoveMedia}
+                    />
+                )}
                 {thumbnailVideo && <VideoThumbnailPicker video={thumbnailVideo} onClose={() => setThumbnailVideo(null)} onSaved={(id, thumbnailUrl) => setCurrentEventPhotos(previous => previous.map(photo => photo.id === id ? { ...photo, thumbnailUrl } : photo))} />}
 
                 <AnimatePresence>
@@ -6804,6 +6939,18 @@ function DashboardContent() {
                                         >
                                             <Star className="h-5 w-5 shrink-0" />
                                             <span>Make Event Thumbnail</span>
+                                        </button>
+                                    )}
+                                    {canMoveMedia && (
+                                        <button
+                                            onClick={() => {
+                                                setMediaToMove([photoActionItem]);
+                                                setPhotoActionItem(null);
+                                            }}
+                                            className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-slate-600 px-5 py-4 text-left font-black text-slate-200 transition-transform active:scale-[0.98] hover:border-slate-400"
+                                        >
+                                            <FolderInput className="h-5 w-5 shrink-0" />
+                                            <span>Move to Another Gallery</span>
                                         </button>
                                     )}
                                 </div>

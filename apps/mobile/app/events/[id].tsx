@@ -1189,6 +1189,14 @@ export default function EventDetailScreen() {
   const [viewerVisible, setViewerVisible] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [photoActionItem, setPhotoActionItem] = useState<any | null>(null);
+  const [mediaToMove, setMediaToMove] = useState<any[] | null>(null);
+  const [isMovingMedia, setIsMovingMedia] = useState(false);
+  const [isSelectingMedia, setIsSelectingMedia] = useState(false);
+  const [selectedMediaIds, setSelectedMediaIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    setIsSelectingMedia(false);
+    setSelectedMediaIds(new Set());
+  }, [selectedAdminGallery, galleryMediaTab]);
 
   const viewerIdentity = React.useMemo(() => user
     ? { id: user.uid, name: user.name || user.email?.split('@')[0] || 'User' }
@@ -1836,6 +1844,46 @@ export default function EventDetailScreen() {
       appAlert("Error", `Failed to update ${label.toLowerCase()} thumbnail.`);
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const toggleMediaSelection = (mediaId: string) => {
+    setSelectedMediaIds(prev => {
+      const next = new Set(prev);
+      if (next.has(mediaId)) next.delete(mediaId); else next.add(mediaId);
+      return next;
+    });
+  };
+
+  const exitMediaSelection = () => {
+    setIsSelectingMedia(false);
+    setSelectedMediaIds(new Set());
+  };
+
+  const handleMoveMediaToGallery = async (targetGalleryId: string) => {
+    if (!mediaToMove || mediaToMove.length === 0 || isMovingMedia) return;
+    setIsMovingMedia(true);
+    try {
+      const { movePhotosToGallery } = await import('@/lib/database');
+      const ids = mediaToMove.map(item => item.id);
+      const result = await movePhotosToGallery(ids, targetGalleryId);
+      if (result.error) {
+        appAlert('Could not move', result.error);
+        return;
+      }
+      const movedIds = new Set(ids);
+      const targetLabel = targetGalleryId === event?.id
+        ? 'Primary Gallery'
+        : subEvents.find(gallery => gallery.id === targetGalleryId)?.title || 'the selected gallery';
+      // The Primary Gallery view lists every gallery's media, so items stay and only change source there.
+      setPhotos(prev => isPrimaryGalleryView
+        ? prev.map(item => movedIds.has(item.id) ? { ...item, eventId: targetGalleryId } : item)
+        : prev.filter(item => !movedIds.has(item.id)));
+      setMediaToMove(null);
+      exitMediaSelection();
+      showToast(`Moved ${ids.length === 1 ? '1 item' : `${ids.length} items`} to ${targetLabel}.`);
+    } finally {
+      setIsMovingMedia(false);
     }
   };
 
@@ -5173,6 +5221,57 @@ export default function EventDetailScreen() {
                         )}
                       </View>
 
+                      {subEvents.length > 0 && !loadingPhotos && activeGalleryItems.length > 0 && (
+                        <View style={{ marginBottom: 12, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(27,33,31,0.72)', paddingHorizontal: 12, paddingVertical: 10 }}>
+                          {isSelectingMedia ? (
+                            <>
+                              <Text accessibilityLiveRegion="polite" style={{ color: '#f8fafc', fontSize: 13, fontFamily: Fonts.inter.bold }}>
+                                {selectedMediaIds.size} selected
+                              </Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <TouchableOpacity
+                                  accessibilityRole="button"
+                                  onPress={() => setSelectedMediaIds(
+                                    selectedMediaIds.size === activeGalleryItems.length
+                                      ? new Set()
+                                      : new Set(activeGalleryItems.map(item => item.id))
+                                  )}
+                                  style={{ paddingHorizontal: 10, paddingVertical: 8 }}
+                                >
+                                  <Text style={{ color: '#cbd5e1', fontSize: 12, fontFamily: Fonts.inter.bold }}>
+                                    {selectedMediaIds.size === activeGalleryItems.length ? 'Clear' : 'All'}
+                                  </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  accessibilityRole="button"
+                                  accessibilityState={{ disabled: selectedMediaIds.size === 0 }}
+                                  disabled={selectedMediaIds.size === 0}
+                                  onPress={() => setMediaToMove(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
+                                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 16, backgroundColor: MidnightColors.gold, paddingHorizontal: 12, paddingVertical: 8, opacity: selectedMediaIds.size === 0 ? 0.4 : 1 }}
+                                >
+                                  <IconSymbol name={"folder" as any} size={13} color="#13191F" />
+                                  <Text style={{ color: '#13191F', fontSize: 12, fontFamily: Fonts.inter.bold }}>Move to…</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity accessibilityRole="button" onPress={exitMediaSelection} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
+                                  <Text style={{ color: '#94a3b8', fontSize: 12, fontFamily: Fonts.inter.bold }}>Cancel</Text>
+                                </TouchableOpacity>
+                              </View>
+                            </>
+                          ) : (
+                            <>
+                              <Text style={{ flex: 1, color: '#94a3b8', fontSize: 12 }}>Uploaded to the wrong gallery? Move items within this event.</Text>
+                              <TouchableOpacity
+                                accessibilityRole="button"
+                                onPress={() => setIsSelectingMedia(true)}
+                                style={{ borderRadius: 16, borderWidth: 1, borderColor: MidnightColors.gold, backgroundColor: 'rgba(204,164,59,0.12)', paddingHorizontal: 12, paddingVertical: 6 }}
+                              >
+                                <Text style={{ color: MidnightColors.gold, fontSize: 12, fontWeight: '600' }}>Select</Text>
+                              </TouchableOpacity>
+                            </>
+                          )}
+                        </View>
+                      )}
+
                       {/* Media Grid */}
                       {loadingPhotos ? (
                         <ActivityIndicator color={MidnightColors.gold} style={{ marginTop: 24 }} />
@@ -5199,8 +5298,22 @@ export default function EventDetailScreen() {
                                 accent={MidnightColors.gold}
                                 compact
                                 blurred={shouldBlurVideo}
-                                onOpen={() => openViewer(idx)}
+                                onOpen={() => isSelectingMedia ? toggleMediaSelection(video.id) : openViewer(idx)}
                               />
+                              {isSelectingMedia && (
+                                <TouchableOpacity
+                                  accessibilityRole="checkbox"
+                                  accessibilityState={{ checked: selectedMediaIds.has(video.id) }}
+                                  accessibilityLabel="Select for moving"
+                                  onPress={() => toggleMediaSelection(video.id)}
+                                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 10, borderWidth: selectedMediaIds.has(video.id) ? 3 : 0, borderColor: MidnightColors.gold, backgroundColor: selectedMediaIds.has(video.id) ? 'rgba(202,156,104,0.18)' : 'rgba(0,0,0,0.15)' }}
+                                >
+                                  <View style={{ position: 'absolute', top: 6, left: 6, width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: selectedMediaIds.has(video.id) ? MidnightColors.gold : '#fff', backgroundColor: selectedMediaIds.has(video.id) ? MidnightColors.gold : 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}>
+                                    {selectedMediaIds.has(video.id) && <IconSymbol name={"checkmark" as any} size={13} color="#13191F" />}
+                                  </View>
+                                </TouchableOpacity>
+                              )}
+                              {!isSelectingMedia && (<>
                               <TouchableOpacity accessibilityRole="button" accessibilityLabel={isFavouriteVideo ? "Remove from favourites" : "Add to favourites"}
                                 style={{
                                   position: 'absolute',
@@ -5294,6 +5407,7 @@ export default function EventDetailScreen() {
                                   </TouchableOpacity>
                                 </View>
                               )}
+                              </>)}
                               </View>
                           );
                           })}
@@ -5309,7 +5423,7 @@ export default function EventDetailScreen() {
                             columns={3}
                             columnGap={8}
                             rowGap={8}
-                            sortEnabled={!isFavouriteFilterActive}
+                            sortEnabled={!isFavouriteFilterActive && !isSelectingMedia}
                             onDragEnd={({ data: newData }: { data: any[] }) => handleReorderPhotos(newData)}
 	                            renderItem={({ item }: { item: any }) => {
 	                              const shouldBlurPhoto = shouldBlurMediaForPlan(item);
@@ -5322,6 +5436,10 @@ export default function EventDetailScreen() {
 	                                <TouchableOpacity
                                   activeOpacity={0.9}
                                   onPress={() => {
+                                    if (isSelectingMedia) {
+                                      toggleMediaSelection(item.id);
+                                      return;
+                                    }
                                     const photoIndex = filteredPhotoItems.findIndex(photo => photo.id === item.id);
                                     openViewer(photoIndex >= 0 ? photoIndex : 0);
                                   }}
@@ -5341,6 +5459,20 @@ export default function EventDetailScreen() {
                                   />
                                 </TouchableOpacity>
                                 {shouldBlurPhoto && <ExpiredMediaThumbnailNotice />}
+                                {isSelectingMedia && (
+                                <TouchableOpacity
+                                  accessibilityRole="checkbox"
+                                  accessibilityState={{ checked: selectedMediaIds.has(item.id) }}
+                                  accessibilityLabel="Select for moving"
+                                  onPress={() => toggleMediaSelection(item.id)}
+                                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 10, borderWidth: selectedMediaIds.has(item.id) ? 3 : 0, borderColor: MidnightColors.gold, backgroundColor: selectedMediaIds.has(item.id) ? 'rgba(202,156,104,0.18)' : 'rgba(0,0,0,0.15)' }}
+                                >
+                                  <View style={{ position: 'absolute', top: 6, left: 6, width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: selectedMediaIds.has(item.id) ? MidnightColors.gold : '#fff', backgroundColor: selectedMediaIds.has(item.id) ? MidnightColors.gold : 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}>
+                                    {selectedMediaIds.has(item.id) && <IconSymbol name={"checkmark" as any} size={13} color="#13191F" />}
+                                  </View>
+                                </TouchableOpacity>
+                              )}
+                                {!isSelectingMedia && (<>
                                 <TouchableOpacity
                                   style={{
                                     position: 'absolute',
@@ -5453,6 +5585,7 @@ export default function EventDetailScreen() {
                                     </TouchableOpacity>
                                   </View>
                                 )}
+                                </>)}
 	                              </View>
 	                            );
 	                            }}
@@ -5563,6 +5696,7 @@ export default function EventDetailScreen() {
                       <Text accessibilityRole="header" style={{ color: '#fff', fontSize: 22, fontWeight: '700' }}>Video actions</Text>
                       <TouchableOpacity accessibilityRole="button" disabled={videoActionItem?.status !== 'processed'} onPress={() => { setThumbnailVideo(videoActionItem); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, backgroundColor: '#CA9C68', opacity: videoActionItem?.status === 'processed' ? 1 : 0.4 }}><Text style={{ color: '#0f172a', fontWeight: '700' }}>Change thumbnail</Text></TouchableOpacity>
                       {videoActionItem?.status !== 'processed' && <Text style={{ color: '#cbd5e1' }}>Available after video processing finishes.</Text>}
+                      {subEvents.length > 0 && <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) setMediaToMove([videoActionItem]); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(148,163,184,0.35)' }}><Text style={{ color: '#E2E8F0', fontWeight: '700' }}>Move to another gallery</Text></TouchableOpacity>}
                       <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) handleDeleteGalleryPhoto(videoActionItem.id); setVideoActionItem(null); }} style={{ padding: 16 }}><Text style={{ color: '#fca5a5' }}>Delete video</Text></TouchableOpacity>
                       <TouchableOpacity accessibilityRole="button" onPress={() => setVideoActionItem(null)} style={{ padding: 16 }}><Text style={{ color: '#fff' }}>Cancel</Text></TouchableOpacity>
                     </View>
@@ -7495,6 +7629,99 @@ export default function EventDetailScreen() {
                 Make Event Thumbnail
               </Text>
             </TouchableOpacity>
+            {subEvents.length > 0 && (
+              <TouchableOpacity
+                style={{
+                  width: '100%',
+                  minHeight: 56,
+                  borderRadius: 18,
+                  borderWidth: 1,
+                  borderColor: 'rgba(148, 163, 184, 0.35)',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'flex-start',
+                  paddingHorizontal: 18,
+                  gap: 12,
+                }}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                disabled={updating || !photoActionItem || !event}
+                onPress={() => {
+                  if (!photoActionItem) return;
+                  setMediaToMove([photoActionItem]);
+                  setPhotoActionItem(null);
+                }}
+              >
+                <IconSymbol name={"folder" as any} size={16} color="#E2E8F0" />
+                <Text style={{ flex: 1, color: '#E2E8F0', fontFamily: Fonts.outfit.bold, fontSize: 15 }} numberOfLines={2}>
+                  Move to Another Gallery
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={!!mediaToMove}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { if (!isMovingMedia) setMediaToMove(null); }}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => { if (!isMovingMedia) setMediaToMove(null); }} />
+          <View style={[styles.modalContent, { gap: 10 }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+              <View style={{ flex: 1, marginRight: 16 }}>
+                <Text style={{ fontSize: 22, color: '#fff', fontFamily: Fonts.outfit.bold }}>
+                  Move {mediaToMove && mediaToMove.length > 1 ? `${mediaToMove.length} items` : '1 item'}
+                </Text>
+                <Text style={{ color: MidnightColors.slate400, fontSize: 13, fontFamily: Fonts.inter.regular, marginTop: 4 }}>
+                  Choose a gallery in this event. Likes and comments move too.
+                </Text>
+              </View>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" disabled={isMovingMedia} onPress={() => setMediaToMove(null)} style={{ marginTop: 2 }}>
+                <IconSymbol name={"xmark.circle.fill" as any} size={24} color={MidnightColors.slate400} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ width: '100%', maxHeight: 320 }} contentContainerStyle={{ gap: 8 }}>
+              {[event, ...subEvents]
+                .filter((gallery): gallery is DatabaseEvent => !!gallery)
+                .map(gallery => {
+                  const isCurrent = !!mediaToMove && mediaToMove.length > 0 && mediaToMove.every(item =>
+                    item.eventId === gallery.id || (!!gallery.legacyId && item.eventId === gallery.legacyId));
+                  return (
+                    <TouchableOpacity
+                      key={gallery.id}
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: isCurrent || isMovingMedia }}
+                      disabled={isCurrent || isMovingMedia}
+                      onPress={() => handleMoveMediaToGallery(gallery.id)}
+                      style={{
+                        minHeight: 52,
+                        borderRadius: 14,
+                        borderWidth: 1,
+                        borderColor: 'rgba(202, 156, 104, 0.28)',
+                        paddingHorizontal: 16,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        opacity: isCurrent ? 0.45 : 1,
+                      }}
+                    >
+                      <Text style={{ flex: 1, color: '#fff', fontFamily: Fonts.inter.semiBold, fontSize: 15 }} numberOfLines={1}>
+                        {gallery.id === event?.id ? 'Primary Gallery' : gallery.title}
+                      </Text>
+                      {isCurrent ? (
+                        <Text style={{ color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.inter.regular }}>Current</Text>
+                      ) : isMovingMedia ? null : (
+                        <IconSymbol name={"checkmark" as any} size={16} color={MidnightColors.gold} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+            </ScrollView>
+            {isMovingMedia && <ActivityIndicator color={MidnightColors.gold} />}
           </View>
         </View>
       </Modal>

@@ -2452,6 +2452,23 @@ export async function updatePhotosOrder(orderedIds: string[]): Promise<boolean> 
     }
 }
 
+/**
+ * Moves photos/videos to another gallery of the same event. Likes, comments and
+ * Primary Gallery favourites stay attached because they reference the photo id.
+ */
+export async function movePhotosToGallery(photoIds: string[], targetEventId: string): Promise<{ moved: number; error?: string }> {
+    if (photoIds.length === 0 || !targetEventId) return { moved: 0 };
+    const { data, error } = await supabase.rpc('move_photos_to_gallery', {
+        p_photo_ids: photoIds,
+        p_target_event_id: targetEventId,
+    });
+    if (error) {
+        console.error("Error moving media:", formatSupabaseError(error));
+        return { moved: 0, error: error.message || "Could not move media." };
+    }
+    return { moved: typeof data === "number" ? data : 0 };
+}
+
 export async function updateSubEventsOrder(orderedIds: string[]): Promise<boolean> {
     try {
         await Promise.all(
