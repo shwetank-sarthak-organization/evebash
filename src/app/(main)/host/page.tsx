@@ -953,33 +953,6 @@ function DashboardContent() {
     const [renamingEvent, setRenamingEvent] = useState<Event | null>(null);
     const [editDetailsMode, setEditDetailsMode] = useState<"title" | "date">("title");
     const [shareModalEvent, setShareModalEvent] = useState<Event | null>(null);
-    const [visibilityAdminEventId, setVisibilityAdminEventId] = useState('');
-    useEffect(() => {
-        let active = true;
-        setVisibilityAdminEventId('');
-        if (!shareModalEvent || shareModalEvent.parentId) return;
-        const eventId = shareModalEvent.id;
-        void Promise.resolve(supabase.rpc('can_manage_event_visibility', { p_event_id: eventId })).then(({ data, error }) => {
-            if (active && !error && data === true) setVisibilityAdminEventId(eventId);
-        }).catch(() => {});
-        return () => { active = false; };
-    }, [shareModalEvent?.id, shareModalEvent?.parentId, user?.uid]);
-    const [savingVisibility, setSavingVisibility] = useState(false);
-    const [visibilityError, setVisibilityError] = useState("");
-    const changeEventVisibility = async (isPublic: boolean) => {
-        if (!shareModalEvent || savingVisibility) return;
-        if (isPublic && !window.confirm("Anyone with the link will be able to view this event and its sub-galleries without approval. Make public?")) return;
-        setSavingVisibility(true); setVisibilityError("");
-        try {
-            const { error } = await supabase.rpc("set_event_public_viewing", { event_id: shareModalEvent.id, public_viewing: isPublic });
-            if (error) throw error;
-            setShareModalEvent(previous => previous ? { ...previous, isPublic } : previous);
-            setUserEvents(previous => previous.map(item => item.id === shareModalEvent.id ? { ...item, isPublic } : item));
-            setSharedEvents(previous => previous.map(item => item.id === shareModalEvent.id ? { ...item, isPublic } : item));
-        } catch (error: any) {
-            setVisibilityError(error.message || "Unable to change event visibility");
-        } finally { setSavingVisibility(false); }
-    };
 
     const [showPlanDetailsModal, setShowPlanDetailsModal] = useState(false);
     const [newTitle, setNewTitle] = useState("");
@@ -988,6 +961,40 @@ function DashboardContent() {
     const [showDeleteSuccessType, setShowDeleteSuccessType] = useState<"event" | "gallery" | null>(null);
     const selectedMainEventId = selectedMainEvent?.id;
     const selectedMainEventLegacyId = selectedMainEvent?.legacyId;
+    // Public/private switch on the Permissions tab: the owner, plus anyone can_manage_event_visibility allows
+    const [visibilityAdminEventId, setVisibilityAdminEventId] = useState('');
+    useEffect(() => {
+        let active = true;
+        setVisibilityAdminEventId('');
+        if (!selectedMainEventId || selectedMainEvent?.parentId) return;
+        void Promise.resolve(supabase.rpc('can_manage_event_visibility', { p_event_id: selectedMainEventId })).then(({ data, error }) => {
+            if (active && !error && data === true) setVisibilityAdminEventId(selectedMainEventId);
+        }).catch(() => {});
+        return () => { active = false; };
+    }, [selectedMainEventId, selectedMainEvent?.parentId, user?.uid]);
+    const [savingVisibility, setSavingVisibility] = useState(false);
+    const [visibilityError, setVisibilityError] = useState("");
+    const canChangeSelectedEventVisibility = !!selectedMainEvent && !selectedMainEvent.parentId && (
+        selectedMainEvent.createdBy === user?.uid ||
+        selectedMainEvent.createdBy === user?.email ||
+        visibilityAdminEventId === selectedMainEvent.id
+    );
+    const changeEventVisibility = async (isPublic: boolean) => {
+        if (!selectedMainEvent || savingVisibility) return;
+        if (isPublic && !window.confirm("Anyone with the link will be able to view this event and its sub-galleries without approval. Make public?")) return;
+        const eventId = selectedMainEvent.id;
+        setSavingVisibility(true); setVisibilityError("");
+        try {
+            const { error } = await supabase.rpc("set_event_public_viewing", { event_id: eventId, public_viewing: isPublic });
+            if (error) throw error;
+            setSelectedMainEvent(previous => previous?.id === eventId ? { ...previous, isPublic } : previous);
+            setShareModalEvent(previous => previous?.id === eventId ? { ...previous, isPublic } : previous);
+            setUserEvents(previous => previous.map(item => item.id === eventId ? { ...item, isPublic } : item));
+            setSharedEvents(previous => previous.map(item => item.id === eventId ? { ...item, isPublic } : item));
+        } catch (error: any) {
+            setVisibilityError(error.message || "Unable to change event visibility");
+        } finally { setSavingVisibility(false); }
+    };
 
     // Template Selection State
     const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -4521,9 +4528,24 @@ function DashboardContent() {
 
                                         {activeEventDetailTab === "permissions" && (
                                             <div className="space-y-5">
-                                                <div>
-                                                    <h4 className="text-xl font-black text-white">Permissions</h4>
-                                                    <p className="text-sm font-bold text-slate-400">Approve, deny, or remove guest access requests for this event.</p>
+                                                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                                    <div>
+                                                        <h4 className="text-xl font-black text-white">Permissions</h4>
+                                                        <p className="text-sm font-bold text-slate-400">Approve, deny, or remove guest access requests for this event.</p>
+                                                    </div>
+                                                    {canChangeSelectedEventVisibility && selectedMainEvent && (
+                                                        <div className="shrink-0 sm:max-w-[16rem] sm:text-right">
+                                                            <label className="flex items-center gap-3 text-sm font-bold text-white sm:justify-end">
+                                                                Event visibility
+                                                                <select aria-label="Event visibility" value={selectedMainEvent.isPublic ? "public" : "private"} disabled={savingVisibility} onChange={event => void changeEventVisibility(event.target.value === "public")} className="rounded-lg border border-slate-600 bg-slate-900 p-2 disabled:opacity-50">
+                                                                    <option value="private">Private</option><option value="public">Public</option>
+                                                                </select>
+                                                            </label>
+                                                            <p className="mt-2 text-xs text-slate-400">{selectedMainEvent.isPublic ? "Anyone with the link can view this event and its sub-galleries." : "Guests need your approval to view this event."}</p>
+                                                            {savingVisibility && <p role="status" className="mt-1 text-xs text-slate-300">Saving…</p>}
+                                                            {visibilityError && <p role="alert" className="mt-1 text-xs text-rose-300">{visibilityError}</p>}
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 {loadingEventDetail ? (
@@ -6571,19 +6593,6 @@ function DashboardContent() {
                                 className="relative w-full max-w-md rounded-[2rem] border border-[#CA9C68]/25 bg-slate-800 px-7 py-9 text-center shadow-2xl sm:px-10"
                             >
                                 <h3 className="text-3xl font-black tracking-tight text-white">Share Event</h3>
-                                {!shareModalEvent.parentId && (shareModalEvent.createdBy === user?.uid || shareModalEvent.createdBy === user?.email || visibilityAdminEventId === shareModalEvent.id) && (
-                                    <div className="mt-5 rounded-xl border border-slate-600 p-4 text-left">
-                                        <label className="flex items-center justify-between gap-3 text-sm font-bold text-white">
-                                            Event visibility
-                                            <select aria-label="Event visibility" value={shareModalEvent.isPublic ? "public" : "private"} disabled={savingVisibility} onChange={event => void changeEventVisibility(event.target.value === "public")} className="rounded-lg bg-slate-900 p-2 disabled:opacity-50">
-                                                <option value="private">Private</option><option value="public">Public</option>
-                                            </select>
-                                        </label>
-                                        <p className="mt-2 text-xs text-slate-300">{shareModalEvent.isPublic ? "Anyone with the link can view this event and its sub-galleries. Viewing does not grant upload or editing access." : "Guests need approval to view this event through its shared link."}</p>
-                                        {savingVisibility && <p role="status" className="mt-2 text-xs text-slate-300">Saving…</p>}
-                                        {visibilityError && <p role="alert" className="mt-2 text-xs text-rose-300">{visibilityError}</p>}
-                                    </div>
-                                )}
 
 
                                 <div className="mx-auto mt-7 w-full max-w-[250px] rounded-[2rem] bg-white p-6 shadow-xl">
