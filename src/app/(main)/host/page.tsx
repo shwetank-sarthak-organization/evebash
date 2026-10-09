@@ -4313,18 +4313,18 @@ function DashboardContent() {
                                     <div className="grid grid-cols-2 gap-3 rounded-[1.75rem] border border-white/10 bg-neutral-950/90 p-2 sm:grid-cols-4">
                                         <button
                                             onClick={() => setActiveEventDetailTab("galleries")}
-                                            className="group flex min-h-28 flex-col items-start justify-between rounded-[1.35rem] border border-white/10 bg-neutral-900 p-4 text-left transition-colors hover:bg-neutral-800"
+                                            className="group flex min-h-24 flex-col justify-between rounded-[1.35rem] border border-white/10 bg-neutral-900 p-4 text-left transition-colors hover:bg-neutral-800"
                                         >
-                                            <span className={cn(
-                                                "flex h-10 w-10 items-center justify-center rounded-2xl",
-                                                activeEventDetailTab === "galleries" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
-                                            )}>
-                                                <GalleriesIcon className="h-5 w-5" />
-                                            </span>
-                                            <span>
-                                                <span className="block text-base font-black text-white">Galleries</span>
-                                                <span className="mt-1 block text-xs font-bold text-slate-400">Photos and albums</span>
-                                            </span>
+                                            <div className="flex items-center gap-2.5">
+                                                <span className={cn(
+                                                    "flex h-8 w-8 items-center justify-center rounded-xl shrink-0 transition-colors",
+                                                    activeEventDetailTab === "galleries" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
+                                                )}>
+                                                    <GalleriesIcon className="h-4.5 w-4.5" />
+                                                </span>
+                                                <span className="text-base font-black text-white">Galleries</span>
+                                            </div>
+                                            <span className="mt-2 block text-xs font-bold text-slate-400">Photos and Videos</span>
                                         </button>
 
                                         <button
@@ -4332,20 +4332,20 @@ function DashboardContent() {
                                                 setActiveEventDetailTab("permissions");
                                                 setManageMode("list");
                                             }}
-                                            className="group relative flex min-h-28 flex-col items-start justify-between rounded-[1.35rem] border border-white/10 bg-neutral-900 p-4 text-left transition-colors hover:bg-neutral-800"
+                                            className="group relative flex min-h-24 flex-col justify-between rounded-[1.35rem] border border-white/10 bg-neutral-900 p-4 text-left transition-colors hover:bg-neutral-800"
                                         >
-                                            <span className={cn(
-                                                "flex h-10 w-10 items-center justify-center rounded-2xl",
-                                                activeEventDetailTab === "permissions" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
-                                            )}>
-                                                <PermissionsIcon className="h-5 w-5" />
-                                            </span>
-                                            <span>
-                                                <span className="block text-base font-black text-white">Permissions</span>
-                                                <span className="mt-1 block text-xs font-bold text-slate-400">Guest access</span>
-                                            </span>
+                                            <div className="flex items-center gap-2.5">
+                                                <span className={cn(
+                                                    "flex h-8 w-8 items-center justify-center rounded-xl shrink-0 transition-colors",
+                                                    activeEventDetailTab === "permissions" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
+                                                )}>
+                                                    <PermissionsIcon className="h-4.5 w-4.5" />
+                                                </span>
+                                                <span className="text-base font-black text-white">Permissions</span>
+                                            </div>
+                                            <span className="mt-2 block text-xs font-bold text-slate-400">Event access control</span>
                                             {eventDetailLogs.filter(log => log.status === "pending").length > 0 && (
-                                                <span className="absolute right-4 top-4 rounded-full bg-[#CA9C68] px-2 py-0.5 text-[10px] font-black text-slate-950">
+                                                <span className="absolute right-3.5 top-3.5 rounded-full bg-[#CA9C68] px-2 py-0.5 text-[10px] font-black text-slate-950">
                                                     {eventDetailLogs.filter(log => log.status === "pending").length}
                                                 </span>
                                             )}
@@ -4356,18 +4356,18 @@ function DashboardContent() {
                                                 setActiveEventDetailTab("design");
                                                 setManageMode("list");
                                             }}
-                                            className="group flex min-h-28 flex-col items-start justify-between rounded-[1.35rem] border border-white/10 bg-neutral-900 p-4 text-left transition-colors hover:bg-neutral-800"
+                                            className="group flex min-h-24 flex-col justify-between rounded-[1.35rem] border border-white/10 bg-neutral-900 p-4 text-left transition-colors hover:bg-neutral-800"
                                         >
-                                            <span className={cn(
-                                                "flex h-10 w-10 items-center justify-center rounded-2xl",
-                                                activeEventDetailTab === "design" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
-                                            )}>
-                                                <DesignIcon className="h-5 w-5" />
-                                            </span>
-                                            <span>
-                                                <span className="block text-base font-black text-white">Design</span>
-                                                <span className="mt-1 block text-xs font-bold text-slate-400">Theme and style</span>
-                                            </span>
+                                            <div className="flex items-center gap-2.5">
+                                                <span className={cn(
+                                                    "flex h-8 w-8 items-center justify-center rounded-xl shrink-0 transition-colors",
+                                                    activeEventDetailTab === "design" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
+                                                )}>
+                                                    <DesignIcon className="h-4.5 w-4.5" />
+                                                </span>
+                                                <span className="text-base font-black text-white">Design</span>
+                                            </div>
+                                            <span className="mt-2 block text-xs font-bold text-slate-400">Theme and style</span>
                                         </button>
 
                                         <button
@@ -4375,18 +4375,18 @@ function DashboardContent() {
                                                 setActiveEventDetailTab("partners");
                                                 setManageMode("list");
                                             }}
-                                            className="group flex min-h-28 flex-col items-start justify-between rounded-[1.35rem] border border-white/10 bg-neutral-900 p-4 text-left transition-colors hover:bg-neutral-800"
+                                            className="group flex min-h-24 flex-col justify-between rounded-[1.35rem] border border-white/10 bg-neutral-900 p-4 text-left transition-colors hover:bg-neutral-800"
                                         >
-                                            <span className={cn(
-                                                "flex h-10 w-10 items-center justify-center rounded-2xl",
-                                                activeEventDetailTab === "partners" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
-                                            )}>
-                                                <PartnersIcon className="h-5 w-5" />
-                                            </span>
-                                            <span>
-                                                <span className="block text-base font-black text-white">Partners</span>
-                                                <span className="mt-1 block text-xs font-bold text-slate-400">Linked vendors</span>
-                                            </span>
+                                            <div className="flex items-center gap-2.5">
+                                                <span className={cn(
+                                                    "flex h-8 w-8 items-center justify-center rounded-xl shrink-0 transition-colors",
+                                                    activeEventDetailTab === "partners" ? "bg-[#CA9C68] text-slate-950" : "bg-[#CA9C68]/10 text-[#CA9C68]"
+                                                )}>
+                                                    <PartnersIcon className="h-4.5 w-4.5" />
+                                                </span>
+                                                <span className="text-base font-black text-white">Partners</span>
+                                            </div>
+                                            <span className="mt-2 block text-xs font-bold text-slate-400">Linked vendors</span>
                                         </button>
                                     </div>
 
