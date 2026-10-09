@@ -55,7 +55,8 @@ manage, or have joined.
   - profiles `role`, `role_type`, `delegated_by` and plan/pending-plan fields change only via the server or a
     platform admin; new profiles always start as `user`
   - events: owner can't change; visibility owner only; sample-gallery flag admins only
-- **Policies** for every table above, and **no anon writes anywhere** except tenant access requests.
+- **Policies** for every table above, and **no anon writes anywhere** (the tenant access-request exception was dropped
+  on 2026-10-09 with the tenant section).
 
 ## Code changes needed (before applying)
 

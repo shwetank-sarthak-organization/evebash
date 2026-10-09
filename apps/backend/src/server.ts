@@ -19,6 +19,7 @@ import { runMediaWatchdog } from "./services/watchdog.js";
 import { startWatchdogScheduler } from "./services/watchdogScheduler.js";
 import { createSignupRouter } from "./routes/signup.js";
 import { accountRouter } from "./routes/account.js";
+import { notificationsRouter } from "./routes/notifications.js";
 import { createVaultRouter } from "./routes/vault.js";
 import { getVaultBucketSettings, isVaultEnabled } from "./vault/config.js";
 import { createSupabaseVaultRepository } from "./vault/repository.js";
@@ -112,6 +113,7 @@ app.use("/api/v1/tenant-auth", tenantAuthRouter);
 app.use("/api/v1/permissions", permissionsRouter);
 app.use("/api/v1/signup", createSignupRouter());
 app.use("/api/v1/account", accountRouter);
+app.use("/api/v1/notifications", notificationsRouter);
 
 // EB Vault: off unless VAULT_ENABLED=true and the private Vault bucket is configured.
 const vaultRepository = createSupabaseVaultRepository();

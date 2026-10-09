@@ -1166,7 +1166,33 @@ export async function getPublicGalleryMedia(eventId: string, limit = 60, offset 
 export async function requestGalleryAccess(ref: string): Promise<string> {
     const { data, error } = await supabase.rpc('request_gallery_access', { p_ref: decodeURIComponent(ref) });
     if (error) throw error;
-    return String(data || 'pending');
+    const status = String(data || 'pending');
+    if (status === 'pending') void notifyGalleryRequest(decodeURIComponent(ref));
+    return status;
+}
+
+/**
+ * Asks the backend to push the gallery's owner about a new request. The owner's push token isn't readable here once
+ * RLS is on, so the backend sends it after checking the request is real. Best effort: a failure never blocks the request.
+ */
+async function notifyGalleryRequest(ref: string) {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const url = getNotifyGalleryRequestUrl();
+        if (!session?.access_token || !url) return;
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ ref }),
+        });
+    } catch (error) {
+        console.warn('[GalleryRequest] Could not notify the host:', error);
+    }
+}
+
+function getNotifyGalleryRequestUrl() {
+    const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+    return apiBaseUrl ? `${apiBaseUrl.replace(/\/+$/, '')}/api/v1/notifications/gallery-request` : '';
 }
 
 /**
@@ -2156,30 +2182,7 @@ export async function addPhoto(data: Omit<Photo, 'id'>) {
             uploaded_at: new Date().toISOString()
         });
         if (error) throw error;
-
-        // Notify event owner when a guest uploads a photo
-        if (data.eventId && data.userId) {
-            void (async () => {
-                const { data: event } = await supabase
-                    .from('events')
-                    .select('created_by, title')
-                    .eq('id', data.eventId)
-                    .maybeSingle();
-
-                if (event?.created_by && event.created_by !== data.userId) {
-                    const isVideo = data.mediaType === 'video';
-                    await Promise.resolve(
-                        sendPushNotificationDirectly(
-                            event.created_by,
-                            isVideo ? '🎥 New video uploaded' : '📸 New photo uploaded',
-                            `Someone added a ${isVideo ? 'video' : 'photo'} to "${event.title}"`,
-                            { eventId: data.eventId }
-                        )
-                    );
-                }
-            })().catch(() => {});
-        }
-
+        // The owner's "new photo" push is sent by the backend's upload flow (uploadNotifications.ts)
         return derivedId;
     } catch (error) {
         console.error("Error adding photo:", error);

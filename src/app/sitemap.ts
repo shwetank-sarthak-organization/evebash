@@ -21,8 +21,11 @@ async function getSampleGalleryIds(): Promise<string[]> {
     if (!supabaseUrl || !anonKey) return [];
 
     try {
-        const response = await fetch(`${supabaseUrl}/rest/v1/events?select=id&is_sample_gallery=eq.true&or=(type.eq.main,and(type.is.null,parent_id.is.null))`, {
-            headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+        // get_sample_galleries: the events table isn't readable with the public key once RLS is on
+        const response = await fetch(`${supabaseUrl}/rest/v1/rpc/get_sample_galleries`, {
+            method: "POST",
+            headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}`, "Content-Type": "application/json" },
+            body: "{}",
             next: { revalidate: 3600 },
             signal: AbortSignal.timeout(5000),
         });

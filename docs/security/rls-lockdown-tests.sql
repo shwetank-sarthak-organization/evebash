@@ -1,7 +1,7 @@
 -- Step 3 tests for rls-lockdown-draft.sql. Run: BEGIN + draft (without its begin/commit) + this file, in ONE request.
 -- The final statement raises STEP3_RESULTS[...] which also rolls everything back. Never add a COMMIT.
--- Last run 2026-10-09 on the live DB: 147/147 passed, nothing persisted (adds username check, expired-plan limit
--- and sample galleries).
+-- Last run 2026-10-09 on the live DB: 148/148 passed, nothing persisted (tenant access-request exception removed:
+-- nobody but platform admins writes pending_requests).
 -- ════════════════════════════════════════════════════════════════════════════════
 -- STEP 3 TESTS. Runs after the draft inside the same transaction, which is always rolled back:
 -- the last statement raises an error carrying the results, so nothing is ever committed.
@@ -148,7 +148,7 @@ insert into _r (who, check_name, expected, actual) values
   ('anon', 'cannot create a profile',            'blocked', pg_temp.try_write($$insert into public.profiles (id, name) values ('77777777-7777-4777-8777-777777777777', 'x')$$)),
   ('anon', 'cannot make anyone admin',           'blocked', pg_temp.try_write($$update public.profiles set role = 'admin' where id = '44444444-4444-4444-8444-444444444444'$$)),
   ('anon', 'cannot add guests',                  'blocked', pg_temp.try_write($$insert into public.guests (id, name, phone, event_id, status) values ('x', 'x', 'x', 'step3-private', 'approved')$$)),
-  ('anon', 'can submit tenant access request',   'rows=1',  pg_temp.try_write($$insert into public.pending_requests (phone, name, requested_at) values ('+919999999999', 'step3', now())$$)),
+  ('anon', 'cannot write tenant access requests', 'blocked', pg_temp.try_write($$insert into public.pending_requests (phone, name, requested_at) values ('+919999999999', 'step3', now())$$)),
   ('anon', 'cannot request gallery access',      'blocked', pg_temp.try_call($$select public.request_gallery_access('step3-private')$$)),
   ('anon', 'tenant allowlist check works',       'false',   pg_temp.try_call($$select public.is_phone_allowed('+910000000000')::text$$));
 insert into _r (who, check_name, expected, actual) values
@@ -200,6 +200,7 @@ insert into _r (who, check_name, expected, actual) values
   ('random', 'cannot add favourites in joined gallery', 'blocked', pg_temp.try_write($$insert into public.event_favourite_photos (event_id, photo_id) values ('step3-public', 'step3-p2')$$)),
   ('random', 'cannot archive others'' gallery',   'blocked', pg_temp.try_call($$select 'ok' from (select public.archive_deleted_event('step3-private', 1, 0, 10, 'x')) x$$)),
   ('random', 'cannot rename someone via profile_cards', 'blocked', pg_temp.try_write($$update public.profile_cards set name = 'x' where id = '11111111-1111-4111-8111-111111111111'$$)),
+  ('random', 'cannot write tenant access requests', 'blocked', pg_temp.try_write($$insert into public.pending_requests (phone, name, requested_at) values ('+919999999998', 'step3', now())$$)),
   ('random', 'cannot delete via profile_cards',   'blocked', pg_temp.try_write($$delete from public.profile_cards where id = '11111111-1111-4111-8111-111111111111'$$));
 insert into _r (who, check_name, expected, actual) values
   ('random', 'username taken by someone else',    'false', public.is_username_available('step3owner')::text),

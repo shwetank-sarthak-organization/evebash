@@ -614,13 +614,12 @@ alter table public.profile_assigned_events enable row level security;
 create policy assigned_admin on public.profile_assigned_events for all to authenticated
   using (eb_private.is_platform_admin()) with check (eb_private.is_platform_admin());
 
--- allowed_users / pending_requests (tenant phone allowlist)
+-- allowed_users / pending_requests (tenant phone allowlist). The tenant section was removed on 2026-10-07, so nobody
+-- submits access requests any more: platform admins only.
 alter table public.allowed_users enable row level security;
 create policy allowed_users_admin on public.allowed_users for all to authenticated
   using (eb_private.is_platform_admin()) with check (eb_private.is_platform_admin());
 alter table public.pending_requests enable row level security;
-create policy pending_requests_submit on public.pending_requests for insert to anon, authenticated
-  with check (true);
 create policy pending_requests_admin on public.pending_requests for all to authenticated
   using (eb_private.is_platform_admin()) with check (eb_private.is_platform_admin());
 
@@ -686,9 +685,8 @@ create policy messages_insert on public.messages for insert to authenticated
        and (r.client_uid = auth.uid()::text or r.vendor_uid = auth.uid()::text)));
 
 -- ════════════════════════════════════════════════════════════════════════════════
--- 7. Anonymous key: no writes anywhere except tenant access requests
+-- 7. Anonymous key: no writes anywhere
 -- ════════════════════════════════════════════════════════════════════════════════
 revoke insert, update, delete, truncate on all tables in schema public from anon;
-grant insert on public.pending_requests to anon;
 
 commit;

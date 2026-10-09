@@ -1109,25 +1109,6 @@ export async function deleteCoverUsagePhoto(eventId: string, coverUrl: string): 
 }
 
 /**
- * Checks if a phone number is allow-listed.
- */
-export async function getAllowedUser(phone: string): Promise<any | null> {
-    try {
-        const { data, error } = await supabase
-            .from('allowed_users')
-            .select('*')
-            .eq('phone', phone)
-            .maybeSingle();
-
-        if (error) throw error;
-        return data || null;
-    } catch (error) {
-        console.error("Error checking allowed user:", error);
-        return null;
-    }
-}
-
-/**
  * Updates the status of a guest request.
  */
 export async function updateGuestStatus(logId: string, status: 'pending' | 'approved' | 'rejected') {
@@ -1267,66 +1248,6 @@ export async function getGuestLogs(ownerIds?: string | string[]): Promise<GuestL
         return (data || []).map(mapSqlToGuestLog);
     } catch (error) {
         console.error("Error fetching guest logs:", error);
-        return [];
-    }
-}
-
-/**
- * Adds a user to the allowed_users table.
- */
-export async function addAllowedUser(name: string, phone: string, role: string = "guest") {
-    try {
-        const { error } = await supabase.from('allowed_users').upsert({
-            phone,
-            name,
-            role,
-            added_at: new Date().toISOString()
-        });
-        if (error) throw error;
-        return true;
-    } catch (error) {
-        console.error("Error adding allowed user:", error);
-        return false;
-    }
-}
-
-/**
- * Creates a request for access in the pending_requests table.
- */
-export async function requestAccess(name: string, phone: string) {
-    try {
-        const { error } = await supabase.from('pending_requests').upsert({
-            phone,
-            name,
-            requested_at: new Date().toISOString()
-        });
-        if (error) throw error;
-        return true;
-    } catch (error) {
-        console.error("Error requesting access:", error);
-        return false;
-    }
-}
-
-/**
- * Fetches all pending requests.
- */
-export async function getPendingRequests(): Promise<any[]> {
-    try {
-        const { data, error } = await supabase
-            .from('pending_requests')
-            .select('*')
-            .order('requested_at', { ascending: false });
-
-        if (error) throw error;
-        return (data || []).map(r => ({
-            id: r.phone,
-            phone: r.phone,
-            name: r.name,
-            requestedAt: r.requested_at
-        }));
-    } catch (error) {
-        console.error("Error fetching pending requests:", error);
         return [];
     }
 }
@@ -1551,23 +1472,6 @@ export async function toggleShortlistBusiness(userId: string, businessId: string
         return !isShortlisted;
     } catch (error) {
         console.error("Error toggling business shortlist:", error);
-        return false;
-    }
-}
-
-/**
- * Denies (deletes) a pending request.
- */
-export async function denyRequest(phone: string) {
-    try {
-        const { error } = await supabase
-            .from('pending_requests')
-            .delete()
-            .eq('phone', phone);
-        if (error) throw error;
-        return true;
-    } catch (error) {
-        console.error("Error denying request:", error);
         return false;
     }
 }
@@ -2196,7 +2100,28 @@ export async function getPublicGalleryMedia(eventId: string, limit = 60, offset 
 export async function requestGalleryAccess(ref: string): Promise<string> {
     const { data, error } = await supabase.rpc('request_gallery_access', { p_ref: decodeURIComponent(ref) });
     if (error) throw error;
-    return String(data || 'pending');
+    const status = String(data || 'pending');
+    if (status === 'pending') void notifyGalleryRequest(decodeURIComponent(ref));
+    return status;
+}
+
+/**
+ * Asks the backend to push the gallery's owner about a new request. The owner's push token isn't readable here once
+ * RLS is on, so the backend sends it after checking the request is real. Best effort: a failure never blocks the request.
+ */
+async function notifyGalleryRequest(ref: string) {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const url = getApiUrl('/api/v1/notifications/gallery-request');
+        if (!session?.access_token || !url) return;
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ ref }),
+        });
+    } catch (error) {
+        console.warn('[GalleryRequest] Could not notify the host:', error);
+    }
 }
 
 export function generateEventJoinId(eventId: string): string {
