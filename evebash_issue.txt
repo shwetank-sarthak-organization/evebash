@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 24
+Next issue number: 25
 
 =====================================================================
 ACTIVE ISSUES
@@ -52,9 +52,9 @@ How to reproduce: Open a gallery in the admin dashboard Events grid: there is no
 Listed: 2026-10-09
 Platform: Both
 Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: Agreement with Shwetank (for the hidden manager screen)
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: -
 Found in: Lockdown access re-scan (2026-10-09)
 Issue: Leftover dead code: the hidden manager screen on the website Host page (/host?view=permissions, updateUserRole), the backend's old tenant routes (apps/backend/src/routes/tenantAuth.ts), and the app's unused events/sub/edit screen, hooks/useEventState.ts and addPhoto.
 How to reproduce: Code check: search for callers of these screens and functions; none are linked from the app or website.
@@ -128,6 +128,18 @@ How to reproduce: With only the public anon key, request /rest/v1/profiles?selec
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#24
+Listed: 2026-10-10
+Platform: Both
+Priority: Critical
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Explaining issue #10 (2026-10-10)
+Issue: The old tenant routes /api/v1/tenant-auth/* (apps/backend/src/routes/tenantAuth.ts) had no login check and used the admin database client. Anyone could list pending access requests with names and phone numbers, approve or deny them, and add phone numbers to allowed_users. The tenant section they served was removed on 2026-10-06 (7050033).
+How to reproduce: GET https://api-staging.evebash.com/api/v1/tenant-auth/pending-requests with no login: returned 200 with a name and phone number.
+Fixed in: c776f01 (2026-10-10). Routes removed; nothing called them.
 
 #7
 Listed: 2026-10-09
