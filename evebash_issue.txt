@@ -28,8 +28,8 @@ ACTIVE ISSUES
 Listed: 2026-10-09
 Platform: Both
 Priority: High
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Website vs app consistency audit (2026-10-05)
 Issue: Storage and plan limits only apply on the website. The app and backend don't block uploads over the plan's storage, and the app's storage totals ignore overhead_size. Ideally enforced in the backend so both platforms follow it.
@@ -40,8 +40,8 @@ Update 2026-10-10: events and EB Vault now share one plan storage pool. Website/
 Listed: 2026-10-09
 Platform: Both
 Priority: High
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Website vs app consistency audit (2026-10-05)
 Issue: Scheduled plan changes are only applied when the website loads ("apply-pending" in the website's AuthContext). App-only users never get them. Should move to the backend.
