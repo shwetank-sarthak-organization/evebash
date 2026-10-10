@@ -68,7 +68,7 @@ function EventPartnersContent({ slug }: { slug: string }) {
         return (
             <main className="min-h-screen bg-stone-50 px-6 py-32 text-center">
                 <h1 className="text-2xl font-black text-slate-900">Event not found</h1>
-                <Link href="/gallery" className="mt-6 inline-flex rounded-full bg-slate-900 px-6 py-3 text-sm font-black uppercase tracking-widest text-white">
+                <Link href="/dashboard" className="mt-6 inline-flex rounded-full bg-slate-900 px-6 py-3 text-sm font-black uppercase tracking-widest text-white">
                     Back to Gallery
                 </Link>
             </main>

@@ -128,7 +128,7 @@ export function EventNavbar({
     ];
 
     if (user?.role === "admin") {
-        navLinks.push({ name: "Admin", href: `${basePath}/admin`, gallery: null, isGallery: false });
+        navLinks.push({ name: "Admin", href: `/host?view=manage&level=event-details&eventId=${mainEventId}`, gallery: null, isGallery: false });
     }
 
     const isLinkActive = (href: string, isFindYou?: boolean) => {
@@ -365,7 +365,7 @@ export function EventNavbar({
                             </button>
                         )}
 
-                        {user?.role === "admin" && renderDesktopNavItem({ name: "Admin", href: `${basePath}/admin`, gallery: null, isGallery: false })}
+                        {user?.role === "admin" && renderDesktopNavItem({ name: "Admin", href: `/host?view=manage&level=event-details&eventId=${mainEventId}`, gallery: null, isGallery: false })}
 
                         {activeName && (
                             user ? (

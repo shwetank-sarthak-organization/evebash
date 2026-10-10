@@ -107,7 +107,7 @@ export function TemplateHero({ event, children }: TemplateHeroProps) {
               <div className="flex items-center justify-center gap-4 w-full">
                 {/* Back Button */}
                 <Link
-                  href="/gallery"
+                  href="/dashboard"
                   className="flex items-center justify-center w-12 h-12 border border-[#ca9c69]/60 rounded-sm hover:bg-white/5 transition-all text-[#ca9c69] bg-black/60"
                   title="Back to gallery"
                 >

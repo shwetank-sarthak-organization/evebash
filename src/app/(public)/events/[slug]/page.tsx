@@ -74,7 +74,7 @@ function GalleryAccessGate({ gate, title, returnTo, requesting, onRequestAccess,
                     </button>
                 )}
                 {gate === "rejected" && (
-                    <Link href="/gallery" className={secondaryButton}>Back to your galleries</Link>
+                    <Link href="/dashboard" className={secondaryButton}>Back to your galleries</Link>
                 )}
             </div>
         </main>
@@ -499,8 +499,7 @@ function EventPageContent() {
             <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <button
                     onClick={() => {
-                        const backUrl = event?.parentId ? `/events/${event.parentId}` : "/gallery";
-                        router.push(`${backUrl}${isShared ? "?shared=true" : ""}`);
+                        router.push(event?.parentId ? `/events/${event.parentId}${isShared ? "?shared=true" : ""}` : "/dashboard");
                     }}
                     className="text-stone-700 hover:text-stone-900 transition-colors text-sm font-bold tracking-widest uppercase flex items-center group"
                 >
@@ -704,8 +703,7 @@ function EventPageContent() {
                 isShared={isShared}
                 user={user}
                 onBack={() => {
-                    const backUrl = event?.parentId ? `/events/${event.parentId}` : "/gallery";
-                    router.push(`${backUrl}${isShared ? "?shared=true" : ""}`);
+                    router.push(event?.parentId ? `/events/${event.parentId}${isShared ? "?shared=true" : ""}` : "/dashboard");
                 }}
                 onShare={handleShare}
                 canManage={false}
