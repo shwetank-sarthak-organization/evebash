@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 37
+Next test number: 39
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -742,4 +742,47 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#37 Guest gets a push when their request is approved
+Status:    TODO
+Priority:  Medium
+Platform:  Website now; App (new build from staging with 363c5aa)
+Brief:     Approving (or rejecting) a request now sends the guest a phone notification (issue #8).
+How to test:
+  1. Second account on a phone with the app installed and notifications allowed.
+  2. That account requests access to your PRIVATE gallery.
+  3. On the WEBSITE, Host -> Requests -> Approve.
+     Expect: within a few seconds the phone shows "Access Approved! ✨".
+  4. Repeat with Reject: the phone shows "Access Request Update".
+  5. After the new app build: approve from the APP instead; same notification.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   f295f29 + 363c5aa (2026-10-10)
+Feedback:
+
+--------------------------------------------------------------------------------
+#38 Host can still manage guests (approve, permissions, remove)
+Status:    TODO
+Priority:  High
+Platform:  Website
+Brief:     Guest management now checks your real login (security fix, issue #23). Make sure hosts
+           and guest admins aren't blocked.
+How to test:
+  1. As the gallery owner on the website: approve a request, reject one, change a guest's
+     upload/comment/admin switches, remove a guest. Expect: all work, no "log in" or "forbidden".
+  2. Make a guest an admin; log in as that guest admin and approve another request. Expect: works.
+  3. As a normal guest (not admin) you should not see these controls at all.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   363c5aa (2026-10-10)
 Feedback:

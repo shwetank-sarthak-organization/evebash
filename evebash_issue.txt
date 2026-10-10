@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 23
+Next issue number: 24
 
 =====================================================================
 ACTIVE ISSUES
@@ -46,17 +46,6 @@ Blocked by: -
 Found in: Website vs app consistency audit (2026-10-05)
 Issue: Scheduled plan changes are only applied when the website loads ("apply-pending" in the website's AuthContext). App-only users never get them. Should move to the backend.
 How to reproduce: Give a test account a pending plan change whose start date has passed. Open only the app: the plan stays the same. Open the website: the change applies.
-
-#8
-Listed: 2026-10-09
-Platform: Website
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Website vs app consistency audit (2026-10-05); push review during the lockdown (2026-10-09)
-Issue: "Your access was approved" push to the guest never arrives: the website calls Expo directly from the browser, which CORS blocks. Should be sent by the backend, like the new access-request push (apps/backend/src/routes/notifications.ts).
-How to reproduce: As a host on the website, approve a guest who has the app installed. The guest gets no push; the browser console shows a CORS error for exp.host.
 
 #9
 Listed: 2026-10-09
@@ -160,6 +149,30 @@ How to reproduce: With only the public anon key, request /rest/v1/profiles?selec
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#23
+Listed: 2026-10-10
+Platform: Website
+Priority: Critical
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Fixing issue #8 (2026-10-10)
+Issue: The backend guest routes /api/v1/permissions/update-guest-status, update-guest-permissions and delete-guest trusted a "requester" sent in the request body plus a hard-coded super-admin email list (apps/backend/src/routes/permissions.ts). Anyone, even logged out, could claim to be a super admin and approve themselves into any private gallery, make themselves a gallery admin, or remove guests.
+How to reproduce: POST /api/v1/permissions/update-guest-status with no login and body {"logId":"<id>","status":"approved","requester":{"email":"code4sarthak@gmail.com"}}: returned success (checked on staging with a non-existent id).
+Fixed in: 363c5aa (2026-10-10). The routes verify the Supabase login and ask the database (open_gallery = manage: owner, guest admin or platform admin); the Host page sends the login. Kill switch GUEST_ROUTES_REQUIRE_LOGIN=false (old behaviour). Device check: test_yourself #38.
+
+#8
+Listed: 2026-10-09
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website vs app consistency audit (2026-10-05); push review during the lockdown (2026-10-09)
+Issue: "Your access was approved" push to the guest never arrives: the website calls Expo directly from the browser, which CORS blocks. Should be sent by the backend, like the new access-request push (apps/backend/src/routes/notifications.ts).
+How to reproduce: As a host on the website, approve a guest who has the app installed. The guest gets no push; the browser console shows a CORS error for exp.host.
+Fixed in: f295f29 + 363c5aa (2026-10-10). Backend POST /api/v1/notifications/gallery-decision sends the push; the Host page and the app call it after a decision (the app never sent one before either). Kill switch GALLERY_APPROVAL_PUSH=false. App part needs the next app build (test_yourself #37).
 
 #16
 Listed: 2026-10-09
