@@ -1698,24 +1698,6 @@ export async function updateUserProfileImage(uid: string, imageUrl: string) {
     }
 }
 
-/**
- * Fetches all registered users.
- */
-export async function getUsers(): Promise<any[]> {
-    try {
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        return (data || []).map(mapSqlToProfile);
-    } catch (error) {
-        console.error("Error fetching users:", error);
-        return [];
-    }
-}
-
 export interface GuestProfile {
     id?: string;
     name?: string;
@@ -1843,94 +1825,6 @@ export async function getSubEvents(parentId: string, legacyParentId?: string): P
     } catch (error) {
         console.error("Error fetching sub-events:", error);
         return [];
-    }
-}
-
-/**
- * Updates a user's role and delegation metadata.
- */
-export async function updateUserRole(uid: string, newRole: string | null, delegatedBy?: string, roleType?: 'primary' | 'event', assignedEvents?: string[]) {
-    if (!uid) {
-        console.warn("[Supabase] updateUserRole: uid is missing.");
-        return false;
-    }
-    try {
-        const updateData: any = {};
-        if (newRole !== null) updateData.role = newRole;
-
-        if (delegatedBy) {
-            updateData.delegated_by = delegatedBy;
-            if (roleType) updateData.role_type = roleType;
-        } else {
-            updateData.delegated_by = null;
-            updateData.role_type = null;
-        }
-
-        const { error } = await supabase
-            .from('profiles')
-            .update(updateData)
-            .eq('id', uid);
-
-        if (error) throw error;
-
-        // Manage assigned events pairings
-        if (delegatedBy && roleType === 'event' && assignedEvents) {
-            // Clear existing assignments first
-            await supabase.from('profile_assigned_events').delete().eq('profile_id', uid);
-            // Insert new assignments
-            const pairs = assignedEvents.map(eventId => ({ profile_id: uid, event_id: eventId }));
-            if (pairs.length > 0) {
-                await supabase.from('profile_assigned_events').insert(pairs);
-            }
-        } else {
-            await supabase.from('profile_assigned_events').delete().eq('profile_id', uid);
-        }
-
-        const decodedUid = decodeURIComponent(uid);
-        delete userCache[decodedUid];
-        delete userCache[uid];
-
-        return true;
-    } catch (error) {
-        console.error("Error updating user role:", error);
-        return false;
-    }
-}
-
-/**
- * Counts how many people a specific user has promoted to admin/editor.
- */
-export async function getDelegatedAdminsCount(ownerUid: string): Promise<number> {
-    try {
-        const { count, error } = await supabase
-            .from('profiles')
-            .select('*', { count: 'exact', head: true })
-            .eq('delegated_by', ownerUid);
-
-        if (error) throw error;
-        return count || 0;
-    } catch (error) {
-        console.error("Error counting delegated admins:", error);
-        return 0;
-    }
-}
-
-/**
- * Deletes a user profile.
- */
-export async function deleteUser(uid: string) {
-    try {
-        const { error } = await supabase.from('profiles').delete().eq('id', uid);
-        if (error) throw error;
-
-        const decodedUid = decodeURIComponent(uid);
-        delete userCache[decodedUid];
-        delete userCache[uid];
-
-        return true;
-    } catch (error) {
-        console.error("Error deleting user:", error);
-        return false;
     }
 }
 
@@ -2347,22 +2241,6 @@ export async function updateEvent(eventId: string, data: Partial<Event>): Promis
         return true;
     } catch (error) {
         console.error("Error updating event:", formatSupabaseError(error));
-        return false;
-    }
-}
-
-export async function setEventSampleGalleryStatus(eventId: string, isSampleGallery: boolean): Promise<boolean> {
-    try {
-        const { error } = await supabase
-            .from('events')
-            .update({ is_sample_gallery: isSampleGallery })
-            .eq('id', eventId);
-
-        if (error) throw error;
-        delete eventCache[eventId];
-        return true;
-    } catch (error) {
-        console.error("Error updating sample gallery status:", formatSupabaseError(error));
         return false;
     }
 }

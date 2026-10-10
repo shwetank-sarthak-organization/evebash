@@ -43,13 +43,10 @@ import {
     Minimize2,
     Phone,
     Globe,
-    Crown,
     Calendar,
     RefreshCw,
     ChevronDown,
     ChevronRight,
-    UserCog,
-    UserMinus,
     Info,
     MessageCircle,
     Sparkles,
@@ -84,12 +81,8 @@ import {
     getEventPhotosPaginated,
     deletePhoto,
     rotatePhoto,
-    getUsers,
-    updateUserRole,
-    deleteUser,
     getUserTotalStorage,
     getUserEventCount,
-    getDelegatedAdminsCount,
     getGuestLogs,
     getEventLogs,
     getSubEvents,
@@ -104,7 +97,6 @@ import {
 	    toggleEventFavouritePhoto,
 	    getFavouritePhotosForEvents,
 	    generateEventJoinId,
-	    setEventSampleGalleryStatus,
 	    movePhotosToGallery,
 	} from "@/lib/database";
 import { uploadEventImage, validateVideoFile } from "@/lib/storage";
@@ -716,7 +708,7 @@ function DashboardContent() {
     const { user, loading, logout } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [view, setView] = useState<"main" | "manage" | "permissions">("main");
+    const [view, setView] = useState<"main" | "manage">("main");
     const [manageMode, setManageMode] = useState<"list" | "add-event" | "add-image">("list");
     const [manageLevel, setManageLevel] = useState<"events" | "galleries" | "photos" | "event-details">("events");
     const [selectedMainEvent, setSelectedMainEvent] = useState<Event | null>(null);
@@ -795,7 +787,6 @@ function DashboardContent() {
     // Data State
     const [userEvents, setUserEvents] = useState<Event[]>([]);
     const [loadingEvents, setLoadingEvents] = useState(false);
-    const [sampleGalleryUpdating, setSampleGalleryUpdating] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'hosted' | 'shared' | 'request'>('hosted');
     const [sharedEvents, setSharedEvents] = useState<Event[]>([]);
     const [currentEventPhotos, setCurrentEventPhotos] = useState<Photo[]>([]);
@@ -869,14 +860,7 @@ function DashboardContent() {
     const [selectedGuestProfile, setSelectedGuestProfile] = useState<any | null>(null);
     const [loadingGuestProfile, setLoadingGuestProfile] = useState(false);
 
-    // Permissions State
-    const [allUsers, setAllUsers] = useState<any[]>([]);
-    const [loadingUsers, setLoadingUsers] = useState(false);
-    const [delegatedCount, setDelegatedCount] = useState(0);
-    const [activePermissionTab, setActivePermissionTab] = useState<"admin_details" | "guest_user">("admin_details");
-    const [expandedMainEvents, setExpandedMainEvents] = useState<Set<string>>(new Set());
-    const [expandedEventAdmins, setExpandedEventAdmins] = useState<Set<string>>(new Set());
-    const [expandedEventGuests, setExpandedEventGuests] = useState<Set<string>>(new Set());
+    // Guest requests (Requests tab)
     const [trafficLogs, setTrafficLogs] = useState<any[]>([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
     const [selectedLogEventId, setSelectedLogEventId] = useState<string>("all");
@@ -933,33 +917,6 @@ function DashboardContent() {
         coverOffset: number;
         coverOffsetX: number;
     } | null>(null);
-
-    const toggleMainEvent = (eventId: string) => {
-        setExpandedMainEvents(prev => {
-            const next = new Set(prev);
-            if (next.has(eventId)) next.delete(eventId);
-            else next.add(eventId);
-            return next;
-        });
-    };
-
-    const toggleEventAdmins = (eventId: string) => {
-        setExpandedEventAdmins(prev => {
-            const next = new Set(prev);
-            if (next.has(eventId)) next.delete(eventId);
-            else next.add(eventId);
-            return next;
-        });
-    };
-
-    const toggleEventGuests = (eventId: string) => {
-        setExpandedEventGuests(prev => {
-            const next = new Set(prev);
-            if (next.has(eventId)) next.delete(eventId);
-            else next.add(eventId);
-            return next;
-        });
-    };
 
     // Event Management State
     const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -1145,7 +1102,7 @@ function DashboardContent() {
         const galleryIdParam = searchParams.get("galleryId");
 
         // 1. View State
-        if (viewParam === "manage" || viewParam === "permissions") {
+        if (viewParam === "manage") {
             setView(viewParam as any);
         } else {
             setView("main");
@@ -1256,28 +1213,6 @@ function DashboardContent() {
         }
     }, [user?.uid, view, manageLevel, selectedMainEvent?.id]);
 
-    // 2. Fetch main events and delegated count once when in "permissions" view
-    useEffect(() => {
-        if (user && user.uid && view === "permissions") {
-            fetchUserEvents();
-            fetchDelegatedCount();
-        }
-    }, [user?.uid, view]);
-
-    // 3. Fetch full users list ONLY when in "permissions" view under "admin_details" tab
-    useEffect(() => {
-        if (user && user.uid && view === "permissions" && activePermissionTab === "admin_details") {
-            fetchUsersList();
-        }
-    }, [user?.uid, view, activePermissionTab]);
-
-    // 4. Fetch guest traffic logs ONLY when in "permissions" view under "guest_user" tab, filtered by selected log event
-    useEffect(() => {
-        if (user && user.uid && view === "permissions" && activePermissionTab === "guest_user") {
-            fetchTrafficLogs();
-        }
-    }, [user?.uid, view, activePermissionTab, selectedLogEventId]);
-
     useEffect(() => {
         if (selectedEventId && (manageMode === "add-image" || manageLevel === "photos" || (manageLevel === "event-details" && activeEventDetailTab === "galleries"))) {
             fetchEventPhotos();
@@ -1381,7 +1316,7 @@ function DashboardContent() {
     const fetchUserEvents = async () => {
         if (!user || !user.uid) return;
         setLoadingEvents(true);
-        const type = (view === "main" || view === "permissions" || manageLevel === "events" || manageLevel === "event-details") ? "main" : "sub";
+        const type = (view === "main" || manageLevel === "events" || manageLevel === "event-details") ? "main" : "sub";
         const parentId = (view === "manage" && (manageLevel === "galleries" || manageLevel === "photos")) ? selectedMainEvent?.id : undefined;
 
         // Own events are always visible. Delegated owner events are scoped by roleType below.
@@ -1763,26 +1698,6 @@ function DashboardContent() {
         };
     }, [selectedGuestLog]);
 
-    const fetchUsersList = async () => {
-        setLoadingUsers(true);
-        try {
-            const users = await getUsers();
-            // Sort all users alphabetically by name
-            const sortedUsers = users.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-            setAllUsers(sortedUsers);
-        } catch (error) {
-            console.error("Error fetching users:", error);
-        } finally {
-            setLoadingUsers(false);
-        }
-    };
-
-    const fetchDelegatedCount = async () => {
-        if (!user) return;
-        const count = await getDelegatedAdminsCount(user.uid);
-        setDelegatedCount(count);
-    };
-
     const fetchTrafficLogs = async () => {
         if (!user) return;
         setLoadingLogs(true);
@@ -1809,60 +1724,6 @@ function DashboardContent() {
         } finally {
             setLoadingLogs(false);
         }
-    };
-
-    const handleUpdateUserRole = async (targetUid: string, currentRole: string, roleType: 'primary' | 'event' = 'primary', assignedEvents: string[] = []) => {
-        if (!user) return;
-
-        const targetUser = allUsers.find(u => u.id === targetUid);
-        const isRevoking = currentRole === "revoke";
-        const isNewDelegation = targetUser?.delegatedBy !== user.uid;
-        const isPromoting = !isRevoking;
-
-        if (isPromoting && isNewDelegation && delegatedCount >= 2) {
-            setMessage("You can only have a maximum of 2 delegated managers.");
-            setStatus("error");
-            setTimeout(() => setStatus("idle"), 3000);
-            return;
-        }
-
-        // When promoting: Set delegation fields, but DO NOT flip global role to 'admin'
-        // When revoking: Remove delegation fields. Signature: (uid, newRole, delegatedBy, roleType, assignedEvents)
-        const success = await updateUserRole(
-            targetUid,
-            null, // Do not change global role
-            isPromoting ? user.uid : undefined,
-            isPromoting ? roleType : undefined,
-            isPromoting ? assignedEvents : undefined
-        );
-
-        if (success) {
-            setMessage(`User successfully ${isPromoting ? "authorized as Manager" : "access revoked"}.`);
-            setStatus("success");
-            fetchUsersList();
-            fetchDelegatedCount();
-            fetchUserEvents();
-            fetchTrafficLogs();
-        } else {
-            setMessage("Failed to update user authorizations.");
-            setStatus("error");
-        }
-        setTimeout(() => setStatus("idle"), 3000);
-    };
-
-    const handleDeleteUserAccount = async (id: string) => {
-        if (!window.confirm("Are you sure you want to delete this user? This action cannot be undone.")) return;
-
-        const success = await deleteUser(id);
-        if (success) {
-            setMessage("User deleted successfully!");
-            setStatus("success");
-            fetchUsersList();
-        } else {
-            setMessage("Failed to delete user.");
-            setStatus("error");
-        }
-        setTimeout(() => setStatus("idle"), 3000);
     };
 
     // The guest routes check the signed-in user, so send the login with every call
@@ -3235,34 +3096,6 @@ function DashboardContent() {
         }
     };
 
-    const handleToggleSampleGallery = async (event: Event) => {
-        if (sampleGalleryUpdating) return;
-
-        const nextStatus = !event.isSampleGallery;
-        setSampleGalleryUpdating(event.id);
-        setStatus("uploading");
-        setMessage(nextStatus ? "Adding event to Sample Galleries..." : "Removing event from Sample Galleries...");
-
-        const success = await setEventSampleGalleryStatus(event.id, nextStatus);
-
-        if (success) {
-            setUserEvents(prev => prev.map(item => item.id === event.id ? { ...item, isSampleGallery: nextStatus } : item));
-            setSharedEvents(prev => prev.map(item => item.id === event.id ? { ...item, isSampleGallery: nextStatus } : item));
-            setMessage(nextStatus ? "Event added to Sample Galleries." : "Event removed from Sample Galleries.");
-            setStatus("success");
-            fetchUserEvents();
-        } else {
-            setMessage("Could not update Sample Gallery status.");
-            setStatus("error");
-        }
-
-        setSampleGalleryUpdating(null);
-        setTimeout(() => {
-            setStatus("idle");
-            setMessage("");
-        }, 2200);
-    };
-
     const handleDeletePhoto = async (photoId: string) => {
         try {
             const success = await deletePhoto(photoId);
@@ -3454,9 +3287,6 @@ function DashboardContent() {
     const stripUrlQuery = (value?: string | null) => (value || "").split("?")[0];
     const createdEvents = userEvents.filter(evt => evt.createdBy && ownEventIdentifiers.has(evt.createdBy));
     const legacySharedEvents = userEvents.filter(evt => !evt.createdBy || !ownEventIdentifiers.has(evt.createdBy));
-    const permissionMainEvents = userEvents.filter(e => e.type === 'main' || (!e.type && !e.parentId));
-    const permissionCreatedEvents = permissionMainEvents.filter(evt => evt.createdBy && ownEventIdentifiers.has(evt.createdBy));
-    const permissionOtherEvents = permissionMainEvents.filter(evt => !evt.createdBy || !ownEventIdentifiers.has(evt.createdBy));
 
     const pendingGuestRequests = trafficLogs.filter(log => log.status === "pending");
     const pendingRequestsByEvent = Object.entries(
@@ -5761,378 +5591,6 @@ function DashboardContent() {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                         >
-                            {view === "permissions" && (
-                                <div className="space-y-12">
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                        <div className="flex items-center space-x-4">
-                                            <div className="w-12 h-12 bg-slate-900 rounded-[1.2rem] flex items-center justify-center text-white shadow-xl shadow-slate-200">
-                                                <PermissionsIcon className="h-6 w-6" />
-                                            </div>
-                                            <div>
-                                                <h2 className="text-3xl font-bold mb-1 font-serif text-slate-200">Permissions & Traffic</h2>
-                                                <p className="text-slate-700 font-sans text-sm">Manage your team and monitor guest access.</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                        {/* Primary Admins Section */}
-                                        <div className="bg-slate-800 p-8 rounded-[2.5rem] shadow-sm border border-slate-700">
-                                            <div className="flex items-center justify-between mb-8">
-                                                <div>
-                                                    <h3 className="text-2xl font-bold text-slate-200 font-serif">Premium Users (Primary)</h3>
-                                                    <p className="text-slate-400 text-sm font-sans uppercase tracking-widest mt-1">Full account management access</p>
-                                                </div>
-                                                <div className="w-12 h-12 bg-slate-700 rounded-full flex items-center justify-center text-slate-300">
-                                                    <Crown size={24} />
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-6">
-                                                {allUsers.filter(u => (u.delegatedBy === user?.uid || u.id === user?.uid) && (u.roleType === 'primary' || u.id === user?.uid)).length > 0 ? (
-                                                    allUsers.filter(u => (u.delegatedBy === user?.uid || u.id === user?.uid) && (u.roleType === 'primary' || u.id === user?.uid)).map((u) => (
-                                                        <div key={u.id} className="flex items-center justify-between p-4 bg-slate-900/50 rounded-2xl border border-slate-700 group hover:bg-slate-800 hover:shadow-md transition-all duration-300">
-                                                            <div className="flex items-center space-x-4">
-                                                                <div className="w-12 h-12 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-base">
-                                                                    {u.name.charAt(0)}
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-slate-200 font-bold text-base">{u.name} {u.id === user?.uid && "(You)"}</p>
-                                                                    <p className="text-slate-400 text-xs font-sans">{u.email}</p>
-                                                                </div>
-                                                            </div>
-                                                            {u.id !== user?.uid && (
-                                                                <button
-                                                                    onClick={() => handleUpdateUserRole(u.id, "revoke")}
-                                                                    className="px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
-                                                                >
-                                                                    Revoke
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <div className="py-10 text-center border-2 border-dashed border-slate-700 rounded-3xl">
-                                                        <p className="text-slate-400 text-base font-sans italic">No premium users assigned yet.</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Events Hierarchy Section */}
-                                        <div className="bg-slate-800 p-8 rounded-[2.5rem] shadow-sm border border-slate-700">
-                                            <div className="flex items-center justify-between mb-8">
-                                                <div>
-                                                    <h3 className="text-2xl font-bold text-slate-200 font-serif">Event Administrators & Guests</h3>
-                                                    <p className="text-slate-400 text-sm font-sans uppercase tracking-widest mt-1">Management per event</p>
-                                                </div>
-                                                <div className="w-12 h-12 bg-slate-700 rounded-full flex items-center justify-center text-slate-300">
-                                                    <Calendar size={24} />
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-4">
-                                                {loadingEvents ? (
-                                                    <div className="flex items-center justify-center py-12">
-                                                        <RefreshCw className="w-8 h-8 animate-spin text-stone-300" />
-                                                    </div>
-                                                ) : permissionMainEvents.length > 0 ? (
-                                                    [
-                                                        { title: "Events Created by You", events: permissionCreatedEvents, groupByOwner: false },
-                                                        { title: "Events Created by Others", events: permissionOtherEvents, groupByOwner: true }
-                                                    ].filter(section => section.events.length > 0).map(section => (
-                                                        <div key={section.title} className="space-y-3">
-                                                            <div className="px-1">
-                                                                <h4 className="text-lg font-bold text-slate-200 font-serif">{section.title}</h4>
-                                                                <p className="text-xs text-slate-400 font-sans uppercase tracking-widest mt-1">
-                                                                    {section.events.length} {section.events.length === 1 ? "event" : "events"}
-                                                                </p>
-                                                            </div>
-                                                            {(section.groupByOwner
-                                                                ? Object.entries(section.events.reduce<Record<string, Event[]>>((groups, event) => {
-                                                                    const ownerEmail = getEventOwnerEmail(event);
-                                                                    if (!groups[ownerEmail]) groups[ownerEmail] = [];
-                                                                    groups[ownerEmail].push(event);
-                                                                    return groups;
-                                                                }, {}))
-                                                                : [["", section.events] as [string, Event[]]]
-                                                            ).map(([ownerEmail, events]) => (
-                                                                <div key={ownerEmail || section.title} className="space-y-3">
-                                                                    {section.groupByOwner && (
-                                                                        <div className="px-1 pt-2">
-                                                                            <h5 className="text-sm font-bold text-slate-200 font-sans">{ownerEmail}</h5>
-                                                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-                                                                                {events.length} shared {events.length === 1 ? "event" : "events"}
-                                                                            </p>
-                                                                        </div>
-                                                                    )}
-                                                                    {events.map(event => {
-                                                        const isMainExpanded = expandedMainEvents.has(event.id);
-                                                        const isOtherUserEvent = !event.createdBy || !ownEventIdentifiers.has(event.createdBy);
-                                                        const eventAdmins = allUsers.filter(u =>
-                                                            u.delegatedBy === user?.uid &&
-                                                            u.roleType === 'event' &&
-                                                            u.assignedEvents?.includes(event.id)
-                                                        );
-                                                        const eventLogs = trafficLogs.filter(log => (log.parentEventId === event.id || log.eventId === event.id));
-                                                        const pendingCount = eventLogs.filter(l => l.status === 'pending').length;
-
-                                                        return (
-                                                            <div key={event.id} className="relative">
-                                                                {isMainExpanded && (eventAdmins.length > 0 || eventLogs.length > 0) && (
-                                                                    <div className="absolute left-7 top-14 bottom-6 w-px bg-stone-100"></div>
-                                                                )}
-
-                                                                <div className="flex items-center justify-between gap-4 p-4 sm:p-5 bg-slate-900/50/50 hover:bg-slate-800/50 rounded-[1.5rem] transition-all border border-slate-700/50 group/event">
-                                                                    <div className="flex items-center flex-1">
-                                                                        <button
-                                                                            onClick={() => toggleMainEvent(event.id)}
-                                                                            className={cn(
-                                                                                "mr-3 w-8 h-8 flex items-center justify-center rounded-lg transition-all",
-                                                                                isMainExpanded ? "bg-slate-200 text-slate-700" : "bg-slate-800 text-slate-400 hover:text-slate-300 border border-slate-700"
-                                                                            )}
-                                                                        >
-                                                                            {isMainExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                                                                        </button>
-                                                                        <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center mr-3 shadow-sm">
-                                                                            <Calendar className="w-5 h-5 text-slate-400" />
-                                                                        </div>
-                                                                        <div>
-                                                                            {isOtherUserEvent && !section.groupByOwner && (
-                                                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
-                                                                                    Shared by {getEventOwnerEmail(event)}
-                                                                                </p>
-                                                                            )}
-                                                                            <span className="text-base font-bold text-slate-200">{event.title}</span>
-                                                                            <div className="flex items-center space-x-2 mt-1">
-                                                                                {event.isSampleGallery && (
-                                                                                    <span className="text-xs text-royal-gold font-bold">• Sample</span>
-                                                                                )}
-                                                                                {eventAdmins.length > 0 && (
-                                                                                    <span className="text-xs text-teal-600 font-bold">• {eventAdmins.length} Admin{eventAdmins.length > 1 ? "s" : ""}</span>
-                                                                                )}
-                                                                                {eventLogs.length > 0 && (
-                                                                                    <span className="text-xs text-[#CA9C68] font-bold">• {eventLogs.length} Visit{eventLogs.length > 1 ? "s" : ""}</span>
-                                                                                )}
-                                                                                {pendingCount > 0 && (
-                                                                                    <span className="text-xs text-rose-500 font-bold">• {pendingCount} Pending</span>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                    {user?.role === "admin" && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={(buttonEvent) => {
-                                                                                buttonEvent.stopPropagation();
-                                                                                handleToggleSampleGallery(event);
-                                                                            }}
-                                                                            disabled={sampleGalleryUpdating === event.id}
-                                                                            className={cn(
-                                                                                "shrink-0 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all disabled:cursor-not-allowed disabled:opacity-50",
-                                                                                event.isSampleGallery
-                                                                                    ? "border border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20"
-                                                                                    : "border border-royal-gold/30 bg-royal-gold/10 text-royal-gold hover:bg-royal-gold/20"
-                                                                            )}
-                                                                        >
-                                                                            {sampleGalleryUpdating === event.id ? "Updating..." : event.isSampleGallery ? "Remove from Samples" : "Add to Samples"}
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-
-                                                                {isMainExpanded && (
-                                                                    <div className="pl-12 pr-4 py-3 space-y-5">
-                                                                        {/* Event Admins */}
-                                                                        <div className="mb-2">
-                                                                            <div
-                                                                                className="flex items-center space-x-1 text-xs font-bold text-teal-600 uppercase tracking-widest mb-2 px-1 cursor-pointer hover:text-teal-700 transition-colors w-fit"
-                                                                                onClick={() => toggleEventAdmins(event.id)}
-                                                                            >
-                                                                                {expandedEventAdmins.has(event.id) ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                                                                                <UserCog className="w-3.5 h-3.5" />
-                                                                                <span>Event Admins ({eventAdmins.length})</span>
-                                                                            </div>
-                                                                            {expandedEventAdmins.has(event.id) && (
-                                                                                <div className="mt-2 space-y-2 pl-4 border-l border-teal-100 ml-2">
-                                                                                    {eventAdmins.length > 0 ? (
-                                                                                        eventAdmins.map(ea => (
-                                                                                            <div key={ea.id} className="flex items-center p-3 bg-slate-800 border border-slate-700 rounded-xl group/ea hover:border-slate-700 transition-all">
-                                                                                                <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center mr-3">
-                                                                                                    <UserCog className="w-4 h-4 text-teal-600" />
-                                                                                                </div>
-                                                                                                <div>
-                                                                                                    <span className="text-sm font-bold text-slate-200">{ea.name || "Unnamed"}</span>
-                                                                                                    <p className="text-xs text-slate-400">{ea.email}</p>
-                                                                                                </div>
-                                                                                                <div className="ml-auto flex items-center gap-2">
-                                                                                                    <button
-                                                                                                        onClick={() => handleUpdateUserRole(ea.id, "user", "primary", [])}
-                                                                                                        className="px-3 py-2 bg-sky-500/10 text-sky-400 text-[10px] font-bold uppercase rounded-lg hover:bg-royal-gold/20 transition-colors"
-                                                                                                    >
-                                                                                                        Make Primary Admin
-                                                                                                    </button>
-                                                                                                    <button
-                                                                                                        onClick={() => handleUpdateUserRole(ea.id, "revoke")}
-                                                                                                        className="px-3 py-2 bg-rose-50 text-rose-600 text-[10px] font-bold uppercase rounded-lg hover:bg-rose-100 transition-colors flex items-center gap-1"
-                                                                                                        title="Revoke Admin"
-                                                                                                    >
-                                                                                                        <UserMinus size={14} />
-                                                                                                        <span>Make Guest</span>
-                                                                                                    </button>
-                                                                                                </div>
-                                                                                            </div>
-                                                                                        ))
-                                                                                    ) : (
-                                                                                        <p className="text-xs text-slate-400 italic px-2">No admins assigned.</p>
-                                                                                    )}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-
-                                                                        {/* Event Guests */}
-                                                                        <div className="mb-2">
-                                                                            <div
-                                                                                className="flex items-center space-x-1 text-xs font-bold text-[#CA9C68] uppercase tracking-widest mb-2 px-1 cursor-pointer hover:text-[#CA9C68] transition-colors w-fit"
-                                                                                onClick={() => toggleEventGuests(event.id)}
-                                                                            >
-                                                                                {expandedEventGuests.has(event.id) ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                                                                                <Users className="w-3.5 h-3.5" />
-                                                                                <span>Guest Users ({eventLogs.length})</span>
-                                                                            </div>
-                                                                            {expandedEventGuests.has(event.id) && (
-                                                                                <div className="mt-2 space-y-2 pl-4 border-l border-[#CA9C68]/30 ml-2">
-                                                                                    {eventLogs.length > 0 ? (
-                                                                                        [...eventLogs].sort((a, b) => b.loginAt?.seconds - a.loginAt?.seconds).map(log => {
-                                                                                            const loginDate = log.loginAt ? new Date(log.loginAt.seconds * 1000).toLocaleString('en-IN', {
-                                                                                                day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
-                                                                                            }) : 'Unknown';
-
-                                                                                            const isEmailMethod = log.phone?.includes('@');
-                                                                                            const displayMethod = isEmailMethod ? "Email" : "Mobile";
-
-                                                                                            // Find matching registered user to allow admin promotion
-                                                                                            const matchingUser = allUsers.find(u =>
-                                                                                                (isEmailMethod && u.email === log.phone) ||
-                                                                                                (!isEmailMethod && u.phone === log.phone)
-                                                                                            );
-
-                                                                                            const isPrimaryAdmin = matchingUser?.roleType === 'primary' && matchingUser?.delegatedBy === user?.uid;
-                                                                                            const isEventAdmin = matchingUser?.roleType === 'event' && matchingUser?.delegatedBy === user?.uid && matchingUser?.assignedEvents?.includes(event.id);
-                                                                                            const isAdmin = isPrimaryAdmin || isEventAdmin;
-
-                                                                                            return (
-                                                                                                <div key={log.id} className="flex items-center p-3 bg-slate-800 border border-slate-700 rounded-xl group/g hover:border-slate-700 transition-all">
-                                                                                                    <div className="w-10 h-10 rounded-lg bg-[#CA9C68]/30 flex items-center justify-center mr-3">
-                                                                                                        <span className="text-xs font-bold text-[#CA9C68]">{(log.name || 'G').charAt(0)}</span>
-                                                                                                    </div>
-                                                                                                    <div>
-                                                                                                        <p className="font-bold text-slate-200 text-sm">{log.name || 'Anonymous'}</p>
-                                                                                                        <div className="flex items-center space-x-2 text-xs text-slate-400 font-sans mt-0.5">
-                                                                                                            <span className="truncate max-w-[150px]">{log.phone || 'N/A'}</span>
-                                                                                                            <span>•</span>
-                                                                                                            <span className="font-bold uppercase tracking-widest text-sky-600 bg-sky-50 px-2 py-0.5 rounded-md text-[10px]">{displayMethod}</span>
-                                                                                                            <span>•</span>
-                                                                                                            <span>{loginDate}</span>
-                                                                                                        </div>
-                                                                                                    </div>
-                                                                                                    <div className="ml-auto flex items-center space-x-2">
-                                                                                                        {log.status === 'pending' ? (
-                                                                                                            <>
-                                                                                                                <button onClick={() => handleGuestStatusUpdate(log.id, 'approved')} className="px-4 py-2 bg-emerald-50 text-emerald-600 text-xs font-bold uppercase rounded-lg hover:bg-emerald-100 transition-all">Approve View</button>
-                                                                                                                <button onClick={() => handleGuestStatusUpdate(log.id, 'rejected')} className="px-4 py-2 bg-rose-50 text-rose-600 text-xs font-bold uppercase rounded-lg hover:bg-rose-100 transition-all">Deny</button>
-                                                                                                            </>
-                                                                                                        ) : (
-                                                                                                            <span className={cn("px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest", log.status === 'approved' ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600")}>
-                                                                                                                {log.status === 'approved' ? 'View Access' : log.status}
-                                                                                                            </span>
-                                                                                                        )}
-
-                                                                                                        {matchingUser && (
-                                                                                                            <>
-                                                                                                                <div className="h-4 w-px bg-stone-200 mx-1"></div>
-                                                                                                                {isAdmin ? (
-                                                                                                                    <>
-                                                                                                                        <span className="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest bg-slate-700 text-slate-300">
-                                                                                                                            {isPrimaryAdmin ? "Primary Admin" : "Event Admin"}
-                                                                                                                        </span>
-                                                                                                                        {isPrimaryAdmin ? (
-                                                                                                                            <button
-                                                                                                                                onClick={() => handleUpdateUserRole(matchingUser.id, "user", "event", [event.id])}
-                                                                                                                                className="px-4 py-2 bg-slate-900 text-white text-xs font-bold uppercase rounded-lg hover:bg-slate-800 transition-all"
-                                                                                                                            >
-                                                                                                                                Make Event Admin
-                                                                                                                            </button>
-                                                                                                                        ) : (
-                                                                                                                            <button
-                                                                                                                                onClick={() => handleUpdateUserRole(matchingUser.id, "user", "primary", [])}
-                                                                                                                                className="px-4 py-2 bg-sky-500/10 text-sky-400 text-xs font-bold uppercase rounded-lg hover:bg-royal-gold/20 transition-all"
-                                                                                                                            >
-                                                                                                                                Make Primary Admin
-                                                                                                                            </button>
-                                                                                                                        )}
-                                                                                                                        <button
-                                                                                                                            onClick={() => handleUpdateUserRole(matchingUser.id, "revoke")}
-                                                                                                                            className="px-4 py-2 bg-rose-50 text-rose-600 text-xs font-bold uppercase rounded-lg hover:bg-rose-100 transition-all"
-                                                                                                                        >
-                                                                                                                            Revoke
-                                                                                                                        </button>
-                                                                                                                    </>
-                                                                                                                ) : (
-                                                                                                                    <>
-                                                                                                                        <button
-                                                                                                                            onClick={() => handleUpdateUserRole(matchingUser.id, "user", "event", [event.id])}
-                                                                                                                            className="px-4 py-2 bg-slate-900 text-white text-xs font-bold uppercase rounded-lg hover:bg-slate-800 transition-all"
-                                                                                                                        >
-                                                                                                                            Make Event Admin
-                                                                                                                        </button>
-                                                                                                                        <button
-                                                                                                                            onClick={() => handleUpdateUserRole(matchingUser.id, "user", "primary", [])}
-                                                                                                                            className="px-4 py-2 bg-sky-500/10 text-sky-400 text-xs font-bold uppercase rounded-lg hover:bg-royal-gold/20 transition-all"
-                                                                                                                        >
-                                                                                                                            Make Primary Admin
-                                                                                                                        </button>
-                                                                                                                    </>
-                                                                                                                )}
-                                                                                                            </>
-                                                                                                        )}
-
-                                                                                                        <div className="h-4 w-px bg-stone-200 mx-1"></div>
-                                                                                                        <button
-                                                                                                            onClick={() => handleGuestDelete(log.id)}
-                                                                                                            className="p-1.5 text-stone-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
-                                                                                                            title="Remove Guest"
-                                                                                                        >
-                                                                                                            <Trash2 className="w-4 h-4" />
-                                                                                                        </button>
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                            );
-                                                                                        })
-                                                                                    ) : (
-                                                                                        <p className="text-xs text-slate-400 italic px-2">No guests recorded.</p>
-                                                                                    )}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                            })}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <div className="py-8 text-center border-2 border-dashed border-slate-700 rounded-[2rem]">
-                                                        <p className="text-slate-400 text-sm font-sans italic">No events created yet.</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                         </motion.div>
                     )}
                 </AnimatePresence>

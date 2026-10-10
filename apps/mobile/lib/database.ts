@@ -753,66 +753,6 @@ export async function getGuestProfile(log: { userId?: string; email?: string; ph
     } : null;
 }
 
-export async function getDelegatedAdminsCount(ownerUid: string): Promise<number> {
-    try {
-        const { count, error } = await supabase
-            .from('profiles')
-            .select('*', { count: 'exact', head: true })
-            .eq('delegated_by', ownerUid);
-
-        if (error) throw error;
-        return count || 0;
-    } catch (error) {
-        console.error("Error counting delegated admins:", error);
-        return 0;
-    }
-}
-
-export async function updateUserRole(
-    uid: string,
-    newRole: string | null,
-    delegatedBy?: string,
-    roleType?: 'primary' | 'event',
-    assignedEvents?: string[]
-) {
-    if (!uid) return false;
-    try {
-        const updateData: any = {};
-        if (newRole) updateData.role = newRole;
-
-        if (delegatedBy) {
-            updateData.delegated_by = delegatedBy;
-            if (roleType) updateData.role_type = roleType;
-        } else {
-            updateData.delegated_by = null;
-            updateData.role_type = null;
-        }
-
-        const { error } = await supabase
-            .from('profiles')
-            .update(updateData)
-            .eq('id', uid);
-
-        if (error) throw error;
-
-        // Manage assignments
-        if (delegatedBy && roleType === 'event' && assignedEvents) {
-            await supabase.from('profile_assigned_events').delete().eq('profile_id', uid);
-            const pairs = assignedEvents.map(eventId => ({ profile_id: uid, event_id: eventId }));
-            if (pairs.length > 0) {
-                await supabase.from('profile_assigned_events').insert(pairs);
-            }
-        } else {
-            await supabase.from('profile_assigned_events').delete().eq('profile_id', uid);
-        }
-
-        return true;
-    } catch (error) {
-        console.error("Error updating user role:", error);
-        return false;
-    }
-}
-
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type StorageBreakdown = { events: number; vault: number; total: number };
@@ -2209,40 +2149,6 @@ export async function getUserBusinesses(uid: string): Promise<Business[]> {
     } catch (error) {
         console.error("Error fetching user businesses:", error);
         return [];
-    }
-}
-
-export async function addPhoto(data: Omit<Photo, 'id'>) {
-    try {
-        // Derive a deterministic ID from storage_key — same approach as web savePhoto.
-        // This prevents duplicate DB rows on retry (if the upload task is retried after a
-        // partial failure where B2 got the file but the DB write failed).
-        const derivedId = data.storageKey
-            ? data.storageKey.replace(/\//g, '_')
-            : Math.random().toString(36).substring(2, 15);
-
-        const { error } = await supabase.from('photos').upsert({
-            id: derivedId,
-            event_id: data.eventId,
-            storage_key: data.storageKey,
-            url: data.url,
-            user_id: data.userId || null,
-            width: data.width || null,
-            height: data.height || null,
-            size: data.size || null,
-            format: data.format || null,
-            media_type: data.mediaType || 'photo',
-            resource_type: data.resourceType || (data.mediaType === 'video' ? 'video' : 'image'),
-            thumbnail_url: data.thumbnailUrl || null,
-            tags: data.tags || [],
-            uploaded_at: new Date().toISOString()
-        });
-        if (error) throw error;
-        // The owner's "new photo" push is sent by the backend's upload flow (uploadNotifications.ts)
-        return derivedId;
-    } catch (error) {
-        console.error("Error adding photo:", error);
-        return null;
     }
 }
 
