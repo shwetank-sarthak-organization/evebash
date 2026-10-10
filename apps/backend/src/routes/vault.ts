@@ -5,9 +5,10 @@ import { verifySupabaseUser } from "../auth.js";
 import { getStorageContext, isItemAtRisk, isItemHidden, type StorageContext, type VaultUser } from "../vault/access.js";
 import { vaultConfig } from "../vault/config.js";
 import { toVaultError, VaultError } from "../vault/errors.js";
-import { contentDisposition, extensionOf, sanitizeMimeType, sanitizeName } from "../vault/names.js";
+import { contentDisposition, eventMediaFilename, extensionOf, mimeTypeForExtension, sanitizeMimeType, sanitizeName } from "../vault/names.js";
 import { isVaultId, type VaultItem, type VaultRepository } from "../vault/repository.js";
 import type { VaultStorage } from "../vault/storage.js";
+import type { EventToVaultCopier } from "../vault/eventCopier.js";
 import { deletePendingObjects } from "../services/vaultMaintenance.js";
 
 export type VaultRouterDeps = {
@@ -15,6 +16,8 @@ export type VaultRouterDeps = {
   repo: VaultRepository;
   /** null when Vault is switched off or its bucket isn't configured. */
   storage: VaultStorage | null;
+  /** null when the copy key for "Save to EB Vault" isn't configured. */
+  copier?: EventToVaultCopier | null;
   now?: () => Date;
 };
 
@@ -335,6 +338,92 @@ export function createVaultRouter(deps: VaultRouterDeps) {
     const url = await storage.signDownload(stored.objectKey, link);
     response.setHeader("Cache-Control", "no-store");
     response.json({ success: true, url, expiresInSeconds: link.expiresInSeconds });
+  }));
+
+  // ── Save to EB Vault (copy event originals into the caller's Vault) ──────────
+  router.post("/save-from-event", route(async ({ request, response, user, repo, storage }) => {
+    const copier = deps.copier ?? null;
+    if (!copier) throw new VaultError("disabled", "Saving from events to EB Vault isn't set up yet.");
+    const photoIds: unknown = request.body?.photoIds;
+    if (!Array.isArray(photoIds) || photoIds.length === 0 || photoIds.length > vaultConfig.maxSaveFromEventItems
+      || !photoIds.every((id) => typeof id === "string" && id.length > 0 && id.length <= 300)) {
+      throw new VaultError("invalid_input", `Choose between 1 and ${vaultConfig.maxSaveFromEventItems} items to save.`);
+    }
+    const folderId = optionalFolderId(request.body?.folderId);
+    if (folderId && !(await repo.getFolder(user.id, folderId))) throw new VaultError("not_found", "That folder no longer exists.");
+
+    const ids = Array.from(new Set(photoIds as string[]));
+    const media = await repo.getEventMedia(ids);
+    // Every item must exist and belong to an event the caller manages; otherwise nothing is saved,
+    // and the reply doesn't reveal which ids exist.
+    if (media.length !== ids.length) throw new VaultError("not_found", "Some of these photos or videos no longer exist.");
+    const eventIds = Array.from(new Set(media.map((row) => row.eventId)));
+    const allowed = await Promise.all(eventIds.map((eventId) => repo.canManageEvent(user.id, user.email ?? null, eventId)));
+    if (allowed.some((ok) => !ok)) throw new VaultError("not_found", "Some of these photos or videos no longer exist.");
+
+    const ctx = await context(repo, user);
+    if (ctx.uploadsBlocked === "plan_expired") {
+      throw new VaultError("plan_expired", "Saving is paused because your plan has expired. Renew your plan to save to EB Vault again.");
+    }
+
+    const saved: { photoId: string; item: VaultItem | null }[] = [];
+    const failed: { photoId: string; error: string }[] = [];
+    let stopReason: string | null = null;
+
+    for (const row of media) {
+      if (stopReason) {
+        failed.push({ photoId: row.id, error: stopReason });
+        continue;
+      }
+      if (row.tags.includes("__cover_usage__") || row.status === "uploading" || !row.storageKey) {
+        failed.push({ photoId: row.id, error: "This item isn't ready to save yet." });
+        continue;
+      }
+      const isVideo = row.mediaType === "video" || row.resourceType === "video";
+      const filename = eventMediaFilename(row.storageKey, isVideo, row.format);
+      const extension = extensionOf(filename);
+      const mimeType = mimeTypeForExtension(extension, isVideo);
+      let uploadId: string | null = null;
+      const objectKey = `${user.id}/${randomUUID()}`;
+      try {
+        const sizeBytes = await copier.getEventObjectSize(row.storageKey);
+        if (sizeBytes === null) throw new VaultError("not_found", "The original file for this item is missing.");
+        if (sizeBytes > ctx.maxFileBytes) {
+          throw new VaultError("file_too_large", `Files on your plan can be up to ${Math.round(ctx.maxFileBytes / (1024 * 1024))} MB each.`);
+        }
+        // Same atomic storage reservation as a normal upload, so saves can't exceed the shared limit.
+        uploadId = await repo.reserveUpload(user.id, {
+          folderId, filename, extension, mimeType, sizeBytes,
+          bucket: storage.bucket, objectKey, uploadMode: "single",
+          expiresAt: new Date(now().getTime() + vaultConfig.uploadExpiryHours * 60 * 60 * 1000),
+          limitBytes: ctx.limitBytes,
+          otherUsedBytes: ctx.eventBytes,
+        });
+        await copier.copyToVault(row.storageKey, objectKey, sizeBytes, mimeType);
+        const actualSize = await storage.getObjectSize(objectKey);
+        if (actualSize === null) throw new VaultError("upload_incomplete", "The copy didn't finish. Please try again.");
+        const result = await repo.completeUpload(user.id, uploadId, actualSize);
+        if (result.status === "size_mismatch") {
+          await storage.deleteObject(objectKey).catch(() => null);
+          throw new VaultError("size_mismatch", "The copy didn't match the original. Please try again.");
+        }
+        uploadId = null;
+        saved.push({ photoId: row.id, item: await repo.getItem(user.id, result.itemId) });
+      } catch (error) {
+        if (uploadId) {
+          await repo.releaseUpload(user.id, uploadId, "aborted").catch(() => null);
+          await storage.deleteObject(objectKey).catch(() => null);
+        }
+        const vaultError = toVaultError(error);
+        const message = vaultError?.message ?? "This item couldn't be saved. Please try again.";
+        failed.push({ photoId: row.id, error: message });
+        // Once storage is full every later item would fail the same way.
+        if (vaultError?.code === "quota_exceeded") stopReason = message;
+        if (!vaultError) request.log?.error({ err: error, photoId: row.id }, "Save to Vault failed");
+      }
+    }
+
+    response.json({ success: true, saved, failed });
   }));
 
   // ── Lists ──────────────────────────────────────────────────────────────────

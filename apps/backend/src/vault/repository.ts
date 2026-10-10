@@ -46,6 +46,18 @@ export type TrashEntry = {
   deletedAt: string;
 };
 
+/** An event photo/video row, as needed to save it into Vault. */
+export type EventMedia = {
+  id: string;
+  eventId: string;
+  storageKey: string;
+  mediaType: string | null;
+  resourceType: string | null;
+  format: string | null;
+  status: string | null;
+  tags: string[];
+};
+
 export type ReserveUploadInput = {
   folderId: string | null;
   filename: string;
@@ -93,6 +105,10 @@ export interface VaultRepository {
   listRecent(ownerId: string, limit: number): Promise<VaultItem[]>;
   listStarred(ownerId: string, limit: number): Promise<VaultItem[]>;
   search(ownerId: string, query: string, limit: number): Promise<VaultItem[]>;
+
+  // "Save to EB Vault" from events.
+  canManageEvent(userId: string, email: string | null, eventId: string): Promise<boolean>;
+  getEventMedia(photoIds: string[]): Promise<EventMedia[]>;
 
   // Background maintenance (not scoped to one user).
   listExpiredUploads(limit: number): Promise<{ id: string }[]>;
@@ -359,6 +375,26 @@ export function createSupabaseVaultRepository(getClient: () => SupabaseClient = 
     search(ownerId, query, limit) {
       const pattern = `%${query.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
       return listItems(ownerId, (q) => q.ilike("filename", pattern).order("updated_at", { ascending: false }), limit);
+    },
+
+    async canManageEvent(userId, email, eventId) {
+      return Boolean(check(await db().rpc("vault_user_can_manage_event", { p_user_id: userId, p_email: email, p_event_id: eventId })));
+    },
+
+    async getEventMedia(photoIds) {
+      if (photoIds.length === 0) return [];
+      const rows = check(await db().from("photos").select("id,event_id,storage_key,media_type,resource_type,format,status,tags")
+        .in("id", photoIds)) as Row[];
+      return rows.map((row) => ({
+        id: row.id,
+        eventId: row.event_id,
+        storageKey: row.storage_key,
+        mediaType: row.media_type ?? null,
+        resourceType: row.resource_type ?? null,
+        format: row.format ?? null,
+        status: row.status ?? null,
+        tags: Array.isArray(row.tags) ? row.tags : [],
+      }));
     },
 
     async listExpiredUploads(limit) {

@@ -7,9 +7,10 @@ import express from 'express';
 import type { Request } from 'express';
 import { createVaultRouter } from '../src/routes/vault.js';
 import { VaultError } from '../src/vault/errors.js';
-import { contentDisposition, sanitizeName } from '../src/vault/names.js';
+import { contentDisposition, eventMediaFilename, sanitizeName } from '../src/vault/names.js';
 import { getPlanLifecycle } from '../src/vault/lifecycle.js';
-import type { ReserveUploadInput, TrashEntry, VaultFolder, VaultItem, VaultRepository, VaultUpload } from '../src/vault/repository.js';
+import type { EventMedia, ReserveUploadInput, TrashEntry, VaultFolder, VaultItem, VaultRepository, VaultUpload } from '../src/vault/repository.js';
+import type { EventToVaultCopier } from '../src/vault/eventCopier.js';
 import type { VaultStorage } from '../src/vault/storage.js';
 
 const GB = 1024 ** 3;
@@ -29,6 +30,8 @@ function createFakeRepo() {
   const uploads = new Map<string, VaultUpload & { ownerId: string }>();
   const deletableObjects: { id: string; bucket: string; objectKey: string }[] = [];
   let retained: Set<string> | null = null;
+  const eventMedia = new Map<string, EventMedia>();
+  const eventManagers = new Map<string, Set<string>>();
   const calls: { method: string; ownerId: string | null }[] = [];
 
   const account = (ownerId: string) => {
@@ -218,13 +221,16 @@ function createFakeRepo() {
       return [...items.values()].filter((i) => i.ownerId === ownerId && !i.deletedAt && i.filename.toLowerCase().includes(query.toLowerCase())).map(strip);
     },
 
+    async canManageEvent(userId, _email, eventId) { return eventManagers.get(eventId)?.has(userId) ?? false; },
+    async getEventMedia(ids) { return ids.map((id) => eventMedia.get(id)).filter((row): row is EventMedia => Boolean(row)); },
+
     async listExpiredUploads() { return []; },
     async purgeExpiredTrash() { return 0; },
     async listDeletableObjects() { return deletableObjects.splice(0); },
     async deleteObjectRow() {},
   };
 
-  return { repo, profiles, eventBytes, accounts, items, folders, uploads, calls, setRetained: (ids: Set<string> | null) => { retained = ids; } };
+  return { repo, profiles, eventBytes, accounts, items, folders, uploads, calls, eventMedia, eventManagers, setRetained: (ids: Set<string> | null) => { retained = ids; } };
 }
 
 function createFakeStorage() {
@@ -245,9 +251,25 @@ function createFakeStorage() {
   return { storage, objects, deleted, downloads };
 }
 
-async function startApp(options: { storage?: VaultStorage | null } = {}) {
+function createFakeCopier(objects: Map<string, number>) {
+  const eventObjects = new Map<string, number>();
+  const copied: { from: string; to: string; mimeType: string }[] = [];
+  let failOn: string | null = null;
+  const copier: EventToVaultCopier = {
+    async getEventObjectSize(key) { return eventObjects.get(key) ?? null; },
+    async copyToVault(from, to, size, mimeType) {
+      if (failOn === from) throw new Error('storage hiccup');
+      copied.push({ from, to, mimeType });
+      objects.set(to, size);
+    },
+  };
+  return { copier, eventObjects, copied, failCopyOf: (key: string | null) => { failOn = key; } };
+}
+
+async function startApp(options: { storage?: VaultStorage | null; withCopier?: boolean } = {}) {
   const fake = createFakeRepo();
   const store = createFakeStorage();
+  const copy = createFakeCopier(store.objects);
   const app = express();
   app.use(express.json());
   // The test "token" is just the user id; anything else is unauthenticated.
@@ -255,7 +277,12 @@ async function startApp(options: { storage?: VaultStorage | null } = {}) {
     const token = request.get('authorization')?.replace('Bearer ', '');
     return token === ALICE || token === BOB ? { user: { id: token } } : null;
   };
-  app.use('/vault', createVaultRouter({ repo: fake.repo, storage: options.storage === undefined ? store.storage : options.storage, verifyUser }));
+  app.use('/vault', createVaultRouter({
+    repo: fake.repo,
+    storage: options.storage === undefined ? store.storage : options.storage,
+    copier: options.withCopier === false ? null : copy.copier,
+    verifyUser,
+  }));
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/vault`;
@@ -267,7 +294,7 @@ async function startApp(options: { storage?: VaultStorage | null } = {}) {
     });
     return { status: response.status, body: await response.json() as any };
   };
-  return { ...fake, ...store, call, close: () => server.close() };
+  return { ...fake, ...store, ...copy, call, close: () => server.close() };
 }
 
 /** Uploads a small file end to end and returns its item. */
@@ -290,6 +317,7 @@ test('every Vault endpoint requires sign-in', async () => {
     ['POST', `/uploads/${id}/complete`], ['POST', `/uploads/${id}/abort`], ['GET', `/items/${id}`], ['PATCH', `/items/${id}`],
     ['POST', `/items/${id}/copy`], ['DELETE', `/items/${id}`], ['GET', `/items/${id}/link`], ['GET', '/recent'], ['GET', '/starred'],
     ['GET', '/search?q=a'], ['GET', '/trash'], ['POST', '/trash/restore'], ['DELETE', `/trash/file/${id}`], ['DELETE', '/trash'],
+    ['POST', '/save-from-event'],
   ];
   try {
     for (const [method, path] of endpoints) {
@@ -598,4 +626,124 @@ test('plan lifecycle dates follow the agreed timeline', () => {
   assert.equal(getPlanLifecycle({ role: 'premium', planEndDate: '2026-11-30', now }).state, 'active');
   assert.equal(getPlanLifecycle({ role: 'free', planEndDate: '2020-01-01', now }).state, 'active', 'free plans never expire');
   assert.equal(getPlanLifecycle({ role: 'admin', now }).planBytes, null);
+});
+
+/** Adds an event photo/video managed by `manager`, with its original in the event bucket. */
+function addEventMedia(app: Awaited<ReturnType<typeof startApp>>, id: string, eventId: string, name: string, sizeBytes: number, manager: string, extra: Partial<EventMedia> = {}) {
+  const isVideo = /\.(mp4|mov)$/i.test(name);
+  const storageKey = `events/${eventId}/${isVideo ? 'videos' : 'photos'}/${manager}-1760000000000-1b4e28ba-2fa1-11d2-883f-0016d3cca427-${name}`;
+  app.eventMedia.set(id, {
+    id, eventId, storageKey, mediaType: isVideo ? 'video' : 'photo', resourceType: isVideo ? 'video' : 'image',
+    format: name.split('.').pop() ?? null, status: 'processed', tags: [], ...extra,
+  });
+  app.eventObjects.set(storageKey, sizeBytes);
+  if (!app.eventManagers.has(eventId)) app.eventManagers.set(eventId, new Set());
+  app.eventManagers.get(eventId)!.add(manager);
+  return storageKey;
+}
+
+test('event managers can save event photos and videos into their own Vault folder', async () => {
+  const app = await startApp();
+  try {
+    app.profiles.set(ALICE, { role: 'premium', planEndDate: null });
+    const folder = (await app.call('POST', '/folders', ALICE, { name: 'Wedding keepsakes' })).body.folder;
+    addEventMedia(app, 'ph-1', 'ev-1', 'IMG_0001.JPG', 3 * MB, ALICE);
+    addEventMedia(app, 'vid-1', 'ev-1-sub', 'First dance.mp4', 40 * MB, ALICE);
+
+    const result = await app.call('POST', '/save-from-event', ALICE, { photoIds: ['ph-1', 'vid-1'], folderId: folder.id });
+    assert.equal(result.status, 200, JSON.stringify(result.body));
+    assert.equal(result.body.saved.length, 2);
+    assert.deepEqual(result.body.failed, []);
+    assert.deepEqual(result.body.saved.map((entry: any) => entry.item.filename).sort(), ['First dance.mp4', 'IMG_0001.JPG']);
+    assert.ok(result.body.saved.every((entry: any) => entry.item.folderId === folder.id));
+    assert.deepEqual(app.copied.map((c) => c.mimeType).sort(), ['image/jpeg', 'video/mp4']);
+    assert.equal(app.accounts.get(ALICE)!.usedBytes, 43 * MB, 'copies count toward Vault storage');
+    assert.equal(app.accounts.get(ALICE)!.reservedBytes, 0);
+    assert.ok(app.copied.every((c) => c.to.startsWith(`${ALICE}/`)), "copies land under the saver's own Vault keys");
+  } finally {
+    app.close();
+  }
+});
+
+test('only event managers can save, and nothing is copied otherwise', async () => {
+  const app = await startApp();
+  try {
+    addEventMedia(app, 'ph-a', 'ev-alice', 'a.jpg', 1 * MB, ALICE);
+    addEventMedia(app, 'ph-b', 'ev-bob', 'b.jpg', 1 * MB, BOB);
+    for (const photoIds of [['ph-a'], ['ph-b', 'ph-a'], ['ph-b', 'does-not-exist']]) {
+      const result = await app.call('POST', '/save-from-event', BOB, { photoIds });
+      assert.equal(result.status, 404, JSON.stringify(photoIds));
+    }
+    assert.equal(app.copied.length, 0);
+    assert.equal(app.uploads.size, 0, 'no storage reserved');
+    const aliceFolder = (await app.call('POST', '/folders', ALICE, { name: 'Mine' })).body.folder;
+    assert.equal((await app.call('POST', '/save-from-event', BOB, { photoIds: ['ph-b'], folderId: aliceFolder.id })).status, 404);
+  } finally {
+    app.close();
+  }
+});
+
+test('saving respects the shared storage limit and stops once it is full', async () => {
+  const app = await startApp();
+  try {
+    // Free plan: 1 GB shared, 900 MB already used by events; three 80 MB photos -> only one fits.
+    app.eventBytes.set(ALICE, 900 * MB);
+    addEventMedia(app, 'p1', 'ev', 'one.jpg', 80 * MB, ALICE);
+    addEventMedia(app, 'p2', 'ev', 'two.jpg', 80 * MB, ALICE);
+    addEventMedia(app, 'p3', 'ev', 'three.jpg', 80 * MB, ALICE);
+    const result = await app.call('POST', '/save-from-event', ALICE, { photoIds: ['p1', 'p2', 'p3'] });
+    assert.equal(result.body.saved.length, 1);
+    assert.equal(result.body.failed.length, 2);
+    assert.ok(result.body.failed.every((f: any) => /enough storage/.test(f.error)), JSON.stringify(result.body.failed));
+    assert.equal(app.copied.length, 1, 'stopped copying once storage was full');
+    assert.equal(app.accounts.get(ALICE)!.reservedBytes, 0);
+
+    addEventMedia(app, 'big', 'ev', 'huge.mp4', 250 * MB, ALICE);
+    const tooBig = await app.call('POST', '/save-from-event', ALICE, { photoIds: ['big'] });
+    assert.match(tooBig.body.failed[0].error, /up to 200 MB/);
+  } finally {
+    app.close();
+  }
+});
+
+test('a failed copy releases its storage and the rest still save', async () => {
+  const app = await startApp();
+  try {
+    app.profiles.set(ALICE, { role: 'premium', planEndDate: null });
+    const brokenKey = addEventMedia(app, 'x1', 'ev', 'broken.jpg', 5 * MB, ALICE);
+    addEventMedia(app, 'x2', 'ev', 'fine.jpg', 5 * MB, ALICE);
+    addEventMedia(app, 'cover', 'ev', 'cover.jpg', 1 * MB, ALICE, { tags: ['__cover_usage__'] });
+    app.failCopyOf(brokenKey);
+    const result = await app.call('POST', '/save-from-event', ALICE, { photoIds: ['x1', 'x2', 'cover'] });
+    assert.deepEqual(result.body.saved.map((s: any) => s.photoId), ['x2']);
+    assert.deepEqual(result.body.failed.map((f: any) => f.photoId).sort(), ['cover', 'x1']);
+    assert.deepEqual(app.accounts.get(ALICE), { usedBytes: 5 * MB, reservedBytes: 0 });
+  } finally {
+    app.close();
+  }
+});
+
+test('saving from events is off until its copy key is set up, and paused for expired plans', async () => {
+  const app = await startApp({ withCopier: false });
+  try {
+    assert.equal((await app.call('POST', '/save-from-event', ALICE, { photoIds: ['p'] })).status, 503);
+  } finally {
+    app.close();
+  }
+  const expired = await startApp();
+  try {
+    expired.profiles.set(ALICE, { role: 'premium', planEndDate: '2020-01-01' });
+    addEventMedia(expired, 'p', 'ev', 'a.jpg', 1, ALICE);
+    const result = await expired.call('POST', '/save-from-event', ALICE, { photoIds: ['p'] });
+    assert.equal(result.body.code, 'plan_expired');
+    assert.equal(expired.copied.length, 0);
+  } finally {
+    expired.close();
+  }
+});
+
+test('event file names are recovered from storage keys', () => {
+  assert.equal(eventMediaFilename('events/e1/photos/u1-1760000000000-1b4e28ba-2fa1-11d2-883f-0016d3cca427-IMG_0001.JPG', false, 'jpg'), 'IMG_0001.JPG');
+  assert.equal(eventMediaFilename('events/e1/videos/u1-1760000000000-1b4e28ba-2fa1-11d2-883f-0016d3cca427-clip', true, 'mov'), 'clip.mov');
+  assert.equal(eventMediaFilename('legacy/some-photo.png', false, null), 'some-photo.png');
 });

@@ -21,7 +21,8 @@ import { createSignupRouter } from "./routes/signup.js";
 import { accountRouter } from "./routes/account.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { createVaultRouter } from "./routes/vault.js";
-import { getVaultBucketSettings, isVaultEnabled } from "./vault/config.js";
+import { getVaultBucketSettings, getVaultCopySettings, isVaultEnabled } from "./vault/config.js";
+import { createS3EventToVaultCopier } from "./vault/eventCopier.js";
 import { createSupabaseVaultRepository } from "./vault/repository.js";
 import { createS3VaultStorage } from "./vault/storage.js";
 import { runVaultMaintenance, startVaultMaintenanceScheduler } from "./services/vaultMaintenance.js";
@@ -119,6 +120,9 @@ app.use("/api/v1/notifications", notificationsRouter);
 const vaultRepository = createSupabaseVaultRepository();
 const vaultBucket = getVaultBucketSettings();
 const vaultStorage = isVaultEnabled() && vaultBucket ? createS3VaultStorage(vaultBucket) : null;
+// "Save to EB Vault" from events needs a key that can read the event bucket and write the Vault bucket.
+const vaultCopySettings = getVaultCopySettings();
+const vaultCopier = vaultStorage && vaultCopySettings ? createS3EventToVaultCopier(vaultCopySettings) : null;
 const vaultLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 5000,
@@ -126,7 +130,7 @@ const vaultLimiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, code: "rate_limited", error: "Too many requests. Please slow down and try again." },
 });
-app.use("/api/v1/vault", vaultLimiter, createVaultRouter({ repo: vaultRepository, storage: vaultStorage }));
+app.use("/api/v1/vault", vaultLimiter, createVaultRouter({ repo: vaultRepository, storage: vaultStorage, copier: vaultCopier }));
 
 app.use((_request, response) => {
   response.status(404).json({ success: false, error: "Route not found." });

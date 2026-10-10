@@ -38,6 +38,8 @@ export const vaultConfig = {
     "text/plain",
     "text/csv",
   ]),
+  /** "Save to EB Vault" from events: items per request (each is a server-side copy). */
+  maxSaveFromEventItems: 50,
   pageSize: 500,
   searchLimit: 100,
   recentLimit: 100,
@@ -72,3 +74,26 @@ export function getVaultBucketSettings(env: NodeJS.ProcessEnv = process.env): Va
 export function isVaultEnabled(env: NodeJS.ProcessEnv = process.env) {
   return env.VAULT_ENABLED?.trim().toLowerCase() === "true" && getVaultBucketSettings(env) !== null;
 }
+
+export type VaultCopySettings = {
+  eventBucket: string;
+  vaultBucket: string;
+  endpoint: string;
+  region: string;
+  keyId: string;
+  applicationKey: string;
+};
+
+/**
+ * "Save to EB Vault" copies event originals into the Vault bucket inside Backblaze (no download/upload).
+ * That needs one key allowed to read the event bucket and write the Vault bucket. Null when not set up.
+ */
+export function getVaultCopySettings(env: NodeJS.ProcessEnv = process.env): VaultCopySettings | null {
+  const vault = getVaultBucketSettings(env);
+  const eventBucket = env.B2_BUCKET_NAME?.trim();
+  const keyId = env.VAULT_COPY_KEY_ID?.trim();
+  const applicationKey = env.VAULT_COPY_APPLICATION_KEY?.trim();
+  if (!vault || !eventBucket || !keyId || !applicationKey) return null;
+  return { eventBucket, vaultBucket: vault.bucket, endpoint: vault.endpoint, region: vault.region, keyId, applicationKey };
+}
+

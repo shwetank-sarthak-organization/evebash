@@ -44,3 +44,25 @@ export function contentDisposition(mode: "inline" | "attachment", filename: stri
   const encoded = encodeURIComponent(filename).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
   return `${mode}; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
+
+const MIME_BY_EXTENSION: Record<string, string> = {
+  jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp",
+  heic: "image/heic", heif: "image/heif", mp4: "video/mp4", mov: "video/quicktime", m4v: "video/x-m4v",
+  webm: "video/webm", avi: "video/x-msvideo", mkv: "video/x-matroska", "3gp": "video/3gpp",
+};
+
+/**
+ * Original file name of an event upload, from its storage key. Website/app keys look like
+ * "events/{event}/{photos|videos}/{user}-{timestamp}-{uuid}-{name}"; anything else falls back to the last segment.
+ */
+export function eventMediaFilename(storageKey: string, isVideo: boolean, format: string | null): string {
+  const base = storageKey.split("/").pop() || "";
+  const match = base.match(/-\d{13}-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-(.+)$/i);
+  let name = match?.[1] || base || (isVideo ? "video" : "photo");
+  if (!extensionOf(name)) name = `${name}.${format?.toLowerCase() || (isVideo ? "mp4" : "jpg")}`;
+  return sanitizeName(name, "file");
+}
+
+export function mimeTypeForExtension(extension: string, isVideo: boolean): string {
+  return MIME_BY_EXTENSION[extension.toLowerCase()] ?? (isVideo ? "video/mp4" : "image/jpeg");
+}
