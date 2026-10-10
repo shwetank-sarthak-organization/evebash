@@ -8,6 +8,7 @@ import { GalleriesIcon } from "@/components/GalleriesIcon";
 import { PermissionsIcon } from "@/components/PermissionsIcon";
 import { DesignIcon } from "@/components/DesignIcon";
 import { PartnersIcon } from "@/components/PartnersIcon";
+import { HostIcon } from "@/components/HostIcon";
 import React, { useState, useEffect, Suspense, useTransition, useRef, useCallback } from "react";
 import LoadingScreen from "@/components/LoadingScreen";
 import { useAuth } from "@/context/AuthContext";
@@ -3442,11 +3443,11 @@ function DashboardContent() {
             return groups;
         }, {})
     );
-    const hostConsoleMetrics = [
-        { label: "Hosted", value: userEvents.length, icon: Calendar },
-        { label: "Shared", value: sharedEvents.length, icon: Users },
-        { label: "Requests", value: pendingGuestRequests.length, icon: UserPlus },
-    ];
+    const hostConsoleTabs = [
+        { id: "hosted", label: "Host", count: userEvents.length, Icon: HostIcon },
+        { id: "shared", label: "Shared", count: sharedEvents.length, Icon: Users },
+        { id: "request", label: "Requests", count: pendingGuestRequests.length, Icon: UserPlus },
+    ] as const;
     const eventDetailPendingLogs = eventDetailLogs.filter(log => log.status === "pending");
     const eventDetailAdminLogs = eventDetailLogs.filter(log => log.status === "approved" && !!log.canAdmin);
     const eventDetailMemberLogs = eventDetailLogs.filter(log => log.status === "approved" && !log.canAdmin);
@@ -3852,16 +3853,16 @@ function DashboardContent() {
                             exit={{ opacity: 0, y: -10 }}
                             className="space-y-8"
                         >
-                            <div className="relative overflow-hidden rounded-3xl border border-[#2B2F2E] bg-[#13191F] p-5 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-8">
-                                <div className="flex flex-col gap-5 mb-6 lg:flex-row lg:items-center lg:justify-between">
-                                    <div className="flex items-center gap-4">
+                            <div className="relative">
+                                <div className="flex flex-wrap items-center gap-x-6 gap-y-4 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-[#0B0F13] p-3 shadow-2xl shadow-black/30 sm:p-4">
+                                    <div className="order-1 flex min-w-0 items-center gap-4">
                                         <Tooltip text="Plan Details">
                                             <button
                                                 onClick={() => {
                                                     fetchStorageStats();
                                                     setShowPlanDetailsModal(true);
                                                 }}
-                                                className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#CA9C68]/35 bg-[#CA9C68]/10 text-[#CA9C68] transition-colors hover:bg-[#CA9C68]/20"
+                                                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[#CA9C68] transition-colors hover:bg-white/10"
                                                 aria-label="Plan Details"
                                             >
                                                 <svg
@@ -3882,65 +3883,54 @@ function DashboardContent() {
                                                 </svg>
                                             </button>
                                         </Tooltip>
-                                        <div>
-                                            <p className="mb-1 font-sans text-[10px] font-black uppercase tracking-[0.24em] text-[#CA9C68]">Control Room</p>
-                                            <h2 className="text-3xl font-bold text-white">Host Console</h2>
-                                            <p className="text-sm text-slate-400 font-sans">Event operations</p>
+                                        <div className="min-w-0">
+                                            <h2 className="truncate text-2xl font-bold leading-tight text-[#F5EFE6] sm:text-3xl">Host Console</h2>
+                                            <p className="font-sans text-sm text-slate-400">Event operations</p>
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-wrap gap-2">
+                                    <span className="order-2 hidden h-10 w-px bg-white/10 lg:block" />
+
+                                    <div className="order-3 flex w-full gap-1 overflow-x-auto rounded-xl border border-white/10 bg-black/30 p-1 lg:w-auto">
+                                        {hostConsoleTabs.map(({ id, label, count, Icon }) => {
+                                            const isActive = activeTab === id;
+                                            const highlightCount = isActive || (id === "request" && count > 0);
+                                            return (
+                                                <button
+                                                    key={id}
+                                                    onClick={() => setActiveTab(id)}
+                                                    aria-pressed={isActive}
+                                                    className={cn(
+                                                        "flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2 py-2 font-sans text-[11px] font-semibold uppercase tracking-[0.08em] sm:gap-2 sm:px-4 sm:text-xs sm:tracking-[0.16em] transition-colors lg:flex-none",
+                                                        isActive
+                                                            ? "border-[#CA9C68]/40 bg-[#CA9C68]/10 text-[#CA9C68]"
+                                                            : "border-transparent text-slate-400 hover:bg-white/5 hover:text-white"
+                                                    )}
+                                                >
+                                                    <Icon className="hidden h-4 w-4 shrink-0 sm:block" />
+                                                    {label}
+                                                    <span className={cn(
+                                                        "min-w-[1.375rem] rounded-md px-1.5 py-0.5 text-center text-[11px] font-bold tracking-normal",
+                                                        highlightCount ? "bg-[#CA9C68] text-slate-950" : "bg-white/10 text-slate-300"
+                                                    )}>
+                                                        {count}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="order-2 ml-auto lg:order-4">
+                                    <Tooltip text="Create Event">
                                         <button
                                             onClick={() => setIsCreateModalOpen(true)}
-                                            className="flex items-center gap-2 rounded-xl bg-[#CA9C68] px-4 py-3 text-sm font-black text-slate-950 transition-colors hover:bg-[#D7AE7D]"
+                                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[#CA9C68] transition-colors hover:border-[#CA9C68]/40 hover:bg-[#CA9C68]/10"
+                                            aria-label="Create Event"
                                         >
-                                            <Plus className="w-4 h-4" />
-                                            Create Event
+                                            <Plus className="h-5 w-5" />
                                         </button>
+                                    </Tooltip>
                                     </div>
-                                </div>
-
-                                <div className="mb-6 grid gap-3 sm:grid-cols-3">
-                                    {hostConsoleMetrics.map(({ label, value, icon: MetricIcon }) => (
-                                        <div key={label} className="flex items-center justify-between rounded-xl border border-[#2B2F2E] bg-[#0D1318]/80 px-4 py-3">
-                                            <div>
-                                                <p className="font-sans text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{label}</p>
-                                                <p className="mt-1 font-sans text-2xl font-black text-white">{value}</p>
-                                            </div>
-                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#CA9C68]/25 bg-[#CA9C68]/10 text-[#CA9C68]">
-                                                <MetricIcon className="h-4 w-4" />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div className="flex w-full gap-2 overflow-x-auto rounded-xl border border-[#2B2F2E] bg-[#0D1318]/80 p-1 sm:w-fit">
-                                    <button
-                                        onClick={() => setActiveTab('hosted')}
-                                        className={`flex min-w-28 items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'hosted' ? 'border-[#CA9C68]/40 bg-[#CA9C68]/10 text-[#CA9C68]' : 'border-transparent text-slate-400 hover:bg-[#1B211F] hover:text-white'}`}
-                                    >
-                                        <Camera className="h-4 w-4" />
-                                        Host
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveTab('shared')}
-                                        className={`flex min-w-28 items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'shared' ? 'border-[#CA9C68]/40 bg-[#CA9C68]/10 text-[#CA9C68]' : 'border-transparent text-slate-400 hover:bg-[#1B211F] hover:text-white'}`}
-                                    >
-                                        <Users className="h-4 w-4" />
-                                        Shared
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveTab('request')}
-                                        className={`relative flex min-w-28 items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold transition-all ${activeTab === 'request' ? 'border-[#CA9C68]/40 bg-[#CA9C68]/10 text-[#CA9C68]' : 'border-transparent text-slate-400 hover:bg-[#1B211F] hover:text-white'}`}
-                                    >
-                                        <UserPlus className="h-4 w-4" />
-                                        Requests
-                                        {pendingGuestRequests.length > 0 && (
-                                            <span className="ml-1 rounded-full bg-[#CA9C68] px-2 py-0.5 text-[10px] font-black text-slate-950">
-                                                {pendingGuestRequests.length}
-                                            </span>
-                                        )}
-                                    </button>
                                 </div>
 
                                 {loadingEvents ? (
