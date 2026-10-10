@@ -710,6 +710,34 @@ export default function ProfileScreen() {
               </LinearGradient>
             </TouchableOpacity>
 
+            <View style={{ height: 12 }} />
+
+            <TouchableOpacity
+              style={[styles.usageCard, { borderColor: 'rgba(127, 163, 140, 0.35)' }]}
+              activeOpacity={0.8}
+              onPress={() => router.push('/(tabs)/vault')}
+              accessibilityRole="button"
+              accessibilityLabel="EB Vault, your personal storage"
+            >
+              <LinearGradient
+                colors={['rgba(127, 163, 140, 0.16)', 'rgba(127, 163, 140, 0.02)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.usageGradient}
+              >
+                <View style={[styles.usageIconBox, { backgroundColor: 'rgba(127, 163, 140, 0.2)' }]}>
+                  <IconSymbol name="externaldrive.fill" size={20} color="#7FA38C" />
+                </View>
+                <View style={styles.usageTextContent}>
+                  <Text style={[styles.usageTitle, { color: '#7FA38C' }]}>EB Vault</Text>
+                  <Text style={styles.usageSubtitle}>Your personal storage</Text>
+                </View>
+                <View style={[styles.usageArrowBox, { backgroundColor: 'rgba(127, 163, 140, 0.15)' }]}>
+                  <IconSymbol name="chevron.right" size={14} color="#7FA38C" />
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+
           </View>
 
           <TouchableOpacity

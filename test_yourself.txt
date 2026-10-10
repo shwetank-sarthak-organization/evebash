@@ -504,3 +504,64 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback:
+
+--------------------------------------------------------------------------------
+#26 App - EB Vault opens from Profile and uploads work
+Status:    TODO
+Priority:  High
+Platform:  App (iPhone + Android) - needs a NEW staging build (new native packages)
+Brief:     EB Vault in the app: Profile > EB Vault (under Usage & Plan).
+How to test:
+  1. Open Profile, tap "EB Vault - Your personal storage". Expect the Vault screen with the storage bar.
+  2. Tap + > Upload photos & videos: pick 3 photos and a video over 100 MB.
+     Expect a progress bar per file ("Keep the app open"), then all files listed.
+  3. Tap + > Upload files: pick a PDF and a document from Files/Drive. Expect them listed.
+  4. Tap + > New folder, open it, upload a file inside it. Back arrow returns to the parent.
+  5. Cancel one upload midway: shows "Cancelled", file not listed.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#27 App - EB Vault previews (PDF in-app on Android and iPhone)
+Status:    TODO
+Priority:  High
+Platform:  App (iPhone + Android)
+How to test:
+  1. Tap a photo: shown full screen. Tap an MP4: plays in the app; pause 10+ min then play: continues.
+  2. Tap a multi-page PDF: pages appear inside the app (not a download), "Show more pages" on long PDFs.
+     Check this on Android especially.
+  3. Tap a TXT/CSV: text shown. Tap a ZIP/DOCX: info card with "Share or save".
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#28 App - EB Vault save, share, organise and Trash
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone + Android)
+How to test:
+  1. File ... > Save to Photos (photo and video): appears in the phone's gallery.
+  2. File ... > Share or save to Files: share sheet opens; saving to Files/Drive works.
+  3. Star, Rename, Move (into a folder), Make a copy: all work; Starred and Recent tabs update.
+  4. Move to Trash, then Trash tab > tap item > Restore. Then Delete forever and Empty Trash.
+  5. Files uploaded on the website show up in the app and the other way round.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:

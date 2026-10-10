@@ -96,7 +96,8 @@
       "expo-web-browser",
       "@react-native-community/datetimepicker",
       "expo-video",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      "expo-sharing"
     ],
     "extra": {
       "eas": {
