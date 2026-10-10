@@ -55,16 +55,15 @@ any temporary Vercel fallback environment until those handlers are retired.
 
 ## Scheduled plan processing
 
-Call the following endpoint from Railway Cron or QStash on the desired schedule:
+The backend applies due plan changes itself every hour (and a minute after startup), using the Indian calendar
+date: `src/services/planChangeScheduler.ts`. Set `PLAN_CHANGE_SCHEDULER=false` to turn that off. The same work
+can also be triggered by hand:
 
 ```text
 POST /api/subscription/apply-due
 Authorization: Bearer <CRON_SECRET>
 ```
 
-The endpoint applies all plan changes whose `pending_plan_effective_at` time has
-arrived. Use a long random `CRON_SECRET` and store it only in Railway and the
-scheduler.
 # Automatic media watchdog
 
 `MEDIA_WATCHDOG_ENABLED=false` disables the startup and periodic media recovery/cleanup runs.

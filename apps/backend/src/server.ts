@@ -11,7 +11,7 @@ import { findYouRouter } from "./routes/findYou.js";
 import { infrastructureRouter } from "./routes/infrastructure.js";
 import { mediaRouter } from "./routes/media.js";
 import { pricingPlansRouter } from "./routes/pricingPlans.js";
-import { subscriptionRouter } from "./routes/subscription.js";
+import { applyDuePlanChanges, subscriptionRouter } from "./routes/subscription.js";
 import { paymentsRouter } from "./routes/payments.js";
 import { tenantAuthRouter } from "./routes/tenantAuth.js";
 import { permissionsRouter } from "./routes/permissions.js";
@@ -26,6 +26,7 @@ import { createS3EventToVaultCopier } from "./vault/eventCopier.js";
 import { createSupabaseVaultRepository } from "./vault/repository.js";
 import { createS3VaultStorage } from "./vault/storage.js";
 import { runVaultMaintenance, startVaultMaintenanceScheduler } from "./services/vaultMaintenance.js";
+import { startPlanChangeScheduler } from "./services/planChangeScheduler.js";
 
 // ── Process-Level Crash Protection ──────────────────────────────────────────
 // Prevent unhandled promise rejections from crashing the process (Node 16+)
@@ -185,6 +186,7 @@ const stopWatchdogScheduler = startWatchdogScheduler(safeRunWatchdog);
 const stopVaultMaintenance = vaultStorage
   ? startVaultMaintenanceScheduler(() => runVaultMaintenance(vaultRepository, vaultStorage))
   : () => {};
+const stopPlanChangeScheduler = startPlanChangeScheduler(() => applyDuePlanChanges());
 
 function handleShutdown(signal: string) {
   if (isShuttingDown) return;
@@ -193,6 +195,7 @@ function handleShutdown(signal: string) {
 
   stopWatchdogScheduler();
   stopVaultMaintenance();
+  stopPlanChangeScheduler();
 
   // Stop accepting new connections
   server.close(() => {
