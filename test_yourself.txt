@@ -358,7 +358,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #18 Move photos between galleries
-Status:    BLOCKED
+Status:    RETEST
 Priority:  Medium
 Platform:  Website + App
 Brief:     Move photos/videos to another gallery of the same event. Website: Galleries > Select > Move to...
@@ -373,7 +373,7 @@ Build / version:
 Date tested:
 Account used:
 Screenshot / recording:
-Fix ref:   710b4bc (feature); fix migration 20261010000000 must be applied first (issue #22)
+Fix ref:   0cd1faf; migration 20261010000000 applied 2026-10-10 (issue #22)
 Feedback:
 
 --------------------------------------------------------------------------------

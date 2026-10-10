@@ -190,20 +190,21 @@ Found in: Supabase access check (2026-10-06)
 Issue: Supabase RLS lockdown part 2 is not applied yet: most tables can still be read and changed with the public app key (launch blocker). Everything is ready: run sheet https://claude.ai/artifact/WQCggv3QSkj6MSdewUKpTZ, draft docs/security/rls-lockdown-draft.sql, tested rollback docs/security/rls-lockdown-part2-rollback.sql.
 How to reproduce: With only the public anon key, request /rest/v1/profiles?select=id,role: every profile comes back.
 
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
 #22
 Listed: 2026-10-10
 Platform: Both
 Priority: High
-Status: In progress
+Status: Fixed
 Owner: Shwetank (with Claude)
-Blocked by: Applying migration 20261010000000 in Supabase
+Blocked by: -
 Found in: Sarthak's lockdown review (2026-10-10); local test of the fix
 Issue: Moving photos between galleries fails for everyone: move_photos_to_gallery (20261006000000) calls public.can_manage_event_visibility, which is not in the live database (it ships with lockdown part 2), so every move errors with "function does not exist". Testing the fix also found a security bug in the same function: a NULL comparison in its same-event check let an event manager pull photos out of another owner's top-level gallery (not exploitable today only because the function crashes first). Fix: 20261010000000 uses eb_private.can_manage_event (part 1) and closes the NULL gap; covered by supabase/tests/move_photos.sql.
 How to reproduce: As a host, Select photos in a sub-gallery and Move to another gallery of the same event: "Could not move" (Supabase logs: function public.can_manage_event_visibility(text) does not exist).
-
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
+Fixed in: 0cd1faf (2026-10-10); migration 20261010000000 applied to Supabase 2026-10-10
 
 #1
 Listed: 2026-10-09
