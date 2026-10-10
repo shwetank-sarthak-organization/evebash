@@ -107,7 +107,7 @@ export function VideoThumbnailPicker({ video, onClose, onSaved }: Props) {
   </dialog>;
 }
 
-export function VideoThumbnailActions({ ready, onClose, onChoose, onDelete, onMove }: { ready: boolean; onClose: () => void; onChoose: () => void; onDelete: () => void; onMove?: () => void }) {
+export function VideoThumbnailActions({ ready, onClose, onChoose, onDelete, onMove, onSaveToVault }: { ready: boolean; onClose: () => void; onChoose: () => void; onDelete: () => void; onMove?: () => void; onSaveToVault?: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => { const focused = document.activeElement as HTMLElement | null; ref.current?.showModal(); return () => focused?.focus(); }, []);
   return <dialog ref={ref} onCancel={e => { e.preventDefault(); onClose(); }} aria-label="Video actions" className="m-auto w-[calc(100%-2rem)] max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-5 text-white backdrop:bg-black/60">
@@ -115,6 +115,7 @@ export function VideoThumbnailActions({ ready, onClose, onChoose, onDelete, onMo
     <button type="button" disabled={!ready} onClick={onChoose} className="w-full rounded-lg bg-[#CA9C68] p-3 font-bold text-slate-950 disabled:opacity-40">Change thumbnail</button>
     {!ready && <p className="mt-2 text-sm text-slate-300">Available after video processing finishes.</p>}
     {onMove && <button type="button" onClick={onMove} className="mt-3 w-full rounded-lg border border-slate-600 p-3 text-slate-200">Move to another gallery</button>}
+    {onSaveToVault && <button type="button" onClick={onSaveToVault} className="mt-3 w-full rounded-lg border border-[#7FA38C]/40 p-3 text-[#A9C9B4]">Save to EB Vault</button>}
     <button type="button" onClick={onDelete} className="mt-3 w-full rounded-lg border border-red-400/40 p-3 text-red-300">Delete video</button>
     <button type="button" onClick={onClose} className="mt-3 w-full rounded-lg border border-slate-600 p-3">Cancel</button>
   </dialog>;

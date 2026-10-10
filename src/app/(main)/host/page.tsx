@@ -2,6 +2,8 @@
 
 import { VideoThumbnailPicker, VideoThumbnailActions } from "@/components/VideoThumbnailPicker";
 import { MoveToGalleryDialog } from "@/components/MoveToGalleryDialog";
+import { FolderPickerDialog } from "@/components/vault/Dialogs";
+import { vaultApi } from "@/lib/vaultApi";
 import { GalleriesIcon } from "@/components/GalleriesIcon";
 import { PermissionsIcon } from "@/components/PermissionsIcon";
 import { DesignIcon } from "@/components/DesignIcon";
@@ -62,7 +64,8 @@ import {
     Layers3,
     FolderInput,
     CheckSquare,
-    Square
+    Square,
+    HardDrive
 } from "lucide-react";
 import { cn, formatEventDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -724,6 +727,7 @@ function DashboardContent() {
     const [isSelectingMedia, setIsSelectingMedia] = useState(false);
     const [selectedMediaIds, setSelectedMediaIds] = useState<Set<string>>(new Set());
     const [mediaToMove, setMediaToMove] = useState<Photo[] | null>(null);
+    const [mediaToSave, setMediaToSave] = useState<Photo[] | null>(null);
     const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
     const [sourceGalleryFilter, setSourceGalleryFilter] = useState("all");
     const [isDraggingPhotos, setIsDraggingPhotos] = useState(false);
@@ -3309,6 +3313,25 @@ function DashboardContent() {
         return null;
     };
 
+    // Copies the originals into the user's EB Vault; the items stay in the event. Returns an error for the dialog.
+    const handleSaveToVault = async (vaultFolderId: string | null): Promise<string | null> => {
+        if (!mediaToSave || mediaToSave.length === 0) return null;
+        try {
+            const { saved, failed } = await vaultApi.saveFromEvent(mediaToSave.map(item => item.id), vaultFolderId);
+            if (saved.length === 0) return failed[0]?.error || "Nothing could be saved. Please try again.";
+            setMediaToSave(null);
+            exitMediaSelection();
+            setStatus(failed.length ? "error" : "success");
+            setMessage(failed.length
+                ? `Saved ${saved.length} of ${saved.length + failed.length} to EB Vault. ${failed[0].error}`
+                : `Saved ${saved.length === 1 ? "1 item" : `${saved.length} items`} to EB Vault.`);
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 4000);
+            return null;
+        } catch (error) {
+            return error instanceof Error ? error.message : "Couldn't save to EB Vault. Please try again.";
+        }
+    };
+
     const handleToggleEventFavourite = async (photoId: string) => {
         if (!selectedMainEventId || !user?.uid) return;
 
@@ -5257,7 +5280,7 @@ function DashboardContent() {
                                         </div>
                                     )}
 
-                                    {canMoveMedia && galleryViewMode === "grid" && activeGalleryItems.length > 0 && (
+                                    {galleryViewMode === "grid" && activeGalleryItems.length > 0 && (
                                         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-700 bg-slate-900/45 px-4 py-3">
                                             {isSelectingMedia ? (
                                                 <>
@@ -5276,14 +5299,25 @@ function DashboardContent() {
                                                         >
                                                             {selectedMediaIds.size === activeGalleryItems.length ? "Clear" : "Select all"}
                                                         </button>
+                                                        {canMoveMedia && (
+                                                            <button
+                                                                type="button"
+                                                                disabled={selectedMediaIds.size === 0}
+                                                                onClick={() => setMediaToMove(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
+                                                                className="flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-950 disabled:opacity-40"
+                                                            >
+                                                                <FolderInput className="h-4 w-4" />
+                                                                <span>Move to…</span>
+                                                            </button>
+                                                        )}
                                                         <button
                                                             type="button"
                                                             disabled={selectedMediaIds.size === 0}
-                                                            onClick={() => setMediaToMove(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
-                                                            className="flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-950 disabled:opacity-40"
+                                                            onClick={() => setMediaToSave(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
+                                                            className="flex items-center gap-2 rounded-full border border-[#7FA38C]/50 bg-[#7FA38C]/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-[#A9C9B4] disabled:opacity-40"
                                                         >
-                                                            <FolderInput className="h-4 w-4" />
-                                                            <span>Move to…</span>
+                                                            <HardDrive className="h-4 w-4" />
+                                                            <span>Save to EB Vault</span>
                                                         </button>
                                                         <button
                                                             type="button"
@@ -5296,7 +5330,9 @@ function DashboardContent() {
                                                 </>
                                             ) : (
                                                 <>
-                                                    <span className="text-sm font-semibold text-slate-400">Uploaded to the wrong gallery? Move items within this event.</span>
+                                                    <span className="text-sm font-semibold text-slate-400">
+                                                        {canMoveMedia ? "Select items to move them to another gallery or save copies to EB Vault." : "Select items to save copies to your EB Vault."}
+                                                    </span>
                                                     <button
                                                         type="button"
                                                         onClick={() => setIsSelectingMedia(true)}
@@ -6845,7 +6881,16 @@ function DashboardContent() {
                     }}
                 />
 
-                {videoActionItem && <VideoThumbnailActions ready={videoActionItem.status === "processed"} onClose={() => setVideoActionItem(null)} onChoose={() => { setThumbnailVideo(videoActionItem); setVideoActionItem(null); }} onDelete={() => { void handleDeletePhoto(videoActionItem.id); setVideoActionItem(null); }} onMove={canMoveMedia ? () => { setMediaToMove([videoActionItem]); setVideoActionItem(null); } : undefined} />}
+                {videoActionItem && <VideoThumbnailActions ready={videoActionItem.status === "processed"} onClose={() => setVideoActionItem(null)} onChoose={() => { setThumbnailVideo(videoActionItem); setVideoActionItem(null); }} onDelete={() => { void handleDeletePhoto(videoActionItem.id); setVideoActionItem(null); }} onMove={canMoveMedia ? () => { setMediaToMove([videoActionItem]); setVideoActionItem(null); } : undefined} onSaveToVault={() => { setMediaToSave([videoActionItem]); setVideoActionItem(null); }} />}
+                {mediaToSave && (
+                    <FolderPickerDialog
+                        title={`Save ${mediaToSave.length === 1 ? "1 item" : `${mediaToSave.length} items`} to EB Vault`}
+                        confirmLabel="Save"
+                        excludeFolderIds={[]}
+                        onClose={() => setMediaToSave(null)}
+                        onPick={handleSaveToVault}
+                    />
+                )}
                 {mediaToMove && (
                     <MoveToGalleryDialog
                         itemCount={mediaToMove.length}
@@ -6915,6 +6960,16 @@ function DashboardContent() {
                                             <span>Move to Another Gallery</span>
                                         </button>
                                     )}
+                                    <button
+                                        onClick={() => {
+                                            setMediaToSave([photoActionItem]);
+                                            setPhotoActionItem(null);
+                                        }}
+                                        className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-[#7FA38C]/40 px-5 py-4 text-left font-black text-[#A9C9B4] transition-transform active:scale-[0.98] hover:border-[#7FA38C]"
+                                    >
+                                        <HardDrive className="h-5 w-5 shrink-0" />
+                                        <span>Save to EB Vault</span>
+                                    </button>
                                 </div>
                             </motion.div>
                         </div>
