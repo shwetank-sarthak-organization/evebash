@@ -30,22 +30,12 @@ Platform: Both
 Priority: High
 Status: In progress
 Owner: Sarthak (with Claude)
-Blocked by: -
+Blocked by: Turning on EVENT_UPLOAD_LIMITS=true on Railway after testing (test_yourself #40)
 Found in: Website vs app consistency audit (2026-10-05)
 Issue: Storage and plan limits only apply on the website. The app and backend don't block uploads over the plan's storage, and the app's storage totals ignore overhead_size. Ideally enforced in the backend so both platforms follow it.
 How to reproduce: With a free account near its 1 GB limit, upload past the limit from the website (blocked) and from the app (allowed). Compare the storage used shown on each.
 Update 2026-10-10: events and EB Vault now share one plan storage pool. Website/app totals include Vault usage, and Vault uploads are checked on the backend. Event uploads are still only checked on the website and app, so this stays open.
-
-#7
-Listed: 2026-10-09
-Platform: Both
-Priority: High
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Website vs app consistency audit (2026-10-05)
-Issue: Scheduled plan changes are only applied when the website loads ("apply-pending" in the website's AuthContext). App-only users never get them. Should move to the backend.
-How to reproduce: Give a test account a pending plan change whose start date has passed. Open only the app: the plan stays the same. Open the website: the change applies.
+Update 2026-10-10 (8acf63a): the gallery OWNER pays (decided by Sarthak): vault_event_storage_bytes counts media in galleries the owner owns, whoever uploaded it (migration 20261010030000 applied). The server checks the owner's plan (events + Vault, videos x1.35, paused while a paid plan is expired) before handing out upload links, behind EVENT_UPLOAD_LIMITS (off by default). Website and app read storage from GET /api/v1/media/storage-usage. Move to fixed once the switch is on and test #40 passes.
 
 #9
 Listed: 2026-10-09
@@ -138,6 +128,18 @@ How to reproduce: With only the public anon key, request /rest/v1/profiles?selec
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#7
+Listed: 2026-10-09
+Platform: Both
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website vs app consistency audit (2026-10-05)
+Issue: Scheduled plan changes are only applied when the website loads ("apply-pending" in the website's AuthContext). App-only users never get them. Should move to the backend.
+How to reproduce: Give a test account a pending plan change whose start date has passed. Open only the app: the plan stays the same. Open the website: the change applies.
+Fixed in: 243a20e (2026-10-10). The backend applies due plan changes every hour and a minute after startup (Indian calendar day); kill switch PLAN_CHANGE_SCHEDULER=false. /apply-due had existed but nothing ever called it.
 
 #14
 Listed: 2026-10-09

@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 39
+Next test number: 41
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -785,4 +785,50 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:   363c5aa (2026-10-10)
+Feedback:
+
+--------------------------------------------------------------------------------
+#39 Storage used shows the same number on website and app
+Status:    TODO
+Priority:  Medium
+Platform:  Website now; App (new build from staging with 8acf63a)
+Brief:     Storage is now counted by the server for both (issue #6). The app used to leave out
+           previews/streaming copies (18.19 GB showed as 10.55 GB).
+How to test:
+  1. Same account: website Profile -> storage, and app Profile/Usage -> storage.
+  2. Expect: the same "used" number on both (small rounding differences are fine).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   8acf63a (2026-10-10)
+Feedback:
+
+--------------------------------------------------------------------------------
+#40 Uploads stop at the gallery owner's storage limit (website and app)
+Status:    BLOCKED
+Priority:  High
+Platform:  Website + App (new build from staging with 8acf63a)
+Brief:     The server now refuses gallery uploads that don't fit the OWNER's plan (issue #6).
+           Guests use the host's storage, not their own. Blocked until EVENT_UPLOAD_LIMITS=true
+           is set on Railway (backend).
+How to test (use a FREE test account = 1 GB, with a gallery holding ~0.9 GB):
+  1. As that host, upload a 200 MB+ video on the website.
+     Expect: refused, message at the top "...more storage than your plan has left...".
+  2. Same in the app. Expect: one pop-up "Upload paused" with the same reason; the file
+     shows failed and does NOT keep retrying.
+  3. As a GUEST of that gallery, upload a photo. Expect: "This gallery is out of storage.
+     Ask the host to free up space or upgrade their plan." The guest's own storage is unchanged.
+  4. A small photo that fits still uploads fine.
+  5. Paid host with an expired plan (more than 0 days past end): uploads refused with
+     "Uploads are paused because your plan has expired...".
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   8acf63a (2026-10-10)
 Feedback:
