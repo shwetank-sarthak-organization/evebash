@@ -484,3 +484,23 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback:
+
+--------------------------------------------------------------------------------
+#25 EB Vault - long video keeps playing after a pause
+Status:    TODO
+Priority:  Medium
+Platform:  Website (phone browser and desktop)
+Brief:     Video previews now use 2-hour links and refresh themselves if a link expires (commit d504769).
+How to test:
+  1. Upload an MP4 of at least 15 minutes to EB Vault and open its preview.
+  2. Play for a minute, pause for 10+ minutes, then press play.
+  3. Expect: it continues from the same moment. No error, no restart from the beginning.
+  4. Skip near the end of the video: it keeps playing.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
