@@ -1123,3 +1123,29 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback:
+
+#53 Website SEO: link previews, 404 page and sample gallery page
+Status:    TODO
+Priority:  Medium
+Platform:  Website (staging.evebash.com; repeat steps 1-3 on www.evebash.com after the merge to main)
+Brief:     Sample gallery pages have their own title and cover preview, unknown addresses show a
+           branded 404 page, and staging is hidden from Google.
+How to test:
+  1. Paste https://staging.evebash.com/sample-galleries/wedding-fdd8 into a WhatsApp chat (don't send).
+     Expect: preview with the gallery's cover photo and "Wedding sample gallery · EveBash".
+  2. Paste https://staging.evebash.com/pricing into WhatsApp. Expect: the EveBash preview image and "Pricing · EveBash".
+  3. Open https://staging.evebash.com/this-page-does-not-exist on a phone and a computer.
+     Expect: EB logo, "We couldn't find that page", buttons "Go to the homepage" and "Find your photos",
+     links Sample galleries / Pricing / Contact us, all working. No sideways scrolling on the phone.
+  4. Open the sample gallery from Sample Galleries. Expect: cover, title and description show, then the albums load
+     and each album opens its gallery.
+  5. After the merge to main: paste https://www.evebash.com into https://search.google.com/test/rich-results.
+     Expect: FAQ and Organization detected, no errors. Do the same for /pricing (Software App detected).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
