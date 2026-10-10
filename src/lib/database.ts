@@ -2453,8 +2453,32 @@ export async function getUserVaultStorage(identifiers: string | string[]): Promi
     }
 }
 
+/**
+ * The signed-in user's storage as the server counts it for upload limits: everything in galleries they own (whoever
+ * uploaded it, previews and streaming copies included) plus EB Vault. Null when it isn't about the signed-in user or
+ * the server can't be reached, so callers fall back to adding it up here.
+ */
+async function getOwnStorageFromServer(identifiers: string | string[]): Promise<StorageBreakdown | null> {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const ids = Array.isArray(identifiers) ? identifiers : [identifiers];
+        if (!session?.access_token || !ids.includes(session.user.id)) return null;
+        const response = await fetch(getApiUrl("/api/v1/media/storage-usage"), {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!response.ok) return null;
+        const data = await response.json();
+        if (typeof data?.total !== "number") return null;
+        return { events: Number(data.events) || 0, vault: Number(data.vault) || 0, total: data.total };
+    } catch {
+        return null;
+    }
+}
+
 /** Event and Vault usage share one plan-wide storage limit. */
 export async function getUserStorageBreakdown(identifiers: string | string[]): Promise<StorageBreakdown> {
+    const fromServer = await getOwnStorageFromServer(identifiers);
+    if (fromServer) return fromServer;
     const [events, vault] = await Promise.all([getUserEventStorage(identifiers), getUserVaultStorage(identifiers)]);
     return { events, vault, total: events + vault };
 }

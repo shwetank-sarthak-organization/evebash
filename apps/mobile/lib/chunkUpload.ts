@@ -217,6 +217,12 @@ export async function uploadVideoInChunks(
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
+        if (data?.code === 'storage_full' || data?.code === 'plan_expired') {
+          // The gallery owner's plan is the reason: keep the server's wording and its code for the queue
+          const refused = nonRetryableError(data.error || 'This upload is over the storage limit.') as Error & { code?: string };
+          refused.code = data.code;
+          throw refused;
+        }
         const message = `Initiate failed: ${response.status} ${data?.error || ''}`.trim();
         throw isNonRetryableStatus(response.status) ? nonRetryableError(message) : new Error(message);
       }

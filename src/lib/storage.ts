@@ -1,6 +1,15 @@
 import { supabase } from "@/lib/supabase";
 import { getApiUrl } from "@/lib/apiBase";
 
+/** The server's reason for refusing an upload; `code` is "storage_full" or "plan_expired" when the plan is the reason. */
+export type UploadRefusedError = Error & { code?: string };
+
+function uploadRefusedError(result: { error?: string; code?: string }, fallback: string): UploadRefusedError {
+    const error: UploadRefusedError = new Error(result?.error || fallback);
+    if (result?.code) error.code = result.code;
+    return error;
+}
+
 /**
  * Computes the SHA-1 hash of a Blob using the browser's SubtleCrypto API.
  * Returns the hex-encoded hash string.
@@ -297,7 +306,7 @@ async function uploadChunks(
         });
         const initiateData = await initiateRes.json().catch(() => ({}));
         if (!initiateRes.ok) {
-            throw new Error(initiateData.error || `Failed to initiate chunked upload (status: ${initiateRes.status})`);
+            throw uploadRefusedError(initiateData, `Failed to initiate chunked upload (status: ${initiateRes.status})`);
         }
         fileId = initiateData.fileId;
         storageKey = initiateData.storageKey;
@@ -672,6 +681,7 @@ export async function uploadEventImage(
             body: JSON.stringify({
                 eventId,
                 fileName: file.name,
+                fileSize: file.size,
                 resourceType,
                 laneIndex,
             }),
@@ -680,7 +690,7 @@ export async function uploadEventImage(
 
         const getUrlResult = await getUrlResponse.json().catch(() => ({}));
         if (!getUrlResponse.ok) {
-            throw new Error(getUrlResult.error || `Failed to get B2 upload URL (status: ${getUrlResponse.status})`);
+            throw uploadRefusedError(getUrlResult, `Failed to get B2 upload URL (status: ${getUrlResponse.status})`);
         }
 
         const { uploadUrl, authorizationToken, storageKey } = getUrlResult;
@@ -727,6 +737,7 @@ export async function uploadEventImage(
                 body: JSON.stringify({
                     eventId,
                     fileName: file.name,
+                    fileSize: file.size,
                     resourceType,
                     laneIndex,
                     forceRefresh: true,

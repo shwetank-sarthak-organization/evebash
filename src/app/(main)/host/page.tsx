@@ -2470,6 +2470,11 @@ function DashboardContent() {
                         console.error(`[Dashboard] File upload error for ${file.name}:`, fileErr);
                     }
                     setUploadQueue(prev => prev.map(item => item.id === queueItemId ? { ...item, status: fileErr.name === "AbortError" ? "cancelled" : "error", progress: 0, error: fileErr.name === "AbortError" ? undefined : fileErr.message || "Failed" } : item));
+                    if (fileErr.code === "storage_full" || fileErr.code === "plan_expired") {
+                        // The plan is the reason: say so at the top, not only on each file
+                        setMessage(fileErr.message);
+                        setStatus("error");
+                    }
                 } finally {
                     uploadControllers.current.delete(queueItemId);
                     activeCount--;

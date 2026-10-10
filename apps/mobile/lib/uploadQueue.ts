@@ -6,6 +6,25 @@ import { getEndpointsForPath, fetchWithEndpointFallback } from './storage';
 import { toDurationSeconds } from './mediaDuration';
 import { appAlert } from './feedback';
 
+// The server refused an upload because of the gallery owner's plan (storage full or plan expired).
+// Retrying can't help, so the item fails at once; the reason is shown once per minute, not once per file.
+const PLAN_LIMIT_CODES = new Set(['storage_full', 'plan_expired']);
+let lastPlanLimitAlertAt = 0;
+
+function planLimitError(result: any): (Error & { nonRetryable: true; code: string }) | null {
+  if (!result || !PLAN_LIMIT_CODES.has(result.code)) return null;
+  const err = new Error(result.error || 'This upload is over the storage limit.') as Error & { nonRetryable: true; code: string };
+  err.nonRetryable = true;
+  err.code = result.code;
+  return err;
+}
+
+function showPlanLimitAlert(message: string) {
+  if (Date.now() - lastPlanLimitAlertAt < 60_000) return;
+  lastPlanLimitAlertAt = Date.now();
+  appAlert('Upload paused', message);
+}
+
 let Notifications: any = null;
 try {
   Notifications = require('expo-notifications');
@@ -540,8 +559,12 @@ async function uploadWorker(item: UploadQueueItem) {
       );
       if (mobileResponse.ok) {
         getUrlResult = await mobileResponse.json().catch(() => null);
+      } else if (mobileResponse.status === 403) {
+        const refused = planLimitError(await mobileResponse.json().catch(() => null));
+        if (refused) throw refused;
       }
-    } catch {
+    } catch (err: any) {
+      if (err?.code && PLAN_LIMIT_CODES.has(err.code)) throw err;
       // Mobile endpoint not available on server yet
     }
 
@@ -560,6 +583,7 @@ async function uploadWorker(item: UploadQueueItem) {
               eventId: item.eventId,
               fileName: item.fileName,
               resourceType: item.mediaType === 'video' ? 'video' : 'image',
+              fileSize,
             }),
           });
         },
@@ -568,7 +592,7 @@ async function uploadWorker(item: UploadQueueItem) {
 
       getUrlResult = await standardResponse.json().catch(() => ({}));
       if (!standardResponse.ok) {
-        throw new Error(getUrlResult.error || `Failed to get B2 upload URL (status: ${standardResponse.status})`);
+        throw planLimitError(getUrlResult) || new Error(getUrlResult.error || `Failed to get B2 upload URL (status: ${standardResponse.status})`);
       }
     }
 
@@ -664,6 +688,7 @@ async function uploadWorker(item: UploadQueueItem) {
           target.error = err.message || String(err);
         }
       });
+      if (err?.code && PLAN_LIMIT_CODES.has(err.code)) showPlanLimitAlert(err.message);
     }
   } finally {
     activeSlots = Math.max(0, activeSlots - 1);

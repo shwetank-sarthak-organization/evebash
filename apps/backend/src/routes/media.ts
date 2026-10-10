@@ -37,6 +37,9 @@ import {
   sendOwnerUploadNotification,
 } from "../uploadNotifications.js";
 import { runMediaWatchdog } from "../services/watchdog.js";
+import { checkEventUpload, isEventUploadLimitEnabled } from "../services/eventUploadLimits.js";
+import { getStorageContext } from "../vault/access.js";
+import { createSupabaseVaultRepository } from "../vault/repository.js";
 
 export const mediaRouter = Router();
 
@@ -225,6 +228,27 @@ async function validateAnonymousEvent(eventId: string) {
     .maybeSingle();
 
   return !error && !!event;
+}
+
+/**
+ * Refuses a new gallery upload that doesn't fit the gallery owner's plan (EVENT_UPLOAD_LIMITS=true). Replies 403 with
+ * { code: "storage_full" | "plan_expired", error } and returns true when refused. If the check itself fails, the
+ * upload is allowed rather than blocked.
+ */
+async function refuseOverLimitUpload(
+  response: Response,
+  params: { eventId: string; uploaderId: string; bytes: number; isVideo: boolean },
+) {
+  if (!isEventUploadLimitEnabled()) return false;
+  try {
+    const decision = await checkEventUpload(params);
+    if (decision.allowed) return false;
+    response.status(403).json({ success: false, code: decision.code, error: decision.error });
+    return true;
+  } catch (error) {
+    console.warn("[Media] Upload limit check failed; allowing the upload:", error);
+    return false;
+  }
 }
 
 function isVideoResource(resourceType: string | undefined, fileName: string, storageKey?: string) {
@@ -557,6 +581,24 @@ mediaRouter.use(asyncRoute(async (request, response, next) => {
   next();
 }));
 
+// The signed-in user's plan storage, counted the way uploads are checked: everything in galleries they own (whoever
+// uploaded it, previews and streaming copies included) plus their EB Vault. Works whether or not Vault is switched on.
+mediaRouter.get("/storage-usage", asyncRoute(async (request, response) => {
+  const verified = await verifyRequestUser(request);
+  if (!verified) return jsonError(response, 401, "Authorization required");
+  const { id, email, phone } = verified.user;
+  const context = await getStorageContext(createSupabaseVaultRepository(), { id, email, phone });
+  response.json({
+    success: true,
+    events: context.eventBytes,
+    vault: context.vaultUsedBytes,
+    total: context.eventBytes + context.vaultUsedBytes,
+    limitBytes: context.limitBytes,
+    uploadsBlocked: context.uploadsBlocked,
+    planState: context.lifecycle.state,
+  });
+}));
+
 mediaRouter.post("/get-upload-url", asyncRoute(async (request, response) => {
   const body = request.body || {};
   const scope = body.scope === "profile" ? "profile" : "event";
@@ -570,6 +612,9 @@ mediaRouter.post("/get-upload-url", asyncRoute(async (request, response) => {
   if (userId === "anonymous" && scope === "event" && !(await validateAnonymousEvent(eventId))) {
     return jsonError(response, 401, "Invalid event or unauthorized access");
   }
+  if (scope === "event" && await refuseOverLimitUpload(response, {
+    eventId, uploaderId: userId, bytes: Number(body.fileSize || 0), isVideo: isVideoResource(resourceType, fileName),
+  })) return;
 
   const storageKey = buildStorageKey({ eventId, userId, resourceType, fileName, scope });
   const backblazeAuth = await getCachedBackblazeAuth();
@@ -656,6 +701,10 @@ mediaRouter.post("/upload/chunk/initiate", asyncRoute(async (request, response) 
   }
 
   // ── 2. Fresh session initiation ──────────────────────────────────────────────
+  // (checked only here: a resumed upload is already counted)
+  if (scope === "event" && await refuseOverLimitUpload(response, {
+    eventId, uploaderId: userId, bytes: fileSize, isVideo: isVideoResource(resourceType, fileName),
+  })) return;
   const storageKey = buildStorageKey({ eventId, userId, resourceType, fileName, scope });
   const largeFileData = await startLargeFile(backblazeAuth, storageKey, contentType);
   const photoId = storageKey.replace(/\//g, "_");
@@ -1078,6 +1127,9 @@ mediaRouter.post("/mobile/get-upload-url", asyncRoute(async (request, response) 
   if (userId === "anonymous" && !(await validateAnonymousEvent(eventId))) {
     return jsonError(response, 401, "Invalid event or unauthorized access");
   }
+  if (await refuseOverLimitUpload(response, {
+    eventId, uploaderId: userId, bytes: fileSize, isVideo: isVideoResource(resourceType, fileName),
+  })) return;
 
   // Deterministic storageKey including clientUploadId
   const folder = resourceType === "video" ? "videos" : "photos";
