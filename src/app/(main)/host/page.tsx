@@ -2478,25 +2478,7 @@ function DashboardContent() {
 
             await fetchStorageStats();
 
-            // Trigger immediate face recognition on the backend if any photo uploads succeeded
-            const photoUploads = uploadResults.filter(item => item.photo.mediaType === "photo" && item.photo.resourceType === "image");
-            if (photoUploads.length > 0) {
-                console.log(`[Dashboard] Drained upload queue. Triggering immediate face indexing...`);
-                const { data: sessionData } = await supabase.auth.getSession();
-                const accessToken = sessionData.session?.access_token;
-                if (accessToken) {
-                    fetch(getApiUrl('/api/media/trigger-modal-batch?immediate=true'), {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Authorization: `Bearer ${accessToken}`,
-                        },
-                        body: JSON.stringify({ eventId: selectedEventId }),
-                    }).catch(err => {
-                        console.warn("[Dashboard] Immediate face indexing trigger failed:", err);
-                    });
-                }
-            }
+            // Face scanning runs from the upload pipeline itself (the old trigger-modal-batch call was removed)
 
             // Auto-update cover if it's currently a placeholder or if it's the first upload
             const currentEvent = userEvents.find(ev => ev.id === selectedEventId);

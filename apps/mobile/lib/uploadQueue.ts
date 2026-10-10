@@ -961,29 +961,9 @@ async function settleProcessingVideos(videos: UploadQueueItem[]): Promise<boolea
 export function triggerAndTrackProcessing(eventId: string) {
   if (!eventId) return;
 
-  // 1. Fire trigger-modal-batch
-  try {
-    const triggerUrl = getEndpointsForPath('/api/media/trigger-modal-batch?immediate=true')[0];
-    supabase.auth.getSession().then(({ data: sessionData }) => {
-      const accessToken = sessionData.session?.access_token;
-      if (triggerUrl && accessToken) {
-        fetch(triggerUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({ eventId }),
-        }).catch(err => {
-          console.warn(`[UploadQueue] Face indexing trigger notice for event ${eventId}:`, err);
-        });
-      }
-    }).catch(() => {});
-  } catch (err) {
-    console.warn('[UploadQueue] Notice on triggering indexing:', err);
-  }
-
-  // 2. Start polling if not already polling
+  // Face scanning is started by the upload pipeline itself; this only tracks progress
+  // (the old trigger-modal-batch call was removed: it duplicated work)
+  // Start polling if not already polling
   if (activeIndexingPollers.has(eventId)) {
     return;
   }
