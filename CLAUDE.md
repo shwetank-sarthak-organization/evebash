@@ -13,7 +13,7 @@
 
 `test_yourself.txt` at the repo root lists what testers must check by hand on a real phone or browser.
 
-- When a change needs a manual check on a device, add a test with the file's next number (Status TODO, Priority, Platform, how to test). Numbers are never reused.
+- When a change needs a manual check on a device, add a test with the file's "Next test number" (then increase it; pull staging first) (Status TODO, Priority, Platform, how to test). Numbers are never reused.
 - When fixing a FAIL, fill in its "Fix ref" and set Status to RETEST.
 - Testers fill in Status, Done by, Device / browser, Build / version, Date tested, Account used, Screenshot and Feedback.
 - `evebash_issue.txt` is for bugs; `test_yourself.txt` is for tests. A FAIL that needs real work also gets an issue in `evebash_issue.txt`.

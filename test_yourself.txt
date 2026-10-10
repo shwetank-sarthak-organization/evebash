@@ -17,7 +17,11 @@ HOW TO USE
     Feedback          what you saw
 - If it FAILS: write exactly what happened + screenshot. Developer fills Fix ref and
   sets Status to RETEST; tester re-tests and sets PASS or FAIL.
-- New tests go at the bottom with the next number. Never reuse a number.
+- New tests go at the bottom with the "Next test number" below, then increase that number by 1.
+  Never reuse a number. Pull staging first so two chats don't take the same number.
+
+Next test number: 33
+
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
 Last updated: 2026-10-10
