@@ -52,9 +52,9 @@ How to reproduce: Open a gallery in the admin dashboard Events grid: there is no
 Listed: 2026-10-09
 Platform: Website
 Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
+Status: Blocked
+Owner: Sarthak (decision)
+Blocked by: Deferred by Sarthak 2026-10-10 (do after launch-critical work)
 Found in: SEO audit (2026-10-04)
 Issue: SEO gaps: every page shares one title and description, no Open Graph/Twitter tags on most pages, no canonical tags, and gallery pages (/events/*) are indexable. Needs a server layout.tsx per route segment for metadata.
 How to reproduce: View source of /pricing, /contact and /sample-galleries: same <title> and description, no og: tags or canonical link.
