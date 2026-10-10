@@ -24,17 +24,6 @@ Next issue number: 23
 ACTIVE ISSUES
 =====================================================================
 
-#4
-Listed: 2026-10-09
-Platform: Both
-Priority: High
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Modal cost audit (2026-10-05)
-Issue: Find You compares only the first 1,000 faces of a gallery, so people in big galleries get missed. The faces query in Modal's find_matching_photos isn't paginated (backend/Modal).
-How to reproduce: Use a gallery with more than 1,000 indexed faces (one with 1,751 existed on 2026-10-05). Run Find You for someone who appears only in later-indexed photos: they're not found.
-
 #6
 Listed: 2026-10-09
 Platform: Both
@@ -182,6 +171,18 @@ How to reproduce: With only the public anon key, request /rest/v1/profiles?selec
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#4
+Listed: 2026-10-09
+Platform: Both
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Modal cost audit (2026-10-05)
+Issue: Find You compares only the first 1,000 faces of a gallery, so people in big galleries get missed. The faces query in Modal's find_matching_photos isn't paginated (backend/Modal).
+How to reproduce: Use a gallery with more than 1,000 indexed faces (one with 1,751 existed on 2026-10-05). Run Find You for someone who appears only in later-indexed photos: they're not found.
+Fixed in: 4469b92, Modal v115 deployed 2026-10-10 12:51 IST. Live check: REc 8 compares 1,751 faces (was 1,000). Rollback: modal app rollback wedding-media-engine v114.
 
 #15
 Listed: 2026-10-09
