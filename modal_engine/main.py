@@ -43,27 +43,6 @@ media_image = (
     )
 )
 
-def _env_flag(name: str) -> bool:
-    """
-    True when `name`=true in the root .env. Read from the .env at deploy time; containers get the
-    same value through the Modal secret, so both evaluations of the decorators agree.
-    """
-    value = os.environ.get(name)
-    if value is None and modal.is_local():
-        try:
-            from dotenv import dotenv_values
-            value = dotenv_values(os.path.join(os.path.dirname(__file__), "../.env")).get(name)
-        except Exception:
-            value = None
-    return (value or "").strip().lower() == "true"
-
-# Cost-tuned container settings (shorter idle windows, more FaceIndexer containers, 16-core long videos).
-COST_TUNING = _env_flag("MODAL_COST_TUNING")
-# Video endpoints check the QStash signature, start the transcode in the background and reply at once.
-VIDEO_ASYNC = _env_flag("MODAL_VIDEO_ASYNC")
-# Selfie search accepts only requests carrying the backend's internal secret (X-EveBash-Secret).
-FIND_YOU_REQUIRE_SECRET = _env_flag("MODAL_FIND_YOU_REQUIRE_SECRET")
-
 def verify_qstash_signature(body: bytes, signature: str, url: str) -> bool:
     """
     Verifies Upstash-Signature JWT header against raw body bytes.
@@ -212,7 +191,7 @@ def _hand_off_to_fast_pipeline(photos: list) -> dict:
     """
     Sends photos the 2-stage pipeline hasn't started yet (e.g. web uploads over 20 MB, which skip the
     fast-media trigger) to process_photo_preview. Photos already in that pipeline are left alone instead
-    of being resized and face-indexed a second time by process_single_photo.
+    of being resized and face-indexed a second time.
     """
     from supabase import create_client
 
@@ -244,8 +223,8 @@ def _hand_off_to_fast_pipeline(photos: list) -> dict:
 
 
 @app.function(
-    # The cost-tuned path only hands photos off, so it doesn't need the face-recognition image
-    image=media_image if COST_TUNING else image,
+    # Only hands photos off to the 2-stage pipeline, so it doesn't need the face-recognition image
+    image=media_image,
     secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
 )
 @modal.fastapi_endpoint(method="POST")
@@ -261,268 +240,7 @@ def process_media_batch(request: dict):
     if not photos:
         return {"status": "no photos provided"}
 
-    if COST_TUNING:
-        return _hand_off_to_fast_pipeline(photos)
-
-    results = list(process_single_photo.map(photos))
-
-    duration = time.time() - start_time
-    cpu_cores = 0.125
-    memory_gb = 1.0
-    estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
-
-    user_id = request.get("user_id")
-    event_id = request.get("event_id")
-    if not event_id and photos and isinstance(photos[0], dict):
-        event_id = photos[0].get("event_id")
-    if not user_id and photos and isinstance(photos[0], dict):
-        user_id = photos[0].get("user_id")
-
-    try:
-        from supabase import create_client
-        supabase = create_client(
-            os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
-            os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-        )
-        # Media compute belongs to the event owner (host/creator)
-        if event_id:
-            try:
-                e_res = supabase.table("events").select("created_by").eq("id", event_id).maybe_single().execute()
-                if e_res and e_res.data and e_res.data.get("created_by"):
-                    user_id = e_res.data.get("created_by")
-            except Exception:
-                pass
-
-        batch_log_payload = {
-            "function_name":           "process_media_batch",
-            "worker_type":             "Modal Batch Dispatcher (0.125 vCPU • 1GB RAM)",
-            "media_type":              "batch",
-            "cpu_cores":               cpu_cores,
-            "memory_gb":               memory_gb,
-            "execution_time_seconds":  duration,
-            "estimated_cost_inr":      estimated_cost_inr,
-            "faces_detected":          0
-        }
-        if event_id:
-            batch_log_payload["event_id"] = event_id
-        if user_id:
-            batch_log_payload["user_id"] = user_id
-
-        supabase.table("modal_cost_logs").insert(batch_log_payload).execute()
-        print(f"[Batch] Cost logged: {duration:.2f}s, ₹{estimated_cost_inr:.5f} (event: {event_id}, user: {user_id})")
-    except Exception as log_err:
-        print(f"[Batch] Cost log failed: {log_err}")
-
-    return {"status": "success", "processed": len(results), "results": results}
-
-
-@app.function(
-    image=image,
-    cpu=1.0,
-    secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
-)
-def process_single_photo(photo_data: dict):
-    import time
-    import io
-    import os
-    import boto3
-    import numpy as np
-    import cv2
-    from PIL import Image, ImageOps
-    from supabase import create_client, Client
-
-    start_time = time.time()
-
-    # ── 1. Init Supabase and B2 ──────────────────────────────────────────
-    supabase: Client = create_client(
-        os.environ.get("NEXT_PUBLIC_SUPABASE_URL"),
-        os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-    )
-
-    b2_client = boto3.client(
-        's3',
-        endpoint_url=f"https://{os.environ.get('B2_ENDPOINT')}",
-        aws_access_key_id=os.environ.get('B2_KEY_ID'),
-        aws_secret_access_key=os.environ.get('B2_APPLICATION_KEY')
-    )
-    bucket_name = os.environ.get('B2_BUCKET_NAME')
-
-    photo_id   = photo_data.get("id")
-    object_key = photo_data.get("storage_key") or photo_data.get("object_key")
-    event_id   = photo_data.get("event_id")
-    original_url = photo_data.get("url", "")
-
-    if not object_key:
-        return {"error": "no object key", "id": photo_id}
-
-    try:
-        # ── 2. Download original photo from B2 (Single Download) ────────────
-        print(f"[{photo_id}] Downloading original photo from B2: {object_key}")
-        try:
-            response = b2_client.get_object(Bucket=bucket_name, Key=object_key)
-            image_bytes = response['Body'].read()
-        except Exception as dl_err:
-            print(f"[{photo_id}] Failed to download original photo ({dl_err}). Marking failed.")
-            try:
-                supabase.table("photos").update({"status": "failed"}).eq("id", photo_id).execute()
-            except Exception:
-                pass
-            return {"status": "error", "photo_id": photo_id, "error": f"Download failed: {dl_err}"}
-
-        # ── 3. Image Decoding & EXIF Orientation ───────────────────────────
-        try:
-            pil_img = Image.open(io.BytesIO(image_bytes))
-            try:
-                pil_img = ImageOps.exif_transpose(pil_img)
-            except Exception:
-                pass
-            if pil_img.mode != "RGB":
-                pil_img = pil_img.convert("RGB")
-            orig_w, orig_h = pil_img.size
-            print(f"[{photo_id}] Original image loaded: {orig_w}×{orig_h}px")
-        except Exception as decode_err:
-            print(f"[{photo_id}] PIL failed to decode image: {decode_err}")
-            return {"status": "error", "photo_id": photo_id, "error": str(decode_err)}
-
-        # ── 4. Resizing & Thumbnail WebP Generation ────────────────────────
-        # Generate 1600p Preview WebP (Fast, high-fidelity sweet spot)
-        preview_img = pil_img.copy()
-        preview_img.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
-        preview_buf = io.BytesIO()
-        preview_img.save(preview_buf, format="WEBP", quality=70, method=4)
-        preview_bytes = preview_buf.getvalue()
-
-        # Generate 480p Thumbnail WebP (Optimized for Retina feeds)
-        thumb_img = pil_img.copy()
-        thumb_img.thumbnail((480, 480), Image.Resampling.LANCZOS)
-        thumb_buf = io.BytesIO()
-        thumb_img.save(thumb_buf, format="WEBP", quality=68, method=4)
-        thumb_bytes = thumb_buf.getvalue()
-
-        # Upload WebP variants directly to Backblaze B2
-        preview_key = f"{object_key}-preview.webp"
-        thumb_key   = f"{object_key}-thumbnail.webp"
-
-        b2_client.put_object(Bucket=bucket_name, Key=preview_key, Body=preview_bytes, ContentType="image/webp")
-        b2_client.put_object(Bucket=bucket_name, Key=thumb_key, Body=thumb_bytes, ContentType="image/webp")
-        print(f"[{photo_id}] Uploaded WebP variants to B2: {preview_key}, {thumb_key}")
-
-        # Construct public media URLs
-        media_domain = (
-            os.environ.get("MEDIA_DOMAIN")
-            or os.environ.get("CLOUDFLARE_DOMAIN")
-            or os.environ.get("NEXT_PUBLIC_MEDIA_DOMAIN")
-            or "media.evebash.com"
-        ).strip().replace("https://", "").replace("http://", "").rstrip("/")
-
-        preview_url = f"https://{media_domain}/{preview_key}"
-        thumbnail_url = f"https://{media_domain}/{thumb_key}"
-
-        # ── 5. Face Detection & AuraFace Vector Extraction ─────────────────
-        img_rgb = np.array(pil_img)
-        img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
-        h, w, _ = img_bgr.shape
-
-        face_analysis = get_indexing_model()
-        faces = face_analysis.get(img_bgr)
-        print(f"[{photo_id}] AuraFace detector found {len(faces)} face(s).")
-
-        face_encodings = []
-        for face in faces:
-            embedding = face.normed_embedding
-            if embedding is not None:
-                face_encodings.append(embedding)
-
-        # ── 6. Save face records to Supabase ──────────────────────────────
-        if face_encodings:
-            face_records = []
-            for encoding in face_encodings:
-                face_records.append({
-                    "event_id":  event_id,
-                    "image_id":  photo_id,
-                    "image_url": preview_url or original_url,
-                    "width":     w,
-                    "height":    h,
-                    "descriptor": encoding.tolist()
-                })
-            supabase.table("faces").insert(face_records).execute()
-            print(f"[{photo_id}] Saved {len(face_records)} face record(s) to Supabase.")
-
-        # ── 7. Update photo row in Supabase ────────────────────────────────
-        photo_overhead_bytes = len(preview_bytes) + len(thumb_bytes)
-        update_data = {
-            "thumbnail_url": thumbnail_url,
-            "preview_url": preview_url,
-            "width": orig_w,
-            "height": orig_h,
-            "overhead_size": photo_overhead_bytes,
-            "face_indexed": True,
-            "status": "processed"
-        }
-        try:
-            supabase.table("photos").update(update_data).eq("id", photo_id).execute()
-        except Exception:
-            update_data.pop("status", None)
-            supabase.table("photos").update(update_data).eq("id", photo_id).execute()
-
-        print(f"[{photo_id}] Updated photos table: face_indexed=True, overhead_size={photo_overhead_bytes}B, thumbnails saved.")
-
-        # ── 8. Log infrastructure cost ───────────────────────────────────
-        duration = time.time() - start_time
-        cpu_cores = 1.0
-        memory_gb = 1.0
-        estimated_cost_inr = duration * ((cpu_cores * 0.00131) + (memory_gb * 0.000222))
-        user_id = photo_data.get("user_id")
-
-        # Resolve user_id / event_id if missing from photo_data
-        if (not user_id or not event_id) and photo_id:
-            try:
-                p_res = supabase.table("photos").select("user_id, event_id").eq("id", photo_id).maybe_single().execute()
-                if p_res and p_res.data:
-                    if not user_id:
-                        user_id = p_res.data.get("user_id")
-                    if not event_id:
-                        event_id = p_res.data.get("event_id")
-            except Exception:
-                pass
-
-        # Gallery media compute is always billed to the event owner (host/creator)
-        if event_id:
-            try:
-                e_res = supabase.table("events").select("created_by").eq("id", event_id).maybe_single().execute()
-                if e_res and e_res.data and e_res.data.get("created_by"):
-                    user_id = e_res.data.get("created_by")
-            except Exception:
-                pass
-
-        photo_size = len(image_bytes) if 'image_bytes' in locals() and image_bytes else photo_data.get("size")
-        try:
-            log_payload = {
-                "photo_id":                photo_id,
-                "event_id":                event_id,
-                "function_name":           "process_single_photo",
-                "worker_type":             "Modal Photo Worker (1 vCPU • 1GB RAM)",
-                "media_type":              "photo",
-                "media_size":              photo_size,
-                "cpu_cores":               cpu_cores,
-                "memory_gb":               memory_gb,
-                "gpu_type":                "None",
-                "execution_time_seconds":  duration,
-                "estimated_cost_inr":      estimated_cost_inr,
-                "faces_detected":          len(face_encodings)
-            }
-            if user_id:
-                log_payload["user_id"] = user_id
-            supabase.table("modal_cost_logs").insert(log_payload).execute()
-            print(f"[{photo_id}] Cost logged: {duration:.2f}s, ₹{estimated_cost_inr:.5f}")
-        except Exception as log_err:
-            print(f"[{photo_id}] Cost log failed: {log_err}")
-
-        return {"status": "success", "photo_id": photo_id, "faces": len(face_encodings)}
-
-    except Exception as e:
-        print(f"[{photo_id}] Error in process_single_photo: {e}")
-        return {"status": "error", "photo_id": photo_id, "error": str(e)}
+    return _hand_off_to_fast_pipeline(photos)
 
 
 # ==============================================================================
@@ -693,7 +411,7 @@ def process_photo_preview(photo_data: dict):
             "processing_error": str(e)[:1000]
         }
         error_code = (getattr(e, "response", None) or {}).get("Error", {}).get("Code")
-        if COST_TUNING and error_code in ("NoSuchKey", "404"):
+        if error_code in ("NoSuchKey", "404"):
             # The original isn't in B2, so retrying can't succeed; use up the attempts now
             failed_update["media_attempt"] = 3
         try:
@@ -759,8 +477,8 @@ async def face_index_ingress(request: fastapi.Request):
     image=image,
     cpu=1.0,
     memory=2048,
-    max_containers=12 if COST_TUNING else 4,
-    scaledown_window=45 if COST_TUNING else 300,
+    max_containers=12,
+    scaledown_window=45,
     retries=0,
     secrets=[modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
 )
@@ -954,7 +672,7 @@ def _close_outbox_row_if_unrunnable(supabase, row: dict, photo: dict) -> bool:
 
 def sweep_stuck_jobs():
     """
-    SELF-HEALING RECONCILER CRON (every minute; every 5 minutes inside run_media_maintenance with MODAL_COST_TUNING).
+    SELF-HEALING RECONCILER (every 5 minutes, inside run_media_maintenance).
     Recovers any stuck or orphaned jobs across both Fast Media and Face AI paths.
     """
     import os
@@ -984,9 +702,8 @@ def sweep_stuck_jobs():
             .lt("media_attempt", 3)
             .lte("uploaded_at", two_min_ago)
         )
-        if COST_TUNING:
-            # Videos never get a media_status; without this they were sent to the photo worker 3 times
-            query = query.eq("media_type", "photo")
+        # Videos never get a media_status; without this they were sent to the photo worker 3 times
+        query = query.eq("media_type", "photo")
         res = query.limit(100).execute()
         for p in (res.data or []):
             lease = p.get("media_lease_until")
@@ -1014,9 +731,8 @@ def sweep_stuck_jobs():
             .in_("face_status", ["pending", "failed", "indexing"])
             .lt("face_attempt", 3)
         )
-        if COST_TUNING:
-            # Skip videos, and photos whose first face job (spawned by the preview worker) may still be on its way
-            query = query.eq("media_type", "photo").lte("uploaded_at", two_min_ago)
+        # Skip videos, and photos whose first face job (spawned by the preview worker) may still be on its way
+        query = query.eq("media_type", "photo").lte("uploaded_at", two_min_ago)
         res = query.limit(100).execute()
         for p in (res.data or []):
             lease = p.get("face_lease_until")
@@ -1036,47 +752,8 @@ def sweep_stuck_jobs():
     except Exception as err:
         print(f"[Reconciler] Face sweep error: {err}")
 
-    # 3. Sweep stuck outbox rows. With COST_TUNING, run_media_maintenance runs dispatch_outbox_jobs just
-    # before this, and it already re-claims every pending row and expired lease, so this would only
-    # spawn duplicates of the jobs it just dispatched.
-    if not COST_TUNING:
-        try:
-            res = (
-                supabase.table("processing_outbox")
-                .select("*")
-                .in_("status", ["pending", "publishing"])
-                .lte("created_at", five_min_ago)
-                .limit(100)
-                .execute()
-            )
-            for row in (res.data or []):
-                photo_res = supabase.table("photos").select("*").eq("id", row["photo_id"]).maybe_single().execute()
-                p = photo_res.data
-                if p and _close_outbox_row_if_unrunnable(supabase, row, p):
-                    continue
-                if p:
-                    if row["job_type"] == "media_preview":
-                        process_photo_preview.spawn({
-                            "id": p["id"],
-                            "photo_id": p["id"],
-                            "storage_key": p.get("storage_key"),
-                            "event_id": p.get("event_id"),
-                            "user_id": p.get("user_id"),
-                            "asset_version": row.get("asset_version", 1)
-                        })
-                    elif row["job_type"] == "face_index":
-                        FaceIndexer().process.spawn({
-                            "id": p["id"],
-                            "photo_id": p["id"],
-                            "storage_key": p.get("storage_key"),
-                            "event_id": p.get("event_id"),
-                            "user_id": p.get("user_id"),
-                            "asset_version": row.get("asset_version", 1),
-                            "preview_url": p.get("preview_url")
-                        })
-                    recovered_outbox += 1
-        except Exception as err:
-            print(f"[Reconciler] Outbox sweep error: {err}")
+    # 3. Stuck outbox rows: run_media_maintenance runs dispatch_outbox_jobs just before this, and it already
+    # re-claims every pending row and expired lease, so a sweep here would only spawn duplicates.
 
     if recovered_media > 0 or recovered_face > 0 or recovered_outbox > 0:
         print(f"[Reconciler] Sweep complete: recovered {recovered_media} media, {recovered_face} face, {recovered_outbox} outbox jobs.")
@@ -1106,7 +783,7 @@ def sweep_stuck_jobs():
 
 def dispatch_outbox_jobs():
     """
-    OUTBOX DISPATCHER CRON (every minute; every 5 minutes inside run_media_maintenance with MODAL_COST_TUNING).
+    OUTBOX DISPATCHER (every 5 minutes, inside run_media_maintenance).
     Claims pending outbox rows atomically and dispatches them to their workers.
     """
     import os
@@ -1150,14 +827,13 @@ def dispatch_outbox_jobs():
         job_type = row.get("job_type")
         asset_ver = row.get("asset_version", 1)
 
-        if COST_TUNING:
-            # Rows this new were just queued by the upload or the preview worker, and that job is most
-            # likely still in flight. The claim lease expires and the next run checks the row again.
-            try:
-                if datetime.fromisoformat(row["created_at"]) > two_min_ago:
-                    continue
-            except (KeyError, TypeError, ValueError):
-                pass
+        # Rows this new were just queued by the upload or the preview worker, and that job is most
+        # likely still in flight. The claim lease expires and the next run checks the row again.
+        try:
+            if datetime.fromisoformat(row["created_at"]) > two_min_ago:
+                continue
+        except (KeyError, TypeError, ValueError):
+            pass
 
         photo_res = supabase.table("photos").select("*").eq("id", photo_id).maybe_single().execute()
         photo = photo_res.data
@@ -1212,19 +888,15 @@ def dispatch_outbox_jobs():
 
 _maintenance_secrets = [modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
 
-if COST_TUNING:
-    # One container every 5 minutes instead of two every minute. QStash and the direct spawns are the
-    # main path; this only picks up jobs they dropped, so a few minutes of delay is fine.
-    @app.function(image=media_image, schedule=modal.Cron("*/5 * * * *"), scaledown_window=2, secrets=_maintenance_secrets)
-    def run_media_maintenance():
-        for job in (dispatch_outbox_jobs, sweep_stuck_jobs):
-            try:
-                job()
-            except Exception as err:
-                print(f"[Maintenance] {job.__name__} failed: {err}")
-else:
-    sweep_stuck_jobs = app.function(image=media_image, schedule=modal.Cron("* * * * *"), secrets=_maintenance_secrets)(sweep_stuck_jobs)
-    dispatch_outbox_jobs = app.function(image=media_image, schedule=modal.Cron("*/1 * * * *"), secrets=_maintenance_secrets)(dispatch_outbox_jobs)
+# One container every 5 minutes instead of two every minute. QStash and the direct spawns are the
+# main path; this only picks up jobs they dropped, so a few minutes of delay is fine.
+@app.function(image=media_image, schedule=modal.Cron("*/5 * * * *"), scaledown_window=2, secrets=_maintenance_secrets)
+def run_media_maintenance():
+    for job in (dispatch_outbox_jobs, sweep_stuck_jobs):
+        try:
+            job()
+        except Exception as err:
+            print(f"[Maintenance] {job.__name__} failed: {err}")
 
 
 def _find_matching_photos_core(request: dict):
@@ -1463,26 +1135,20 @@ def _find_you_secret_ok(provided: str) -> bool:
 _find_you_secrets = [modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
 # 2 cores for the selfie face detection (the default 0.125 core made each search take seconds longer).
 
-if FIND_YOU_REQUIRE_SECRET:
-    @app.function(image=image, secrets=_find_you_secrets, cpu=2.0, memory=2048)
-    @modal.fastapi_endpoint(method="POST")
-    async def find_matching_photos(request: fastapi.Request):
-        # The backend checks the caller's gallery access first; anything else calling this URL is refused
-        import asyncio
-        if not _find_you_secret_ok(request.headers.get("X-EveBash-Secret", "")):
-            raise fastapi.HTTPException(status_code=401, detail="Unauthorized")
-        try:
-            body = await request.json()
-        except Exception:
-            body = {}
-        if not isinstance(body, dict):
-            body = {}
-        return await asyncio.to_thread(_find_matching_photos_core, body)
-else:
-    @app.function(image=image, secrets=_find_you_secrets, cpu=2.0, memory=2048)
-    @modal.fastapi_endpoint(method="POST")
-    def find_matching_photos(request: dict):
-        return _find_matching_photos_core(request)
+@app.function(image=image, secrets=_find_you_secrets, cpu=2.0, memory=2048)
+@modal.fastapi_endpoint(method="POST")
+async def find_matching_photos(request: fastapi.Request):
+    # The backend checks the caller's gallery access first; anything else calling this URL is refused
+    import asyncio
+    if not _find_you_secret_ok(request.headers.get("X-EveBash-Secret", "")):
+        raise fastapi.HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    return await asyncio.to_thread(_find_matching_photos_core, body)
 
 
 # ---------------------------------------------------------------------------
@@ -1930,126 +1596,99 @@ def _transcode_video_core(request: dict, hardware="cpu", cpu_cores=4.0, memory_g
 
 _video_secrets = [modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
 
-# Long videos (> 10 min). With MODAL_COST_TUNING they run on 16 CPU cores instead of an L4: 1.6x faster
-# and ~38% cheaper in the Oct 2026 benchmark (33-min 1080p60 video).
+# Long videos (> 10 min) run on 16 CPU cores instead of an L4: 1.6x faster and ~38% cheaper in the
+# Oct 2026 benchmark (33-min 1080p60 video).
 _long_video_resources = {
-    "gpu": None if COST_TUNING else "l4",
-    "cpu": 16.0 if COST_TUNING else 4.0,
+    "cpu": 16.0,
     "memory": 8192,
 }
 
 def _transcode_long(request: dict):
-    if COST_TUNING:
-        return _transcode_video_core(request, hardware="cpu", cpu_cores=16.0, memory_gb=8.0, function_name="process_video_cpu_long")
-    return _transcode_video_core(request, hardware="gpu")
+    return _transcode_video_core(request, hardware="cpu", cpu_cores=16.0, memory_gb=8.0, function_name="process_video_cpu_long")
 
 def _transcode_short(request: dict):
     return _transcode_video_core(request, hardware="cpu")
 
-if VIDEO_ASYNC:
-    def _transcode_once(payload: dict, transcode):
-        """
-        Skips a second transcode of a video that is already being transcoded, e.g. when the backend
-        watchdog re-queues a long video whose first run is still going.
-        """
-        import time
+def _transcode_once(payload: dict, transcode):
+    """
+    Skips a second transcode of a video that is already being transcoded, e.g. when the backend
+    watchdog re-queues a long video whose first run is still going.
+    """
+    import time
 
-        storage_key = payload.get("storage_key") or payload.get("object_key") or ""
-        photo_id = payload.get("photo_id") or payload.get("id") or storage_key.replace("/", "_")
-        locks = modal.Dict.from_name("video-transcode-locks", create_if_missing=True)
-        now = time.time()
-        if not locks.put(photo_id, now, skip_if_exists=True):
-            if now - locks.get(photo_id, now) < 3600 + 120:
-                print(f"[TranscodeVideo] {photo_id} is already being transcoded; skipping this copy")
-                return {"status": "skipped", "photo_id": photo_id}
-            locks[photo_id] = now  # older than the function timeout: its run died without releasing it
+    storage_key = payload.get("storage_key") or payload.get("object_key") or ""
+    photo_id = payload.get("photo_id") or payload.get("id") or storage_key.replace("/", "_")
+    locks = modal.Dict.from_name("video-transcode-locks", create_if_missing=True)
+    now = time.time()
+    if not locks.put(photo_id, now, skip_if_exists=True):
+        if now - locks.get(photo_id, now) < 3600 + 120:
+            print(f"[TranscodeVideo] {photo_id} is already being transcoded; skipping this copy")
+            return {"status": "skipped", "photo_id": photo_id}
+        locks[photo_id] = now  # older than the function timeout: its run died without releasing it
+    try:
+        return transcode(payload)
+    finally:
         try:
-            return transcode(payload)
-        finally:
-            try:
-                locks.pop(photo_id, None)
-            except Exception as err:
-                print(f"[TranscodeVideo] Could not release lock for {photo_id}: {err}")
+            locks.pop(photo_id, None)
+        except Exception as err:
+            print(f"[TranscodeVideo] Could not release lock for {photo_id}: {err}")
 
-    # QStash no longer retries a failed transcode (it only waits for the 202), so Modal does: same count
-    _video_retries = modal.Retries(max_retries=3, initial_delay=10.0, backoff_coefficient=2.0)
+# QStash no longer retries a failed transcode (it only waits for the 202), so Modal does: same count
+_video_retries = modal.Retries(max_retries=3, initial_delay=10.0, backoff_coefficient=2.0)
 
-    @app.function(
-        image=transcode_image,
-        cpu=4.0,
-        memory=4096,
-        timeout=3600,
-        scaledown_window=10 if COST_TUNING else None,
-        retries=_video_retries,
-        max_containers=10,
-        secrets=_video_secrets,
-    )
-    def transcode_video_short(payload: dict):
-        return _transcode_once(payload, _transcode_short)
+@app.function(
+    image=transcode_image,
+    cpu=4.0,
+    memory=4096,
+    timeout=3600,
+    scaledown_window=10,
+    retries=_video_retries,
+    max_containers=10,
+    secrets=_video_secrets,
+)
+def transcode_video_short(payload: dict):
+    return _transcode_once(payload, _transcode_short)
 
-    @app.function(
-        image=transcode_image,
-        **_long_video_resources,
-        timeout=3600,
-        scaledown_window=10 if COST_TUNING else None,
-        retries=_video_retries,
-        max_containers=5,
-        secrets=_video_secrets,
-    )
-    def transcode_video_long(payload: dict):
-        return _transcode_once(payload, _transcode_long)
+@app.function(
+    image=transcode_image,
+    **_long_video_resources,
+    timeout=3600,
+    scaledown_window=10,
+    retries=_video_retries,
+    max_containers=5,
+    secrets=_video_secrets,
+)
+def transcode_video_long(payload: dict):
+    return _transcode_once(payload, _transcode_long)
 
-    async def _accept_video_job(request, worker):
-        """Checks the QStash signature, starts the transcode in the background and replies 202 at once."""
-        import json
-        from fastapi.responses import JSONResponse
+async def _accept_video_job(request, worker):
+    """Checks the QStash signature, starts the transcode in the background and replies 202 at once."""
+    import json
+    from fastapi.responses import JSONResponse
 
-        body = await request.body()
-        verify_qstash_signature(body, request.headers.get("Upstash-Signature", ""), str(request.url))
-        try:
-            payload = json.loads(body.decode("utf-8")) if body else {}
-        except ValueError:
-            raise fastapi.HTTPException(status_code=400, detail="Body must be JSON")
-        if not isinstance(payload, dict) or not (payload.get("storage_key") or payload.get("object_key")):
-            raise fastapi.HTTPException(status_code=400, detail="Missing required storage_key or photo_id")
-        await worker.spawn.aio(payload)
-        return JSONResponse({"accepted": True, "photo_id": payload.get("photo_id") or payload.get("id")}, status_code=202)
+    body = await request.body()
+    verify_qstash_signature(body, request.headers.get("Upstash-Signature", ""), str(request.url))
+    try:
+        payload = json.loads(body.decode("utf-8")) if body else {}
+    except ValueError:
+        raise fastapi.HTTPException(status_code=400, detail="Body must be JSON")
+    if not isinstance(payload, dict) or not (payload.get("storage_key") or payload.get("object_key")):
+        raise fastapi.HTTPException(status_code=400, detail="Missing required storage_key or photo_id")
+    await worker.spawn.aio(payload)
+    return JSONResponse({"accepted": True, "photo_id": payload.get("photo_id") or payload.get("id")}, status_code=202)
 
-    # Same names as before, so the backend's URLs don't change
-    @app.function(image=media_image, secrets=_video_secrets)
-    @modal.concurrent(max_inputs=20)
-    @modal.fastapi_endpoint(method="POST")
-    async def process_video_cpu(request: fastapi.Request):
-        return await _accept_video_job(request, transcode_video_short)
+# Same names as before, so the backend's URLs don't change
+@app.function(image=media_image, secrets=_video_secrets)
+@modal.concurrent(max_inputs=20)
+@modal.fastapi_endpoint(method="POST")
+async def process_video_cpu(request: fastapi.Request):
+    return await _accept_video_job(request, transcode_video_short)
 
-    @app.function(image=media_image, secrets=_video_secrets)
-    @modal.concurrent(max_inputs=20)
-    @modal.fastapi_endpoint(method="POST")
-    async def process_video_gpu(request: fastapi.Request):
-        return await _accept_video_job(request, transcode_video_long)
-else:
-    @app.function(
-        image=transcode_image,
-        cpu=4.0,
-        memory=4096,
-        timeout=3600,
-        scaledown_window=10 if COST_TUNING else None,
-        secrets=_video_secrets,
-    )
-    @modal.fastapi_endpoint(method="POST")
-    def process_video_cpu(request: dict):
-        return _transcode_short(request)
-
-    @app.function(
-        image=transcode_image,
-        **_long_video_resources,
-        timeout=3600,
-        scaledown_window=10 if COST_TUNING else None,
-        secrets=_video_secrets,
-    )
-    @modal.fastapi_endpoint(method="POST")
-    def process_video_gpu(request: dict):
-        return _transcode_long(request)
+@app.function(image=media_image, secrets=_video_secrets)
+@modal.concurrent(max_inputs=20)
+@modal.fastapi_endpoint(method="POST")
+async def process_video_gpu(request: fastapi.Request):
+    return await _accept_video_job(request, transcode_video_long)
 
 
 
