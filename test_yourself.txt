@@ -24,7 +24,7 @@ Last updated: 2026-10-10
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
-Status:    TODO
+Status:    RETEST
 Priority:  High
 Platform:  Website + App
 Brief:     Find You now needs login and gallery access. Check real users are not blocked.
@@ -40,8 +40,8 @@ Build / version:
 Date tested:
 Account used:
 Screenshot / recording:
-Fix ref:
-Feedback:
+Fix ref:   fba2cdc (2026-10-10) website + app now send the login token. App needs a new build.
+Feedback:  2026-10-10 Sarthak, website: "Failed to search: 401". Every logged-in search failed.
 
 --------------------------------------------------------------------------------
 #2  Find You asks logged-out visitors to log in
