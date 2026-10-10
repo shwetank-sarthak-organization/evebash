@@ -1865,15 +1865,33 @@ function DashboardContent() {
         setTimeout(() => setStatus("idle"), 3000);
     };
 
+    // The guest routes check the signed-in user, so send the login with every call
+    const guestRouteHeaders = async (): Promise<Record<string, string>> => {
+        const { data: { session } } = await supabase.auth.getSession();
+        return {
+            "Content-Type": "application/json",
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        };
+    };
+
     const updateGuestStatusAction = async (logId: string, status: string, requester: any) => {
         try {
             const url = getApiUrl("/api/v1/permissions/update-guest-status");
+            const headers = await guestRouteHeaders();
             const res = await fetch(url, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers,
                 body: JSON.stringify({ logId, status, requester }),
             });
             const data = await res.json().catch(() => ({}));
+            if (res.ok && data.success) {
+                // Tell the guest (push to their phone); sent by the backend, browsers can't reach Expo
+                void fetch(getApiUrl("/api/v1/notifications/gallery-decision"), {
+                    method: "POST",
+                    headers,
+                    body: JSON.stringify({ guestId: logId }),
+                }).catch(() => {});
+            }
             return res.ok && data.success ? { success: true } : { success: false, error: data.error };
         } catch (err: any) {
             return { success: false, error: err.message };
@@ -1885,7 +1903,7 @@ function DashboardContent() {
             const url = getApiUrl("/api/v1/permissions/delete-guest");
             const res = await fetch(url, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: await guestRouteHeaders(),
                 body: JSON.stringify({ logId, requester }),
             });
             const data = await res.json().catch(() => ({}));
@@ -1900,7 +1918,7 @@ function DashboardContent() {
             const url = getApiUrl("/api/v1/permissions/update-guest-permissions");
             const res = await fetch(url, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: await guestRouteHeaders(),
                 body: JSON.stringify({ logId, permissions, requester }),
             });
             const data = await res.json().catch(() => ({}));

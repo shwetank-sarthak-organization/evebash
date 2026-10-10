@@ -216,7 +216,7 @@ export function createNotificationsRouter(
 }
 
 /** Old guest rows have no event_id; their id is "<phone or email>_<gallery id>", and gallery ids may contain "_". */
-async function galleryFromLegacyGuestId(supabaseAdmin: AdminClient, guestId: string) {
+export async function galleryFromLegacyGuestId(supabaseAdmin: AdminClient, guestId: string) {
   for (let at = guestId.indexOf("_"); at !== -1; at = guestId.indexOf("_", at + 1)) {
     const candidate = guestId.slice(at + 1);
     const { data } = await supabaseAdmin.from("events").select("id").eq("id", candidate).maybeSingle();

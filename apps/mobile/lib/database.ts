@@ -1190,6 +1190,25 @@ async function notifyGalleryRequest(ref: string) {
     }
 }
 
+/**
+ * Asks the backend to tell a guest their request was approved or turned down (push to their phone). The backend checks
+ * the caller manages the gallery and reads the guest's real status. Best effort: a failure never blocks the decision.
+ */
+async function notifyGalleryDecision(guestId: string) {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const base = getNotifyGalleryRequestUrl();
+        if (!session?.access_token || !base) return;
+        await fetch(base.replace(/\/gallery-request$/, '/gallery-decision'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ guestId }),
+        });
+    } catch (error) {
+        console.warn('[GalleryRequest] Could not notify the guest:', error);
+    }
+}
+
 function getNotifyGalleryRequestUrl() {
     const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
     return apiBaseUrl ? `${apiBaseUrl.replace(/\/+$/, '')}/api/v1/notifications/gallery-request` : '';
@@ -1822,6 +1841,7 @@ export async function updateGuestStatus(logId: string, status: 'pending' | 'appr
             .eq('id', logId);
 
         if (error) throw error;
+        if (status !== 'pending') void notifyGalleryDecision(logId);
         return true;
     } catch (error) {
         console.error("Error updating guest status:", error);
