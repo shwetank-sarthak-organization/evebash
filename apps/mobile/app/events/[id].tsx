@@ -2639,7 +2639,7 @@ export default function EventDetailScreen() {
           state={galleryGate}
           title={gateTitle}
           requesting={requestingAccess}
-          onLogin={() => router.push('/login')}
+          onLogin={() => router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } })}
           onRequestAccess={handleRequestAccess}
           onRetry={loadEvent}
           onBack={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/dashboard')}
@@ -6293,7 +6293,7 @@ export default function EventDetailScreen() {
                         ? "Log in to use Find You: take a selfie and we'll show the photos you're in."
                         : 'Log in to see the vendors behind this event.'}
                     </Text>
-                    <TouchableOpacity style={styles.accessBtn} onPress={() => router.push('/login')} accessibilityRole="button">
+                    <TouchableOpacity style={styles.accessBtn} onPress={() => router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } })} accessibilityRole="button">
                       <Text style={styles.accessBtnText}>Log in</Text>
                     </TouchableOpacity>
                   </View>
@@ -6302,6 +6302,7 @@ export default function EventDetailScreen() {
                     eventId={event.id}
                     legacyId={event.legacyId}
                     parentId={event.parentId}
+                    subEvents={subEvents}
                     selectedTemplate={selectedTemplate}
                     styles={styles}
                     event={event}
@@ -7253,7 +7254,7 @@ export default function EventDetailScreen() {
                   <View style={styles.guestSection}>
                     <Text style={styles.guestTitle}>Enter the Celebration</Text>
                     <Text style={styles.guestSub}>Log in to join this gallery, see full-size photos, like and comment</Text>
-                    <TouchableOpacity style={styles.accessBtn} onPress={() => router.push('/login')} accessibilityRole="button">
+                    <TouchableOpacity style={styles.accessBtn} onPress={() => router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } })} accessibilityRole="button">
                       <Text style={styles.accessBtnText}>Log in to join</Text>
                     </TouchableOpacity>
                   </View>

@@ -16,7 +16,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'expo-router';
+import { safeReturnTo } from '@/lib/loginReturn';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MidnightColors } from '@/constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
@@ -31,6 +32,14 @@ const { height } = Dimensions.get('window');
 export default function LoginScreen() {
   const { login, signup, authWithPhone, loginWithGoogle, loginWithApple } = useAuth();
   const router = useRouter();
+  // Set by a gallery's "Log in" button: go back to that gallery after login instead of the dashboard
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+  const goAfterLogin = () => {
+    const target = safeReturnTo(returnTo);
+    if (!target) router.replace('/(tabs)/dashboard');
+    else if (router.canGoBack()) router.back();
+    else router.replace(target as any);
+  };
 
   const [isSignUp, setIsSignUp] = useState(false);
   const [policiesAccepted, setPoliciesAccepted] = useState(false);
@@ -124,7 +133,7 @@ export default function LoginScreen() {
       if ((result as any).needsEmailVerification) {
         setVerificationMessage(`A verification email has been sent to ${email.trim()}. Please check your inbox and verify your email to log in.`);
       } else {
-        router.replace('/(tabs)/dashboard');
+        goAfterLogin();
       }
     } else {
       if (isSignUp) await AsyncStorage.removeItem(POLICY_PENDING_KEY).catch(() => undefined);
@@ -137,7 +146,7 @@ export default function LoginScreen() {
     const result = await loginWithGoogle();
     setSocialLoading(null);
     if (result.success) {
-      router.replace('/(tabs)/dashboard');
+      goAfterLogin();
     } else {
       setError(result.error || 'Google login failed.');
     }
@@ -149,7 +158,7 @@ export default function LoginScreen() {
     const result = await loginWithApple();
     setSocialLoading(null);
     if (result.success) {
-      router.replace('/(tabs)/dashboard');
+      goAfterLogin();
     } else {
       setError(result.error || 'Apple login failed.');
     }

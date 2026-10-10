@@ -26,6 +26,7 @@ interface FindYouPanelProps {
   eventId: string;
   legacyId?: string;
   parentId?: string;
+  subEvents?: { id: string; legacyId?: string }[];
   selectedTemplate: any;
   styles: any;
   event?: any;
@@ -43,6 +44,7 @@ export function FindYouPanel({
   eventId,
   legacyId,
   parentId,
+  subEvents = [],
   selectedTemplate,
   styles: themeStyles,
   event = null,
@@ -121,6 +123,11 @@ export function FindYouPanel({
       const eventIds = [eventId];
       if (parentId) eventIds.push(parentId);
       if (legacyId) eventIds.push(legacyId);
+      // Include the sub-galleries, as the website does
+      for (const sub of subEvents) {
+        eventIds.push(sub.id);
+        if (sub.legacyId) eventIds.push(sub.legacyId);
+      }
 
       // Resolve API Base URL dynamically (supports production configuration and local Expo dev server)
       const getApiBaseUrl = () => {
@@ -156,7 +163,7 @@ export function FindYouPanel({
         },
         body: JSON.stringify({
           selfieBase64,
-          eventIds,
+          eventIds: Array.from(new Set(eventIds.filter(Boolean))),
         }),
       });
 

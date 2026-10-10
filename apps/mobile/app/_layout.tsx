@@ -1,5 +1,6 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-router';
+import { Stack, useGlobalSearchParams, useRouter, useSegments, useRootNavigationState } from 'expo-router';
+import { safeReturnTo } from '@/lib/loginReturn';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import * as React from 'react';
@@ -70,6 +71,9 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const segments = useSegments();
   const router = useRouter();
   const rootNavigationState = useRootNavigationState();
+  const { returnTo } = useGlobalSearchParams<{ returnTo?: string }>();
+  // Login opened from a gallery: the login screen returns there itself
+  const loginReturnsToGallery = !!safeReturnTo(returnTo);
 
   useEffect(() => {
     if (loading || !rootNavigationState?.key) return;
@@ -96,11 +100,11 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     if (!user && !inAuthGroup && !isPublicRoute) {
       const timeoutId = setTimeout(() => router.replace('/login'), 1);
       return () => clearTimeout(timeoutId);
-    } else if (user && inAuthGroup) {
+    } else if (user && inAuthGroup && !loginReturnsToGallery) {
       const timeoutId = setTimeout(() => router.replace('/(tabs)/dashboard'), 1);
       return () => clearTimeout(timeoutId);
     }
-  }, [user, loading, segments, rootNavigationState?.key, router]);
+  }, [user, loading, segments, rootNavigationState?.key, router, loginReturnsToGallery]);
 
   // Register push notifications when user is signed in
   useEffect(() => {

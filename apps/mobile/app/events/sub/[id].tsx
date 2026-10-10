@@ -252,7 +252,7 @@ export default function SubEventPhotosScreen() {
           state={galleryGate}
           title={gateTitle}
           requesting={requestingAccess}
-          onLogin={() => router.push('/login')}
+          onLogin={() => router.push({ pathname: '/login', params: { returnTo: `/events/sub/${id}` } })}
           onRequestAccess={handleRequestAccess}
           onRetry={loadGallery}
           onBack={goBackToParentEvent}

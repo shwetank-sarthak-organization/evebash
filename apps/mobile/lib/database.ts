@@ -2036,17 +2036,26 @@ export async function rotatePhoto(
 
 export async function deleteEvent(eventId: string) {
     try {
+        // Delete sub-galleries first, as the website does (they aren't removed with their parent)
+        const { data: subs } = await supabase.from('events').select('id').eq('parent_id', eventId);
+        for (const sub of subs || []) {
+            if (!(await deleteEvent(sub.id))) throw new Error(`Could not delete sub-gallery ${sub.id}`);
+        }
+
         // Fetch photos metadata and delete B2 assets for all photos associated with this event
-        const { data: photos } = await supabase.from('photos').select('id, size, media_type, uploaded_at').eq('event_id', eventId);
+        const { data: photos } = await supabase.from('photos').select('id, size, overhead_size, media_type, uploaded_at').eq('event_id', eventId);
 
         if (photos && photos.length > 0) {
             console.log(`[deleteEvent] Cleaning up B2 files for ${photos.length} photos under event ${eventId}`);
-            await Promise.all(photos.map(photo => deletePhoto(photo.id)));
+            // In chunks of 4, as on the website, so a big gallery doesn't flood the storage server
+            for (let i = 0; i < photos.length; i += 4) {
+                await Promise.all(photos.slice(i, i + 4).map(photo => deletePhoto(photo.id)));
+            }
         }
 
         // Record compact 1-row financial ledger entry so Backblaze byte-hours and transactions can be accurately billed
         try {
-            const totalBytes = (photos || []).reduce((s: number, p: any) => s + (Number(p.size) || 0), 0);
+            const totalBytes = (photos || []).reduce((s: number, p: any) => s + (Number(p.size) || 0) + (Number(p.overhead_size) || 0), 0);
             const photosCount = (photos || []).filter((p: any) => String(p.media_type || '').toLowerCase() !== 'video').length;
             const videosCount = (photos || []).filter((p: any) => String(p.media_type || '').toLowerCase() === 'video').length;
             const earliestUpload = photos && photos.length > 0
@@ -2068,6 +2077,9 @@ export async function deleteEvent(eventId: string) {
         } catch (archiveErr) {
             console.warn('[deleteEvent] Could not record deletion ledger (non-blocking):', archiveErr);
         }
+
+        // Remove the gallery's face scans (guest privacy), as the website does
+        await supabase.from('faces').delete().eq('event_id', eventId);
 
         const { error } = await supabase.from('events').delete().eq('id', eventId);
         if (error) throw error;
