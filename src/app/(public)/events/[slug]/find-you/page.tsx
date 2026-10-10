@@ -8,6 +8,7 @@ import { MasonryGrid } from "@/components/ui/MasonryGrid";
 import { getEventById, getSubEvents, Event } from "@/lib/database";
 import { getWebTemplateChrome } from "@/lib/webTemplateTheme";
 import { getApiUrl } from "@/lib/apiBase";
+import { supabase } from "@/lib/supabase";
 import { RequireLogin } from "../RequireLogin";
 
 type MatchedPhoto = {
@@ -119,9 +120,14 @@ function FindYouContent({ slug }: { slug: string }) {
                     });
                 }
 
+                const { data: { session } } = await supabase.auth.getSession();
+
                 const response = await fetch(getApiUrl("/api/find-you"), {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                    },
                     body: JSON.stringify({
                         selfieBase64: base64Selfie,
                         eventIds: Array.from(new Set(eventIds)),

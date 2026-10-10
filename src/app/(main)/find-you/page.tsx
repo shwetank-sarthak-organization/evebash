@@ -7,6 +7,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import * as faceapi from "face-api.js";
 import { MasonryGrid } from "@/components/ui/MasonryGrid";
 import { getApiUrl } from "@/lib/apiBase";
+import { supabase } from "@/lib/supabase";
 
 export default function FindYouPage() {
     const [modelsLoaded, setModelsLoaded] = useState(false);
@@ -41,9 +42,13 @@ export default function FindYouPage() {
             setProcessing(true);
 
             try {
+                const { data: { session } } = await supabase.auth.getSession();
                 const response = await fetch(getApiUrl("/api/find-you"), {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                    },
                     body: JSON.stringify({
                         selfieBase64: base64Selfie,
                         eventIds: [], // Empty array = search all indexed events
