@@ -1,7 +1,7 @@
 {
   "name": "wed_album-mobile",
   "main": "index.js",
-  "version": "1.0.0",
+  "version": "1.2.4",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",

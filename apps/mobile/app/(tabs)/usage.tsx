@@ -10,6 +10,7 @@ import { getPlanDetails, getUsagePercent } from '@/lib/planLimits';
 import { getSubscriptionStatus } from '@/lib/subscriptionStatus';
 import { supabase } from '@/lib/supabase';
 import { EveBashLogoBadge } from '@/components/EveBashLogo';
+import { APP_VERSION } from '@/lib/appVersion';
 
 const { width } = Dimensions.get('window');
 
@@ -306,7 +307,7 @@ export default function UsageScreen() {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.versionText}>EveBash v1.0.4</Text>
+          <Text style={styles.versionText}>EveBash v{APP_VERSION}</Text>
         </View>
 
       </ScrollView>
