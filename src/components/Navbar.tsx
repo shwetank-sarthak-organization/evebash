@@ -49,23 +49,23 @@ export default function Navbar() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-20">
                     {/* Logo & Brand */}
-                    <Link href="/" className="flex items-center space-x-2 group">
-                        <div className="bg-[#CA9C68]/10 border border-[#CA9C68]/35 text-[#CA9C68] p-2 rounded-lg group-hover:bg-[#CA9C68]/20 group-hover:border-[#CA9C68]/65 transition-all duration-300">
-                            <EveBashLogo className="h-6 w-6 text-[#CA9C68]" aria-hidden="true" />
+                    <Link href="/" className="flex items-center gap-3 group">
+                        <div className="bg-[#CA9C68]/10 border border-[#CA9C68]/35 text-[#CA9C68] p-2.5 rounded-xl group-hover:bg-[#CA9C68]/20 group-hover:border-[#CA9C68]/65 transition-all duration-300">
+                            <EveBashLogo className="h-7 w-7 text-[#CA9C68]" aria-hidden="true" />
                         </div>
-                        <span className="font-brand text-2xl font-normal tracking-wide text-[var(--site-text)] group-hover:text-[#CA9C68] transition-colors">
+                        <span className="font-brand text-[1.75rem] font-normal leading-none tracking-wide text-[var(--site-text)] group-hover:text-[#CA9C68] transition-colors sm:text-[2rem]">
                             EveBash
                         </span>
                     </Link>
 
                     {/* Desktop Navigation */}
-                    <div className="hidden md:flex items-center space-x-8">
+                    <div className="hidden lg:flex items-center space-x-7 xl:space-x-9">
                         {(user ? authNavLinks : guestNavLinks).map((link) => (
                             <Link
                                 key={link.name}
                                 href={link.href}
                                 className={cn(
-                                    "inline-flex items-center gap-1.5 font-brand text-lg font-normal tracking-wide transition-colors hover:text-[var(--site-text)] pb-1 border-b-2 border-transparent",
+                                    "inline-flex items-center gap-1.5 font-brand text-xl font-normal tracking-wide transition-colors xl:text-[1.375rem] hover:text-[var(--site-text)] pb-1 border-b-2 border-transparent",
                                     isActiveLink(link.href)
                                         ? "text-[var(--site-text)] border-[#CA9C68]"
                                         : "text-[var(--site-muted)] hover:border-[#906D4B]"
@@ -95,16 +95,16 @@ export default function Navbar() {
                                 )}
                             </Link>
                         ) : (
-                            <div className="flex items-center gap-5">
+                            <div className="flex items-center gap-6">
                                 <Link
                                     href="/login"
-                                    className="inline-flex items-center pb-1 border-b-2 border-transparent font-brand text-lg font-normal tracking-wide text-[var(--site-muted)] transition-colors hover:text-[var(--site-text)] hover:border-[#906D4B]"
+                                    className="inline-flex items-center pb-1 border-b-2 border-transparent font-brand text-xl font-normal tracking-wide text-[var(--site-muted)] transition-colors hover:text-[var(--site-text)] hover:border-[#906D4B] xl:text-[1.375rem]"
                                 >
                                     Log in
                                 </Link>
                                 <Link
                                     href="/login?mode=signup"
-                                    className="px-5 py-2 bg-[#CA9C68] text-[#13191F] text-sm font-bold rounded-full hover:bg-[#D7AE7D] transition-colors shadow-sm"
+                                    className="px-6 py-2.5 bg-[#CA9C68] text-[#13191F] text-[15px] font-bold rounded-full hover:bg-[#D7AE7D] transition-colors shadow-sm"
                                 >
                                     Create event free
                                 </Link>
@@ -113,7 +113,7 @@ export default function Navbar() {
                     </div>
 
                     {/* Mobile Menu Button */}
-                    <div className="md:hidden flex items-center gap-2">
+                    <div className="lg:hidden flex items-center gap-2">
                         <button
                             onClick={() => setIsOpen(!isOpen)}
                             className="p-2 text-[var(--site-muted)] hover:text-[var(--site-text)] focus:outline-none transition-colors"
@@ -128,7 +128,7 @@ export default function Navbar() {
             {/* Mobile Menu Dropdown */}
             <div
                 className={cn(
-                    "md:hidden absolute top-20 left-0 w-full bg-[var(--site-surface)] border-b border-[var(--site-border)] shadow-xl transition-all duration-300 ease-in-out origin-top overflow-hidden",
+                    "lg:hidden absolute top-20 left-0 w-full bg-[var(--site-surface)] border-b border-[var(--site-border)] shadow-xl transition-all duration-300 ease-in-out origin-top overflow-hidden",
                     isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0 pointer-events-none"
                 )}
             >
@@ -139,7 +139,7 @@ export default function Navbar() {
                             href={link.href}
                             onClick={() => setIsOpen(false)}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-3 rounded-lg font-brand text-xl font-normal tracking-wide transition-colors",
+                                "flex items-center gap-2 px-4 py-3 rounded-lg font-brand text-[1.375rem] font-normal tracking-wide transition-colors",
                                 isActiveLink(link.href)
                                     ? "text-[#CA9C68] bg-[#CA9C68]/15"
                                     : "text-[var(--site-muted)] hover:bg-[var(--site-card-muted)] hover:text-[var(--site-text)]"

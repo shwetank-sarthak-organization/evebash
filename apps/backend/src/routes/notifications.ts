@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { Router } from "express";
-import { verifySupabaseUser } from "../auth.js";
+import { getBearerToken, verifySupabaseUser } from "../auth.js";
+import { getSupabaseUserClient } from "../supabase.js";
 
 type AdminClient = NonNullable<Awaited<ReturnType<typeof verifySupabaseUser>>>["supabaseAdmin"];
 
@@ -21,6 +22,18 @@ export async function sendExpoPush(push: ExpoPush) {
 /** Kill switch: GALLERY_REQUEST_PUSH=false stops the "new access request" push without a new app build. */
 export function isGalleryRequestPushEnabled() {
   return process.env.GALLERY_REQUEST_PUSH?.trim().toLowerCase() !== "false";
+}
+
+/** Kill switch: GALLERY_APPROVAL_PUSH=false stops the "access approved / updated" push to guests. */
+export function isGalleryApprovalPushEnabled() {
+  return process.env.GALLERY_APPROVAL_PUSH?.trim().toLowerCase() !== "false";
+}
+
+/** The caller's access to a gallery as the database sees it (open_gallery with the caller's own token). */
+export async function openGalleryAccessAsCaller(request: Request, eventId: string): Promise<string | null> {
+  const { data, error } = await getSupabaseUserClient(getBearerToken(request)).rpc("open_gallery", { p_ref: eventId });
+  if (error) throw error;
+  return (data as { access?: string } | null)?.access ?? null;
 }
 
 // People may ask again (for example after a rejection), so a repeat for the same request within this window
@@ -68,9 +81,11 @@ export function createNotificationsRouter(
   verifyUser = verifySupabaseUser,
   sendPush = sendExpoPush,
   now = () => Date.now(),
+  galleryAccess = openGalleryAccessAsCaller,
 ) {
   const notificationsRouter = Router();
   const recentRequestPushes = new Map<string, number>();
+  const recentDecisionPushes = new Map<string, number>();
 
   notificationsRouter.post("/gallery-request", async (request: Request, response: Response) => {
     try {
@@ -131,7 +146,100 @@ export function createNotificationsRouter(
     }
   });
 
+  /**
+   * Tells a guest their access request was approved (or turned down). The website and the app call this right after
+   * the host changes the guest's status. Sent from here because browsers can't call Expo (CORS) and the guest's push
+   * token isn't readable to the host once RLS is on. Only someone who manages the gallery can trigger it, and the
+   * message follows the guest row's real status in the database, not the request body.
+   */
+  notificationsRouter.post("/gallery-decision", async (request: Request, response: Response) => {
+    try {
+      const verified = await verifyUser(request);
+      if (!verified) {
+        return response.status(401).json({ success: false, error: "Authentication required." });
+      }
+
+      const guestId = typeof request.body?.guestId === "string" ? request.body.guestId.trim() : "";
+      if (!guestId) {
+        return response.status(400).json({ success: false, error: "guestId is required." });
+      }
+      if (!isGalleryApprovalPushEnabled()) return response.json({ success: true, sent: false });
+
+      const { supabaseAdmin } = verified;
+      const { data: guest } = await supabaseAdmin
+        .from("guests")
+        .select("id, event_id, user_id, phone, status, event_title")
+        .eq("id", guestId)
+        .maybeSingle();
+      if (!guest) {
+        return response.status(404).json({ success: false, error: "Request not found." });
+      }
+
+      const eventId = guest.event_id || (await galleryFromLegacyGuestId(supabaseAdmin, guest.id));
+      if (!eventId) return response.json({ success: true, sent: false });
+      if ((await galleryAccess(request, eventId)) !== "manage") {
+        return response.status(403).json({ success: false, error: "Only the gallery's hosts can do this." });
+      }
+
+      const status = guest.status;
+      if (status !== "approved" && status !== "rejected") return response.json({ success: true, sent: false });
+
+      const key = `${guest.id}:${status}`;
+      const lastSent = recentDecisionPushes.get(key);
+      if (lastSent !== undefined && now() - lastSent < GALLERY_REQUEST_PUSH_WINDOW_MS) {
+        return response.json({ success: true, sent: false });
+      }
+
+      const recipient = await findGuestProfile(supabaseAdmin, guest);
+      if (!recipient?.push_token || !wantsEventInvites(recipient.notification_preferences)) {
+        return response.json({ success: true, sent: false });
+      }
+
+      const title = guest.event_title || "the event";
+      recentDecisionPushes.set(key, now());
+      await sendPush({
+        token: recipient.push_token,
+        title: status === "approved" ? "Access Approved! ✨" : "Access Request Update",
+        body: status === "approved"
+          ? `You have been approved to join the event "${title}"!`
+          : `Your access request to "${title}" was updated.`,
+        data: { eventId },
+      });
+      return response.json({ success: true, sent: true });
+    } catch (error) {
+      console.error("[notifications] gallery decision push failed:", error);
+      return response.status(500).json({ success: false, error: "Could not send the notification." });
+    }
+  });
+
   return notificationsRouter;
+}
+
+/** Old guest rows have no event_id; their id is "<phone or email>_<gallery id>", and gallery ids may contain "_". */
+async function galleryFromLegacyGuestId(supabaseAdmin: AdminClient, guestId: string) {
+  for (let at = guestId.indexOf("_"); at !== -1; at = guestId.indexOf("_", at + 1)) {
+    const candidate = guestId.slice(at + 1);
+    const { data } = await supabaseAdmin.from("events").select("id").eq("id", candidate).maybeSingle();
+    if (data) return candidate;
+  }
+  return null;
+}
+
+/** New guest rows carry the guest's user id; older ones only a phone number. */
+async function findGuestProfile(
+  supabaseAdmin: AdminClient,
+  guest: { user_id?: string | null; phone?: string | null },
+) {
+  const columns = "push_token, notification_preferences";
+  if (guest.user_id) {
+    const { data } = await supabaseAdmin.from("profiles").select(columns).eq("id", guest.user_id).maybeSingle();
+    return data;
+  }
+  if (guest.phone) {
+    const { data } = await supabaseAdmin.from("profiles").select(columns).eq("phone", guest.phone).maybeSingle();
+    return data;
+  }
+  return null;
 }
 
 export const notificationsRouter = createNotificationsRouter();
