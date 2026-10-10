@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import { fetchWithEndpointFallback, getEndpointsForPath } from './storage';
 
 export type VaultFolder = {
   id: string;
@@ -58,16 +57,23 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const token = data.session?.access_token;
   if (!token) throw new VaultApiError(401, 'unauthenticated', 'Please sign in to use EB Vault.');
 
+  // Vault belongs to the authenticated backend, never to a media-upload override.
+  // Require an explicit environment so private files cannot cross into another backend.
+  const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, '');
+  if (!apiBase) {
+    throw new VaultApiError(0, 'configuration', 'EB Vault is not configured in this app build. Please contact support.');
+  }
+
   let response: Response;
   try {
-    response = await fetchWithEndpointFallback(getEndpointsForPath(`/api/v1/vault${path}`), (endpoint) => fetch(endpoint, {
+    response = await fetch(`${apiBase}/api/v1/vault${path}`, {
       method,
       headers: {
         Authorization: `Bearer ${token}`,
         ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
-    }), 'vault');
+    });
   } catch {
     throw new VaultApiError(0, 'network', "Couldn't reach EB Vault. Check your connection and try again.");
   }
