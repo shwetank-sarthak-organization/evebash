@@ -45,6 +45,7 @@ import DesignIcon from '../../components/icons/DesignIcon';
 import PartnersIcon from '../../components/icons/PartnersIcon';
 import { haptic } from '@/lib/haptics';
 import { appAlert, showToast } from '@/lib/feedback';
+import { FolderPicker } from '@/components/vault/VaultModals';
 
 // Approve / reject a guest with a confirming haptic
 function updateGuestStatusWithFeedback(logId: string, status: 'pending' | 'approved' | 'rejected') {
@@ -1177,6 +1178,7 @@ export default function EventDetailScreen() {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [photoActionItem, setPhotoActionItem] = useState<any | null>(null);
   const [mediaToMove, setMediaToMove] = useState<any[] | null>(null);
+  const [mediaToSave, setMediaToSave] = useState<any[] | null>(null);
   const [isMovingMedia, setIsMovingMedia] = useState(false);
   const [isSelectingMedia, setIsSelectingMedia] = useState(false);
   const [selectedMediaIds, setSelectedMediaIds] = useState<Set<string>>(new Set());
@@ -1954,6 +1956,23 @@ export default function EventDetailScreen() {
       showToast(`Moved ${ids.length === 1 ? '1 item' : `${ids.length} items`} to ${targetLabel}.`);
     } finally {
       setIsMovingMedia(false);
+    }
+  };
+
+  // Copies the originals into the user's EB Vault; the items stay in the event. Returns an error for the picker.
+  const handleSaveToVault = async (vaultFolderId: string | null): Promise<string | null> => {
+    if (!mediaToSave || mediaToSave.length === 0) return null;
+    try {
+      const { vaultApi } = await import('@/lib/vaultApi');
+      const { saved, failed } = await vaultApi.saveFromEvent(mediaToSave.map(item => item.id), vaultFolderId);
+      if (saved.length === 0) return failed[0]?.error || 'Nothing could be saved. Please try again.';
+      setMediaToSave(null);
+      exitMediaSelection();
+      if (failed.length) appAlert('Partly saved', `Saved ${saved.length} of ${saved.length + failed.length} to EB Vault. ${failed[0].error}`);
+      else showToast(`Saved ${saved.length === 1 ? '1 item' : `${saved.length} items`} to EB Vault.`);
+      return null;
+    } catch (error) {
+      return error instanceof Error ? error.message : "Couldn't save to EB Vault. Please try again.";
     }
   };
 
@@ -5120,7 +5139,7 @@ export default function EventDetailScreen() {
                         )}
                       </View>
 
-                      {subEvents.length > 0 && !loadingPhotos && activeGalleryItems.length > 0 && (
+                      {!loadingPhotos && activeGalleryItems.length > 0 && (
                         <View style={{ marginBottom: 12, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(27,33,31,0.72)', paddingHorizontal: 12, paddingVertical: 10 }}>
                           {isSelectingMedia ? (
                             <>
@@ -5141,15 +5160,28 @@ export default function EventDetailScreen() {
                                     {selectedMediaIds.size === activeGalleryItems.length ? 'Clear' : 'All'}
                                   </Text>
                                 </TouchableOpacity>
+                                {subEvents.length > 0 && (
+                                  <TouchableOpacity
+                                    accessibilityRole="button"
+                                    accessibilityState={{ disabled: selectedMediaIds.size === 0 }}
+                                    disabled={selectedMediaIds.size === 0}
+                                    onPress={() => setMediaToMove(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
+                                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 16, backgroundColor: MidnightColors.gold, paddingHorizontal: 12, paddingVertical: 8, opacity: selectedMediaIds.size === 0 ? 0.4 : 1 }}
+                                  >
+                                    <IconSymbol name={"folder" as any} size={13} color="#13191F" />
+                                    <Text style={{ color: '#13191F', fontSize: 12, fontFamily: Fonts.inter.bold }}>Move to…</Text>
+                                  </TouchableOpacity>
+                                )}
                                 <TouchableOpacity
                                   accessibilityRole="button"
+                                  accessibilityLabel="Save to EB Vault"
                                   accessibilityState={{ disabled: selectedMediaIds.size === 0 }}
                                   disabled={selectedMediaIds.size === 0}
-                                  onPress={() => setMediaToMove(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
-                                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 16, backgroundColor: MidnightColors.gold, paddingHorizontal: 12, paddingVertical: 8, opacity: selectedMediaIds.size === 0 ? 0.4 : 1 }}
+                                  onPress={() => setMediaToSave(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
+                                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 16, borderWidth: 1, borderColor: '#7FA38C', backgroundColor: 'rgba(127,163,140,0.15)', paddingHorizontal: 12, paddingVertical: 8, opacity: selectedMediaIds.size === 0 ? 0.4 : 1 }}
                                 >
-                                  <IconSymbol name={"folder" as any} size={13} color="#13191F" />
-                                  <Text style={{ color: '#13191F', fontSize: 12, fontFamily: Fonts.inter.bold }}>Move to…</Text>
+                                  <IconSymbol name={"externaldrive.fill" as any} size={13} color="#A9C9B4" />
+                                  <Text style={{ color: '#A9C9B4', fontSize: 12, fontFamily: Fonts.inter.bold }}>To Vault</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity accessibilityRole="button" onPress={exitMediaSelection} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
                                   <Text style={{ color: '#94a3b8', fontSize: 12, fontFamily: Fonts.inter.bold }}>Cancel</Text>
@@ -5158,7 +5190,9 @@ export default function EventDetailScreen() {
                             </>
                           ) : (
                             <>
-                              <Text style={{ flex: 1, color: '#94a3b8', fontSize: 12 }}>Uploaded to the wrong gallery? Move items within this event.</Text>
+                              <Text style={{ flex: 1, color: '#94a3b8', fontSize: 12 }}>
+                                {subEvents.length > 0 ? 'Select items to move them or save copies to EB Vault.' : 'Select items to save copies to your EB Vault.'}
+                              </Text>
                               <TouchableOpacity
                                 accessibilityRole="button"
                                 onPress={() => setIsSelectingMedia(true)}
@@ -5605,6 +5639,7 @@ export default function EventDetailScreen() {
                       <TouchableOpacity accessibilityRole="button" disabled={videoActionItem?.status !== 'processed'} onPress={() => { setThumbnailVideo(videoActionItem); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, backgroundColor: '#CA9C68', opacity: videoActionItem?.status === 'processed' ? 1 : 0.4 }}><Text style={{ color: '#0f172a', fontWeight: '700' }}>Change thumbnail</Text></TouchableOpacity>
                       {videoActionItem?.status !== 'processed' && <Text style={{ color: '#cbd5e1' }}>Available after video processing finishes.</Text>}
                       {subEvents.length > 0 && <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) setMediaToMove([videoActionItem]); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(148,163,184,0.35)' }}><Text style={{ color: '#E2E8F0', fontWeight: '700' }}>Move to another gallery</Text></TouchableOpacity>}
+                      <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) setMediaToSave([videoActionItem]); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(127,163,140,0.45)' }}><Text style={{ color: '#A9C9B4', fontWeight: '700' }}>Save to EB Vault</Text></TouchableOpacity>
                       <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) handleDeleteGalleryPhoto(videoActionItem.id); setVideoActionItem(null); }} style={{ padding: 16 }}><Text style={{ color: '#fca5a5' }}>Delete video</Text></TouchableOpacity>
                       <TouchableOpacity accessibilityRole="button" onPress={() => setVideoActionItem(null)} style={{ padding: 16 }}><Text style={{ color: '#fff' }}>Cancel</Text></TouchableOpacity>
                     </View>
@@ -7552,9 +7587,46 @@ export default function EventDetailScreen() {
                 </Text>
               </TouchableOpacity>
             )}
+            <TouchableOpacity
+              style={{
+                width: '100%',
+                minHeight: 56,
+                borderRadius: 18,
+                borderWidth: 1,
+                borderColor: 'rgba(127, 163, 140, 0.45)',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                paddingHorizontal: 18,
+                gap: 12,
+              }}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              disabled={updating || !photoActionItem}
+              onPress={() => {
+                if (!photoActionItem) return;
+                setMediaToSave([photoActionItem]);
+                setPhotoActionItem(null);
+              }}
+            >
+              <IconSymbol name={"externaldrive.fill" as any} size={16} color="#A9C9B4" />
+              <Text style={{ flex: 1, color: '#A9C9B4', fontFamily: Fonts.outfit.bold, fontSize: 15 }} numberOfLines={2}>
+                Save to EB Vault
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
+
+      {mediaToSave && (
+        <FolderPicker
+          title={`Save ${mediaToSave.length === 1 ? '1 item' : `${mediaToSave.length} items`} to EB Vault`}
+          confirmLabel="Save"
+          excludeFolderIds={[]}
+          onClose={() => setMediaToSave(null)}
+          onPick={handleSaveToVault}
+        />
+      )}
 
       <Modal
         visible={!!mediaToMove}

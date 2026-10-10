@@ -108,6 +108,11 @@ export const vaultApi = {
   deleteForever: (kind: 'file' | 'folder', id: string) => request<{ freedBytes: number }>('DELETE', `/trash/${kind}/${id}`),
   emptyTrash: () => request<{ freedBytes: number }>('DELETE', '/trash'),
 
+  /** Copies event photos/videos (by photo id) into the caller's Vault. Only event managers may do this. */
+  saveFromEvent: (photoIds: string[], folderId: string | null) =>
+    request<{ saved: { photoId: string; item: VaultItem | null }[]; failed: { photoId: string; error: string }[] }>(
+      'POST', '/save-from-event', { photoIds, folderId }),
+
   startUpload: (input: { filename: string; sizeBytes: number; mimeType: string; folderId: string | null }) =>
     request<VaultUploadStart>('POST', '/uploads', input),
   partUrls: (uploadId: string, partNumbers: number[]) =>
