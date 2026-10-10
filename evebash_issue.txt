@@ -48,17 +48,6 @@ Found in: Visibility switch work (2026-10-09)
 Issue: No public/private switch for galleries in the admin dashboard. Platform admins can't change visibility of galleries they don't own anywhere on the website.
 How to reproduce: Open a gallery in the admin dashboard Events grid: there is no visibility control.
 
-#10
-Listed: 2026-10-09
-Platform: Both
-Priority: Low
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Lockdown access re-scan (2026-10-09)
-Issue: Leftover dead code: the hidden manager screen on the website Host page (/host?view=permissions, updateUserRole), the backend's old tenant routes (apps/backend/src/routes/tenantAuth.ts), and the app's unused events/sub/edit screen, hooks/useEventState.ts and addPhoto.
-How to reproduce: Code check: search for callers of these screens and functions; none are linked from the app or website.
-
 #11
 Listed: 2026-10-09
 Platform: Website
@@ -128,6 +117,18 @@ How to reproduce: With only the public anon key, request /rest/v1/profiles?selec
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#10
+Listed: 2026-10-09
+Platform: Both
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Lockdown access re-scan (2026-10-09)
+Issue: Leftover dead code: the hidden manager screen on the website Host page (/host?view=permissions, updateUserRole), the backend's old tenant routes (apps/backend/src/routes/tenantAuth.ts), and the app's unused events/sub/edit screen, hooks/useEventState.ts and addPhoto.
+How to reproduce: Code check: search for callers of these screens and functions; none are linked from the app or website.
+Fixed in: 341dd49 (tenant routes, also issue #24) + bffbf5e (2026-10-10): manager screen, unused helpers and app code removed. The live per-gallery Permissions tab is unchanged.
 
 #24
 Listed: 2026-10-10
