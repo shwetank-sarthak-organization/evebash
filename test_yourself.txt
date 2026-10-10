@@ -28,20 +28,23 @@ Status:    RETEST
 Priority:  High
 Platform:  Website + App
 Brief:     Find You now needs login and gallery access. Check real users are not blocked.
-Detail:    Backend flag FIND_YOU_REQUIRE_ACCESS=true went live 2026-10-09 (commit 5021ce4).
+Detail:    Backend flag FIND_YOU_REQUIRE_ACCESS (commit 5021ce4). Set to false on Railway 2026-10-10
+           until the app build with fba2cdc is out; turn back to true before the final retest.
 How to test:
   1. Log in. Open a gallery you created that has photos of you.
   2. Open Find You, take/upload a selfie.
   3. Expect: your photos are found. NOT "no access" / "log in" / error.
   4. Repeat on a gallery you joined as a guest (not created).
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Sarthak
+Device / browser: Chrome (website)
+Build / version: website staging after fba2cdc
+Date tested: 2026-10-10
+Account used: host (own gallery photo_check)
 Screenshot / recording:
 Fix ref:   fba2cdc (2026-10-10) website + app now send the login token. App needs a new build.
 Feedback:  2026-10-10 Sarthak, website: "Failed to search: 401". Every logged-in search failed.
+           2026-10-10 Sarthak, website after fix: PASS, photos found. App not tested yet (needs new build, then
+           turn FIND_YOU_REQUIRE_ACCESS back to true and retest website + app).
 
 --------------------------------------------------------------------------------
 #2  Find You asks logged-out visitors to log in
