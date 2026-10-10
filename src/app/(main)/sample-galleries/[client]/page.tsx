@@ -1,153 +1,36 @@
-"use client";
+import type { Metadata } from "next";
+import { getSampleGallerySummary } from "@/lib/seo";
+import SampleGalleryView from "./SampleGalleryView";
 
-import { use, useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { notFound } from "next/navigation";
-import { motion, useScroll, useTransform } from "framer-motion";
-import { ScrollReveal } from "@/components/ui/ScrollReveal";
-import { ChevronLeft, ArrowRight } from "lucide-react";
-import { Event, getEventById, getSubEvents, openGallery } from "@/lib/database";
+type Props = { params: Promise<{ client: string }> };
 
-export default function ClientGallery({ params }: { params: Promise<{ client: string }> }) {
-    const { client } = use(params);
-    const [data, setData] = useState<Event | null>(null);
-    const [events, setEvents] = useState<Event[]>([]);
-    const [loading, setLoading] = useState(true);
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+    const { client } = await params;
+    const id = decodeURIComponent(client);
+    const gallery = await getSampleGallerySummary(id);
 
-    const containerRef = useRef(null);
-    const { scrollYProgress } = useScroll({
-        target: containerRef,
-        offset: ["start start", "end start"]
-    });
-
-    const y = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
-    const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
-
-    useEffect(() => {
-        let mounted = true;
-
-        async function loadSampleGallery() {
-            // open_gallery shows sample galleries read-only to anyone (the events table isn't readable to visitors once
-            // RLS is on); members and owners get "member"/"manage" and keep reading the tables directly
-            const opened = await openGallery(client).catch(() => null);
-            if (!mounted) return;
-            const publicView = opened?.access === "public_view" ? opened : null;
-            const event = publicView?.event || (opened && opened.access !== "not_found" ? await getEventById(client) : null);
-            if (!mounted) return;
-
-            if (!event?.isSampleGallery) {
-                setData(null);
-                setEvents([]);
-                setLoading(false);
-                return;
-            }
-
-            const subEvents = publicView ? publicView.subEvents : await getSubEvents(event.id, event.legacyId);
-            if (!mounted) return;
-            setData(event);
-            setEvents(subEvents.length > 0 ? subEvents : [event]);
-            setLoading(false);
-        }
-
-        loadSampleGallery();
-
-        return () => {
-            mounted = false;
-        };
-    }, [client]);
-
-    // The layout's metadata only has the generic "Sample galleries" title; name the tab after the album
-    useEffect(() => {
-        if (data?.title) document.title = `${data.title} · Sample gallery · EveBash`;
-    }, [data?.title]);
-
-    if (!loading && !data) {
-        return notFound();
+    // Not in the sample list (an old link or another reference): the view still opens it, but it isn't indexed.
+    if (!gallery) {
+        return { title: { absolute: "Sample gallery · EveBash" }, robots: { index: false }, alternates: { canonical: null } };
     }
 
-    return (
-        <div className="min-h-screen bg-[var(--site-bg)] font-serif text-[var(--site-text)]" ref={containerRef}>
-            {loading || !data ? (
-                <div className="min-h-screen px-6 py-32 text-center font-sans text-[var(--site-muted)]">
-                    Loading sample gallery...
-                </div>
-            ) : (
-            <>
-            {/* Hero Cover Image with Parallax */}
-            <div className="relative h-[85vh] w-full overflow-hidden">
-                <motion.div style={{ y, opacity }} className="absolute inset-0 h-[120%] -top-[10%]">
-                    <Image
-                        src={data.coverImage}
-                        alt={data.title}
-                        fill
-                        className="object-cover"
-                        priority
-                    />
-                </motion.div>
-                <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+    const name = gallery.title || "Sample gallery";
+    const title = `${name} sample gallery · EveBash`;
+    const description = `Browse the ${name} sample gallery the way guests do: view the photos, find yours with a selfie and download them.`;
+    const url = `/sample-galleries/${encodeURIComponent(gallery.id)}`;
+    const images = gallery.cover_image ? [{ url: gallery.cover_image, alt: name }] : undefined;
 
-                <div className="absolute inset-0 flex flex-col justify-end items-center text-center px-4 pb-20">
-                    <ScrollReveal direction="up" delay={0.3}>
-                        <h1 className="text-4xl md:text-7xl font-bold text-white drop-shadow-xl mb-6 tracking-tight">{data.title}</h1>
-                    </ScrollReveal>
-                    <ScrollReveal direction="up" delay={0.5}>
-                        <p className="text-white/90 text-lg md:text-xl max-w-2xl font-sans font-light drop-shadow-lg tracking-wide">
-                            {data.description || "A curated EveBash sample gallery."}
-                        </p>
-                    </ScrollReveal>
-                </div>
-            </div>
+    return {
+        title: { absolute: title },
+        description,
+        alternates: { canonical: url },
+        openGraph: { title, description, url, ...(images && { images }) },
+        twitter: { card: "summary_large_image", title, description, ...(images && { images }) },
+    };
+}
 
-            <div className="relative z-10 mx-auto -mt-20 max-w-7xl rounded-t-[3rem] bg-[var(--site-bg)] px-4 py-24 shadow-2xl shadow-black/20 sm:px-6 lg:px-8">
-                {/* Breadcrumb / Back Link */}
-                <div className="mb-16 flex items-center justify-between">
-                    <Link href="/sample-galleries" className="group inline-flex items-center space-x-2 text-royal-gold hover:text-royal-gold/80 transition-all text-sm font-bold uppercase tracking-widest">
-                        <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                        <span>Back to Albums</span>
-                    </Link>
-                    
-                    <div className="h-px flex-1 bg-royal-gold/20 mx-8 hidden md:block"></div>
-                    
-                    <span className="text-xs font-bold uppercase tracking-[0.3em] text-[var(--site-muted)]">Curated Collection</span>
-                </div>
-
-                <div className="flex flex-wrap justify-center gap-10">
-                    {events.map((event, index) => (
-                        <div key={event.id} className="w-full md:w-[calc(50%-1.25rem)] lg:w-[calc(25%-1.875rem)]">
-                        <ScrollReveal delay={index * 0.1}>
-                            <Link
-                                href={`/events/${event.id}`}
-                                className="group relative block aspect-[3/4] w-full overflow-hidden rounded-[2rem] bg-[var(--site-card)] shadow-md transition-all duration-700 hover:shadow-2xl"
-                            >
-                                {/* Image */}
-                                <Image
-                                    src={event.coverImage}
-                                    alt={event.title}
-                                    fill
-                                    className="object-cover transition-transform duration-1000 group-hover:scale-110"
-                                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                                />
-
-                                {/* Overlay */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent opacity-60 group-hover:opacity-80 transition-all duration-500"></div>
-
-                                {/* Content */}
-                                <div className="absolute bottom-0 left-0 p-8 w-full transition-all duration-500 md:translate-y-4 md:group-hover:translate-y-0">
-                                    <p className="text-royal-gold text-[10px] font-bold uppercase tracking-[0.2em] mb-3 transition-opacity duration-500 delay-100 md:opacity-0 md:group-hover:opacity-100">{event.category}</p>
-                                    <h3 className="text-2xl font-bold text-white mb-4 tracking-tight">{event.title}</h3>
-                                    <div className="flex items-center text-white/70 text-[10px] font-bold uppercase tracking-widest transition-all duration-500 md:opacity-0 md:group-hover:opacity-100 md:group-focus-visible:opacity-100">
-                                        Open Gallery <ArrowRight className="w-3 h-3 ml-2 group-hover:translate-x-1 transition-transform" />
-                                    </div>
-                                </div>
-                            </Link>
-                        </ScrollReveal>
-                        </div>
-                    ))}
-                </div>
-            </div>
-            </>
-            )}
-        </div>
-    );
+export default async function SampleGalleryPage({ params }: Props) {
+    const { client } = await params;
+    const initial = await getSampleGallerySummary(decodeURIComponent(client));
+    return <SampleGalleryView client={client} initial={initial} />;
 }

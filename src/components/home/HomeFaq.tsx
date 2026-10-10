@@ -2,7 +2,7 @@ import { ChevronDown } from "lucide-react";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { SectionHeader } from "./HomeUI";
 
-const faqs = [
+export const faqs = [
     {
         question: "What is EveBash?",
         answer: "An event media platform. Photographers and event organizers upload an event's photos and videos, organize them into albums, and share one gallery where clients and guests view, find and download their memories.",

@@ -5,8 +5,9 @@ import FindYouFeature from "@/components/home/FindYouFeature";
 import GuestFeatures from "@/components/home/GuestFeatures";
 import Audiences from "@/components/home/Audiences";
 import PricingPreview from "@/components/home/PricingPreview";
-import HomeFaq from "@/components/home/HomeFaq";
+import HomeFaq, { faqs } from "@/components/home/HomeFaq";
 import FinalCta from "@/components/home/FinalCta";
+import { jsonLd } from "@/lib/seo";
 
 const title = "EveBash | Event media platform for photographers and organizers";
 const description =
@@ -20,6 +21,17 @@ export const metadata: Metadata = {
     twitter: { card: "summary_large_image", title, description },
 };
 
+// The FAQ section's questions, as structured data.
+const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map(({ question, answer }) => ({
+        "@type": "Question",
+        name: question,
+        acceptedAnswer: { "@type": "Answer", text: answer },
+    })),
+};
+
 export default function Home() {
     return (
         <div className="flex flex-col bg-[var(--site-bg)] font-sans text-[var(--site-text)] selection:bg-royal-gold/30">
@@ -30,6 +42,7 @@ export default function Home() {
             <Audiences />
             <PricingPreview />
             <HomeFaq />
+            <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(faqJsonLd)} />
             <FinalCta />
         </div>
     );

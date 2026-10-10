@@ -7,6 +7,30 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import Footer from "@/components/Footer";
 import MainWrapper from "@/components/MainWrapper";
+import { jsonLd, siteUrl } from "@/lib/seo";
+
+// Who EveBash is, for search engines (brand result, logo, contact).
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${siteUrl}/#organization`,
+      name: "EveBash",
+      url: siteUrl,
+      logo: `${siteUrl}/evebash-logo-gold.png`,
+      email: "support@evebash.com",
+      sameAs: ["https://www.youtube.com/@EveBashApp"],
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${siteUrl}/#website`,
+      name: "EveBash",
+      url: siteUrl,
+      publisher: { "@id": `${siteUrl}/#organization` },
+    },
+  ],
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.evebash.com"),
@@ -49,6 +73,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/evebash-logo-gold.png" />
       </head>
       <body className="antialiased font-sans">
+        <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(organizationJsonLd)} />
         <AuthProvider>
           <ThemeProvider>
             <Navbar />
