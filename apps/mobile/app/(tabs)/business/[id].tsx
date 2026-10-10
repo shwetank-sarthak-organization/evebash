@@ -26,6 +26,7 @@ import { getBusinessById, updateBusiness, getEventsCountForVendor, Business, add
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/context/AuthContext';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import { getBusinessWebUrl, getWebBaseUrl } from '@/lib/webLinks';
 
 const { width } = Dimensions.get('window');
 
@@ -384,7 +385,7 @@ export default function BusinessDetailScreen() {
     try {
       await Share.share({
         message: `Check out ${business?.name} on EB Network!`,
-        url: 'https://wedalbum.com',
+        url: business?.id ? getBusinessWebUrl(business.id) : getWebBaseUrl(),
       });
     } catch (error) {
       console.error('Share error:', error);

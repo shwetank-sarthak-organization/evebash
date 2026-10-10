@@ -50,6 +50,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { appAlert, showToast } from '@/lib/feedback';
 import { MidnightColors } from '@/constants/theme';
 import { EventGrid, getEventGridCardWidth } from '@/constants/layout';
+import { galleryIdFromLink } from '@/lib/webLinks';
 
 const { width, height } = Dimensions.get('window');
 
@@ -399,14 +400,12 @@ export default function DashboardScreen() {
   };
 
   const handleBarCodeScanned = ({ data }: { data: string }) => {
-    if (data.includes('wedalbum.app/events/')) {
-      const parts = data.split('/');
-      const eventId = parts[parts.length - 1];
-      if (eventId) {
-        setShowJoinModal(false);
-        setIsScanning(false);
-        router.push(`/events/${eventId}`);
-      }
+    // Gallery links from any EveBash site, and old wedalbum.app QR codes already printed
+    const eventId = galleryIdFromLink(data);
+    if (eventId) {
+      setShowJoinModal(false);
+      setIsScanning(false);
+      router.push(`/events/${eventId}`);
     } else {
       handleJoinEvent(data);
     }

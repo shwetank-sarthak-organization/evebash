@@ -46,6 +46,7 @@ import PartnersIcon from '../../components/icons/PartnersIcon';
 import { haptic } from '@/lib/haptics';
 import { appAlert, showToast } from '@/lib/feedback';
 import { FolderPicker } from '@/components/vault/VaultModals';
+import { getGalleryWebUrl } from '@/lib/webLinks';
 
 // Approve / reject a guest with a confirming haptic
 function updateGuestStatusWithFeedback(logId: string, status: 'pending' | 'approved' | 'rejected') {
@@ -1994,7 +1995,7 @@ export default function EventDetailScreen() {
 
   const handleShare = async () => {
     if (!event) return;
-    const shareUrl = `https://wedalbum.app/events/${event.id}`;
+    const shareUrl = getGalleryWebUrl(event.id);
     try {
       await Share.share({
         message: `Join our event "${event.title}" on EveBash!\nJoin ID: ${event.joinId}\nLink: ${shareUrl}`,
@@ -7758,7 +7759,7 @@ export default function EventDetailScreen() {
 
             <View style={styles.qrContainer}>
               <Image
-                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://wedalbum.app/events/${event.id}` }}
+                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(getGalleryWebUrl(event.id))}` }}
                 style={styles.qrCode}
               />
               <Text style={styles.qrLabel}>Scan to Join</Text>

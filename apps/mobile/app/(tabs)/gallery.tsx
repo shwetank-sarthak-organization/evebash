@@ -56,6 +56,7 @@ import {
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { haptic } from '@/lib/haptics';
 import { appAlert, showToast } from '@/lib/feedback';
+import { getGalleryWebUrl } from '@/lib/webLinks';
 
 // Approve / reject a guest with a confirming haptic
 function updateGuestStatusWithFeedback(logId: string, status: 'pending' | 'approved' | 'rejected') {
@@ -399,13 +400,13 @@ export default function PortfolioTabScreen() {
   };
 
   const handleVisitWebsite = (event: DatabaseEvent) => {
-    const url = `https://wedalbum.app/events/${event.id}`;
+    const url = getGalleryWebUrl(event.id);
     Linking.openURL(url).catch(err => console.error('Could not open URL', err));
   };
 
   const handleShareLink = async (event: DatabaseEvent) => {
     try {
-      const url = `https://wedalbum.app/events/${event.id}`;
+      const url = getGalleryWebUrl(event.id);
       await Share.share({
         message: `Check out the ${event.title} gallery: ${url}`,
         url: url,
