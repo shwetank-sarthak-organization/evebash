@@ -1342,8 +1342,22 @@ def _find_matching_photos_core(request: dict):
         print("[Selfie] Embedding successfully generated.")
 
         # ── 3. Fetch all indexed face descriptors for these events ───────
-        response = supabase.table("faces").select("*").in_("event_id", event_ids).execute()
-        db_faces = response.data or []
+        # Supabase returns at most 1,000 rows per request, so page through them (ordered by id so pages
+        # don't overlap); a single request silently missed every face after the first 1,000.
+        PAGE_SIZE = 1000
+        db_faces = []
+        while True:
+            page = (
+                supabase.table("faces")
+                .select("id, image_id, descriptor, image_url, width, height")
+                .in_("event_id", event_ids)
+                .order("id")
+                .range(len(db_faces), len(db_faces) + PAGE_SIZE - 1)
+                .execute()
+            ).data or []
+            if not page:  # stop on an empty page, not a short one, in case the server's row cap is lower
+                break
+            db_faces.extend(page)
         print(f"[Selfie] Fetched {len(db_faces)} indexed face records to compare.")
 
         # ── 4. Cosine similarity matching ────────────────────────────────
