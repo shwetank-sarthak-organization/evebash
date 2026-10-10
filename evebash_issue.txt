@@ -161,9 +161,9 @@ How to reproduce: Install an EAS-signed or Play build and tap "Continue with Goo
 Listed: 2026-10-09
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
+Status: Blocked
+Owner: Sarthak (decision)
+Blocked by: Decision on the production backend (staging API or a separate one); deferred by Sarthak 2026-10-10
 Found in: Access-request push work (2026-10-09)
 Issue: The EAS production build profile doesn't set EXPO_PUBLIC_API_BASE_URL (development and staging do). Uploads and the access-request push need it; confirm it's set in EAS environment settings before the first store build.
 How to reproduce: Check build.production.env in apps/mobile/eas.json and the EAS project's environment variables.
