@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 36
+Next test number: 37
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -715,4 +715,31 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:   65efa33 (2026-10-10)
+Feedback:
+
+--------------------------------------------------------------------------------
+#36 EB Network: same "coming soon" page and sign-up form on app and website
+Status:    TODO
+Priority:  Medium
+Platform:  Both (app: JS-only change, any staging build; website: staging.evebash.com/eb-network)
+Brief:     The app's "Vendors" tab is now "EB Network", with the same wording as the website.
+           The website's EB Network page now has the same "List your business" form as the app.
+How to test:
+  1. App: the bottom tab says "EB Network" (shop icon). Open it. Expect: "Coming soon",
+     tagline "Find trusted event vendors, all in one place.", How it works (3 steps),
+     A first look (preview), Why list your business, and the "List your business" form.
+  2. Website: open EB Network from the menu. Expect: the same text and sections, in the same order.
+  3. Website: press "List your business" at the top. Expect: it scrolls to the form.
+  4. Website: fill the form without picking a category -> "Please choose a category."
+  5. Website: submit a real test entry (business name starting "TEST"). Expect: "You're on the list".
+     Then "Register another business" shows the empty form again.
+  6. Check the website page on a phone too: no sideways scrolling, form is easy to fill.
+  7. Tell the team the TEST entry's name so they can remove it from vendor_leads.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
 Feedback:

@@ -28,10 +28,23 @@ const CATEGORIES = [
   'Other',
 ] as const;
 
+// Shared EB Network wording. The website (src/components/eb-network/EbNetworkComingSoon.tsx) uses the same text: keep them in sync.
+const TAGLINE = 'Find trusted event vendors, all in one place.';
+const INTRO =
+  "Any EveBash user can set up a business with EB Business, whether they're a photographer, venue, caterer or decorator. Those businesses will be listed on EB Network, where hosts can discover, compare and shortlist them for their events.";
+
+const STEPS = [
+  { title: 'Create your business', text: 'Set up your profile, services and portfolio in EB Business.' },
+  { title: 'Get listed on EB Network', text: 'Publish your business so hosts can find it.' },
+  { title: 'Hosts find you', text: 'Hosts search, compare and shortlist vendors for their events.' },
+];
+
+const PREVIEW_CHIPS = ['All', 'Photographers', 'Venues', 'Caterers', 'Decorators', 'Makeup Artists', 'DJ & Music', 'Event Planners'];
+
 const PERKS: { icon: IconSymbolName; title: string; text: string }[] = [
-  { icon: 'person.2.fill', title: 'Reach event hosts', text: 'Get discovered by hosts planning weddings, parties and celebrations.' },
-  { icon: 'photo.on.rectangle', title: 'Showcase your work', text: 'Build a portfolio straight from the events you cover.' },
-  { icon: 'checkmark.seal.fill', title: 'Early partner perks', text: 'Vendors who join now get priority listing at launch.' },
+  { icon: 'person.2.fill', title: 'Get discovered by hosts', text: 'Reach hosts planning weddings, parties and celebrations.' },
+  { icon: 'photo.on.rectangle', title: 'Showcase your work', text: 'Build a portfolio straight from the events you cover on EveBash.' },
+  { icon: 'checkmark.seal.fill', title: 'Early partner perks', text: 'Businesses that register now get priority listing at launch.' },
 ];
 
 const EMPTY_FORM = {
@@ -46,7 +59,7 @@ const EMPTY_FORM = {
 
 type FormField = keyof typeof EMPTY_FORM;
 
-export default function VendorsScreen() {
+export default function EbNetworkScreen() {
   const { colors, isDark } = useAppTheme();
   const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -127,20 +140,66 @@ export default function VendorsScreen() {
         contentContainerStyle={{ paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
       >
-        <TabScreenHeader title="Vendors" />
+        <TabScreenHeader title="EB Network" />
 
         <View style={styles.header}>
           <View style={styles.badge}>
             <IconSymbol name="sparkles" size={14} color={colors.gold} />
             <Text style={styles.badgeText}>COMING SOON</Text>
           </View>
-          <Text style={styles.title}>EveBash Vendors</Text>
-          <Text style={styles.subtitle}>
-            {`We're building a home for the best event vendors. Register your interest and we'll reach out before launch.`}
-          </Text>
+          <Text style={styles.title}>EB Network</Text>
+          <Text style={styles.tagline}>{TAGLINE}</Text>
+          <Text style={styles.subtitle}>{INTRO}</Text>
         </View>
 
         <View style={styles.card}>
+          <Text style={styles.sectionTitle}>How it works</Text>
+          {STEPS.map((step, index) => (
+            <View key={step.title} style={styles.perkItem}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>{index + 1}</Text>
+              </View>
+              <View style={styles.perkTextContainer}>
+                <Text style={styles.perkTitle}>{step.title}</Text>
+                <Text style={styles.perkText}>{step.text}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.previewHeader}>
+            <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>A first look</Text>
+            <View style={styles.previewBadge}>
+              <Text style={styles.previewBadgeText}>PREVIEW</Text>
+            </View>
+          </View>
+          <Text style={styles.perkText}>A preview of what hosts will see at launch. Listings will appear here once EB Network opens.</Text>
+          {/* Non-interactive sketch of the directory: placeholders only, no made-up vendors. */}
+          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none">
+            <View style={styles.previewSearch}>
+              <IconSymbol name="magnifyingglass" size={16} color={colors.slate400} />
+              <Text style={styles.previewSearchText} numberOfLines={1}>Search photographers, venues, caterers...</Text>
+            </View>
+            <View style={styles.chipRow}>
+              {PREVIEW_CHIPS.map((chip, index) => (
+                <View key={chip} style={[styles.previewChip, index === 0 && styles.chipSelected]}>
+                  <Text style={[styles.previewChipText, index === 0 && styles.chipTextSelected]}>{chip}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={styles.previewListing}>
+              <View style={styles.previewThumb} />
+              <View style={{ flex: 1, gap: 8 }}>
+                <View style={[styles.previewLine, { width: '70%' }]} />
+                <View style={[styles.previewLine, { width: '40%', opacity: 0.6 }]} />
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Why list your business</Text>
           {PERKS.map((perk) => (
             <View key={perk.title} style={styles.perkItem}>
               <View style={styles.iconBox}>
@@ -164,8 +223,8 @@ export default function VendorsScreen() {
             </View>
           ) : (
             <>
-              <Text style={styles.formTitle}>Join as a Vendor</Text>
-              <Text style={styles.formSubtitle}>Fields marked * are required.</Text>
+              <Text style={styles.formTitle}>List your business</Text>
+              <Text style={styles.formSubtitle}>{`Register your interest and we'll contact you before launch. Fields marked * are required.`}</Text>
 
               {renderInput('businessName', 'BUSINESS NAME *', 'Pixel Stories Studio', { autoCapitalize: 'words' })}
               {renderInput('contactName', 'YOUR NAME *', 'Your full name', { autoCapitalize: 'words' })}
@@ -201,7 +260,7 @@ export default function VendorsScreen() {
 
               {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
 
-              <Button title="Register Interest" icon="paperplane.fill" onPress={handleSubmit} loading={submitting} style={{ marginTop: 8 }} />
+              <Button title="Register interest" icon="paperplane.fill" onPress={handleSubmit} loading={submitting} style={{ marginTop: 8 }} />
             </>
           )}
         </View>
@@ -247,6 +306,12 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     marginBottom: 12,
     textAlign: 'center',
   },
+  tagline: {
+    fontSize: 18,
+    color: colors.gold,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
   subtitle: {
     fontSize: 16,
     color: colors.slate400,
@@ -266,6 +331,93 @@ const getStyles = (colors: typeof MidnightColors, isDark: boolean) => StyleSheet
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.white,
+    marginBottom: 20,
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  previewBadge: {
+    backgroundColor: colors.gold,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  previewBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    color: isDark ? colors.slate900 : colors.background,
+  },
+  previewSearch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  previewSearchText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.slate400,
+  },
+  previewChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  previewChipText: {
+    fontSize: 12,
+    color: colors.slate400,
+  },
+  previewListing: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  previewThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: 'rgba(202, 156, 104, 0.12)',
+  },
+  previewLine: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.slate400,
+    opacity: 0.3,
+  },
+  stepNumber: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(202, 156, 104, 0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepNumberText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.gold,
   },
   perkItem: {
     flexDirection: 'row',
