@@ -572,7 +572,7 @@ Fix ref:
 Feedback:
 
 --------------------------------------------------------------------------------
-#19 App: deleting a gallery deletes its sub-galleries
+#29 App: deleting a gallery deletes its sub-galleries
 Status:    TODO
 Priority:  High
 Platform:  App (new build from staging with 06019c8)
@@ -592,7 +592,7 @@ Fix ref:   06019c8 (2026-10-10)
 Feedback:
 
 --------------------------------------------------------------------------------
-#20 App: Find You also searches sub-galleries
+#30 App: Find You also searches sub-galleries
 Status:    TODO
 Priority:  Medium
 Platform:  App (new build from staging with 06019c8)
@@ -611,7 +611,7 @@ Fix ref:   06019c8 (2026-10-10)
 Feedback:
 
 --------------------------------------------------------------------------------
-#21 App: sub-gallery covers show
+#31 App: sub-gallery covers show
 Status:    TODO
 Priority:  Medium
 Platform:  App (new build from staging with 06019c8)
@@ -630,7 +630,7 @@ Fix ref:   06019c8 (2026-10-10)
 Feedback:
 
 --------------------------------------------------------------------------------
-#22 App: "Log in" from a gallery comes back to the gallery
+#32 App: "Log in" from a gallery comes back to the gallery
 Status:    TODO
 Priority:  Medium
 Platform:  App (new build from staging with 06019c8)

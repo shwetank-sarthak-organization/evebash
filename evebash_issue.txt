@@ -215,7 +215,7 @@ Blocked by: -
 Found in: Website vs app consistency audit (2026-10-05)
 Issue: Deleting a gallery in the app doesn't delete its sub-galleries (the website does). Mobile deleteEvent in apps/mobile/lib/database.ts doesn't recurse into sub-galleries.
 How to reproduce: In the app, create a gallery with a sub-gallery and a photo in it, then delete the main gallery. The sub-gallery row and its media stay in the database (check events where parent_id = the deleted id).
-Fixed in: 06019c8 (2026-10-10). App only: reaches phones with the next app build (test_yourself #19).
+Fixed in: 06019c8 (2026-10-10). App only: reaches phones with the next app build (test_yourself #29).
 
 #2
 Listed: 2026-10-09
@@ -227,7 +227,7 @@ Blocked by: -
 Found in: Website vs app consistency audit (2026-10-05)
 Issue: App Find You only searches the main gallery, not its sub-galleries (apps/mobile/components/event/FindYouPanel).
 How to reproduce: Upload a photo of yourself to a sub-gallery only. Run Find You from the main gallery in the app: no match. Do the same on the website: the photo is found.
-Fixed in: 06019c8 (2026-10-10). App only: reaches phones with the next app build (test_yourself #20).
+Fixed in: 06019c8 (2026-10-10). App only: reaches phones with the next app build (test_yourself #30).
 
 #3
 Listed: 2026-10-09
@@ -239,7 +239,7 @@ Blocked by: -
 Found in: Website vs app consistency audit (2026-10-05)
 Issue: App sub-gallery covers get a broken double "-preview.webp" URL. The app's image URL helper (apps/mobile/lib/imageUrl) lacks the website's guard for already-resized files.
 How to reproduce: Set a sub-gallery cover in the app, then open the main gallery. The sub-gallery card shows no cover; its image URL ends in "-preview.webp-preview.webp".
-Fixed in: 06019c8 (2026-10-10). App only: reaches phones with the next app build (test_yourself #21).
+Fixed in: 06019c8 (2026-10-10). App only: reaches phones with the next app build (test_yourself #31).
 
 #5
 Listed: 2026-10-09
@@ -251,7 +251,7 @@ Blocked by: -
 Found in: Gallery access work, item A1 (2026-10-07)
 Issue: After "Log in to request access" in the app, logging in lands on the dashboard instead of returning to the gallery (apps/mobile/app/login.tsx and the screens that open it).
 How to reproduce: Logged out, open a private gallery link in the app, tap "Log in" and sign in. You land on the dashboard; the gallery has to be opened again from the link.
-Fixed in: 06019c8 (2026-10-10). App only: reaches phones with the next app build (test_yourself #22).
+Fixed in: 06019c8 (2026-10-10). App only: reaches phones with the next app build (test_yourself #32).
 
 #13
 Listed: 2026-10-09
