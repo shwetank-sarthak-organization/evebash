@@ -570,3 +570,81 @@ Account used:
 Screenshot / recording:
 Fix ref:
 Feedback:
+
+--------------------------------------------------------------------------------
+#19 App: deleting a gallery deletes its sub-galleries
+Status:    TODO
+Priority:  High
+Platform:  App (new build from staging with 06019c8)
+Brief:     Deleting a main gallery in the app now also deletes its sub-galleries (issue #1).
+How to test:
+  1. In the app, create a gallery, add a sub-gallery, upload 2 photos into the sub-gallery.
+  2. Delete the main gallery.
+  3. Expect: no error; the gallery and its sub-gallery are gone from the dashboard and website.
+     The sub-gallery link now shows "not found".
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   06019c8 (2026-10-10)
+Feedback:
+
+--------------------------------------------------------------------------------
+#20 App: Find You also searches sub-galleries
+Status:    TODO
+Priority:  Medium
+Platform:  App (new build from staging with 06019c8)
+Brief:     App Find You now includes the sub-galleries, like the website (issue #2).
+How to test:
+  1. Upload a photo of yourself ONLY into a sub-gallery.
+  2. In the app, open the MAIN gallery -> Find You -> selfie.
+  3. Expect: that photo is found.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   06019c8 (2026-10-10)
+Feedback:
+
+--------------------------------------------------------------------------------
+#21 App: sub-gallery covers show
+Status:    TODO
+Priority:  Medium
+Platform:  App (new build from staging with 06019c8)
+Brief:     Sub-gallery cover pictures were blank in the app (broken image address) (issue #3).
+How to test:
+  1. In the app, set a cover picture on a sub-gallery.
+  2. Open the main gallery.
+  3. Expect: the sub-gallery card shows its cover picture.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   06019c8 (2026-10-10)
+Feedback:
+
+--------------------------------------------------------------------------------
+#22 App: "Log in" from a gallery comes back to the gallery
+Status:    TODO
+Priority:  Medium
+Platform:  App (new build from staging with 06019c8)
+Brief:     After logging in from a gallery, you return to it instead of the dashboard (issue #5).
+How to test:
+  1. Log out of the app. Open a private gallery link -> tap "Log in" -> log in.
+  2. Expect: you are back on that gallery (Request access screen, or the gallery if you're a member).
+  3. Repeat with Google sign-in, and from a public gallery's Find You "Log in" button.
+  4. Normal login from the home screen still goes to the dashboard.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   06019c8 (2026-10-10)
+Feedback:

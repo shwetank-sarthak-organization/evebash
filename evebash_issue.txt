@@ -24,39 +24,6 @@ Next issue number: 23
 ACTIVE ISSUES
 =====================================================================
 
-#1
-Listed: 2026-10-09
-Platform: App
-Priority: High
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Website vs app consistency audit (2026-10-05)
-Issue: Deleting a gallery in the app doesn't delete its sub-galleries (the website does). Mobile deleteEvent in apps/mobile/lib/database.ts doesn't recurse into sub-galleries.
-How to reproduce: In the app, create a gallery with a sub-gallery and a photo in it, then delete the main gallery. The sub-gallery row and its media stay in the database (check events where parent_id = the deleted id).
-
-#2
-Listed: 2026-10-09
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Website vs app consistency audit (2026-10-05)
-Issue: App Find You only searches the main gallery, not its sub-galleries (apps/mobile/components/event/FindYouPanel).
-How to reproduce: Upload a photo of yourself to a sub-gallery only. Run Find You from the main gallery in the app: no match. Do the same on the website: the photo is found.
-
-#3
-Listed: 2026-10-09
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Website vs app consistency audit (2026-10-05)
-Issue: App sub-gallery covers get a broken double "-preview.webp" URL. The app's image URL helper (apps/mobile/lib/imageUrl) lacks the website's guard for already-resized files.
-How to reproduce: Set a sub-gallery cover in the app, then open the main gallery. The sub-gallery card shows no cover; its image URL ends in "-preview.webp-preview.webp".
-
 #4
 Listed: 2026-10-09
 Platform: Both
@@ -67,17 +34,6 @@ Blocked by: -
 Found in: Modal cost audit (2026-10-05)
 Issue: Find You compares only the first 1,000 faces of a gallery, so people in big galleries get missed. The faces query in Modal's find_matching_photos isn't paginated (backend/Modal).
 How to reproduce: Use a gallery with more than 1,000 indexed faces (one with 1,751 existed on 2026-10-05). Run Find You for someone who appears only in later-indexed photos: they're not found.
-
-#5
-Listed: 2026-10-09
-Platform: App
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Gallery access work, item A1 (2026-10-07)
-Issue: After "Log in to request access" in the app, logging in lands on the dashboard instead of returning to the gallery (apps/mobile/app/login.tsx and the screens that open it).
-How to reproduce: Logged out, open a private gallery link in the app, tap "Log in" and sign in. You land on the dashboard; the gallery has to be opened again from the link.
 
 #6
 Listed: 2026-10-09
@@ -248,6 +204,54 @@ How to reproduce: As a host, Select photos in a sub-gallery and Move to another 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#1
+Listed: 2026-10-09
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website vs app consistency audit (2026-10-05)
+Issue: Deleting a gallery in the app doesn't delete its sub-galleries (the website does). Mobile deleteEvent in apps/mobile/lib/database.ts doesn't recurse into sub-galleries.
+How to reproduce: In the app, create a gallery with a sub-gallery and a photo in it, then delete the main gallery. The sub-gallery row and its media stay in the database (check events where parent_id = the deleted id).
+Fixed in: 06019c8 (2026-10-10). App only: reaches phones with the next app build (test_yourself #19).
+
+#2
+Listed: 2026-10-09
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website vs app consistency audit (2026-10-05)
+Issue: App Find You only searches the main gallery, not its sub-galleries (apps/mobile/components/event/FindYouPanel).
+How to reproduce: Upload a photo of yourself to a sub-gallery only. Run Find You from the main gallery in the app: no match. Do the same on the website: the photo is found.
+Fixed in: 06019c8 (2026-10-10). App only: reaches phones with the next app build (test_yourself #20).
+
+#3
+Listed: 2026-10-09
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website vs app consistency audit (2026-10-05)
+Issue: App sub-gallery covers get a broken double "-preview.webp" URL. The app's image URL helper (apps/mobile/lib/imageUrl) lacks the website's guard for already-resized files.
+How to reproduce: Set a sub-gallery cover in the app, then open the main gallery. The sub-gallery card shows no cover; its image URL ends in "-preview.webp-preview.webp".
+Fixed in: 06019c8 (2026-10-10). App only: reaches phones with the next app build (test_yourself #21).
+
+#5
+Listed: 2026-10-09
+Platform: App
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Gallery access work, item A1 (2026-10-07)
+Issue: After "Log in to request access" in the app, logging in lands on the dashboard instead of returning to the gallery (apps/mobile/app/login.tsx and the screens that open it).
+How to reproduce: Logged out, open a private gallery link in the app, tap "Log in" and sign in. You land on the dashboard; the gallery has to be opened again from the link.
+Fixed in: 06019c8 (2026-10-10). App only: reaches phones with the next app build (test_yourself #22).
 
 #13
 Listed: 2026-10-09
