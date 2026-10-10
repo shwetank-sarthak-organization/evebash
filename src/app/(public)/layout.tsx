@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "../globals.css";
-import { inter, playfair } from "../fonts";
+import { brand, inter, playfair } from "../fonts";
 
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
@@ -40,7 +40,7 @@ export default function PublicLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" className={`${inter.variable} ${playfair.variable}`}>
+        <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" className={`${inter.variable} ${playfair.variable} ${brand.variable}`}>
             <head>
                 <link rel="icon" href="/evebash-logo-gold.svg" type="image/svg+xml" />
                 <link rel="alternate icon" href="/evebash-logo-gold.png" type="image/png" />

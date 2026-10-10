@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "../globals.css";
-import { inter, playfair } from "../fonts";
+import { brand, inter, playfair } from "../fonts";
 import Navbar from "@/components/Navbar";
 
 import { AuthProvider } from "@/context/AuthContext";
@@ -42,7 +42,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" className={`${inter.variable} ${playfair.variable}`}>
+    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" className={`${inter.variable} ${playfair.variable} ${brand.variable}`}>
       <head>
         <link rel="icon" href="/evebash-logo-gold.svg" type="image/svg+xml" />
         <link rel="alternate icon" href="/evebash-logo-gold.png" type="image/png" />
