@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the next number. Never reuse a number.
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-10-09
+Last updated: 2026-10-10
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -348,14 +348,134 @@ Fix ref:
 Feedback:
 
 --------------------------------------------------------------------------------
-#18 Move photos between galleries  (KNOWN BROKEN)
-Status:    BLOCKED
+#18 Move photos between galleries
+Status:    RETEST
 Priority:  Medium
 Platform:  Website + App
-Brief:     Moving media to another gallery fails (DB function missing). Shwetank's area.
+Brief:     Move photos/videos to another gallery of the same event. Website: Galleries > Select > Move to...
+           (or a photo's or video's action menu). App: event admin view > Select, or a photo's/video's actions.
 How to test:
-  1. After the fix is applied: move 2 photos from one gallery to a sub-gallery.
+  1. Move 2 photos from one gallery to a sub-gallery (website), then 1 video (app).
   2. Expect: they move, show in the new place, gone from the old one.
+  3. Expect: likes and comments are still on the moved photo; Find You still finds it.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   710b4bc (feature); DB migration 20261006000000 applied 2026-10-09
+Feedback:
+
+--------------------------------------------------------------------------------
+#19 Profile storage card shows events and EB Vault
+Status:    TODO
+Priority:  Medium
+Platform:  Website + App
+Brief:     Events and EB Vault share one plan storage limit. Profile shows the total plus each part.
+How to test:
+  1. Open Profile (website /profile, and the app's Profile tab).
+  2. Expect: "X of <plan> used", a two-colour bar, Event Storage and Vault Storage rows, and space left.
+  3. Upload a file to EB Vault (test #20), reopen Profile: Vault Storage and the total go up.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#20 EB Vault - upload files and a folder
+Status:    TODO
+Priority:  High
+Platform:  Website (desktop and phone browser)
+Brief:     /vault is private personal storage. Uploads go straight to storage with progress.
+How to test:
+  1. Profile > "EB Vault - Your personal storage" (or open /vault).
+  2. + New > Upload files: pick 3 files incl. one over 100 MB. Expect a progress bar per file, then all listed.
+  3. + New > Upload folder: pick a folder with a subfolder. Expect the same folder tree with the files inside.
+  4. Drag a file onto the page (desktop). Expect it uploads.
+  5. Cancel one upload midway. Expect "Cancelled" and the file is not listed.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#21 EB Vault - previews (especially PDF on phones)
+Status:    TODO
+Priority:  High
+Platform:  Website (Android Chrome, iPhone Safari, desktop)
+Brief:     Click a file to preview it. PDFs use pdf.js so they work on Android Chrome.
+How to test:
+  1. Upload and open: a JPG/PNG, an MP4, a multi-page PDF, a TXT or CSV, and a ZIP or DOCX.
+  2. Expect: image shown; video plays; PDF pages appear (with "Show more pages" on long PDFs);
+     text shown as plain text; ZIP/DOCX shows a file info card with Download.
+  3. Download from the preview: the file saves with its correct name.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#22 EB Vault - organise: folders, rename, move, copy, star, search, recent
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+How to test:
+  1. + New > New folder. Rename it. Move a file into it (file menu > Move).
+  2. Try to move a folder into its own subfolder. Expect: not allowed.
+  3. Make a copy of a file. Expect "<name> (1)" and storage goes up by its size.
+  4. Star a file: it appears under Starred. Recent shows recently changed files.
+  5. Search part of a file name: it is found. Another account's files never appear.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#23 EB Vault - Trash, restore and delete forever
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+How to test:
+  1. Move a file and a folder (with files) to Trash. Expect them in Trash with a "Gone forever on" date.
+  2. Storage used does NOT go down yet (Trash still counts).
+  3. Restore the folder: it returns with its files.
+  4. Delete forever one file, then Empty Trash. Expect storage used goes down.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#24 EB Vault - privacy and storage limits
+Status:    TODO
+Priority:  High
+Platform:  Website
+How to test:
+  1. With account A upload a file. Log in as account B: A's file is not in My Files, Recent, Starred or Search.
+  2. On a Free account: upload a file over 200 MB. Expect "Files on your plan can be up to 200 MB each."
+  3. On a Free account near 1 GB (events + Vault): upload something that doesn't fit.
+     Expect the storage-limit message and no upload.
 Done by:
 Device / browser:
 Build / version:

@@ -89,6 +89,7 @@ Blocked by: -
 Found in: Website vs app consistency audit (2026-10-05)
 Issue: Storage and plan limits only apply on the website. The app and backend don't block uploads over the plan's storage, and the app's storage totals ignore overhead_size. Ideally enforced in the backend so both platforms follow it.
 How to reproduce: With a free account near its 1 GB limit, upload past the limit from the website (blocked) and from the app (allowed). Compare the storage used shown on each.
+Update 2026-10-10: events and EB Vault now share one plan storage pool. Website/app totals include Vault usage, and Vault uploads are checked on the backend. Event uploads are still only checked on the website and app, so this stays open.
 
 #7
 Listed: 2026-10-09
@@ -144,28 +145,6 @@ Blocked by: -
 Found in: SEO audit (2026-10-04)
 Issue: SEO gaps: every page shares one title and description, no Open Graph/Twitter tags on most pages, no canonical tags, and gallery pages (/events/*) are indexable. Needs a server layout.tsx per route segment for metadata.
 How to reproduce: View source of /pricing, /contact and /sample-galleries: same <title> and description, no og: tags or canonical link.
-
-#12
-Listed: 2026-10-09
-Platform: Website
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Website UI review (2026-10-03)
-Issue: Off-brand blue instead of gold on login (button, forgot link, password field), the contact page and the pricing toggle; footer social icons link to "#".
-How to reproduce: Open /login, /contact and /pricing: blue controls. Click a footer social icon: the page jumps to the top.
-
-#13
-Listed: 2026-10-09
-Platform: Website
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: SEO audit (2026-10-04)
-Issue: Slow homepage hero on mobile (LCP about 4.4 s): the hero image sits inside a framer-motion parallax and the hero text starts at opacity 0.
-How to reproduce: Run Lighthouse (mobile) on the homepage: LCP around 4.4 s, LCP element is the hero image.
 
 #14
 Listed: 2026-10-09
@@ -259,4 +238,26 @@ How to reproduce: With only the public anon key, request /rest/v1/profiles?selec
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
 
-(none yet)
+#13
+Listed: 2026-10-09
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Unassigned
+Blocked by: -
+Found in: SEO audit (2026-10-04)
+Issue: Slow homepage hero on mobile (LCP about 4.4 s): the hero image sits inside a framer-motion parallax and the hero text starts at opacity 0.
+How to reproduce: Run Lighthouse (mobile) on the homepage: LCP around 4.4 s, LCP element is the hero image.
+Fixed in: 62e70d9 (2026-10-06)
+
+#12
+Listed: 2026-10-09
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Unassigned
+Blocked by: -
+Found in: Website UI review (2026-10-03)
+Issue: Off-brand blue instead of gold on login (button, forgot link, password field), the contact page and the pricing toggle; footer social icons link to "#".
+How to reproduce: Open /login, /contact and /pricing: blue controls. Click a footer social icon: the page jumps to the top.
+Fixed in: 62e70d9 (2026-10-06)
