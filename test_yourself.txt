@@ -187,21 +187,23 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #9  Delete gallery (host)
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website + App
 Brief:     Deleting a gallery works (it used to give a 400 error).
 How to test:
   1. Create a throwaway gallery with 2-3 photos. Delete it.
   2. Expect: deleted with no error, gone from dashboard, link now shows "not found".
-Done by:
-Device / browser:
+Done by:   Sarthak
+Device / browser: Chrome (website)
 Build / version:
-Date tested:
-Account used:
+Date tested: 2026-10-10
+Account used: host
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  Website: deleted with no error (photo-check-e9c0, 27-sep-b4fd). Console shows a harmless
+           404 for rpc/can_manage_event_visibility from the Host page visibility switch; that function
+           arrives with lockdown part 2 (#21). App not tested yet.
 
 --------------------------------------------------------------------------------
 #10 Likes and comments show names
