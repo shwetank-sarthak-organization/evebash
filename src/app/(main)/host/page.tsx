@@ -968,17 +968,19 @@ function DashboardContent() {
     const [showDeleteSuccessType, setShowDeleteSuccessType] = useState<"event" | "gallery" | null>(null);
     const selectedMainEventId = selectedMainEvent?.id;
     const selectedMainEventLegacyId = selectedMainEvent?.legacyId;
-    // Public/private switch on the Permissions tab: the owner, plus anyone can_manage_event_visibility allows
+    // Public/private switch on the Permissions tab: the owner, plus anyone can_manage_event_visibility allows.
+    // The owner already gets the switch, so only ask the database for other people (as the app does).
     const [visibilityAdminEventId, setVisibilityAdminEventId] = useState('');
+    const selectedMainEventIsOwn = !!selectedMainEvent && (selectedMainEvent.createdBy === user?.uid || selectedMainEvent.createdBy === user?.email);
     useEffect(() => {
         let active = true;
         setVisibilityAdminEventId('');
-        if (!selectedMainEventId || selectedMainEvent?.parentId) return;
+        if (!selectedMainEventId || selectedMainEvent?.parentId || selectedMainEventIsOwn) return;
         void Promise.resolve(supabase.rpc('can_manage_event_visibility', { p_event_id: selectedMainEventId })).then(({ data, error }) => {
             if (active && !error && data === true) setVisibilityAdminEventId(selectedMainEventId);
         }).catch(() => {});
         return () => { active = false; };
-    }, [selectedMainEventId, selectedMainEvent?.parentId, user?.uid]);
+    }, [selectedMainEventId, selectedMainEvent?.parentId, selectedMainEventIsOwn, user?.uid]);
     const [savingVisibility, setSavingVisibility] = useState(false);
     const [visibilityError, setVisibilityError] = useState("");
     const canChangeSelectedEventVisibility = !!selectedMainEvent && !selectedMainEvent.parentId && (
