@@ -1341,69 +1341,96 @@ def _find_matching_photos_core(request: dict):
             
         print("[Selfie] Embedding successfully generated.")
 
-        # ── 3. Fetch all indexed face descriptors for these events ───────
-        # Supabase returns at most 1,000 rows per request, so page through them (ordered by id so pages
-        # don't overlap); a single request silently missed every face after the first 1,000.
-        PAGE_SIZE = 1000
-        db_faces = []
-        while True:
-            page = (
-                supabase.table("faces")
-                .select("id, image_id, descriptor, image_url, width, height")
-                .in_("event_id", event_ids)
-                .order("id")
-                .range(len(db_faces), len(db_faces) + PAGE_SIZE - 1)
-                .execute()
-            ).data or []
-            if not page:  # stop on an empty page, not a short one, in case the server's row cap is lower
-                break
-            db_faces.extend(page)
-        print(f"[Selfie] Fetched {len(db_faces)} indexed face records to compare.")
-
-        # ── 4. Cosine similarity matching ────────────────────────────────
         # Threshold set to 0.40 (maximum recall for side profiles, group shots).
         THRESHOLD = 0.40
-        matches_map = {}
 
-        for face in db_faces:
-            db_descriptor = face.get("descriptor")
-            if not db_descriptor:
-                continue
+        # ── 3. Match inside the database (public.match_faces, pgvector) ──
+        # Returns only the matching photos instead of downloading every descriptor (about 18 MB for
+        # 1,751 faces). Falls back to comparing here if the function is missing or fails.
+        matches, compared = None, 0
+        try:
+            rpc = supabase.rpc("match_faces", {
+                "p_event_ids":   event_ids,
+                "p_embedding":   [float(x) for x in selfie_vec],
+                "p_threshold":   THRESHOLD,
+            }).execute()
+            result = rpc.data or {}
+            compared = int(result.get("compared") or 0)
+            matches = [{
+                "id":       m.get("image_id"),
+                "imageId":  m.get("image_id"),
+                "imageUrl": m.get("image_url"),
+                "width":    m.get("width"),
+                "height":   m.get("height"),
+            } for m in (result.get("matches") or [])]
+            print(f"[Selfie] match_faces compared {compared} faces in the database.")
+        except Exception as rpc_err:
+            print(f"[Selfie] match_faces unavailable, comparing here instead: {rpc_err}")
 
-            try:
-                if isinstance(db_descriptor, str):
-                    import json
-                    db_descriptor = json.loads(db_descriptor)
+        def compare_in_python():
+            # Fallback: fetch every indexed face descriptor for these events and compare here.
+            # Supabase returns at most 1,000 rows per request, so page through them (ordered by id so pages
+            # don't overlap); a single request silently missed every face after the first 1,000.
+            PAGE_SIZE = 1000
+            db_faces = []
+            while True:
+                page = (
+                    supabase.table("faces")
+                    .select("id, image_id, descriptor, image_url, width, height")
+                    .in_("event_id", event_ids)
+                    .order("id")
+                    .range(len(db_faces), len(db_faces) + PAGE_SIZE - 1)
+                    .execute()
+                ).data or []
+                if not page:  # stop on an empty page, not a short one, in case the server's row cap is lower
+                    break
+                db_faces.extend(page)
+            print(f"[Selfie] Fetched {len(db_faces)} indexed face records to compare.")
 
-                db_vec = np.array(db_descriptor, dtype=np.float32)
+            # Cosine similarity matching
+            matches_map = {}
 
-                if len(db_vec) != 512:
-                    print(f"[Match] Skipping old vector {face.get('id')} — incorrect dim ({len(db_vec)})")
+            for face in db_faces:
+                db_descriptor = face.get("descriptor")
+                if not db_descriptor:
                     continue
 
-                # Cosine similarity of L2-normalized vectors
-                cosine_sim = float(np.dot(selfie_vec, db_vec))
+                try:
+                    if isinstance(db_descriptor, str):
+                        import json
+                        db_descriptor = json.loads(db_descriptor)
 
-                print(f"[Match Debug] image_id={face.get('image_id')} cosine_sim={cosine_sim:.4f} (threshold={THRESHOLD})")
+                    db_vec = np.array(db_descriptor, dtype=np.float32)
 
-                if cosine_sim >= THRESHOLD:
-                    image_id = face.get("image_id")
-                    if image_id not in matches_map or cosine_sim > matches_map[image_id]["sim"]:
-                        matches_map[image_id] = {
-                            "id":       image_id,
-                            "imageId":  image_id,
-                            "imageUrl": face.get("image_url"),
-                            "width":    face.get("width"),
-                            "height":   face.get("height"),
-                            "sim":      cosine_sim
-                        }
-            except Exception as e:
-                print(f"[Match] Error on face {face.get('id')}: {e}")
+                    if len(db_vec) != 512:
+                        print(f"[Match] Skipping old vector {face.get('id')} — incorrect dim ({len(db_vec)})")
+                        continue
 
-        matches = []
-        for m in matches_map.values():
-            del m["sim"]
-            matches.append(m)
+                    # Cosine similarity of L2-normalized vectors
+                    cosine_sim = float(np.dot(selfie_vec, db_vec))
+
+                    if cosine_sim >= THRESHOLD:
+                        image_id = face.get("image_id")
+                        if image_id not in matches_map or cosine_sim > matches_map[image_id]["sim"]:
+                            matches_map[image_id] = {
+                                "id":       image_id,
+                                "imageId":  image_id,
+                                "imageUrl": face.get("image_url"),
+                                "width":    face.get("width"),
+                                "height":   face.get("height"),
+                                "sim":      cosine_sim
+                            }
+                except Exception as e:
+                    print(f"[Match] Error on face {face.get('id')}: {e}")
+
+            matches = []
+            for m in matches_map.values():
+                del m["sim"]
+                matches.append(m)
+            return matches, len(db_faces)
+
+        if matches is None:
+            matches, compared = compare_in_python()
 
         print(f"[Selfie] Returning {len(matches)} match(es).")
         
@@ -1414,7 +1441,7 @@ def _find_matching_photos_core(request: dict):
             "success": True,
             "matches": matches,
             "debug": {
-                "indexedFacesCount": len(db_faces),
+                "indexedFacesCount": compared,
                 "selfieDetected":    True,
                 "matchesCount":      len(matches)
             }
@@ -1434,9 +1461,10 @@ def _find_you_secret_ok(provided: str) -> bool:
 
 
 _find_you_secrets = [modal.Secret.from_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))]
+# 2 cores for the selfie face detection (the default 0.125 core made each search take seconds longer).
 
 if FIND_YOU_REQUIRE_SECRET:
-    @app.function(image=image, secrets=_find_you_secrets)
+    @app.function(image=image, secrets=_find_you_secrets, cpu=2.0, memory=2048)
     @modal.fastapi_endpoint(method="POST")
     async def find_matching_photos(request: fastapi.Request):
         # The backend checks the caller's gallery access first; anything else calling this URL is refused
@@ -1451,7 +1479,7 @@ if FIND_YOU_REQUIRE_SECRET:
             body = {}
         return await asyncio.to_thread(_find_matching_photos_core, body)
 else:
-    @app.function(image=image, secrets=_find_you_secrets)
+    @app.function(image=image, secrets=_find_you_secrets, cpu=2.0, memory=2048)
     @modal.fastapi_endpoint(method="POST")
     def find_matching_photos(request: dict):
         return _find_matching_photos_core(request)
