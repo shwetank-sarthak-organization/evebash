@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 33
+Next test number: 35
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -651,4 +651,45 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:   06019c8 (2026-10-10)
+Feedback:
+
+--------------------------------------------------------------------------------
+#33 Save event photos and videos to EB Vault (website)
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     Event owners/admins can save copies of event media into their own EB Vault. The items stay in the event.
+How to test:
+  1. As the event owner: Host > event > Galleries > Select > tick 2 photos and 1 video > "Save to EB Vault".
+  2. Pick a Vault folder (or My Files) > Save. Expect "Saved 3 items to EB Vault."
+  3. Open EB Vault: the 3 files are in that folder with their original names; photos and the MP4 preview fine.
+  4. The items are still in the event gallery. Profile storage: Vault went up by their size.
+  5. Also try a single photo's action menu > "Save to EB Vault", and a video's actions.
+  6. As a guest who is NOT an admin, the option must not work (no Select bar for guests; direct calls are refused).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#34 Save event photos and videos to EB Vault (app)
+Status:    TODO
+Priority:  Medium
+Platform:  App (iPhone + Android) - needs a build with this change
+How to test:
+  1. Event admin view > Select > tick items > "To Vault" > pick a folder > Save. Expect a "Saved ..." message.
+  2. A photo's action sheet and a video's actions both have "Save to EB Vault".
+  3. Profile > EB Vault: the saved items are there with their original names.
+  4. On a Free account near 1 GB: saving more than fits shows the storage-limit message.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
 Feedback:
