@@ -230,7 +230,7 @@ function createFakeRepo() {
 function createFakeStorage() {
   const objects = new Map<string, number>();
   const deleted: string[] = [];
-  const downloads: { key: string; contentDisposition: string; contentType: string }[] = [];
+  const downloads: { key: string; contentDisposition: string; contentType: string; expiresInSeconds: number }[] = [];
   const storage: VaultStorage = {
     bucket: 'vault-test',
     async signSingleUpload(key) { return `https://storage.test/put/${key}`; },
@@ -563,6 +563,27 @@ test('file names are cleaned for storage and download headers', async () => {
     const signed = app.downloads.at(-1)!;
     assert.ok(signed.contentDisposition.startsWith('attachment'), 'HTML is never rendered inline');
     assert.equal(signed.contentType, 'application/octet-stream');
+  } finally {
+    app.close();
+  }
+});
+
+test('video and PDF previews get long-lived links; downloads stay short', async () => {
+  const app = await startApp();
+  try {
+    const video = await uploadFile(app, ALICE, 'wedding.mp4', 10);
+    app.items.get(video.id)!.mimeType = 'video/mp4';
+    const pdf = await uploadFile(app, ALICE, 'contract.pdf', 10);
+    const photo = await uploadFile(app, ALICE, 'photo.jpg', 10);
+    app.items.get(photo.id)!.mimeType = 'image/jpeg';
+
+    const view = await app.call('GET', `/items/${video.id}/link?mode=view`, ALICE);
+    assert.equal(view.body.expiresInSeconds, 2 * 60 * 60);
+    assert.equal(app.downloads.at(-1)!.expiresInSeconds, 2 * 60 * 60);
+    assert.equal((await app.call('GET', `/items/${pdf.id}/link?mode=view`, ALICE)).body.expiresInSeconds, 2 * 60 * 60);
+
+    assert.equal((await app.call('GET', `/items/${video.id}/link?mode=download`, ALICE)).body.expiresInSeconds, 5 * 60);
+    assert.equal((await app.call('GET', `/items/${photo.id}/link?mode=view`, ALICE)).body.expiresInSeconds, 5 * 60);
   } finally {
     app.close();
   }

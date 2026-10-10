@@ -70,13 +70,21 @@ function assertCanAddStorage(context: StorageContext, sizeBytes: number) {
 function linkFor(mode: "view" | "download", item: VaultItem) {
   const inline = mode === "view" && vaultConfig.inlineMimeTypes.has(item.mimeType);
   if (!inline) {
-    return { contentDisposition: contentDisposition("attachment", item.filename), contentType: "application/octet-stream" };
+    return {
+      contentDisposition: contentDisposition("attachment", item.filename),
+      contentType: "application/octet-stream",
+      // A download only needs the link at the moment it starts.
+      expiresInSeconds: vaultConfig.downloadLinkTtlSeconds,
+    };
   }
   // Text is served as plain text so the browser never interprets it as markup.
   const isText = item.mimeType === "text/plain" || item.mimeType === "text/csv";
   return {
     contentDisposition: contentDisposition("inline", item.filename),
     contentType: isText ? "text/plain; charset=utf-8" : item.mimeType,
+    expiresInSeconds: vaultConfig.streamingPreviewMimeTypes.has(item.mimeType)
+      ? vaultConfig.streamingPreviewLinkTtlSeconds
+      : vaultConfig.downloadLinkTtlSeconds,
   };
 }
 
@@ -323,9 +331,10 @@ export function createVaultRouter(deps: VaultRouterDeps) {
     const { item } = await visibleItem(repo, user, String(request.params.itemId));
     const stored = await repo.getItemObject(user.id, item.id);
     if (!stored) throw new VaultError("not_found", "That file no longer exists.");
-    const url = await storage.signDownload(stored.objectKey, linkFor(mode, item));
+    const link = linkFor(mode, item);
+    const url = await storage.signDownload(stored.objectKey, link);
     response.setHeader("Cache-Control", "no-store");
-    response.json({ success: true, url, expiresInSeconds: vaultConfig.downloadLinkTtlSeconds });
+    response.json({ success: true, url, expiresInSeconds: link.expiresInSeconds });
   }));
 
   // ── Lists ──────────────────────────────────────────────────────────────────

@@ -26,7 +26,7 @@ export interface VaultStorage {
   /** Size of the stored object, or null if it does not exist. */
   getObjectSize(key: string): Promise<number | null>;
   deleteObject(key: string): Promise<void>;
-  signDownload(key: string, options: { contentDisposition: string; contentType: string }): Promise<string>;
+  signDownload(key: string, options: { contentDisposition: string; contentType: string; expiresInSeconds: number }): Promise<string>;
 }
 
 export function createS3VaultStorage(settings: VaultBucketSettings): VaultStorage {
@@ -87,13 +87,13 @@ export function createS3VaultStorage(settings: VaultBucketSettings): VaultStorag
       await client.send(new DeleteObjectCommand({ Bucket, Key }));
     },
 
-    signDownload: (Key, { contentDisposition, contentType }) =>
+    signDownload: (Key, { contentDisposition, contentType, expiresInSeconds }) =>
       getSignedUrl(client, new GetObjectCommand({
         Bucket,
         Key,
         ResponseContentDisposition: contentDisposition,
         ResponseContentType: contentType,
         ResponseCacheControl: "private, no-store",
-      }), { expiresIn: vaultConfig.downloadLinkTtlSeconds }),
+      }), { expiresIn: expiresInSeconds }),
   };
 }

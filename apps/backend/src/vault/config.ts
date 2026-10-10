@@ -17,6 +17,12 @@ export const vaultConfig = {
   /** Lifetime of signed upload, view and download links. */
   uploadLinkTtlSeconds: 60 * 60,
   downloadLinkTtlSeconds: 5 * 60,
+  /**
+   * Video and PDF previews keep requesting more of the file while someone watches or scrolls,
+   * so their links must outlive a long viewing session.
+   */
+  streamingPreviewLinkTtlSeconds: 2 * 60 * 60,
+  streamingPreviewMimeTypes: new Set(["video/mp4", "application/pdf"]),
   /** Plan expiry lifecycle, counted from the plan's end date (shared with event media). */
   graceDays: 7,
   deletionAfterDays: 30,

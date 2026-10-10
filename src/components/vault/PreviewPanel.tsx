@@ -6,6 +6,7 @@ import { vaultApi, type VaultItem } from "@/lib/vaultApi";
 import { formatBytes, formatDateTime, previewKind } from "./format";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { PdfPreview } from "./PdfPreview";
+import { VideoPreview } from "./VideoPreview";
 
 const TEXT_PREVIEW_BYTES = 1024 * 1024;
 
@@ -90,7 +91,7 @@ export function PreviewPanel({ item, onClose, onDownload }: { item: VaultItem; o
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={url} alt={item.filename} className="mx-auto max-h-[80vh] w-auto rounded-lg object-contain" />
                     ) : kind === "video" && url ? (
-                        <video src={url} controls playsInline preload="metadata" className="mx-auto max-h-[80vh] w-full rounded-lg bg-black" />
+                        <VideoPreview itemId={item.id} initialUrl={url} onError={showError} />
                     ) : kind === "pdf" && url ? (
                         <PdfPreview url={url} onError={showError} />
                     ) : kind === "text" && text !== null ? (
