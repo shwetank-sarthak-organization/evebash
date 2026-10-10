@@ -80,17 +80,6 @@ Found in: SEO audit (2026-10-04)
 Issue: SEO gaps: every page shares one title and description, no Open Graph/Twitter tags on most pages, no canonical tags, and gallery pages (/events/*) are indexable. Needs a server layout.tsx per route segment for metadata.
 How to reproduce: View source of /pricing, /contact and /sample-galleries: same <title> and description, no og: tags or canonical link.
 
-#14
-Listed: 2026-10-09
-Platform: Both
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Modal cost audit (2026-10-05)
-Issue: Modal cost flags MODAL_COST_TUNING and MODAL_VIDEO_ASYNC must be set in the .env of whoever deploys; a deploy without them silently restores the old, costlier settings. Bake them in and remove the flags (Modal).
-How to reproduce: Code check: modal_engine/main.py reads both flags at deploy time; deploying from a .env without them brings back per-minute crons and synchronous video transcoding.
-
 #17
 Listed: 2026-10-09
 Platform: App
@@ -149,6 +138,18 @@ How to reproduce: With only the public anon key, request /rest/v1/profiles?selec
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#14
+Listed: 2026-10-09
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Modal cost audit (2026-10-05)
+Issue: Modal cost flags MODAL_COST_TUNING and MODAL_VIDEO_ASYNC must be set in the .env of whoever deploys; a deploy without them silently restores the old, costlier settings. Bake them in and remove the flags (Modal).
+How to reproduce: Code check: modal_engine/main.py reads both flags at deploy time; deploying from a .env without them brings back per-minute crons and synchronous video transcoding.
+Fixed in: 97def26, Modal v117 deployed 2026-10-10 18:52 IST. The flags are gone; their "on" behaviour is permanent. The MODAL_* lines in .env files do nothing now. Rollback: modal app rollback wedding-media-engine v116.
 
 #23
 Listed: 2026-10-10
