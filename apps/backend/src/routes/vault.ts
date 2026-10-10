@@ -152,9 +152,11 @@ export function createVaultRouter(deps: VaultRouterDeps) {
     if (!Array.isArray(rawPaths) || rawPaths.length === 0 || rawPaths.length > 1000) {
       throw new VaultError("invalid_input", "Choose a folder with up to 1000 subfolders.");
     }
-    const paths = Array.from(new Set(rawPaths.map((path) =>
-      String(path).split("/").filter(Boolean).map((segment) => sanitizeName(segment, "folder")).join("/"))))
-      .filter(Boolean)
+    // Folder names are cleaned server-side; the reply is keyed by the paths exactly as sent,
+    // so the browser can match each file to its folder.
+    const cleanOf = new Map(rawPaths.map((path) => [String(path), String(path).split("/").filter(Boolean)
+      .map((segment) => sanitizeName(segment, "folder")).join("/")]));
+    const paths = Array.from(new Set(cleanOf.values())).filter(Boolean)
       .sort((a, b) => a.split("/").length - b.split("/").length);
     const created: Record<string, string> = {};
     for (const path of paths) {
@@ -165,7 +167,9 @@ export function createVaultRouter(deps: VaultRouterDeps) {
       const folder = await repo.createFolder(user.id, parentId ?? null, segments[segments.length - 1]);
       created[path] = folder.id;
     }
-    response.status(201).json({ success: true, folders: created });
+    const folders: Record<string, string> = {};
+    for (const [raw, clean] of cleanOf) if (created[clean]) folders[raw] = created[clean];
+    response.status(201).json({ success: true, folders });
   }));
 
   router.patch("/folders/:folderId", route(async ({ request, response, user, repo }) => {

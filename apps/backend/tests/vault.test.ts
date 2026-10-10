@@ -533,6 +533,9 @@ test('folder uploads create the folder tree once and reuse parents', async () =>
     assert.equal(result.status, 201);
     assert.deepEqual(Object.keys(result.body.folders).sort(), ['Trip', 'Trip/Day 1', 'Trip/Day 2']);
     assert.equal(app.folders.get(result.body.folders['Trip/Day 2'])!.parentFolderId, result.body.folders.Trip);
+    const messy = await app.call('POST', '/folders/paths', ALICE, { paths: ['My  Album', 'My  Album/Day\t1'] });
+    assert.deepEqual(Object.keys(messy.body.folders).sort(), ['My  Album', 'My  Album/Day\t1'], 'keyed by the paths as sent');
+    assert.equal(app.folders.get(messy.body.folders['My  Album'])!.name, 'My Album');
   } finally {
     app.close();
   }
