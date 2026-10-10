@@ -1,6 +1,7 @@
 "use client";
 
 import React, { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
     AlertCircle,
@@ -24,6 +25,8 @@ import {
     Users,
     X,
     XCircle,
+    HardDrive,
+    ChevronRight,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
@@ -649,6 +652,17 @@ export default function ProfilePage() {
                                     </button>
                                 </div>
                             </section>
+
+                            <Link href="/vault" className="flex w-full items-center gap-3 rounded-3xl border border-[#7FA38C]/30 bg-[#7FA38C]/10 px-5 py-4 transition-colors hover:bg-[#7FA38C]/15">
+                                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#7FA38C]/15 text-[#7FA38C]">
+                                    <HardDrive className="h-5 w-5" />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block font-black text-white">EB Vault</span>
+                                    <span className="block text-xs font-bold text-slate-400">Your personal storage</span>
+                                </span>
+                                <ChevronRight className="h-4 w-4 text-slate-500" />
+                            </Link>
 
                             <button type="button" onClick={logout} className="flex w-full items-center justify-center gap-2 rounded-3xl border border-rose-500/30 bg-rose-500/10 px-5 py-4 text-sm font-black text-rose-300">
                                 <LogOut className="h-4 w-4" />
