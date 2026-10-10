@@ -102,17 +102,6 @@ Found in: Modal cost audit (2026-10-05)
 Issue: Modal cost flags MODAL_COST_TUNING and MODAL_VIDEO_ASYNC must be set in the .env of whoever deploys; a deploy without them silently restores the old, costlier settings. Bake them in and remove the flags (Modal).
 How to reproduce: Code check: modal_engine/main.py reads both flags at deploy time; deploying from a .env without them brings back per-minute crons and synchronous video transcoding.
 
-#16
-Listed: 2026-10-09
-Platform: App
-Priority: High
-Status: Blocked
-Owner: Sarthak (decision)
-Blocked by: Decision: which domain share links use (suggested www.evebash.com)
-Found in: Website UI review (2026-10-03); consistency audit (2026-10-05)
-Issue: App share links and QR codes point to wedalbum.app, which opens a different site with a blank page; business share uses wedalbum.com (a domain-for-sale page); the QR scanner only accepts wedalbum.app.
-How to reproduce: In the app, share a gallery and open the link in a browser: blank page on a different site. Scan an evebash.com QR in the app: not accepted.
-
 #17
 Listed: 2026-10-09
 Platform: App
@@ -171,6 +160,18 @@ How to reproduce: With only the public anon key, request /rest/v1/profiles?selec
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#16
+Listed: 2026-10-09
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website UI review (2026-10-03); consistency audit (2026-10-05)
+Issue: App share links and QR codes point to wedalbum.app, which opens a different site with a blank page; business share uses wedalbum.com (a domain-for-sale page); the QR scanner only accepts wedalbum.app.
+How to reproduce: In the app, share a gallery and open the link in a browser: blank page on a different site. Scan an evebash.com QR in the app: not accepted.
+Fixed in: 65efa33 (2026-10-10). Decision: links follow the build's backend (staging -> staging.evebash.com, production -> www.evebash.com). App only: next app build (test_yourself #33).
 
 #4
 Listed: 2026-10-09
