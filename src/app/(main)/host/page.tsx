@@ -9,6 +9,7 @@ import { PermissionsIcon } from "@/components/PermissionsIcon";
 import { DesignIcon } from "@/components/DesignIcon";
 import { PartnersIcon } from "@/components/PartnersIcon";
 import { HostIcon } from "@/components/HostIcon";
+import { HostConsoleIcon } from "@/components/HostConsoleIcon";
 import React, { useState, useEffect, Suspense, useTransition, useRef, useCallback } from "react";
 import LoadingScreen from "@/components/LoadingScreen";
 import { useAuth } from "@/context/AuthContext";
@@ -3854,8 +3855,8 @@ function DashboardContent() {
                             className="space-y-8"
                         >
                             <div className="relative">
-                                <div className="flex flex-wrap items-center gap-x-6 gap-y-4 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-[#0B0F13] p-3 shadow-2xl shadow-black/30 sm:p-4">
-                                    <div className="order-1 flex min-w-0 items-center gap-4">
+                                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-4 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-[#0B0F13] p-3 shadow-2xl shadow-black/30 sm:p-4 xl:flex xl:gap-x-6">
+                                    <div className="order-1 flex min-w-0 items-center gap-3 sm:gap-4">
                                         <Tooltip text="Plan Details">
                                             <button
                                                 onClick={() => {
@@ -3865,33 +3866,18 @@ function DashboardContent() {
                                                 className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[#CA9C68] transition-colors hover:bg-white/10"
                                                 aria-label="Plan Details"
                                             >
-                                                <svg
-                                                    width="22"
-                                                    height="22"
-                                                    viewBox="0 0 24 24"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="2"
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    aria-hidden="true"
-                                                >
-                                                    <rect width="20" height="8" x="2" y="2" rx="2" ry="2" />
-                                                    <rect width="20" height="8" x="2" y="14" rx="2" ry="2" />
-                                                    <line x1="6" x2="6.01" y1="6" y2="6" />
-                                                    <line x1="6" x2="6.01" y1="18" y2="18" />
-                                                </svg>
+                                                <HostConsoleIcon className="h-6 w-6" aria-hidden="true" />
                                             </button>
                                         </Tooltip>
                                         <div className="min-w-0">
-                                            <h2 className="truncate text-2xl font-bold leading-tight text-[#F5EFE6] sm:text-3xl">Host Console</h2>
+                                            <h2 className="truncate text-xl font-bold leading-tight text-[#F5EFE6] sm:text-3xl">Host Console</h2>
                                             <p className="font-sans text-sm text-slate-400">Event operations</p>
                                         </div>
                                     </div>
 
-                                    <span className="order-2 hidden h-10 w-px bg-white/10 lg:block" />
+                                    <span className="order-2 hidden h-10 w-px shrink-0 bg-white/10 xl:block" />
 
-                                    <div className="order-3 flex w-full gap-1 overflow-x-auto rounded-xl border border-white/10 bg-black/30 p-1 lg:w-auto">
+                                    <div className="order-3 col-span-2 flex gap-1 overflow-x-auto rounded-2xl border border-white/10 bg-black/40 p-1.5 [scrollbar-width:none] sm:gap-1.5 xl:max-w-2xl xl:flex-1">
                                         {hostConsoleTabs.map(({ id, label, count, Icon }) => {
                                             const isActive = activeTab === id;
                                             const highlightCount = isActive || (id === "request" && count > 0);
@@ -3901,16 +3887,16 @@ function DashboardContent() {
                                                     onClick={() => setActiveTab(id)}
                                                     aria-pressed={isActive}
                                                     className={cn(
-                                                        "flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2 py-2 font-sans text-[11px] font-semibold uppercase tracking-[0.08em] sm:gap-2 sm:px-4 sm:text-xs sm:tracking-[0.16em] transition-colors lg:flex-none",
+                                                        "flex h-12 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-2 font-sans text-[11px] font-semibold uppercase tracking-[0.04em] max-[360px]:gap-1 max-[360px]:px-1.5 max-[360px]:tracking-normal transition-colors sm:h-[3.25rem] sm:gap-2.5 sm:px-4 sm:text-[13px] sm:tracking-[0.14em]",
                                                         isActive
-                                                            ? "border-[#CA9C68]/40 bg-[#CA9C68]/10 text-[#CA9C68]"
-                                                            : "border-transparent text-slate-400 hover:bg-white/5 hover:text-white"
+                                                            ? "border-[#CA9C68]/50 bg-gradient-to-b from-[#CA9C68]/20 to-[#CA9C68]/[0.06] text-[#E2BC8C] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                                                            : "border-transparent text-slate-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-white"
                                                     )}
                                                 >
-                                                    <Icon className="hidden h-4 w-4 shrink-0 sm:block" />
+                                                    <Icon className="hidden h-[18px] w-[18px] shrink-0 sm:block" />
                                                     {label}
                                                     <span className={cn(
-                                                        "min-w-[1.375rem] rounded-md px-1.5 py-0.5 text-center text-[11px] font-bold tracking-normal",
+                                                        "min-w-6 rounded-md px-1.5 py-0.5 text-center text-[11px] font-bold tracking-normal sm:min-w-7 sm:text-xs",
                                                         highlightCount ? "bg-[#CA9C68] text-slate-950" : "bg-white/10 text-slate-300"
                                                     )}>
                                                         {count}
@@ -3920,16 +3906,16 @@ function DashboardContent() {
                                         })}
                                     </div>
 
-                                    <div className="order-2 ml-auto lg:order-4">
-                                    <Tooltip text="Create Event">
+                                    <div className="order-2 xl:order-4 xl:ml-auto">
                                         <button
                                             onClick={() => setIsCreateModalOpen(true)}
-                                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[#CA9C68] transition-colors hover:border-[#CA9C68]/40 hover:bg-[#CA9C68]/10"
+                                            className="flex h-12 items-center gap-2 whitespace-nowrap rounded-xl bg-[#CA9C68] px-4 font-sans text-sm font-black text-slate-950 transition-colors hover:bg-[#D7AE7D] sm:px-5"
                                             aria-label="Create Event"
                                         >
-                                            <Plus className="h-5 w-5" />
+                                            <Plus className="w-4 h-4" />
+                                            <span className="sm:hidden">New</span>
+                                            <span className="hidden sm:inline">Create Event</span>
                                         </button>
-                                    </Tooltip>
                                     </div>
                                 </div>
 
