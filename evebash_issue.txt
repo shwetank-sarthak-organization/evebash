@@ -113,17 +113,6 @@ Found in: Modal cost audit (2026-10-05)
 Issue: Modal cost flags MODAL_COST_TUNING and MODAL_VIDEO_ASYNC must be set in the .env of whoever deploys; a deploy without them silently restores the old, costlier settings. Bake them in and remove the flags (Modal).
 How to reproduce: Code check: modal_engine/main.py reads both flags at deploy time; deploying from a .env without them brings back per-minute crons and synchronous video transcoding.
 
-#15
-Listed: 2026-10-09
-Platform: Both
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Modal cost audit (2026-10-05)
-Issue: The old upload-processing path (trigger-modal-batch from the mobile upload queue and the website Host page) is still live, and it left 394 duplicate rows in the faces table. Remove the path and clean up the duplicates (backend/Modal/database).
-How to reproduce: Count faces rows that share the same image and descriptor: about 394 duplicates on 2026-10-05. Upload from the app and watch Modal logs: process_media_batch runs alongside the new pipeline.
-
 #16
 Listed: 2026-10-09
 Platform: App
@@ -193,6 +182,18 @@ How to reproduce: With only the public anon key, request /rest/v1/profiles?selec
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#15
+Listed: 2026-10-09
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Modal cost audit (2026-10-05)
+Issue: The old upload-processing path (trigger-modal-batch from the mobile upload queue and the website Host page) is still live, and it left 394 duplicate rows in the faces table. Remove the path and clean up the duplicates (backend/Modal/database).
+How to reproduce: Count faces rows that share the same image and descriptor: about 394 duplicates on 2026-10-05. Upload from the app and watch Modal logs: process_media_batch runs alongside the new pipeline.
+Fixed in: 94b406e (2026-10-10) website + app no longer call trigger-modal-batch (backend route kept for installed app builds; Modal v112 already hands those calls to the new pipeline). 37 leftover duplicate faces rows deleted 2026-10-10 (none newer than 2026-09-29).
 
 #22
 Listed: 2026-10-10
