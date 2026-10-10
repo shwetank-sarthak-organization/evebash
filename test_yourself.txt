@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 35
+Next test number: 36
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -692,4 +692,27 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#35 App: share links and QR codes open the EveBash website
+Status:    TODO
+Priority:  High
+Platform:  App (new build from staging with 65efa33)
+Brief:     Share links and QR codes used wedalbum.app (blank page). Now staging builds use
+           staging.evebash.com and production builds www.evebash.com (issue #16).
+How to test:
+  1. In the app, open a gallery -> Share. Open the shared link on another phone/computer.
+     Expect: the gallery on staging.evebash.com opens.
+  2. Show the gallery's QR code; scan it with another phone's camera. Expect: same.
+  3. In the app dashboard -> Join -> scan that QR code. Expect: the gallery opens in the app.
+  4. Scan an OLD printed wedalbum.app QR code (if you have one) with the app scanner: still opens.
+  5. Galleries tab -> Visit website: opens the gallery on staging.evebash.com.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   65efa33 (2026-10-10)
 Feedback:

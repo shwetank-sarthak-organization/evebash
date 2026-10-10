@@ -171,7 +171,7 @@ Blocked by: -
 Found in: Website UI review (2026-10-03); consistency audit (2026-10-05)
 Issue: App share links and QR codes point to wedalbum.app, which opens a different site with a blank page; business share uses wedalbum.com (a domain-for-sale page); the QR scanner only accepts wedalbum.app.
 How to reproduce: In the app, share a gallery and open the link in a browser: blank page on a different site. Scan an evebash.com QR in the app: not accepted.
-Fixed in: 65efa33 (2026-10-10). Decision: links follow the build's backend (staging -> staging.evebash.com, production -> www.evebash.com). App only: next app build (test_yourself #33).
+Fixed in: 65efa33 (2026-10-10). Decision: links follow the build's backend (staging -> staging.evebash.com, production -> www.evebash.com). App only: next app build (test_yourself #35).
 
 #4
 Listed: 2026-10-09
