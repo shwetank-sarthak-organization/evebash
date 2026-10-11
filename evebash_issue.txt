@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 41
+Next issue number: 42
 
 =====================================================================
 ACTIVE ISSUES
@@ -52,8 +52,8 @@ How to reproduce: Open a gallery in the admin dashboard Events grid: there is no
 Listed: 2026-10-09
 Platform: App
 Priority: High
-Status: Blocked
-Owner: Sarthak (decision)
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: Decision: the app's final iOS bundle ID
 Found in: Store launch review (2026-10-03)
 Issue: iOS bundle ID is still the placeholder com.anonymous.wed-albummobile (apps/mobile/app.json). It becomes permanent at the first App Store upload.
@@ -138,28 +138,6 @@ Found in: Website UI re-check (2026-10-11)
 Issue: On phones the homepage headline (the LCP element) appears at 4.3 s; Lighthouse puts 81% of it in render delay. Likely cause: three self-hosted font families with italic styles (Inter, Playfair Display, Akaya Kanadaka in src/app/fonts.ts), with the headline waiting on Playfair. Lighthouse phone performance is 80.
 How to reproduce: npx -y lighthouse@12 https://staging.evebash.com/ --only-categories=performance and check largest-contentful-paint-element.
 
-#30
-Listed: 2026-10-11
-Platform: Website
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Website UI re-check (2026-10-11)
-Issue: Find You now needs a login, but the homepage (FindYouFeature.tsx) and FAQ (HomeFaq.tsx) say a guest just uploads one selfie and never mention an account.
-How to reproduce: Open an event's /find-you page logged out: "Log in to use Find You". Compare with the homepage Find You section and FAQ.
-
-#31
-Listed: 2026-10-11
-Platform: Website
-Priority: Medium
-Status: Open
-Owner: Unassigned
-Blocked by: App store release
-Found in: Website UI re-check (2026-10-11)
-Issue: The homepage and FAQ say EveBash works "in the EveBash app for Android and iOS", but the app is not in the stores yet. HomeFaq.tsx, FindYouFeature.tsx, GuestFeatures.tsx. Reword until the store listings are live, or add store links when they are.
-How to reproduce: Read the FAQ answer "Is there a mobile app?" on the homepage.
-
 #32
 Listed: 2026-10-11
 Platform: Website
@@ -182,39 +160,6 @@ Found in: Website UI re-check (2026-10-11)
 Issue: The homepage has no proof: no event or photo counts, host quotes or studio logos. This is now the lowest-scoring factor in the UI rating (3/10).
 How to reproduce: Scroll the homepage: no testimonials or numbers section.
 
-#35
-Listed: 2026-10-11
-Platform: Website
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Website UI re-check (2026-10-11)
-Issue: staging.evebash.com is open to search engines: robots.txt allows everything and no noindex header is sent. Canonical links point to www.evebash.com, which limits the risk. Serve Disallow: / (or X-Robots-Tag: noindex) on non-production hosts.
-How to reproduce: curl https://staging.evebash.com/robots.txt
-
-#36
-Listed: 2026-10-11
-Platform: Website
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Website UI re-check (2026-10-11)
-Issue: Below-the-fold homepage sections (ScrollReveal) and the login card (motion.div in the login page) start at opacity 0 and only appear after their animation runs, so they stay blank if scripts are slow or the tab is in the background.
-How to reproduce: Load the homepage with JavaScript throttled, or in a background tab, and scroll: sections appear late.
-
-#37
-Listed: 2026-10-11
-Platform: Website
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Website UI re-check (2026-10-11)
-Issue: The sample-gallery album page (/sample-galleries/[client]) uses the generic title "Sample galleries · EveBash" instead of the album name.
-How to reproduce: Open /sample-galleries/wedding-fdd8 and check the browser tab title.
-
 #38
 Listed: 2026-10-11
 Platform: Website
@@ -226,9 +171,80 @@ Found in: Website modal theme audit (2026-10-11)
 Issue: Several host-dashboard modals don't use the dark-gold theme. The Delete event/gallery confirm, the "deleted successfully" popup and the date picker are white boxes with teal or black buttons (src/app/(main)/host/page.tsx). The Choose Style subtitle is near-invisible (text-slate-700 on dark). Create Event uses a sky-blue top stripe and sky focus rings; Rename uses sky focus rings and its Save button is dark grey instead of gold; New Sub-Gallery uses an olive button (#806316) and light green/red message boxes; Join Event uses bright amber-400 instead of #CA9C68. Seven actions still use the browser's own alert/confirm (make event public, remove guest, remove profile photo, delete comment, zip download errors, access-request error, "Link copied").
 How to reproduce: On /host, delete a gallery, then open a date picker; on /profile, remove the profile photo; on a public event, share a template link.
 
+#41
+Listed: 2026-10-11
+Platform: App
+Priority: High
+Status: Blocked
+Owner: Sarthak (decision)
+Blocked by: Decision: the app's final Android package name (decide together with #17)
+Found in: Preparing the #17 bundle ID work (2026-10-11)
+Issue: The Android package is still the placeholder com.anonymous.evebash (apps/mobile/app.json android.package, and apps/mobile/google-services.json). It becomes permanent at the first Play Store upload. Changing it needs a new Firebase Android app (new google-services.json), Google OAuth Android client and SHA-1s (see #18).
+How to reproduce: Check android.package in apps/mobile/app.json.
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#30
+Listed: 2026-10-11
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: Find You now needs a login, but the homepage (FindYouFeature.tsx) and FAQ (HomeFaq.tsx) say a guest just uploads one selfie and never mention an account.
+How to reproduce: Open an event's /find-you page logged out: "Log in to use Find You". Compare with the homepage Find You section and FAQ.
+Fixed in: 780ee6a (2026-10-11)
+
+#31
+Listed: 2026-10-11
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: The homepage and FAQ say EveBash works "in the EveBash app for Android and iOS", but the app is not in the stores yet. HomeFaq.tsx, FindYouFeature.tsx, GuestFeatures.tsx. Reword until the store listings are live, or add store links when they are.
+How to reproduce: Read the FAQ answer "Is there a mobile app?" on the homepage.
+Fixed in: 780ee6a (2026-10-11)
+
+#35
+Listed: 2026-10-11
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: staging.evebash.com is open to search engines: robots.txt allows everything and no noindex header is sent. Canonical links point to www.evebash.com, which limits the risk. Serve Disallow: / (or X-Robots-Tag: noindex) on non-production hosts.
+How to reproduce: curl https://staging.evebash.com/robots.txt
+Fixed in: 780ee6a (2026-10-11)
+
+#36
+Listed: 2026-10-11
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: Below-the-fold homepage sections (ScrollReveal) and the login card (motion.div in the login page) start at opacity 0 and only appear after their animation runs, so they stay blank if scripts are slow or the tab is in the background.
+How to reproduce: Load the homepage with JavaScript throttled, or in a background tab, and scroll: sections appear late.
+Fixed in: 780ee6a (2026-10-11)
+
+#37
+Listed: 2026-10-11
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: The sample-gallery album page (/sample-galleries/[client]) uses the generic title "Sample galleries · EveBash" instead of the album name.
+How to reproduce: Open /sample-galleries/wedding-fdd8 and check the browser tab title.
+Fixed in: 780ee6a (2026-10-11)
 
 #39
 Listed: 2026-10-11
