@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 41
+Next test number: 42
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -831,4 +831,29 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:   8acf63a (2026-10-10)
+Feedback:
+
+--------------------------------------------------------------------------------
+#41 A guest with upload permission can still upload photos (before and after RLS part 2)
+Status:    TODO
+Priority:  High
+Platform:  Website + App (build from staging)
+Brief:     RLS lockdown part 2 (issue #21) lets only gallery managers add photo rows directly.
+           It isn't confirmed whether guest uploads go through the backend or write photo rows
+           themselves, so a guest with upload permission might lose uploads once part 2 is on.
+           Run this now (baseline) and again right after part 2 is applied.
+How to test (host account + a second GUEST account approved in the host's private gallery):
+  1. As the host, give that guest upload permission (Permissions tab).
+  2. As the guest on the website, upload 2 photos and 1 short video.
+     Expect: all finish, and show in the gallery for both guest and host.
+  3. Same as the guest in the app.
+  4. Take upload permission away and try again. Expect: the guest can't upload.
+  5. Note in Feedback whether this run was BEFORE or AFTER part 2.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
 Feedback:
