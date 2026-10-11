@@ -357,8 +357,8 @@ export default function DashboardHub() {
                                         value={joinCode}
                                         onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
                                         className="w-full rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-4 text-center text-2xl font-black tracking-[0.2em] text-white outline-none transition-all placeholder:text-slate-600 focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/20"
-                                        placeholder="A1B2C3"
-                                        maxLength={6}
+                                        placeholder="A1B2-C3D4"
+                                        maxLength={12}
                                     />
                                 </div>
 
