@@ -97,6 +97,7 @@ import {
 	    toggleEventFavouritePhoto,
 	    getFavouritePhotosForEvents,
 	    generateEventJoinId,
+	    openGallery,
 	    movePhotosToGallery,
 	} from "@/lib/database";
 import { uploadEventImage, validateVideoFile } from "@/lib/storage";
@@ -935,6 +936,27 @@ function DashboardContent() {
     // The owner already gets the switch, so only ask the database for other people (as the app does).
     const [visibilityAdminEventId, setVisibilityAdminEventId] = useState('');
     const selectedMainEventIsOwn = !!selectedMainEvent && (selectedMainEvent.createdBy === user?.uid || selectedMainEvent.createdBy === user?.email);
+    // A gallery's management screen opens from its link, so ask the database whether this person manages it (owner,
+    // guest admin or platform admin). Someone who isn't (or lost guest-admin rights while the page was open) goes back
+    // to their dashboard instead of seeing controls the server refuses.
+    const recheckManageAccess = useCallback(async (eventId: string | undefined) => {
+        if (!eventId) return;
+        try {
+            const opened = await openGallery(eventId);
+            if (opened.access === "manage") return;
+            setSelectedMainEvent(previous => previous?.id === eventId ? null : previous);
+            setMessage("You don't manage this gallery.");
+            setStatus("error");
+            setTimeout(() => setStatus("idle"), 4000);
+            router.replace("/host");
+        } catch (error) {
+            console.warn("[Host] Could not check gallery access:", error);
+        }
+    }, [router]);
+    useEffect(() => {
+        if (!selectedMainEventId || !user?.uid || selectedMainEventIsOwn) return;
+        void recheckManageAccess(selectedMainEventId);
+    }, [selectedMainEventId, selectedMainEventIsOwn, user?.uid, recheckManageAccess]);
     useEffect(() => {
         let active = true;
         setVisibilityAdminEventId('');
@@ -1806,6 +1828,7 @@ function DashboardContent() {
         } else {
             setMessage(result.error || "Failed to update guest.");
             setStatus("error");
+            void recheckManageAccess(selectedMainEventId);
         }
         setTimeout(() => setStatus("idle"), 3000);
         return result.success;
@@ -1826,6 +1849,7 @@ function DashboardContent() {
         } else {
             setMessage(result.error || "Failed to remove guest.");
             setStatus("error");
+            void recheckManageAccess(selectedMainEventId);
         }
         setTimeout(() => setStatus("idle"), 3000);
         return result.success;
@@ -1874,6 +1898,7 @@ function DashboardContent() {
         } else {
             setMessage(result.error || "Failed to update permissions.");
             setStatus("error");
+            void recheckManageAccess(selectedMainEventId);
         }
         setTimeout(() => setStatus("idle"), 3000);
     };
