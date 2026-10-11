@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 45
+Next test number: 46
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -916,6 +916,30 @@ How to test:
      Expect: refused with "videos are reserved for the owner and admins"; photos still upload.
   Note: a red 404 for can_manage_event_visibility on the guest admin page is expected until RLS
   lockdown part 2 (#21); it only means guest admins don't get the public/private switch yet.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#45 A removed guest has to ask again; the list only changes when the change is saved (website)
+Status:    TODO
+Priority:  High
+Platform:  Website
+Brief:     Delete (and Deny) used to drop the guest from the Permissions list even when nothing was
+           deleted (Cancel on "Are you sure?", or a failed request). The guest kept their approved
+           row, so asking again let them straight back in. Now the row only goes when it's really deleted.
+How to test:
+  1. As the host on a PRIVATE gallery, open Permissions and click Delete on an approved guest, then
+     press Cancel. Expect: the guest stays in the list.
+  2. Click Delete again and press OK. Expect: "Guest removed successfully" and the guest disappears;
+     refresh the page: still gone.
+  3. As that guest, open the gallery link and request access.
+     Expect: "Request sent" (pending), NOT straight in. The host sees the request under Requests.
+  4. Repeat 2–3 in the app (host removes with the trash icon). Expect: the same.
 Done by:
 Device / browser:
 Build / version:

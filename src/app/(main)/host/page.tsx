@@ -1789,7 +1789,7 @@ function DashboardContent() {
         }
     };
 
-    const handleGuestStatusUpdate = async (logId: string, nextStatus: "approved" | "rejected") => {
+    const handleGuestStatusUpdate = async (logId: string, nextStatus: "approved" | "rejected"): Promise<boolean> => {
         const result = await updateGuestStatusAction(logId, nextStatus, {
             uid: user?.uid,
             email: user?.email,
@@ -1814,10 +1814,11 @@ function DashboardContent() {
             setStatus("error");
         }
         setTimeout(() => setStatus("idle"), 3000);
+        return result.success;
     };
 
-    const handleGuestDelete = async (logId: string) => {
-        if (!window.confirm("Are you sure you want to remove this user from the guest list?")) return;
+    const handleGuestDelete = async (logId: string): Promise<boolean> => {
+        if (!window.confirm("Are you sure you want to remove this user from the guest list?")) return false;
 
         const result = await deleteGuestAction(logId, {
             uid: user?.uid,
@@ -1833,6 +1834,7 @@ function DashboardContent() {
             setStatus("error");
         }
         setTimeout(() => setStatus("idle"), 3000);
+        return result.success;
     };
 
     const handleGuestPermissionToggle = async (
@@ -3415,7 +3417,6 @@ function DashboardContent() {
                                 onClick={async (event) => {
                                     event.stopPropagation();
                                     await handleGuestStatusUpdate(log.id, "approved");
-                                    setEventDetailLogs(prev => prev.map(item => item.id === log.id ? { ...item, status: "approved", canUpload: true, canComment: true } : item));
                                 }}
                                 className="rounded-full bg-emerald-500/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-emerald-300"
                             >
@@ -3424,8 +3425,9 @@ function DashboardContent() {
                             <button
                                 onClick={async (event) => {
                                     event.stopPropagation();
-                                    await handleGuestStatusUpdate(log.id, "rejected");
-                                    setEventDetailLogs(prev => prev.filter(item => item.id !== log.id));
+                                    if (await handleGuestStatusUpdate(log.id, "rejected")) {
+                                        setEventDetailLogs(prev => prev.filter(item => item.id !== log.id));
+                                    }
                                 }}
                                 className="rounded-full bg-rose-500/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-rose-300"
                             >
@@ -3436,8 +3438,11 @@ function DashboardContent() {
                     <button
                         onClick={async (event) => {
                             event.stopPropagation();
-                            await handleGuestDelete(log.id);
-                            setEventDetailLogs(prev => prev.filter(item => item.id !== log.id));
+                            // Only drop the row once it's really deleted (not on Cancel or a failed request); otherwise the
+                            // guest looked removed but kept their approved row and got straight back in when asking again
+                            if (await handleGuestDelete(log.id)) {
+                                setEventDetailLogs(prev => prev.filter(item => item.id !== log.id));
+                            }
                         }}
                         className="rounded-full border border-slate-700 px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-300"
                     >

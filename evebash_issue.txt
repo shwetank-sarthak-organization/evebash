@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 39
+Next issue number: 40
 
 =====================================================================
 ACTIVE ISSUES
@@ -225,6 +225,17 @@ Blocked by: -
 Found in: Website modal theme audit (2026-10-11)
 Issue: Several host-dashboard modals don't use the dark-gold theme. The Delete event/gallery confirm, the "deleted successfully" popup and the date picker are white boxes with teal or black buttons (src/app/(main)/host/page.tsx). The Choose Style subtitle is near-invisible (text-slate-700 on dark). Create Event uses a sky-blue top stripe and sky focus rings; Rename uses sky focus rings and its Save button is dark grey instead of gold; New Sub-Gallery uses an olive button (#806316) and light green/red message boxes; Join Event uses bright amber-400 instead of #CA9C68. Seven actions still use the browser's own alert/confirm (make event public, remove guest, remove profile photo, delete comment, zip download errors, access-request error, "Link copied").
 How to reproduce: On /host, delete a gallery, then open a date picker; on /profile, remove the profile photo; on a public event, share a template link.
+
+#39
+Listed: 2026-10-11
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Sarthak (decision)
+Blocked by: Sarthak: should approving a guest turn on photo uploads?
+Found in: Test #38 (2026-10-11)
+Issue: Approving a guest gives different upload rights on website and app. The app sets can_upload and can_comment to true on approve (apps/mobile/lib/database.ts updateGuestStatus); the website's approve goes through the backend (/api/v1/permissions/update-guest-status), which only sets status, so website-approved guests can't upload photos. The website screen even shows "Allow Photo Uploads" on right after approving, and it turns off after a refresh.
+How to reproduce: Approve a request on the website, refresh, open the guest: Allow Photo Uploads is off. Approve one in the app: it's on.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
