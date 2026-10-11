@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 38
+Next issue number: 39
 
 =====================================================================
 ACTIVE ISSUES
@@ -214,6 +214,17 @@ Blocked by: -
 Found in: Website UI re-check (2026-10-11)
 Issue: The sample-gallery album page (/sample-galleries/[client]) uses the generic title "Sample galleries · EveBash" instead of the album name.
 How to reproduce: Open /sample-galleries/wedding-fdd8 and check the browser tab title.
+
+#38
+Listed: 2026-10-11
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Website modal theme audit (2026-10-11)
+Issue: Several host-dashboard modals don't use the dark-gold theme. The Delete event/gallery confirm, the "deleted successfully" popup and the date picker are white boxes with teal or black buttons (src/app/(main)/host/page.tsx). The Choose Style subtitle is near-invisible (text-slate-700 on dark). Create Event uses a sky-blue top stripe and sky focus rings; Rename uses sky focus rings and its Save button is dark grey instead of gold; New Sub-Gallery uses an olive button (#806316) and light green/red message boxes; Join Event uses bright amber-400 instead of #CA9C68. Seven actions still use the browser's own alert/confirm (make event public, remove guest, remove profile photo, delete comment, zip download errors, access-request error, "Link copied").
+How to reproduce: On /host, delete a gallery, then open a date picker; on /profile, remove the profile photo; on a public event, share a template link.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
