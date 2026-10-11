@@ -116,17 +116,6 @@ Issue: Privacy policy (shared/legal/policies.json) has gaps for the Google Play 
 How to reproduce: Read the Privacy Policy screen in the app, or shared/legal/policies.json under "privacy-policy".
 Update 2026-10-11: "Who We Are" added to the privacy policy and Terms (operated by Shwetank and Sarthak Chauhan, Dehradun 248001, support@evebash.com). At incorporation, swap it for Ossciv Private Limited (CIN, registered office) and add the Grievance Officer. Find You consent screen: decided, being built. Minimum age: under discussion.
 
-#27
-Listed: 2026-10-11
-Platform: Website
-Priority: High
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Website UI re-check (2026-10-11)
-Issue: The Dashboard shows a floating chat bubble (off-brand amber) that opens "EveBash Messages" with made-up conversations ("Arjun & Priya's Wedding", "Rohan (Photographer)"). Typed messages only go into page state and reach nobody. Every logged-in user sees it. Hide it or remove it until real chat exists. src/app/(main)/dashboard/page.tsx (mock conversations ~line 80, button ~line 731).
-How to reproduce: Log in on the website, open /dashboard and click the round chat button at the bottom right.
-
 #28
 Listed: 2026-10-11
 Platform: Website
@@ -193,17 +182,6 @@ Found in: Website UI re-check (2026-10-11)
 Issue: The homepage has no proof: no event or photo counts, host quotes or studio logos. This is now the lowest-scoring factor in the UI rating (3/10).
 How to reproduce: Scroll the homepage: no testimonials or numbers section.
 
-#34
-Listed: 2026-10-11
-Platform: Website
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Website UI re-check (2026-10-11)
-Issue: Navbar links use the decorative brand font (Akaya Kanadaka) at body text size, which is harder to read than Inter. src/components/Navbar.tsx (desktop links and mobile menu).
-How to reproduce: Open any marketing page and read the navbar links.
-
 #35
 Listed: 2026-10-11
 Platform: Website
@@ -240,6 +218,30 @@ How to reproduce: Open /sample-galleries/wedding-fdd8 and check the browser tab 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#27
+Listed: 2026-10-11
+Platform: Website
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: The Dashboard shows a floating chat bubble (off-brand amber) that opens "EveBash Messages" with made-up conversations ("Arjun & Priya's Wedding", "Rohan (Photographer)"). Typed messages only go into page state and reach nobody. Every logged-in user sees it. Hide it or remove it until real chat exists. src/app/(main)/dashboard/page.tsx (mock conversations ~line 80, button ~line 731).
+How to reproduce: Log in on the website, open /dashboard and click the round chat button at the bottom right.
+Fixed in: 252568e (2026-10-11). Chat state, mock conversations and the bubble removed; nothing else on the Dashboard changed. Device check: test_yourself #42.
+
+#34
+Listed: 2026-10-11
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: Navbar links use the decorative brand font (Akaya Kanadaka) at body text size, which is harder to read than Inter. src/components/Navbar.tsx (desktop links and mobile menu).
+How to reproduce: Open any marketing page and read the navbar links.
+Fixed in: 252568e (2026-10-11). Desktop links, "Log in" and phone-menu links use Inter; the EveBash wordmark keeps Akaya Kanadaka. Device check: test_yourself #42.
 
 #26
 Listed: 2026-10-11

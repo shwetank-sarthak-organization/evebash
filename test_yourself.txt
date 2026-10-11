@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 42
+Next test number: 43
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -849,6 +849,29 @@ How to test (host account + a second GUEST account approved in the host's privat
   3. Same as the guest in the app.
   4. Take upload permission away and try again. Expect: the guest can't upload.
   5. Note in Feedback whether this run was BEFORE or AFTER part 2.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#42 Dashboard has no chat bubble; navbar links are easy to read (website)
+Status:    TODO
+Priority:  Low
+Platform:  Website (staging.evebash.com)
+Brief:     The mock "EveBash Messages" chat bubble was removed from the Dashboard (issue #27), and
+           navbar links now use Inter instead of the decorative brand font (issue #34).
+How to test:
+  1. Log in on the website and open the Dashboard.
+     Expect: no round amber chat button at the bottom right; the rest of the page works as before
+     (event cards, Join with code, QR, shared galleries).
+  2. Look at the navbar on desktop (wide window) and in the phone menu (narrow window, tap the menu icon),
+     both logged out and logged in.
+     Expect: links are in the plain Inter font and easy to read; the "EveBash" logo text still uses
+     the brand font; the active page is underlined (desktop) or highlighted (phone menu).
 Done by:
 Device / browser:
 Build / version:
