@@ -226,33 +226,33 @@ Found in: Website modal theme audit (2026-10-11)
 Issue: Several host-dashboard modals don't use the dark-gold theme. The Delete event/gallery confirm, the "deleted successfully" popup and the date picker are white boxes with teal or black buttons (src/app/(main)/host/page.tsx). The Choose Style subtitle is near-invisible (text-slate-700 on dark). Create Event uses a sky-blue top stripe and sky focus rings; Rename uses sky focus rings and its Save button is dark grey instead of gold; New Sub-Gallery uses an olive button (#806316) and light green/red message boxes; Join Event uses bright amber-400 instead of #CA9C68. Seven actions still use the browser's own alert/confirm (make event public, remove guest, remove profile photo, delete comment, zip download errors, access-request error, "Link copied").
 How to reproduce: On /host, delete a gallery, then open a date picker; on /profile, remove the profile photo; on a public event, share a template link.
 
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
 #39
 Listed: 2026-10-11
 Platform: Both
 Priority: Medium
-Status: In progress
+Status: Fixed
 Owner: Sarthak (with Claude)
-Blocked by: Sarthak: how guest uploads and comments should work (see Issue)
+Blocked by: -
 Found in: Test #38 (2026-10-11)
 Issue: The guest switches "Allow Photo Uploads" and "Allow Comments" do nothing for normal guests. Comments: every approved member can comment; no screen or database rule reads can_comment yet (the database rule comes with lockdown part 2, which would then block members whose switch is off while the comment box still shows). Uploads: normal guests have no upload button in the app or on the website (only the owner, guest admins and platform admins), and the backend never reads can_upload.
-DONE 2026-10-11 (Sarthak's decision): new members start with uploads and comments OFF on website and app (migration 20261011010000 applied; website and app approve no longer turn them on). Existing members keep what they have.
-Still to decide: show the comment box only when can_comment is on (needed before lockdown part 2), and whether guests with uploads on get an upload button (then the backend should check can_upload; see #40).
 How to reproduce: As an approved guest with Allow Comments off, open a photo: the comment box is there and posting works.
+Fixed in: 9f364c6, 6a1782f, 162279f (2026-10-11). Sarthak's decisions: new members start with uploads and comments off; everyone who can view reads comments, only managers and guests with Allow Comments on can write (comment box hidden otherwise; database rule can_comment_on_photo, enforced on the comments table by lockdown part 2); guests with Allow Photo Uploads on get an Add photos button (website gallery, app member view and sub-gallery screen). App parts need a new build. Device checks: test_yourself #46, #47, #48.
 
 #40
 Listed: 2026-10-11
 Platform: Backend
 Priority: High
-Status: Open
-Owner: Unassigned
+Status: Fixed
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Checking guest upload rights for #39 (2026-10-11)
 Issue: The backend hands out photo upload links for any gallery to anyone who knows its ID, even when not logged in (apps/backend/src/routes/media.ts: get-upload-url and mobile/get-upload-url only check that the gallery exists; logged-in callers aren't checked for membership). Gallery IDs are readable slugs (e.g. 11-october-2026-c3b9), so a stranger could add photos to any gallery and use the owner's storage. Only videos are restricted (owner and admins).
 How to reproduce: POST /api/media/get-upload-url with {"eventId": "<any gallery id>", "fileName": "x.jpg"} and no login: a signed upload URL comes back.
-
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
+Fixed in: 6a1782f (2026-10-11). Gallery photo uploads need the owner, a platform admin, a delegated host, an event or guest admin, or an approved guest with Allow Photo Uploads on; logged-out uploads get 401. Profile pictures and Phase 2 business portfolios unchanged. Kill switch: PHOTO_UPLOADS_REQUIRE_PERMISSION=false on Railway. Device check: test_yourself #47.
 
 #27
 Listed: 2026-10-11
