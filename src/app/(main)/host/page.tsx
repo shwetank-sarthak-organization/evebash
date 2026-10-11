@@ -1835,10 +1835,6 @@ function DashboardContent() {
         setTimeout(() => setStatus("idle"), 3000);
     };
 
-    const handleGuestViewAccessToggle = async (log: EventDetailLog) => {
-        await handleGuestStatusUpdate(log.id, log.status === "approved" ? "rejected" : "approved");
-    };
-
     const handleGuestPermissionToggle = async (
         log: EventDetailLog,
         key: "canAdmin" | "canUpload" | "canComment"
@@ -6479,28 +6475,18 @@ function DashboardContent() {
                                         <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-[#CA9C68]">Member Privileges</p>
                                         <div className="space-y-3">
                                             {[
-                                                { key: "viewAccess", label: "View Access", desc: "Can open and view this event gallery", icon: Eye },
                                                 { key: "canAdmin", label: "Admin Access", desc: "Manage event, sub-galleries, and other guests", icon: ShieldCheck },
                                                 { key: "canUpload", label: "Allow Photo Uploads", desc: "Can add photos to the event. Videos are reserved for the event owner and admins.", icon: Camera },
                                                 { key: "canComment", label: "Allow Comments", desc: "Can react and post comments on media", icon: MessageCircle },
                                             ].map(({ key, label, desc, icon: Icon }) => {
-                                                const isViewAccess = key === "viewAccess";
                                                 const permKey = key as "canAdmin" | "canUpload" | "canComment";
-                                                const isActive = isViewAccess
-                                                    ? selectedGuestLog.status === "approved"
-                                                    : Boolean(selectedGuestLog[permKey] || (selectedGuestLog.canAdmin && (permKey === "canUpload" || permKey === "canComment")));
+                                                const isActive = Boolean(selectedGuestLog[permKey] || (selectedGuestLog.canAdmin && (permKey === "canUpload" || permKey === "canComment")));
 
                                                 return (
                                                     <button
                                                         key={key}
                                                         type="button"
-                                                        onClick={() => {
-                                                            if (isViewAccess) {
-                                                                handleGuestViewAccessToggle(selectedGuestLog);
-                                                                return;
-                                                            }
-                                                            handleGuestPermissionToggle(selectedGuestLog, permKey);
-                                                        }}
+                                                        onClick={() => handleGuestPermissionToggle(selectedGuestLog, permKey)}
                                                         className={cn(
                                                             "flex w-full items-center gap-4 rounded-[1.25rem] border p-4 text-left transition-colors",
                                                             isActive ? "border-[#CA9C68]/45 bg-[#CA9C68]/10" : "border-slate-800 bg-slate-900/70 hover:border-slate-700"

@@ -5701,15 +5701,11 @@ export default function EventDetailScreen() {
                         <Text style={styles.permissionsGroupLabel}>Member Privileges</Text>
 
                         {[
-                          { id: 'viewAccess', label: 'View Access', desc: 'Can open and view this event gallery', icon: 'eye.fill' },
                           { id: 'canAdmin', label: 'Admin Access', desc: 'Manage event, sub-galleries, and other guests', icon: 'shield.fill' },
                           { id: 'canUpload', label: 'Allow Photo Uploads', desc: 'Can add photos to the event. Videos are reserved for the event owner and admins.', icon: 'camera.fill' },
                           { id: 'canComment', label: 'Allow Comments', desc: 'Can react and post comments on any media', icon: 'bubble.left.fill' },
                         ].map((perm) => {
-                          const isViewAccess = perm.id === 'viewAccess';
-                          const isActive = isViewAccess
-                            ? selectedGuest?.status === 'approved'
-                            : Boolean((selectedGuest as any)?.[perm.id] || (selectedGuest?.canAdmin && (perm.id === 'canUpload' || perm.id === 'canComment')));
+                          const isActive = Boolean((selectedGuest as any)?.[perm.id] || (selectedGuest?.canAdmin && (perm.id === 'canUpload' || perm.id === 'canComment')));
                           const isSelfAdminCheck = perm.id === 'canAdmin' && selectedGuest && doesGuestLogBelongToCurrentUser(selectedGuest) && !isOwner;
                           const displayDesc = isSelfAdminCheck ? "Ask host to remove you" : perm.desc;
 
@@ -5723,19 +5719,6 @@ export default function EventDetailScreen() {
                               ]}
                               onPress={() => {
                                 if (selectedGuest) {
-                                  if (isViewAccess) {
-                                    const nextStatus: GuestLog['status'] = isActive ? 'rejected' : 'approved';
-                                    updateGuestStatusWithFeedback(selectedGuest.id, nextStatus).then(() => {
-                                      const updatedGuest = {
-                                        ...selectedGuest,
-                                        status: nextStatus,
-                                        ...(nextStatus === 'approved' ? { canUpload: true, canComment: true } : {}),
-                                      };
-                                      setSelectedGuest(nextStatus === 'approved' ? updatedGuest : null);
-                                      loadEvent();
-                                    });
-                                    return;
-                                  }
                                   if (isSelfAdminCheck) {
                                     appAlert("Permission Denied", "Ask host to remove you.");
                                     return;

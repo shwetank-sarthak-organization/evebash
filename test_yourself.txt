@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 43
+Next test number: 44
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -872,6 +872,28 @@ How to test:
      both logged out and logged in.
      Expect: links are in the plain Inter font and easy to read; the "EveBash" logo text still uses
      the brand font; the active page is underlined (desktop) or highlighted (phone menu).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#43 Guest panel has no "View Access" switch; removing a guest still works (website and app)
+Status:    TODO
+Priority:  Medium
+Platform:  Both (website now; app needs a new build from staging)
+Brief:     The View Access switch was really "reject this guest" (turning it off kicked the guest out
+           and hid them from the list; on public galleries they got straight back in). It was removed.
+           Kicking someone out is done with Delete (website) / the remove button (app).
+How to test:
+  1. As the host, open a gallery → Permissions → tap an approved guest.
+     Expect: only Admin Access, Allow Photo Uploads and Allow Comments. No View Access.
+  2. Turn each of those three off and on. Expect: saves, still shows after a refresh.
+  3. Remove the guest (website: Delete on their row; app: the remove button on their card).
+     Expect: they disappear from the list; on a private gallery they see "Request access" again.
 Done by:
 Device / browser:
 Build / version:
