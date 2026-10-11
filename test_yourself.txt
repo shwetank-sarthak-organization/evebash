@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 50
+Next test number: 51
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1045,4 +1045,29 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
+Feedback:
+
+#50 Only people who manage a gallery can open its management screen (website)
+Status:    TODO
+Priority:  High
+Platform:  Website
+Brief:     The host page opened any gallery's management screen from its link without checking access,
+           and kept showing controls to a guest admin whose Admin switch had been turned off (the server
+           refused their changes: 403 in the console). Now the screen checks with the database when it
+           opens and after any refused change, and sends non-managers back to their dashboard.
+How to test:
+  1. As guest B with Admin on, open the gallery's management screen (Host → Shared → the gallery).
+  2. As the host, turn B's Admin off. As B (page still open), flip a guest switch.
+     Expect: "You don't manage this gallery." and B is taken back to /host; the gallery is no longer
+     under Shared.
+  3. As B, paste the management link (/host?view=manage&level=event-details&eventId=<id>).
+     Expect: sent back to /host with the same message.
+  4. As the owner and as a guest admin, open the screen. Expect: works as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   fff63a6 (2026-10-11)
 Feedback:
