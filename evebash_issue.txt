@@ -116,17 +116,6 @@ Issue: Privacy policy (shared/legal/policies.json) has gaps for the Google Play 
 How to reproduce: Read the Privacy Policy screen in the app, or shared/legal/policies.json under "privacy-policy".
 Update 2026-10-11: "Who We Are" added to the privacy policy and Terms (operated by Shwetank and Sarthak Chauhan, Dehradun 248001, support@evebash.com). At incorporation, swap it for Ossciv Private Limited (CIN, registered office) and add the Grievance Officer. Find You consent screen: decided, being built. Minimum age: under discussion.
 
-#26
-Listed: 2026-10-11
-Platform: Both
-Priority: Low
-Status: Open
-Owner: Unassigned
-Blocked by: Sarthak's OK to delete data (allowed_users has 3 rows, pending_requests 1 row)
-Found in: Tenant-auth route removal (c776f01)
-Issue: Leftovers from the old tenant section are still in the database: function is_phone_allowed and tables allowed_users and pending_requests. No code uses them any more (tenantAuth routes removed in c776f01). Drop them in a migration once the OK is given; check nothing else references them first.
-How to reproduce: In the Supabase SQL editor, select * from allowed_users and from pending_requests; \df is_phone_allowed.
-
 #27
 Listed: 2026-10-11
 Platform: Website
@@ -251,6 +240,18 @@ How to reproduce: Open /sample-galleries/wedding-fdd8 and check the browser tab 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#26
+Listed: 2026-10-11
+Platform: Both
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Tenant-auth route removal (c776f01)
+Issue: Leftovers from the old tenant section are still in the database: function is_phone_allowed and tables allowed_users and pending_requests. No code uses them any more (tenantAuth routes removed in c776f01). Drop them in a migration once the OK is given; check nothing else references them first.
+How to reproduce: In the Supabase SQL editor, select * from allowed_users and from pending_requests; \df is_phone_allowed.
+Fixed in: 9814f12 (2026-10-11). Migration 20261011000000 applied after a rolled-back dry run (lockdown suites 145/145 and 99/99); lockdown draft/tests/rollbacks updated. A copy of the 4 rows was kept outside the repo.
 
 #11
 Listed: 2026-10-09
