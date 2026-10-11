@@ -1113,11 +1113,8 @@ export async function deleteCoverUsagePhoto(eventId: string, coverUrl: string): 
  */
 export async function updateGuestStatus(logId: string, status: 'pending' | 'approved' | 'rejected') {
     try {
+        // Approving doesn't turn on uploads or comments: the host switches those on per guest
         const updateData: any = { status };
-        if (status === 'approved') {
-            updateData.can_upload = true;
-            updateData.can_comment = true;
-        }
 
         const { error } = await supabase
             .from('guests')

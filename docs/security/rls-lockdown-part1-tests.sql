@@ -280,7 +280,7 @@ reset role;
 -- ── Facts checked as postgres ──────────────────────────────────────────────────
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
 insert into _r (who, check_name, expected, actual) values
-  ('db', 'public join wrote an approved guest row with account', 'approved/true', (select g.status || '/' || g.can_comment::text from public.guests g where g.user_id = '44444444-4444-4444-8444-444444444444' and g.event_id = 'part1-public')),
+  ('db', 'public join wrote an approved guest row with account', 'approved/false', (select g.status || '/' || g.can_comment::text from public.guests g where g.user_id = '44444444-4444-4444-8444-444444444444' and g.event_id = 'part1-public')),
   ('db', 'pending row approved after opening public', 'approved', (select status from public.guests where id = 'u_88888888-8888-4888-8888-888888888888_part1-public')),
   ('db', 'rejected row approved after opening public', 'approved', (select status from public.guests where id = 'u_77777777-7777-4777-8777-777777777777_part1-public')),
   ('db', 'rejected private re-request is pending', 'pending', (select status from public.guests where id = 'u_77777777-7777-4777-8777-777777777777_part1-private')),

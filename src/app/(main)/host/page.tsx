@@ -1798,13 +1798,7 @@ function DashboardContent() {
         if (result.success) {
             setMessage(`Guest ${nextStatus === "approved" ? "approved" : "rejected"} successfully.`);
             setStatus("success");
-            const updateLog = (item: EventDetailLog) => item.id === logId
-                ? {
-                    ...item,
-                    status: nextStatus,
-                    ...(nextStatus === "approved" ? { canUpload: true, canComment: true } : {}),
-                }
-                : item;
+            const updateLog = (item: EventDetailLog) => item.id === logId ? { ...item, status: nextStatus } : item;
             setEventDetailLogs(prev => prev.map(updateLog));
             setTrafficLogs(prev => prev.map(updateLog as any));
             setSelectedGuestLog(prev => prev?.id === logId ? updateLog(prev) : prev);

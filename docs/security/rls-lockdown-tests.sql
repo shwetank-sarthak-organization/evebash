@@ -176,7 +176,7 @@ insert into _r (who, check_name, expected, actual) values
 insert into _r (who, check_name, expected, actual) values
   ('random', 'after joining: public + sub visible', '2', (select count(*) from public.events where id like 'step3-public%')::text),
   ('random', 'after joining: originals visible (download)', 'yes', case when exists (select 1 from public.photos where id = 'step3-p2' and url like '%/p2.jpg') then 'yes' else 'no' end),
-  ('random', 'after joining: can comment by default', 'yes', case when exists (select 1 from public.guests where user_id = '44444444-4444-4444-8444-444444444444' and event_id = 'step3-public' and can_comment) then 'yes' else 'no' end),
+  ('random', 'after joining: no comments or uploads until the host allows', 'no', case when exists (select 1 from public.guests where user_id = '44444444-4444-4444-8444-444444444444' and event_id = 'step3-public' and (can_comment or can_upload)) then 'yes' else 'no' end),
   ('random', 'still cannot see other host',       '0', (select count(*) from public.events where id = 'step3-other')::text);
 insert into _r (who, check_name, expected, actual) values
   ('random', 'can edit own name',                 'rows=1', pg_temp.try_write($$update public.profiles set name = 'renamed' where id = '44444444-4444-4444-8444-444444444444'$$)),
@@ -186,7 +186,7 @@ insert into _r (who, check_name, expected, actual) values
   ('random', 'cannot edit someone else''s profile', 'rows=0', pg_temp.try_write($$update public.profiles set name = 'x' where id = '11111111-1111-4111-8111-111111111111'$$)),
   ('random', 'cannot approve own request',        'rows=0', pg_temp.try_write($$update public.guests set status = 'approved' where user_id = '44444444-4444-4444-8444-444444444444' and event_id = 'step3-private'$$)),
   ('random', 'can like a photo in joined gallery', 'rows=1', pg_temp.try_write($$insert into public.likes (photo_id, user_id) values ('step3-p2', '44444444-4444-4444-8444-444444444444')$$)),
-  ('random', 'can comment in joined gallery',     'rows=1', pg_temp.try_write($$insert into public.comments (photo_id, user_id, text) values ('step3-p2', '44444444-4444-4444-8444-444444444444', 'hi')$$)),
+  ('random', 'cannot comment until host allows', 'blocked', pg_temp.try_write($$insert into public.comments (photo_id, user_id, text) values ('step3-p2', '44444444-4444-4444-8444-444444444444', 'hi')$$)),
   ('random', 'cannot like in private gallery',    'blocked', pg_temp.try_write($$insert into public.likes (photo_id, user_id) values ('step3-p1', '44444444-4444-4444-8444-444444444444')$$)),
   ('random', 'cannot like as someone else',       'blocked', pg_temp.try_write($$insert into public.likes (photo_id, user_id) values ('step3-p2', '33333333-3333-4333-8333-333333333333')$$)),
   ('random', 'cannot delete owner''s gallery',    'rows=0', pg_temp.try_write($$delete from public.events where id = 'step3-public'$$)),

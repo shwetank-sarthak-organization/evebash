@@ -8,7 +8,7 @@
 --     open_gallery() / get_public_gallery_media(). No direct table access, so nothing can be listed.
 --   * Logged in + link/QR: open_gallery() joins the gallery. Public: approved at once. Private: the guest
 --     calls request_gallery_access() and the host approves the guests row.
---   * Approved members can view, download originals, like and comment (unless the host set can_comment=false).
+--   * Approved members can view, download originals and like; comment only if the host turned can_comment on.
 --   * The owner and guests the owner made admins (guests.can_admin) manage the gallery; only the owner deletes it.
 --     Platform admins (role 'admin' with no delegated_by, as the dashboard checks) can do everything.
 --   * The hidden primary/event "manager" delegation (profiles.delegated_by, profile_assigned_events) is not granted
@@ -332,18 +332,24 @@ begin
   if v_uid is null then raise exception 'Log in to request access' using errcode = '42501'; end if;
   if v_id is null then raise exception 'Gallery not found'; end if;
   select * into v_root from public.events where id = eb_private.root_event_id(v_id);
-  -- can_comment defaults to false in the table; members may comment unless the host turns it off for them
-  insert into public.guests (id, name, phone, event_id, parent_event_owner_id, event_title, status, user_id, login_at, can_comment)
+  -- New members can view and download only: uploads, comments and admin start off (the column defaults) until the
+  -- host turns them on for that guest
+  insert into public.guests (id, name, phone, event_id, parent_event_owner_id, event_title, status, user_id, login_at,
+                             can_upload, can_comment, can_admin)
   values ('u_' || v_uid || '_' || v_root.id,
           coalesce((select p.name from public.profiles p where p.id = v_uid), 'Guest'),
           coalesce((select p.phone from public.profiles p where p.id = v_uid), ''),
           v_root.id, v_root.created_by, v_root.title,
           case when v_root.is_public then 'approved' else 'pending' end,
-          v_uid, now(), true)
-  -- Asking again: approved stays approved; pending or rejected becomes pending (private) or approved (public)
+          v_uid, now(), false, false, false)
+  -- Asking again: approved stays approved (switches kept); pending or rejected becomes pending (private) or approved
+  -- (public) and starts with the switches off again, like a new member
   on conflict (id) do update
     set login_at = now(),
-        status = case when public.guests.status = 'approved' then 'approved' else excluded.status end
+        status = case when public.guests.status = 'approved' then 'approved' else excluded.status end,
+        can_upload = case when public.guests.status = 'approved' then public.guests.can_upload else false end,
+        can_comment = case when public.guests.status = 'approved' then public.guests.can_comment else false end,
+        can_admin = case when public.guests.status = 'approved' then public.guests.can_admin else false end
   returning status into v_status;
   return v_status;
 end $$;

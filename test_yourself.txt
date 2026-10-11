@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 46
+Next test number: 47
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -940,6 +940,28 @@ How to test:
   3. As that guest, open the gallery link and request access.
      Expect: "Request sent" (pending), NOT straight in. The host sees the request under Requests.
   4. Repeat 2–3 in the app (host removes with the trash icon). Expect: the same.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#46 New guests start with uploads and comments off (website and app)
+Status:    TODO
+Priority:  Medium
+Platform:  Both (app approve needs a new build; the database part is live)
+Brief:     Joining or being approved no longer turns on Allow Photo Uploads or Allow Comments. The host
+           switches them on per guest. Turning Admin on still turns both on.
+How to test:
+  1. As a new guest, request a PRIVATE gallery; as the host approve on the website. Open that guest
+     in Permissions, refresh. Expect: Uploads off, Comments off, Admin off.
+  2. Same, but approve in the app (new build). Expect: the same.
+  3. As a new guest, open a PUBLIC gallery link (joins at once). Expect: Uploads and Comments off.
+  4. Turn Admin on for a guest. Expect: Uploads and Comments switch on with it.
+  Note: the switches don't yet stop a guest commenting (issue #39); this test only checks the defaults.
 Done by:
 Device / browser:
 Build / version:

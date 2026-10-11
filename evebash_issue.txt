@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 40
+Next issue number: 41
 
 =====================================================================
 ACTIVE ISSUES
@@ -230,12 +230,25 @@ How to reproduce: On /host, delete a gallery, then open a date picker; on /profi
 Listed: 2026-10-11
 Platform: Both
 Priority: Medium
-Status: Open
-Owner: Sarthak (decision)
-Blocked by: Sarthak: should approving a guest turn on photo uploads?
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: Sarthak: how guest uploads and comments should work (see Issue)
 Found in: Test #38 (2026-10-11)
-Issue: Approving a guest gives different upload rights on website and app. The app sets can_upload and can_comment to true on approve (apps/mobile/lib/database.ts updateGuestStatus); the website's approve goes through the backend (/api/v1/permissions/update-guest-status), which only sets status, so website-approved guests can't upload photos. The website screen even shows "Allow Photo Uploads" on right after approving, and it turns off after a refresh.
-How to reproduce: Approve a request on the website, refresh, open the guest: Allow Photo Uploads is off. Approve one in the app: it's on.
+Issue: The guest switches "Allow Photo Uploads" and "Allow Comments" do nothing for normal guests. Comments: every approved member can comment; no screen or database rule reads can_comment yet (the database rule comes with lockdown part 2, which would then block members whose switch is off while the comment box still shows). Uploads: normal guests have no upload button in the app or on the website (only the owner, guest admins and platform admins), and the backend never reads can_upload.
+DONE 2026-10-11 (Sarthak's decision): new members start with uploads and comments OFF on website and app (migration 20261011010000 applied; website and app approve no longer turn them on). Existing members keep what they have.
+Still to decide: show the comment box only when can_comment is on (needed before lockdown part 2), and whether guests with uploads on get an upload button (then the backend should check can_upload; see #40).
+How to reproduce: As an approved guest with Allow Comments off, open a photo: the comment box is there and posting works.
+
+#40
+Listed: 2026-10-11
+Platform: Backend
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Checking guest upload rights for #39 (2026-10-11)
+Issue: The backend hands out photo upload links for any gallery to anyone who knows its ID, even when not logged in (apps/backend/src/routes/media.ts: get-upload-url and mobile/get-upload-url only check that the gallery exists; logged-in callers aren't checked for membership). Gallery IDs are readable slugs (e.g. 11-october-2026-c3b9), so a stranger could add photos to any gallery and use the owner's storage. Only videos are restricted (owner and admins).
+How to reproduce: POST /api/media/get-upload-url with {"eventId": "<any gallery id>", "fileName": "x.jpg"} and no login: a signed upload URL comes back.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
