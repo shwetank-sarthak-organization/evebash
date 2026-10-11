@@ -109,9 +109,9 @@ export default function SampleGalleryView({ client, initial }: { client: string;
                         <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
                         <span>Back to Albums</span>
                     </Link>
-                    
+
                     <div className="h-px flex-1 bg-royal-gold/20 mx-8 hidden md:block"></div>
-                    
+
                     <span className="text-xs font-bold uppercase tracking-[0.3em] text-[var(--site-muted)]">Curated Collection</span>
                 </div>
 
