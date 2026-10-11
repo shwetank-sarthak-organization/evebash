@@ -962,14 +962,14 @@ How to test:
   3. As a new guest, open a PUBLIC gallery link (joins at once). Expect: Uploads and Comments off.
   4. Turn Admin on for a guest. Expect: Uploads and Comments switch on with it.
   Tests #47 and #48 check what the switches then allow.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Sarthak
+Device / browser: Chrome (website)
+Build / version: website staging after fff63a6
+Date tested: 2026-10-11
+Account used: A code4sarthak (owner), C sarthak.chauhan496 (guest)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  2026-10-11 website pass (steps 1, 3, 4). Still to do: step 2 (approve in the app, new build).
 
 #47 Guests can add photos only when the host allows it (website and app)
 Status:    TODO
