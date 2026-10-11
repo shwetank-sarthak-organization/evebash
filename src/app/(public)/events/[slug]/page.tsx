@@ -10,13 +10,14 @@ import LoadingScreen from "@/components/LoadingScreen";
 import { getEvent } from "@/lib/events"; // Static Data
 import { getEventPhotosPaginated, getEventById, getSubEvents, Event, Photo as DatabasePhoto, getFavouritePhotosForEvents, getEventFavouritePhotos, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery } from "@/lib/database"; // Live Data
 import { useAuth } from "@/context/AuthContext";
-import { Loader2, Image as ImageIcon, ChevronLeft, ChevronDown, Share2, Check, Star, Layers3, Lock, Clock } from "lucide-react";
+import { Loader2, Image as ImageIcon, ChevronLeft, ChevronDown, Share2, Check, Star, Layers3, Lock, Clock, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRef } from "react";
 import { getWebTemplateComponent } from "@/components/templateRegistry";
 import { getWebLightboxTheme, getWebTemplateChrome } from "@/lib/webTemplateTheme";
 import { supabase } from "@/lib/supabase";
+import { uploadEventImage } from "@/lib/storage";
 
 const PUBLIC_PAGE_SIZE = 60;
 
@@ -113,6 +114,11 @@ function EventPageContent() {
     const [requestingAccess, setRequestingAccess] = useState(false);
     const isPublicView = access === "public_view";
     const canUseRealtime = access === "manage" || access === "member";
+    // Guests whose host turned on "Allow Photo Uploads" can add photos here (hosts upload from their dashboard)
+    const [canGuestUpload, setCanGuestUpload] = useState(false);
+    const [guestUpload, setGuestUpload] = useState<{ done: number; total: number } | null>(null);
+    const [guestUploadError, setGuestUploadError] = useState("");
+    const guestFileInputRef = useRef<HTMLInputElement | null>(null);
 
 
     // Parallax logic
@@ -285,6 +291,7 @@ function EventPageContent() {
 
             setAccess(opened.access);
             setGateTitle(opened.title || "");
+            setCanGuestUpload(opened.access === "member" && opened.canUpload);
 
             if (opened.access === "public_view" && opened.event) {
                 await showPublicGallery(opened);
@@ -395,6 +402,27 @@ function EventPageContent() {
             window.alert("We couldn't send your request. Please try again.");
         } finally {
             setRequestingAccess(false);
+        }
+    };
+
+    const handleGuestUpload = async (files: FileList | null) => {
+        const target = activeGallery || event;
+        if (!files?.length || !target || !user) return;
+        const images = Array.from(files).filter(file => file.type.startsWith("image/"));
+        setGuestUploadError(images.length < files.length ? "Only photos can be added here. Videos are added by the host." : "");
+        if (!images.length) return;
+        setGuestUpload({ done: 0, total: images.length });
+        try {
+            for (const [index, file] of images.entries()) {
+                await uploadEventImage(file, target.id, user.uid);
+                setGuestUpload({ done: index + 1, total: images.length });
+            }
+            await loadGalleryPhotos(target, 0, false);
+        } catch (err) {
+            setGuestUploadError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+        } finally {
+            setGuestUpload(null);
+            if (guestFileInputRef.current) guestFileInputRef.current.value = "";
         }
     };
 
@@ -553,6 +581,31 @@ function EventPageContent() {
                         {activeGalleryMessage}
                     </p>
                 )}
+
+                {canGuestUpload && (activeGallery || subEvents.length === 0 ? (
+                    <div className="mt-6 flex flex-col items-center gap-2">
+                        <input
+                            ref={guestFileInputRef}
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => void handleGuestUpload(e.target.files)}
+                        />
+                        <button
+                            type="button"
+                            disabled={!!guestUpload}
+                            onClick={() => guestFileInputRef.current?.click()}
+                            className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-800 disabled:opacity-60"
+                        >
+                            {guestUpload ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                            {guestUpload ? `Uploading ${guestUpload.done}/${guestUpload.total}` : "Add photos"}
+                        </button>
+                        {guestUploadError && <p className="max-w-md text-center text-xs font-semibold text-rose-600">{guestUploadError}</p>}
+                    </div>
+                ) : (
+                    <p className="mt-6 text-center text-xs font-semibold text-stone-500">Open an album to add your photos.</p>
+                ))}
 
                 <div data-royal-control="segments" className="mt-10 inline-flex rounded-2xl border border-stone-200 bg-white p-1 shadow-sm">
                     {([

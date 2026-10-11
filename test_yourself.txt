@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 47
+Next test number: 49
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -961,7 +961,56 @@ How to test:
   2. Same, but approve in the app (new build). Expect: the same.
   3. As a new guest, open a PUBLIC gallery link (joins at once). Expect: Uploads and Comments off.
   4. Turn Admin on for a guest. Expect: Uploads and Comments switch on with it.
-  Note: the switches don't yet stop a guest commenting (issue #39); this test only checks the defaults.
+  Tests #47 and #48 check what the switches then allow.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#47 Guests can add photos only when the host allows it (website and app)
+Status:    TODO
+Priority:  High
+Platform:  Both (website now; app needs a new build from staging; the server check is live)
+Brief:     A guest whose host turned on "Allow Photo Uploads" gets an "Add photos" button in the gallery.
+           Everyone else gets no button, and the server refuses their uploads (issue #40: before, anyone
+           who knew a gallery's id could upload, even logged out). Videos stay owner/admin only.
+How to test:
+  1. As the host, open a gallery → Permissions → a guest → turn on Allow Photo Uploads.
+  2. As that guest on the website, open the gallery (inside an album if it has albums).
+     Expect: an "Add photos" button; pick 2 photos; they upload and appear (previews may take a minute).
+     On the gallery's Home tab with albums: "Open an album to add your photos."
+  3. Same in the app: the member view shows ADD PHOTOS; a sub-gallery opened from a link shows a
+     floating ADD PHOTOS button. Photos upload and show up.
+  4. Turn the switch off and reload as the guest. Expect: no button on website or app.
+  5. As the host, upload photos and a video from the dashboard/app as usual. Expect: still works.
+  6. Guest admin: uploads photos and videos as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#48 Everyone can read comments; only allowed guests can write them (website and app)
+Status:    TODO
+Priority:  High
+Platform:  Both (website now; app needs a new build from staging)
+Brief:     The comment box shows only for the host, admins and guests whose host turned on
+           "Allow Comments". Other members still see all comments, with "The host hasn't turned on
+           comments for you." where the box would be. Likes are unchanged.
+How to test:
+  1. As the host, comment on a photo. Expect: works as before.
+  2. As a guest with Allow Comments OFF, open the same photo → comments.
+     Expect: the host's comment is visible; no text box, no Reply buttons; the note is shown.
+  3. Turn Allow Comments ON for that guest; reopen the photo. Expect: the box and Reply appear;
+     posting works.
+  4. Repeat 2–3 in the app (new build).
 Done by:
 Device / browser:
 Build / version:

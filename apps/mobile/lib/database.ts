@@ -1073,6 +1073,9 @@ export interface OpenedGallery {
     /** public_view only: display fields of the gallery and the sub-galleries of its top-level event */
     event?: Event;
     subEvents: Event[];
+    /** manage: always; member: the host's "Allow Photo Uploads" / "Allow Comments" switches for this viewer */
+    canUpload: boolean;
+    canComment: boolean;
 }
 
 /**
@@ -1098,7 +1101,22 @@ export async function openGallery(ref: string): Promise<OpenedGallery> {
         title: result.title || event?.title,
         event,
         subEvents,
+        canUpload: result.can_upload === true,
+        canComment: result.can_comment === true,
     };
+}
+
+/**
+ * Whether the logged-in viewer may post comments on this photo: gallery managers, and members whose host turned on
+ * "Allow Comments". Everyone who can see the photo can still read its comments.
+ */
+export async function canCommentOnPhoto(photoId: string): Promise<boolean> {
+    const { data, error } = await supabase.rpc('can_comment_on_photo', { p_photo_id: photoId });
+    if (error) {
+        console.warn('[Comments] Could not check comment permission:', error.message);
+        return false;
+    }
+    return data === true;
 }
 
 /** Previews and video streams of a public gallery, for viewers who aren't logged in. Never photo originals. */

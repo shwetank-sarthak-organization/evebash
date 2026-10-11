@@ -8,7 +8,8 @@ import { GalleryAccessGate, GalleryGateState } from '@/components/event/GalleryA
 import { appAlert } from '@/lib/feedback';
 import { useAuth } from '@/context/AuthContext';
 import { getGridThumbnail, getImageUrl } from '@/lib/imageUrl';
-import { subscribeToUploadQueue, clearFinishedUploads } from '@/lib/uploadQueue';
+import { subscribeToUploadQueue, clearFinishedUploads, addToUploadQueue } from '@/lib/uploadQueue';
+import * as ImagePicker from 'expo-image-picker';
 
 
 
@@ -31,6 +32,8 @@ export default function SubEventPhotosScreen() {
   const [loading, setLoading] = useState(true);
   // What this viewer may do with the link (open_gallery)
   const [galleryAccess, setGalleryAccess] = useState<GalleryAccess | null>(null);
+  // Members whose host turned on "Allow Photo Uploads" can add photos here (videos are for the host and admins)
+  const [memberCanUpload, setMemberCanUpload] = useState(false);
   const [galleryOpenFailed, setGalleryOpenFailed] = useState(false);
   const [gateTitle, setGateTitle] = useState('');
   const [requestingAccess, setRequestingAccess] = useState(false);
@@ -96,6 +99,7 @@ export default function SubEventPhotosScreen() {
 
       setGalleryAccess(opened.access);
       setGateTitle(opened.title || '');
+      setMemberCanUpload(opened.access === 'member' && opened.canUpload);
 
       if (opened.access === 'public_view' && opened.event) {
         // Logged out, public gallery: previews and video streams only (never originals)
@@ -239,6 +243,27 @@ export default function SubEventPhotosScreen() {
     );
   }
 
+  const handleAddPhotos = async () => {
+    if (!user?.uid || !subEvent) {
+      appAlert('Login Required', 'Please log in before uploading photos.');
+      return;
+    }
+    let result: ImagePicker.ImagePickerResult;
+    try {
+      result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, allowsMultipleSelection: true, quality: 1.0, exif: false });
+    } catch (err: any) {
+      appAlert('Could Not Open Media Library', err?.message || String(err));
+      return;
+    }
+    if (result.canceled || !result.assets?.length) return;
+    const files = result.assets.map(asset => ({ uri: asset.uri, name: asset.fileName || 'photo.jpg', type: asset.mimeType || 'image/jpeg' }));
+    try {
+      await addToUploadQueue(files, subEvent.id, user.uid, 'photo');
+    } catch (err: any) {
+      appAlert('Error', `Failed to start upload: ${err?.message || err}`);
+    }
+  };
+
   const galleryGate: GalleryGateState | null = galleryOpenFailed
     ? 'error'
     : galleryAccess === 'login_required' || galleryAccess === 'none' || galleryAccess === 'pending' || galleryAccess === 'rejected'
@@ -315,8 +340,20 @@ export default function SubEventPhotosScreen() {
           <View style={styles.emptyContainer}>
             <IconSymbol name="photo" size={64} color="#594C3D" />
             <Text style={styles.emptyText}>No photos uploaded yet.</Text>
-            <Text style={styles.emptySubText}>Use the web dashboard to upload photos to this gallery.</Text>
+            <Text style={styles.emptySubText}>{galleryAccess === 'member' && memberCanUpload ? 'Tap Add photos to share yours.' : 'Use the web dashboard to upload photos to this gallery.'}</Text>
           </View>
+        )}
+
+        {galleryAccess === 'member' && memberCanUpload && (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Add photos"
+            onPress={handleAddPhotos}
+            style={{ position: 'absolute', right: 20, bottom: 36, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 13, borderRadius: 999, backgroundColor: '#CA9C68', elevation: 6, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } }}
+          >
+            <IconSymbol name="plus" size={14} color="#0f172a" />
+            <Text style={{ color: '#0f172a', fontSize: 12, fontWeight: '800', letterSpacing: 1.2 }}>ADD PHOTOS</Text>
+          </TouchableOpacity>
         )}
       </View>
 

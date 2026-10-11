@@ -9,7 +9,7 @@ import { VideoView, createVideoPlayer, type VideoPlayer } from 'expo-video';
 import type { FullscreenOptions } from 'expo-video/build/VideoView.types';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, Event as DatabaseEvent } from '@/lib/database';
+import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, canCommentOnPhoto, Event as DatabaseEvent } from '@/lib/database';
 import { getImageUrl, getOriginalMediaUrl } from '@/lib/imageUrl';
 import { SCREEN_ORIENTATION_LOCK, canLockScreenOrientation, lockScreenOrientation } from '@/lib/screenOrientation';
 import { MidnightColors, Fonts } from '../constants/theme';
@@ -754,6 +754,8 @@ export default function PhotoViewer({
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
+  // Everyone who can see the photo reads its comments; only managers and guests the host allowed can write
+  const [canPostComment, setCanPostComment] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
   const [isCommenting, setIsCommenting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -1007,6 +1009,14 @@ export default function PhotoViewer({
     return () => unsubscribe();
   }, [visible, currentPhoto?.id, readOnly]);
 
+  useEffect(() => {
+    setCanPostComment(false);
+    if (!visible || !currentPhoto?.id || readOnly) return;
+    let active = true;
+    void canCommentOnPhoto(currentPhoto.id).then((allowed) => { if (active) setCanPostComment(allowed); });
+    return () => { active = false; };
+  }, [visible, currentPhoto?.id, readOnly]);
+
   const handleToggleLike = async () => {
     if (!currentPhoto?.id || isLiking) return;
     if (!isLiked) haptic('tap');
@@ -1021,7 +1031,7 @@ export default function PhotoViewer({
   };
 
   const handleAddComment = async () => {
-    if (!currentPhoto?.id || !newComment.trim() || isCommenting) return;
+    if (!currentPhoto?.id || !newComment.trim() || isCommenting || !canPostComment) return;
     setIsCommenting(true);
     try {
       await addComment(currentPhoto.id, viewerIdentity.id, viewerIdentity.name, newComment.trim(), replyingTo?.id);
@@ -1249,9 +1259,11 @@ export default function PhotoViewer({
                           { color: viewerTheme.text }
                         ]}>{comment.text}</Text>
                         <View style={styles.commentActions}>
-                          <TouchableOpacity onPress={() => setReplyingTo(comment)}>
-                            <Text style={[styles.replyBtnText, { color: viewerTheme.text }]}>REPLY</Text>
-                          </TouchableOpacity>
+                          {canPostComment && (
+                            <TouchableOpacity onPress={() => setReplyingTo(comment)}>
+                              <Text style={[styles.replyBtnText, { color: viewerTheme.text }]}>REPLY</Text>
+                            </TouchableOpacity>
+                          )}
                           {comment.userId === viewerIdentity.id && (
                             <TouchableOpacity onPress={() => handleDeleteComment(comment.id)}>
                               <Text style={[styles.deleteBtnText, { color: viewerTheme.text }]}>DELETE</Text>
@@ -1325,27 +1337,35 @@ export default function PhotoViewer({
         </ScrollView>
 
         <View style={[styles.commentComposer, hostGuestbook && localStyles.hostCommentComposer, { backgroundColor: viewerTheme.panel, borderTopColor: viewerTheme.frameBorder }]}>
-          {replyingTo && (
-            <View style={styles.replyingToBanner}>
-              <Text style={styles.replyingToText}>Replying to <Text style={styles.replyingToName}>{replyingTo.userName}</Text></Text>
-              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Cancel reply" onPress={() => setReplyingTo(null)}>
-                <IconSymbol name="xmark" size={14} color="#78716c" />
-              </TouchableOpacity>
-            </View>
+          {canPostComment ? (
+            <>
+              {replyingTo && (
+                <View style={styles.replyingToBanner}>
+                  <Text style={styles.replyingToText}>Replying to <Text style={styles.replyingToName}>{replyingTo.userName}</Text></Text>
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Cancel reply" onPress={() => setReplyingTo(null)}>
+                    <IconSymbol name="xmark" size={14} color="#78716c" />
+                  </TouchableOpacity>
+                </View>
+              )}
+              <View style={styles.commentInputRow}>
+                <TextInput
+                  style={[styles.commentInput, { backgroundColor: viewerTheme.panel, color: viewerTheme.text, borderWidth: 1, borderColor: viewerTheme.frameBorder }]}
+                  accessibilityLabel={replyingTo ? "Write a reply" : "Write a comment"}
+                  placeholder={replyingTo ? "Write a reply..." : "Share a wish..."}
+                  placeholderTextColor={viewerTheme.muted}
+                  value={newComment}
+                  onChangeText={setNewComment}
+                />
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Send comment" style={[styles.commentSendBtn, { backgroundColor: viewerTheme.accent }, (!newComment.trim() || isCommenting) && styles.commentSendBtnDisabled]} onPress={handleAddComment} disabled={!newComment.trim() || isCommenting}>
+                  <IconSymbol name="paperplane.fill" size={18} color={galleryActionText(viewerTheme.accent)} />
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            <Text style={{ color: viewerTheme.muted, fontSize: 12, fontWeight: '700', textAlign: 'center', paddingVertical: 8 }}>
+              The host hasn't turned on comments for you.
+            </Text>
           )}
-          <View style={styles.commentInputRow}>
-            <TextInput
-              style={[styles.commentInput, { backgroundColor: viewerTheme.panel, color: viewerTheme.text, borderWidth: 1, borderColor: viewerTheme.frameBorder }]}
-              accessibilityLabel={replyingTo ? "Write a reply" : "Write a comment"}
-              placeholder={replyingTo ? "Write a reply..." : "Share a wish..."}
-              placeholderTextColor={viewerTheme.muted}
-              value={newComment}
-              onChangeText={setNewComment}
-            />
-            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Send comment" style={[styles.commentSendBtn, { backgroundColor: viewerTheme.accent }, (!newComment.trim() || isCommenting) && styles.commentSendBtnDisabled]} onPress={handleAddComment} disabled={!newComment.trim() || isCommenting}>
-              <IconSymbol name="paperplane.fill" size={18} color={galleryActionText(viewerTheme.accent)} />
-            </TouchableOpacity>
-          </View>
         </View>
       </KeyboardAvoidingView>
     );

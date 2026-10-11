@@ -3,7 +3,7 @@
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Download, Heart, Info, Loader2, Maximize2, MessageCircle, Pause, Play, Search, Send, Share2, Trash2, UserSearch, X } from "lucide-react";
-import { addComment, deletePhotoComment, onPhotoInteractions, toggleLike } from "@/lib/database";
+import { addComment, canCommentOnPhoto, deletePhotoComment, onPhotoInteractions, toggleLike } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import type { GalleryMediaItem, PageFlipThemeConfig } from "./types";
@@ -105,6 +105,8 @@ export function PageFlipSocialBar({
   const [commentText, setCommentText] = useState("");
   const [likePending, setLikePending] = useState(false);
   const [commentPending, setCommentPending] = useState(false);
+  // Everyone who can see the photo reads its comments; only managers and guests the host allowed can write
+  const [canPostComment, setCanPostComment] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [expandedProfileImage, setExpandedProfileImage] = useState<{ src: string; name: string } | null>(null);
   const commentInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -141,6 +143,14 @@ export function PageFlipSocialBar({
     });
     return () => unsubscribe();
   }, [item.id, showLikes, showComments]);
+
+  useEffect(() => {
+    setCanPostComment(false);
+    if (!commentDrawerVisible || !user) return;
+    let active = true;
+    void canCommentOnPhoto(item.id).then((allowed) => { if (active) setCanPostComment(allowed); });
+    return () => { active = false; };
+  }, [item.id, commentDrawerVisible, user]);
 
   useEffect(() => {
     if (!commentDrawerVisible) return;
@@ -184,7 +194,7 @@ export function PageFlipSocialBar({
   const handleAddComment = async (event: React.FormEvent) => {
     event.preventDefault();
     const text = commentText.trim();
-    if (!text || commentPending || text.length > 1000) return;
+    if (!text || commentPending || text.length > 1000 || !canPostComment) return;
 
     const optimisticComment: PhotoInteraction = {
       id: `optimistic-${Date.now()}`,
@@ -396,22 +406,28 @@ export function PageFlipSocialBar({
               )}
             </div>
 
-            <form onSubmit={handleAddComment} className="border-t border-current/10 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-              <div className="flex gap-2">
-                <textarea
-                  ref={commentInputRef}
-                  value={commentText}
-                  onChange={(event) => setCommentText(event.target.value.slice(0, 1000))}
-                  placeholder="Write a comment..."
-                  className="min-h-11 flex-1 resize-none rounded-2xl border border-current/10 bg-black/20 px-4 py-3 text-sm outline-none focus-visible:ring-2"
-                  maxLength={1000}
-                />
-                <button type="submit" disabled={!commentText.trim() || commentPending} className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-full border", config.controlClass)} aria-label="Submit comment" title="Submit comment">
-                  {commentPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                </button>
-              </div>
-              <p className="mt-2 text-right text-[10px] font-bold uppercase tracking-widest opacity-45">{commentText.length}/1000</p>
-            </form>
+            {canPostComment ? (
+              <form onSubmit={handleAddComment} className="border-t border-current/10 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                <div className="flex gap-2">
+                  <textarea
+                    ref={commentInputRef}
+                    value={commentText}
+                    onChange={(event) => setCommentText(event.target.value.slice(0, 1000))}
+                    placeholder="Write a comment..."
+                    className="min-h-11 flex-1 resize-none rounded-2xl border border-current/10 bg-black/20 px-4 py-3 text-sm outline-none focus-visible:ring-2"
+                    maxLength={1000}
+                  />
+                  <button type="submit" disabled={!commentText.trim() || commentPending} className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-full border", config.controlClass)} aria-label="Submit comment" title="Submit comment">
+                    {commentPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="mt-2 text-right text-[10px] font-bold uppercase tracking-widest opacity-45">{commentText.length}/1000</p>
+              </form>
+            ) : (
+              <p className="border-t border-current/10 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-xs font-bold opacity-60">
+                {user ? "The host hasn't turned on comments for you." : "Log in to comment."}
+              </p>
+            )}
           </div>
         </div>
       )}

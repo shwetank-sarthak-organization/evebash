@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment } from "@/lib/database";
+import { onPhotoInteractions, toggleLike, addComment, deletePhotoComment, canCommentOnPhoto } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
 import { getImageUrl } from "@/lib/imageUrl";
 import { Heart, MessageCircle, Send, X, Download, ChevronLeft, ChevronRight, Trash2, Loader2, Image as ImageIcon, RotateCcw, RotateCw, Star } from "lucide-react";
@@ -113,6 +113,8 @@ export function Lightbox({
     const [replyingTo, setReplyingTo] = useState<PhotoInteractionComment | null>(null);
     const [isLiking, setIsLiking] = useState(false);
     const [isCommenting, setIsCommenting] = useState(false);
+    // Everyone who can see the photo reads its comments; only managers and guests the host allowed can write
+    const [canPostComment, setCanPostComment] = useState(false);
     const [imageLoading, setImageLoading] = useState(true);
     const [imageError, setImageError] = useState(false);
     const [imageSrc, setImageSrc] = useState("");
@@ -183,6 +185,14 @@ export function Lightbox({
             return () => unsubscribe();
         }
     }, [photo?.id, isOpen]);
+
+    useEffect(() => {
+        setCanPostComment(false);
+        if (!photo?.id || !isOpen || !user) return;
+        let active = true;
+        void canCommentOnPhoto(photo.id).then((allowed) => { if (active) setCanPostComment(allowed); });
+        return () => { active = false; };
+    }, [photo?.id, isOpen, user]);
 
     useEffect(() => {
         if (showComments && comments.length > 0) {
@@ -690,16 +700,18 @@ export function Lightbox({
                                                                 <div className="p-4 rounded-2xl rounded-tl-none border shadow-sm group" style={{ backgroundColor: viewerTheme.tile, borderColor: viewerTheme.border }}>
                                                                     <p className="text-[13px] leading-relaxed font-sans" style={{ color: viewerTheme.muted }}>{comment.text}</p>
                                                                     <div className="mt-2 flex items-center space-x-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                        <button
-                                                                            onClick={() => {
-                                                                                setReplyingTo(comment);
-                                                                                commentInputRef.current?.focus();
-                                                                            }}
-                                                                            className="text-[10px] font-bold uppercase tracking-widest"
-                                                                            style={{ color: viewerTheme.accent }}
-                                                                        >
-                                                                            Reply
-                                                                        </button>
+                                                                        {canPostComment && (
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    setReplyingTo(comment);
+                                                                                    commentInputRef.current?.focus();
+                                                                                }}
+                                                                                className="text-[10px] font-bold uppercase tracking-widest"
+                                                                                style={{ color: viewerTheme.accent }}
+                                                                            >
+                                                                                Reply
+                                                                            </button>
+                                                                        )}
                                                                         {comment.userId === identity.id && (
                                                                             <button
                                                                                 onClick={() => handleDeleteComment(comment.id)}
@@ -756,48 +768,54 @@ export function Lightbox({
                                     </div>
 
                                     <div className="p-8 border-t shadow-[0_-10px_30px_rgba(0,0,0,0.02)]" style={{ backgroundColor: viewerTheme.panel, borderColor: viewerTheme.border }}>
-                                        <form onSubmit={handleAddComment} className="space-y-4">
-                                            {replyingTo && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, height: 0 }}
-                                                    animate={{ opacity: 1, height: 'auto' }}
-                                                    className="flex items-center justify-between px-4 py-2 rounded-xl border"
-                                                    style={{ backgroundColor: viewerTheme.accentBg, borderColor: viewerTheme.border }}
-                                                >
-                                                    <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: viewerTheme.muted }}>
-                                                        Replying to <span style={{ color: viewerTheme.accent }}>{replyingTo.userName}</span>
-                                                    </span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setReplyingTo(null)}
-                                                        className="hover:text-rose-500 transition-colors"
-                                                        style={{ color: viewerTheme.muted }}
+                                        {canPostComment ? (
+                                            <form onSubmit={handleAddComment} className="space-y-4">
+                                                {replyingTo && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, height: 0 }}
+                                                        animate={{ opacity: 1, height: 'auto' }}
+                                                        className="flex items-center justify-between px-4 py-2 rounded-xl border"
+                                                        style={{ backgroundColor: viewerTheme.accentBg, borderColor: viewerTheme.border }}
                                                     >
-                                                        <X size={14} />
-                                                    </button>
-                                                </motion.div>
-                                            )}
+                                                        <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: viewerTheme.muted }}>
+                                                            Replying to <span style={{ color: viewerTheme.accent }}>{replyingTo.userName}</span>
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setReplyingTo(null)}
+                                                            className="hover:text-rose-500 transition-colors"
+                                                            style={{ color: viewerTheme.muted }}
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    </motion.div>
+                                                )}
 
-                                            <div className="relative group">
-                                                <input
-                                                    ref={commentInputRef}
-                                                    type="text"
-                                                    placeholder={replyingTo ? "Write a reply..." : "Share a wish..."}
-                                                    value={newComment}
-                                                    onChange={(e) => setNewComment(e.target.value)}
-                                                    className="w-full pl-6 pr-14 py-5 border rounded-[1.5rem] text-sm focus:outline-none focus:ring-4 transition-all font-sans"
-                                                    style={{ backgroundColor: viewerTheme.tile, borderColor: viewerTheme.border, color: viewerTheme.text }}
-                                                />
-                                                <button
-                                                    type="submit"
-                                                    disabled={!newComment.trim() || isCommenting}
-                                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-3 rounded-xl disabled:opacity-20 transition-all active:scale-90 shadow-xl"
-                                                    style={{ backgroundColor: viewerTheme.accent, color: viewerTheme.background }}
-                                                >
-                                                    <Send size={18} />
-                                                </button>
-                                            </div>
-                                        </form>
+                                                <div className="relative group">
+                                                    <input
+                                                        ref={commentInputRef}
+                                                        type="text"
+                                                        placeholder={replyingTo ? "Write a reply..." : "Share a wish..."}
+                                                        value={newComment}
+                                                        onChange={(e) => setNewComment(e.target.value)}
+                                                        className="w-full pl-6 pr-14 py-5 border rounded-[1.5rem] text-sm focus:outline-none focus:ring-4 transition-all font-sans"
+                                                        style={{ backgroundColor: viewerTheme.tile, borderColor: viewerTheme.border, color: viewerTheme.text }}
+                                                    />
+                                                    <button
+                                                        type="submit"
+                                                        disabled={!newComment.trim() || isCommenting}
+                                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-3 rounded-xl disabled:opacity-20 transition-all active:scale-90 shadow-xl"
+                                                        style={{ backgroundColor: viewerTheme.accent, color: viewerTheme.background }}
+                                                    >
+                                                        <Send size={18} />
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        ) : (
+                                            <p className="text-center text-xs font-bold" style={{ color: viewerTheme.muted }}>
+                                                {user ? "The host hasn't turned on comments for you." : "Log in to comment."}
+                                            </p>
+                                        )}
                                         <div className="mt-4 flex items-center justify-center space-x-2">
                                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                             <p className="text-[10px] font-bold uppercase tracking-widest leading-none" style={{ color: viewerTheme.muted }}>Posting as {identity.name}</p>

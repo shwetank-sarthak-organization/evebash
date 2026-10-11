@@ -633,6 +633,8 @@ export default function EventDetailScreen() {
   const [loading, setLoading] = useState(true);
   // What this viewer may do with the link (open_gallery)
   const [galleryAccess, setGalleryAccess] = useState<GalleryAccess | null>(null);
+  // Members whose host turned on "Allow Photo Uploads" can add photos from the gallery view
+  const [memberCanUpload, setMemberCanUpload] = useState(false);
   const [galleryOpenFailed, setGalleryOpenFailed] = useState(false);
   const [gateTitle, setGateTitle] = useState('');
   const [requestingAccess, setRequestingAccess] = useState(false);
@@ -1283,6 +1285,7 @@ export default function EventDetailScreen() {
 
       setGalleryAccess(opened.access);
       setGateTitle(opened.title || '');
+      setMemberCanUpload(opened.access === 'member' && opened.canUpload);
 
       if (opened.access === 'public_view' && opened.event) {
         await showPublicGallery(opened.event, opened.subEvents);
@@ -6297,6 +6300,24 @@ export default function EventDetailScreen() {
                       )}
                     </View>
                   </View>
+                )}
+
+                {galleryAccess === 'member' && memberCanUpload && activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you' && (
+                  activeSubEvent || subEvents.length === 0 ? (
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel="Add photos"
+                      onPress={handleUploadGalleryPhoto}
+                      style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 12, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 999, backgroundColor: selectedTemplate.accent }}
+                    >
+                      <IconSymbol name="plus" size={14} color={galleryActionText(selectedTemplate.accent)} />
+                      <Text style={{ color: galleryActionText(selectedTemplate.accent), fontSize: 12, fontWeight: '800', letterSpacing: 1.2 }}>ADD PHOTOS</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <Text style={{ alignSelf: 'center', marginVertical: 12, color: selectedTemplate.muted, fontSize: 12, fontWeight: '700' }}>
+                      Open an album to add your photos.
+                    </Text>
+                  )
                 )}
 
                 <ThemeDivider selectedTemplate={selectedTemplate} styles={styles} />
