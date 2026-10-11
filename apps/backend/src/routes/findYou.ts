@@ -42,6 +42,17 @@ function isFindYouAccessRequired() {
   return process.env.FIND_YOU_REQUIRE_ACCESS?.trim().toLowerCase() === "true";
 }
 
+// Off until app builds with the consent screen are out: older builds can't ask for consent
+function isFindYouConsentRequired() {
+  return process.env.FIND_YOU_REQUIRE_CONSENT?.trim().toLowerCase() === "true";
+}
+
+// get_find_you_consent's answer for the signed-in user; anything but a clear "consented" blocks the search
+export async function hasFindYouConsent(getConsent: () => Promise<unknown>) {
+  const result = (await getConsent()) as { consented?: unknown } | null;
+  return result?.consented === true;
+}
+
 type ModalMatch = {
   id?: string;
   imageId?: string;
@@ -136,6 +147,26 @@ findYouRouter.post("/", async (request, response) => {
 
     const requireAccess = isFindYouAccessRequired();
     let accessCheckedUserId: string | undefined;
+    if (isFindYouConsentRequired()) {
+      const consentUser = await verifySupabaseUser(request).catch(() => null);
+      if (!consentUser) {
+        response.status(401).json({ error: "Log in to use Find You." });
+        return;
+      }
+      const consentClient = getSupabaseUserClient(getBearerToken(request));
+      const consented = await hasFindYouConsent(async () => {
+        const { data, error } = await consentClient.rpc("get_find_you_consent");
+        if (error) throw error;
+        return data;
+      });
+      if (!consented) {
+        response.status(403).json({
+          error: "Please agree to the Find You consent before searching.",
+          code: "FIND_YOU_CONSENT_REQUIRED",
+        });
+        return;
+      }
+    }
     if (requireAccess) {
       if (eventIds.length > MAX_FIND_YOU_EVENTS) {
         response.status(400).json({ error: `Search at most ${MAX_FIND_YOU_EVENTS} galleries at a time.` });

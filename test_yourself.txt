@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 104
+Next test number: 107
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2491,6 +2491,77 @@ How to test:
   6. Choose it again, then hide the video from guests (eye button): the guest page shows no video; show it again
      and it's back. Delete the video: the guest page shows no video and nothing breaks.
   7. A gallery in another theme with a gallery video chosen: its guest page looks exactly as before (no video yet).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#104 Website asks for Find You consent before the first selfie
+Status:    TODO
+Priority:  High
+Platform:  Website
+Brief:     Find You now shows a consent step (18+ and face data) before the selfie buttons.
+Detail:    Needs migration 20261011000000_find_you_consent.sql applied to Supabase. Without it the
+           step still shows, but the consent is not saved (asked again on every visit).
+How to test (account that has never used Find You):
+  1. Open a gallery's Find You page. Expect: "Before you use Find You" with 4 points, a
+     Privacy Policy link and two checkboxes. No selfie buttons yet.
+  2. Tick only one box. Expect: "Agree and continue" stays disabled.
+  3. Tick both, press "Agree and continue". Expect: selfie buttons appear; a search works.
+  4. Reload the page. Expect: no consent step this time.
+  5. Settings > "Withdraw Find You Consent" > Withdraw. Expect: "Find You consent withdrawn."
+     Open Find You again: the consent step is back.
+  6. Logged out, open /find-you. Expect: "Find You needs an EveBash account" with a login link.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#105 App asks for Find You consent before the first selfie
+Status:    TODO
+Priority:  High
+Platform:  App (new build from staging with the Find You consent commit)
+Brief:     Same consent step inside the gallery's Find You tab, and a withdraw row in Settings.
+How to test (account that has never used Find You, or withdraw first):
+  1. Open a gallery > Find You. Expect: consent card instead of "Upload Photo" / "Take Selfie".
+  2. "Read the Privacy Policy (section 4)" opens the policy in the browser.
+  3. Tick both boxes, "Agree and continue". Expect: the two buttons appear; a search works.
+  4. Close and reopen the app, open Find You. Expect: no consent card.
+  5. Settings > Privacy > "Withdraw Find You Consent" > Withdraw. Expect: toast "Find You
+     consent withdrawn." Find You shows the consent card again.
+  6. Everything else that talks to the server still works in this build (login, gallery,
+     uploads, video playback): plain-HTTP traffic is now off in release builds.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#106 Backend refuses Find You searches without consent
+Status:    BLOCKED
+Priority:  Medium
+Platform:  Website + App
+Brief:     With FIND_YOU_REQUIRE_CONSENT=true on Railway the backend refuses a search from anyone
+           who hasn't agreed. Blocked until the app build from #105 is what testers and users have;
+           older app builds have no consent step and would be refused.
+How to test (after the flag is turned on):
+  1. Account with consent: search on website and app. Expect: works as before.
+  2. Give consent in the app, withdraw it on the website, then search from the app screen that
+     was already open. Expect: the app shows the consent card again, not results or an error.
 Done by:
 Device / browser:
 Build / version:

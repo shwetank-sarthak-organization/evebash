@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { checkFindYouAccess } from '../src/routes/findYou.js';
+import { checkFindYouAccess, hasFindYouConsent } from '../src/routes/findYou.js';
 
 test('Find You is allowed only for galleries the user owns, manages or has joined', async () => {
   const accessByRef: Record<string, string | null> = {
@@ -49,4 +49,12 @@ test('Find You leaves out photos the host hid from guests; a failed lookup filte
   assert.deepEqual(asked[0], ['p1', 'p2']);
   assert.equal((await findHiddenMediaIds([], admin([{ id: 'x' }]))).size, 0);
   assert.equal((await findHiddenMediaIds(['p1'], admin(null, { code: '42703' }))).size, 0);
+});
+
+test('Find You consent counts only a clear yes from the database', async () => {
+  assert.equal(await hasFindYouConsent(async () => ({ version: '2026-10-11.1', consented: true })), true);
+  for (const answer of [{ consented: false }, { consented: 'true' }, {}, null, undefined]) {
+    assert.equal(await hasFindYouConsent(async () => answer), false);
+  }
+  await assert.rejects(hasFindYouConsent(async () => { throw new Error('rpc missing'); }), /rpc missing/);
 });
