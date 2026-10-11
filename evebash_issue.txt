@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 27
+Next issue number: 38
 
 =====================================================================
 ACTIVE ISSUES
@@ -47,17 +47,6 @@ Blocked by: #21 (lockdown part 2: the save function only allows platform admins 
 Found in: Visibility switch work (2026-10-09)
 Issue: No public/private switch for galleries in the admin dashboard. Platform admins can't change visibility of galleries they don't own anywhere on the website.
 How to reproduce: Open a gallery in the admin dashboard Events grid: there is no visibility control.
-
-#11
-Listed: 2026-10-09
-Platform: Website
-Priority: Medium
-Status: Blocked
-Owner: Sarthak (decision)
-Blocked by: Deferred by Sarthak 2026-10-10 (do after launch-critical work)
-Found in: SEO audit (2026-10-04)
-Issue: SEO gaps: every page shares one title and description, no Open Graph/Twitter tags on most pages, no canonical tags, and gallery pages (/events/*) are indexable. Needs a server layout.tsx per route segment for metadata.
-How to reproduce: View source of /pricing, /contact and /sample-galleries: same <title> and description, no og: tags or canonical link.
 
 #17
 Listed: 2026-10-09
@@ -138,9 +127,142 @@ Found in: Tenant-auth route removal (c776f01)
 Issue: Leftovers from the old tenant section are still in the database: function is_phone_allowed and tables allowed_users and pending_requests. No code uses them any more (tenantAuth routes removed in c776f01). Drop them in a migration once the OK is given; check nothing else references them first.
 How to reproduce: In the Supabase SQL editor, select * from allowed_users and from pending_requests; \df is_phone_allowed.
 
+#27
+Listed: 2026-10-11
+Platform: Website
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: The Dashboard shows a floating chat bubble (off-brand amber) that opens "EveBash Messages" with made-up conversations ("Arjun & Priya's Wedding", "Rohan (Photographer)"). Typed messages only go into page state and reach nobody. Every logged-in user sees it. Hide it or remove it until real chat exists. src/app/(main)/dashboard/page.tsx (mock conversations ~line 80, button ~line 731).
+How to reproduce: Log in on the website, open /dashboard and click the round chat button at the bottom right.
+
+#28
+Listed: 2026-10-11
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: Real gallery photos with permission (Sarthak)
+Found in: Website UI re-check (2026-10-11)
+Issue: The new homepage phone mockup and the Find You visual use coloured gradient squares instead of real photos, which looks unfinished for a photo product. src/components/home/GalleryPreview.tsx and FindYouFeature.tsx.
+How to reproduce: Open the homepage: the "gallery" grid in the hero is plain gradients.
+
+#29
+Listed: 2026-10-11
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: On phones the homepage headline (the LCP element) appears at 4.3 s; Lighthouse puts 81% of it in render delay. Likely cause: three self-hosted font families with italic styles (Inter, Playfair Display, Akaya Kanadaka in src/app/fonts.ts), with the headline waiting on Playfair. Lighthouse phone performance is 80.
+How to reproduce: npx -y lighthouse@12 https://staging.evebash.com/ --only-categories=performance and check largest-contentful-paint-element.
+
+#30
+Listed: 2026-10-11
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: Find You now needs a login, but the homepage (FindYouFeature.tsx) and FAQ (HomeFaq.tsx) say a guest just uploads one selfie and never mention an account.
+How to reproduce: Open an event's /find-you page logged out: "Log in to use Find You". Compare with the homepage Find You section and FAQ.
+
+#31
+Listed: 2026-10-11
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: App store release
+Found in: Website UI re-check (2026-10-11)
+Issue: The homepage and FAQ say EveBash works "in the EveBash app for Android and iOS", but the app is not in the stores yet. HomeFaq.tsx, FindYouFeature.tsx, GuestFeatures.tsx. Reword until the store listings are live, or add store links when they are.
+How to reproduce: Read the FAQ answer "Is there a mobile app?" on the homepage.
+
+#32
+Listed: 2026-10-11
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: Real sample galleries (Sarthak)
+Found in: Website UI re-check (2026-10-11)
+Issue: Sample galleries still show test data: one sample ("Wedding") whose albums are named "Rec 1", "REc 10", "Rec 2"..., listed in text order (Rec 10 before Rec 2, localeCompare without numeric in src/lib/database.ts getSubEvents), and the "Rec 5" cover image is broken.
+How to reproduce: Open /sample-galleries/wedding-fdd8 and look at the album cards.
+
+#33
+Listed: 2026-10-11
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: Real numbers and host quotes (Sarthak)
+Found in: Website UI re-check (2026-10-11)
+Issue: The homepage has no proof: no event or photo counts, host quotes or studio logos. This is now the lowest-scoring factor in the UI rating (3/10).
+How to reproduce: Scroll the homepage: no testimonials or numbers section.
+
+#34
+Listed: 2026-10-11
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: Navbar links use the decorative brand font (Akaya Kanadaka) at body text size, which is harder to read than Inter. src/components/Navbar.tsx (desktop links and mobile menu).
+How to reproduce: Open any marketing page and read the navbar links.
+
+#35
+Listed: 2026-10-11
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: staging.evebash.com is open to search engines: robots.txt allows everything and no noindex header is sent. Canonical links point to www.evebash.com, which limits the risk. Serve Disallow: / (or X-Robots-Tag: noindex) on non-production hosts.
+How to reproduce: curl https://staging.evebash.com/robots.txt
+
+#36
+Listed: 2026-10-11
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: Below-the-fold homepage sections (ScrollReveal) and the login card (motion.div in the login page) start at opacity 0 and only appear after their animation runs, so they stay blank if scripts are slow or the tab is in the background.
+How to reproduce: Load the homepage with JavaScript throttled, or in a background tab, and scroll: sections appear late.
+
+#37
+Listed: 2026-10-11
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Website UI re-check (2026-10-11)
+Issue: The sample-gallery album page (/sample-galleries/[client]) uses the generic title "Sample galleries · EveBash" instead of the album name.
+How to reproduce: Open /sample-galleries/wedding-fdd8 and check the browser tab title.
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#11
+Listed: 2026-10-09
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: SEO audit (2026-10-04)
+Issue: SEO gaps: every page shares one title and description, no Open Graph/Twitter tags on most pages, no canonical tags, and gallery pages (/events/*) are indexable. Needs a server layout.tsx per route segment for metadata.
+How to reproduce: View source of /pricing, /contact and /sample-galleries: same <title> and description, no og: tags or canonical link.
+Fixed in: 62e70d9 (2026-10-06) per-page titles, descriptions, canonical, OG/Twitter tags and image, robots.txt (disallows /events/) and sitemap; c977c07 + 142be3d (2026-10-09) event link previews (cover only for public galleries) and sitemap RPC. Verified on staging.evebash.com 2026-10-11. Not live until staging is deployed to production (www.evebash.com still serves the 2026-09-27 build).
 
 #10
 Listed: 2026-10-09
