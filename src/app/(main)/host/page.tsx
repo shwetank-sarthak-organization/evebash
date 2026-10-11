@@ -3295,9 +3295,10 @@ function DashboardContent() {
         { id: "request", label: "Requests", count: pendingGuestRequests.length, Icon: UserPlus },
     ] as const;
     const eventDetailPendingLogs = eventDetailLogs.filter(log => log.status === "pending");
-    const eventDetailAdminLogs = eventDetailLogs.filter(log => log.status === "approved" && !!log.canAdmin);
-    const eventDetailMemberLogs = eventDetailLogs.filter(log => log.status === "approved" && !log.canAdmin);
-    const eventDetailVisibleLogsCount = eventDetailPendingLogs.length + eventDetailAdminLogs.length + eventDetailMemberLogs.length;
+    // Admins and members share one table in list order, so a row doesn't jump when its Admin switch flips
+    const eventDetailApprovedLogs = eventDetailLogs.filter(log => log.status === "approved");
+    const eventDetailAdminCount = eventDetailApprovedLogs.filter(log => !!log.canAdmin).length;
+    const eventDetailVisibleLogsCount = eventDetailPendingLogs.length + eventDetailApprovedLogs.length;
     const planDetails = getPlanDetails(user.role);
     const subscriptionStatus = getSubscriptionStatus({
         role: user.role,
@@ -3348,100 +3349,174 @@ function DashboardContent() {
         return isFullManager ? "Full Manager" : "Event Manager";
     };
 
-    const renderEventDetailPermissionCard = (log: EventDetailLog) => {
-        const loginDate = log.loginAt?.seconds
-            ? new Date(log.loginAt.seconds * 1000).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
-            : "Unknown";
-        const contact = log.email || log.phone || "No contact";
-        const hasAdminAccess = Boolean(log.canAdmin);
-        const hasUploadAccess = hasAdminAccess || Boolean(log.canUpload);
-        const hasCommentAccess = hasAdminAccess || Boolean(log.canComment);
-        const permissionBadges = log.status === "pending"
-            ? [{ label: "Pending", icon: RefreshCw, className: "border-sky-400/30 bg-sky-400/10 text-sky-300" }]
-            : log.status === "rejected"
-                ? [{ label: "Denied", icon: X, className: "border-rose-400/30 bg-rose-400/10 text-rose-300" }]
-                : [
-                    { label: "View", icon: Eye, className: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" },
-                    ...(hasAdminAccess ? [{ label: "Admin", icon: ShieldCheck, className: "border-[#CA9C68]/30 bg-[#CA9C68]/10 text-[#CA9C68]" }] : []),
-                    ...(hasUploadAccess ? [{ label: "Upload", icon: Camera, className: "border-purple-400/30 bg-purple-400/10 text-purple-300" }] : []),
-                    ...(hasCommentAccess ? [{ label: "Comment", icon: MessageCircle, className: "border-cyan-400/30 bg-cyan-400/10 text-cyan-300" }] : []),
-                ];
+    // Guest list on the Permissions tab: one row per guest with a switch per permission. From xl up it's a
+    // table (Member / Role / Permissions / Actions); below that each row stacks into a card.
+    // Borders use plain border-slate-800 (globals.css re-themes it); divide-slate-800, xl:border-slate-800 and bg-slate-800/60 fall through to cream.
+    const renderEventDetailPermissionTable = (logs: EventDetailLog[], isPending: boolean) => {
+        const columns = isPending
+            ? "xl:grid-cols-[minmax(0,1fr)_8rem_repeat(4,5.5rem)_16rem]"
+            : "xl:grid-cols-[minmax(0,1fr)_8rem_repeat(4,5.5rem)_6.5rem]";
+        const headerLabel = "text-[11px] font-black uppercase tracking-[0.16em] text-slate-500";
+        const permissionColumns = [
+            { key: "view", label: "View" },
+            { key: "canAdmin", label: "Admin" },
+            { key: "canUpload", label: "Upload" },
+            { key: "canComment", label: "Comment" },
+        ] as const;
 
         return (
-            <div
-                key={log.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setSelectedGuestLog(log)}
-                onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") setSelectedGuestLog(log);
-                }}
-                className="flex cursor-pointer flex-col gap-3 rounded-[1.5rem] border border-slate-700 bg-slate-900/50 p-4 transition-colors hover:border-[#CA9C68]/50 hover:bg-slate-900 lg:flex-row lg:items-center"
-            >
-                <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#CA9C68]/10 text-sm font-black text-[#CA9C68]">
-                        {(log.name || "G").charAt(0)}
-                    </div>
-                    <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <h5 className="truncate text-base font-black text-white">{log.name || "Guest"}</h5>
-                        </div>
-                        <p className="truncate text-xs font-bold text-slate-400">{contact} • {loginDate}</p>
-                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                            {permissionBadges.map(({ label, icon: Icon, className }) => (
-                                <span
-                                    key={label}
-                                    className={cn(
-                                        "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-widest",
-                                        className
-                                    )}
-                                >
-                                    <Icon className="h-3 w-3" />
-                                    {label}
-                                </span>
-                            ))}
-                        </div>
-                    </div>
+            <div className="overflow-hidden rounded-[1.5rem] border border-slate-700 bg-slate-900/50">
+                <div className={cn("hidden border-b border-slate-700 bg-slate-900 xl:grid", columns)}>
+                    <div className={cn("row-span-2 self-center px-5 py-3", headerLabel)}>Member</div>
+                    <div className={cn("row-span-2 flex items-center border-l border-slate-800 px-4", headerLabel)}>Role</div>
+                    <div className="col-span-4 border-b border-l border-slate-800 py-2.5 text-center text-[11px] font-black uppercase tracking-[0.18em] text-[#CA9C68]">Permissions</div>
+                    <div className={cn("row-span-2 flex items-center justify-end border-l border-slate-800 px-5", headerLabel)}>Actions</div>
+                    {permissionColumns.map(({ key, label }) => (
+                        <div key={key} className={cn("border-l border-slate-800 px-2 py-2.5 text-center", headerLabel)}>{label}</div>
+                    ))}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                    {log.status === "pending" && (
-                        <>
-                            <button
-                                onClick={async (event) => {
-                                    event.stopPropagation();
-                                    await handleGuestStatusUpdate(log.id, "approved");
-                                }}
-                                className="rounded-full bg-emerald-500/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-emerald-300"
-                            >
-                                Approve
-                            </button>
-                            <button
-                                onClick={async (event) => {
-                                    event.stopPropagation();
-                                    if (await handleGuestStatusUpdate(log.id, "rejected")) {
-                                        setEventDetailLogs(prev => prev.filter(item => item.id !== log.id));
-                                    }
-                                }}
-                                className="rounded-full bg-rose-500/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-rose-300"
-                            >
-                                Deny
-                            </button>
-                        </>
-                    )}
-                    <button
-                        onClick={async (event) => {
-                            event.stopPropagation();
+                <div>
+                    {logs.map((log) => {
+                        const guestName = log.name || "Guest";
+                        const loginDate = log.loginAt?.seconds
+                            ? new Date(log.loginAt.seconds * 1000).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+                            : "Unknown";
+                        const contact = log.email || log.phone || "No contact";
+                        const hasAdminAccess = Boolean(log.canAdmin);
+                        const role = isPending
+                            ? { label: "Pending", icon: RefreshCw, className: "border-sky-400/30 bg-sky-400/10 text-sky-300" }
+                            : hasAdminAccess
+                                ? { label: "Admin", icon: ShieldCheck, className: "border-[#CA9C68]/30 bg-[#CA9C68]/10 text-[#CA9C68]" }
+                                : { label: "Member", icon: Users, className: "border-slate-700 bg-slate-800 text-slate-300" };
+                        const RoleIcon = role.icon;
+                        const roleBadge = (
+                            <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-widest", role.className)}>
+                                <RoleIcon className="h-3 w-3" />
+                                {role.label}
+                            </span>
+                        );
+                        const removeGuest = async () => {
                             // Only drop the row once it's really deleted (not on Cancel or a failed request); otherwise the
                             // guest looked removed but kept their approved row and got straight back in when asking again
                             if (await handleGuestDelete(log.id)) {
                                 setEventDetailLogs(prev => prev.filter(item => item.id !== log.id));
                             }
-                        }}
-                        className="rounded-full border border-slate-700 px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-300"
-                    >
-                        Delete
-                    </button>
+                        };
+
+                        return (
+                            <div
+                                key={log.id}
+                                className={cn(
+                                    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-4 border-t border-slate-800 p-4 transition-colors first:border-t-0 hover:bg-slate-900 xl:items-stretch xl:gap-0 xl:p-0",
+                                    columns
+                                )}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedGuestLog(log)}
+                                    title="View guest details"
+                                    className="group/member col-start-1 row-start-1 flex min-w-0 items-center gap-3 text-left xl:px-5 xl:py-3.5"
+                                >
+                                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#CA9C68]/10 text-sm font-black text-[#CA9C68]">
+                                        {guestName.charAt(0)}
+                                    </span>
+                                    <span className="min-w-0">
+                                        <span className="block truncate text-base font-black text-white transition-colors group-hover/member:text-[#CA9C68]">{guestName}</span>
+                                        <span className="block truncate text-xs font-bold text-slate-400">{contact} • {loginDate}</span>
+                                        <span className="mt-2 flex xl:hidden">{roleBadge}</span>
+                                    </span>
+                                </button>
+
+                                <div className="hidden items-center border-l border-slate-800 px-4 xl:flex">{roleBadge}</div>
+
+                                <div className="col-span-2 row-start-2 grid grid-cols-4 gap-2 rounded-2xl border border-slate-800 bg-slate-950/40 p-3 xl:contents">
+                                    {permissionColumns.map(({ key, label }) => {
+                                        let control: React.ReactNode;
+                                        if (key === "view") {
+                                            // Not a switch: approved guests can always view; removing a guest is the trash button
+                                            control = isPending ? (
+                                                <span className="flex h-7 items-center text-sm font-black text-slate-600" aria-label="Can't view until approved">—</span>
+                                            ) : (
+                                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#CA9C68]/10 text-[#CA9C68]" aria-label="Can view" title="Approved guests can view this event">
+                                                    <Check className="h-4 w-4" />
+                                                </span>
+                                            );
+                                        } else {
+                                            // Admins always get uploads and comments, so those switches show on and are locked
+                                            const impliedByAdmin = key !== "canAdmin" && hasAdminAccess;
+                                            const isOn = Boolean(log[key]) || impliedByAdmin;
+                                            control = (
+                                                <button
+                                                    type="button"
+                                                    role="switch"
+                                                    aria-checked={isOn}
+                                                    aria-label={`${label} for ${guestName}`}
+                                                    title={impliedByAdmin ? "Admins can always upload and comment" : undefined}
+                                                    disabled={impliedByAdmin}
+                                                    onClick={() => void handleGuestPermissionToggle(log, key)}
+                                                    className={cn(
+                                                        "relative h-7 w-12 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68]/60 disabled:cursor-not-allowed disabled:opacity-50",
+                                                        isOn ? "bg-[#CA9C68]" : "bg-slate-700"
+                                                    )}
+                                                >
+                                                    <span className={cn(
+                                                        "absolute left-0 top-1 h-5 w-5 rounded-full bg-white transition-transform",
+                                                        isOn ? "translate-x-6" : "translate-x-1"
+                                                    )} />
+                                                </button>
+                                            );
+                                        }
+
+                                        return (
+                                            <div key={key} className="flex flex-col items-center gap-2 border-slate-800 xl:justify-center xl:border-l xl:px-2 xl:py-3.5">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 xl:hidden">{label}</span>
+                                                {control}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className={cn(
+                                    "flex items-center justify-end gap-2 border-slate-800 xl:col-span-1 xl:col-start-auto xl:row-start-auto xl:border-l xl:px-5 xl:py-3.5",
+                                    isPending ? "col-span-2 row-start-3" : "col-start-2 row-start-1"
+                                )}>
+                                    {isPending && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleGuestStatusUpdate(log.id, "approved")}
+                                                className="flex-1 rounded-full bg-emerald-500/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-emerald-300 xl:flex-none"
+                                            >
+                                                Approve
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={async () => {
+                                                    if (await handleGuestStatusUpdate(log.id, "rejected")) {
+                                                        setEventDetailLogs(prev => prev.filter(item => item.id !== log.id));
+                                                    }
+                                                }}
+                                                className="flex-1 rounded-full bg-rose-500/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-rose-300 xl:flex-none"
+                                            >
+                                                Deny
+                                            </button>
+                                        </>
+                                    )}
+                                    {/* Plain title, not <Tooltip>: its hidden bubble pokes past the table's clipped right edge */}
+                                    <button
+                                        type="button"
+                                        onClick={() => void removeGuest()}
+                                        aria-label={`Remove ${guestName}`}
+                                        title="Remove guest"
+                                        className="rounded-xl border border-slate-700 bg-slate-800 p-2.5 text-slate-400 transition-colors hover:border-rose-400/30 hover:bg-rose-500/10 hover:text-rose-400"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         );
@@ -4342,25 +4417,19 @@ function DashboardContent() {
                                                                 <h5 className="text-sm font-black uppercase tracking-[0.18em] text-slate-400">
                                                                     Pending Requests ({eventDetailPendingLogs.length})
                                                                 </h5>
-                                                                {eventDetailPendingLogs.map(renderEventDetailPermissionCard)}
+                                                                {renderEventDetailPermissionTable(eventDetailPendingLogs, true)}
                                                             </section>
                                                         )}
 
-                                                        {eventDetailAdminLogs.length > 0 && (
-                                                            <section className="space-y-3">
-                                                                <h5 className="text-sm font-black uppercase tracking-[0.18em] text-[#CA9C68]">
-                                                                    Admins ({eventDetailAdminLogs.length})
-                                                                </h5>
-                                                                {eventDetailAdminLogs.map(renderEventDetailPermissionCard)}
-                                                            </section>
-                                                        )}
-
-                                                        {eventDetailMemberLogs.length > 0 && (
+                                                        {eventDetailApprovedLogs.length > 0 && (
                                                             <section className="space-y-3">
                                                                 <h5 className="text-sm font-black uppercase tracking-[0.18em] text-slate-400">
-                                                                    Members ({eventDetailMemberLogs.length})
+                                                                    Members ({eventDetailApprovedLogs.length})
+                                                                    {eventDetailAdminCount > 0 && (
+                                                                        <span className="text-[#CA9C68]"> · {eventDetailAdminCount} {eventDetailAdminCount === 1 ? "Admin" : "Admins"}</span>
+                                                                    )}
                                                                 </h5>
-                                                                {eventDetailMemberLogs.map(renderEventDetailPermissionCard)}
+                                                                {renderEventDetailPermissionTable(eventDetailApprovedLogs, false)}
                                                             </section>
                                                         )}
                                                     </div>

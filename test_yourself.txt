@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 49
+Next test number: 50
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1011,6 +1011,33 @@ How to test:
   3. Turn Allow Comments ON for that guest; reopen the photo. Expect: the box and Reply appear;
      posting works.
   4. Repeat 2–3 in the app (new build).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#49 Permissions tab shows guests as a table with switches (website)
+Status:    TODO
+Priority:  Medium
+Platform:  Website
+Brief:     Host dashboard → event → Permissions now lists guests in a table: Member, Role, then
+           View / Admin / Upload / Comment switches, then Actions. Same gold/dark colours and fonts.
+           Pending requests have their own table with Approve / Deny. Admins and members share one
+           "Members" table. On screens under 1280px wide each guest is a card with the same switches.
+How to test:
+  1. As the host on a computer (window 1280px or wider), open an event with pending and approved
+     guests → Permissions. Expect: two tables lined up as described; nothing cut off or scrolling sideways.
+  2. Turn Upload on for a member. Expect: "Guest permissions updated."; reload, still on.
+  3. Turn Admin on for a member. Expect: role changes to Admin, Upload and Comment show on and greyed
+     (locked), and the row stays in place.
+  4. Pending guest: Approve → moves to Members. Another: Deny → disappears.
+  5. Trash icon → confirm → guest is removed. Cancel on the confirm → guest stays.
+  6. Click a guest's name. Expect: the guest details panel opens as before.
+  7. Repeat 2–5 on a phone. Expect: cards with labelled switches, no sideways scrolling, names not cut short.
 Done by:
 Device / browser:
 Build / version:
