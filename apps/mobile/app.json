@@ -11,7 +11,8 @@
     "primaryColor": "#CA9C68",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.wed-albummobile"
+      "bundleIdentifier": "com.evebash.app",
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -27,7 +28,7 @@
         "android.permission.READ_MEDIA_VIDEO",
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
       ],
-      "package": "com.anonymous.evebash",
+      "package": "com.evebash.app",
       "versionCode": 25,
       "usesCleartextTraffic": true,
       "googleServicesFile": "./google-services.json"
@@ -96,7 +97,12 @@
       "expo-web-browser",
       "@react-native-community/datetimepicker",
       "expo-video",
-      "@react-native-google-signin/google-signin",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.71982315150-e883v8ajl6qqnsgg3a7clqd9a5t4s9qk"
+        }
+      ],
       "expo-sharing"
     ],
     "extra": {

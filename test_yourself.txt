@@ -20,11 +20,11 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 51
+Next test number: 53
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-10-10
+Last updated: 2026-10-11
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -1071,3 +1071,55 @@ Account used: A code4sarthak (owner), B chauhansarthak497
 Screenshot / recording:
 Fix ref:   fff63a6 (2026-10-11)
 Feedback:  2026-10-11 steps 3-4 pass (done as test #38 part 4: B sent back from the pasted link; owner fine). Step 2 pass too: B was sent back to /host after Admin was turned off with the page open. All steps pass.
+
+#51 Android app with the new package com.evebash.app: sign-in and push still work
+Status:    TODO
+Priority:  High
+Platform:  App (Android)
+Brief:     The Android package changed from com.anonymous.evebash to com.evebash.app (#41). The new
+           build installs as a separate app next to the old one. Google sign-in and push depend on the
+           new Firebase Android app, google-services.json and SHA-1s (#18), so test only once those are in.
+How to test:
+  1. Uninstall the old staging app (otherwise you'll have two "EveBash" icons and pushes may go to both).
+  2. Install the new staging build. Expect: it opens normally; Settings → Apps shows com.evebash.app.
+  3. Log in with Google. Expect: signed in to your existing account (same galleries), no
+     DEVELOPER_ERROR or "something went wrong".
+  4. Log out, log in with email and password. Expect: works as before.
+  5. Allow notifications. From another account, trigger a push (e.g. upload a video to a shared
+     gallery and wait for it to finish). Expect: the push arrives on the new app.
+  6. Open an evebash:// link (e.g. a shared gallery QR). Expect: opens in the new app.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#52 iOS app with the new bundle ID com.evebash.app: Apple and Google sign-in and push work
+Status:    TODO
+Priority:  High
+Platform:  App (iOS)
+Brief:     The iOS bundle ID changed from com.anonymous.wed-albummobile to com.evebash.app (#17), and the
+           build now asks for the Sign in with Apple entitlement (ios.usesAppleSignIn). Needs the App ID
+           with Sign in with Apple + Push in Apple Developer, and com.evebash.app in Supabase's Apple
+           Client IDs. Google sign-in needs the iOS OAuth client, the iosUrlScheme in app.json and
+           EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID in EAS (#42).
+How to test:
+  1. Remove any older EveBash dev build from the phone. Install the new build (TestFlight or internal).
+  2. Log in with Apple. Expect: signed in; an account that used Apple before gets the same account
+     back (same galleries), not a new empty one.
+  3. Log out, log in with Google. Expect: the Google sheet opens, you come back to the app signed in
+     to your existing account. NOT a crash, "missing URL scheme" or a Supabase nonce error.
+  4. Log out, log in with email and password. Expect: works as before.
+  5. Allow notifications. Trigger a push from another account (as in #51 step 5). Expect: it arrives.
+  6. Open an evebash:// link (shared gallery QR). Expect: opens in the app.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:

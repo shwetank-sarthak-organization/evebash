@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 42
+Next issue number: 44
 
 =====================================================================
 ACTIVE ISSUES
@@ -69,6 +69,7 @@ Blocked by: -
 Found in: Store launch review (2026-10-03)
 Issue: Google sign-in will fail (DEVELOPER_ERROR) on Play and EAS-signed Android builds: Firebase only has the debug-keystore SHA-1. Add the Play app-signing and EAS upload-key SHA-1s before store release.
 How to reproduce: Install an EAS-signed or Play build and tap "Continue with Google": DEVELOPER_ERROR.
+Update 2026-10-11: for the new package com.evebash.app (#41) the debug and EAS upload-key SHA-1s are in Firebase, and their Android OAuth clients exist in Google Cloud (made by hand; Firebase did not create them). Only the Play app-signing SHA-1 is left: add it to the Firebase app com.evebash.app and as a Google Cloud Android OAuth client after the first Play upload.
 
 #19
 Listed: 2026-10-09
@@ -175,12 +176,34 @@ How to reproduce: On /host, delete a gallery, then open a date picker; on /profi
 Listed: 2026-10-11
 Platform: App
 Priority: High
-Status: Blocked
-Owner: Sarthak (decision)
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: Decision: the app's final Android package name (decide together with #17)
 Found in: Preparing the #17 bundle ID work (2026-10-11)
 Issue: The Android package is still the placeholder com.anonymous.evebash (apps/mobile/app.json android.package, and apps/mobile/google-services.json). It becomes permanent at the first Play Store upload. Changing it needs a new Firebase Android app (new google-services.json), Google OAuth Android client and SHA-1s (see #18).
 How to reproduce: Check android.package in apps/mobile/app.json.
+
+#42
+Listed: 2026-10-11
+Platform: App
+Priority: High
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: #17 bundle ID work (2026-10-11)
+Issue: Google sign-in can't work on iOS builds. The @react-native-google-signin/google-signin plugin in apps/mobile/app.json has no iosUrlScheme (the reversed iOS client ID), so the sign-in redirect URL scheme is never registered, and AuthContext.tsx falls back to iosClientId 'YOUR_IOS_CLIENT_ID_HERE' when EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID is not set. Fix: create the iOS OAuth client for com.evebash.app, set the plugin's iosUrlScheme to com.googleusercontent.apps.<id>, and set EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID in EAS for all build profiles.
+How to reproduce: Build for iOS and tap "Continue with Google".
+
+#43
+Listed: 2026-10-11
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: #17 bundle ID work (2026-10-11)
+Issue: The repo root still has an old tracked Android project (android/, 37 files) and a stub app.json, both using the package com.anonymous.weddingapp. The real app is apps/mobile, and EAS builds from there. The leftovers are confusing and show up in ID searches. Confirm nothing uses them, then delete them.
+How to reproduce: git ls-files android app.json
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
