@@ -3,13 +3,18 @@ import assert from 'node:assert/strict';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { canPostEventVideo, isVideoUpload } from '../src/services/eventVideoPermission.js';
 
+// Real guests columns (no email): a query on a missing column fails here as it does in Supabase
+const guestColumns = ['id', 'user_id', 'phone', 'event_id', 'parent_event_id', 'status', 'can_admin', 'can_upload', 'can_comment'];
+function assertColumn(table: string, key: string) {
+  if (table === 'guests' && !guestColumns.includes(key)) throw new Error(`column guests.${key} does not exist`);
+}
 function database(tables: Record<string, Record<string, unknown>[]>) {
   return { from(table: string) {
     let rows = tables[table] || [];
     const query = {
       select() { return query; },
-      eq(key: string, value: unknown) { rows = rows.filter(row => row[key] === value); return query; },
-      in(key: string, values: unknown[]) { rows = rows.filter(row => values.includes(row[key])); return query; },
+      eq(key: string, value: unknown) { assertColumn(table, key); rows = rows.filter(row => row[key] === value); return query; },
+      in(key: string, values: unknown[]) { assertColumn(table, key); rows = rows.filter(row => values.includes(row[key])); return query; },
       limit(n: number) { rows = rows.slice(0, n); return query; },
       maybeSingle() { return Promise.resolve({ data: rows[0] || null, error: null }); },
       then(resolve: (value: unknown) => unknown) { return Promise.resolve({ data: rows, error: null }).then(resolve); },
@@ -24,14 +29,15 @@ test('video detection cannot be bypassed by changing only resourceType to image'
 });
 test('only event owners and scoped event administrators may post videos', async () => {
   const db = database({ events, profiles: [{ id: 'delegate', role_type: 'primary', delegated_by: 'owner' }, { id: 'assigned', role_type: 'event' }], profile_assigned_events: [{ profile_id: 'assigned', event_id: 'root' }], guests: [
-    { id: '1', email: 'admin@example.com', event_id: 'root', status: 'approved', can_admin: true },
-    { id: '2', email: 'member@example.com', event_id: 'root', status: 'approved', can_admin: false, can_upload: true },
-    { id: '3', email: 'pending@example.com', event_id: 'root', status: 'pending', can_admin: true },
-    { id: '4', email: 'outsider@example.com', event_id: 'different', status: 'approved', can_admin: true },
+    { id: '1', user_id: 'admin', event_id: 'root', status: 'approved', can_admin: true },
+    { id: '5', phone: 'legacyadmin@example.com', event_id: 'root', status: 'approved', can_admin: true },
+    { id: '2', user_id: 'member', event_id: 'root', status: 'approved', can_admin: false, can_upload: true },
+    { id: '3', user_id: 'pending', event_id: 'root', status: 'pending', can_admin: true },
+    { id: '4', user_id: 'outsider', event_id: 'different', status: 'approved', can_admin: true },
   ] });
-  for (const id of ['owner', 'creator', 'admin', 'delegate', 'assigned']) assert.equal(await canPostEventVideo(db, user(id), 'child'), true, id);
+  for (const id of ['owner', 'creator', 'admin', 'legacyadmin', 'delegate', 'assigned']) assert.equal(await canPostEventVideo(db, user(id), 'child'), true, id);
   for (const id of ['member', 'pending', 'outsider', 'stranger']) assert.equal(await canPostEventVideo(db, user(id), 'child'), false, id);
-  assert.equal(await canPostEventVideo(db, user('admin', false), 'child'), false);
+  assert.equal(await canPostEventVideo(db, user('legacyadmin', false), 'child'), false, 'an unconfirmed email never matches an old row');
   assert.equal(await canPostEventVideo(db, user('owner'), 'missing'), false);
 });
 

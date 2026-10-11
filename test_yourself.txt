@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 44
+Next test number: 45
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -894,6 +894,28 @@ How to test:
   2. Turn each of those three off and on. Expect: saves, still shows after a refresh.
   3. Remove the guest (website: Delete on their row; app: the remove button on their card).
      Expect: they disappear from the list; on a private gallery they see "Request access" again.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#44 Guest admin can upload videos; normal guests can't (website)
+Status:    TODO
+Priority:  Medium
+Platform:  Website (app needs no change; it uses the same backend)
+Brief:     The "may this person upload videos?" check crashed (500) for guest admins: it looked up a
+           guests.email column that doesn't exist. It now matches guest admins by their login.
+How to test:
+  1. As a guest admin (Admin Access on), open the gallery's upload page with DevTools open.
+     Expect: no red 500 on video-upload-permission; uploading a short video works.
+  2. As a normal guest with Allow Photo Uploads on, try to upload a video.
+     Expect: refused with "videos are reserved for the owner and admins"; photos still upload.
+  Note: a red 404 for can_manage_event_visibility on the guest admin page is expected until RLS
+  lockdown part 2 (#21); it only means guest admins don't get the public/private switch yet.
 Done by:
 Device / browser:
 Build / version:

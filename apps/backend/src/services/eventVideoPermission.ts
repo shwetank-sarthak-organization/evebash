@@ -31,9 +31,12 @@ export async function canPostEventVideo(db: SupabaseClient, user: User, eventId:
   const { data: assigned, error: assignedError } = await db.from('profile_assigned_events').select('event_id').eq('profile_id', user.id).in('event_id', ids);
   if (assignedError) throw assignedError;
   if (profile?.role_type === 'event' && assigned?.length) return true;
-  const identities = [user.id, user.email_confirmed_at ? user.email?.toLowerCase() : undefined, user.phone_confirmed_at ? user.phone : undefined].filter((v): v is string => Boolean(v));
+  // guests has no email column: rows are matched by user_id; old rows kept the email or phone in guests.phone.
+  const legacyIdentities = [user.email_confirmed_at ? user.email?.toLowerCase() : undefined, user.phone_confirmed_at ? user.phone : undefined].filter((v): v is string => Boolean(v));
+  const lookups: Array<[string, string[]]> = [['user_id', [user.id]], ['phone', legacyIdentities]];
   for (const eventColumn of ['event_id', 'parent_event_id']) {
-    for (const identityColumn of ['email', 'phone']) {
+    for (const [identityColumn, identities] of lookups) {
+      if (!identities.length) continue;
       const { data, error } = await db.from('guests').select('id').eq('status', 'approved').eq('can_admin', true).in(eventColumn, ids).in(identityColumn, identities).limit(1);
       if (error) throw error;
       if (data?.length) return true;
