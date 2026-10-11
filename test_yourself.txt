@@ -768,7 +768,7 @@ Feedback:
 
 --------------------------------------------------------------------------------
 #38 Host can still manage guests (approve, permissions, remove)
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website
 Brief:     Guest management now checks your real login (security fix, issue #23). Make sure hosts
@@ -778,14 +778,14 @@ How to test:
      upload/comment/admin switches, remove a guest. Expect: all work, no "log in" or "forbidden".
   2. Make a guest an admin; log in as that guest admin and approve another request. Expect: works.
   3. As a normal guest (not admin) you should not see these controls at all.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Sarthak
+Device / browser: Chrome (website)
+Build / version: website staging after fff63a6
+Date tested: 2026-10-11
+Account used: A code4sarthak (owner), B chauhansarthak497 (guest admin, then normal guest), C sarthak.chauhan496
 Screenshot / recording:
 Fix ref:   363c5aa (2026-10-10)
-Feedback:
+Feedback:  2026-10-11 all 5 parts pass. Found on the way and fixed: join box cut codes at 6 chars (49af6d1), View Access switch removed (20bc0e8), guest-admin video check 500 (46c4063), removed guest got back in (2b0c1fa), management screen open to non-managers (fff63a6).
 
 --------------------------------------------------------------------------------
 #39 Storage used shows the same number on website and app
@@ -940,14 +940,14 @@ How to test:
   3. As that guest, open the gallery link and request access.
      Expect: "Request sent" (pending), NOT straight in. The host sees the request under Requests.
   4. Repeat 2–3 in the app (host removes with the trash icon). Expect: the same.
-Done by:
-Device / browser:
+Done by:   Sarthak
+Device / browser: Chrome (website)
 Build / version:
-Date tested:
-Account used:
+Date tested: 2026-10-11
+Account used: A code4sarthak (owner), B chauhansarthak497
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  2026-10-11 website steps 1-3 pass (done as test #38 part 5). Still to do: step 4 in the app (new build).
 
 #46 New guests start with uploads and comments off (website and app)
 Status:    TODO
@@ -1063,11 +1063,11 @@ How to test:
   3. As B, paste the management link (/host?view=manage&level=event-details&eventId=<id>).
      Expect: sent back to /host with the same message.
   4. As the owner and as a guest admin, open the screen. Expect: works as before.
-Done by:
-Device / browser:
+Done by:   Sarthak
+Device / browser: Chrome (website)
 Build / version:
-Date tested:
-Account used:
+Date tested: 2026-10-11
+Account used: A code4sarthak (owner), B chauhansarthak497
 Screenshot / recording:
 Fix ref:   fff63a6 (2026-10-11)
-Feedback:
+Feedback:  2026-10-11 steps 3-4 pass (done as test #38 part 4: B sent back from the pasted link; owner fine). Still to do: step 2 (B's page open while the host turns Admin off, then B flips a switch).
