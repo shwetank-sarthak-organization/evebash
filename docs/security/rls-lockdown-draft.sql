@@ -104,20 +104,29 @@ language sql stable security definer set search_path = '' as $$
   select p.event_id from public.photos p where p.id = p_photo_id
 $$;
 
--- Viewers may comment unless the host turned commenting off for them
+-- Comments: managers, and approved members whose host turned on "Allow Comments" (off for new members). Everyone who
+-- can view a gallery can still read its comments.
 create or replace function eb_private.can_comment_on_photo(p_photo_id text) returns boolean
 language plpgsql stable security definer set search_path = '' as $$
 declare v_event text := eb_private.photo_event_id(p_photo_id); v_root text;
 begin
   if auth.uid() is null or v_event is null then return false; end if;
   if eb_private.can_manage_event(v_event) then return true; end if;
-  if v_event not in (select eb_private.viewable_event_ids()) then return false; end if;
   v_root := eb_private.root_event_id(v_event);
-  return not exists (
+  return exists (
     select 1 from public.guests g
-    where g.user_id = auth.uid()::text and g.event_id in (v_event, v_root) and g.can_comment = false
+    where g.user_id = auth.uid()::text and g.event_id in (v_event, v_root)
+      and g.status = 'approved' and coalesce(g.can_comment, false)
   );
 end $$;
+
+-- For the website and app: show the comment box only when this is true
+create or replace function public.can_comment_on_photo(p_photo_id text) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select eb_private.can_comment_on_photo(p_photo_id)
+$$;
+revoke all on function public.can_comment_on_photo(text) from public, anon;
+grant execute on function public.can_comment_on_photo(text) to authenticated;
 
 create or replace function eb_private.resolve_event(p_ref text) returns text
 language sql stable security definer set search_path = '' as $$
@@ -219,6 +228,8 @@ declare
   v_status text;
   v_public jsonb;
   v_sample boolean;
+  v_can_upload boolean := false;
+  v_can_comment boolean := false;
 begin
   if v_id is null then return jsonb_build_object('access', 'not_found'); end if;
   select * into v_root from public.events where id = eb_private.root_event_id(v_id);
@@ -226,18 +237,25 @@ begin
   v_sample := coalesce(v_root.is_sample_gallery, false);
 
   if eb_private.can_manage_event(v_id) then
-    return jsonb_build_object('access', 'manage', 'event_id', v_id);
+    return jsonb_build_object('access', 'manage', 'event_id', v_id, 'can_upload', true, 'can_comment', true);
   end if;
 
   if v_uid is not null then
-    select g.status into v_status from public.guests g
+    select g.status, coalesce(g.can_upload, false), coalesce(g.can_comment, false)
+      into v_status, v_can_upload, v_can_comment from public.guests g
      where g.user_id = v_uid and g.event_id in (v_id, v_root.id)
      order by (g.status = 'approved') desc limit 1;
-    if v_status = 'approved' then return jsonb_build_object('access', 'member', 'event_id', v_id); end if;
+    -- What the host allowed this member (website and app show the upload button and comment box from these)
+    if v_status = 'approved' then
+      return jsonb_build_object('access', 'member', 'event_id', v_id, 'can_upload', v_can_upload, 'can_comment', v_can_comment);
+    end if;
     if v_root.is_public then
       -- Public galleries are joined on open, including by people whose earlier request was pending or rejected
       v_status := public.request_gallery_access(v_id);
-      if v_status = 'approved' then return jsonb_build_object('access', 'member', 'event_id', v_id); end if;
+      -- Just joined (or asked again): uploads and comments start off
+      if v_status = 'approved' then
+        return jsonb_build_object('access', 'member', 'event_id', v_id, 'can_upload', false, 'can_comment', false);
+      end if;
     end if;
     if not v_sample then
       -- A rejection isn't final: a rejected guest sees the same "request access" screen as someone who never asked

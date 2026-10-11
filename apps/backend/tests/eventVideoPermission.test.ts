@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
-import { canPostEventVideo, isVideoUpload } from '../src/services/eventVideoPermission.js';
+import { canPostEventPhoto, canPostEventVideo, isVideoUpload } from '../src/services/eventVideoPermission.js';
 
 // Real guests columns (no email): a query on a missing column fails here as it does in Supabase
 const guestColumns = ['id', 'user_id', 'phone', 'event_id', 'parent_event_id', 'status', 'can_admin', 'can_upload', 'can_comment'];
@@ -55,4 +55,42 @@ test('upload middleware blocks anonymous videos across web, chunked and mobile e
     });
     assert.equal(status, 401, path);
   }
+});
+
+test('photos: managers and guests with uploads on; videos stay managers only', async () => {
+  const db = database({ events, profiles: [{ id: 'platform', role: 'admin' }, { id: 'delegatedAdmin', role: 'admin', delegated_by: 'someone' }], profile_assigned_events: [], guests: [
+    { id: '1', user_id: 'uploader', event_id: 'root', status: 'approved', can_upload: true, can_admin: false },
+    { id: '2', user_id: 'viewer', event_id: 'root', status: 'approved', can_upload: false, can_admin: false },
+    { id: '3', user_id: 'pendingUploader', event_id: 'root', status: 'pending', can_upload: true, can_admin: false },
+    { id: '4', user_id: 'elsewhere', event_id: 'different', status: 'approved', can_upload: true, can_admin: false },
+  ] });
+  // An upload switch on the top-level gallery covers its sub-galleries
+  for (const id of ['owner', 'platform', 'uploader']) assert.equal(await canPostEventPhoto(db, user(id), 'child'), true, id);
+  for (const id of ['viewer', 'pendingUploader', 'elsewhere', 'stranger', 'delegatedAdmin']) assert.equal(await canPostEventPhoto(db, user(id), 'child'), false, id);
+  assert.equal(await canPostEventVideo(db, user('platform'), 'child'), true, 'platform admins manage every gallery');
+  assert.equal(await canPostEventVideo(db, user('uploader'), 'child'), false, 'uploads switch never allows videos');
+});
+
+async function runGuard(path: string, body: Record<string, unknown>) {
+  const { mediaRouter } = await import('../src/routes/media.js');
+  const guard = mediaRouter.stack.find(layer => !layer.route)!.handle;
+  return new Promise<number | 'next'>((resolve, reject) => {
+    let code = 200;
+    const req = { method: 'POST', path, body, get: () => '' };
+    const res = { status(value: number) { code = value; return res; }, json() { resolve(code); } };
+    guard(req as never, res as never, (error?: unknown) => error ? reject(error) : resolve('next'));
+  });
+}
+
+test('logged-out photo uploads to a gallery are refused; profile and business uploads pass through', async () => {
+  delete process.env.PHOTO_UPLOADS_REQUIRE_PERMISSION;
+  const photo = { eventId: 'some-gallery-1a2b', fileName: 'photo.jpg', resourceType: 'image' };
+  for (const path of ['/get-upload-url', '/save-photo', '/mobile/get-upload-url']) assert.equal(await runGuard(path, photo), 401, path);
+  assert.equal(await runGuard('/save-photo-batch', { photos: [photo] }), 401);
+  assert.equal(await runGuard('/get-upload-url', { scope: 'profile', fileName: 'me.jpg', resourceType: 'image' }), 'next');
+  assert.equal(await runGuard('/get-upload-url', { eventId: 'business-cover-123', fileName: 'c.jpg', resourceType: 'image' }), 'next');
+
+  process.env.PHOTO_UPLOADS_REQUIRE_PERMISSION = 'false';
+  assert.equal(await runGuard('/get-upload-url', photo), 'next', 'kill switch restores the old behaviour');
+  delete process.env.PHOTO_UPLOADS_REQUIRE_PERMISSION;
 });

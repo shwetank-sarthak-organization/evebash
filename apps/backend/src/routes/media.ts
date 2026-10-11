@@ -1,4 +1,4 @@
-import { canPostEventVideo, isVideoUpload } from "../services/eventVideoPermission.js";
+import { canPostEventPhoto, canPostEventVideo, isPhotoUploadPermissionRequired, isVideoUpload } from "../services/eventVideoPermission.js";
 import { saveVideoThumbnail, ThumbnailError } from "../services/videoThumbnail.js";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
@@ -570,13 +570,28 @@ mediaRouter.use(asyncRoute(async (request, response, next) => {
     entries.push({ eventId: data.event_id, storageKey: data.storage_key, media_type: data.media_type, resource_type: data.resource_type });
   }
   if (request.path === "/upload/chunk/initiate" && body.resourceType === undefined) entries[0].resourceType = "video";
+  const galleryOf = (entry: Record<string, unknown>) => String(entry.eventId || String(entry.storageKey || '').match(/^events\/([^/]+)\//)?.[1] || '');
   const videos = entries.filter(isVideoUpload);
-  if (!videos.length) return next();
+  // Gallery photos (not profile pictures, and not Phase 2 business portfolios, which use made-up "business-" ids)
+  const photoGalleries = isPhotoUploadPermissionRequired() && body.scope !== "profile"
+    ? new Set<string>(entries.filter((entry: Record<string, unknown>) => !isVideoUpload(entry)).map(galleryOf)
+        .filter((eventId: string) => eventId && !eventId.startsWith("business-")))
+    : new Set<string>();
+  if (!videos.length && !photoGalleries.size) return next();
   const verified = await verifyRequestUser(request);
-  if (!verified) return jsonError(response, 401, "Sign in as the event owner or an event admin to upload videos.");
-  const ids = new Set<string>(videos.map((entry: Record<string, unknown>) => String(entry.eventId || String(entry.storageKey || '').match(/^events\/([^/]+)\//)?.[1] || '')));
-  for (const eventId of ids) {
+  if (!verified) {
+    return jsonError(response, 401, videos.length
+      ? "Sign in as the event owner or an event admin to upload videos."
+      : "Log in to upload photos to this gallery.");
+  }
+  for (const eventId of new Set<string>(videos.map(galleryOf))) {
     if (!eventId || !await canPostEventVideo(getSupabaseAdminClient(), verified.user, eventId)) return jsonError(response, 403, "Only the event owner and event admins can upload videos. Your upload permission allows photos only.");
+  }
+  for (const eventId of photoGalleries) {
+    if (!await canPostEventPhoto(getSupabaseAdminClient(), verified.user, eventId)) {
+      response.status(403).json({ success: false, code: "upload_not_allowed", error: "The host hasn't allowed you to upload photos to this gallery." });
+      return;
+    }
   }
   next();
 }));

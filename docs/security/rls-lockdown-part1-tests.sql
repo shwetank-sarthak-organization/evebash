@@ -189,7 +189,9 @@ set local role authenticated;
 insert into _r (who, check_name, expected, actual) values
   ('member', 'opens private gallery',             'member', public.open_gallery('part1-private') ->> 'access'),
   ('member', 'opens by join code with real id',   'part1-private', public.open_gallery('part1-join-private') ->> 'event_id'),
-  ('member', 'asking again stays approved',       'approved', public.request_gallery_access('part1-private'));
+  ('member', 'asking again stays approved',       'approved', public.request_gallery_access('part1-private')),
+  ('member', 'gets own switches (upload/comment)', 'false/true', (select (g ->> 'can_upload') || '/' || (g ->> 'can_comment') from (select public.open_gallery('part1-private') g) x)),
+  ('member', 'may comment: switch on',            'true', public.can_comment_on_photo('part1-p1')::text);
 reset role;
 
 select set_config('request.jwt.claims', '{"sub":"77777777-7777-4777-8777-777777777777","role":"authenticated","email":"rejected@part1.test"}', true);
@@ -201,6 +203,10 @@ insert into _r (who, check_name, expected, actual) values
 insert into _r (who, check_name, expected, actual) values
   ('rejected', 'reopening shows pending',          'pending', public.open_gallery('part1-private') ->> 'access'),
   ('rejected', 'rejected on a public gallery joins on open', 'member', public.open_gallery('part1-public') ->> 'access');
+insert into _r (who, check_name, expected, actual) values
+  ('rejected', 'joined public: uploads and comments off', 'false/false', (select (g ->> 'can_upload') || '/' || (g ->> 'can_comment') from (select public.open_gallery('part1-public') g) x)),
+  ('rejected', 'joined public: may not comment',  'false', public.can_comment_on_photo('part1-p2')::text),
+  ('rejected', 'may not comment where not a member', 'false', public.can_comment_on_photo('part1-p1')::text);
 reset role;
 
 select set_config('request.jwt.claims', '{"sub":"88888888-8888-4888-8888-888888888888","role":"authenticated","email":"pending@part1.test"}', true);
@@ -212,7 +218,9 @@ reset role;
 select set_config('request.jwt.claims', '{"sub":"22222222-2222-4222-8222-222222222222","role":"authenticated","email":"gadmin@part1.test"}', true);
 set local role authenticated;
 insert into _r (who, check_name, expected, actual) values
-  ('guest_admin', 'opens as manager',             'manage', public.open_gallery('part1-private') ->> 'access');
+  ('guest_admin', 'opens as manager',             'manage', public.open_gallery('part1-private') ->> 'access'),
+  ('guest_admin', 'manager may upload and comment', 'true/true', (select (g ->> 'can_upload') || '/' || (g ->> 'can_comment') from (select public.open_gallery('part1-private') g) x)),
+  ('guest_admin', 'may comment',                  'true', public.can_comment_on_photo('part1-p1')::text);
 reset role;
 
 select set_config('request.jwt.claims', '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated","email":"owner@part1.test"}', true);
@@ -220,6 +228,7 @@ set local role authenticated;
 insert into _r (who, check_name, expected, actual) values
   ('owner', 'opens own private gallery',          'manage', public.open_gallery('part1-private') ->> 'access'),
   ('owner', 'opens own public gallery',           'manage', public.open_gallery('part1-public') ->> 'access'),
+  ('owner', 'may comment on own gallery',         'true', public.can_comment_on_photo('part1-p2')::text),
   ('owner', 'join code resolves to real id',      'part1-private', public.open_gallery('part1-join-private') ->> 'event_id'),
   ('owner', 'opening own gallery adds no guest row', '0', (select count(*) from public.guests where user_id = '11111111-1111-4111-8111-111111111111')::text),
   ('owner', 'can write deletion record',          'ok', pg_temp.try_call($$select 'ok' from (select public.archive_deleted_event('part1-fav', 1, 0, 100, 'user_web', now())) x$$)),
@@ -280,6 +289,7 @@ reset role;
 -- ── Facts checked as postgres ──────────────────────────────────────────────────
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
 insert into _r (who, check_name, expected, actual) values
+  ('db', 'anon cannot run can_comment_on_photo', 'false', has_function_privilege('anon', 'public.can_comment_on_photo(text)', 'execute')::text),
   ('db', 'public join wrote an approved guest row with account', 'approved/false', (select g.status || '/' || g.can_comment::text from public.guests g where g.user_id = '44444444-4444-4444-8444-444444444444' and g.event_id = 'part1-public')),
   ('db', 'pending row approved after opening public', 'approved', (select status from public.guests where id = 'u_88888888-8888-4888-8888-888888888888_part1-public')),
   ('db', 'rejected row approved after opening public', 'approved', (select status from public.guests where id = 'u_77777777-7777-4777-8777-777777777777_part1-public')),
