@@ -56,7 +56,7 @@ function eventDateValue(date?: string): number | null {
 function sortEvents(list: DatabaseEvent[], sortKey: SortKey): DatabaseEvent[] {
   const sorted = [...list];
   if (sortKey === 'name') {
-    return sorted.sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' }));
+    return sorted.sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { numeric: true, sensitivity: 'base' }));
   }
   if (sortKey === 'date_desc' || sortKey === 'date_asc') {
     const direction = sortKey === 'date_desc' ? -1 : 1;

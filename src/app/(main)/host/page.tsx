@@ -1266,7 +1266,7 @@ function DashboardContent() {
 
                 if (!isMounted) return;
 
-                setEventDetailGalleries(galleries.sort((a, b) => (a.title || "").localeCompare(b.title || "")));
+                setEventDetailGalleries(galleries.sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" })));
                 setEventDetailLogs(logs);
             } catch (error) {
                 console.error("Error loading event detail sections:", error);
@@ -1364,7 +1364,7 @@ function DashboardContent() {
                 }
             });
 
-            const sorted = combined.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+            const sorted = combined.sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
 
             // Event managers only see events explicitly assigned to them.
             if (user.roleType === 'event') {
@@ -2068,7 +2068,7 @@ function DashboardContent() {
             }
             setMessage("Your event has been created! ✨");
             if (isSubEvent) {
-                setEventDetailGalleries(prev => [...prev, newEvent].sort((a, b) => (a.title || "").localeCompare(b.title || "")));
+                setEventDetailGalleries(prev => [...prev, newEvent].sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" })));
             }
             setEventName("");
             setEventDate(formatCreateEventDate(new Date()));

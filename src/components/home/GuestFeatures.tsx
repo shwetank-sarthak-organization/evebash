@@ -7,11 +7,11 @@ const features = [
     { icon: FolderTree, title: "Albums and categories", text: "Organize each event into albums, so every ceremony has its own place." },
     { icon: LockKeyhole, title: "Access control", text: "Decide who sees each event: an open gallery, or one only invited guests can view." },
     { icon: QrCode, title: "Link or QR code", text: "Share it in a message, or print it for the venue." },
-    { icon: ScanFace, title: "Find You", text: "Guests upload a selfie and see the photos they appear in." },
+    { icon: ScanFace, title: "Find You", text: "Guests log in, upload a selfie and see the photos they appear in." },
     { icon: Download, title: "Download all", text: "Clients and guests save a single photo or the whole gallery in one go." },
     { icon: Heart, title: "Favourites, likes and comments", text: "Guests mark the shots they love and leave a note." },
     { icon: LayoutTemplate, title: "Gallery designs", text: "Pick a template that matches the feel of your event." },
-    { icon: Smartphone, title: "Web, Android and iOS", text: "Open galleries in any browser, or in the EveBash app on Android and iOS." },
+    { icon: Smartphone, title: "Any device", text: "Open galleries in any browser on a phone or computer. Android and iOS apps are coming soon." },
 ];
 
 export default function GuestFeatures() {

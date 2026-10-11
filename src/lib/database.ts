@@ -1790,7 +1790,7 @@ export async function getUserEvents(userIds: string | string[], type?: 'main' | 
             });
         }
 
-        return filteredEvents.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+        return filteredEvents.sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
     } catch (error) {
         console.error("Error fetching user events:", error);
         return [];
@@ -1818,7 +1818,7 @@ export async function getSubEvents(parentId: string, legacyParentId?: string): P
             .map(mapSqlToEvent)
             .filter(e => e.id !== parentId && (!legacyParentId || e.id !== legacyParentId));
 
-        return subEvents.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+        return subEvents.sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
     } catch (error) {
         console.error("Error fetching sub-events:", error);
         return [];
@@ -1953,7 +1953,7 @@ export async function openGallery(ref: string): Promise<OpenedGallery> {
     const subEvents: Event[] = Array.isArray(result.sub_events)
         ? result.sub_events
             .map((sub: any) => ({ ...mapSqlToEvent(sub), type: 'sub' as const, parentId: rootId, isPublic: true }))
-            .sort((a: Event, b: Event) => (a.title || "").localeCompare(b.title || ""))
+            .sort((a: Event, b: Event) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }))
         : [];
 
     return {
@@ -2705,7 +2705,7 @@ export async function getApprovedSharedEventsForUser(identifiers: string | strin
 
         return events
             .filter((event): event is Event => event !== null)
-            .sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+            .sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
     } catch (error) {
         console.error("Error fetching approved shared events:", error);
         return [];
@@ -2757,7 +2757,7 @@ export async function getPendingSharedEventsForUser(identifiers: string | string
 
         return events
             .filter((event): event is Event => event !== null)
-            .sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+            .sort((a, b) => (a.title || "").localeCompare(b.title || "", undefined, { numeric: true, sensitivity: "base" }));
     } catch (error) {
         console.error("Error fetching pending shared events:", error);
         return [];

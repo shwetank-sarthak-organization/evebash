@@ -186,8 +186,9 @@ function LoginContent() {
                 Back to site
             </Link>
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
+                // Slide only, no fade: the card must be readable even before (or without) the animation running
+                initial={{ y: 20 }}
+                animate={{ y: 0 }}
                 transition={{ duration: 0.8 }}
                 className="w-full max-w-md mx-auto relative z-10"
             >

@@ -57,6 +57,11 @@ export default function ClientGallery({ params }: { params: Promise<{ client: st
         };
     }, [client]);
 
+    // The layout's metadata only has the generic "Sample galleries" title; name the tab after the album
+    useEffect(() => {
+        if (data?.title) document.title = `${data.title} · Sample gallery · EveBash`;
+    }, [data?.title]);
+
     if (!loading && !data) {
         return notFound();
     }

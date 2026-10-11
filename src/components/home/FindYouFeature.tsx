@@ -10,7 +10,7 @@ const matches = [
 ];
 
 const points = [
-    "Works on the web and in the EveBash app for Android and iOS",
+    "Guests just need a free EveBash account",
     "Guests can still browse the full gallery",
     "Save one photo or download them all",
 ];
@@ -24,7 +24,7 @@ export default function FindYouFeature() {
                         align="left"
                         eyebrow="Find You"
                         title={<>Guests skip the scrolling. <span className="text-royal-gold">Their photos come to them.</span></>}
-                        description="A big event can mean thousands of photos. With Find You, a guest uploads one selfie and EveBash shows the photos they appear in."
+                        description="A big event can mean thousands of photos. With Find You, a guest logs in, uploads one selfie and EveBash shows the photos they appear in."
                     />
                     <ul className="mt-8 space-y-3">
                         {points.map((point) => (

@@ -9,11 +9,11 @@ const faqs = [
     },
     {
         question: "Is there a mobile app?",
-        answer: "Yes. EveBash works on the web and in the EveBash app for Android and iOS. Guests can open a gallery link or scan its QR code in their browser, or use the app.",
+        answer: "The EveBash app for Android and iOS is coming soon. Until then, everything works in the browser: guests open a gallery link or scan its QR code on any phone or computer.",
     },
     {
         question: "How does Find You work?",
-        answer: "A guest uploads a selfie, and EveBash matches it against the event's photos to show the ones they appear in.",
+        answer: "A guest logs in to their free EveBash account, uploads a selfie, and EveBash matches it against the event's photos to show the ones they appear in. Only guests with access to the gallery can use it.",
     },
     {
         question: "Can guests download photos?",
