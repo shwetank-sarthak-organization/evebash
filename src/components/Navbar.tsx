@@ -66,7 +66,7 @@ export default function Navbar() {
                                 key={link.name}
                                 href={link.href}
                                 className={cn(
-                                    "inline-flex items-center gap-1.5 font-brand text-xl font-normal tracking-wide transition-colors xl:text-[1.375rem] hover:text-[var(--site-text)] pb-1 border-b-2 border-transparent",
+                                    "inline-flex items-center gap-1.5 font-sans text-[15px] font-medium transition-colors hover:text-[var(--site-text)] pb-1 border-b-2 border-transparent",
                                     isActiveLink(link.href)
                                         ? "text-[var(--site-text)] border-[#CA9C68]"
                                         : "text-[var(--site-muted)] hover:border-[#906D4B]"
@@ -99,7 +99,7 @@ export default function Navbar() {
                             <div className="flex items-center gap-6">
                                 <Link
                                     href="/login"
-                                    className="inline-flex items-center pb-1 border-b-2 border-transparent font-brand text-xl font-normal tracking-wide text-[var(--site-muted)] transition-colors hover:text-[var(--site-text)] hover:border-[#906D4B] xl:text-[1.375rem]"
+                                    className="inline-flex items-center pb-1 border-b-2 border-transparent font-sans text-[15px] font-medium text-[var(--site-muted)] transition-colors hover:text-[var(--site-text)] hover:border-[#906D4B]"
                                 >
                                     Log in
                                 </Link>
@@ -140,7 +140,7 @@ export default function Navbar() {
                             href={link.href}
                             onClick={() => setIsOpen(false)}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-3 rounded-lg font-brand text-[1.375rem] font-normal tracking-wide transition-colors",
+                                "flex items-center gap-2 px-4 py-3 rounded-lg font-sans text-lg font-medium transition-colors",
                                 isActiveLink(link.href)
                                     ? "text-[#CA9C68] bg-[#CA9C68]/15"
                                     : "text-[var(--site-muted)] hover:bg-[var(--site-card-muted)] hover:text-[var(--site-text)]"
