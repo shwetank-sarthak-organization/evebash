@@ -1,9 +1,22 @@
 {
   "privacy-policy": {
     "title": "Privacy Policy",
-    "lastUpdated": "September 28, 2026",
+    "lastUpdated": "October 10, 2026",
     "description": "EveBash respects your privacy and is committed to handling personal information responsibly and transparently. This Privacy Policy explains how EveBash collects, uses, stores, processes, shares, and protects personal information when people use our websites, mobile applications, accounts, event galleries, media-sharing features, business features, subscriptions, payment features, find You functionality, and related services. By using EveBash, you acknowledge the practices described in this Privacy Policy. Where consent is required by applicable law, we will request appropriate consent before carrying out the relevant processing.",
     "sections": [
+      {
+        "title": "Who We Are",
+        "blocks": [
+          {
+            "kind": "paragraph",
+            "text": "EveBash is operated jointly by Shwetank Chauhan and Sarthak Chauhan, co-founders, Dehradun, Uttarakhand 248001, India (\"EveBash\", \"we\", \"us\")."
+          },
+          {
+            "kind": "paragraph",
+            "text": "EveBash will become a product of Ossciv Private Limited once that company is incorporated, and we will update this policy when that happens."
+          }
+        ]
+      },
       {
         "title": "1. Scope of This Privacy Policy",
         "blocks": [
@@ -1450,11 +1463,15 @@
           },
           {
             "kind": "paragraph",
-            "text": "EveBash"
+            "text": "EveBash (operated by Shwetank Chauhan and Sarthak Chauhan)"
           },
           {
             "kind": "paragraph",
             "text": "Email: support@evebash.com"
+          },
+          {
+            "kind": "paragraph",
+            "text": "Address: Dehradun, Uttarakhand 248001, India"
           },
           {
             "kind": "paragraph",
@@ -1545,7 +1562,7 @@
   },
   "terms-and-conditions": {
     "title": "Terms & Conditions",
-    "lastUpdated": "September 28, 2026",
+    "lastUpdated": "October 10, 2026",
     "description": "These Terms & Conditions govern your access to and use of EveBash websites, applications, accounts, galleries, event-management features, media-upload and sharing services, business features, subscriptions, find You features, and other services provided through EveBash. By creating an account, accessing EveBash, purchasing a plan, uploading content, creating or joining an event or gallery, or otherwise using the Services, you agree to these Terms & Conditions. If you do not agree to these Terms, you should not use the Services.",
     "sections": [
       {
@@ -1554,6 +1571,14 @@
           {
             "kind": "paragraph",
             "text": "EveBash is a digital event and media platform that enables users to create and manage events and galleries, upload and organize photographs and videos, share event media with authorized users or guests, discover event-related businesses and services where available, and use additional features offered by EveBash."
+          },
+          {
+            "kind": "paragraph",
+            "text": "EveBash is operated jointly by Shwetank Chauhan and Sarthak Chauhan, co-founders, Dehradun, Uttarakhand 248001, India (\"EveBash\", \"we\", \"us\")."
+          },
+          {
+            "kind": "paragraph",
+            "text": "EveBash will become a product of Ossciv Private Limited once that company is incorporated, and we will update these Terms when that happens."
           },
           {
             "kind": "paragraph",
@@ -3127,11 +3152,15 @@
           },
           {
             "kind": "paragraph",
-            "text": "EveBash"
+            "text": "EveBash (operated by Shwetank Chauhan and Sarthak Chauhan)"
           },
           {
             "kind": "paragraph",
             "text": "Support: support@evebash.com"
+          },
+          {
+            "kind": "paragraph",
+            "text": "Address: Dehradun, Uttarakhand 248001, India"
           },
           {
             "kind": "paragraph",

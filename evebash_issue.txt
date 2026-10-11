@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 25
+Next issue number: 26
 
 =====================================================================
 ACTIVE ISSUES
@@ -113,6 +113,18 @@ Blocked by: Testers on a new app build from staging; an agreed quiet window
 Found in: Supabase access check (2026-10-06)
 Issue: Supabase RLS lockdown part 2 is not applied yet: most tables can still be read and changed with the public app key (launch blocker). Everything is ready: run sheet https://claude.ai/artifact/WQCggv3QSkj6MSdewUKpTZ, draft docs/security/rls-lockdown-draft.sql, tested rollback docs/security/rls-lockdown-part2-rollback.sql.
 How to reproduce: With only the public anon key, request /rest/v1/profiles?select=id,role: every profile comes back.
+
+#25
+Listed: 2026-10-10
+Platform: Both
+Priority: High
+Status: In progress
+Owner: Shwetank (with Claude)
+Blocked by: Ossciv Private Limited incorporation, for the entity block and Grievance Officer only
+Found in: Privacy policy review for Google Play setup (2026-10-10)
+Issue: Privacy policy (shared/legal/policies.json) has gaps for the Google Play submission: no minimum age, no clear notice that faces in every photo of a Find You gallery are turned into embeddings, no mention of Expo, Google or Apple as providers, no EB Vault section, no marketing-notification opt-out, and a broken list ending in section 17. Find You shows no face-data consent before the selfie. No Grievance Officer is named (required under the IT Rules 2021; left out for now by decision).
+How to reproduce: Read the Privacy Policy screen in the app, or shared/legal/policies.json under "privacy-policy".
+Update 2026-10-11: "Who We Are" added to the privacy policy and Terms (operated by Shwetank and Sarthak Chauhan, Dehradun 248001, support@evebash.com). At incorporation, swap it for Ossciv Private Limited (CIN, registered office) and add the Grievance Officer. Find You consent screen: decided, being built. Minimum age: under discussion.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
