@@ -1048,7 +1048,7 @@ Fix ref:
 Feedback:
 
 #50 Only people who manage a gallery can open its management screen (website)
-Status:    TODO
+Status:    PASS
 Priority:  High
 Platform:  Website
 Brief:     The host page opened any gallery's management screen from its link without checking access,
@@ -1065,9 +1065,9 @@ How to test:
   4. As the owner and as a guest admin, open the screen. Expect: works as before.
 Done by:   Sarthak
 Device / browser: Chrome (website)
-Build / version:
+Build / version: website staging after fff63a6
 Date tested: 2026-10-11
 Account used: A code4sarthak (owner), B chauhansarthak497
 Screenshot / recording:
 Fix ref:   fff63a6 (2026-10-11)
-Feedback:  2026-10-11 steps 3-4 pass (done as test #38 part 4: B sent back from the pasted link; owner fine). Still to do: step 2 (B's page open while the host turns Admin off, then B flips a switch).
+Feedback:  2026-10-11 steps 3-4 pass (done as test #38 part 4: B sent back from the pasted link; owner fine). Step 2 pass too: B was sent back to /host after Admin was turned off with the page open. All steps pass.
