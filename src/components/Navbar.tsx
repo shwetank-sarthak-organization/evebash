@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, X, User as UserIcon } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { EveBashLogo } from "@/components/EveBashLogo";
+import { ProfileIcon } from "@/components/ProfileIcon";
 
 const guestNavLinks = [
     { name: "Sample Galleries", href: "/sample-galleries" },
@@ -91,7 +92,7 @@ export default function Navbar() {
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img src={user.profileImage} alt="" className="h-full w-full rounded-full object-cover" />
                                 ) : (
-                                    <UserIcon className="h-5 w-5" />
+                                    <ProfileIcon className="h-6 w-6" />
                                 )}
                             </Link>
                         ) : (
@@ -152,8 +153,13 @@ export default function Navbar() {
                         {user ? (
                             <>
                                 <div className="mb-2 flex items-center space-x-3 rounded-lg bg-[var(--site-card-muted)] px-4 py-2">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--site-border)] bg-white">
-                                        <UserIcon className="w-5 h-5 text-[#0f172a]" />
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--site-border)] bg-white overflow-hidden">
+                                        {user.profileImage ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={user.profileImage} alt="" className="h-full w-full object-cover" />
+                                        ) : (
+                                            <ProfileIcon className="w-6 h-6 text-[#0f172a]" />
+                                        )}
                                     </div>
                                     <div>
                                         <p className="text-sm font-bold text-[var(--site-text)]">{user.name}</p>
