@@ -4498,7 +4498,7 @@ function DashboardContent() {
                                                 </div>
 
                                                 <div
-                                                    onClick={() => window.open(`/event/${selectedMainEvent.id}`, '_blank')}
+                                                    onClick={() => window.open(`/events/${encodeURIComponent(selectedMainEvent.id)}`, '_blank', 'noopener,noreferrer')}
                                                     className="flex items-center justify-between rounded-[1.2rem] border border-[#CA9C68]/30 bg-[#CA9C68]/10 p-4 cursor-pointer hover:bg-[#CA9C68]/20 transition-colors mt-2"
                                                 >
                                                     <div>

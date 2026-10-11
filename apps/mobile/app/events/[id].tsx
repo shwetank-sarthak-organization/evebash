@@ -5908,7 +5908,12 @@ export default function EventDetailScreen() {
 
                     <TouchableOpacity
                       style={[styles.designCard, { marginTop: 12, backgroundColor: 'rgba(202, 156, 104, 0.08)', borderColor: 'rgba(202, 156, 104, 0.3)', borderWidth: 1 }]}
-                      onPress={() => setIsAdminViewActive(false)}
+                      onPress={() => {
+                        setSelectedAdminGallery(undefined);
+                        handleSubEventChange(null);
+                        setIsAdminViewActive(false);
+                        requestAnimationFrame(() => scrollViewRef.current?.scrollTo({ y: 0, animated: false }));
+                      }}
                     >
                       <View style={styles.designInfo}>
                         <Text style={[styles.designLabel, { color: '#cca43b' }]}>Preview Guest Theme</Text>
