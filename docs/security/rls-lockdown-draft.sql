@@ -401,12 +401,6 @@ language sql stable security definer set search_path = '' as $$
    where e.is_sample_gallery and (e.type = 'main' or (e.type is null and e.parent_id is null))
 $$;
 
--- Tenant login allowlist check without exposing the list
-create or replace function public.is_phone_allowed(p_phone text) returns boolean
-language sql stable security definer set search_path = '' as $$
-  select exists (select 1 from public.allowed_users a where a.phone = p_phone)
-$$;
-
 -- From Shwetank's 2026-10-05 migrations (20261004020000_event_admin_visibility.sql), which never applied: they compared
 -- profiles.id (text) with auth.uid() (uuid) and read a guests.email column that doesn't exist. Same rules, fixed:
 -- the owner and the gallery's guest admins may switch a top-level gallery public/private (his manager types are dropped).
@@ -437,10 +431,8 @@ revoke execute on function public.open_gallery(text) from public, anon, authenti
 revoke execute on function public.get_public_gallery_media(text, int, int) from public, anon, authenticated;
 revoke execute on function public.request_gallery_access(text) from public, anon, authenticated;
 revoke execute on function public.archive_deleted_event(text, int, int, bigint, text, timestamptz) from public, anon, authenticated;
-revoke execute on function public.is_phone_allowed(text) from public, anon, authenticated;
 grant execute on function public.open_gallery(text) to anon, authenticated;
 grant execute on function public.get_public_gallery_media(text, int, int) to anon, authenticated;
-grant execute on function public.is_phone_allowed(text) to anon, authenticated;
 grant execute on function public.request_gallery_access(text) to authenticated;
 grant execute on function public.archive_deleted_event(text, int, int, bigint, text, timestamptz) to authenticated;
 revoke execute on function public.is_username_available(text) from public, anon, authenticated;
@@ -614,14 +606,8 @@ alter table public.profile_assigned_events enable row level security;
 create policy assigned_admin on public.profile_assigned_events for all to authenticated
   using (eb_private.is_platform_admin()) with check (eb_private.is_platform_admin());
 
--- allowed_users / pending_requests (tenant phone allowlist). The tenant section was removed on 2026-10-07, so nobody
--- submits access requests any more: platform admins only.
-alter table public.allowed_users enable row level security;
-create policy allowed_users_admin on public.allowed_users for all to authenticated
-  using (eb_private.is_platform_admin()) with check (eb_private.is_platform_admin());
-alter table public.pending_requests enable row level security;
-create policy pending_requests_admin on public.pending_requests for all to authenticated
-  using (eb_private.is_platform_admin()) with check (eb_private.is_platform_admin());
+-- allowed_users / pending_requests / is_phone_allowed (old tenant section) were dropped on 2026-10-11
+-- (migration 20261011000000, issue #26).
 
 -- deleted_events_archive / modal_cost_logs: platform admins read (dashboard); writes by the server,
 -- archive_deleted_event(), or a platform admin

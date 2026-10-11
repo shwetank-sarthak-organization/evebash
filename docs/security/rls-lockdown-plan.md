@@ -49,7 +49,7 @@ manage, or have joined.
 | `get_public_gallery_media(event, limit, offset)` | anyone | Previews and video streams of a public gallery; never photo originals |
 | `request_gallery_access(ref)` | logged in | Join public, or request private (pending until host approves) |
 | `archive_deleted_event(...)` | gallery managers | Deletion record with the real owner |
-| `is_phone_allowed(phone)` | anyone | Tenant allowlist check without exposing the list |
+| ~~`is_phone_allowed(phone)`~~ | — | Dropped 2026-10-11 with allowed_users and pending_requests (issue #26) |
 
 - **Protected columns (triggers):**
   - profiles `role`, `role_type`, `delegated_by` and plan/pending-plan fields change only via the server or a

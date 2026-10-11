@@ -15,7 +15,6 @@
 begin;
 
 -- 7. Anonymous write grants as they were before part 2
-grant insert, update, delete, truncate on public.allowed_users to anon;
 grant insert, update, delete, truncate on public.business_ratings to anon;
 grant insert, update, delete, truncate on public.businesses to anon;
 grant insert, update, delete, truncate on public.chat_rooms to anon;
@@ -33,7 +32,6 @@ grant insert, update, delete, truncate on public.likes to anon;
 grant insert, update, delete, truncate on public.messages to anon;
 grant insert, update, delete, truncate on public.modal_cost_logs to anon;
 grant insert, update, delete, truncate on public.payments to anon;
-grant insert, update, delete, truncate on public.pending_requests to anon;
 grant insert, update, delete, truncate on public.photos to anon;
 grant insert, update, delete, truncate on public.pricing_plans to anon;
 grant insert, update, delete, truncate on public.processing_outbox to anon;
@@ -69,9 +67,6 @@ drop policy if exists profiles_insert on public.profiles;
 drop policy if exists profiles_update on public.profiles;
 drop policy if exists profiles_delete on public.profiles;
 drop policy if exists assigned_admin on public.profile_assigned_events;
-drop policy if exists allowed_users_admin on public.allowed_users;
-drop policy if exists pending_requests_submit on public.pending_requests;
-drop policy if exists pending_requests_admin on public.pending_requests;
 drop policy if exists archive_admin on public.deleted_events_archive;
 drop policy if exists cost_logs_admin on public.modal_cost_logs;
 drop policy if exists infra_invoices_admin on public.infra_invoices;
@@ -96,8 +91,6 @@ alter table public.likes disable row level security;
 alter table public.comments disable row level security;
 alter table public.profiles disable row level security;
 alter table public.profile_assigned_events disable row level security;
-alter table public.allowed_users disable row level security;
-alter table public.pending_requests disable row level security;
 alter table public.businesses disable row level security;
 alter table public.business_ratings disable row level security;
 alter table public.enquiries disable row level security;

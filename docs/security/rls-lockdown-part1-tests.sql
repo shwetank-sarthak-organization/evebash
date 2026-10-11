@@ -156,8 +156,7 @@ insert into _r (who, check_name, expected, actual) values
   ('anon', 'other host media returns nothing',   '0', (select count(*) from public.get_public_gallery_media('part1-other'))::text),
   ('anon', 'cannot request gallery access',      'blocked', pg_temp.try_call($$select public.request_gallery_access('part1-private')$$)),
   ('anon', 'cannot write deletion records',      'blocked', pg_temp.try_call($$select 'ok' from (select public.archive_deleted_event('part1-private', 1, 0, 10, 'x')) x$$)),
-  ('anon', 'cannot read profile_cards',          'blocked', pg_temp.try_call($$select count(*)::text from public.profile_cards$$)),
-  ('anon', 'tenant allowlist check works',       'false',   pg_temp.try_call($$select public.is_phone_allowed('+910000000000')::text$$));
+  ('anon', 'cannot read profile_cards',          'blocked', pg_temp.try_call($$select count(*)::text from public.profile_cards$$));
 reset role;
 
 -- ── Random logged-in user ──────────────────────────────────────────────────────
