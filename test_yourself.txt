@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 68
+Next test number: 69
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1532,6 +1532,40 @@ How to test:
      both password boxes fill. Create Account stays greyed out until the Terms box is ticked.
   6. Let the browser autofill a saved email and password. Expect: text in the boxes is still readable.
   7. Tap "Forgot Password?", "Back to site", and the Terms / Privacy Policy links. Expect: each opens.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#68 Website: gallery page inside an event (new design) still works
+Status:    TODO
+Priority:  Medium
+Platform:  Website (a desktop browser first, then Safari on iPhone and Chrome on Android)
+Brief:     The host gallery page (Host > an event > Galleries > open a gallery) has a new look: a top bar
+           with "< Galleries", the gallery name ("(Sub-Gallery)" or "(Primary Gallery)") and Download (.ZIP) /
+           Delete Gallery buttons; a gold-bordered Welcome Message box; the "Add or Drop" tile now comes first
+           in the grid; rounded tiles with the star and "..." buttons always shown; gold play buttons on videos.
+           Only the look changed. On phones the Download and Delete buttons show icons only.
+How to test:
+  1. Open a sub-gallery of one of your events. Expect: the new top bar; the title ends with "(Sub-Gallery)".
+  2. Tap "< Galleries". Expect: back to the event's galleries list. Open the gallery again.
+  3. Edit the welcome message, tap Save. Expect: the button changes to "Saved"; reload, the text is kept.
+  4. Tap the Grid and List icons in the top bar. Expect: the view switches each time.
+  5. Photos and Videos tabs: each shows its own items. Favourites only switch: only starred items show.
+  6. Tap the star on a tile (it is always shown now). Expect: it turns gold, and the item shows in the Primary Gallery.
+  7. Tap "..." on a photo and on a video. Expect: the action menu opens. Hover a photo on desktop: the bin icon
+     appears and deletes it after you confirm.
+  8. Upload from the "Add or Drop" tile, and by dragging files onto the page. Expect: both upload.
+  9. Tap Select, pick two items, Move to... another gallery. Expect: picked tiles get a gold outline; the move works.
+ 10. Download (.ZIP). Expect: shows "Zipping N%", then a zip downloads.
+ 11. Delete Gallery on a test sub-gallery. Expect: a confirm box, then the gallery is gone.
+ 12. Open the Primary Gallery. Expect: title ends with "(Primary Gallery)", no Delete Gallery button,
+     the "Source gallery" filter works.
+ 13. On a phone: nothing is cut off, no sideways scrolling, and the buttons are easy to tap.
 Done by:
 Device / browser:
 Build / version:

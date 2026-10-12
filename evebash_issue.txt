@@ -237,6 +237,7 @@ Blocked by: -
 Found in: Modal theme fix for #38 (2026-10-12)
 Issue: Some page content (not modals) is still off the dark-gold theme. The profile page uses bright yellow (yellow-300/400) for icons, the @username, the Edit and Upgrade buttons and the privacy switch instead of #CA9C68 (src/app/(main)/profile/page.tsx). On the host page the "Your Events"/"Galleries" subtitle, the "Managing memories for" line and the action-card descriptions use text-slate-700, which is almost invisible on the dark background (src/app/(main)/host/page.tsx).
 How to reproduce: Open /profile and /host while logged in and look at the yellow accents and the dark-grey subtitle text.
+Update 2026-10-12: the host gallery page redesign (top bar with "< Galleries" and the gallery name) removed the "Managing memories for" line. The other items are still open.
 
 #60
 Listed: 2026-10-12
