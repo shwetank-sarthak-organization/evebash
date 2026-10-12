@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -45,6 +46,24 @@ export function BottomSheet({ visible, onClose, children, style }: BottomSheetPr
   const [mounted, setMounted] = useState(visible);
   const translateY = useSharedValue(height);
   const backdrop = useSharedValue(0);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // Android: lift the sheet by the keyboard height from the IME insets. KeyboardAvoidingView's
+  // 'height' mode re-measures its own frame and, with a floating keyboard (e.g. Gboard's toolbar
+  // when a hardware keyboard is attached), flips between two sizes forever, so the sheet flickers.
+  // A floating keyboard reports a height of 0 or less, so the sheet stays put.
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !mounted) return;
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(Math.max(0, e.endCoordinates.height));
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+      setKeyboardHeight(0);
+    };
+  }, [mounted]);
 
   useEffect(() => {
     if (visible) {
@@ -80,7 +99,10 @@ export function BottomSheet({ visible, onClose, children, style }: BottomSheetPr
   return (
     <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
       <GestureHandlerRootView style={styles.flex}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={[styles.container, keyboardHeight > 0 && { paddingBottom: keyboardHeight }]}
+        >
           <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdropStyle]}>
             <Pressable
               style={StyleSheet.absoluteFill}
