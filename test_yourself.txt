@@ -272,14 +272,16 @@ Brief:     Sign-up still picks a free username.
 How to test:
   1. Create a new test account (use a name that probably exists, e.g. "Test User").
   2. Expect: sign-up finishes, no "username taken" loop or error.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Sarthak
+Device / browser: Pixel 8 (physical), Android app
+Build / version: app 1.2.4 (25) EAS 253acefa, staging c2bdb76
+Date tested: 2026-10-12
+Account used: brand-new Google account (Continue with Google)
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  2026-10-12 Sarthak, app: partial. Sign-up finished with no error or "username taken" loop, and the name came
+           from Google, but Profile shows Username "not set": no username is saved at sign-up (issue #61). Website
+           not tested yet.
 
 --------------------------------------------------------------------------------
 #14 Host guest panel shows guest details
