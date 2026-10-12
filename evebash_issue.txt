@@ -260,20 +260,21 @@ Found in: Test #13 on the new staging app build, Pixel 8 (2026-10-12)
 Issue: Sign-up doesn't save a username. A new account (Google sign-up in the app) has no username: the app's Profile shows "not set". Neither the app (apps/mobile/context/AuthContext.tsx, the profiles insert) nor the website saves one when the profile is created. The website hides it: src/context/AuthContext.tsx shows normalizeUsername(name) when profile.username is empty (e.g. "sarthak_chauhan") but never stores it, so two people with the same name show the same username, and the app and website disagree for the same account. Users can only get one by setting it in Profile > Edit (checked with is_username_available). Fix: pick a free username at sign-up (from the name, with a suffix if taken, via is_username_available) and save it, the same on both platforms; decide whether to backfill existing accounts without one (not counted yet: the database read was blocked).
 How to reproduce: Create a new account with "Continue with Google" in the app, then open Profile: Username "not set". Open the same account's profile on the website: a username is shown, but profiles.username is empty.
 
+=====================================================================
+RECENTLY FIXED (delete entries older than 7 days)
+=====================================================================
+
 #62
 Listed: 2026-10-12
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: Fixed
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Test #51 on the new staging app build, Pixel 8 (2026-10-12)
 Issue: After logging out, "Continue with Google" signs straight back in to the last Google account without showing the account picker, so a user can't switch Google accounts. The app's logout (apps/mobile/context/AuthContext.tsx, logout) only calls supabase.auth.signOut() and never GoogleSignin.signOut(), so the Google library keeps the last account and GoogleSignin.signIn() reuses it. Fix: also call GoogleSignin.signOut() on logout (best effort, skipped when the native module isn't there, never blocking logout). Needs a new app build. The website uses Google's web sign-in and isn't affected.
 How to reproduce: In the app, sign in with Google account A, log out, tap "Continue with Google": you are signed in as A again with no account picker. Workaround: Settings > Apps > EveBash > Storage > Clear storage.
-
-=====================================================================
-RECENTLY FIXED (delete entries older than 7 days)
-=====================================================================
+Fixed in: 96bc72b (2026-10-12). Logout now also calls GoogleSignin.signOut() after the Supabase sign-out, not awaited and errors only logged, so logout never waits on or fails because of Google. Email/phone/Apple logins unchanged. Needs a new app build. Device check: test_yourself #66.
 
 #38
 Listed: 2026-10-11

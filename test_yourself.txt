@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 66
+Next test number: 67
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1491,4 +1491,26 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#66 App: after logging out, "Continue with Google" lets you pick the account
+Status:    TODO
+Priority:  Medium
+Platform:  App (Android and iOS; needs a staging build with 96bc72b)
+Brief:     Logging out used to keep the Google account, so "Continue with Google" signed straight back in to
+           the same account with no picker (issue #62). Logout now also signs out of Google.
+How to test:
+  1. Install a staging build that has 96bc72b. Sign in with "Continue with Google" as account A.
+  2. Profile > Log out. Tap "Continue with Google".
+     Expect: Google's account picker appears; pick account B. You are signed in as B.
+  3. Log out again; sign in with email and password. Expect: works as before.
+  4. Log out from B and sign in with Google as A again. Expect: picker shows, A's galleries are there.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   96bc72b (2026-10-12)
 Feedback:
