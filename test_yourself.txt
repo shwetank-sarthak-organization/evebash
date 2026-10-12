@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 63
+Next test number: 64
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1401,3 +1401,27 @@ Feedback:  2026-10-12 partial, emulator only (Claude, for Sarthak): step 2 PASS.
            (CHEC-DPNUU) on staging.evebash.com; the host's Android emulator (com.evebash.app, local build) showed
            "New access request 🔔 / New is asking to join "Check push"." within seconds. Steps 3-5 and a real phone
            still to do, so Status stays TODO.
+
+--------------------------------------------------------------------------------
+#63 Event visibility is now an on/off switch (website Permissions tab)
+Status:    TODO
+Priority:  Low
+Platform:  Website (staging.evebash.com; check on a phone browser too)
+Brief:     The Private/Public drop-down on Host -> an event -> Permissions is now a card with a switch. Off = Private
+           (lock icon), on = Public (globe icon, gold). What it saves is unchanged.
+How to test:
+  1. Log in as the event's host. Open Host -> your event -> Permissions.
+  2. Expect: an "Event visibility" card on the right (full width on a phone) showing Private or Public, with a
+     one-line explanation under it.
+  3. With the event Private, click the card. Expect: the "Make public?" confirm. Cancel: nothing changes.
+     Confirm: the switch turns gold, the card says Public, and it stays Public after a page reload.
+  4. Click it again. Expect: it goes back to Private straight away (no confirm) and stays Private after a reload.
+  5. On a sub-gallery, and as an approved guest who is not an admin: expect no visibility card.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
