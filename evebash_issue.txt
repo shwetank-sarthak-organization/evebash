@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 47
+Next issue number: 50
 
 =====================================================================
 ACTIVE ISSUES
@@ -204,6 +204,39 @@ Blocked by: -
 Found in: Testing the #51 approval push (2026-10-12)
 Issue: The app's event Permissions screen loads every row of the guests table (all hosts, all events) and then keeps this event's rows in the app (apps/mobile/app/events/[id].tsx -> getEventLogs -> getGuestLogs() with no filter, apps/mobile/lib/database.ts). Supabase returns at most 1,000 rows per query, ordered by login_at descending (rows without a login time come first). Once the table has more than 1,000 rows in total, hosts will see guests and pending requests missing, and guest admins can lose their admin controls (hasSharedAdminAccess uses the same list). It also downloads other hosts' guest names and phone numbers to every phone while guests RLS is off (#21). Fix: query only this event's rows (event_id / parent_event_id = the event) on the server. The Gallery tab's Requests list filters by owner and is only affected past 1,000 guests for one host.
 How to reproduce: Read getEventLogs in apps/mobile/lib/database.ts; compare the guests row count with 1,000.
+
+#47
+Listed: 2026-10-12
+Platform: App
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Testing the #51 push on the Android emulator (2026-10-12)
+Issue: The "New access request" push doesn't reach the host. A normal account joined the private gallery "Check push" with Join with Code (CHEC-DPNUU) on staging.evebash.com and got "Request sent"; the request shows in the host's app (account b7ab6182..., Permissions and Gallery > Requests), but no push arrived on the emulator. A direct Expo test push to the same token arrives (after the FCM key fix, see #51), so delivery works. The backend route /api/v1/notifications/gallery-request (apps/backend/src/routes/notifications.ts) skips silently when the request isn't pending, the owner is the requester, a push for the same request went out in the last 10 minutes, the owner's profile has no push_token, or Event invites is off. Cause not found yet: next step is the website's gallery-request response in DevTools (sent true/false, 404, 401 or CORS), or a read-only look at the owner's profile push_token and notification_preferences.
+How to reproduce: Host on the app (com.evebash.app); another account (not a platform admin, not a member) uses Join with Code on staging.evebash.com for the host's private gallery. Expect "New access request" on the host's device.
+
+#48
+Listed: 2026-10-12
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: #47 for part 1 (it needs the push to arrive)
+Found in: Testing the #51 push on the Android emulator (2026-10-12)
+Issue: New access requests only show in the app after the host leaves and reopens the event or pulls to refresh: the Permissions tab and Gallery > Requests load once when the screen opens, and Supabase Realtime is off (and the app has no listener on guests anyway). Fix without Realtime, app only: (1) when a "New access request" push arrives while the app is open, reload the request list; tapping the push opens that event's Permissions tab; (2) reload the current screen when the app comes back to the foreground. Pull-to-refresh stays.
+How to reproduce: Keep the event's Permissions tab open in the app, send a request from the website: it doesn't appear until you reopen the screen.
+
+#49
+Listed: 2026-10-12
+Platform: Both
+Priority: Low
+Status: Blocked
+Owner: Unassigned
+Blocked by: #21 (RLS lockdown part 2)
+Found in: Discussing live updates while testing #51 (2026-10-12)
+Issue: Supabase Realtime is off (the supabase_realtime publication has no tables since 2026-09-30, the user's choice). Decision 2026-10-12: keep it off for the v1 launch and turn it on later per table, only where a feature needs it (first candidate: Phase 2 vendor chat, messages and chat_rooms; then maybe comments and likes; guests only if #48 isn't enough). Before turning any table on: (1) #21 must be applied, or Realtime sends row changes to anyone listening; (2) add tables one at a time, not all; (3) review the existing listeners first: the app subscribes to photos, events, profiles, likes, comments, chat, businesses (all dormant now), and the Gallery and Usage tabs create a new randomly named channel each time they open (apps/mobile/app/(tabs)/gallery.tsx, usage.tsx), so check they unsubscribe; (4) check the Supabase plan's limits on live connections and messages.
+How to reproduce: In Supabase, Database > Publications > supabase_realtime: no tables.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
