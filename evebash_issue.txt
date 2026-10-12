@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 52
+Next issue number: 53
 
 =====================================================================
 ACTIVE ISSUES
@@ -183,17 +183,6 @@ Found in: Sarthak testing the Join Event sheet on the Android emulator (2026-10-
 Issue: On Android, tapping the Join ID box in the Join Event sheet makes the sheet flicker non-stop. The shared BottomSheet (apps/mobile/components/ui/BottomSheet.tsx) used KeyboardAvoidingView with behavior "height" on Android. With a floating keyboard (Gboard's small toolbar when a hardware keyboard is attached, as on the emulator), the keyboard events made it shrink the sheet, the toolbar hid and re-showed, and the sheet snapped back, forever. The New Event sheet (Host) has text boxes in the same sheet, so it was affected too; the other sheets have no text boxes. Fix (da340bd, needs a new app build): on Android the sheet now pads by the keyboard height from the IME insets (0 for a floating keyboard) instead; iOS unchanged. Device check: test_yourself #54.
 How to reproduce: Android emulator with the hardware keyboard on: Dashboard > Join Event > tap the Join ID box. The sheet jumps up and down, and the dashboard tab bar shows through under it.
 
-#46
-Listed: 2026-10-12
-Platform: App
-Priority: High
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: Testing the #51 approval push (2026-10-12)
-Issue: The app's event Permissions screen loads every row of the guests table (all hosts, all events) and then keeps this event's rows in the app (apps/mobile/app/events/[id].tsx -> getEventLogs -> getGuestLogs() with no filter, apps/mobile/lib/database.ts). Supabase returns at most 1,000 rows per query, ordered by login_at descending (rows without a login time come first). Once the table has more than 1,000 rows in total, hosts will see guests and pending requests missing, and guest admins can lose their admin controls (hasSharedAdminAccess uses the same list). It also downloads other hosts' guest names and phone numbers to every phone while guests RLS is off (#21). Fix: query only this event's rows (event_id / parent_event_id = the event) on the server. The Gallery tab's Requests list filters by owner and is only affected past 1,000 guests for one host.
-How to reproduce: Read getEventLogs in apps/mobile/lib/database.ts; compare the guests row count with 1,000.
-
 #47
 Listed: 2026-10-12
 Platform: App
@@ -227,9 +216,32 @@ Found in: Discussing live updates while testing #51 (2026-10-12)
 Issue: Supabase Realtime is off (the supabase_realtime publication has no tables since 2026-09-30, the user's choice). Decision 2026-10-12: keep it off for the v1 launch and turn it on later per table, only where a feature needs it (first candidate: Phase 2 vendor chat, messages and chat_rooms; then maybe comments and likes; guests only if #48 isn't enough). Before turning any table on: (1) #21 must be applied, or Realtime sends row changes to anyone listening; (2) add tables one at a time, not all; (3) review the existing listeners first: the app subscribes to photos, events, profiles, likes, comments, chat, businesses (all dormant now), and the Gallery and Usage tabs create a new randomly named channel each time they open (apps/mobile/app/(tabs)/gallery.tsx, usage.tsx), so check they unsubscribe; (4) check the Supabase plan's limits on live connections and messages.
 How to reproduce: In Supabase, Database > Publications > supabase_realtime: no tables.
 
+#52
+Listed: 2026-10-12
+Platform: Both
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: #46 fix (2026-10-12)
+Issue: The lists of galleries a user has joined load every approved row of the guests table (all hosts, all galleries) and keep the user's own rows on the device: getUserVisits in apps/mobile/lib/database.ts and src/lib/database.ts, called once per identifier (uid, email, phone) by getApprovedSharedEventsForUser. Supabase returns at most 1,000 rows, newest login_at first, so once the table has more than 1,000 approved rows, guests stop seeing older galleries they joined (app: Dashboard, Gallery > Shared, Profile, Your Events; website: Dashboard, Profile) and guest admins lose galleries from the host page / Gallery tab admin list. It also sends other people's guest names and phone numbers to every device while guests RLS is off (#21). After lockdown part 2 most users only get back rows they may read, but platform admins still get the whole table. Fix: filter by the user on the server (user_id, phone, email, and old "<phone or email>_<gallery id>" row ids) instead of on the device.
+How to reproduce: Read getUserVisits in apps/mobile/lib/database.ts; compare the number of approved guests rows with 1,000.
+
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#46
+Listed: 2026-10-12
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Testing the #51 approval push (2026-10-12)
+Issue: The app's event Permissions screen loads every row of the guests table (all hosts, all events) and then keeps this event's rows in the app (apps/mobile/app/events/[id].tsx -> getEventLogs -> getGuestLogs() with no filter, apps/mobile/lib/database.ts). Supabase returns at most 1,000 rows per query, ordered by login_at descending (rows without a login time come first). Once the table has more than 1,000 rows in total, hosts will see guests and pending requests missing, and guest admins can lose their admin controls (hasSharedAdminAccess uses the same list). It also downloads other hosts' guest names and phone numbers to every phone while guests RLS is off (#21). Fix: query only this event's rows (event_id / parent_event_id = the event) on the server. The Gallery tab's Requests list filters by owner and is only affected past 1,000 guests for one host.
+How to reproduce: Read getEventLogs in apps/mobile/lib/database.ts; compare the guests row count with 1,000.
+Fixed in: 31fa359 (2026-10-12). getEventLogs now asks the server for rows with event_id or parent_event_id = the gallery (same query as the website); same rows, order and admin detection, so nothing else changed. Legacy ids aren't needed: request_gallery_access/open_gallery write the gallery's own id, and the only old writer that could store a legacy id (the app's private-gallery request before 982237b) also wrote parent_event_id = the gallery's id, which the filter matches. Works with lockdown part 2 (guests_select: own row or can_manage_event). Gallery > Requests is unchanged. Needs a new app build. Device check: test_yourself #55. Related: #52 (joined-gallery lists also load the whole guests table).
 
 #50
 Listed: 2026-10-12
