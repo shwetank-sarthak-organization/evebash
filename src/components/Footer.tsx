@@ -44,7 +44,7 @@ export default function Footer() {
                     {/* Brand Section */}
                     <div className="space-y-6">
                         <Link href="/" className="inline-block">
-                            <h3 className="font-serif text-2xl font-bold tracking-tight text-[var(--site-text)] hover:text-[#CA9C68] transition-colors">
+                            <h3 className="font-brand text-3xl font-normal tracking-wide text-[var(--site-text)] hover:text-[#CA9C68] transition-colors">
                                 EveBash
                             </h3>
                         </Link>
@@ -56,7 +56,7 @@ export default function Footer() {
 
                     {/* Quick Links */}
                     <div className="space-y-6 lg:pl-8">
-                        <h4 className="font-serif text-lg text-[var(--site-text)] font-semibold tracking-wide">Explore</h4>
+                        <h4 className="font-brand text-2xl text-[var(--site-text)] font-normal tracking-wide">Explore</h4>
                         <ul className="space-y-3 text-base">
                             <li>
                                 <Link href="/sample-galleries" className="text-[var(--site-muted)] hover:text-[#CA9C68] transition-colors flex items-center group">
@@ -87,7 +87,7 @@ export default function Footer() {
 
                     {/* Legal Links */}
                     <div className="space-y-6">
-                        <h4 className="font-serif text-lg text-[var(--site-text)] font-semibold tracking-wide">Legal</h4>
+                        <h4 className="font-brand text-2xl text-[var(--site-text)] font-normal tracking-wide">Legal</h4>
                         <ul className="space-y-3 text-base">
                             <li>
                                 <Link href="/privacy-policy" className="text-[var(--site-muted)] hover:text-[#CA9C68] transition-colors flex items-center group">
@@ -118,7 +118,7 @@ export default function Footer() {
 
                     {/* Contact Info */}
                     <div className="space-y-6">
-                        <h4 className="font-serif text-lg text-[var(--site-text)] font-semibold tracking-wide">Contact Us</h4>
+                        <h4 className="font-brand text-2xl text-[var(--site-text)] font-normal tracking-wide">Contact Us</h4>
                         <div className="space-y-4 text-base">
                             <div className="flex items-start">
                                 <MapPin className="w-4 h-4 text-[#CA9C68] mt-1 shrink-0" />
