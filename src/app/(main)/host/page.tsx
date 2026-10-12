@@ -10,6 +10,8 @@ import { DesignIcon } from "@/components/DesignIcon";
 import { PartnersIcon } from "@/components/PartnersIcon";
 import { HostIcon } from "@/components/HostIcon";
 import { HostConsoleIcon } from "@/components/HostConsoleIcon";
+import { PrivateIcon } from "@/components/PrivateIcon";
+import { PublicIcon } from "@/components/PublicIcon";
 import React, { useState, useEffect, Suspense, useTransition, useRef, useCallback } from "react";
 import LoadingScreen from "@/components/LoadingScreen";
 import { useAuth } from "@/context/AuthContext";
@@ -64,8 +66,7 @@ import {
     FolderInput,
     CheckSquare,
     Square,
-    HardDrive,
-    Lock
+    HardDrive
 } from "lucide-react";
 import { cn, formatEventDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -4474,7 +4475,7 @@ function DashboardContent() {
                                                                 )}
                                                             >
                                                                 <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-colors", selectedMainEvent.isPublic ? "bg-[#CA9C68] text-slate-950" : "bg-slate-800 text-slate-300")}>
-                                                                    {savingVisibility ? <Loader2 className="h-4 w-4 animate-spin" /> : selectedMainEvent.isPublic ? <Globe className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                                                                    {savingVisibility ? <Loader2 className="h-4 w-4 animate-spin" /> : selectedMainEvent.isPublic ? <PublicIcon className="h-5 w-5" /> : <PrivateIcon className="h-5 w-5" />}
                                                                 </span>
                                                                 <span className="min-w-0 flex-1">
                                                                     <span className="block text-[10px] font-black uppercase tracking-widest text-slate-500">Event visibility</span>

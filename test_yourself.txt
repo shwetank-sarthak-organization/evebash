@@ -1408,7 +1408,7 @@ Status:    TODO
 Priority:  Low
 Platform:  Website (staging.evebash.com; check on a phone browser too)
 Brief:     The Private/Public drop-down on Host -> an event -> Permissions is now a card with a switch. Off = Private
-           (lock icon), on = Public (globe icon, gold). What it saves is unchanged.
+           (lock icon), on = Public (eye icon, gold). What it saves is unchanged.
 How to test:
   1. Log in as the event's host. Open Host -> your event -> Permissions.
   2. Expect: an "Event visibility" card on the right (full width on a phone) showing Private or Public, with a
