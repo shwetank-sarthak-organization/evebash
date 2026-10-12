@@ -200,70 +200,91 @@ function PhotoCard({
                 )}
             </button>
 
-            {/* Bottom Instagram-style Bar */}
+            {/* Actions sit on the photo over a soft fade. With a mouse they appear on hover (or keyboard focus) and only
+                the like/comment counts stay visible; on touch screens, which can't hover, they're always shown. */}
             {!readOnly && (
-            <div className="gallery-card-actions flex items-center justify-between px-4 py-3 bg-stone-50/70 border-t border-stone-100">
-                <div className="flex items-center space-x-4">
-                    {/* Like Option */}
-                    <button
-                        onClick={handleToggleLike}
-                        className="flex items-center space-x-1.5 group/like"
-                        aria-label={isLiked ? "Unlike photo" : "Like photo"}
-                        aria-pressed={isLiked}
-                    >
-                        <Heart
-                            size={19}
-                            className={cn(
-                                "transition-all duration-300",
-                                isLiked 
-                                    ? "fill-rose-500 text-rose-500 scale-110" 
-                                    : "text-stone-500 group-hover/like:text-rose-500 group-hover/like:scale-110"
-                            )}
-                        />
+            <>
+                {(likes.length > 0 || commentsCount > 0) && (
+                    <div aria-hidden="true" className="gallery-card-counts pointer-events-none absolute bottom-3 left-3 hidden items-center gap-3 rounded-full bg-black/45 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm transition-opacity duration-300 group-hover:opacity-0 group-focus-within:opacity-0 [@media(hover:hover)]:flex">
                         {likes.length > 0 && (
-                            <span className="text-xs font-bold text-stone-600 tracking-wider">
+                            <span className="flex items-center gap-1">
+                                <Heart size={13} className={cn(isLiked ? "fill-rose-500 text-rose-500" : "text-white")} />
                                 {likes.length}
                             </span>
                         )}
-                    </button>
-
-                    {/* Comment Option */}
-                    <button type="button"
-                        className="flex items-center space-x-1.5 group/comment"
-                        aria-label={commentsCount > 0 ? `${commentsCount} comments` : "Comments"}
-                    >
-                        <MessageCircle
-                            size={19}
-                            className="text-stone-500 group-hover/comment:text-amber-600 transition-all duration-300"
-                        />
                         {commentsCount > 0 && (
-                            <span className="text-xs font-bold text-stone-600 tracking-wider">
+                            <span className="flex items-center gap-1">
+                                <MessageCircle size={13} />
                                 {commentsCount}
                             </span>
                         )}
-                    </button>
-                </div>
-
-                {/* Save (Download) Option */}
-                {eventSlug && photo.filename && !disableDownload && (
-                    <button
-                        onClick={handleDownload}
-                        disabled={isDownloading}
-                        className="p-1 text-stone-500 hover:text-slate-800 hover:scale-110 transition-all disabled:opacity-50"
-                        title="Download Original"
-                        aria-label="Download original"
-                    >
-                        {isDownloading ? (
-                            <svg className="animate-spin h-5 w-5 text-stone-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                        ) : (
-                            <Download size={18} />
-                        )}
-                    </button>
+                    </div>
                 )}
-            </div>
+                <div className="gallery-card-overlay absolute inset-x-0 bottom-0 flex items-end justify-between bg-gradient-to-t from-black/70 via-black/30 to-transparent px-3 pb-2.5 pt-12 text-white transition-opacity duration-300 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
+                    <div className="flex items-center gap-1">
+                        {/* Like Option */}
+                        <button
+                            type="button"
+                            onClick={handleToggleLike}
+                            className="flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-full px-2 transition-colors hover:bg-white/15 group/like"
+                            aria-label={isLiked ? "Unlike photo" : "Like photo"}
+                            aria-pressed={isLiked}
+                        >
+                            <Heart
+                                size={20}
+                                className={cn(
+                                    "drop-shadow transition-all duration-300",
+                                    isLiked
+                                        ? "fill-rose-500 text-rose-500 scale-110"
+                                        : "text-white group-hover/like:scale-110"
+                                )}
+                            />
+                            {likes.length > 0 && (
+                                <span className="text-xs font-bold tracking-wider drop-shadow">
+                                    {likes.length}
+                                </span>
+                            )}
+                        </button>
+
+                        {/* Comment Option (opens the viewer, where comments are) */}
+                        <button type="button"
+                            className="flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-full px-2 transition-colors hover:bg-white/15 group/comment"
+                            aria-label={commentsCount > 0 ? `${commentsCount} comments` : "Comments"}
+                        >
+                            <MessageCircle
+                                size={20}
+                                className="drop-shadow transition-transform duration-300 group-hover/comment:scale-110"
+                            />
+                            {commentsCount > 0 && (
+                                <span className="text-xs font-bold tracking-wider drop-shadow">
+                                    {commentsCount}
+                                </span>
+                            )}
+                        </button>
+                    </div>
+
+                    {/* Save (Download) Option */}
+                    {eventSlug && photo.filename && !disableDownload && (
+                        <button
+                            type="button"
+                            onClick={handleDownload}
+                            disabled={isDownloading}
+                            className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-white/15 disabled:opacity-50"
+                            title="Download Original"
+                            aria-label="Download original"
+                        >
+                            {isDownloading ? (
+                                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            ) : (
+                                <Download size={19} className="drop-shadow" />
+                            )}
+                        </button>
+                    )}
+                </div>
+            </>
             )}
         </motion.div>
     );

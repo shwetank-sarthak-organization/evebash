@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 58
+Next test number: 59
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1264,6 +1264,32 @@ How to test:
   6. App, as A: Gallery tab -> Requests, and Event -> Permissions: the red X and the request popup's
      "Deny" show the same confirmation and behave the same way.
   7. Host overview on the website (requests grouped by event): its red X behaves the same way.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#58 Website gallery: like, comment and download sit on the photo
+Status:    TODO
+Priority:  Medium
+Platform:  Website (staging.evebash.com), computer and phone
+Brief:     The white strip under each photo is gone. The icons sit on the bottom of the photo over a soft fade:
+           on hover with a mouse, always on phones and tablets.
+How to test:
+  1. Computer, logged in as a member or host: open a gallery. Expect: photos with no strip underneath.
+  2. Point at a photo: a dark fade with white heart, comment and download appears at its bottom.
+  3. A photo with likes or comments shows a small "heart 2  comment 1" pill when not pointed at;
+     a photo you liked shows a red heart (gold in the Royal Emerald design).
+  4. Heart: likes/unlikes without opening the photo. Download: downloads the original.
+     Comment icon or the photo itself: opens the photo viewer.
+  5. Phone browser: the icons are always visible on every photo and are easy to tap.
+  6. Check 2-3 gallery designs (e.g. Royal Emerald and two others): icons readable on bright photos.
+  7. Logged out on a public gallery: no icons, as before.
 Done by:
 Device / browser:
 Build / version:

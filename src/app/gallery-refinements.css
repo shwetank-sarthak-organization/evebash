@@ -29,12 +29,6 @@
   background: var(--event-template-panel); border-color: var(--event-template-border);
   transform: none !important;
 }
-.themed-gallery-content .gallery-card-actions {
-  background: var(--event-template-panel); border-color: var(--event-template-border);
-  color: var(--event-template-text);
-}
-.themed-gallery-content .gallery-card-actions :is(button, span, svg) { color: var(--event-template-text); }
-.themed-gallery-content .gallery-card-actions .fill-rose-500 { fill: currentColor; }
 .themed-gallery-content .gallery-media-card:only-child { max-width: 36rem; margin-inline: auto; }
 .themed-gallery-content .gallery-media-card video { object-fit: contain; }
 /* Decorative motion stays in the entrance transitions rather than looping. */

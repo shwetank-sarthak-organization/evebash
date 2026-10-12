@@ -54,11 +54,6 @@
   border-color: var(--royal-line);
   break-inside: avoid;
 }
-.royal-masonry .gallery-card-actions { background: #0a3027; border-color: #ca9c6933; }
-.royal-masonry .gallery-card-actions :is(button, span, svg) { color: var(--royal-muted); }
-.royal-masonry .gallery-card-actions button:hover :is(span, svg),
-.royal-masonry .gallery-card-actions button:hover,
-.royal-masonry .gallery-card-actions .fill-rose-500 { color: var(--royal-gold); }
 @media (min-width: 640px) { .royal-masonry > div:first-child { column-count: min(2, var(--royal-count)); } }
 @media (min-width: 1024px) { .royal-masonry > div:first-child { column-count: min(3, var(--royal-count)); column-gap: 1.5rem; } }
 @media (min-width: 1440px) { .royal-masonry > div:first-child { column-count: min(4, var(--royal-count)); } }
@@ -72,6 +67,7 @@
 [data-viewer-theme="royal-emerald"] .viewer-comments-panel :is(.opacity-45, .opacity-60, .opacity-70) { opacity: 1; color: var(--royal-muted); }
 [data-viewer-theme="royal-emerald"] button[aria-pressed="true"] { color: var(--royal-gold); }
 
-.royal-masonry .gallery-card-actions .fill-rose-500 { fill: var(--royal-gold); }
+/* A liked photo's heart is gold in this design (actions sit on the photo, see MasonryGrid). */
+.royal-masonry :is(.gallery-card-overlay, .gallery-card-counts) .fill-rose-500 { fill: var(--royal-gold); color: var(--royal-gold); }
 
 .royal-masonry .gallery-media-card video { object-fit: contain; }
