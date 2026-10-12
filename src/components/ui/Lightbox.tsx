@@ -8,6 +8,7 @@ import { getImageUrl } from "@/lib/imageUrl";
 import { Heart, MessageCircle, Send, X, Download, ChevronLeft, ChevronRight, Trash2, Loader2, Image as ImageIcon, RotateCcw, RotateCw, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HLSVideoPlayer } from "@/components/ui/HLSVideoPlayer";
+import { confirmDialog } from "@/components/ui/Modal";
 
 export interface LightboxTheme {
     background?: string;
@@ -236,7 +237,7 @@ export function Lightbox({
     };
 
     const handleDeleteComment = async (commentId: string) => {
-        if (!confirm("Are you sure you want to delete this comment?")) return;
+        if (!(await confirmDialog({ title: "Delete comment?", message: "Are you sure you want to delete this comment?", confirmLabel: "Delete", tone: "danger" }))) return;
         try {
             await deletePhotoComment(commentId);
         } catch (err) {

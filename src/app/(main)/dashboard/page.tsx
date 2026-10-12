@@ -18,9 +18,10 @@ import {
     Play,
     Plus,
     QrCode,
-    X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { ModalHeader, modalStyles } from "@/components/ui/Modal";
+import { cn } from "@/lib/utils";
 
 const DEFAULT_EVENT_COVER_IMAGE = "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop";
 const MEMORIES_CARD_IMAGE = "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2071&auto=format&fit=crop";
@@ -324,50 +325,37 @@ export default function DashboardHub() {
 
             <AnimatePresence>
                 {showJoinModal && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className={cn(modalStyles.overlay, "z-[100] bg-transparent backdrop-blur-none")}>
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setShowJoinModal(false)}
-                            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+                            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
                         />
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="relative z-10 w-full max-w-md overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-900 shadow-2xl"
+                            className={cn(modalStyles.panel, "z-10")}
                         >
-                            <div className="flex items-center justify-between border-b border-slate-800 bg-slate-950/60 p-6">
-                                <h3 className="text-xl font-black text-white">Join Event</h3>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowJoinModal(false)}
-                                    className="rounded-full bg-slate-800 p-2 text-slate-400 transition-colors hover:text-white"
-                                >
-                                    <X className="h-5 w-5" />
-                                </button>
-                            </div>
+                            <ModalHeader title="Join Event" onClose={() => setShowJoinModal(false)} />
 
-                            <form onSubmit={handleJoinEvent} className="p-6 sm:p-8">
+                            <form onSubmit={handleJoinEvent}>
                                 <div className="mb-6">
-                                    <label className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-400">Enter Join ID</label>
+                                    <label className={modalStyles.label}>Enter Join ID</label>
                                     <input
                                         type="text"
                                         value={joinCode}
                                         onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
-                                        className="w-full rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-4 text-center text-2xl font-black tracking-[0.2em] text-white outline-none transition-all placeholder:text-slate-600 focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/20"
+                                        className={cn(modalStyles.input, "text-center text-2xl font-black tracking-[0.2em]")}
                                         placeholder="A1B2-C3D4"
                                         maxLength={12}
                                     />
                                 </div>
 
                                 {joinMessage && (
-                                    <div className={`mb-6 rounded-xl border p-4 text-center text-sm font-bold ${
-                                        joinMessageType === "error"
-                                            ? "border-rose-500/30 bg-rose-950/40 text-rose-300"
-                                            : "border-emerald-500/30 bg-emerald-950/40 text-emerald-300"
-                                    }`}>
+                                    <div className={cn(joinMessageType === "error" ? modalStyles.error : modalStyles.success, "mb-6")}>
                                         {joinMessage}
                                     </div>
                                 )}
@@ -375,7 +363,7 @@ export default function DashboardHub() {
                                 <button
                                     type="submit"
                                     disabled={isJoining}
-                                    className="flex w-full items-center justify-center rounded-xl bg-amber-400 py-4 text-[15px] font-black text-slate-950 transition-all disabled:opacity-70"
+                                    className={cn(modalStyles.primary, "w-full py-4")}
                                 >
                                     {isJoining ? (
                                         <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-950/30 border-t-slate-950" />
@@ -385,9 +373,9 @@ export default function DashboardHub() {
                                 </button>
 
                                 <div className="mt-6 flex items-center">
-                                    <div className="flex-1 border-t border-slate-800" />
-                                    <span className="px-4 text-xs font-black tracking-widest text-slate-500">OR</span>
-                                    <div className="flex-1 border-t border-slate-800" />
+                                    <div className="flex-1 border-t border-[var(--site-border)]" />
+                                    <span className="px-4 text-xs font-black tracking-widest text-[var(--site-muted)]">OR</span>
+                                    <div className="flex-1 border-t border-[var(--site-border)]" />
                                 </div>
 
                                 <button
@@ -396,9 +384,9 @@ export default function DashboardHub() {
                                         setJoinMessageType("error");
                                         setJoinMessage("QR scanning is available on the mobile app. Please enter your Join ID here.");
                                     }}
-                                    className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 py-4 text-[15px] font-black text-white transition-colors hover:bg-slate-700"
+                                    className={cn(modalStyles.secondary, "mt-6 w-full py-4")}
                                 >
-                                    <QrCode className="h-5 w-5 text-amber-300" />
+                                    <QrCode className="h-5 w-5 text-[#CA9C68]" />
                                     <span>Scan QR Code</span>
                                 </button>
                             </form>

@@ -23,7 +23,6 @@ import {
     Upload,
     User,
     Users,
-    X,
     XCircle,
     HardDrive,
     ChevronRight,
@@ -47,6 +46,7 @@ import { getPlanDetails } from "@/lib/planLimits";
 import { getSubscriptionStatus } from "@/lib/subscriptionStatus";
 import { cn } from "@/lib/utils";
 import { StorageBreakdownCard } from "@/components/StorageBreakdownCard";
+import { confirmDialog, ModalHeader, modalStyles } from "@/components/ui/Modal";
 
 const personaOptions = ["Guest", "Host / Organizer", "Vendor / Business"];
 const genderOptions = ["Male", "Female", "Other", "Prefer not to say"];
@@ -339,7 +339,7 @@ export default function ProfilePage() {
 
     const handleRemoveProfileImage = async () => {
         if (!user?.uid || !profileImage || removingImage) return;
-        if (!window.confirm("Remove your profile photo?")) return;
+        if (!(await confirmDialog({ title: "Remove profile photo?", message: "Your profile photo will be removed from your account.", confirmLabel: "Remove", tone: "danger" }))) return;
 
         setRemovingImage(true);
         setSaveError("");
@@ -695,26 +695,24 @@ export default function ProfilePage() {
             </main>
 
             {showDeleteAccount && (
-                <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 px-4 py-8" onMouseDown={() => !deletingAccount && setShowDeleteAccount(false)}>
-                    <div className="w-full max-w-md rounded-3xl border border-rose-500/30 bg-slate-950 p-6 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <p className="text-xs font-black uppercase tracking-[0.16em] text-rose-300">Permanent action</p>
-                                <h2 className="mt-2 text-2xl font-black text-white">Delete your account?</h2>
-                            </div>
-                            <button type="button" disabled={deletingAccount} onClick={() => setShowDeleteAccount(false)} className="grid h-10 w-10 place-items-center rounded-full bg-slate-900 text-slate-300 disabled:opacity-50" aria-label="Close">
-                                <X className="h-5 w-5" />
-                            </button>
-                        </div>
-                        <p className="mt-4 text-sm font-semibold leading-6 text-slate-400">This permanently removes your profile, hosted events, uploaded photos and videos, comments, and likes. This cannot be undone.</p>
-                        <label className="mt-5 block text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                <div className={modalStyles.overlay} onMouseDown={() => !deletingAccount && setShowDeleteAccount(false)}>
+                    <div className={cn(modalStyles.panel, "border-rose-500/30")} onMouseDown={(event) => event.stopPropagation()}>
+                        <ModalHeader
+                            eyebrow={<span className="text-rose-300">Permanent action</span>}
+                            title="Delete your account?"
+                            onClose={() => setShowDeleteAccount(false)}
+                            closeDisabled={deletingAccount}
+                            className="mb-0"
+                        />
+                        <p className={cn(modalStyles.body, "mt-4")}>This permanently removes your profile, hosted events, uploaded photos and videos, comments, and likes. This cannot be undone.</p>
+                        <label className={cn(modalStyles.label, "mt-5")}>
                             Type DELETE to confirm
-                            <input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} disabled={deletingAccount} autoComplete="off" className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-base font-black text-white outline-none focus:border-rose-400" />
+                            <input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} disabled={deletingAccount} autoComplete="off" className={cn(modalStyles.input, "mt-2 font-black normal-case tracking-normal focus:border-rose-400 focus:ring-rose-400")} />
                         </label>
                         {deleteError && <p className="mt-3 text-sm font-bold text-rose-300">{deleteError}</p>}
                         <div className="mt-6 flex gap-3">
-                            <button type="button" disabled={deletingAccount} onClick={() => setShowDeleteAccount(false)} className="flex-1 rounded-2xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-300 disabled:opacity-50">Cancel</button>
-                            <button type="button" disabled={deleteConfirmation !== "DELETE" || deletingAccount} onClick={handleDeleteAccount} className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-rose-600 px-4 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-40">
+                            <button type="button" disabled={deletingAccount} onClick={() => setShowDeleteAccount(false)} className={cn(modalStyles.secondary, "flex-1")}>Cancel</button>
+                            <button type="button" disabled={deleteConfirmation !== "DELETE" || deletingAccount} onClick={handleDeleteAccount} className={cn(modalStyles.danger, "flex-1")}>
                                 {deletingAccount && <Loader2 className="h-4 w-4 animate-spin" />}
                                 Delete permanently
                             </button>
@@ -724,18 +722,13 @@ export default function ProfilePage() {
             )}
 
             {isEditing && (
-                <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm" onMouseDown={() => !saving && setIsEditing(false)}>
+                <div className={modalStyles.overlay} onMouseDown={() => !saving && setIsEditing(false)}>
                     <form
                         onSubmit={handleSave}
                         onMouseDown={(event) => event.stopPropagation()}
-                        className="max-h-full w-full max-w-3xl overflow-y-auto rounded-[2rem] border border-slate-800 bg-slate-950 p-6 shadow-2xl sm:p-8"
+                        className={cn(modalStyles.panel, "max-h-[calc(100dvh-2rem)] max-w-3xl overflow-y-auto sm:p-8")}
                     >
-                        <div className="mb-6 flex items-center justify-between gap-4">
-                            <h2 className="text-2xl font-black text-white">Edit Profile</h2>
-                            <button type="button" onClick={() => !saving && !removingImage && setIsEditing(false)} className="flex h-10 w-10 items-center justify-center self-end rounded-full bg-slate-900 text-slate-300 sm:self-auto">
-                                <X className="h-5 w-5" />
-                            </button>
-                        </div>
+                        <ModalHeader title="Edit Profile" onClose={() => !saving && !removingImage && setIsEditing(false)} />
 
                         <div className="mb-8 flex flex-col items-center rounded-3xl border border-slate-800 bg-slate-900/50 p-5">
                             <div className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-2 border-slate-700 bg-slate-950 text-slate-500">
@@ -783,7 +776,7 @@ export default function ProfilePage() {
                                 <label key={field} className="block">
                                     <span className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
                                         {label}
-                                        {required && <span className="ml-1 text-yellow-300">*</span>}
+                                        {required && <span className="ml-1 text-[#CA9C68]">*</span>}
                                     </span>
                                     <input
                                         value={form[field as keyof typeof form] as string}
@@ -792,7 +785,7 @@ export default function ProfilePage() {
                                         type={field === "email" ? "email" : "text"}
                                         required={Boolean(required)}
                                         maxLength={field === "username" ? 12 : undefined}
-                                        className="mt-2 w-full rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm font-bold text-white outline-none transition focus:border-yellow-400"
+                                        className="mt-2 w-full rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm font-bold text-white outline-none transition focus:border-[#CA9C68]"
                                     />
                                     {field === "username" && usernameStatus !== "idle" && (
                                         <span className={cn("mt-2 flex items-center gap-1 text-xs font-bold", usernameStatus === "available" ? "text-emerald-300" : usernameStatus === "checking" ? "text-slate-400" : "text-rose-300")}>
@@ -814,7 +807,7 @@ export default function ProfilePage() {
                                 <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Gender</p>
                                 <div className="mt-2 flex flex-wrap gap-2">
                                     {genderOptions.map((item) => (
-                                        <button key={item} type="button" onClick={() => updateForm("gender", item)} className={cn("rounded-full border px-3 py-2 text-xs font-black", form.gender === item ? "border-yellow-400 bg-yellow-400 text-slate-950" : "border-slate-800 bg-slate-900 text-slate-300")}>
+                                        <button key={item} type="button" onClick={() => updateForm("gender", item)} className={cn("rounded-full border px-3 py-2 text-xs font-black", form.gender === item ? "border-[#CA9C68] bg-[#CA9C68] text-slate-950" : "border-slate-800 bg-slate-900 text-slate-300")}>
                                             {item}
                                         </button>
                                     ))}
@@ -824,7 +817,7 @@ export default function ProfilePage() {
                                 <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Relationship Status</p>
                                 <div className="mt-2 flex flex-wrap gap-2">
                                     {relationshipOptions.map((item) => (
-                                        <button key={item} type="button" onClick={() => updateForm("relationshipStatus", item)} className={cn("rounded-full border px-3 py-2 text-xs font-black", form.relationshipStatus === item ? "border-yellow-400 bg-yellow-400 text-slate-950" : "border-slate-800 bg-slate-900 text-slate-300")}>
+                                        <button key={item} type="button" onClick={() => updateForm("relationshipStatus", item)} className={cn("rounded-full border px-3 py-2 text-xs font-black", form.relationshipStatus === item ? "border-[#CA9C68] bg-[#CA9C68] text-slate-950" : "border-slate-800 bg-slate-900 text-slate-300")}>
                                             {item}
                                         </button>
                                     ))}
@@ -836,7 +829,7 @@ export default function ProfilePage() {
                             <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">I am a...</p>
                             <div className="mt-2 flex flex-wrap gap-2">
                                 {personaOptions.map((item) => (
-                                    <button key={item} type="button" onClick={() => togglePersona(item)} className={cn("rounded-full border px-3 py-2 text-xs font-black", form.persona.includes(item) ? "border-yellow-400 bg-yellow-400 text-slate-950" : "border-slate-800 bg-slate-900 text-slate-300")}>
+                                    <button key={item} type="button" onClick={() => togglePersona(item)} className={cn("rounded-full border px-3 py-2 text-xs font-black", form.persona.includes(item) ? "border-[#CA9C68] bg-[#CA9C68] text-slate-950" : "border-slate-800 bg-slate-900 text-slate-300")}>
                                         {item}
                                     </button>
                                 ))}
@@ -851,10 +844,10 @@ export default function ProfilePage() {
                         )}
 
                         <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                            <button type="button" onClick={() => !saving && setIsEditing(false)} className="rounded-2xl border border-slate-800 px-6 py-3 text-sm font-black text-slate-300">
+                            <button type="button" onClick={() => !saving && setIsEditing(false)} className={modalStyles.secondary}>
                                 Cancel
                             </button>
-                            <button type="submit" disabled={saving || usernameStatus === "checking" || usernameStatus === "taken" || usernameStatus === "invalid"} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-6 py-3 text-sm font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-60">
+                            <button type="submit" disabled={saving || usernameStatus === "checking" || usernameStatus === "taken" || usernameStatus === "invalid"} className={modalStyles.primary}>
                                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                                 Save Changes
                             </button>

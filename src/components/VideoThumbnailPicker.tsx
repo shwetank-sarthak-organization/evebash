@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getApiUrl } from '@/lib/apiBase';
 import type Hls from 'hls.js';
+import { ModalHeader, modalStyles } from '@/components/ui/Modal';
+import { cn } from '@/lib/utils';
 
 type Props = {
   video: { id: string; url: string; thumbnailUrl?: string | null };
@@ -90,33 +92,32 @@ export function VideoThumbnailPicker({ video, onClose, onSaved }: Props) {
     finally { setSaving(false); }
   };
 
-  return <dialog ref={dialog} aria-labelledby="thumbnail-title" onCancel={e => { e.preventDefault(); if (!saving) onClose(); }} className="m-auto w-[calc(100%-2rem)] max-w-2xl max-h-[90dvh] overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 p-5 text-white shadow-2xl backdrop:bg-black/70">
-    <h2 id="thumbnail-title" className="text-xl font-bold">Change thumbnail</h2>
-    <p className="mt-2 text-sm text-slate-300">Move the timeline to choose a frame. The preview below is the image that will be saved.</p>
-    <video ref={player} crossOrigin="anonymous" muted playsInline preload="auto" className="mt-4 max-h-[32vh] w-full bg-black object-contain" onError={() => setError('Unable to load video')} onLoadedMetadata={() => {
+  return <dialog ref={dialog} aria-labelledby="thumbnail-title" onCancel={e => { e.preventDefault(); if (!saving) onClose(); }} className={cn(modalStyles.dialog, 'max-h-[90dvh] max-w-2xl overflow-y-auto')}>
+    <ModalHeader titleId="thumbnail-title" title="Change thumbnail" subtitle="Move the timeline to choose a frame. The preview below is the image that will be saved." onClose={onClose} closeDisabled={saving} className="mb-0" />
+    <video ref={player} crossOrigin="anonymous" muted playsInline preload="auto" className="mt-4 max-h-[32vh] w-full rounded-2xl bg-black object-contain" onError={() => setError('Unable to load video')} onLoadedMetadata={() => {
       const length = player.current?.duration || 0;
       if (!Number.isFinite(length) || length <= 0) { setError('The video duration is unavailable'); return; }
       setDuration(length);
     }} onLoadedData={capture} onSeeking={() => setFrame('')} onSeeked={capture} />
-    <label className="mt-4 block text-sm" htmlFor="thumbnail-timeline">Frame position: {timeLabel(time)} / {timeLabel(duration)}</label>
-    <input id="thumbnail-timeline" type="range" min={0} max={Math.max(0, duration - 0.05)} step={0.01} value={time} disabled={!duration || saving} onChange={e => seek(Number(e.target.value))} className="my-3 w-full accent-amber-300" />
-    <div className="flex gap-3"><button type="button" disabled={!duration || saving} onClick={() => seek(time - 0.1)} className="rounded border border-slate-600 px-3 py-2 disabled:opacity-40">−0.1s</button><button type="button" disabled={!duration || saving} onClick={() => seek(time + 0.1)} className="rounded border border-slate-600 px-3 py-2 disabled:opacity-40">+0.1s</button></div>
-    {frame ? <img src={frame} alt="Selected thumbnail preview" className="mx-auto mt-4 max-h-40 object-contain" /> : <p role="status" className="mt-4 text-sm text-slate-300">Loading frame…</p>}
-    {error && <p role="alert" className="mt-4 text-sm text-red-300">{error}</p>}
-    <div className="mt-5 flex justify-end gap-3"><button type="button" onClick={onClose} disabled={saving} className="rounded-lg border border-slate-600 px-4 py-3 disabled:opacity-40">Cancel</button><button type="button" onClick={save} disabled={!frame || saving} className="rounded-lg bg-[#CA9C68] px-4 py-3 font-bold text-slate-950 disabled:opacity-40">{saving ? 'Saving…' : 'Save thumbnail'}</button></div>
+    <label className={cn(modalStyles.label, 'mt-4')} htmlFor="thumbnail-timeline">Frame position: {timeLabel(time)} / {timeLabel(duration)}</label>
+    <input id="thumbnail-timeline" type="range" min={0} max={Math.max(0, duration - 0.05)} step={0.01} value={time} disabled={!duration || saving} onChange={e => seek(Number(e.target.value))} className="my-3 w-full accent-[#CA9C68]" />
+    <div className="flex gap-3"><button type="button" disabled={!duration || saving} onClick={() => seek(time - 0.1)} className="rounded-xl border border-[var(--site-border)] px-3 py-2 text-[var(--site-subtle)] hover:bg-white/5 disabled:opacity-40">−0.1s</button><button type="button" disabled={!duration || saving} onClick={() => seek(time + 0.1)} className="rounded-xl border border-[var(--site-border)] px-3 py-2 text-[var(--site-subtle)] hover:bg-white/5 disabled:opacity-40">+0.1s</button></div>
+    {frame ? <img src={frame} alt="Selected thumbnail preview" className="mx-auto mt-4 max-h-40 object-contain" /> : <p role="status" className={cn(modalStyles.body, 'mt-4')}>Loading frame…</p>}
+    {error && <p role="alert" className={cn(modalStyles.error, 'mt-4')}>{error}</p>}
+    <div className={modalStyles.actions}><button type="button" onClick={onClose} disabled={saving} className={modalStyles.secondary}>Cancel</button><button type="button" onClick={save} disabled={!frame || saving} className={modalStyles.primary}>{saving ? 'Saving…' : 'Save thumbnail'}</button></div>
   </dialog>;
 }
 
 export function VideoThumbnailActions({ ready, onClose, onChoose, onDelete, onMove, onSaveToVault }: { ready: boolean; onClose: () => void; onChoose: () => void; onDelete: () => void; onMove?: () => void; onSaveToVault?: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => { const focused = document.activeElement as HTMLElement | null; ref.current?.showModal(); return () => focused?.focus(); }, []);
-  return <dialog ref={ref} onCancel={e => { e.preventDefault(); onClose(); }} aria-label="Video actions" className="m-auto w-[calc(100%-2rem)] max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-5 text-white backdrop:bg-black/60">
-    <h2 className="mb-4 text-xl font-bold">Video actions</h2>
-    <button type="button" disabled={!ready} onClick={onChoose} className="w-full rounded-lg bg-[#CA9C68] p-3 font-bold text-slate-950 disabled:opacity-40">Change thumbnail</button>
-    {!ready && <p className="mt-2 text-sm text-slate-300">Available after video processing finishes.</p>}
-    {onMove && <button type="button" onClick={onMove} className="mt-3 w-full rounded-lg border border-slate-600 p-3 text-slate-200">Move to another gallery</button>}
-    {onSaveToVault && <button type="button" onClick={onSaveToVault} className="mt-3 w-full rounded-lg border border-[#7FA38C]/40 p-3 text-[#A9C9B4]">Save to EB Vault</button>}
-    <button type="button" onClick={onDelete} className="mt-3 w-full rounded-lg border border-red-400/40 p-3 text-red-300">Delete video</button>
-    <button type="button" onClick={onClose} className="mt-3 w-full rounded-lg border border-slate-600 p-3">Cancel</button>
+  return <dialog ref={ref} onCancel={e => { e.preventDefault(); onClose(); }} aria-labelledby="video-actions-title" className={cn(modalStyles.dialog, 'max-w-sm')}>
+    <ModalHeader titleId="video-actions-title" title="Video actions" onClose={onClose} />
+    <button type="button" disabled={!ready} onClick={onChoose} className={cn(modalStyles.primary, 'w-full')}>Change thumbnail</button>
+    {!ready && <p className={cn(modalStyles.body, 'mt-2')}>Available after video processing finishes.</p>}
+    {onMove && <button type="button" onClick={onMove} className={cn(modalStyles.secondary, 'mt-3 w-full')}>Move to another gallery</button>}
+    {onSaveToVault && <button type="button" onClick={onSaveToVault} className={cn(modalStyles.secondary, 'mt-3 w-full border-[#7FA38C]/40 text-[#A9C9B4]')}>Save to EB Vault</button>}
+    <button type="button" onClick={onDelete} className={cn(modalStyles.secondary, 'mt-3 w-full border-rose-400/40 text-rose-300 hover:bg-rose-400/10')}>Delete video</button>
+    <button type="button" onClick={onClose} className={cn(modalStyles.secondary, 'mt-3 w-full')}>Cancel</button>
   </dialog>;
 }

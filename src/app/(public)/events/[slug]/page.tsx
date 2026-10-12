@@ -18,6 +18,7 @@ import { getWebTemplateComponent } from "@/components/templateRegistry";
 import { getWebLightboxTheme, getWebTemplateChrome } from "@/lib/webTemplateTheme";
 import { supabase } from "@/lib/supabase";
 import { uploadEventImage } from "@/lib/storage";
+import { alertDialog } from "@/components/ui/Modal";
 
 const PUBLIC_PAGE_SIZE = 60;
 
@@ -399,7 +400,7 @@ function EventPageContent() {
             }
         } catch (err) {
             console.error("[EventPage] Access request failed:", err);
-            window.alert("We couldn't send your request. Please try again.");
+            void alertDialog({ title: "Request not sent", message: "We couldn't send your request. Please try again." });
         } finally {
             setRequestingAccess(false);
         }

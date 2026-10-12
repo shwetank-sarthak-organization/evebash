@@ -113,6 +113,7 @@ import { v4 as uuidv4 } from "uuid";
 
 
 import { Lightbox } from "@/components/ui/Lightbox";
+import { alertDialog, confirmDialog, ModalCloseButton, ModalHeader, modalStyles } from "@/components/ui/Modal";
 const GridMediaCell = ({
     photo,
     gridSrc,
@@ -661,7 +662,7 @@ function DatePickerColumn({
 
     return (
         <div className="relative min-w-0 flex-1">
-            <div className="pointer-events-none absolute left-0 right-0 top-1/2 z-10 h-14 -translate-y-1/2 border-y border-slate-400" />
+            <div className="pointer-events-none absolute left-0 right-0 top-1/2 z-10 h-14 -translate-y-1/2 border-y border-[#CA9C68]/50" />
             <div
                 ref={scrollRef}
                 className="max-h-56 touch-pan-y snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth px-1 py-20 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -694,8 +695,8 @@ function DatePickerColumn({
                             className={cn(
                                 "flex h-14 w-full snap-center items-center justify-center rounded-xl text-center text-xl font-medium transition-colors",
                                 isSelected
-                                    ? "text-slate-950"
-                                    : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                    ? "font-black text-[#CA9C68]"
+                                    : "text-[var(--site-muted)] hover:bg-white/5 hover:text-[var(--site-text)]"
                             )}
                         >
                             {option.label}
@@ -807,7 +808,7 @@ function DashboardContent() {
 
     const handleHostDownloadZip = async () => {
         if (!currentEventPhotos || currentEventPhotos.length === 0) {
-            alert("No photos or videos to download in this gallery.");
+            void alertDialog({ title: "Nothing to download", message: "No photos or videos to download in this gallery." });
             return;
         }
         setIsHostZipping(true);
@@ -825,7 +826,7 @@ function DashboardContent() {
                 (percent) => setHostZipProgress(percent)
             );
         } catch (err: any) {
-            alert(err.message || "Failed to generate zip file.");
+            void alertDialog({ title: "Download failed", message: err.message || "Failed to generate zip file." });
         } finally {
             setIsHostZipping(false);
             setHostZipProgress(0);
@@ -977,7 +978,7 @@ function DashboardContent() {
     );
     const changeEventVisibility = async (isPublic: boolean) => {
         if (!selectedMainEvent || savingVisibility) return;
-        if (isPublic && !window.confirm("Anyone with the link will be able to view this event and its sub-galleries without approval. Make public?")) return;
+        if (isPublic && !(await confirmDialog({ title: "Make event public?", message: "Anyone with the link will be able to view this event and its sub-galleries without approval.", confirmLabel: "Make public" }))) return;
         const eventId = selectedMainEvent.id;
         setSavingVisibility(true); setVisibilityError("");
         try {
@@ -1852,7 +1853,7 @@ function DashboardContent() {
     };
 
     const handleGuestDeny = async (log: { id: string; name?: string | null }): Promise<boolean> => {
-        if (!window.confirm(`Deny ${log.name || "this guest"}'s request?\n\nThey'll be notified, and they can ask again later.`)) return false;
+        if (!(await confirmDialog({ title: `Deny ${log.name || "this guest"}'s request?`, message: "They'll be notified, and they can ask again later.", confirmLabel: "Deny", tone: "danger" }))) return false;
 
         const result = await denyRequestAction(log.id, {
             uid: user?.uid,
@@ -1876,7 +1877,7 @@ function DashboardContent() {
     };
 
     const handleGuestDelete = async (logId: string): Promise<boolean> => {
-        if (!window.confirm("Are you sure you want to remove this user from the guest list?")) return false;
+        if (!(await confirmDialog({ title: "Remove guest?", message: "Are you sure you want to remove this user from the guest list?", confirmLabel: "Remove", tone: "danger" }))) return false;
 
         const result = await deleteGuestAction(logId, {
             uid: user?.uid,
@@ -2962,6 +2963,19 @@ function DashboardContent() {
         setNewTitle(evt.title);
         setNewDate(toDateInputValue(evt.date));
         setActiveMenu(null);
+    };
+
+    const closeCreateSuccessModal = () => {
+        setShowCreateSuccessModal(false);
+        setStatus("idle");
+        setMessage("");
+    };
+
+    const closeRenameModal = () => {
+        setRenamingEvent(null);
+        setEditDetailsMode("title");
+        setNewTitle("");
+        setNewDate("");
     };
 
     const handleRenameSubmit = async (e: React.FormEvent) => {
@@ -4816,23 +4830,17 @@ function DashboardContent() {
 
                             <AnimatePresence>
                                 {isCreateSubGalleryModalOpen && (
-                                    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm overflow-y-auto">
+                                    <div className={modalStyles.overlay}>
                                         <motion.div
                                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                                             animate={{ opacity: 1, scale: 1, y: 0 }}
                                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                                            className="w-full max-w-md bg-[#1a1a1a] p-8 rounded-[2rem] shadow-2xl border border-white/5 my-8 relative"
+                                            className={cn(modalStyles.panel, "my-8")}
                                         >
-                                            <div className="flex items-center justify-between mb-8">
-                                                <h3 className="text-2xl font-bold text-white tracking-tight">New Sub-Gallery</h3>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setIsCreateSubGalleryModalOpen(false)}
-                                                    className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors shrink-0"
-                                                >
-                                                    <X className="w-4 h-4 text-white" />
-                                                </button>
-                                            </div>
+                                            <ModalHeader
+                                                title="New Sub-Gallery"
+                                                onClose={() => setIsCreateSubGalleryModalOpen(false)}
+                                            />
 
                                             <form
                                                 onSubmit={async (e) => {
@@ -4850,20 +4858,20 @@ function DashboardContent() {
                                                         value={eventName}
                                                         onChange={(e) => setEventName(e.target.value)}
                                                         placeholder="Sub-gallery name"
-                                                        className="w-full px-5 py-4 bg-[#262626] border border-white/5 rounded-2xl focus:ring-1 focus:ring-[#CA9C68] transition-all outline-none text-base text-white placeholder-slate-400"
+                                                        className={modalStyles.input}
                                                         required
                                                         autoFocus
                                                     />
                                                 </div>
 
                                                 <div>
-                                                    <label className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-300 mb-3 ml-1">
+                                                    <label className={modalStyles.label}>
                                                         SUB-GALLERY DATE
                                                     </label>
                                                     <button
                                                         type="button"
                                                         onClick={() => openDatePicker("create")}
-                                                        className="flex w-full items-center justify-between px-5 py-4 bg-[#262626] border border-white/5 rounded-2xl focus:ring-1 focus:ring-[#CA9C68] transition-all outline-none text-base text-left"
+                                                        className={cn(modalStyles.input, "flex items-center justify-between text-left")}
                                                     >
                                                         <div className="flex items-center">
                                                             <Calendar className="w-5 h-5 text-[#CA9C68] mr-3" />
@@ -4878,12 +4886,7 @@ function DashboardContent() {
                                                 <button
                                                     type="submit"
                                                     disabled={status === "uploading"}
-                                                    className={cn(
-                                                        "w-full py-4 mt-2 rounded-2xl font-bold text-[15px] transition-all flex items-center justify-center space-x-3 active:scale-95",
-                                                        status === "uploading"
-                                                            ? "bg-[#806316]/50 text-black/50 cursor-not-allowed"
-                                                            : "bg-[#806316] text-[#2c2203] hover:bg-[#96741b]"
-                                                    )}
+                                                    className={cn(modalStyles.primary, "mt-2 w-full py-4")}
                                                 >
                                                     {status === "uploading" ? (
                                                         <>
@@ -4899,10 +4902,7 @@ function DashboardContent() {
                                                     <motion.div
                                                         initial={{ opacity: 0, y: 5 }}
                                                         animate={{ opacity: 1, y: 0 }}
-                                                        className={cn(
-                                                            "p-4 rounded-2xl text-sm font-bold text-center",
-                                                            status === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
-                                                        )}
+                                                        className={status === "success" ? modalStyles.success : modalStyles.error}
                                                     >
                                                         {message}
                                                     </motion.div>
@@ -5754,7 +5754,7 @@ function DashboardContent() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/80 backdrop-blur-sm sm:items-center p-4"
+                            className={cn(modalStyles.overlay, "items-end sm:items-center")}
                             onClick={() => setShowCategoryModal(false)}
                         >
                             <motion.div
@@ -5763,22 +5763,13 @@ function DashboardContent() {
                                 exit={{ y: "100%" }}
                                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
                                 onClick={(e) => e.stopPropagation()}
-                                className="w-full max-w-md rounded-[2.5rem] bg-slate-900 border border-slate-800 p-6 shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh]"
+                                className={cn(modalStyles.panel, "flex max-h-[85vh] flex-col overflow-hidden")}
                             >
-                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-royal-gold to-rose-400" />
-
-                                <div className="flex items-center justify-between mb-6 mt-2">
-                                    <div>
-                                        <h2 className="text-2xl font-black text-white">Event Type</h2>
-                                        <p className="text-sm font-medium text-slate-400 mt-1">Choose a category for your gallery</p>
-                                    </div>
-                                    <button
-                                        onClick={() => setShowCategoryModal(false)}
-                                        className="rounded-full bg-slate-800 p-2 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
-                                    >
-                                        <X className="h-5 w-5" />
-                                    </button>
-                                </div>
+                                <ModalHeader
+                                    title="Event Type"
+                                    subtitle="Choose a category for your gallery"
+                                    onClose={() => setShowCategoryModal(false)}
+                                />
 
                                 <div className="overflow-y-auto pr-2 -mr-2 space-y-2 pb-4">
                                     {EVENT_TYPE_OPTIONS.map(({ name, icon: Icon }) => {
@@ -5806,7 +5797,7 @@ function DashboardContent() {
                                                     "w-full flex items-center justify-between p-4 rounded-2xl border transition-all",
                                                     isActive
                                                         ? "border-[#CA9C68] bg-[#CA9C68]/10"
-                                                        : "border-slate-800 bg-slate-800/50 hover:border-slate-700 hover:bg-slate-800"
+                                                        : "border-[var(--site-border)] bg-[#13191F]/50 hover:border-[#CA9C68]/40"
                                                 )}
                                             >
                                                 <div className="flex items-center gap-4">
@@ -5844,7 +5835,7 @@ function DashboardContent() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4"
+                            className={modalStyles.overlay}
                             onClick={() => setShowTemplateModal(false)}
                         >
                             <motion.div
@@ -5852,25 +5843,16 @@ function DashboardContent() {
                                 animate={{ scale: 1, y: 0 }}
                                 exit={{ scale: 0.9, y: 20 }}
                                 onClick={(e) => e.stopPropagation()}
-                                className="bg-slate-800 w-full max-w-2xl rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden"
+                                className={cn(modalStyles.panel, "max-w-2xl overflow-hidden")}
                             >
-                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-royal-gold to-rose-400" />
-
-                                <div className="flex justify-between items-start mb-8 w-full">
-                                    <div className="flex-1 mr-4">
-                                        <h2 className="text-3xl font-serif text-white mb-2">Choose Style</h2>
-                                        <p className="text-slate-700 font-sans">Select a design template for this event.</p>
-                                    </div>
-                                    <button
-                                        onClick={() => {
-                                            setShowTemplateModal(false);
-                                            setTemplateTargetEvent(null);
-                                        }}
-                                        className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors shrink-0 mt-1"
-                                    >
-                                        <X className="w-5 h-5 text-[#CA9C68]" />
-                                    </button>
-                                </div>
+                                <ModalHeader
+                                    title="Choose Style"
+                                    subtitle="Select a design template for this event."
+                                    onClose={() => {
+                                        setShowTemplateModal(false);
+                                        setTemplateTargetEvent(null);
+                                    }}
+                                />
 
                                 <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto pr-2 pb-4">
                                     {getTemplatesForEventCategory(templateTargetEvent.category).map((template) => {
@@ -5881,7 +5863,7 @@ function DashboardContent() {
                                                 onClick={() => handleUpdateTemplate(template.id)}
                                                 className={cn(
                                                     "flex items-center justify-between p-3 rounded-2xl border-2 transition-colors cursor-pointer",
-                                                    isActive ? "bg-white/5" : "bg-white/5 border-white/5 hover:border-white/20"
+                                                    isActive ? "bg-[#13191F]/50" : "border-[var(--site-border)] bg-[#13191F]/50 hover:border-[#CA9C68]/40"
                                                 )}
                                                 style={{ borderColor: isActive ? template.accent : undefined }}
                                             >
@@ -5929,27 +5911,28 @@ function DashboardContent() {
                 {/* Rename Modal */}
                 <AnimatePresence>
                     {renamingEvent && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                        <div className={modalStyles.overlay}>
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.9 }}
-                                className="bg-slate-800 rounded-[2.5rem] p-8 md:p-12 w-full max-w-md shadow-2xl"
+                                className={modalStyles.panel}
                             >
-                                <h3 className="text-2xl font-bold mb-6 italic tracking-tight">
-                                    {editDetailsMode === "date"
+                                <ModalHeader
+                                    title={editDetailsMode === "date"
                                         ? renamingEvent.type === "sub" ? "Edit Gallery Date" : "Edit Event Date"
                                         : renamingEvent.type === "sub" ? "Edit Gallery Title" : "Edit Event Title"}
-                                </h3>
+                                    onClose={closeRenameModal}
+                                />
                                 <form onSubmit={handleRenameSubmit} className="space-y-6">
                                     {editDetailsMode === "title" && (
                                         <div>
-                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-400 mb-4 ml-1">New Name</label>
+                                            <label className={modalStyles.label}>New Name</label>
                                             <input
                                                 type="text"
                                                 value={newTitle}
                                                 onChange={(e) => setNewTitle(e.target.value)}
-                                                className="w-full px-6 py-4 bg-slate-900/50 border border-slate-700 rounded-2xl focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all outline-none text-lg font-medium text-white"
+                                                className={cn(modalStyles.input, "text-lg font-medium")}
                                                 required
                                                 autoFocus
                                             />
@@ -5957,11 +5940,11 @@ function DashboardContent() {
                                     )}
                                     {editDetailsMode === "date" && (
                                         <div>
-                                            <label className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-400 mb-4 ml-1">Date</label>
+                                            <label className={modalStyles.label}>Date</label>
                                             <button
                                                 type="button"
                                                 onClick={() => openDatePicker("rename")}
-                                                className="flex w-full items-center justify-between rounded-2xl border border-slate-700 bg-slate-900/50 px-5 py-4 text-left transition-all hover:border-sky-500/60 hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                                className={cn(modalStyles.input, "flex items-center justify-between text-left hover:border-[#CA9C68]/60")}
                                             >
                                                 <span className="flex min-w-0 items-center gap-4">
                                                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400">
@@ -5974,22 +5957,17 @@ function DashboardContent() {
                                                         </span>
                                                     </span>
                                                 </span>
-                                                <span className="rounded-full bg-slate-800 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-300">
+                                                <span className="rounded-full bg-[#CA9C68]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#CA9C68]">
                                                     Change
                                                 </span>
                                             </button>
                                         </div>
                                     )}
-                                    <div className="flex space-x-3 pt-2">
+                                    <div className="flex gap-3 pt-2">
                                         <button
                                             type="button"
-                                            onClick={() => {
-                                                setRenamingEvent(null);
-                                                setEditDetailsMode("title");
-                                                setNewTitle("");
-                                                setNewDate("");
-                                            }}
-                                            className="flex-1 py-4 px-6 border border-slate-700 rounded-2xl font-bold text-slate-400 hover:bg-slate-900/50 transition-all active:scale-95"
+                                            onClick={closeRenameModal}
+                                            className={cn(modalStyles.secondary, "flex-1")}
                                             title="Discard changes"
                                         >
                                             Cancel
@@ -5997,7 +5975,7 @@ function DashboardContent() {
                                         <button
                                             type="submit"
                                             disabled={status === "uploading"}
-                                            className="flex-1 py-4 px-6 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-95 disabled:bg-stone-300"
+                                            className={cn(modalStyles.primary, "flex-1")}
                                             title="Save changes"
                                         >
                                             {status === "uploading" ? "Saving..." : editDetailsMode === "date" ? "Save Date" : "Save Title"}
@@ -6012,7 +5990,7 @@ function DashboardContent() {
                 {/* Plan Details Modal */}
                 <AnimatePresence>
                     {showPlanDetailsModal && (
-                        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+                        <div className={modalStyles.overlay}>
                             <button
                                 type="button"
                                 aria-label="Close plan details"
@@ -6023,7 +6001,7 @@ function DashboardContent() {
                                 initial={{ opacity: 0, scale: 0.92, y: 18 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.92, y: 18 }}
-                                className="relative w-full max-w-md overflow-hidden rounded-[2rem] border bg-slate-800 shadow-2xl"
+                                className={cn(modalStyles.panel, "overflow-hidden p-0 sm:p-0")}
                                 style={{ borderColor: planDetails.accentSoft }}
                             >
                                 <div className="px-7 pb-6 pt-7" style={{ background: `linear-gradient(to bottom, ${planDetails.accentSoft}, rgba(15, 23, 42, 0.2), transparent)` }}>
@@ -6057,14 +6035,7 @@ function DashboardContent() {
                                             <h3 className="text-2xl font-black text-white">Storage & Quota</h3>
                                             <p className="text-sm font-semibold text-slate-400">Your current plan usage</p>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPlanDetailsModal(false)}
-                                            className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900/70 text-slate-400 transition-colors hover:text-white"
-                                            aria-label="Close plan details"
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
+                                        <ModalCloseButton onClick={() => setShowPlanDetailsModal(false)} label="Close plan details" className="self-start" />
                                     </div>
 
                                     <p className="mt-6 text-sm font-semibold text-slate-300">
@@ -6158,7 +6129,7 @@ function DashboardContent() {
                 {/* Share Modal */}
                 <AnimatePresence>
                     {shareModalEvent && (
-                        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+                        <div className={modalStyles.overlay}>
                             <button
                                 type="button"
                                 aria-label="Close share modal"
@@ -6169,9 +6140,9 @@ function DashboardContent() {
                                 initial={{ opacity: 0, scale: 0.92, y: 18 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.92, y: 18 }}
-                                className="relative w-full max-w-md rounded-[2rem] border border-[#CA9C68]/25 bg-slate-800 px-7 py-9 text-center shadow-2xl sm:px-10"
+                                className={cn(modalStyles.panel, "text-center")}
                             >
-                                <h3 className="text-3xl font-black tracking-tight text-white">Share Event</h3>
+                                <ModalHeader title="Share Event" onClose={() => setShareModalEvent(null)} closeLabel="Close share modal" className="mb-0 text-left" />
 
 
                                 <div className="mx-auto mt-7 w-full max-w-[250px] rounded-[2rem] bg-white p-6 shadow-xl">
@@ -6198,14 +6169,6 @@ function DashboardContent() {
                                 >
                                     <Share2 className="h-5 w-5" />
                                     <span>Share Invitation</span>
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={() => setShareModalEvent(null)}
-                                    className="mt-7 text-lg font-semibold text-slate-400 transition-colors hover:text-white"
-                                >
-                                    Close
                                 </button>
                             </motion.div>
                         </div>
@@ -6272,16 +6235,17 @@ function DashboardContent() {
                 <AnimatePresence>
                     {showDatePickerModal && (
                         <div
-                            className="fixed inset-0 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                            className={modalStyles.overlay}
                             style={{ zIndex: 10000 }}
                         >
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.92, y: 12 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.92, y: 12 }}
-                                className="relative w-full max-w-sm rounded bg-white p-6 text-slate-950 shadow-2xl"
+                                className={cn(modalStyles.panel, "max-w-sm")}
                                 style={{ zIndex: 10001 }}
                             >
+                                <ModalHeader title="Select Date" onClose={() => setShowDatePickerModal(false)} closeLabel="Close date picker" />
                                 <div className="grid grid-cols-3 gap-6">
                                     <DatePickerColumn
                                         options={DATE_PICKER_MONTHS.map((label, value) => ({ label, value }))}
@@ -6307,11 +6271,11 @@ function DashboardContent() {
                                     />
                                 </div>
 
-                                <div className="mt-10 flex justify-end gap-3">
+                                <div className={modalStyles.actions}>
                                     <button
                                         type="button"
                                         onClick={() => setShowDatePickerModal(false)}
-                                        className="rounded-full px-5 py-3 text-sm font-black uppercase tracking-widest text-slate-800 transition-colors hover:bg-slate-100"
+                                        className={modalStyles.secondary}
                                     >
                                         Cancel
                                     </button>
@@ -6326,7 +6290,7 @@ function DashboardContent() {
                                             }
                                             setShowDatePickerModal(false);
                                         }}
-                                        className="rounded-full bg-slate-950 px-5 py-3 text-sm font-black uppercase tracking-widest text-white transition-colors hover:bg-slate-800"
+                                        className={modalStyles.primary}
                                     >
                                         OK
                                     </button>
@@ -6339,12 +6303,12 @@ function DashboardContent() {
                 {/* Delete Confirmation Modal */}
                 <AnimatePresence>
                     {showDeleteConfirm && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                        <div className={modalStyles.overlay}>
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.9 }}
-                                className="bg-white rounded-md p-6 w-full max-w-xs shadow-2xl"
+                                className={modalStyles.panel}
                             >
                                 {(() => {
                                     const eventToDelete = userEvents.find(e => e.id === showDeleteConfirm) || eventDetailGalleries.find(e => e.id === showDeleteConfirm);
@@ -6352,15 +6316,15 @@ function DashboardContent() {
                                     const itemTypeTitle = eventToDelete?.type === "sub" ? "Gallery" : "Event";
                                     return (
                                         <>
-                                            <h3 className="text-[20px] font-medium mb-3 tracking-tight text-slate-900">Delete {itemTypeTitle}</h3>
-                                            <p className="text-slate-600 mb-8 font-inter text-[15px] leading-relaxed">
+                                            <ModalHeader title={`Delete ${itemTypeTitle}`} onClose={() => setShowDeleteConfirm(null)} className="mb-3" />
+                                            <p className={modalStyles.body}>
                                                 Are you sure you want to delete the {itemType} "{eventToDelete?.title}"? This will permanently remove all photos inside this {itemType}.
                                             </p>
-                                            <div className="flex justify-end space-x-6">
+                                            <div className={modalStyles.actions}>
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowDeleteConfirm(null)}
-                                                    className="font-bold text-teal-500 hover:text-teal-400 transition-colors uppercase text-sm tracking-wide"
+                                                    className={modalStyles.secondary}
                                                 >
                                                     Cancel
                                                 </button>
@@ -6368,7 +6332,7 @@ function DashboardContent() {
                                                     type="button"
                                                     onClick={() => handleDeleteEvent(showDeleteConfirm)}
                                                     disabled={status === "uploading"}
-                                                    className="font-bold text-teal-500 hover:text-teal-400 transition-colors uppercase text-sm tracking-wide disabled:opacity-50"
+                                                    className={modalStyles.danger}
                                                 >
                                                     {status === "uploading" ? "Deleting..." : "Delete"}
                                                 </button>
@@ -6384,22 +6348,22 @@ function DashboardContent() {
                 {/* Delete Success Modal */}
                 <AnimatePresence>
                     {showDeleteSuccessType && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                        <div className={modalStyles.overlay}>
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.9 }}
-                                className="bg-white rounded-md p-6 w-full max-w-xs shadow-2xl"
+                                className={modalStyles.panel}
                             >
-                                <h3 className="text-[20px] font-medium mb-3 tracking-tight text-slate-900">Success</h3>
-                                <p className="text-slate-600 mb-8 font-inter text-[15px] leading-relaxed">
+                                <ModalHeader title="Success" onClose={() => setShowDeleteSuccessType(null)} className="mb-3" />
+                                <p className={modalStyles.body}>
                                     {showDeleteSuccessType === "gallery" ? "Gallery" : "Event"} deleted successfully.
                                 </p>
-                                <div className="flex justify-end">
+                                <div className={modalStyles.actions}>
                                     <button
                                         type="button"
                                         onClick={() => setShowDeleteSuccessType(null)}
-                                        className="font-bold text-teal-500 hover:text-teal-400 transition-colors uppercase text-sm tracking-wide"
+                                        className={modalStyles.primary}
                                     >
                                         OK
                                     </button>
@@ -6494,26 +6458,19 @@ function DashboardContent() {
 
                 <AnimatePresence>
                     {photoActionItem && (
-                        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setPhotoActionItem(null)}>
+                        <div className={modalStyles.overlay} onClick={() => setPhotoActionItem(null)}>
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.95, y: 16 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 16 }}
-                                className="w-full max-w-md rounded-[2rem] border border-slate-700 bg-slate-900 p-6 shadow-2xl"
+                                className={modalStyles.panel}
                                 onClick={(e) => e.stopPropagation()}
                             >
-                                <div className="mb-5 flex items-start justify-between gap-4">
-                                    <div>
-                                        <h3 className="text-2xl font-black text-white">Photo Actions</h3>
-                                        <p className="mt-1 text-sm font-bold text-slate-400">Choose where this photo should appear as a thumbnail.</p>
-                                    </div>
-                                    <button
-                                        onClick={() => setPhotoActionItem(null)}
-                                        className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
-                                    >
-                                        <X className="h-5 w-5" />
-                                    </button>
-                                </div>
+                                <ModalHeader
+                                    title="Photo Actions"
+                                    subtitle="Choose where this photo should appear as a thumbnail."
+                                    onClose={() => setPhotoActionItem(null)}
+                                />
 
                                 <div className="space-y-3">
                                     <button
@@ -6568,15 +6525,15 @@ function DashboardContent() {
 
                 <AnimatePresence>
                     {selectedGuestLog && (
-                        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setSelectedGuestLog(null)}>
+                        <div className={modalStyles.overlay} onClick={() => setSelectedGuestLog(null)}>
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.95, y: 16 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 16 }}
-                                className="w-full max-w-xl overflow-hidden rounded-[2rem] border border-slate-700 bg-slate-950 shadow-2xl"
+                                className={cn(modalStyles.panel, "max-w-xl overflow-hidden p-0 sm:p-0")}
                                 onClick={(event) => event.stopPropagation()}
                             >
-                                <div className="bg-gradient-to-b from-slate-900 to-slate-950 px-6 py-6">
+                                <div className="border-b border-[var(--site-border)] px-6 py-6">
                                     <div className="flex items-start gap-4">
                                         <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-[#CA9C68] text-xl font-black text-slate-950">
                                             {selectedGuestProfile?.profileImage ? (
@@ -6592,13 +6549,7 @@ function DashboardContent() {
                                                 Member #{String(eventDetailLogs.findIndex(log => log.id === selectedGuestLog.id) + 1).padStart(2, "0")}
                                             </p>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setSelectedGuestLog(null)}
-                                            className="rounded-full bg-slate-900 p-2 text-slate-400 transition-colors hover:text-white"
-                                        >
-                                            <X className="h-5 w-5" />
-                                        </button>
+                                        <ModalCloseButton onClick={() => setSelectedGuestLog(null)} />
                                     </div>
                                 </div>
 
@@ -6687,26 +6638,23 @@ function DashboardContent() {
 
                 <AnimatePresence>
                     {showCreateSuccessModal && (
-                        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                        <div className={modalStyles.overlay}>
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.94, y: 12 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.94, y: 12 }}
-                                className="w-full max-w-sm rounded-[2rem] border border-emerald-400/25 bg-slate-900 p-7 text-center shadow-2xl"
+                                className={cn(modalStyles.panel, "max-w-sm text-center")}
                             >
-                                <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300">
+                                <ModalCloseButton onClick={closeCreateSuccessModal} className="absolute right-5 top-5" />
+                                <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#CA9C68]/10 text-[#CA9C68]">
                                     <Check className="h-7 w-7" />
                                 </div>
-                                <h3 className="text-2xl font-black text-white">Success</h3>
-                                <p className="mt-3 text-sm font-bold text-slate-300">Your event has been created! ✨</p>
+                                <h2 className={modalStyles.title}>Success</h2>
+                                <p className={cn(modalStyles.body, "mt-3")}>Your event has been created! ✨</p>
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        setShowCreateSuccessModal(false);
-                                        setStatus("idle");
-                                        setMessage("");
-                                    }}
-                                    className="mt-7 w-full rounded-2xl bg-[#CA9C68] px-5 py-4 text-sm font-black uppercase tracking-widest text-slate-950 transition-colors hover:bg-[#D7AE7D]"
+                                    onClick={closeCreateSuccessModal}
+                                    className={cn(modalStyles.primary, "mt-7 w-full py-4")}
                                 >
                                     OK
                                 </button>
@@ -6718,28 +6666,18 @@ function DashboardContent() {
                 {/* Create Event Modal */}
                 <AnimatePresence>
                     {isCreateModalOpen && (
-                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto">
+                        <div className={modalStyles.overlay}>
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                                className="bg-slate-800 rounded-[2.5rem] p-8 md:p-12 w-full max-w-lg shadow-2xl relative overflow-hidden my-8"
+                                className={cn(modalStyles.panel, "my-8 max-w-lg")}
                             >
-                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-sky-400 via-sky-200 to-sky-400"></div>
-
-                                <div className="flex justify-between items-center mb-8">
-                                    <h3 className="text-3xl font-bold tracking-tight text-white">Create Event</h3>
-                                    <button
-                                        onClick={() => setIsCreateModalOpen(false)}
-                                        className="p-2 hover:bg-slate-900/50 rounded-full transition-colors"
-                                    >
-                                        <X className="w-6 h-6 text-stone-400" />
-                                    </button>
-                                </div>
+                                <ModalHeader title="Create Event" onClose={() => setIsCreateModalOpen(false)} />
 
                                 {status === "error" && message && (
-                                    <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
-                                        <p className="text-red-400 text-sm font-medium text-center">{message}</p>
+                                    <div className={cn(modalStyles.error, "mb-6")}>
+                                        {message}
                                     </div>
                                 )}
 
@@ -6751,20 +6689,20 @@ function DashboardContent() {
                                     }
                                 }} className="space-y-6">
                                     <div>
-                                        <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-3 ml-1">Event Name</label>
+                                        <label className={modalStyles.label}>Event Name</label>
                                         <input
                                             type="text"
                                             value={eventName}
                                             onChange={(e) => setEventName(e.target.value)}
                                             placeholder="e.g. Wedding of John & Jane"
-                                            className="w-full px-6 py-5 bg-slate-900/50 border border-slate-700 rounded-2xl focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all outline-none text-lg font-medium text-white"
+                                            className={cn(modalStyles.input, "text-lg font-medium")}
                                             required
                                             autoFocus
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-3 ml-1">Event Type</label>
+                                        <label className={modalStyles.label}>Event Type</label>
                                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                                             {EVENT_TYPE_OPTIONS.map(({ name, icon: Icon }) => {
                                                 const isSelected = eventType === name;
@@ -6781,7 +6719,7 @@ function DashboardContent() {
                                                             "flex min-h-12 items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-sm font-black transition-colors",
                                                             isSelected
                                                                 ? "border-[#CA9C68] bg-[#CA9C68] text-slate-950"
-                                                                : "border-slate-700 bg-slate-900/50 text-slate-300 hover:border-[#CA9C68]/50 hover:text-white"
+                                                                : "border-[var(--site-border)] bg-[#13191F] text-[var(--site-subtle)] hover:border-[#CA9C68]/50 hover:text-white"
                                                         )}
                                                     >
                                                         <Icon className="h-4 w-4 shrink-0" />
@@ -6793,11 +6731,11 @@ function DashboardContent() {
                                     </div>
 
                                     <div>
-                                        <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-3 ml-1">Event Date</label>
+                                        <label className={modalStyles.label}>Event Date</label>
                                         <button
                                             type="button"
                                             onClick={() => openDatePicker("create")}
-                                            className="flex w-full items-center justify-between rounded-2xl border border-slate-700 bg-slate-900/50 px-6 py-5 text-left text-lg font-medium text-white transition-colors hover:border-[#CA9C68]/50"
+                                            className={cn(modalStyles.input, "flex items-center justify-between text-left text-lg font-medium hover:border-[#CA9C68]/50")}
                                         >
                                             <span className={eventDate ? "text-white" : "text-slate-500"}>
                                                 {eventDate || "Select event date"}
@@ -6809,7 +6747,7 @@ function DashboardContent() {
                                     <button
                                         type="submit"
                                         disabled={status === "uploading"}
-                                        className="w-full py-5 bg-[#CA9C68] text-slate-950 rounded-2xl font-black hover:bg-[#D7AE7D] transition-all shadow-xl active:scale-[0.98] disabled:bg-stone-200 disabled:shadow-none flex items-center justify-center gap-3 text-lg"
+                                        className={cn(modalStyles.primary, "w-full py-5")}
                                     >
                                         {status === "uploading" ? (
                                             <>

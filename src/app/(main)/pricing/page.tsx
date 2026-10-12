@@ -7,6 +7,8 @@ import { getPlanDetails } from "@/lib/planLimits";
 import { pricingPlanToFeatures, PricingPlan } from "@/lib/pricingPlans";
 import type { RazorpayBillingDuration } from "@/lib/razorpayPricing";
 import { supabase } from "@/lib/supabase";
+import { ModalHeader, modalStyles } from "@/components/ui/Modal";
+import { cn } from "@/lib/utils";
 
 type BillingCycle = "monthly" | "threeMonths" | "sixMonths" | "yearly";
 
@@ -735,21 +737,17 @@ export default function Pricing() {
                 )}
 
                 {confirmPlan && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6">
-                        <div className="w-full max-w-lg rounded-2xl border border-[var(--site-border)] bg-[var(--site-card)] p-6 shadow-2xl">
-                            <div className="space-y-2">
-                                <p className="text-xs font-black uppercase tracking-widest text-[#CA9C68]">
-                                    {confirmPlanIsDowngrade ? "Schedule Plan Downgrade" : "Confirm Plan Change"}
-                                </p>
-                                <h2 className="font-serif text-2xl font-bold text-[var(--site-text)]">
-                                    {confirmPlanIsDowngrade ? "Switch" : "Upgrade"} to {confirmPlan.name} ({confirmPlan.storageLabel})
-                                </h2>
-                                <p className="text-sm leading-6 text-[var(--site-subtle)]">
-                                    {confirmPlanIsDowngrade
-                                        ? `Your current plan stays active until ${formatDate(currentSubscription?.planEndDate)}. The lower plan starts in your next billing cycle.`
-                                        : `Your new ${durationLabels[billingCycle]} plan will start immediately after successful payment.`}
-                                </p>
-                            </div>
+                    <div className={modalStyles.overlay}>
+                        <div className={cn(modalStyles.panel, "max-w-lg")}>
+                            <ModalHeader
+                                eyebrow={confirmPlanIsDowngrade ? "Schedule Plan Downgrade" : "Confirm Plan Change"}
+                                title={`${confirmPlanIsDowngrade ? "Switch" : "Upgrade"} to ${confirmPlan.name} (${confirmPlan.storageLabel})`}
+                                subtitle={confirmPlanIsDowngrade
+                                    ? `Your current plan stays active until ${formatDate(currentSubscription?.planEndDate)}. The lower plan starts in your next billing cycle.`
+                                    : `Your new ${durationLabels[billingCycle]} plan will start immediately after successful payment.`}
+                                onClose={() => setConfirmPlan(null)}
+                                className="mb-0"
+                            />
 
                             <div className="mt-6 grid gap-3 text-sm">
                                 <div className="rounded-xl border border-[var(--site-border)] bg-[var(--site-card-muted)] p-4">
@@ -787,7 +785,7 @@ export default function Pricing() {
                                 <button
                                     type="button"
                                     onClick={() => setConfirmPlan(null)}
-                                    className="rounded-xl border border-[var(--site-border)] px-5 py-3 text-xs font-bold uppercase tracking-widest text-[var(--site-subtle)] transition-colors hover:bg-[var(--site-card-muted)]"
+                                    className={modalStyles.secondary}
                                 >
                                     Cancel
                                 </button>
@@ -798,7 +796,7 @@ export default function Pricing() {
                                         setConfirmPlan(null);
                                         handleCheckout(plan);
                                     }}
-                                    className="rounded-xl bg-[#CA9C68] px-5 py-3 text-xs font-bold uppercase tracking-widest text-[#13191F] transition-colors hover:bg-[#D9AE7E]"
+                                    className={modalStyles.primary}
                                 >
                                     Continue to Payment
                                 </button>

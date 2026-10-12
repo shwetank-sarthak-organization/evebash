@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Download, Loader2, X } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
+import { ModalCloseButton } from "@/components/ui/Modal";
 import { vaultApi, type VaultItem } from "@/lib/vaultApi";
 import { formatBytes, formatDateTime, previewKind } from "./format";
 import { FileTypeIcon } from "./FileTypeIcon";
@@ -60,9 +61,7 @@ export function PreviewPanel({ item, onClose, onDownload }: { item: VaultItem; o
                     <Download className="h-4 w-4" aria-hidden />
                     <span className="hidden sm:inline">Download</span>
                 </button>
-                <button type="button" onClick={onClose} aria-label="Close preview" className="rounded-full p-2 text-slate-300 hover:bg-white/10 hover:text-white">
-                    <X className="h-5 w-5" />
-                </button>
+                <ModalCloseButton onClick={onClose} label="Close preview" />
             </header>
 
             <div className="flex-1 overflow-auto p-4">

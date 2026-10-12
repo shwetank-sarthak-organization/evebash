@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { ChevronRight, Folder, Home, Loader2 } from "lucide-react";
 import { vaultApi, type VaultFolder } from "@/lib/vaultApi";
 import { cn } from "@/lib/utils";
+import { ModalHeader, modalStyles } from "@/components/ui/Modal";
 
 function useModal(onClose: () => void) {
     const ref = useRef<HTMLDialogElement>(null);
@@ -15,9 +16,9 @@ function useModal(onClose: () => void) {
     return { ref, onCancel: (event: React.SyntheticEvent) => { event.preventDefault(); onClose(); } };
 }
 
-const dialogClass = "m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-white/10 bg-[#141B22] p-5 text-white backdrop:bg-black/60";
-const primaryButton = "flex items-center gap-2 rounded-lg bg-[#CA9C68] px-4 py-2.5 font-semibold text-[#13191F] disabled:opacity-40";
-const secondaryButton = "rounded-lg border border-white/15 px-4 py-2.5 text-slate-200 disabled:opacity-40";
+const dialogClass = modalStyles.dialog;
+const primaryButton = modalStyles.primary;
+const secondaryButton = modalStyles.secondary;
 
 /** New folder and rename. Returns an error message to show, or null on success. */
 export function NameDialog({ title, label, initial, confirmLabel, onClose, onSubmit }: {
@@ -50,18 +51,18 @@ export function NameDialog({ title, label, initial, confirmLabel, onClose, onSub
     return (
         <dialog ref={ref} onCancel={onCancel} aria-labelledby="vault-name-title" className={dialogClass}>
             <form onSubmit={submit}>
-                <h2 id="vault-name-title" className="text-lg font-semibold">{title}</h2>
-                <label className="mt-4 block text-sm text-slate-400" htmlFor="vault-name-input">{label}</label>
+                <ModalHeader titleId="vault-name-title" title={title} onClose={onClose} closeDisabled={busy} />
+                <label className={modalStyles.label} htmlFor="vault-name-input">{label}</label>
                 <input
                     id="vault-name-input"
                     ref={inputRef}
                     value={value}
                     maxLength={255}
                     onChange={(event) => setValue(event.target.value)}
-                    className="mt-1 w-full rounded-lg border border-white/15 bg-[#0E1318] px-3 py-2.5 text-white outline-none focus:border-[#CA9C68]"
+                    className={modalStyles.input}
                 />
-                {error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}
-                <div className="mt-5 flex justify-end gap-3">
+                {error && <p role="alert" className={cn(modalStyles.error, "mt-3")}>{error}</p>}
+                <div className={modalStyles.actions}>
                     <button type="button" onClick={onClose} disabled={busy} className={secondaryButton}>Cancel</button>
                     <button type="submit" disabled={busy || !value.trim()} className={primaryButton}>
                         {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}{confirmLabel}
@@ -81,16 +82,16 @@ export function ConfirmDialog({ title, message, confirmLabel, destructive, onClo
     const [error, setError] = useState<string | null>(null);
     return (
         <dialog ref={ref} onCancel={onCancel} aria-labelledby="vault-confirm-title" className={dialogClass}>
-            <h2 id="vault-confirm-title" className="text-lg font-semibold">{title}</h2>
-            <p className="mt-2 text-sm text-slate-300">{message}</p>
-            {error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}
-            <div className="mt-5 flex justify-end gap-3">
+            <ModalHeader titleId="vault-confirm-title" title={title} onClose={onClose} closeDisabled={busy} className="mb-3" />
+            <p className={modalStyles.body}>{message}</p>
+            {error && <p role="alert" className={cn(modalStyles.error, "mt-3")}>{error}</p>}
+            <div className={modalStyles.actions}>
                 <button type="button" onClick={onClose} disabled={busy} className={secondaryButton}>Cancel</button>
                 <button
                     type="button"
                     disabled={busy}
                     onClick={async () => { setBusy(true); setError(await onConfirm()); setBusy(false); }}
-                    className={cn(primaryButton, destructive && "bg-red-500 text-white")}
+                    className={destructive ? modalStyles.danger : primaryButton}
                 >
                     {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}{confirmLabel}
                 </button>
@@ -125,7 +126,7 @@ export function FolderPickerDialog({ title, confirmLabel, excludeFolderIds, onCl
 
     return (
         <dialog ref={ref} onCancel={onCancel} aria-labelledby="vault-picker-title" className={dialogClass}>
-            <h2 id="vault-picker-title" className="text-lg font-semibold">{title}</h2>
+            <ModalHeader titleId="vault-picker-title" title={title} onClose={onClose} closeDisabled={busy} className="mb-0" />
             <nav aria-label="Folder path" className="mt-3 flex flex-wrap items-center gap-1 text-sm">
                 <button type="button" onClick={() => setCurrent(null)} className="flex items-center gap-1 rounded px-1.5 py-1 text-slate-300 hover:bg-white/10">
                     <Home className="h-4 w-4" aria-hidden /> My Files
@@ -137,7 +138,7 @@ export function FolderPickerDialog({ title, confirmLabel, excludeFolderIds, onCl
                     </span>
                 ))}
             </nav>
-            <ul className="mt-3 max-h-64 space-y-1 overflow-y-auto rounded-lg border border-white/10 p-1">
+            <ul className="mt-3 max-h-64 space-y-1 overflow-y-auto rounded-2xl border border-[var(--site-border)] p-1">
                 {folders === null ? (
                     <li className="flex items-center gap-2 px-3 py-3 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Loading…</li>
                 ) : folders.length === 0 ? (
@@ -160,8 +161,8 @@ export function FolderPickerDialog({ title, confirmLabel, excludeFolderIds, onCl
                     );
                 })}
             </ul>
-            {error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}
-            <div className="mt-5 flex justify-end gap-3">
+            {error && <p role="alert" className={cn(modalStyles.error, "mt-3")}>{error}</p>}
+            <div className={modalStyles.actions}>
                 <button type="button" onClick={onClose} disabled={busy} className={secondaryButton}>Cancel</button>
                 <button
                     type="button"

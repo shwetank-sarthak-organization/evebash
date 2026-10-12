@@ -6,6 +6,7 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
 import { ScrollReveal } from "@/components/ui/ScrollReveal";
 import { Event } from "@/lib/database";
+import { alertDialog } from "@/components/ui/Modal";
 
 interface TemplateHeroProps {
   event: Event;
@@ -40,7 +41,7 @@ export function TemplateHero({ event, children }: TemplateHeroProps) {
     } else {
       // Fallback
       navigator.clipboard.writeText(window.location.href);
-      alert("Link copied to clipboard!");
+      void alertDialog({ title: "Link copied", message: "The gallery link is copied to your clipboard." });
     }
   };
 

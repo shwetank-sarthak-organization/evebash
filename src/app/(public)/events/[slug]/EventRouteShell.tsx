@@ -16,6 +16,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { downloadGalleryAsZip } from "@/lib/zipDownload";
 import { getWebTemplateChrome } from "@/lib/webTemplateTheme";
+import { alertDialog } from "@/components/ui/Modal";
 
 interface EventRouteShellProps {
     children: React.ReactNode;
@@ -159,7 +160,7 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
         try {
             const media = await loadDownloadMedia();
             if (media.length === 0) {
-                window.alert("No photos or videos to download in this gallery.");
+                void alertDialog({ title: "Nothing to download", message: "No photos or videos to download in this gallery." });
                 return;
             }
             await downloadGalleryAsZip(
@@ -173,7 +174,7 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
                 (percent) => setZipProgress(percent),
             );
         } catch (error) {
-            window.alert(error instanceof Error ? error.message : "Failed to generate zip file.");
+            void alertDialog({ title: "Download failed", message: error instanceof Error ? error.message : "Failed to generate zip file." });
         } finally {
             setIsZipping(false);
             setZipProgress(0);
