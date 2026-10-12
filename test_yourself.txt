@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 53
+Next test number: 55
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1095,7 +1095,10 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  2026-10-12 partial, emulator only (Sarthak): local release build com.evebash.app 1.2.4 (debug key) on
+           a Pixel emulator with Google Play; old app uninstalled first. Step 3 Google sign-in works. Step 5: the first
+           approval push didn't arrive (EAS held a deleted FCM key); after the new key was assigned, a direct Expo test
+           push arrived. Real approval push, step 6 and a real phone still to do, so Status stays TODO.
 
 #52 iOS app with the new bundle ID com.evebash.app: Apple and Google sign-in and push work
 Status:    TODO
@@ -1141,6 +1144,32 @@ How to test:
      and each album opens its gallery.
   5. After the merge to main: paste https://www.evebash.com into https://search.google.com/test/rich-results.
      Expect: FAQ and Organization detected, no errors. Do the same for /pricing (Software App detected).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#54 Typing in bottom sheets: the keyboard doesn't make the sheet flicker or cover the text box
+Status:    TODO
+Priority:  High
+Platform:  App (Android and iOS)
+Brief:     The shared bottom sheet's keyboard handling changed on Android (issue #45): it lifts the sheet
+           by the keyboard height instead of resizing it, which flickered non-stop with a floating
+           keyboard. iOS code is unchanged but check it once too.
+How to test:
+  1. Dashboard > Join Event. Tap the Join ID box. Expect: the keyboard opens and the sheet sits just above
+     it, still and fully visible (title, box, Join with Code, Scan QR Code). No jumping, no tab bar
+     showing under the sheet. Type a code: the text shows as you type.
+  2. Close the keyboard (back / swipe down). Expect: the sheet drops back to the bottom of the screen.
+  3. Close the sheet while the keyboard is open, then open Join Event again. Expect: the sheet opens at
+     the bottom, not floating halfway up.
+  4. Host > create a new event (New Event sheet). Tap Event Name and type. Expect: same as step 1.
+  5. Android only, if you have one: a phone or tablet with a Bluetooth keyboard, or the emulator with
+     its hardware keyboard on (only Gboard's small toolbar shows). Expect: the sheet doesn't move.
 Done by:
 Device / browser:
 Build / version:

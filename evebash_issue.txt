@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 44
+Next issue number: 47
 
 =====================================================================
 ACTIVE ISSUES
@@ -171,6 +171,39 @@ Blocked by: -
 Found in: #17 bundle ID work (2026-10-11)
 Issue: The repo root still has an old tracked Android project (android/, 37 files) and a stub app.json, both using the package com.anonymous.weddingapp. The real app is apps/mobile, and EAS builds from there. The leftovers are confusing and show up in ID searches. Confirm nothing uses them, then delete them.
 How to reproduce: git ls-files android app.json
+
+#44
+Listed: 2026-10-12
+Platform: App
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: #17 bundle ID work, before the first EAS build (2026-10-12)
+Issue: EAS cloud builds would ship without Supabase settings. The project has never had an EAS build (staging apps so far were built locally, reading apps/mobile/.env). EAS has no EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY, and .env isn't uploaded (it is git-ignored). lib/supabase.ts only warns when they're missing, so the app opens but login and galleries don't work. Fix: add both to EAS (development, preview, production) with the same values as .env, then build. Related: #19 (production profile has no EXPO_PUBLIC_API_BASE_URL).
+How to reproduce: eas env:list --environment preview (from apps/mobile): only EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID is set.
+
+#45
+Listed: 2026-10-12
+Platform: App
+Priority: High
+Status: In progress
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Sarthak testing the Join Event sheet on the Android emulator (2026-10-12)
+Issue: On Android, tapping the Join ID box in the Join Event sheet makes the sheet flicker non-stop. The shared BottomSheet (apps/mobile/components/ui/BottomSheet.tsx) used KeyboardAvoidingView with behavior "height" on Android. With a floating keyboard (Gboard's small toolbar when a hardware keyboard is attached, as on the emulator), the keyboard events made it shrink the sheet, the toolbar hid and re-showed, and the sheet snapped back, forever. The New Event sheet (Host) has text boxes in the same sheet, so it was affected too; the other sheets have no text boxes. Fix (da340bd, needs a new app build): on Android the sheet now pads by the keyboard height from the IME insets (0 for a floating keyboard) instead; iOS unchanged. Device check: test_yourself #54.
+How to reproduce: Android emulator with the hardware keyboard on: Dashboard > Join Event > tap the Join ID box. The sheet jumps up and down, and the dashboard tab bar shows through under it.
+
+#46
+Listed: 2026-10-12
+Platform: App
+Priority: High
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Testing the #51 approval push (2026-10-12)
+Issue: The app's event Permissions screen loads every row of the guests table (all hosts, all events) and then keeps this event's rows in the app (apps/mobile/app/events/[id].tsx -> getEventLogs -> getGuestLogs() with no filter, apps/mobile/lib/database.ts). Supabase returns at most 1,000 rows per query, ordered by login_at descending (rows without a login time come first). Once the table has more than 1,000 rows in total, hosts will see guests and pending requests missing, and guest admins can lose their admin controls (hasSharedAdminAccess uses the same list). It also downloads other hosts' guest names and phone numbers to every phone while guests RLS is off (#21). Fix: query only this event's rows (event_id / parent_event_id = the event) on the server. The Gallery tab's Requests list filters by owner and is only affected past 1,000 guests for one host.
+How to reproduce: Read getEventLogs in apps/mobile/lib/database.ts; compare the guests row count with 1,000.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
