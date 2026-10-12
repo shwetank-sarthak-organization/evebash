@@ -64,7 +64,8 @@ import {
     FolderInput,
     CheckSquare,
     Square,
-    HardDrive
+    HardDrive,
+    Lock
 } from "lucide-react";
 import { cn, formatEventDate } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -4456,16 +4457,36 @@ function DashboardContent() {
                                                         <p className="text-sm font-bold text-slate-400">Approve, deny, or remove guest access requests for this event.</p>
                                                     </div>
                                                     {canChangeSelectedEventVisibility && selectedMainEvent && (
-                                                        <div className="shrink-0 sm:max-w-[16rem] sm:text-right">
-                                                            <label className="flex items-center gap-3 text-sm font-bold text-white sm:justify-end">
-                                                                Event visibility
-                                                                <select aria-label="Event visibility" value={selectedMainEvent.isPublic ? "public" : "private"} disabled={savingVisibility} onChange={event => void changeEventVisibility(event.target.value === "public")} className="rounded-lg border border-slate-600 bg-slate-900 p-2 disabled:opacity-50">
-                                                                    <option value="private">Private</option><option value="public">Public</option>
-                                                                </select>
-                                                            </label>
-                                                            <p className="mt-2 text-xs text-slate-400">{selectedMainEvent.isPublic ? "Anyone with the link can view this event and its sub-galleries." : "Guests need your approval to view this event."}</p>
-                                                            {savingVisibility && <p role="status" className="mt-1 text-xs text-slate-300">Saving…</p>}
-                                                            {visibilityError && <p role="alert" className="mt-1 text-xs text-rose-300">{visibilityError}</p>}
+                                                        <div className="w-full shrink-0 sm:w-[22rem]">
+                                                            <button
+                                                                type="button"
+                                                                role="switch"
+                                                                aria-checked={selectedMainEvent.isPublic}
+                                                                aria-label="Public event"
+                                                                aria-describedby="event-visibility-description"
+                                                                disabled={savingVisibility}
+                                                                onClick={() => void changeEventVisibility(!selectedMainEvent.isPublic)}
+                                                                className={cn(
+                                                                    "flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68]/60 disabled:cursor-wait",
+                                                                    selectedMainEvent.isPublic
+                                                                        ? "border-[#CA9C68]/70 bg-[#CA9C68]/10"
+                                                                        : "border-slate-700 bg-slate-900/45 hover:border-slate-500 hover:bg-slate-900/70"
+                                                                )}
+                                                            >
+                                                                <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-colors", selectedMainEvent.isPublic ? "bg-[#CA9C68] text-slate-950" : "bg-slate-800 text-slate-300")}>
+                                                                    {savingVisibility ? <Loader2 className="h-4 w-4 animate-spin" /> : selectedMainEvent.isPublic ? <Globe className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                                                                </span>
+                                                                <span className="min-w-0 flex-1">
+                                                                    <span className="block text-[10px] font-black uppercase tracking-widest text-slate-500">Event visibility</span>
+                                                                    <span className={cn("block text-sm font-bold", selectedMainEvent.isPublic ? "text-[#E2B77F]" : "text-slate-200")}>{selectedMainEvent.isPublic ? "Public" : "Private"}</span>
+                                                                    <span id="event-visibility-description" className="mt-0.5 block text-xs text-slate-400">{selectedMainEvent.isPublic ? "Anyone with the link can view this event and its sub-galleries." : "Guests need your approval to view this event."}</span>
+                                                                </span>
+                                                                <span className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", selectedMainEvent.isPublic ? "bg-[#CA9C68]" : "bg-slate-700", savingVisibility && "opacity-60")}>
+                                                                    <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform", selectedMainEvent.isPublic ? "translate-x-5" : "translate-x-0.5")} />
+                                                                </span>
+                                                            </button>
+                                                            {savingVisibility && <p role="status" className="sr-only">Saving…</p>}
+                                                            {visibilityError && <p role="alert" className="mt-2 text-xs text-rose-300">{visibilityError}</p>}
                                                         </div>
                                                     )}
                                                 </div>
