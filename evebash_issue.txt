@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 63
+Next issue number: 64
 
 =====================================================================
 ACTIVE ISSUES
@@ -259,6 +259,17 @@ Blocked by: -
 Found in: Test #13 on the new staging app build, Pixel 8 (2026-10-12)
 Issue: Sign-up doesn't save a username. A new account (Google sign-up in the app) has no username: the app's Profile shows "not set". Neither the app (apps/mobile/context/AuthContext.tsx, the profiles insert) nor the website saves one when the profile is created. The website hides it: src/context/AuthContext.tsx shows normalizeUsername(name) when profile.username is empty (e.g. "sarthak_chauhan") but never stores it, so two people with the same name show the same username, and the app and website disagree for the same account. Users can only get one by setting it in Profile > Edit (checked with is_username_available). Fix: pick a free username at sign-up (from the name, with a suffix if taken, via is_username_available) and save it, the same on both platforms; decide whether to backfill existing accounts without one (not counted yet: the database read was blocked).
 How to reproduce: Create a new account with "Continue with Google" in the app, then open Profile: Username "not set". Open the same account's profile on the website: a username is shown, but profiles.username is empty.
+
+#63
+Listed: 2026-10-12
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Test #51 push check on the Pixel 8 (2026-10-12)
+Issue: The app's notification switches can't turn off upload pushes. Settings (Profile > gear icon, apps/mobile/app/settings.tsx) has four switches saved in profiles.notification_preferences: likesAndComments, eventInvites, businessMatches, marketing. The backend's "new photos" / "new video uploaded" push to the gallery owner (apps/backend/src/uploadNotifications.ts) instead checks preferences.push and preferences.event_activity, which no screen sets, so hosts can't stop those pushes. (The access-request push checks push and eventInvites, so "Event invites" does work for it.) Fix: decide which switch covers upload activity (a new "Uploads to my galleries" switch, or reuse an existing one), make the backend read that key, and keep the old keys working. Sarthak also hadn't found the switches, so consider showing them more clearly (e.g. a "Notifications" row on Profile).
+How to reproduce: In the app, Settings: turn every notification switch off. Have another account upload a video to your gallery: the "New video uploaded" push still arrives.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
