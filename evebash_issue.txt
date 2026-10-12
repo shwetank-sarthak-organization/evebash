@@ -183,25 +183,13 @@ Found in: Sarthak testing the Join Event sheet on the Android emulator (2026-10-
 Issue: On Android, tapping the Join ID box in the Join Event sheet makes the sheet flicker non-stop. The shared BottomSheet (apps/mobile/components/ui/BottomSheet.tsx) used KeyboardAvoidingView with behavior "height" on Android. With a floating keyboard (Gboard's small toolbar when a hardware keyboard is attached, as on the emulator), the keyboard events made it shrink the sheet, the toolbar hid and re-showed, and the sheet snapped back, forever. The New Event sheet (Host) has text boxes in the same sheet, so it was affected too; the other sheets have no text boxes. Fix (da340bd, needs a new app build): on Android the sheet now pads by the keyboard height from the IME insets (0 for a floating keyboard) instead; iOS unchanged. Device check: test_yourself #54.
 How to reproduce: Android emulator with the hardware keyboard on: Dashboard > Join Event > tap the Join ID box. The sheet jumps up and down, and the dashboard tab bar shows through under it.
 
-#47
-Listed: 2026-10-12
-Platform: App
-Priority: High
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: Testing the #51 push on the Android emulator (2026-10-12)
-Issue: The "New access request" push doesn't reach the host. A normal account joined the private gallery "Check push" with Join with Code (CHEC-DPNUU) on staging.evebash.com and got "Request sent"; the request shows in the host's app (account b7ab6182..., Permissions and Gallery > Requests), but no push arrived on the emulator. A direct Expo test push to the same token arrives (after the FCM key fix, see #51), so delivery works. The backend route /api/v1/notifications/gallery-request (apps/backend/src/routes/notifications.ts) skips silently when the request isn't pending, the owner is the requester, a push for the same request went out in the last 10 minutes, the owner's profile has no push_token, or Event invites is off. Cause not found yet: next step is the website's gallery-request response in DevTools (sent true/false, 404, 401 or CORS), or a read-only look at the owner's profile push_token and notification_preferences.
-How to reproduce: Host on the app (com.evebash.app); another account (not a platform admin, not a member) uses Join with Code on staging.evebash.com for the host's private gallery. Expect "New access request" on the host's device.
-Cause (2026-10-12): profiles has no notification_preferences column, and the backend's owner lookup asked for it: PostgREST answers 400 "column profiles.notification_preferences does not exist", the code ignored the error and saw no push token, so it returned sent:false without a log. The same lookup dropped the approval and deny pushes (test_yourself #37, #57). The website's call, URL and CORS were fine. Fix: the backend reads the profile with "*" (settings count when the column exists, otherwise they're on, the apps' default) and logs every reason a push isn't sent, and Expo's refusals. Upload pushes have the same problem: #58.
-
 #48
 Listed: 2026-10-12
 Platform: App
 Priority: Medium
 Status: Open
 Owner: Unassigned
-Blocked by: #47 for part 1 (it needs the push to arrive)
+Blocked by: -
 Found in: Testing the #51 push on the Android emulator (2026-10-12)
 Issue: New access requests only show in the app after the host leaves and reopens the event or pulls to refresh: the Permissions tab and Gallery > Requests load once when the screen opens, and Supabase Realtime is off (and the app has no listener on guests anyway). Fix without Realtime, app only: (1) when a "New access request" push arrives while the app is open, reload the request list; tapping the push opens that event's Permissions tab; (2) reload the current screen when the app comes back to the foreground. Pull-to-refresh stays.
 How to reproduce: Keep the event's Permissions tab open in the app, send a request from the website: it doesn't appear until you reopen the screen.
@@ -253,6 +241,19 @@ How to reproduce: Upload a photo or video to someone else's gallery: the owner's
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#47
+Listed: 2026-10-12
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Testing the #51 push on the Android emulator (2026-10-12)
+Issue: The "New access request" push doesn't reach the host. A normal account joined the private gallery "Check push" with Join with Code (CHEC-DPNUU) on staging.evebash.com and got "Request sent"; the request shows in the host's app (account b7ab6182..., Permissions and Gallery > Requests), but no push arrived on the emulator. A direct Expo test push to the same token arrives (after the FCM key fix, see #51), so delivery works. The backend route /api/v1/notifications/gallery-request (apps/backend/src/routes/notifications.ts) skips silently when the request isn't pending, the owner is the requester, a push for the same request went out in the last 10 minutes, the owner's profile has no push_token, or Event invites is off. Cause not found yet: next step is the website's gallery-request response in DevTools (sent true/false, 404, 401 or CORS), or a read-only look at the owner's profile push_token and notification_preferences.
+How to reproduce: Host on the app (com.evebash.app); another account (not a platform admin, not a member) uses Join with Code on staging.evebash.com for the host's private gallery. Expect "New access request" on the host's device.
+Cause (2026-10-12): profiles has no notification_preferences column, and the backend's owner lookup asked for it: PostgREST answers 400 "column profiles.notification_preferences does not exist", the code ignored the error and saw no push token, so it returned sent:false without a log. The same lookup dropped the approval and deny pushes (test_yourself #37, #57). The website's call, URL and CORS were fine. Fix: the backend reads the profile with "*" (settings count when the column exists, otherwise they're on, the apps' default) and logs every reason a push isn't sent, and Expo's refusals. Upload pushes have the same problem: #58.
+Fixed in: e5b7518 (2026-10-12). Backend only, no app build needed. Verified on staging after the Railway deploy: account "New" used Join with Code CHEC-DPNUU on staging.evebash.com, Railway logged "[notifications] gallery-request push sent", and the host's Android emulator (com.evebash.app) showed "New access request 🔔 / New is asking to join "Check push"." Device check: test_yourself #62; the same fix covers the approval and deny pushes (#37, #57).
 
 #57
 Listed: 2026-10-12
