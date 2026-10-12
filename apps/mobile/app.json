@@ -126,6 +126,12 @@
       "typedRoutes": true,
       "reactCompiler": false
     },
-    "owner": "elnino_009"
+    "owner": "elnino_009",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c56e7efd-1e46-4243-a77c-bff834914615"
+    }
   }
 }
