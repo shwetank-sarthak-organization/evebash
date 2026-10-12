@@ -5081,7 +5081,7 @@ function DashboardContent() {
 
                                     {/* Header bar: back, gallery title, gallery actions */}
                                     <div className={cn(
-                                        "mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-4 border-b border-slate-700 pb-5 sm:mb-8 lg:grid-cols-[minmax(max-content,1fr)_minmax(0,auto)_minmax(max-content,1fr)] lg:gap-x-6",
+                                        "mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-4 border-b border-slate-700 pb-5 sm:mb-8 md:grid-cols-[minmax(max-content,1fr)_minmax(0,auto)_minmax(max-content,1fr)] md:gap-x-6",
                                         isInlineEventDetailGalleryEditor && "-mx-4 -mt-4 rounded-t-[2rem] bg-slate-950 px-4 pt-4 sm:-mx-8 sm:-mt-8 sm:px-8 sm:pt-6 lg:-mx-10 lg:-mt-10 lg:px-10"
                                     )}>
                                         <button
@@ -5107,7 +5107,7 @@ function DashboardContent() {
                                         </button>
 
                                         <h3
-                                            className="col-span-2 row-start-2 min-w-0 truncate text-center font-serif text-2xl font-semibold tracking-tight text-[#F5EFE6] lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:text-[1.75rem]"
+                                            className="col-span-2 row-start-2 min-w-0 truncate text-center font-serif text-2xl font-semibold tracking-tight text-[#F5EFE6] md:col-span-1 md:col-start-2 md:row-start-1 lg:text-[1.75rem]"
                                             title={selectedEventName}
                                         >
                                             {selectedEventName}
@@ -5116,59 +5116,24 @@ function DashboardContent() {
                                             )}
                                         </h3>
 
-                                        <div className="col-start-2 row-start-1 flex items-center justify-end gap-2 sm:gap-3 lg:col-start-3">
-                                            {/* View Toggle */}
-                                            <div className="flex items-center rounded-full border border-slate-700 bg-slate-900/60 p-1">
-                                                <Tooltip text="Grid View">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setGalleryViewMode("grid")}
-                                                        aria-label="Grid view"
-                                                        aria-pressed={galleryViewMode === "grid"}
-                                                        className={cn(
-                                                            "rounded-full p-2 transition-colors",
-                                                            galleryViewMode === "grid" ? "bg-[#CA9C68]/20 text-[#E2B77F]" : "text-slate-400 hover:text-white"
-                                                        )}
-                                                    >
-                                                        <LayoutGrid className="h-4 w-4" />
-                                                    </button>
-                                                </Tooltip>
-                                                <Tooltip text="List View">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setGalleryViewMode("list")}
-                                                        aria-label="List view"
-                                                        aria-pressed={galleryViewMode === "list"}
-                                                        className={cn(
-                                                            "rounded-full p-2 transition-colors",
-                                                            galleryViewMode === "list" ? "bg-[#CA9C68]/20 text-[#E2B77F]" : "text-slate-400 hover:text-white"
-                                                        )}
-                                                    >
-                                                        <List className="h-4 w-4" />
-                                                    </button>
-                                                </Tooltip>
-                                            </div>
-
+                                        <div className="col-start-2 row-start-1 flex items-center justify-end gap-2 sm:gap-2.5 md:col-start-3">
                                             <button
                                                 type="button"
                                                 onClick={handleHostDownloadZip}
                                                 disabled={isHostZipping || currentEventPhotos.length === 0}
-                                                aria-label="Download (.ZIP)"
-                                                title="Download (.ZIP)"
-                                                className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-[#CA9C68]/60 bg-[#CA9C68]/10 px-3 py-2.5 text-sm font-semibold text-[#E2B77F] transition-colors hover:bg-[#CA9C68]/20 disabled:opacity-40 sm:px-5"
+                                                aria-label="Download all (.ZIP)"
+                                                title="Download all (.ZIP)"
+                                                className="flex h-10 min-w-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-[#CA9C68]/60 bg-[#CA9C68]/10 px-2.5 font-sans text-sm font-black text-[#E2B77F] transition-colors hover:bg-[#CA9C68]/20 disabled:opacity-40 sm:h-12 sm:px-3.5"
                                             >
                                                 {isHostZipping ? (
                                                     <>
                                                         <Loader2 className="h-4 w-4 animate-spin" />
-                                                        <span>
-                                                            <span className="hidden sm:inline">Zipping </span>
-                                                            {hostZipProgress}%
-                                                        </span>
+                                                        <span>{hostZipProgress}%</span>
                                                     </>
                                                 ) : (
                                                     <>
                                                         <Download className="h-4 w-4" />
-                                                        <span className="hidden sm:inline">Download (.ZIP)</span>
+                                                        <span className="hidden sm:inline">Download</span>
                                                     </>
                                                 )}
                                             </button>
@@ -5179,10 +5144,10 @@ function DashboardContent() {
                                                     onClick={() => setShowDeleteConfirm(activeEventDetailEvent.id)}
                                                     aria-label="Delete Gallery"
                                                     title="Delete Gallery"
-                                                    className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-[#B4616A] px-3 py-2.5 text-sm font-semibold text-[#FCE8EA] transition-colors hover:bg-[#C26E77] sm:px-5"
+                                                    className="flex h-10 min-w-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-[#B4616A] px-2.5 font-sans text-sm font-black text-[#FCE8EA] transition-colors hover:bg-[#C26E77] sm:h-12 sm:px-3.5"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
-                                                    <span className="hidden sm:inline">Delete Gallery</span>
+                                                    <span className="hidden sm:inline">Delete</span>
                                                 </button>
                                             )}
                                         </div>
@@ -5263,52 +5228,84 @@ function DashboardContent() {
                                             );
                                         })}
                                     </div>
-                                    {isPrimaryGalleryView ? (
-                                    <label className="mb-6 flex w-full items-center gap-3 rounded-2xl border border-slate-700 bg-slate-900/45 px-4 py-3.5 sm:px-5">
-                                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-800 text-[#CA9C68]">
-                                            <Layers3 className="h-4 w-4" />
-                                        </span>
-                                        <span className="min-w-0 flex-1">
-                                            <span className="block text-base font-semibold text-slate-100">Source gallery</span>
-                                            <span className="mt-0.5 block text-sm text-slate-400">Filter Primary Gallery media by origin</span>
-                                        </span>
-                                        <select
-                                            value={effectiveSourceGalleryFilter}
-                                            onChange={(event) => setSourceGalleryFilter(event.target.value)}
-                                            className="max-w-[14rem] rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-sm font-semibold text-white outline-none focus:border-[#CA9C68]"
-                                            aria-label="Filter by source gallery"
+                                    {/* Filter (top left) and view toggle on one line */}
+                                    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                                        {isPrimaryGalleryView ? (
+                                        <label className="flex h-11 min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Filter Primary Gallery media by origin">
+                                            <Layers3 className="h-4 w-4 shrink-0 text-[#CA9C68]" />
+                                            <span className="hidden whitespace-nowrap text-sm font-semibold text-slate-100 sm:inline">Source gallery</span>
+                                            <select
+                                                value={effectiveSourceGalleryFilter}
+                                                onChange={(event) => setSourceGalleryFilter(event.target.value)}
+                                                className="h-8 min-w-0 max-w-[9.5rem] rounded-lg border border-slate-600 sm:max-w-[11rem] bg-slate-950 px-2 text-sm font-semibold text-white outline-none focus:border-[#CA9C68]"
+                                                aria-label="Filter by source gallery"
+                                            >
+                                                <option value="all">All galleries ({selectedMediaItems.length})</option>
+                                                {sourceGalleryOptions.map(option => (
+                                                    <option key={option.id} value={option.id}>{option.label} ({option.count})</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        ) : (
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={showOnlyFavourites}
+                                            onClick={() => setShowOnlyFavourites(current => !current)}
+                                            title={`${activeFavouriteCount} in ${galleryMediaTab === "videos" ? "Videos" : "Photos"}`}
+                                            className={cn(
+                                                "flex h-11 items-center gap-2 rounded-xl border pl-3 pr-2 text-left transition-colors",
+                                                showOnlyFavourites
+                                                    ? "border-[#CA9C68]/70 bg-[#CA9C68]/10"
+                                                    : "border-slate-700 bg-slate-900/45 hover:border-slate-500 hover:bg-slate-900/70"
+                                            )}
                                         >
-                                            <option value="all">All galleries ({selectedMediaItems.length})</option>
-                                            {sourceGalleryOptions.map(option => (
-                                                <option key={option.id} value={option.id}>{option.label} ({option.count})</option>
-                                            ))}
-                                        </select>
-                                    </label>
-                                    ) : (
-                                    <button
-                                        type="button"
-                                        role="switch"
-                                        aria-checked={showOnlyFavourites}
-                                        onClick={() => setShowOnlyFavourites(current => !current)}
-                                        className={cn(
-                                            "mb-6 flex w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition-colors sm:px-5",
-                                            showOnlyFavourites
-                                                ? "border-[#CA9C68]/70 bg-[#CA9C68]/10"
-                                                : "border-slate-700 bg-slate-900/45 hover:border-slate-500 hover:bg-slate-900/70"
+                                            <Star className={cn("h-4 w-4 shrink-0", showOnlyFavourites ? "fill-current text-[#E2B77F]" : "text-slate-200")} />
+                                            <span className={cn("whitespace-nowrap text-sm font-semibold", showOnlyFavourites ? "text-[#E2B77F]" : "text-slate-100")}>
+                                                Favourites<span className="hidden sm:inline"> only</span>
+                                            </span>
+                                            <span className={cn(
+                                                "min-w-6 rounded-md px-1.5 py-0.5 text-center font-sans text-xs font-bold",
+                                                showOnlyFavourites ? "bg-[#CA9C68] text-slate-950" : "bg-white/10 text-slate-300"
+                                            )}>
+                                                {activeFavouriteCount}
+                                            </span>
+                                            <span className={cn("relative ml-0.5 h-5 w-9 shrink-0 rounded-full transition-colors", showOnlyFavourites ? "bg-[#CA9C68]" : "bg-slate-700")}>
+                                                <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform", showOnlyFavourites ? "translate-x-[18px]" : "translate-x-0.5")} />
+                                            </span>
+                                        </button>
                                         )}
-                                    >
-                                        <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl", showOnlyFavourites ? "bg-[#CA9C68] text-slate-950" : "bg-slate-800 text-slate-200")}>
-                                            <Star className={cn("h-4 w-4", showOnlyFavourites && "fill-current")} />
-                                        </span>
-                                        <span className="min-w-0 flex-1">
-                                            <span className={cn("block text-base font-semibold", showOnlyFavourites ? "text-[#E2B77F]" : "text-slate-100")}>Favourites only</span>
-                                            <span className="mt-0.5 block text-sm text-slate-400">{activeFavouriteCount} in {galleryMediaTab === "videos" ? "Videos" : "Photos"}</span>
-                                        </span>
-                                        <span className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors", showOnlyFavourites ? "bg-[#CA9C68]" : "bg-slate-700")}>
-                                            <span className={cn("absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform", showOnlyFavourites ? "translate-x-6" : "translate-x-1")} />
-                                        </span>
-                                    </button>
-                                    )}
+
+                                        {/* View Toggle */}
+                                        <div className="flex h-11 items-center rounded-xl border border-slate-700 bg-slate-900/60 p-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => setGalleryViewMode("grid")}
+                                                aria-label="Grid view"
+                                                title="Grid View"
+                                                aria-pressed={galleryViewMode === "grid"}
+                                                className={cn(
+                                                    "grid h-9 w-9 place-items-center rounded-lg transition-colors",
+                                                    galleryViewMode === "grid" ? "bg-[#CA9C68]/20 text-[#E2B77F]" : "text-slate-400 hover:text-white"
+                                                )}
+                                            >
+                                                <LayoutGrid className="h-4 w-4" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setGalleryViewMode("list")}
+                                                aria-label="List view"
+                                                title="List View"
+                                                aria-pressed={galleryViewMode === "list"}
+                                                className={cn(
+                                                    "grid h-9 w-9 place-items-center rounded-lg transition-colors",
+                                                    galleryViewMode === "list" ? "bg-[#CA9C68]/20 text-[#E2B77F]" : "text-slate-400 hover:text-white"
+                                                )}
+                                            >
+                                                <List className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </div>
 
                                     {galleryViewMode === "grid" && activeGalleryItems.length > 0 && (
                                         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-900/45 px-4 py-3 sm:px-5">
@@ -5477,49 +5474,46 @@ function DashboardContent() {
                                                         ) : (<>
                                                         <div className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1.5">
                                                             {!isVideo && (
-                                                                <Tooltip text="Delete Image">
-                                                                    <button
-                                                                        aria-label="Delete Image"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            handleDeletePhoto(photo.id);
-                                                                        }}
-                                                                        className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950/70 text-rose-300 shadow-lg backdrop-blur-md opacity-0 transition-all active:scale-95 group-hover:opacity-100 hover:bg-rose-500 hover:text-white"
-                                                                    >
-                                                                        <Trash2 className="h-4 w-4" />
-                                                                    </button>
-                                                                </Tooltip>
+                                                                <button
+                                                                    aria-label="Delete Image"
+                                                                    title="Delete Image"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleDeletePhoto(photo.id);
+                                                                    }}
+                                                                    className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950/70 text-rose-300 shadow-lg backdrop-blur-md opacity-0 transition-all active:scale-95 group-hover:opacity-100 hover:bg-rose-500 hover:text-white"
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </button>
                                                             )}
-                                                            <Tooltip text={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}>
-                                                                <button
-                                                                    aria-label={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}
-                                                                    aria-pressed={isFavourite}
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleToggleEventFavourite(photo.id);
-                                                                    }}
-                                                                    className={cn(
-                                                                        "grid h-9 w-9 place-items-center rounded-lg shadow-lg backdrop-blur-md transition-all active:scale-95",
-                                                                        isFavourite
-                                                                            ? "bg-[#CA9C68] text-slate-950"
-                                                                            : "bg-slate-950/70 text-white hover:bg-[#CA9C68] hover:text-slate-950"
-                                                                    )}
-                                                                >
-                                                                    <Star className={cn("h-4 w-4", isFavourite && "fill-current")} />
-                                                                </button>
-                                                            </Tooltip>
-                                                            <Tooltip text={isVideo ? "Video actions" : "Photo actions"}>
-                                                                <button
-                                                                    aria-label={isVideo ? "Video actions" : "Photo actions"}
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        isVideo ? setVideoActionItem(photo) : setPhotoActionItem(photo);
-                                                                    }}
-                                                                    className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950/70 text-white shadow-lg backdrop-blur-md transition-all active:scale-90 hover:bg-slate-950/90"
-                                                                >
-                                                                    <MoreHorizontal className="h-4 w-4" />
-                                                                </button>
-                                                            </Tooltip>
+                                                            <button
+                                                                aria-label={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}
+                                                                title={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}
+                                                                aria-pressed={isFavourite}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleToggleEventFavourite(photo.id);
+                                                                }}
+                                                                className={cn(
+                                                                    "grid h-9 w-9 place-items-center rounded-lg shadow-lg backdrop-blur-md transition-all active:scale-95",
+                                                                    isFavourite
+                                                                        ? "bg-[#CA9C68] text-slate-950"
+                                                                        : "bg-slate-950/70 text-white hover:bg-[#CA9C68] hover:text-slate-950"
+                                                                )}
+                                                            >
+                                                                <Star className={cn("h-4 w-4", isFavourite && "fill-current")} />
+                                                            </button>
+                                                            <button
+                                                                aria-label={isVideo ? "Video actions" : "Photo actions"}
+                                                                title={isVideo ? "Video actions" : "Photo actions"}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    isVideo ? setVideoActionItem(photo) : setPhotoActionItem(photo);
+                                                                }}
+                                                                className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950/70 text-white shadow-lg backdrop-blur-md transition-all active:scale-90 hover:bg-slate-950/90"
+                                                            >
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </button>
                                                         </div>
                                                         {!isFavouriteFilterActive && activeGalleryItems.length > 1 && (
                                                             <div className="absolute bottom-2.5 left-2.5 z-10 flex overflow-hidden rounded-lg border border-white/10 bg-slate-950/70 font-sans text-white shadow-lg backdrop-blur-md">
