@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 60
+Next issue number: 61
 
 =====================================================================
 ACTIVE ISSUES
@@ -237,6 +237,17 @@ Blocked by: -
 Found in: Modal theme fix for #38 (2026-10-12)
 Issue: Some page content (not modals) is still off the dark-gold theme. The profile page uses bright yellow (yellow-300/400) for icons, the @username, the Edit and Upgrade buttons and the privacy switch instead of #CA9C68 (src/app/(main)/profile/page.tsx). On the host page the "Your Events"/"Galleries" subtitle, the "Managing memories for" line and the action-card descriptions use text-slate-700, which is almost invisible on the dark background (src/app/(main)/host/page.tsx).
 How to reproduce: Open /profile and /host while logged in and look at the yellow accents and the dark-grey subtitle text.
+
+#60
+Listed: 2026-10-12
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Event Design tab redesign (2026-10-12)
+Issue: The Midnight Hero guest page (the default template, used by every gallery without a template) ends with the footer "Delivered by Wed Album — Cinematic Editions", the old brand name (src/components/TemplateHero.tsx, footer near the end). No other template or website page has "Wed Album". Fix: change the footer text to EveBash.
+How to reproduce: Open a gallery that uses Midnight Hero (or has no template) on the website and scroll to the bottom.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

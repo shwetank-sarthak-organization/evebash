@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 65
+Next test number: 66
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1450,6 +1450,38 @@ How to test:
   5. Pricing -> pick a different plan: the confirm has an X, and Cancel / Continue to Payment work as before.
   6. EB Vault: New folder, Rename, Delete, Move: each has an X; file preview X closes it.
   7. On a phone browser, repeat a few: the card fits the screen with a margin and the X is easy to tap.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#65 Host Event Design tab: new layout with phone and website preview
+Status:    TODO
+Priority:  Low
+Platform:  Website (staging.evebash.com; check on a phone browser too)
+Brief:     Host > open an event > Design tab is redesigned: Event Type and Template cards on the left, the template's
+           name and description with a Preview Guest Theme button on the right, and below a sketch of the guest home
+           on a phone and in a browser, drawn in the template's own colours. The sketch is plain page markup (no
+           embedded page), so it adds no loading. What each card does is unchanged.
+How to test:
+  1. Log in as a host. Host > open one of your events > Design.
+  2. Expect: Event Type shows the event's type; Template shows the template name in gold (a gallery that never
+     picked one shows "Midnight Hero", which is what guests get). The right card shows the same name and its
+     description.
+  3. Click Event Type: the Event Type picker opens. Click Template: the Choose Style picker opens. Pick another
+     template: the name, description and both sketches change to the new template's colours.
+  4. Click Preview Guest Theme: the guest page opens in a new tab at /events/<this event>.
+  5. Sketches: the phone and browser show your cover photo, the event title, its date, "Home", your sub-gallery
+     names (phone) or "Collections" (browser, only when there are sub-galleries) and "Find You". Try a light
+     template (Classic White) and a dark one (Midnight Hero): text must be readable in both.
+  6. Event with a very long title: the title stops at two lines with "..." and nothing spills out of the frames.
+  7. Tab key: Event Type, Template and Preview Guest Theme can be reached and opened with Enter.
+  8. On a phone browser: the cards stack, the phone sketch sits above the browser sketch, no sideways scrolling.
 Done by:
 Device / browser:
 Build / version:
