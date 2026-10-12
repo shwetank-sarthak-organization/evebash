@@ -100,3 +100,60 @@ test('the host check uses the guest row\'s gallery, old rows included', async ()
   assert.equal(await checkGuestRouteAccessAsCaller(request, 'missing', verify, hostOfWeddingOnly), 'forbidden');
   assert.equal(await checkGuestRouteAccessAsCaller(request, 'u1_wedding', async () => null, hostOfWeddingOnly), 'login');
 });
+
+test('deny-request tells the person first, then erases the request; members are left alone', async () => {
+  const tables = {
+    guests: [
+      { id: 'pending1', event_id: 'wedding', user_id: 'u1', status: 'pending', event_title: 'Wedding' },
+      { id: 'pending2', event_id: 'wedding', user_id: 'u2', status: 'pending', event_title: 'Wedding' },
+      { id: 'member1', event_id: 'wedding', user_id: 'u3', status: 'approved', event_title: 'Wedding' },
+    ],
+  };
+  const steps: string[] = [];
+  let access: 'allowed' | 'login' | 'forbidden' = 'allowed';
+  let pushFails = false;
+  const notify = async (_admin: unknown, guest: { id: string }) => {
+    steps.push(`push ${guest.id}`);
+    if (pushFails) throw new Error('Expo down');
+    return true;
+  };
+  const app = express();
+  app.use(express.json());
+  app.use('/permissions', createPermissionsRouter(async () => access, () => fakeAdmin(tables, steps) as never, notify));
+  const server = app.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/permissions`;
+  const deny = async (logId: string) => {
+    const response = await fetch(`${base}/deny-request`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ logId }) });
+    return { status: response.status, body: await response.json() };
+  };
+
+  try {
+    access = 'login';
+    assert.equal((await deny('pending1')).status, 401);
+    access = 'forbidden';
+    assert.equal((await deny('pending1')).status, 403);
+    assert.deepEqual(steps, []);
+
+    access = 'allowed';
+    const ok = await deny('pending1');
+    assert.equal(ok.status, 200);
+    assert.equal(ok.body.notified, true);
+    assert.deepEqual(steps, ['push pending1', 'delete guests pending1']);
+
+    // An approved member isn't denied (use Remove), and nothing is sent or erased
+    steps.length = 0;
+    assert.equal((await deny('member1')).status, 409);
+    assert.equal((await deny('missing')).status, 404);
+    assert.deepEqual(steps, []);
+
+    // A failed push still denies the request
+    pushFails = true;
+    const stillDenied = await deny('pending2');
+    assert.equal(stillDenied.status, 200);
+    assert.equal(stillDenied.body.notified, false);
+    assert.deepEqual(steps, ['push pending2', 'delete guests pending2']);
+  } finally {
+    server.close();
+  }
+});

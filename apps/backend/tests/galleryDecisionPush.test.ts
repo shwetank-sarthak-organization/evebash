@@ -97,9 +97,9 @@ test('approval push goes to the guest once, only when a gallery host triggers it
     clock += GALLERY_REQUEST_PUSH_WINDOW_MS + 1;
     assert.equal((await post({ guestId: 'u-asha_wedding' })).body.sent, true);
 
-    // Turned down: the softer "updated" message, as the website sent before
+    // Turned down (old rows still marked rejected): the same wording as the deny-request push
     assert.equal((await post({ guestId: 'u-ravi_wedding' })).body.sent, true);
-    assert.equal(sent.at(-1)?.title, 'Access Request Update');
+    assert.equal(sent.at(-1)?.title, 'Access request not approved');
 
     // Still pending, or the guest turned off "Event invites": nothing
     assert.equal((await post({ guestId: 'u-neha_wedding' })).body.sent, false);

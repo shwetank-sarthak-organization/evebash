@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 57
+Next test number: 58
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1236,6 +1236,34 @@ How to test:
      (app) / reload (website). Expect: the new gallery appears.
   6. Account that joined nothing: Dashboard, Profile and Your Events (app) and Dashboard / Profile (website).
      Expect: no joined galleries, no error, only the account's own galleries if it has any.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#57 Deny a join request: one Deny button, the person is told, and can ask again
+Status:    TODO
+Priority:  High
+Platform:  Both (website: staging.evebash.com; app: JS-only change, any staging build)
+Brief:     Pending requests now have only Approve and Deny (no bin button). Deny asks to confirm, sends the
+           person a push, erases the request, and lets them ask again. Members keep the bin (Remove).
+How to test:
+  1. Account B: Join Event with the code of a private gallery owned by account A (e.g. BIJA-0D8C).
+  2. Website, as A: Host -> the event -> Permissions. Pending row shows Approve and Deny only (no bin).
+     Members rows still show the bin.
+  3. Press Deny. Expect: "Deny <name>'s request? They'll be notified, and they can ask again later."
+     Cancel -> nothing changes. Deny -> "Request denied." and the row disappears.
+  4. B's phone (app installed, logged in, push allowed): "Access request not approved" /
+     "The host didn't approve your request to join "<gallery>". You can ask again later."
+  5. B joins again with the same code: "Request sent", and a new pending row appears for A.
+  6. App, as A: Gallery tab -> Requests, and Event -> Permissions: the red X and the request popup's
+     "Deny" show the same confirmation and behave the same way.
+  7. Host overview on the website (requests grouped by event): its red X behaves the same way.
 Done by:
 Device / browser:
 Build / version:

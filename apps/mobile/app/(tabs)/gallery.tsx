@@ -57,6 +57,7 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { haptic } from '@/lib/haptics';
 import { appAlert, showToast } from '@/lib/feedback';
 import { getGalleryWebUrl } from '@/lib/webLinks';
+import { confirmDenyRequest } from '@/lib/denyRequest';
 
 // Approve / reject a guest with a confirming haptic
 function updateGuestStatusWithFeedback(logId: string, status: 'pending' | 'approved' | 'rejected') {
@@ -702,9 +703,9 @@ export default function PortfolioTabScreen() {
                           <View style={styles.requestActionsMini}>
                             <TouchableOpacity
                               style={styles.miniActionBtnRed}
-                              onPress={() => updateGuestStatusWithFeedback(log.id, 'rejected').then(fetchData)}
+                              onPress={() => confirmDenyRequest(log, fetchData)}
                               accessibilityRole="button"
-                              accessibilityLabel={`Reject ${log.name || 'guest'}`}
+                              accessibilityLabel={`Deny ${log.name || 'guest'}`}
                               hitSlop={6}
                             >
                               <IconSymbol name="xmark" size={12} color="#fff" />
@@ -783,14 +784,14 @@ export default function PortfolioTabScreen() {
                       style={[styles.modalActionBtn, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}
                       onPress={() => {
                         if (selectedRequest) {
-                          updateGuestStatusWithFeedback(selectedRequest.id, 'rejected').then(() => {
+                          confirmDenyRequest(selectedRequest, () => {
                             setSelectedRequest(null);
                             fetchData();
                           });
                         }
                       }}
                     >
-                      <Text style={[styles.modalActionText, { color: MidnightColors.danger }]}>Reject</Text>
+                      <Text style={[styles.modalActionText, { color: MidnightColors.danger }]}>Deny</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity

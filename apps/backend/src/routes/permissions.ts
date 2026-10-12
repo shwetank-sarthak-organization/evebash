@@ -2,7 +2,7 @@ import type { Request } from "express";
 import { Router } from "express";
 import { getAdminClient } from "../adminAuth.js";
 import { verifySupabaseUser } from "../auth.js";
-import { galleryFromLegacyGuestId, openGalleryAccessAsCaller } from "./notifications.js";
+import { galleryFromLegacyGuestId, notifyGuestRequestDenied, openGalleryAccessAsCaller } from "./notifications.js";
 
 /**
  * These routes used to trust a "requester" name sent in the request body, so anyone could claim to be a super
@@ -102,7 +102,12 @@ export async function checkGuestRouteAccessAsCaller(
   return (await galleryAccess(request, eventId)) === "manage" ? "allowed" : "forbidden";
 }
 
-export function createPermissionsRouter(checkAccess = checkGuestRouteAccessAsCaller, getAdmin = getAdminClient) {
+export function createPermissionsRouter(
+  checkAccess = checkGuestRouteAccessAsCaller,
+  getAdmin = getAdminClient,
+  notifyDenied: (supabaseAdmin: ReturnType<typeof getAdminClient>, guest: Parameters<typeof notifyGuestRequestDenied>[1]) => Promise<boolean> =
+    (supabaseAdmin, guest) => notifyGuestRequestDenied(supabaseAdmin as never, guest),
+) {
   const permissionsRouter = Router();
 
   const authorize = async (request: Request, logId: string, requester: unknown): Promise<GuestRouteAccess> => {
@@ -167,6 +172,58 @@ export function createPermissionsRouter(checkAccess = checkGuestRouteAccessAsCal
       return response.json({ success: true });
     } catch (error: any) {
       console.error("[BackendPermissions] Error in delete-guest:", error);
+      return response.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * Deny a join request: tell the person (push), then erase the request, so nothing is kept and they can ask again.
+   * Members already approved are removed with "delete-guest" instead.
+   */
+  permissionsRouter.post("/deny-request", async (request, response) => {
+    try {
+      const { logId, requester } = request.body || {};
+      if (!logId) {
+        return response.status(400).json({ error: "Missing logId" });
+      }
+
+      const access = await authorize(request, logId, requester);
+      if (access !== "allowed") {
+        const { status: code, body } = denied(access);
+        return response.status(code).json(body);
+      }
+
+      const supabaseAdmin = getAdmin();
+      const { data: guest, error: readError } = await supabaseAdmin
+        .from("guests")
+        .select("id, event_id, user_id, phone, status, event_title")
+        .eq("id", logId)
+        .maybeSingle();
+      if (readError) throw readError;
+      if (!guest) {
+        return response.status(404).json({ success: false, error: "This request no longer exists." });
+      }
+      if (guest.status === "approved") {
+        return response.status(409).json({ success: false, error: "This person is already a member. Remove them from the Members list instead." });
+      }
+
+      // The push is built from the request, so it goes out before the request is erased. A failed push never
+      // blocks the denial.
+      let notified = false;
+      try {
+        notified = await notifyDenied(supabaseAdmin, guest);
+      } catch (pushError) {
+        console.error("[BackendPermissions] Deny push failed:", pushError);
+      }
+
+      const { error } = await supabaseAdmin
+        .from("guests")
+        .delete()
+        .eq("id", logId);
+      if (error) throw error;
+      return response.json({ success: true, notified });
+    } catch (error: any) {
+      console.error("[BackendPermissions] Error in deny-request:", error);
       return response.status(500).json({ success: false, error: error.message });
     }
   });

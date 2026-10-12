@@ -1796,6 +1796,21 @@ function DashboardContent() {
         }
     };
 
+    const denyRequestAction = async (logId: string, requester: { uid?: string | null; email?: string | null }) => {
+        try {
+            // One backend step: tells the person (push), then erases the request so they can ask again later
+            const res = await fetch(getApiUrl("/api/v1/permissions/deny-request"), {
+                method: "POST",
+                headers: await guestRouteHeaders(),
+                body: JSON.stringify({ logId, requester }),
+            });
+            const data = await res.json().catch(() => ({}));
+            return res.ok && data.success ? { success: true } : { success: false, error: data.error };
+        } catch (err) {
+            return { success: false, error: err instanceof Error ? err.message : "Network error" };
+        }
+    };
+
     const updateGuestPermissionsAction = async (logId: string, permissions: any, requester: any) => {
         try {
             const url = getApiUrl("/api/v1/permissions/update-guest-permissions");
@@ -1827,6 +1842,30 @@ function DashboardContent() {
             fetchTrafficLogs();
         } else {
             setMessage(result.error || "Failed to update guest.");
+            setStatus("error");
+            void recheckManageAccess(selectedMainEventId);
+        }
+        setTimeout(() => setStatus("idle"), 3000);
+        return result.success;
+    };
+
+    const handleGuestDeny = async (log: { id: string; name?: string | null }): Promise<boolean> => {
+        if (!window.confirm(`Deny ${log.name || "this guest"}'s request?\n\nThey'll be notified, and they can ask again later.`)) return false;
+
+        const result = await denyRequestAction(log.id, {
+            uid: user?.uid,
+            email: user?.email,
+        });
+
+        if (result.success) {
+            setMessage("Request denied.");
+            setStatus("success");
+            setEventDetailLogs(prev => prev.filter(item => item.id !== log.id));
+            setTrafficLogs(prev => prev.filter(item => item.id !== log.id));
+            setSelectedGuestLog(prev => prev?.id === log.id ? null : prev);
+            fetchTrafficLogs();
+        } else {
+            setMessage(result.error || "Failed to deny the request.");
             setStatus("error");
             void recheckManageAccess(selectedMainEventId);
         }
@@ -3517,27 +3556,26 @@ function DashboardContent() {
                                             </button>
                                             <button
                                                 type="button"
-                                                onClick={async () => {
-                                                    if (await handleGuestStatusUpdate(log.id, "rejected")) {
-                                                        setEventDetailLogs(prev => prev.filter(item => item.id !== log.id));
-                                                    }
-                                                }}
+                                                onClick={() => void handleGuestDeny(log)}
                                                 className="flex-1 rounded-full bg-rose-500/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-rose-300 xl:flex-none"
                                             >
                                                 Deny
                                             </button>
                                         </>
                                     )}
-                                    {/* Plain title, not <Tooltip>: its hidden bubble pokes past the table's clipped right edge */}
-                                    <button
-                                        type="button"
-                                        onClick={() => void removeGuest()}
-                                        aria-label={`Remove ${guestName}`}
-                                        title="Remove guest"
-                                        className="rounded-xl border border-slate-700 bg-slate-800 p-2.5 text-slate-400 transition-colors hover:border-rose-400/30 hover:bg-rose-500/10 hover:text-rose-400"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
+                                    {/* Members only: a pending request is turned down with Deny. Plain title, not <Tooltip>: its
+                                        hidden bubble pokes past the table's clipped right edge */}
+                                    {!isPending && (
+                                        <button
+                                            type="button"
+                                            onClick={() => void removeGuest()}
+                                            aria-label={`Remove ${guestName}`}
+                                            title="Remove guest"
+                                            className="rounded-xl border border-slate-700 bg-slate-800 p-2.5 text-slate-400 transition-colors hover:border-rose-400/30 hover:bg-rose-500/10 hover:text-rose-400"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -3904,9 +3942,9 @@ function DashboardContent() {
                                                                     </div>
                                                                     <div className="flex gap-2 sm:ml-auto">
                                                                         <button
-                                                                            onClick={() => handleGuestStatusUpdate(log.id, "rejected")}
+                                                                            onClick={() => void handleGuestDeny(log)}
                                                                             className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500 text-white transition-colors hover:bg-rose-400"
-                                                                            aria-label="Reject request"
+                                                                            aria-label="Deny request"
                                                                         >
                                                                             <X className="h-4 w-4" />
                                                                         </button>

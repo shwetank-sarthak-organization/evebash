@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, GuestProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery } from '@/lib/database';
+import { confirmDenyRequest } from '@/lib/denyRequest';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { styles, FunkyFonts } from '../../components/eventStyles';
@@ -5580,9 +5581,9 @@ export default function EventDetailScreen() {
                         </View>
 
                         <View style={styles.requestActionsMini}>
-                          <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Reject ${log.name || "guest"}`}
+                          <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Deny ${log.name || "guest"}`}
                             style={styles.miniActionBtnRed}
-                            onPress={() => updateGuestStatusWithFeedback(log.id, 'rejected').then(loadEvent)}
+                            onPress={() => confirmDenyRequest(log, loadEvent)}
                           >
                             <IconSymbol name="xmark" size={12} color="#fff" />
                           </TouchableOpacity>
@@ -5848,14 +5849,14 @@ export default function EventDetailScreen() {
                           style={[styles.modalActionBtn, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}
                           onPress={() => {
                             if (selectedRequest) {
-                              updateGuestStatusWithFeedback(selectedRequest.id, 'rejected').then(() => {
+                              confirmDenyRequest(selectedRequest, () => {
                                 setSelectedRequest(null);
                                 loadEvent();
                               });
                             }
                           }}
                         >
-                          <Text style={[styles.modalActionText, { color: '#ef4444' }]}>Reject</Text>
+                          <Text style={[styles.modalActionText, { color: '#ef4444' }]}>Deny</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity

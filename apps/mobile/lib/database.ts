@@ -1219,6 +1219,29 @@ async function notifyGalleryDecision(guestId: string) {
     }
 }
 
+/**
+ * Turns down a join request: the backend tells the person (push), then erases the request so they can ask again
+ * later. Members already approved are removed with deleteGuest instead.
+ */
+export async function denyGuestRequest(logId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, '');
+        if (!session?.access_token) return { success: false, error: 'Please log in again.' };
+        if (!apiBaseUrl) return { success: false, error: 'The app is not connected to the EveBash server.' };
+        const response = await fetch(`${apiBaseUrl}/api/v1/permissions/deny-request`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ logId }),
+        });
+        const result = await response.json().catch(() => ({}));
+        return response.ok && result.success ? { success: true } : { success: false, error: result.error };
+    } catch (error) {
+        console.error('Error denying guest request:', error);
+        return { success: false, error: 'Please check your connection and try again.' };
+    }
+}
+
 function getNotifyGalleryRequestUrl() {
     const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
     return apiBaseUrl ? `${apiBaseUrl.replace(/\/+$/, '')}/api/v1/notifications/gallery-request` : '';

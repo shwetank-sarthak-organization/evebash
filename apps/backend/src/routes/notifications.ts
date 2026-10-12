@@ -199,10 +199,10 @@ export function createNotificationsRouter(
       recentDecisionPushes.set(key, now());
       await sendPush({
         token: recipient.push_token,
-        title: status === "approved" ? "Access Approved! ✨" : "Access Request Update",
+        title: status === "approved" ? "Access Approved! ✨" : DENIED_PUSH_TITLE,
         body: status === "approved"
           ? `You have been approved to join the event "${title}"!`
-          : `Your access request to "${title}" was updated.`,
+          : deniedPushBody(title),
         data: { eventId },
       });
       return response.json({ success: true, sent: true });
@@ -213,6 +213,29 @@ export function createNotificationsRouter(
   });
 
   return notificationsRouter;
+}
+
+const DENIED_PUSH_TITLE = "Access request not approved";
+const deniedPushBody = (title: string) => `The host didn't approve your request to join "${title}". You can ask again later.`;
+
+export type DeniedGuest = { id: string; event_id?: string | null; user_id?: string | null; phone?: string | null; event_title?: string | null };
+
+/**
+ * Tells someone their request to join was turned down. Called by the permissions "deny-request" route before it
+ * erases the request (the push needs the row). Best effort: returns whether a push went out.
+ */
+export async function notifyGuestRequestDenied(supabaseAdmin: AdminClient, guest: DeniedGuest, sendPush = sendExpoPush) {
+  if (!isGalleryApprovalPushEnabled()) return false;
+  const recipient = await findGuestProfile(supabaseAdmin, guest);
+  if (!recipient?.push_token || !wantsEventInvites(recipient.notification_preferences)) return false;
+  const eventId = guest.event_id || (await galleryFromLegacyGuestId(supabaseAdmin, guest.id));
+  await sendPush({
+    token: recipient.push_token,
+    title: DENIED_PUSH_TITLE,
+    body: deniedPushBody(guest.event_title || "the event"),
+    data: eventId ? { eventId } : {},
+  });
+  return true;
 }
 
 /** Old guest rows have no event_id; their id is "<phone or email>_<gallery id>", and gallery ids may contain "_". */
