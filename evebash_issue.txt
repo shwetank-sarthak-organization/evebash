@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 57
+Next issue number: 58
 
 =====================================================================
 ACTIVE ISSUES
@@ -241,6 +241,18 @@ How to reproduce: Website, log in with an account without a phone, open the Dash
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#57
+Listed: 2026-10-12
+Platform: Website
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: user report with screenshot (2026-10-12)
+Issue: In the host console's event cover header, underscores in the event title are cut off: "event_check_" shows as "event  check". The title (src/app/(main)/host/page.tsx) uses line-clamp-2, which hides overflow, with leading-none, so the line box ends above Playfair Display's underscore and clips it. Fix: leading-[1.15] (checked in a browser with Playfair Display at 72px: underscores show in full, long titles still clamp to two lines). The app's hero titles have enough line height and are not affected.
+How to reproduce: Website, Host console, open an event whose title contains "_" (e.g. "event_check_"): the underscores are missing from the big title on the cover.
+Fixed in: 7b839a5 (2026-10-12)
 
 #53
 Listed: 2026-10-12
