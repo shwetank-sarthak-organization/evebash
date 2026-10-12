@@ -7,6 +7,7 @@ import { vaultApi } from "@/lib/vaultApi";
 import { GalleriesIcon } from "@/components/GalleriesIcon";
 import { PermissionsIcon } from "@/components/PermissionsIcon";
 import { DesignIcon } from "@/components/DesignIcon";
+import { EventDesignPreview } from "@/components/EventDesignPreview";
 import { PartnersIcon } from "@/components/PartnersIcon";
 import { HostIcon } from "@/components/HostIcon";
 import { HostConsoleIcon } from "@/components/HostConsoleIcon";
@@ -3379,6 +3380,9 @@ function DashboardContent() {
     const eventDetailApprovedLogs = eventDetailLogs.filter(log => log.status === "approved");
     const eventDetailAdminCount = eventDetailApprovedLogs.filter(log => !!log.canAdmin).length;
     const eventDetailVisibleLogsCount = eventDetailPendingLogs.length + eventDetailApprovedLogs.length;
+    // Galleries without a template show Midnight Hero on the guest page
+    const designTemplate = TEMPLATE_THEMES.find(t => t.id === (selectedMainEvent?.templateId || "hero"));
+    const designTemplateLabel = designTemplate?.label || selectedMainEvent?.templateId || "Midnight Hero";
     const planDetails = getPlanDetails(user.role);
     const subscriptionStatus = getSubscriptionStatus({
         role: user.role,
@@ -4543,47 +4547,90 @@ function DashboardContent() {
                                         )}
 
                                         {activeEventDetailTab === "design" && (
-                                            <div className="space-y-4">
-                                                <h4 className="text-xl font-black text-white mb-2">Event Design</h4>
-
-                                                <div
-                                                    onClick={() => setShowCategoryModal(true)}
-                                                    className="flex items-center justify-between rounded-[1.2rem] border border-slate-700 bg-slate-900/50 p-4 cursor-pointer hover:border-[#CA9C68]/50 transition-colors"
-                                                >
-                                                    <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Event Type</p>
-                                                        <p className="text-base font-bold text-white">{selectedMainEvent.category || 'Select Type'}</p>
-                                                    </div>
-                                                    <ChevronRight className="h-4 w-4 text-[#CA9C68]" />
+                                            <div className="space-y-5">
+                                                <div>
+                                                    <h4 className="text-xl font-black text-white">Event Design</h4>
+                                                    <p className="text-sm font-bold text-slate-400">Event type and the template guests see on the app and website.</p>
                                                 </div>
 
-                                                <div
-                                                    onClick={() => {
-                                                        setTemplateTargetEvent(selectedMainEvent);
-                                                        setShowTemplateModal(true);
-                                                    }}
-                                                    className="flex items-center justify-between rounded-[1.2rem] border border-slate-700 bg-slate-900/50 p-4 cursor-pointer hover:border-[#CA9C68]/50 transition-colors"
-                                                >
-                                                    <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Change Template</p>
-                                                        <p className="text-base font-bold text-white">
-                                                            {selectedMainEvent.templateId ? TEMPLATE_THEMES.find(t => t.id === selectedMainEvent.templateId)?.label : 'Hero (Default)'}
-                                                        </p>
+                                                <div className="grid gap-4 lg:grid-cols-12">
+                                                    <div className="flex flex-col gap-4 lg:col-span-5">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowCategoryModal(true)}
+                                                            className="flex flex-1 items-center justify-between gap-3 rounded-[1.2rem] border border-slate-700 bg-slate-900/50 p-5 text-left transition-colors hover:border-[#CA9C68]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68]/60"
+                                                        >
+                                                            <span className="min-w-0">
+                                                                <span className="block text-[10px] font-black uppercase tracking-widest text-slate-500">Event Type</span>
+                                                                <span className="mt-1 block truncate font-serif text-2xl font-bold text-[#FFF7EB]">{selectedMainEvent.category || 'Select Type'}</span>
+                                                            </span>
+                                                            <ChevronRight className="h-5 w-5 shrink-0 text-[#CA9C68]" />
+                                                        </button>
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setTemplateTargetEvent(selectedMainEvent);
+                                                                setShowTemplateModal(true);
+                                                            }}
+                                                            className="flex flex-1 items-center justify-between gap-3 rounded-[1.2rem] border border-slate-700 bg-slate-900/50 p-5 text-left transition-colors hover:border-[#CA9C68]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68]/60"
+                                                        >
+                                                            <span className="min-w-0">
+                                                                <span className="block text-[10px] font-black uppercase tracking-widest text-slate-500">Template</span>
+                                                                <span className="mt-1 block truncate font-serif text-2xl font-bold text-[#CA9C68]">{designTemplateLabel}</span>
+                                                            </span>
+                                                            <ChevronRight className="h-5 w-5 shrink-0 text-[#CA9C68]" />
+                                                        </button>
                                                     </div>
-                                                    <ChevronRight className="h-4 w-4 text-[#CA9C68]" />
+
+                                                    <div className="flex flex-col justify-between gap-5 rounded-[1.2rem] border border-[#CA9C68]/25 bg-[linear-gradient(135deg,rgba(202,156,104,0.12),rgba(27,33,31,0.5)_60%)] p-5 sm:p-6 lg:col-span-7">
+                                                        <div className="min-w-0">
+                                                            <div className="flex items-center gap-3">
+                                                                {designTemplate && (
+                                                                    <span
+                                                                        className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/10"
+                                                                        style={{ backgroundColor: designTemplate.background?.dark || "#000" }}
+                                                                    >
+                                                                        <span className="h-3 w-3 rounded-full" style={{ backgroundColor: designTemplate.accent }} />
+                                                                    </span>
+                                                                )}
+                                                                <p className="min-w-0 truncate font-serif text-2xl font-bold text-[#CA9C68] sm:text-3xl">{designTemplateLabel}</p>
+                                                            </div>
+                                                            {designTemplate?.desc && (
+                                                                <p className="mt-2 text-base text-slate-300">{designTemplate.desc}</p>
+                                                            )}
+                                                        </div>
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => window.open(`/events/${encodeURIComponent(selectedMainEvent.id)}`, '_blank', 'noopener,noreferrer')}
+                                                            className="flex w-full items-center gap-4 rounded-2xl border border-[#CA9C68]/40 bg-[#CA9C68]/10 px-5 py-4 text-left transition-colors hover:bg-[#CA9C68]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68]/60"
+                                                        >
+                                                            <Eye className="h-6 w-6 shrink-0 text-[#CA9C68]" />
+                                                            <span className="min-w-0">
+                                                                <span className="block font-serif text-base font-bold leading-tight text-[#FFF7EB] sm:text-lg">Preview Guest Theme</span>
+                                                                <span className="mt-1 block text-[11px] font-bold uppercase leading-snug tracking-widest text-slate-400">
+                                                                    See how guests view your {designTemplateLabel} theme
+                                                                </span>
+                                                            </span>
+                                                        </button>
+                                                    </div>
                                                 </div>
 
-                                                <div
-                                                    onClick={() => window.open(`/events/${encodeURIComponent(selectedMainEvent.id)}`, '_blank', 'noopener,noreferrer')}
-                                                    className="flex items-center justify-between rounded-[1.2rem] border border-[#CA9C68]/30 bg-[#CA9C68]/10 p-4 cursor-pointer hover:bg-[#CA9C68]/20 transition-colors mt-2"
-                                                >
-                                                    <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-[#CA9C68] mb-1">Preview Guest Theme</p>
-                                                        <p className="text-xs font-medium text-slate-300 mt-1">
-                                                            See how guests view your {selectedMainEvent.templateId ? TEMPLATE_THEMES.find(t => t.id === selectedMainEvent.templateId)?.label : 'Hero'} theme
-                                                        </p>
+                                                <div className="rounded-[1.5rem] border border-slate-700 bg-slate-950/80 p-5 sm:p-6">
+                                                    <div className="mb-5">
+                                                        <h5 className="text-lg font-black text-white">Guest Home Preview</h5>
+                                                        <p className="text-xs font-bold text-slate-400">A quick sketch of the app and website in your template&apos;s colours. Use Preview Guest Theme for the real page.</p>
                                                     </div>
-                                                    <Eye className="h-4 w-4 text-[#CA9C68]" />
+                                                    <EventDesignPreview
+                                                        eventId={selectedMainEvent.id}
+                                                        title={selectedMainEvent.title}
+                                                        eventType={selectedMainEvent.category}
+                                                        dateLabel={formatEventDate(selectedMainEvent.date)}
+                                                        coverUrl={resolveEventCoverImage(selectedMainEvent.coverImage, 'preview')}
+                                                        galleryNames={eventDetailGalleries.filter(gallery => gallery.id !== selectedMainEvent.id).map(gallery => gallery.title || gallery.id)}
+                                                        templateId={selectedMainEvent.templateId}
+                                                    />
                                                 </div>
                                             </div>
                                         )}
