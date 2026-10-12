@@ -241,7 +241,7 @@ Blocked by: -
 Found in: First iOS Simulator build after the #17 bundle ID change (2026-10-12); first seen 2026-10-03
 Issue: Every iOS build fails at pod install: the Swift pod AppCheckCore (pulled in by Google sign-in) depends on GoogleUtilities and RecaptchaInterop, which don't define modules, so they can't be built as static libraries. This blocks local iOS builds and EAS iOS builds (#52). Fix: expo-build-properties plugin in apps/mobile/app.json with ios.extraPods GoogleUtilities and RecaptchaInterop set to modular_headers: true (replaces the old local workaround of hand-editing ios/Podfile, which prebuild --clean and EAS throw away). iOS only; Android and the website are unchanged.
 How to reproduce: cd apps/mobile && npx expo prebuild --platform ios --clean && npx expo run:ios
-Fixed in: this commit (2026-10-12). expo-build-properties ~55.0.18 added; app.json ios.extraPods GoogleUtilities and RecaptchaInterop with modular_headers. pod install and a Release iOS Simulator build succeed.
+Fixed in: 8612a19 (2026-10-12). expo-build-properties ~55.0.18 added; app.json ios.extraPods GoogleUtilities and RecaptchaInterop with modular_headers. pod install and a Release iOS Simulator build succeed.
 
 #51
 Listed: 2026-10-12
