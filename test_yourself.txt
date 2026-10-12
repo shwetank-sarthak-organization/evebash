@@ -1125,7 +1125,9 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
-Feedback:
+Feedback:  2026-10-12 partial, iOS Simulator only (Sarthak): local Release build com.evebash.app on an iPhone 17 Pro
+           simulator (iOS 26.3). Step 3 Google sign-in works (after #50 pod fix and #51 Supabase Skip nonce checks).
+           Apple sign-in, push, link and a real iPhone still to do, so Status stays TODO.
 
 #53 Website SEO: link previews, 404 page and sample gallery page
 Status:    TODO

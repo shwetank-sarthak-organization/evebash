@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 50
+Next issue number: 52
 
 =====================================================================
 ACTIVE ISSUES
@@ -230,6 +230,30 @@ How to reproduce: In Supabase, Database > Publications > supabase_realtime: no t
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#50
+Listed: 2026-10-12
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: First iOS Simulator build after the #17 bundle ID change (2026-10-12); first seen 2026-10-03
+Issue: Every iOS build fails at pod install: the Swift pod AppCheckCore (pulled in by Google sign-in) depends on GoogleUtilities and RecaptchaInterop, which don't define modules, so they can't be built as static libraries. This blocks local iOS builds and EAS iOS builds (#52). Fix: expo-build-properties plugin in apps/mobile/app.json with ios.extraPods GoogleUtilities and RecaptchaInterop set to modular_headers: true (replaces the old local workaround of hand-editing ios/Podfile, which prebuild --clean and EAS throw away). iOS only; Android and the website are unchanged.
+How to reproduce: cd apps/mobile && npx expo prebuild --platform ios --clean && npx expo run:ios
+Fixed in: this commit (2026-10-12). expo-build-properties ~55.0.18 added; app.json ios.extraPods GoogleUtilities and RecaptchaInterop with modular_headers. pod install and a Release iOS Simulator build succeed.
+
+#51
+Listed: 2026-10-12
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: iOS Simulator test of #42 (2026-10-12)
+Issue: Google sign-in on iOS fails with "Passed nonce and nonce in id_token should either both exist or not." The Google iOS SDK puts a nonce in the ID token, but @react-native-google-signin/google-signin 16.1.2 (free edition) can't pass a nonce, so apps/mobile/context/AuthContext.tsx calls supabase.auth.signInWithIdToken without one and Supabase refuses it. Android tokens have no nonce, and website Google sign-in uses the OAuth redirect flow, so neither is affected. Fix chosen for launch: Supabase's Skip nonce checks (what Supabase's guide recommends for native iOS). Trade-off: a stolen, unexpired Google ID token issued to our client IDs could be replayed; revisit later with the library's paid edition or another flow that supports a nonce.
+How to reproduce: iOS build of com.evebash.app > Continue with Google > pick an account.
+Fixed in: Supabase setting, no code change (2026-10-12). Skip nonce checks turned on for the Google provider; Google sign-in on the iOS Simulator then worked. Trade-off as above; revisit with a nonce-capable sign-in later.
 
 #44
 Listed: 2026-10-12
