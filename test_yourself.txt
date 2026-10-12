@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 62
+Next test number: 63
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1364,6 +1364,32 @@ How to test:
   3. Website, Host -> an event: tabs are Galleries, Permissions and Design (no Partners), in one even row.
   4. App, as a guest: open a gallery. No Partners tab in the top menu.
   5. App, as the host: open the event. Tabs are Galleries, Permissions and Design (no Partners).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#62 Host gets "New access request" when someone asks to join a private gallery
+Status:    TODO
+Priority:  High
+Platform:  Both (backend fix on staging; any app build with push, website staging.evebash.com)
+Brief:     The access-request push never reached the host (issue #47): the server looked up a profile column
+           that doesn't exist and gave up quietly. Approval and deny pushes (#37, #57) had the same problem.
+How to test:
+  1. Host A: logged in on the app (com.evebash.app), notifications allowed. Owns a PRIVATE gallery
+     (e.g. "Check push", CHEC-DPNUU). If B already joined it, remove B in Permissions first.
+  2. Account B (not a platform admin, not a member), on the WEBSITE: Dashboard -> Join with Code -> the code.
+     Expect: "Request sent", and within a few seconds A's phone shows "New access request 🔔" /
+     "<B's name> is asking to join "<gallery>"." Tapping it opens the app.
+  3. Same from the APP as B: Join Event with the code of another private gallery of A's. Same push.
+  4. Ask again within 10 minutes (after A denies): no second push (repeats are held back for 10 minutes).
+  5. A approves B: B's phone (if B has the app) shows "Access Approved! ✨" (see #37 for details).
+  If a push is missing, Railway logs show the reason: search "[notifications] gallery-request".
 Done by:
 Device / browser:
 Build / version:

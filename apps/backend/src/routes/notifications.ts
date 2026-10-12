@@ -8,7 +8,7 @@ type AdminClient = NonNullable<Awaited<ReturnType<typeof verifySupabaseUser>>>["
 export type ExpoPush = { token: string; title: string; body: string; data: Record<string, unknown> };
 
 export async function sendExpoPush(push: ExpoPush) {
-  await fetch("https://exp.host/--/api/v2/push/send", {
+  const response = await fetch("https://exp.host/--/api/v2/push/send", {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -17,6 +17,16 @@ export async function sendExpoPush(push: ExpoPush) {
     },
     body: JSON.stringify({ to: push.token, sound: "default", title: push.title, body: push.body, data: push.data }),
   });
+  // Expo answers 200 even when it refuses a push (for example DeviceNotRegistered), so log its verdict
+  const result = (await response.json().catch(() => null)) as
+    | { data?: { status?: string; message?: string; details?: { error?: string } }; errors?: unknown }
+    | null;
+  if (!response.ok || result?.errors || result?.data?.status === "error") {
+    console.warn(
+      `[notifications] Expo refused "${push.title}" (HTTP ${response.status}):`,
+      result?.data?.details?.error || result?.data?.message || JSON.stringify(result?.errors ?? null),
+    );
+  }
 }
 
 /** Kill switch: GALLERY_REQUEST_PUSH=false stops the "new access request" push without a new app build. */
@@ -53,6 +63,24 @@ function wantsEventInvites(preferences: unknown) {
   const settings = (prefs && typeof prefs === "object" ? prefs : {}) as Record<string, unknown>;
   return settings.push !== false && settings.eventInvites !== false;
 }
+
+/**
+ * A profile's push token and notification settings. Reads "*" because profiles has no notification_preferences
+ * column yet (the apps can't save the setting), and naming a missing column fails the whole lookup, which silently
+ * dropped every push. With "*" the settings count when the column exists, and as on (the apps' default) when not.
+ */
+async function findPushProfile(supabaseAdmin: AdminClient, column: "id" | "email" | "phone", value: string) {
+  const { data, error } = await supabaseAdmin.from("profiles").select("*").eq(column, value).maybeSingle();
+  if (error) console.warn(`[notifications] profile lookup by ${column} failed:`, error.message);
+  return data as { push_token?: string | null; notification_preferences?: unknown } | null;
+}
+
+function logNotSent(route: string, reason: string, details: Record<string, unknown>) {
+  console.log(`[notifications] ${route} push not sent: ${reason}`, JSON.stringify(details));
+}
+
+/** Old guest row ids start with the guest's phone or email, which stay out of the logs. */
+const loggableGuestId = (guestId: string) => (guestId.startsWith("u_") ? guestId : "(old row)");
 
 /** Same lookup as the database's resolve_event (id, then join code, then legacy id), then up to the top-level gallery. */
 async function findTopLevelGallery(supabaseAdmin: AdminClient, ref: string) {
@@ -98,38 +126,44 @@ export function createNotificationsRouter(
       if (!ref) {
         return response.status(400).json({ success: false, error: "ref is required." });
       }
-      if (!isGalleryRequestPushEnabled()) return response.json({ success: true, sent: false });
-
       const { user, supabaseAdmin } = verified;
+      const notSent = (reason: string, details: Record<string, unknown> = {}) => {
+        logNotSent("gallery-request", reason, { caller: user.id, ref, ...details });
+        return response.json({ success: true, sent: false });
+      };
+      if (!isGalleryRequestPushEnabled()) return notSent("GALLERY_REQUEST_PUSH is false");
+
       const gallery = await findTopLevelGallery(supabaseAdmin, ref);
       if (!gallery) {
+        logNotSent("gallery-request", "gallery not found", { caller: user.id, ref });
         return response.status(404).json({ success: false, error: "Gallery not found." });
       }
 
-      const { data: guest } = await supabaseAdmin
+      const { data: guest, error: guestError } = await supabaseAdmin
         .from("guests")
         .select("name, status")
         .eq("user_id", user.id)
         .eq("event_id", gallery.id)
         .maybeSingle();
       const owner = gallery.created_by;
-      if (guest?.status !== "pending" || !owner || owner === user.id) {
-        return response.json({ success: true, sent: false });
+      if (guest?.status !== "pending") {
+        return notSent("no pending request", { gallery: gallery.id, status: guest?.status ?? null, error: guestError?.message });
       }
+      if (!owner) return notSent("gallery has no owner", { gallery: gallery.id });
+      if (owner === user.id) return notSent("caller owns the gallery", { gallery: gallery.id });
 
       const key = `${user.id}:${gallery.id}`;
       const lastSent = recentRequestPushes.get(key);
       if (lastSent !== undefined && now() - lastSent < GALLERY_REQUEST_PUSH_WINDOW_MS) {
-        return response.json({ success: true, sent: false });
+        return notSent("already sent in the last 10 minutes", { gallery: gallery.id });
       }
 
-      const { data: ownerProfile } = await supabaseAdmin
-        .from("profiles")
-        .select("push_token, notification_preferences")
-        .eq(owner.includes("@") ? "email" : "id", owner)
-        .maybeSingle();
-      if (!ownerProfile?.push_token || !wantsEventInvites(ownerProfile.notification_preferences)) {
-        return response.json({ success: true, sent: false });
+      const ownerProfile = await findPushProfile(supabaseAdmin, owner.includes("@") ? "email" : "id", owner);
+      if (!ownerProfile?.push_token) {
+        return notSent(ownerProfile ? "owner has no push token" : "owner profile not found", { gallery: gallery.id });
+      }
+      if (!wantsEventInvites(ownerProfile.notification_preferences)) {
+        return notSent("owner turned off Event invites", { gallery: gallery.id });
       }
 
       recentRequestPushes.set(key, now());
@@ -139,6 +173,7 @@ export function createNotificationsRouter(
         body: `${guest.name || "Someone"} is asking to join "${gallery.title || "your event"}".`,
         data: { eventId: gallery.id },
       });
+      console.log("[notifications] gallery-request push sent", JSON.stringify({ caller: user.id, gallery: gallery.id }));
       return response.json({ success: true, sent: true });
     } catch (error) {
       console.error("[notifications] gallery request push failed:", error);
@@ -163,7 +198,11 @@ export function createNotificationsRouter(
       if (!guestId) {
         return response.status(400).json({ success: false, error: "guestId is required." });
       }
-      if (!isGalleryApprovalPushEnabled()) return response.json({ success: true, sent: false });
+      const notSent = (reason: string, details: Record<string, unknown> = {}) => {
+        logNotSent("gallery-decision", reason, { guestId: loggableGuestId(guestId), ...details });
+        return response.json({ success: true, sent: false });
+      };
+      if (!isGalleryApprovalPushEnabled()) return notSent("GALLERY_APPROVAL_PUSH is false");
 
       const { supabaseAdmin } = verified;
       const { data: guest } = await supabaseAdmin
@@ -176,24 +215,23 @@ export function createNotificationsRouter(
       }
 
       const eventId = guest.event_id || (await galleryFromLegacyGuestId(supabaseAdmin, guest.id));
-      if (!eventId) return response.json({ success: true, sent: false });
+      if (!eventId) return notSent("request has no gallery");
       if ((await galleryAccess(request, eventId)) !== "manage") {
         return response.status(403).json({ success: false, error: "Only the gallery's hosts can do this." });
       }
 
       const status = guest.status;
-      if (status !== "approved" && status !== "rejected") return response.json({ success: true, sent: false });
+      if (status !== "approved" && status !== "rejected") return notSent("request is not approved or rejected", { status });
 
       const key = `${guest.id}:${status}`;
       const lastSent = recentDecisionPushes.get(key);
       if (lastSent !== undefined && now() - lastSent < GALLERY_REQUEST_PUSH_WINDOW_MS) {
-        return response.json({ success: true, sent: false });
+        return notSent("already sent in the last 10 minutes", { status });
       }
 
       const recipient = await findGuestProfile(supabaseAdmin, guest);
-      if (!recipient?.push_token || !wantsEventInvites(recipient.notification_preferences)) {
-        return response.json({ success: true, sent: false });
-      }
+      if (!recipient?.push_token) return notSent(recipient ? "guest has no push token" : "guest profile not found");
+      if (!wantsEventInvites(recipient.notification_preferences)) return notSent("guest turned off Event invites");
 
       const title = guest.event_title || "the event";
       recentDecisionPushes.set(key, now());
@@ -205,6 +243,7 @@ export function createNotificationsRouter(
           : deniedPushBody(title),
         data: { eventId },
       });
+      console.log("[notifications] gallery-decision push sent", JSON.stringify({ guestId: loggableGuestId(guestId), eventId, status }));
       return response.json({ success: true, sent: true });
     } catch (error) {
       console.error("[notifications] gallery decision push failed:", error);
@@ -227,7 +266,11 @@ export type DeniedGuest = { id: string; event_id?: string | null; user_id?: stri
 export async function notifyGuestRequestDenied(supabaseAdmin: AdminClient, guest: DeniedGuest, sendPush = sendExpoPush) {
   if (!isGalleryApprovalPushEnabled()) return false;
   const recipient = await findGuestProfile(supabaseAdmin, guest);
-  if (!recipient?.push_token || !wantsEventInvites(recipient.notification_preferences)) return false;
+  if (!recipient?.push_token || !wantsEventInvites(recipient.notification_preferences)) {
+    const reason = !recipient ? "guest profile not found" : !recipient.push_token ? "guest has no push token" : "guest turned off Event invites";
+    logNotSent("deny-request", reason, { guestId: loggableGuestId(guest.id) });
+    return false;
+  }
   const eventId = guest.event_id || (await galleryFromLegacyGuestId(supabaseAdmin, guest.id));
   await sendPush({
     token: recipient.push_token,
@@ -253,15 +296,8 @@ async function findGuestProfile(
   supabaseAdmin: AdminClient,
   guest: { user_id?: string | null; phone?: string | null },
 ) {
-  const columns = "push_token, notification_preferences";
-  if (guest.user_id) {
-    const { data } = await supabaseAdmin.from("profiles").select(columns).eq("id", guest.user_id).maybeSingle();
-    return data;
-  }
-  if (guest.phone) {
-    const { data } = await supabaseAdmin.from("profiles").select(columns).eq("phone", guest.phone).maybeSingle();
-    return data;
-  }
+  if (guest.user_id) return findPushProfile(supabaseAdmin, "id", guest.user_id);
+  if (guest.phone) return findPushProfile(supabaseAdmin, "phone", guest.phone);
   return null;
 }
 

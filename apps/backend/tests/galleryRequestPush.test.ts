@@ -8,18 +8,23 @@ import type { verifySupabaseUser } from '../src/auth.js';
 
 type Row = Record<string, unknown>;
 
-// Just enough of the Supabase client for the route: from(table).select().eq()...maybeSingle()
+// Just enough of the Supabase client for the route: from(table).select().eq()...maybeSingle(). Like PostgREST, naming
+// a column the table's rows don't have fails the whole query.
 function fakeAdmin(tables: Record<string, Row[]>) {
   return {
     from(table: string) {
       const filters: [string, unknown][] = [];
+      let columns = '*';
       const builder = {
-        select: () => builder,
+        select: (selected = '*') => { columns = selected; return builder; },
         eq: (column: string, value: unknown) => { filters.push([column, value]); return builder; },
-        maybeSingle: async () => ({
-          data: (tables[table] || []).find(row => filters.every(([column, value]) => row[column] === value)) ?? null,
-          error: null,
-        }),
+        maybeSingle: async () => {
+          const rows = tables[table] || [];
+          const known = new Set(rows.flatMap(row => Object.keys(row)));
+          const missing = columns === '*' ? undefined : columns.split(',').map(c => c.trim()).find(c => !known.has(c));
+          if (missing) return { data: null, error: { code: '42703', message: `column ${table}.${missing} does not exist` } };
+          return { data: rows.find(row => filters.every(([column, value]) => row[column] === value)) ?? null, error: null };
+        },
       };
       return builder;
     },
@@ -90,11 +95,17 @@ test('gallery request push goes to the owner once, only for a real pending reque
     caller = 'guest';
     assert.equal((await post({ ref: 'quiet' })).body.sent, false);
 
+    // Staging's profiles table has no notification_preferences column (#47): the owner still gets the push
+    tables.profiles = [{ id: 'owner', push_token: 'ExponentPushToken[owner]' }];
+    clock += GALLERY_REQUEST_PUSH_WINDOW_MS + 1;
+    assert.equal((await post({ ref: 'WEDD-1234' })).body.sent, true);
+    assert.equal(sent.length, 3);
+
     // Kill switch
     process.env.GALLERY_REQUEST_PUSH = 'false';
     clock += GALLERY_REQUEST_PUSH_WINDOW_MS + 1;
     assert.equal((await post({ ref: 'wedding' })).body.sent, false);
-    assert.equal(sent.length, 2);
+    assert.equal(sent.length, 3);
   } finally {
     delete process.env.GALLERY_REQUEST_PUSH;
     server.close();

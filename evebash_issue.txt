@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 58
+Next issue number: 59
 
 =====================================================================
 ACTIVE ISSUES
@@ -187,12 +187,13 @@ How to reproduce: Android emulator with the hardware keyboard on: Dashboard > Jo
 Listed: 2026-10-12
 Platform: App
 Priority: High
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: Testing the #51 push on the Android emulator (2026-10-12)
 Issue: The "New access request" push doesn't reach the host. A normal account joined the private gallery "Check push" with Join with Code (CHEC-DPNUU) on staging.evebash.com and got "Request sent"; the request shows in the host's app (account b7ab6182..., Permissions and Gallery > Requests), but no push arrived on the emulator. A direct Expo test push to the same token arrives (after the FCM key fix, see #51), so delivery works. The backend route /api/v1/notifications/gallery-request (apps/backend/src/routes/notifications.ts) skips silently when the request isn't pending, the owner is the requester, a push for the same request went out in the last 10 minutes, the owner's profile has no push_token, or Event invites is off. Cause not found yet: next step is the website's gallery-request response in DevTools (sent true/false, 404, 401 or CORS), or a read-only look at the owner's profile push_token and notification_preferences.
 How to reproduce: Host on the app (com.evebash.app); another account (not a platform admin, not a member) uses Join with Code on staging.evebash.com for the host's private gallery. Expect "New access request" on the host's device.
+Cause (2026-10-12): profiles has no notification_preferences column, and the backend's owner lookup asked for it: PostgREST answers 400 "column profiles.notification_preferences does not exist", the code ignored the error and saw no push token, so it returned sent:false without a log. The same lookup dropped the approval and deny pushes (test_yourself #37, #57). The website's call, URL and CORS were fine. Fix: the backend reads the profile with "*" (settings count when the column exists, otherwise they're on, the apps' default) and logs every reason a push isn't sent, and Expo's refusals. Upload pushes have the same problem: #58.
 
 #48
 Listed: 2026-10-12
@@ -237,6 +238,17 @@ Blocked by: -
 Found in: #52 browser check (2026-10-12)
 Issue: The website sets user.phone to the text "No Phone" when the profile has no phone (src/context/AuthContext.tsx), and Dashboard, Profile, the host page and others pass user.phone as one of the user's identifiers. So "no phone" is matched against guests rows (phone, old id prefix, user_id) by getApprovedSharedEventsForUser, and against events.created_by / photos.user_id by getUserEvents and the storage totals. No row holds "No Phone" today (checked 2026-10-12: 0 guests, 0 events, 0 photos), but if one ever did, every website user without a phone would see that gallery or have its storage counted. The app leaves user.phone empty instead. Fix: keep user.phone empty (show "Not provided" in the UI only), or drop the placeholder from identifier lists.
 How to reproduce: Website, log in with an account without a phone, open the Dashboard: the guests request's or= filter contains "no phone".
+
+#58
+Listed: 2026-10-12
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: A decision: add the profiles.notification_preferences column (database change), and whether upload pushes should start for every host
+Found in: #47 investigation (2026-10-12)
+Issue: profiles has no notification_preferences column (checked 2026-10-12), but several places use it. (1) Host upload pushes never send: apps/backend/src/uploadNotifications.ts asks for push_token, notification_preferences, the lookup fails and it returns quietly, so "New photo(s) uploaded" and "New video uploaded" (including VIDEO_READY_PUSH=true from Modal's callback) never reach the host. test_yourself #51 step 5 uses the video push, so it will fail until this is fixed (use a join request instead). (2) The app's Settings > Notifications switches don't save: updateUserProfile (apps/mobile/lib/database.ts) drops columns the profile doesn't have and still reports success, so the switch flips back on the next login and nobody can turn pushes off. (3) Client-side pushes fail the same way: the app's sendPushNotificationDirectly (enquiries and vendor chat, Phase 2, see #20) and the website's sendPushNotification (old approval path). #47 fixed only the access-request, approval and deny pushes in apps/backend/src/routes/notifications.ts (select "*"). Fix options: add the column (jsonb, nullable) so settings save and count, and for (1) read the profile the way notifications.ts does; the photo-upload push has no kill switch, so put it behind a flag first, because fixing it starts a push to every host on every upload.
+How to reproduce: Upload a photo or video to someone else's gallery: the owner's phone gets nothing, and Railway logs show nothing. In the app, turn off Event invites in Settings, log out and in: it's on again.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
