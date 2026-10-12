@@ -168,12 +168,6 @@ export default function TabLayout() {
           href: null,
         }}
       />
-      <Tabs.Screen
-        name="social"
-        options={{
-          href: null,
-        }}
-      />
     </Tabs>
   );
 }

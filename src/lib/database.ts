@@ -539,6 +539,11 @@ function escapeLikePattern(value: string): string {
     return value.replace(/[\\%_]/g, char => `\\${char}`);
 }
 
+// Regular expression matching the value itself, for PostgREST's match / imatch (where "*" is not a wildcard)
+function escapeRegexPattern(value: string): string {
+    return value.replace(/[\\^$.|?*+()[\]{}]/g, char => `\\${char}`);
+}
+
 // guestLogMatchesIdentifier as a server filter, for rows matching any of the identifiers. ilike without a wildcard is
 // a case-insensitive equals. guests has no email column: getGuestLogEmail reads the email from the id prefix, so the
 // candidates are phone, user_id and the id prefix (the whole id when it has no "_"). PostgREST reads "*" as a
@@ -1745,17 +1750,36 @@ export async function getGuestProfile(log: { userId?: string; email?: string; ph
         return data ? { id: data.id, name: data.name, profileImage: data.profile_image } : null;
     }
 
-    const identifiers = [log.email, log.phone].filter(Boolean) as string[];
-    if (identifiers.length === 0) return null;
-    const filters = identifiers.flatMap((identifier) => [`id.eq.${identifier}`, `email.eq.${identifier}`, `phone.eq.${identifier}`]);
-    const { data } = await supabase.from('profiles').select('*').or(filters.join(',')).limit(1).maybeSingle();
-    return data ? {
-        id: data.id,
-        name: data.name,
-        username: data.username,
-        email: data.email,
-        phone: data.phone,
-        profileImage: data.profile_image,
+    // Older rows: the newest profile with the row's email (its phone when it has no email), ignoring case and
+    // surrounding spaces, or with the same phone digits. The server applies these rules, so only matching profiles
+    // come back; they are checked again here in case the database compares a character differently.
+    const email = (log.email || log.phone || '').trim().toLowerCase();
+    const phone = (log.phone || '').replace(/\D/g, '');
+    const conditions: string[] = [];
+    if (email) conditions.push(`email.imatch.${quoteFilterValue(`^[[:space:]]*${escapeRegexPattern(email)}[[:space:]]*$`)}`);
+    if (phone) conditions.push(`phone.match.${quoteFilterValue(`^[^0-9]*${phone.split('').join('[^0-9]*')}[^0-9]*$`)}`);
+    if (conditions.length === 0) return null;
+
+    const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, username, email, phone, profile_image')
+        .or(conditions.join(','))
+        .order('created_at', { ascending: false });
+    if (error) {
+        console.error("Error fetching guest profile:", error);
+        return null;
+    }
+    const match = (data || []).find((candidate) =>
+        (!!email && email === (candidate.email || '').trim().toLowerCase()) ||
+        (!!phone && phone === (candidate.phone || '').replace(/\D/g, ''))
+    );
+    return match ? {
+        id: match.id,
+        name: match.name,
+        username: match.username,
+        email: match.email,
+        phone: match.phone,
+        profileImage: match.profile_image,
     } : null;
 }
 

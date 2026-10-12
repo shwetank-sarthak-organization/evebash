@@ -220,8 +220,8 @@ How to reproduce: In Supabase, Database > Publications > supabase_realtime: no t
 Listed: 2026-10-12
 Platform: App
 Priority: Medium
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: #52 scan for whole-table loads (2026-10-12)
 Issue: The host's guest panel loads the whole profiles table (every user's email, phone, plan and push token) to find the profile of an old guests row and matches it on the phone: getGuestProfile -> getUsers() in apps/mobile/lib/database.ts. Only rows without user_id take this path (4 old rows today; new rows look up profile_cards by user_id). The website's getGuestProfile (src/lib/database.ts) asks the server for the one profile instead, but its .or() is unquoted and case-sensitive, while the app matches emails case-insensitively and phones by digits only. While profiles RLS is off (#21) every host's phone downloads all profiles; after lockdown part 2 (profiles_select: own row or platform admin) the lookup finds nothing for other users on both platforms, and platform admins still download the whole table. Fix: look up the one profile on the server (quoted values, same matching on both platforms), or drop the old-row lookup once the old guests have re-requested access.
@@ -231,8 +231,8 @@ How to reproduce: Host, in the app: open a gallery whose guests include an old r
 Listed: 2026-10-12
 Platform: App
 Priority: Low
-Status: Open
-Owner: Unassigned
+Status: In progress
+Owner: Sarthak (with Claude)
 Blocked by: -
 Found in: #52 scan for whole-table loads (2026-10-12)
 Issue: The hidden Social tab (apps/mobile/app/(tabs)/social.tsx, href: null, nothing links to it) loads the whole profiles table (getUsers) and the whole events table, private galleries included (getSocialFeed ignores the following list it is given), and shows every gallery in the feed. Nobody can reach it today, so it does no harm yet; if the tab is brought back it would list every gallery to every user. It also reads the top 100 businesses (Phase 2). Fix: delete the screen and these two functions, or filter on the server by the people followed before showing it again.

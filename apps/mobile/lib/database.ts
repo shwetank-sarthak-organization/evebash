@@ -610,6 +610,11 @@ function escapeLikePattern(value: string): string {
     return value.replace(/[\\%_]/g, char => `\\${char}`);
 }
 
+// Regular expression matching the value itself, for PostgREST's match / imatch (where "*" is not a wildcard)
+function escapeRegexPattern(value: string): string {
+    return value.replace(/[\\^$.|?*+()[\]{}]/g, char => `\\${char}`);
+}
+
 // guestLogMatchesIdentifier as a server filter, for rows matching any of the identifiers. ilike without a wildcard is
 // a case-insensitive equals. guests has no email column: getGuestLogEmail reads the email from the id prefix, so the
 // candidates are phone, user_id and the id prefix (the whole id when it has no "_"). PostgREST reads "*" as a
@@ -727,21 +732,6 @@ export async function getUserById(uid: string): Promise<UserProfile | null> {
     return getUserProfile(uid);
 }
 
-export async function getUsers(): Promise<UserProfile[]> {
-    try {
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        return (data || []).map(mapSqlToProfile);
-    } catch (error) {
-        console.error("Error fetching users:", error);
-        return [];
-    }
-}
-
 export interface GuestProfile {
     id?: string;
     name?: string;
@@ -764,10 +754,26 @@ export async function getGuestProfile(log: { userId?: string; email?: string; ph
         return data ? { id: data.id, name: data.name, profileImage: data.profile_image } : null;
     }
 
-    const users = await getUsers();
+    // Older rows: the newest profile with the row's email (its phone when it has no email), ignoring case and
+    // surrounding spaces, or with the same phone digits. The server applies these rules, so only matching profiles
+    // come back; they are checked again here in case the database compares a character differently.
     const email = (log.email || log.phone || '').trim().toLowerCase();
     const phone = (log.phone || '').replace(/\D/g, '');
-    const match = users.find((candidate) =>
+    const conditions: string[] = [];
+    if (email) conditions.push(`email.imatch.${quoteFilterValue(`^[[:space:]]*${escapeRegexPattern(email)}[[:space:]]*$`)}`);
+    if (phone) conditions.push(`phone.match.${quoteFilterValue(`^[^0-9]*${phone.split('').join('[^0-9]*')}[^0-9]*$`)}`);
+    if (conditions.length === 0) return null;
+
+    const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, username, email, phone, profile_image')
+        .or(conditions.join(','))
+        .order('created_at', { ascending: false });
+    if (error) {
+        console.error("Error fetching guest profile:", error);
+        return null;
+    }
+    const match = (data || []).find((candidate) =>
         (!!email && email === (candidate.email || '').trim().toLowerCase()) ||
         (!!phone && phone === (candidate.phone || '').replace(/\D/g, ''))
     );
@@ -777,7 +783,7 @@ export async function getGuestProfile(log: { userId?: string; email?: string; ph
         username: match.username,
         email: match.email,
         phone: match.phone,
-        profileImage: match.profileImage,
+        profileImage: match.profile_image,
     } : null;
 }
 
@@ -2597,10 +2603,6 @@ export async function updateUserPrivacy(uid: string, isPrivate: boolean) {
     }
 }
 
-export async function followUser(followerId: string, followedId: string) {
-    return { success: true, status: 'accepted' };
-}
-
 export async function getPendingFollowRequests(userId: string): Promise<any[]> {
     return [];
 }
@@ -2613,55 +2615,12 @@ export async function rejectFollowRequest(relationshipId: string) {
     return true;
 }
 
-export async function unfollowUser(followerId: string, followedId: string) {
-    return true;
-}
-
-export async function getFollowing(userId: string): Promise<string[]> {
-    return [];
-}
-
 export async function getFollowersCount(userId: string): Promise<number> {
     return 0;
 }
 
 export async function getFollowingCount(userId: string): Promise<number> {
     return 0;
-}
-
-export async function getSocialFeed(followingIds: string[]): Promise<any[]> {
-    try {
-        const { data, error } = await supabase
-            .from('events')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        return (data || []).map(mapSqlToEvent).map(e => ({ ...e, type: 'event' }));
-    } catch (error) {
-        console.error("[SocialFeed] Error fetching feed:", error);
-        return [];
-    }
-}
-
-export async function toggleEventPostLike(eventId: string, userId: string) {
-    return { liked: true };
-}
-
-export async function isEventPostLikedByUser(eventId: string, userId: string): Promise<boolean> {
-    return false;
-}
-
-export async function getEventPostLikes(eventId: string) {
-    return { count: 0 };
-}
-
-export async function addEventPostComment(eventId: string, userId: string, userName: string, text: string) {
-    return true;
-}
-
-export async function getEventPostComments(eventId: string) {
-    return [];
 }
 
 export async function toggleShortlistBusiness(userId: string, businessId: string) {
