@@ -9,7 +9,11 @@ import { motion } from "framer-motion";
 import { Eye, EyeOff, CheckCircle2, Circle } from "lucide-react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { EveBashLogo } from "@/components/EveBashLogo";
+
+// Same look as the app's login screen (apps/mobile/app/login.tsx): white card on a dark-to-bronze gradient
+const PAGE_GRADIENT = "linear-gradient(to bottom, #1B211F, #2B2F2E, #594C3D)";
+const INPUT_CLASS = "w-full px-4 py-3.5 bg-[#FFF7EB] border-[1.5px] border-[#e2e8f0] rounded-[14px] text-[15px] text-[#1B211F] placeholder-[#7C6C58] focus:outline-none focus:border-[#CA9C68] focus:ring-2 focus:ring-[#CA9C68]/40 transition-colors";
+const LABEL_CLASS = "block text-xs font-bold text-[#475569] uppercase tracking-[0.8px]";
 
 function LoginContent() {
     const [email, setEmail] = useState("");
@@ -180,8 +184,8 @@ function LoginContent() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 bg-[var(--site-bg)] relative overflow-hidden font-sans">
-            <Link href="/" className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-[var(--site-muted)] transition-colors hover:text-[var(--site-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-royal-gold sm:left-6 sm:top-6">
+        <div className="min-h-screen flex flex-col justify-center py-16 px-6 relative overflow-hidden font-sans" style={{ background: PAGE_GRADIENT }}>
+            <Link href="/" className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-[#CDB89E] transition-colors hover:text-[#FFF7EB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68] sm:left-6 sm:top-6">
                 <ArrowLeft className="h-4 w-4" aria-hidden />
                 Back to site
             </Link>
@@ -192,48 +196,49 @@ function LoginContent() {
                 transition={{ duration: 0.8 }}
                 className="w-full max-w-md mx-auto relative z-10"
             >
-                {/* Brand / Logo */}
-                <div className="flex flex-col items-center justify-center mb-8">
-                    <Link href="/" aria-label="EveBash home" className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#CA9C68]/35 bg-[#CA9C68]/10 shadow-xl transition-colors hover:bg-[#CA9C68]/20">
-                        <EveBashLogo className="h-8 w-8 text-[#CA9C68]" aria-hidden="true" />
-                    </Link>
-                    <h1 className="text-3xl font-bold tracking-tight text-[var(--site-text)]">EveBash</h1>
-                    <p className="text-[var(--site-muted)] text-sm mt-2 font-medium tracking-wide">Your event memories, beautifully preserved</p>
+                {/* Brand */}
+                <div className="flex flex-col items-center justify-center mb-6 text-center">
+                    <h1 className="font-brand font-normal text-[44px] leading-[54px] tracking-[0.5px] text-[#CA9C68] mb-1.5">
+                        <Link href="/" aria-label="EveBash home" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CA9C68]">EveBash</Link>
+                    </h1>
+                    <p className="font-brand text-lg leading-6 tracking-[0.3px] text-[#CDB89E]">Celebrate. Capture. Connect.</p>
                 </div>
 
-                {/* Main Card */}
-                <div className="bg-[var(--site-surface)] rounded-[32px] p-8 shadow-2xl border border-[var(--site-border)]">
-                    <h2 className="text-2xl font-bold text-[var(--site-text)] mb-1">{isSignUp ? 'Create Account' : 'Welcome Back'}</h2>
-                    <p className="text-[var(--site-muted)] text-sm mb-6">{isSignUp ? 'Sign up to access your gallery' : 'Sign in to access your gallery'}</p>
+                {/* Card */}
+                <div className="bg-white rounded-[28px] p-7 shadow-[0_20px_30px_rgba(0,0,0,0.3)]">
+                    <h2 className="font-sans text-2xl font-bold text-[#1B211F] mb-1">{isSignUp ? 'Create Account' : 'Welcome Back'}</h2>
+                    <p className="text-[#64748b] text-sm mb-7">{isSignUp ? 'Sign up to access your gallery' : 'Sign in to access your gallery'}</p>
 
                     {/* Segmented Control */}
-                    <div className="flex bg-slate-900/50 p-1 rounded-xl mb-6">
-                        <button 
+                    <div className="flex bg-[#f1f5f9] p-1 rounded-[14px] mb-[22px]">
+                        <button
                             type="button"
                             onClick={() => { setAuthMethod('email'); setError(''); }}
-                            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${!isPhoneAuth ? 'bg-[var(--site-surface-2)] text-[var(--site-text)] shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                            aria-pressed={!isPhoneAuth}
+                            className={`flex-1 py-[11px] rounded-[11px] text-[13px] font-extrabold uppercase tracking-[0.4px] transition-colors ${!isPhoneAuth ? 'bg-[#1B211F] text-[#CA9C68]' : 'text-[#64748b] hover:text-[#1B211F]'}`}
                         >
                             Email
                         </button>
-                        <button 
+                        <button
                             type="button"
                             onClick={() => { setAuthMethod('phone'); setError(''); }}
-                            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${isPhoneAuth ? 'bg-[var(--site-surface-2)] text-[var(--site-text)] shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                            aria-pressed={isPhoneAuth}
+                            className={`flex-1 py-[11px] rounded-[11px] text-[13px] font-extrabold uppercase tracking-[0.4px] transition-colors ${isPhoneAuth ? 'bg-[#1B211F] text-[#CA9C68]' : 'text-[#64748b] hover:text-[#1B211F]'}`}
                         >
                             Phone
                         </button>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handleSubmit} className="space-y-5">
                         {isSignUp && (
                             <div>
-                                <label htmlFor="auth-name" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 ml-1">Full Name</label>
+                                <label htmlFor="auth-name" className={`${LABEL_CLASS} mb-2`}>Full Name</label>
                                 <input
                                     id="auth-name"
                                     type="text"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
-                                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#CA9C68]/50 focus:border-[#CA9C68] transition-all"
+                                    className={INPUT_CLASS}
                                     placeholder="John Doe"
                                 />
                             </div>
@@ -241,43 +246,43 @@ function LoginContent() {
 
                         {isPhoneAuth ? (
                             <div>
-                                <label htmlFor="auth-phone" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 ml-1">Phone Number</label>
+                                <label htmlFor="auth-phone" className={`${LABEL_CLASS} mb-2`}>Phone Number</label>
                                 <input
                                     id="auth-phone"
                                     type="tel"
                                     value={phone}
                                     onChange={(e) => setPhone(e.target.value)}
-                                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#CA9C68]/50 focus:border-[#CA9C68] transition-all"
+                                    className={INPUT_CLASS}
                                     placeholder="9876543210"
                                 />
                             </div>
                         ) : (
                             <div>
-                                <label htmlFor="auth-email" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 ml-1">Email Address</label>
+                                <label htmlFor="auth-email" className={`${LABEL_CLASS} mb-2`}>Email Address</label>
                                 <input
                                     id="auth-email"
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#CA9C68]/50 focus:border-[#CA9C68] transition-all"
+                                    className={INPUT_CLASS}
                                     placeholder="you@example.com"
                                 />
                             </div>
                         )}
 
                         {isGmailSignup && (
-                            <div className="rounded-xl border border-[#CA9C68]/30 bg-[#CA9C68]/10 p-3">
-                                <p className="text-sm font-medium text-[var(--site-subtle)]">
+                            <div className="rounded-xl border border-[#CA9C68]/40 bg-[#FFF7EB] p-3">
+                                <p className="text-sm font-medium text-[#594C3D]">
                                     You can continue faster with Google, or create an account with email verification.
                                 </p>
                             </div>
                         )}
 
                         <div>
-                            <div className="flex justify-between items-center mb-1 ml-1">
-                                <label htmlFor="auth-password" className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Password</label>
+                            <div className="flex justify-between items-end mb-2">
+                                <label htmlFor="auth-password" className={LABEL_CLASS}>Password</label>
                                 {isSignUp && (
-                                    <button type="button" onClick={generateStrongPassword} className="text-xs font-bold text-[#CA9C68] hover:text-[#D9AE7E]">
+                                    <button type="button" onClick={generateStrongPassword} className="text-xs font-bold text-[#8C6434] hover:text-[#6F4E28]">
                                         Suggest Strong Password
                                     </button>
                                 )}
@@ -288,17 +293,17 @@ function LoginContent() {
                                     type={showPass ? "text" : "password"}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full pl-4 pr-12 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#CA9C68]/50 focus:border-[#CA9C68] transition-all"
+                                    className={`${INPUT_CLASS} pr-12`}
                                     placeholder="••••••••"
                                 />
-                                <button type="button" onClick={() => setShowPass(!showPass)} aria-label={showPass ? "Hide password" : "Show password"} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-200">
+                                <button type="button" onClick={() => setShowPass(!showPass)} aria-label={showPass ? "Hide password" : "Show password"} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#7C6C58] hover:text-[#1B211F]">
                                     {showPass ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                 </button>
                             </div>
                         </div>
 
                         {isSignUp && (
-                            <div className="grid grid-cols-1 gap-1.5 py-2">
+                            <div className="grid grid-cols-1 gap-1 px-1 -mt-2.5">
                                 {[
                                     { met: passLength, text: "At least 8 characters" },
                                     { met: passUpper, text: "One uppercase letter" },
@@ -307,16 +312,16 @@ function LoginContent() {
                                     { met: passSpecial, text: "One special character" },
                                 ].map((req, i) => (
                                     <div key={i} className="flex items-center gap-2 text-xs">
-                                        {req.met ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Circle className="w-4 h-4 text-slate-500" />}
-                                        <span className={req.met ? "text-emerald-400 font-medium" : "text-slate-400"}>{req.text}</span>
+                                        {req.met ? <CheckCircle2 className="w-3.5 h-3.5 text-[#10b981]" /> : <Circle className="w-3.5 h-3.5 text-[#7C6C58]" />}
+                                        <span className={req.met ? "text-[#059669]" : "text-[#7C6C58]"}>{req.text}</span>
                                     </div>
                                 ))}
                             </div>
                         )}
 
                         {!isSignUp && !isPhoneAuth && (
-                            <div className="flex justify-end pt-1">
-                                <button type="button" onClick={() => router.push('/forgot-password')} className="text-sm font-semibold text-[#CA9C68] hover:text-[#D9AE7E]">
+                            <div className="flex justify-end -mt-2">
+                                <button type="button" onClick={() => router.push('/forgot-password')} className="text-[13px] font-semibold text-[#8C6434] hover:text-[#6F4E28]">
                                     Forgot Password?
                                 </button>
                             </div>
@@ -324,40 +329,49 @@ function LoginContent() {
 
                         {isSignUp && (
                             <div>
-                                <label htmlFor="auth-confirm-password" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 ml-1">Confirm Password</label>
-                                <div className="relative">
-                                    <input
-                                        id="auth-confirm-password"
-                                        type={showPass ? "text" : "password"}
-                                        value={confirmPassword}
-                                        onChange={(e) => setConfirmPassword(e.target.value)}
-                                        className="w-full pl-4 pr-12 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#CA9C68]/50 focus:border-[#CA9C68] transition-all"
-                                        placeholder="••••••••"
-                                    />
-                                </div>
+                                <label htmlFor="auth-confirm-password" className={`${LABEL_CLASS} mb-2`}>Confirm Password</label>
+                                <input
+                                    id="auth-confirm-password"
+                                    type={showPass ? "text" : "password"}
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className={INPUT_CLASS}
+                                    placeholder="••••••••"
+                                />
                             </div>
                         )}
 
                         {error && (
-                            <div className="bg-rose-900/30 border border-rose-500/30 p-3 rounded-lg">
-                                <p className="text-sm text-rose-400 text-center font-medium">{error}</p>
+                            <div className="bg-[#fef2f2] border border-[#fecaca] px-3.5 py-2.5 rounded-[10px]">
+                                <p className="text-sm text-[#dc2626] text-center font-medium">{error}</p>
                             </div>
                         )}
 
                         {verificationMessage && (
-                            <div className="bg-emerald-900/30 border border-emerald-500/30 p-3 rounded-lg">
-                                <p className="text-sm text-emerald-400 text-center font-medium">{verificationMessage}</p>
+                            <div className="bg-[#d1fae5] border border-[#34d399] p-3 rounded-xl">
+                                <p className="text-sm text-[#059669] text-center font-medium">{verificationMessage}</p>
                             </div>
                         )}
 
-                        {isSignUp && <label className="my-4 flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" checked={policiesAccepted} onChange={e => setPoliciesAccepted(e.target.checked)} className="mt-1 h-5 w-5 shrink-0" /><span>I agree to the <a href="/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="underline">Terms &amp; Conditions</a> and acknowledge the <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="underline">Privacy Policy</a>.</span></label>}
+                        {isSignUp && (
+                            <div className="flex flex-col gap-3 py-1">
+                                <label className="flex items-start gap-2.5 text-[15px] leading-[22px] text-[#334155] cursor-pointer">
+                                    <input type="checkbox" checked={policiesAccepted} onChange={e => setPoliciesAccepted(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[#8C6434] cursor-pointer" />
+                                    <span>I agree to the Terms &amp; Conditions and acknowledge the Privacy Policy.</span>
+                                </label>
+                                <div className="flex gap-5 text-[15px]">
+                                    <a href="/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="text-[#8C6434] underline hover:text-[#6F4E28]">Terms &amp; Conditions</a>
+                                    <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-[#8C6434] underline hover:text-[#6F4E28]">Privacy Policy</a>
+                                </div>
+                            </div>
+                        )}
                         <button
                             type="submit"
                             disabled={status !== "idle" || (isSignUp && (!policiesAccepted || !isPassValid || (password !== confirmPassword)))}
-                            className="w-full py-3.5 bg-[#CA9C68] hover:bg-[#D9AE7E] text-[#13191F] rounded-xl font-bold text-[15px] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#CA9C68] focus:ring-offset-[#1B211F] transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 mt-2"
+                            className="w-full py-4 bg-[#1B211F] hover:bg-[#2B2F2E] text-[#CA9C68] rounded-[14px] font-bold text-base tracking-[0.3px] shadow-[0_6px_10px_rgba(27,33,31,0.25)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#CA9C68] transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-[#1B211F] flex justify-center items-center gap-2"
                         >
                             {status === "loading" ? (
-                                <div className="w-5 h-5 border-2 border-[#13191F]/30 border-t-[#13191F] rounded-full animate-spin" />
+                                <div className="w-5 h-5 border-2 border-[#CA9C68]/30 border-t-[#CA9C68] rounded-full animate-spin" />
                             ) : (
                                 isGmailSignup ? "Continue with email verification" : isSignUp ? "Create Account" : "Sign In"
                             )}
@@ -365,19 +379,20 @@ function LoginContent() {
                     </form>
 
                     {/* Social Login */}
-                    <div className="mt-6 mb-6 relative flex items-center py-2">
-                        <div className="flex-grow border-t border-slate-700"></div>
-                        <span className="flex-shrink-0 mx-4 text-slate-500 text-xs font-bold uppercase tracking-wider">or continue with</span>
-                        <div className="flex-grow border-t border-slate-700"></div>
+                    <div className="mt-7 mb-5 flex items-center">
+                        <div className="flex-grow h-px bg-[#e2e8f0]"></div>
+                        <span className="flex-shrink-0 px-3 text-[#7C6C58] text-xs font-bold tracking-[0.5px]">OR</span>
+                        <div className="flex-grow h-px bg-[#e2e8f0]"></div>
                     </div>
 
+                    {/* Google's light-theme button, as in the app */}
                     <button
                         type="button"
                         onClick={handleGoogleLogin}
                         disabled={status !== "idle"}
-                        className="w-full py-3.5 bg-slate-900 border border-slate-700 text-white rounded-xl font-bold text-[15px] hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-800 focus:ring-offset-slate-900 transition-all shadow-sm flex items-center justify-center gap-3"
+                        className="w-full min-h-[50px] px-4 bg-white border border-[#747775] text-[#1F1F1F] rounded-[14px] font-semibold text-[15px] hover:bg-[#F2F2F2] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#CA9C68] transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white flex items-center justify-center gap-3"
                     >
-                        <svg className="w-5 h-5" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
                             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
                             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
@@ -387,19 +402,23 @@ function LoginContent() {
                     </button>
 
                     {/* Toggle Mode */}
-                    <div className="mt-8 text-center">
-                        <p className="text-slate-500 text-sm">
+                    <div className="mt-5 text-center">
+                        <p className="text-[#64748b] text-sm">
                             {isSignUp ? "Already have an account?" : "Don't have an account?"}
-                            <button onClick={toggleMode} className="ml-1.5 font-bold text-[#CA9C68] hover:text-[#D9AE7E] transition-colors">
+                            <button type="button" onClick={toggleMode} className="ml-1 font-bold text-[#8C6434] hover:text-[#6F4E28] transition-colors">
                                 {isSignUp ? "Sign In" : "Sign Up"}
                             </button>
                         </p>
                     </div>
                 </div>
 
-                <div className="text-center mt-6">
-                    <p className="text-[var(--site-muted)] text-xs font-medium tracking-wide">Protected access to EveBash</p>
-                </div>
+                {/* Footer */}
+                <p className="text-center mt-7 px-3 text-[13px] leading-5 text-[#E6D8C3]">
+                    Review our{" "}
+                    <Link href="/terms-and-conditions" className="font-bold text-[#FFF7EB] underline">Terms</Link>
+                    {" "}and{" "}
+                    <Link href="/privacy-policy" className="font-bold text-[#FFF7EB] underline">Privacy Policy</Link>.
+                </p>
             </motion.div>
         </div>
     );
@@ -408,7 +427,7 @@ function LoginContent() {
 export default function LoginPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center bg-[var(--site-bg)]">
+            <div className="min-h-screen flex items-center justify-center" style={{ background: PAGE_GRADIENT }}>
                 <div className="h-10 w-10 border-4 border-[#CA9C68] border-t-transparent rounded-full animate-spin"></div>
             </div>
         }>

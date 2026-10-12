@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 67
+Next test number: 68
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1513,4 +1513,30 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:   96bc72b (2026-10-12)
+Feedback:
+
+#67 Website: new login page design (same look as the app) still logs in and signs up
+Status:    TODO
+Priority:  Medium
+Platform:  Website (phone browsers first: Safari on iPhone, Chrome on Android; then a desktop browser)
+Brief:     The website login page now looks like the app's login screen: white card on the dark-to-bronze
+           gradient, cream input boxes, dark Sign In button with gold text, white Google button. Only the
+           look changed; the login and sign-up steps are the same as before.
+How to test:
+  1. Logged out, open staging.evebash.com/login on a phone.
+     Expect: looks like the app's login screen. All text is readable, nothing cut off, page scrolls.
+  2. Sign in with email and password. Expect: lands on the dashboard (or back on the gallery you came from).
+  3. Log out. Tap Phone, sign in with a phone account. Expect: works.
+  4. Log out. Tap "Continue with Google". Expect: Google sign-in works as before.
+  5. Tap Sign Up. Type a password: the checklist ticks turn green. Tap "Suggest Strong Password":
+     both password boxes fill. Create Account stays greyed out until the Terms box is ticked.
+  6. Let the browser autofill a saved email and password. Expect: text in the boxes is still readable.
+  7. Tap "Forgot Password?", "Back to site", and the Terms / Privacy Policy links. Expect: each opens.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
 Feedback:
