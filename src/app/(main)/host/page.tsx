@@ -4261,12 +4261,14 @@ function DashboardContent() {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                    {/* sm:grid-cols-4 again when the Partners tab comes back */}
+                                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                                         {([
                                             { id: "galleries", label: "Galleries", subtitle: "Photos and Videos", Icon: GalleriesIcon },
                                             { id: "permissions", label: "Permissions", subtitle: "Event access control", Icon: PermissionsIcon },
                                             { id: "design", label: "Design", subtitle: "Theme and style", Icon: DesignIcon },
-                                            { id: "partners", label: "Partners", subtitle: "Linked vendors", Icon: PartnersIcon },
+                                            // Hidden until Phase 2 (comes with EB Business and EB Network). To restore, uncomment:
+                                            // { id: "partners", label: "Partners", subtitle: "Linked vendors", Icon: PartnersIcon },
                                         ] as const).map(({ id, label, subtitle, Icon }) => {
                                             const isActive = activeEventDetailTab === id;
                                             const pendingCount = id === "permissions"

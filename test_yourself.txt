@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 61
+Next test number: 62
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1342,6 +1342,28 @@ How to test:
   1. Open the app logged out, then log in. Expect: no error or red/yellow warning about a missing "social" route.
   2. Expect: the bottom tab bar has the same tabs, in the same order, as the previous build.
   3. Tap every tab and open a gallery. Expect: each opens as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#61 Event Partners is hidden until Phase 2 (website and app)
+Status:    TODO
+Priority:  Low
+Platform:  Both (website: staging.evebash.com; app: JS-only change, any staging build)
+Brief:     Event Partners comes with EB Business and EB Network in Phase 2, so it's hidden everywhere for now.
+How to test:
+  1. Website, logged in: open a gallery from the Dashboard. The menu shows Home, Collections, Find You and
+     Download All, with no Event Partners.
+  2. Website: open <gallery link>/event-partners directly. Expect: you land on the gallery's main page.
+  3. Website, Host -> an event: tabs are Galleries, Permissions and Design (no Partners), in one even row.
+  4. App, as a guest: open a gallery. No Partners tab in the top menu.
+  5. App, as the host: open the event. Tabs are Galleries, Permissions and Design (no Partners).
 Done by:
 Device / browser:
 Build / version:

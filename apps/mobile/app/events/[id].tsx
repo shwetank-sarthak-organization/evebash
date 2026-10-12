@@ -32,7 +32,7 @@ import { getPlanDetails, getUsagePercent } from '@/lib/planLimits';
 import { getSubscriptionStatus } from '@/lib/subscriptionStatus';
 
 // ── Extracted modular components ──
-import { ThemeHeader } from '../../components/event/ThemeHeader';
+import { SHOW_EVENT_PARTNERS, ThemeHeader } from '../../components/event/ThemeHeader';
 import { ThemeDivider } from '../../components/event/ThemeDivider';
 import { GalleryAccessGate, GalleryGateState } from '../../components/event/GalleryAccessGate';
 import { RenameEventModal } from '../../components/event/modals/RenameEventModal';
@@ -743,7 +743,9 @@ export default function EventDetailScreen() {
   const canViewContent = isOwner || isPrivilegedViewer || hasMemberAccess || isPublicView;
   const isFreePlanUser = !user?.delegatedBy && isFreePlanRole(user?.role);
 
-  const [activeTab, setActiveTab] = useState<'galleries' | 'permissions' | 'design' | 'partners'>((tab as any) || 'galleries');
+  const [activeTab, setActiveTab] = useState<'galleries' | 'permissions' | 'design' | 'partners'>(
+    // A link to the hidden Partners tab opens Galleries instead
+    (tab === 'partners' && !SHOW_EVENT_PARTNERS ? 'galleries' : (tab as any)) || 'galleries');
   const [linkingVendor, setLinkingVendor] = useState(false);
   const [vendorCode, setVendorCode] = useState('');
   const [linkedVendors, setLinkedVendors] = useState<Business[]>([]);
@@ -4773,6 +4775,8 @@ export default function EventDetailScreen() {
                   <DesignIcon size={18} color={activeTab === 'design' ? MidnightColors.gold : MidnightColors.slate400} />
                   <Text style={[styles.tabText, activeTab === 'design' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Design</Text>
                 </TouchableOpacity>
+                {/* Partners: hidden until Phase 2 (SHOW_EVENT_PARTNERS in components/event/ThemeHeader.tsx) */}
+                {SHOW_EVENT_PARTNERS && (
                 <TouchableOpacity
                   style={[styles.tab, activeTab === 'partners' && styles.activeTab]}
                   onPress={() => { setActiveTab('partners'); setGalleryMediaTab('photos'); setSelectedAdminGallery(undefined); }}
@@ -4780,6 +4784,7 @@ export default function EventDetailScreen() {
                   <PartnersIcon size={18} color={activeTab === 'partners' ? MidnightColors.gold : MidnightColors.slate400} />
                   <Text style={[styles.tabText, activeTab === 'partners' && styles.activeTabText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Partners</Text>
                 </TouchableOpacity>
+                )}
               </View>
 
               {activeTab === 'galleries' && (

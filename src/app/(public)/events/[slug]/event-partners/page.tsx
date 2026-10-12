@@ -2,6 +2,7 @@
 
 import React, { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ChevronRight, MapPin, Star, Users, Store } from "lucide-react";
 import LoadingScreen from "@/components/LoadingScreen";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -149,6 +150,14 @@ function EventPartnersContent({ slug }: { slug: string }) {
     );
 }
 
+// Event Partners is hidden until Phase 2 (it comes with EB Business and EB Network), so old links and bookmarks go to
+// the event itself. To restore, delete this function and uncomment the original page below.
+export default function EventPartnersPage({ params }: { params: Promise<{ slug: string }> }) {
+    const { slug } = React.use(params);
+    redirect(`/events/${slug}`);
+}
+
+/*
 export default function EventPartnersPage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = React.use(params);
 
@@ -164,3 +173,4 @@ export default function EventPartnersPage({ params }: { params: Promise<{ slug: 
         </RequireLogin>
     );
 }
+*/

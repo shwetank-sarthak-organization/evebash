@@ -117,7 +117,8 @@ export function EventNavbar({
     }));
 
     const utilityDesktopLinks: EventNavLink[] = [
-        { name: "Event Partners", href: `${basePath}/event-partners${sharedQuery}`, gallery: null, isGallery: false, isEventPartners: true },
+        // Event Partners is hidden until Phase 2 (it comes with EB Business and EB Network). To restore, uncomment:
+        // { name: "Event Partners", href: `${basePath}/event-partners${sharedQuery}`, gallery: null, isGallery: false, isEventPartners: true },
         { name: "Find You", href: `${basePath}/find-you`, gallery: null, isGallery: false, isFindYou: true },
     ];
 

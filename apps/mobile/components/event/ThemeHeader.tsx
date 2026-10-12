@@ -13,6 +13,9 @@ interface ThemeHeaderProps {
   styles: any;
 }
 
+/** Event Partners is hidden until Phase 2 (it comes with EB Business and EB Network). */
+export const SHOW_EVENT_PARTNERS = false;
+
 const SPORTS_HEADER_TEMPLATE_IDS = [
   'bohemian',
   'diamond',
@@ -332,7 +335,8 @@ export function ThemeHeader({
           renderTab(sub, activeSubEvent?.id === sub.id, idx)
         )}
 
-        {/* Event Partners Tab */}
+        {/* Event Partners Tab: hidden until Phase 2 (comes with EB Business and EB Network); set SHOW_EVENT_PARTNERS to bring it back */}
+        {SHOW_EVENT_PARTNERS && (
         <TouchableOpacity
           style={[
             styles.visitorTab,
@@ -398,6 +402,7 @@ export function ThemeHeader({
           )}
           {renderUnderline(isPartnersActive)}
         </TouchableOpacity>
+        )}
 
         {/* Find You Tab */}
         <TouchableOpacity
