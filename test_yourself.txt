@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 64
+Next test number: 65
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1417,6 +1417,39 @@ How to test:
      Confirm: the switch turns gold, the card says Public, and it stays Public after a page reload.
   4. Click it again. Expect: it goes back to Private straight away (no confirm) and stays Private after a reload.
   5. On a sub-gallery, and as an approved guest who is not an admin: expect no visibility card.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#64 Website modals all look the same (dark gold) and close with an X
+Status:    TODO
+Priority:  Medium
+Platform:  Website (staging.evebash.com; check on a phone browser too)
+Brief:     Every website popup now uses one dark-gold design with an X at the top right (commit 5a5e1d7, issue #38).
+           The browser's own grey OK/Cancel popups are replaced by themed ones. What each button does is unchanged.
+How to test:
+  1. Log in as a host. Open Host and, for each popup below, check: dark card with a gold border, no white box,
+     no teal/blue/olive/yellow, an X at the top right that closes it, and the main button is gold.
+     - Create Event, then the date picker (was white), New Sub-Gallery, Edit title / Edit date, Event Type,
+       Choose Style (subtitle must be readable), Storage & Quota, Share Event, event-created Success.
+     - Delete a test gallery: the Delete confirm (was white with teal buttons; Delete is now red) and the
+       "deleted successfully" popup (was white).
+     - Tap a photo (Photo Actions) and a video (Video actions -> Change thumbnail, Move to another gallery,
+       Save to EB Vault folder picker). Open a guest in Permissions (guest profile).
+  2. Themed confirms instead of the browser popup: Permissions -> make an event Public; deny a request;
+     remove a guest; Profile -> Edit -> Remove Profile Photo; delete your own comment in the photo viewer.
+     Expect a dark card with Cancel / confirm buttons. Cancel, the X or Esc must do nothing; confirm must work as before.
+  3. Dashboard -> Join Event: gold "Join with Code" button (was bright yellow), X closes it.
+  4. Profile -> Edit Profile: gold Save and gold selected chips (was yellow). Delete account popup: X closes it.
+  5. Pricing -> pick a different plan: the confirm has an X, and Cancel / Continue to Payment work as before.
+  6. EB Vault: New folder, Rename, Delete, Move: each has an X; file preview X closes it.
+  7. On a phone browser, repeat a few: the card fits the screen with a margin and the X is easy to tap.
 Done by:
 Device / browser:
 Build / version:
