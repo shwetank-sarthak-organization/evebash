@@ -9,6 +9,7 @@ type GoogleSigninModule = {
   configure: (options: { webClientId: string; iosClientId: string }) => void;
   hasPlayServices: () => Promise<boolean> | boolean;
   signIn: () => Promise<any>;
+  signOut: () => Promise<null>;
 };
 
 let googleSigninModule: GoogleSigninModule | null | undefined;
@@ -564,6 +565,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.warn('[Auth] Error during supabase.auth.signOut():', err);
     }
+    // Forget the Google account too, so the next "Continue with Google" shows the account picker. Best effort and
+    // not awaited: logging out never waits on or fails because of Google.
+    configureGoogleSignin()
+      .then((GoogleSignin) => GoogleSignin?.signOut())
+      .catch((err) => console.warn('[Auth] Google sign-out failed:', err));
     setUser(null);
   };
 
