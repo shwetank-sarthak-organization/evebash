@@ -599,6 +599,34 @@ function guestLogMatchesIdentifier(g: any, identifier: string): boolean {
     return candidates.includes(normalizedIdentifier);
 }
 
+// A value inside PostgREST's or=(...), quoted so the dots, commas and parentheses an email or phone can contain
+// stay part of the value
+function quoteFilterValue(value: string): string {
+    return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+// ilike pattern matching the value itself: "%" and "_" are LIKE wildcards, "\" escapes them
+function escapeLikePattern(value: string): string {
+    return value.replace(/[\\%_]/g, char => `\\${char}`);
+}
+
+// guestLogMatchesIdentifier as a server filter, for rows matching any of the identifiers. ilike without a wildcard is
+// a case-insensitive equals. guests has no email column: getGuestLogEmail reads the email from the id prefix, so the
+// candidates are phone, user_id and the id prefix (the whole id when it has no "_"). PostgREST reads "*" as a
+// wildcard, so a "*" in an identifier can match extra rows; callers check the rows with guestLogMatchesIdentifier.
+function guestIdentifiersFilter(identifiers: string[]): string {
+    return identifiers.flatMap(identifier => {
+        const pattern = escapeLikePattern(identifier.trim().toLowerCase());
+        if (!pattern) return [];
+        const conditions = [`phone.ilike.${quoteFilterValue(pattern)}`, `user_id.ilike.${quoteFilterValue(pattern)}`];
+        // The prefix ends at the first "_", so an identifier containing "_" is never one
+        if (!identifier.includes("_")) {
+            conditions.push(`id.ilike.${quoteFilterValue(pattern)}`, `id.ilike.${quoteFilterValue(`${pattern}\\_*`)}`);
+        }
+        return conditions;
+    }).join(",");
+}
+
 function mapSqlToGuestLog(g: any): GuestLog {
     return {
         id: g.id,
@@ -1715,18 +1743,30 @@ export async function deletePhotoComment(commentId: string) {
     }
 }
 
+// Each identifier's approved guests rows, newest login first: one query filtered on the server for all of them
+// (a query returns at most 1,000 rows), then the few rows it returns are split by identifier
+async function getUserVisitsByIdentifier(identifiers: string[]): Promise<GuestLog[][]> {
+    const filter = guestIdentifiersFilter(identifiers);
+    if (!filter) return identifiers.map(() => []);
+
+    const { data, error } = await supabase
+        .from('guests')
+        .select('*')
+        .eq('status', 'approved')
+        .or(filter)
+        .order('login_at', { ascending: false });
+
+    if (error) throw error;
+    const rows = data || [];
+    return identifiers.map(identifier => rows
+        .filter(row => guestLogMatchesIdentifier(row, identifier))
+        .map(mapSqlToGuestLog));
+}
+
 export async function getUserVisits(identifier: string): Promise<any[]> {
     try {
-        const { data, error } = await supabase
-            .from('guests')
-            .select('*')
-            .eq('status', 'approved')
-            .order('login_at', { ascending: false });
-
-        if (error) throw error;
-        return (data || [])
-            .filter(row => guestLogMatchesIdentifier(row, identifier))
-            .map(mapSqlToGuestLog);
+        const [visits] = await getUserVisitsByIdentifier([identifier]);
+        return visits;
     } catch (error) {
         console.error("Error fetching user visits:", error);
         return [];
@@ -1754,7 +1794,7 @@ export async function getApprovedSharedEventsForUser(identifiers: string | strin
         const ids = Array.isArray(identifiers) ? identifiers.filter(Boolean) : [identifiers].filter(Boolean);
         if (ids.length === 0) return [];
 
-        const visitsByIdentifier = await Promise.all(ids.map((identifier) => getUserVisits(identifier)));
+        const visitsByIdentifier = await getUserVisitsByIdentifier(ids);
         const visits = visitsByIdentifier.flat();
 
         const eventVisits: { [eventId: string]: any[] } = {};
