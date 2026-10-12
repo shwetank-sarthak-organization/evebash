@@ -951,7 +951,7 @@ function DashboardContent() {
             setSelectedMainEvent(previous => previous?.id === eventId ? null : previous);
             setMessage("You don't manage this gallery.");
             setStatus("error");
-            setTimeout(() => setStatus("idle"), 4000);
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 4000);
             router.replace("/host");
         } catch (error) {
             console.warn("[Host] Could not check gallery access:", error);
@@ -1849,7 +1849,7 @@ function DashboardContent() {
             setStatus("error");
             void recheckManageAccess(selectedMainEventId);
         }
-        setTimeout(() => setStatus("idle"), 3000);
+        setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
         return result.success;
     };
 
@@ -1873,7 +1873,7 @@ function DashboardContent() {
             setStatus("error");
             void recheckManageAccess(selectedMainEventId);
         }
-        setTimeout(() => setStatus("idle"), 3000);
+        setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
         return result.success;
     };
 
@@ -1894,7 +1894,7 @@ function DashboardContent() {
             setStatus("error");
             void recheckManageAccess(selectedMainEventId);
         }
-        setTimeout(() => setStatus("idle"), 3000);
+        setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
         return result.success;
     };
 
@@ -1917,7 +1917,7 @@ function DashboardContent() {
             if (!statusResult.success) {
                 setMessage(statusResult.error || "Failed to update guest.");
                 setStatus("error");
-                setTimeout(() => setStatus("idle"), 3000);
+                setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
                 return;
             }
         }
@@ -1943,7 +1943,7 @@ function DashboardContent() {
             setStatus("error");
             void recheckManageAccess(selectedMainEventId);
         }
-        setTimeout(() => setStatus("idle"), 3000);
+        setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
     };
 
     // Fetch workspace owner if current user is delegated
@@ -2025,7 +2025,7 @@ function DashboardContent() {
         if (!eventName.trim()) {
             setStatus("error");
             setMessage("Please enter an event name.");
-            setTimeout(() => setStatus("idle"), 5000);
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 5000);
             return false;
         }
 
@@ -2034,7 +2034,7 @@ function DashboardContent() {
         if (authError || !authUser?.id) {
             setStatus("error");
             setMessage("Please sign in again before creating an event.");
-            setTimeout(() => setStatus("idle"), 5000);
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 5000);
             return false;
         }
 
@@ -2052,7 +2052,7 @@ function DashboardContent() {
             if (eventCount >= maxEvents) {
                 setMessage(`You've reached your ${currentPlan.eventLabel}-event limit for the ${currentPlan.name}. Upgrade your plan to create more events.`);
                 setStatus("error");
-                setTimeout(() => setStatus("idle"), 5000);
+                setTimeout(() => { setStatus("idle"); setMessage(""); }, 5000);
                 return false;
             }
         }
@@ -2139,7 +2139,7 @@ function DashboardContent() {
             if (oversizedVideo) {
                 setMessage("Free plan videos can be up to 200 MB. Upgrade to upload larger videos.");
                 setStatus("error");
-                setTimeout(() => setStatus("idle"), 5000);
+                setTimeout(() => { setStatus("idle"); setMessage(""); }, 5000);
                 return;
             }
         }
@@ -2151,7 +2151,7 @@ function DashboardContent() {
                 if (!validation.valid) {
                     setMessage(validation.error ?? "Invalid video file.");
                     setStatus("error");
-                    setTimeout(() => setStatus("idle"), 6000);
+                    setTimeout(() => { setStatus("idle"); setMessage(""); }, 6000);
                     return;
                 }
             }
@@ -2174,7 +2174,7 @@ function DashboardContent() {
             if (currentUsage >= currentPlan.storageBytes) {
                 setMessage(`You've reached your ${currentPlan.storageLabel} storage limit. Upgrade your plan for more storage.`);
                 setStatus("error");
-                setTimeout(() => setStatus("idle"), 5000);
+                setTimeout(() => { setStatus("idle"); setMessage(""); }, 5000);
                 return;
             }
 
@@ -2184,7 +2184,7 @@ function DashboardContent() {
                     `Upload exceeds your ${currentPlan.storageLabel} storage limit. You have ${formatStorageSize(remainingStorage)} remaining, but selected files are ${formatStorageSize(selectedUploadSize)}.`
                 );
                 setStatus("error");
-                setTimeout(() => setStatus("idle"), 7000);
+                setTimeout(() => { setStatus("idle"); setMessage(""); }, 7000);
                 return;
             }
         }
@@ -2447,7 +2447,7 @@ function DashboardContent() {
             } else {
                 setStatus("success");
                 setMessage("Gallery updated! ✨");
-                setTimeout(() => setStatus("idle"), 2000);
+                setTimeout(() => { setStatus("idle"); setMessage(""); }, 2000);
             }
             fetchUserEvents();
             fetchEventPhotos();
@@ -2485,7 +2485,7 @@ function DashboardContent() {
         if (droppedFiles.length === 0) {
             setStatus("error");
             setMessage(galleryMediaTab === "videos" ? "Drop video files to upload." : "Drop image files to upload.");
-            setTimeout(() => setStatus("idle"), 2500);
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 2500);
             return;
         }
 
@@ -2506,7 +2506,7 @@ function DashboardContent() {
                 setStatus("success");
                 setMessage(`${isMainEvent ? 'Event' : 'Gallery'} thumbnail updated! ✨`);
                 fetchUserEvents();
-                setTimeout(() => setStatus("idle"), 2000);
+                setTimeout(() => { setStatus("idle"); setMessage(""); }, 2000);
             } else {
                 setStatus("error");
                 setMessage("Failed to update thumbnail.");
@@ -2996,10 +2996,10 @@ function DashboardContent() {
         setNewDate("");
         setMessage(currentRenamingEvent.type === "sub" ? "Gallery updated!" : "Event updated!");
         setStatus("success");
-        setTimeout(() => setStatus("idle"), 2000);
 
         try {
             await updateEvent(currentRenamingEvent.id, { title: newTitle, date: newDate });
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 2000);
             if (currentRenamingEvent.id === selectedEventId) {
                 setSelectedEventName(newTitle);
             }
@@ -3109,7 +3109,7 @@ function DashboardContent() {
             setTemplateTargetEvent(null);
             setMessage("Theme updated successfully! ✨");
             setStatus("success");
-            setTimeout(() => setStatus("idle"), 2000);
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 2000);
 
             // Refresh to ensure everything is synced
             fetchUserEvents();
@@ -4671,7 +4671,11 @@ function DashboardContent() {
                                     {message && (
                                         <div className={cn(
                                             "rounded-2xl p-4 text-center text-sm font-bold",
-                                            status === "success" ? "bg-emerald-500/10 text-emerald-300" : "bg-rose-500/10 text-rose-300"
+                                            status === "success"
+                                                ? "bg-emerald-500/10 text-emerald-300"
+                                                : status === "error"
+                                                    ? "bg-rose-500/10 text-rose-300"
+                                                    : "bg-sky-500/10 text-sky-300"
                                         )}>
                                             {message}
                                         </div>
