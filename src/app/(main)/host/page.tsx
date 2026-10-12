@@ -156,8 +156,8 @@ const GridMediaCell = ({
                 />
                 )}
                 <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#CA9C68]/70 bg-slate-950/80 text-[#CA9C68] shadow-xl">
-                        <Play className="h-5 w-5 fill-current" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#D4A770] text-slate-950 shadow-xl shadow-black/40 sm:h-12 sm:w-12">
+                        <Play className="ml-0.5 h-5 w-5 fill-current" />
                     </div>
                 </div>
                 {photo.status === 'processing' && (
@@ -4973,13 +4973,13 @@ function DashboardContent() {
                                     onDragLeave={handleGalleryDrag}
                                     onDrop={handleGalleryDrop}
                                     className={cn(
-                                        "relative max-w-7xl mx-auto bg-slate-800 p-8 md:p-12 rounded-[2.5rem] shadow-xl border border-slate-700 transition-colors",
+                                        "relative max-w-7xl mx-auto bg-slate-800 p-4 sm:p-8 lg:p-10 rounded-[2rem] shadow-xl border border-slate-700 font-serif transition-colors",
                                         isDraggingPhotos && "border-[#CA9C68] bg-slate-800/95",
                                         isInlineEventDetailGalleryEditor && "mt-8"
                                     )}
                                 >
                                     {isDraggingPhotos && (
-                                        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-[2.5rem] border-2 border-dashed border-[#CA9C68] bg-slate-950/70 backdrop-blur-sm">
+                                        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-[2rem] border-2 border-dashed border-[#CA9C68] bg-slate-950/70 backdrop-blur-sm">
                                             <div className="flex flex-col items-center text-center">
                                                 <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#CA9C68] text-slate-950 shadow-lg">
                                                     <Upload className="h-8 w-8" />
@@ -5079,78 +5079,112 @@ function DashboardContent() {
                                     </div>
                                     )}
 
-                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-10">
-                                        <div>
-                                            <h3 className="text-3xl font-bold tracking-tight">Gallery Editor</h3>
-                                            <p className="text-slate-700 font-sans mt-1">Managing memories for <span className="text-white font-bold underline decoration-royal-gold decoration-2 underline-offset-4">{selectedEventName}</span></p>
-                                        </div>
-                                        <div className="flex items-center space-x-3">
-                                            <button
-                                                type="button"
-                                                onClick={handleHostDownloadZip}
-                                                disabled={isHostZipping || currentEventPhotos.length === 0}
-                                                className="flex items-center gap-2 rounded-2xl border border-[#CA9C68]/40 bg-[#CA9C68]/10 px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#CA9C68] transition-all hover:bg-[#CA9C68] hover:text-slate-950 disabled:opacity-40"
-                                            >
-                                                {isHostZipping ? (
-                                                    <>
-                                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                                        <span>Zipping {hostZipProgress}%</span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Download className="h-4 w-4" />
-                                                        <span>Download All (.ZIP)</span>
-                                                    </>
-                                                )}
-                                            </button>
+                                    {/* Header bar: back, gallery title, gallery actions */}
+                                    <div className={cn(
+                                        "mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-4 border-b border-slate-700 pb-5 sm:mb-8 lg:grid-cols-[minmax(max-content,1fr)_minmax(0,auto)_minmax(max-content,1fr)] lg:gap-x-6",
+                                        isInlineEventDetailGalleryEditor && "-mx-4 -mt-4 rounded-t-[2rem] bg-slate-950 px-4 pt-4 sm:-mx-8 sm:-mt-8 sm:px-8 sm:pt-6 lg:-mx-10 lg:-mt-10 lg:px-10"
+                                    )}>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const fallbackParams = new URLSearchParams(searchParams);
+                                                fallbackParams.set("mode", "list");
+                                                fallbackParams.delete("galleryId");
 
+                                                if (isInlineEventDetailGalleryEditor) {
+                                                    goBackOr(`/host?${fallbackParams.toString()}`);
+                                                    setMessage("");
+                                                    setStatus("idle");
+                                                    return;
+                                                }
+
+                                                goBackOr(`/host?${fallbackParams.toString()}`);
+                                            }}
+                                            className="col-start-1 row-start-1 inline-flex items-center gap-1.5 justify-self-start rounded-full py-2 pr-3 text-base font-semibold text-slate-300 transition-colors hover:text-white active:scale-95"
+                                        >
+                                            <ChevronLeft className="h-5 w-5" />
+                                            <span>Galleries</span>
+                                        </button>
+
+                                        <h3
+                                            className="col-span-2 row-start-2 min-w-0 truncate text-center font-serif text-2xl font-semibold tracking-tight text-[#F5EFE6] lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:text-[1.75rem]"
+                                            title={selectedEventName}
+                                        >
+                                            {selectedEventName}
+                                            {isInlineEventDetailGalleryEditor && activeEventDetailEvent && (
+                                                <> ({activeEventDetailEvent.id === selectedMainEvent?.id ? "Primary Gallery" : "Sub-Gallery"})</>
+                                            )}
+                                        </h3>
+
+                                        <div className="col-start-2 row-start-1 flex items-center justify-end gap-2 sm:gap-3 lg:col-start-3">
                                             {/* View Toggle */}
-                                            <div className="bg-slate-900/50 p-1 rounded-2xl flex items-center">
+                                            <div className="flex items-center rounded-full border border-slate-700 bg-slate-900/60 p-1">
                                                 <Tooltip text="Grid View">
                                                     <button
+                                                        type="button"
                                                         onClick={() => setGalleryViewMode("grid")}
+                                                        aria-label="Grid view"
+                                                        aria-pressed={galleryViewMode === "grid"}
                                                         className={cn(
-                                                            "p-2 rounded-xl transition-all",
-                                                            galleryViewMode === "grid" ? "bg-slate-800 shadow-sm text-white" : "text-slate-400 hover:text-slate-400"
+                                                            "rounded-full p-2 transition-colors",
+                                                            galleryViewMode === "grid" ? "bg-[#CA9C68]/20 text-[#E2B77F]" : "text-slate-400 hover:text-white"
                                                         )}
                                                     >
-                                                        <LayoutGrid className="w-5 h-5" />
+                                                        <LayoutGrid className="h-4 w-4" />
                                                     </button>
                                                 </Tooltip>
                                                 <Tooltip text="List View">
                                                     <button
+                                                        type="button"
                                                         onClick={() => setGalleryViewMode("list")}
+                                                        aria-label="List view"
+                                                        aria-pressed={galleryViewMode === "list"}
                                                         className={cn(
-                                                            "p-2 rounded-xl transition-all",
-                                                            galleryViewMode === "list" ? "bg-slate-800 shadow-sm text-white" : "text-slate-400 hover:text-slate-400"
+                                                            "rounded-full p-2 transition-colors",
+                                                            galleryViewMode === "list" ? "bg-[#CA9C68]/20 text-[#E2B77F]" : "text-slate-400 hover:text-white"
                                                         )}
                                                     >
-                                                        <List className="w-5 h-5" />
+                                                        <List className="h-4 w-4" />
                                                     </button>
                                                 </Tooltip>
                                             </div>
 
-                                            <Tooltip text="Back to galleries">
+                                            <button
+                                                type="button"
+                                                onClick={handleHostDownloadZip}
+                                                disabled={isHostZipping || currentEventPhotos.length === 0}
+                                                aria-label="Download (.ZIP)"
+                                                title="Download (.ZIP)"
+                                                className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-[#CA9C68]/60 bg-[#CA9C68]/10 px-3 py-2.5 text-sm font-semibold text-[#E2B77F] transition-colors hover:bg-[#CA9C68]/20 disabled:opacity-40 sm:px-5"
+                                            >
+                                                {isHostZipping ? (
+                                                    <>
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                        <span>
+                                                            <span className="hidden sm:inline">Zipping </span>
+                                                            {hostZipProgress}%
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Download className="h-4 w-4" />
+                                                        <span className="hidden sm:inline">Download (.ZIP)</span>
+                                                    </>
+                                                )}
+                                            </button>
+
+                                            {isInlineEventDetailGalleryEditor && activeEventDetailEvent && activeEventDetailEvent.id !== selectedMainEvent?.id && (
                                                 <button
-                                                    onClick={() => {
-                                                        const fallbackParams = new URLSearchParams(searchParams);
-                                                        fallbackParams.set("mode", "list");
-                                                        fallbackParams.delete("galleryId");
-
-                                                        if (isInlineEventDetailGalleryEditor) {
-                                                            goBackOr(`/host?${fallbackParams.toString()}`);
-                                                            setMessage("");
-                                                            setStatus("idle");
-                                                            return;
-                                                        }
-
-                                                        goBackOr(`/host?${fallbackParams.toString()}`);
-                                                    }}
-                                                    className="p-3 bg-slate-900/50 hover:bg-slate-600 text-slate-400 hover:text-slate-400 rounded-2xl transition-all active:scale-95"
+                                                    type="button"
+                                                    onClick={() => setShowDeleteConfirm(activeEventDetailEvent.id)}
+                                                    aria-label="Delete Gallery"
+                                                    title="Delete Gallery"
+                                                    className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-[#B4616A] px-3 py-2.5 text-sm font-semibold text-[#FCE8EA] transition-colors hover:bg-[#C26E77] sm:px-5"
                                                 >
-                                                    <ChevronLeft className="w-6 h-6" />
+                                                    <Trash2 className="h-4 w-4" />
+                                                    <span className="hidden sm:inline">Delete Gallery</span>
                                                 </button>
-                                            </Tooltip>
+                                            )}
                                         </div>
                                     </div>
 
@@ -5170,16 +5204,11 @@ function DashboardContent() {
                                     )}
 
                                     {isInlineEventDetailGalleryEditor && activeEventDetailEvent && (
-                                        <div className="mb-8 rounded-3xl border border-[#CA9C68]/25 bg-white/[0.04] p-5">
-                                            <div className="mb-3 flex items-end justify-between gap-4">
-                                                <div>
-                                                    <p className="text-sm font-black tracking-wide text-white">Welcome Message</p>
-                                                    <p className="mt-1 text-xs font-bold text-slate-400">
-                                                        For: {activeEventDetailEvent.id === selectedMainEvent?.id ? "Primary Gallery" : activeEventDetailEvent.title}
-                                                    </p>
-                                                </div>
+                                        <div className="mb-6 rounded-2xl border border-[#CA9C68]/55 bg-slate-950/40 p-4 sm:p-5">
+                                            <div className="mb-3 flex items-center justify-between gap-4">
+                                                <p className="text-base font-semibold text-white">Welcome Message</p>
                                                 <span className={cn(
-                                                    "text-xs font-bold",
+                                                    "text-sm",
                                                     galleryMessageText.length >= 200 ? "text-rose-300" : "text-slate-400"
                                                 )}>
                                                     {galleryMessageText.length}/200
@@ -5190,22 +5219,22 @@ function DashboardContent() {
                                                 onChange={(event) => setGalleryMessageText(event.target.value.slice(0, 200))}
                                                 placeholder="Write a brief, elegant welcome note..."
                                                 maxLength={200}
-                                                className="min-h-24 w-full resize-none rounded-2xl border border-[#CA9C68]/20 bg-slate-950/50 p-4 text-sm font-semibold leading-6 text-white outline-none transition-colors placeholder:text-slate-500 focus:border-[#CA9C68]/60"
+                                                className="min-h-[7.5rem] w-full resize-none rounded-xl sm:min-h-[5.5rem] border border-[#CA9C68]/50 bg-slate-950/50 px-4 py-3 text-base leading-7 text-slate-100 outline-none transition-colors placeholder:text-slate-500 focus:border-[#CA9C68]"
                                             />
                                             <div className="mt-3 flex justify-end">
                                                 <button
                                                     onClick={handleSaveGalleryMessage}
                                                     disabled={!hasGalleryMessageChanges || status === "uploading"}
                                                     className={cn(
-                                                        "flex items-center gap-2 rounded-full px-4 py-2 text-xs font-black uppercase tracking-widest transition-all active:scale-95",
+                                                        "flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold transition-all active:scale-95",
                                                         hasGalleryMessageChanges && status !== "uploading"
                                                             ? "bg-[#CA9C68] text-slate-950 hover:bg-[#D7AE7D]"
-                                                            : "bg-slate-800 text-slate-500"
+                                                            : "border border-[#CA9C68]/25 bg-[#CA9C68]/10 text-[#CA9C68]/70"
                                                     )}
                                                 >
                                                     {status === "uploading" && message.toLowerCase().includes("gallery message") ? (
                                                         <Loader2 className="h-4 w-4 animate-spin" />
-                                                    ) : (
+                                                    ) : !hasGalleryMessageChanges && (
                                                         <Check className="h-4 w-4" />
                                                     )}
                                                     <span>{hasGalleryMessageChanges ? "Save" : "Saved"}</span>
@@ -5214,7 +5243,7 @@ function DashboardContent() {
                                         </div>
                                     )}
 
-                                    <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-900/60 p-1">
+                                    <div className="mb-4 flex rounded-2xl border border-slate-700 bg-slate-900/60 p-1.5">
                                         {mediaTabs.map(({ id, label, icon: Icon }) => {
                                             const active = galleryMediaTab === id;
                                             return (
@@ -5222,9 +5251,10 @@ function DashboardContent() {
                                                     key={id}
                                                     type="button"
                                                     onClick={() => setGalleryMediaTab(id)}
+                                                    aria-pressed={active}
                                                     className={cn(
-                                                        "inline-flex w-1/2 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-black transition-colors",
-                                                        active ? "bg-[#CA9C68] text-slate-950" : "text-slate-300 hover:bg-slate-800"
+                                                        "inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-base font-semibold transition-colors",
+                                                        active ? "bg-[#CA9C68] text-slate-950 shadow-sm" : "text-slate-300 hover:bg-slate-800 hover:text-white"
                                                     )}
                                                 >
                                                     <Icon className="h-4 w-4" />
@@ -5234,13 +5264,13 @@ function DashboardContent() {
                                         })}
                                     </div>
                                     {isPrimaryGalleryView ? (
-                                    <label className="mb-6 flex w-full items-center gap-3 rounded-xl border border-slate-700 bg-slate-900/45 px-4 py-3">
-                                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-800 text-[#CA9C68]">
+                                    <label className="mb-6 flex w-full items-center gap-3 rounded-2xl border border-slate-700 bg-slate-900/45 px-4 py-3.5 sm:px-5">
+                                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-800 text-[#CA9C68]">
                                             <Layers3 className="h-4 w-4" />
                                         </span>
                                         <span className="min-w-0 flex-1">
-                                            <span className="block text-sm font-bold text-slate-200">Source gallery</span>
-                                            <span className="mt-0.5 block text-xs text-slate-400">Filter Primary Gallery media by origin</span>
+                                            <span className="block text-base font-semibold text-slate-100">Source gallery</span>
+                                            <span className="mt-0.5 block text-sm text-slate-400">Filter Primary Gallery media by origin</span>
                                         </span>
                                         <select
                                             value={effectiveSourceGalleryFilter}
@@ -5261,40 +5291,27 @@ function DashboardContent() {
                                         aria-checked={showOnlyFavourites}
                                         onClick={() => setShowOnlyFavourites(current => !current)}
                                         className={cn(
-                                            "mb-6 flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors",
+                                            "mb-6 flex w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition-colors sm:px-5",
                                             showOnlyFavourites
                                                 ? "border-[#CA9C68]/70 bg-[#CA9C68]/10"
                                                 : "border-slate-700 bg-slate-900/45 hover:border-slate-500 hover:bg-slate-900/70"
                                         )}
                                     >
-                                        <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-lg", showOnlyFavourites ? "bg-[#CA9C68] text-slate-950" : "bg-slate-800 text-slate-300")}>
+                                        <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl", showOnlyFavourites ? "bg-[#CA9C68] text-slate-950" : "bg-slate-800 text-slate-200")}>
                                             <Star className={cn("h-4 w-4", showOnlyFavourites && "fill-current")} />
                                         </span>
                                         <span className="min-w-0 flex-1">
-                                            <span className={cn("block text-sm font-bold", showOnlyFavourites ? "text-[#E2B77F]" : "text-slate-200")}>Favourites only</span>
-                                            <span className="mt-0.5 block text-xs text-slate-400">{activeFavouriteCount} in {galleryMediaTab === "videos" ? "Videos" : "Photos"}</span>
+                                            <span className={cn("block text-base font-semibold", showOnlyFavourites ? "text-[#E2B77F]" : "text-slate-100")}>Favourites only</span>
+                                            <span className="mt-0.5 block text-sm text-slate-400">{activeFavouriteCount} in {galleryMediaTab === "videos" ? "Videos" : "Photos"}</span>
                                         </span>
-                                        <span className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", showOnlyFavourites ? "bg-[#CA9C68]" : "bg-slate-700")}>
-                                            <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform", showOnlyFavourites ? "translate-x-5" : "translate-x-0.5")} />
+                                        <span className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors", showOnlyFavourites ? "bg-[#CA9C68]" : "bg-slate-700")}>
+                                            <span className={cn("absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform", showOnlyFavourites ? "translate-x-6" : "translate-x-1")} />
                                         </span>
                                     </button>
                                     )}
 
-                                    {isInlineEventDetailGalleryEditor && activeEventDetailEvent && activeEventDetailEvent.id !== selectedMainEvent?.id && (
-                                        <div className="mb-6 flex justify-end">
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowDeleteConfirm(activeEventDetailEvent.id)}
-                                                className="flex items-center gap-2 rounded-full border border-rose-400/30 bg-rose-500/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-rose-300"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                                <span>Delete Gallery</span>
-                                            </button>
-                                        </div>
-                                    )}
-
                                     {galleryViewMode === "grid" && activeGalleryItems.length > 0 && (
-                                        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-700 bg-slate-900/45 px-4 py-3">
+                                        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-900/45 px-4 py-3 sm:px-5">
                                             {isSelectingMedia ? (
                                                 <>
                                                     <span className="text-sm font-bold text-slate-200" aria-live="polite">
@@ -5308,7 +5325,7 @@ function DashboardContent() {
                                                                     ? new Set()
                                                                     : new Set(activeGalleryItems.map(item => item.id))
                                                             )}
-                                                            className="rounded-full border border-slate-600 px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-200 hover:border-slate-400"
+                                                            className="rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400"
                                                         >
                                                             {selectedMediaIds.size === activeGalleryItems.length ? "Clear" : "Select all"}
                                                         </button>
@@ -5317,7 +5334,7 @@ function DashboardContent() {
                                                                 type="button"
                                                                 disabled={selectedMediaIds.size === 0}
                                                                 onClick={() => setMediaToMove(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
-                                                                className="flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-950 disabled:opacity-40"
+                                                                className="flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-40"
                                                             >
                                                                 <FolderInput className="h-4 w-4" />
                                                                 <span>Move to…</span>
@@ -5327,7 +5344,7 @@ function DashboardContent() {
                                                             type="button"
                                                             disabled={selectedMediaIds.size === 0}
                                                             onClick={() => setMediaToSave(activeGalleryItems.filter(item => selectedMediaIds.has(item.id)))}
-                                                            className="flex items-center gap-2 rounded-full border border-[#7FA38C]/50 bg-[#7FA38C]/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-[#A9C9B4] disabled:opacity-40"
+                                                            className="flex items-center gap-2 rounded-full border border-[#7FA38C]/50 bg-[#7FA38C]/10 px-4 py-2 text-sm font-semibold text-[#A9C9B4] disabled:opacity-40"
                                                         >
                                                             <HardDrive className="h-4 w-4" />
                                                             <span>Save to EB Vault</span>
@@ -5335,7 +5352,7 @@ function DashboardContent() {
                                                         <button
                                                             type="button"
                                                             onClick={exitMediaSelection}
-                                                            className="rounded-full px-3 py-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white"
+                                                            className="rounded-full px-3 py-2 text-sm font-semibold text-slate-400 hover:text-white"
                                                         >
                                                             Cancel
                                                         </button>
@@ -5349,7 +5366,7 @@ function DashboardContent() {
                                                     <button
                                                         type="button"
                                                         onClick={() => setIsSelectingMedia(true)}
-                                                        className="flex items-center gap-2 rounded-full border border-[#CA9C68]/40 bg-[#CA9C68]/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-[#CA9C68] hover:bg-[#CA9C68]/20"
+                                                        className="flex items-center gap-2 rounded-full border border-[#CA9C68]/40 bg-[#CA9C68]/10 px-4 py-2 text-sm font-semibold text-[#CA9C68] hover:bg-[#CA9C68]/20"
                                                     >
                                                         <CheckSquare className="h-4 w-4" />
                                                         <span>Select</span>
@@ -5360,7 +5377,41 @@ function DashboardContent() {
                                     )}
 
                                     {galleryViewMode === "grid" ? (
-                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 lg:gap-5">
+                                            {/* Add Image Button */}
+                                            {!isFavouriteFilterActive && (galleryMediaTab !== "videos" || canPostVideos) && <motion.label
+                                                layout
+                                                className={cn(
+                                                    "group relative flex aspect-square cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-3 text-center transition-colors",
+                                                    status === "uploading" ? "border-sky-500/50 bg-sky-500/5" : "border-[#CA9C68]/55 bg-slate-900/50 hover:border-[#CA9C68] hover:bg-slate-900/70"
+                                                )}
+                                                title="Click to select photos to upload"
+                                            >
+                                                <input
+                                                    type="file"
+                                                    multiple
+                                                    accept={galleryMediaTab === "videos" ? "video/*" : "image/*"}
+                                                    onChange={handleFileUpload}
+                                                    className="hidden"
+                                                    disabled={status === "uploading"}
+                                                />
+                                                {status === "uploading" ? (
+                                                    <div className="flex flex-col items-center text-sky-400">
+                                                        <Loader2 className="w-10 h-10 animate-spin mb-3" />
+                                                        <span className="text-sm font-semibold">Adding...</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col items-center gap-4 text-slate-200 transition-colors group-hover:text-white">
+                                                        <span className="grid h-14 w-14 place-items-center rounded-2xl border border-[#CA9C68]/70 bg-[#CA9C68]/10 text-[#F1D3A8] shadow-[0_0_28px_rgba(202,156,104,0.35)] transition-all group-hover:bg-[#CA9C68]/20 group-hover:shadow-[0_0_36px_rgba(202,156,104,0.5)] sm:h-16 sm:w-16">
+                                                            <Plus className="h-7 w-7 sm:h-8 sm:w-8" />
+                                                        </span>
+                                                        <span className="text-sm font-medium sm:text-base">
+                                                            {galleryMediaTab === "videos" ? "Add or Drop Videos" : "Add or Drop Photos"}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </motion.label>}
+
                                             {/* Existing Photos Grid */}
                                             {activeGalleryItems.map((photo, index) => {
                                                 const isCover = stripUrlQuery(userEvents.find(ev => ev.id === selectedEventId)?.coverImage) === stripUrlQuery(photo.url);
@@ -5373,9 +5424,9 @@ function DashboardContent() {
                                                         key={photo.id}
                                                         layout
                                                         className={cn(
-                                                            "group relative aspect-square bg-stone-100 shadow-sm border border-slate-700",
+                                                            "group relative aspect-square rounded-2xl bg-slate-900 shadow-md shadow-black/20 border border-slate-700",
                                                             isSelectingMedia ? "cursor-pointer" : "cursor-zoom-in",
-                                                            isSelectingMedia && selectedMediaIds.has(photo.id) && "ring-4 ring-[#CA9C68] ring-inset"
+                                                            isSelectingMedia && selectedMediaIds.has(photo.id) && "ring-2 ring-[#CA9C68] ring-offset-2 ring-offset-[#2B2F2E]"
                                                         )}
                                                         role={isSelectingMedia ? "checkbox" : undefined}
                                                         aria-checked={isSelectingMedia ? selectedMediaIds.has(photo.id) : undefined}
@@ -5403,7 +5454,7 @@ function DashboardContent() {
                                                         }}
                                                     >
                                                         {/* Inner Clipping Container for Photo */}
-                                                        <div className="absolute inset-0 overflow-hidden">
+                                                        <div className="absolute inset-0 overflow-hidden rounded-[15px]">
                                                             <GridMediaCell
                                                                 photo={photo}
                                                                 gridSrc={gridSrc}
@@ -5424,7 +5475,39 @@ function DashboardContent() {
                                                                 {selectedMediaIds.has(photo.id) ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5 text-white" />}
                                                             </div>
                                                         ) : (<>
-                                                        <div className={cn("absolute top-3 z-10", isVideo ? "right-3" : "left-3")}>
+                                                        <div className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1.5">
+                                                            {!isVideo && (
+                                                                <Tooltip text="Delete Image">
+                                                                    <button
+                                                                        aria-label="Delete Image"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            handleDeletePhoto(photo.id);
+                                                                        }}
+                                                                        className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950/70 text-rose-300 shadow-lg backdrop-blur-md opacity-0 transition-all active:scale-95 group-hover:opacity-100 hover:bg-rose-500 hover:text-white"
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </button>
+                                                                </Tooltip>
+                                                            )}
+                                                            <Tooltip text={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}>
+                                                                <button
+                                                                    aria-label={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}
+                                                                    aria-pressed={isFavourite}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleToggleEventFavourite(photo.id);
+                                                                    }}
+                                                                    className={cn(
+                                                                        "grid h-9 w-9 place-items-center rounded-lg shadow-lg backdrop-blur-md transition-all active:scale-95",
+                                                                        isFavourite
+                                                                            ? "bg-[#CA9C68] text-slate-950"
+                                                                            : "bg-slate-950/70 text-white hover:bg-[#CA9C68] hover:text-slate-950"
+                                                                    )}
+                                                                >
+                                                                    <Star className={cn("h-4 w-4", isFavourite && "fill-current")} />
+                                                                </button>
+                                                            </Tooltip>
                                                             <Tooltip text={isVideo ? "Video actions" : "Photo actions"}>
                                                                 <button
                                                                     aria-label={isVideo ? "Video actions" : "Photo actions"}
@@ -5432,45 +5515,14 @@ function DashboardContent() {
                                                                         e.stopPropagation();
                                                                         isVideo ? setVideoActionItem(photo) : setPhotoActionItem(photo);
                                                                     }}
-                                                                    className="p-2.5 bg-slate-800/90 backdrop-blur-md rounded-xl text-white shadow-lg transition-all active:scale-90 hover:bg-slate-700"
+                                                                    className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950/70 text-white shadow-lg backdrop-blur-md transition-all active:scale-90 hover:bg-slate-950/90"
                                                                 >
-                                                                    <MoreHorizontal className="w-4 h-4" />
+                                                                    <MoreHorizontal className="h-4 w-4" />
                                                                 </button>
                                                             </Tooltip>
                                                         </div>
-                                                        <div className="absolute top-3 right-14 z-10">
-                                                            <Tooltip text={isFavourite ? "Remove from Primary Gallery" : "Add to Primary Gallery"}>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            handleToggleEventFavourite(photo.id);
-                                                                        }}
-                                                                        className={cn(
-                                                                            "p-2.5 backdrop-blur-md rounded-xl shadow-lg transition-all active:scale-95",
-                                                                            isFavourite
-                                                                                ? "bg-[#CA9C68] text-slate-950 opacity-100"
-                                                                                : "bg-slate-800/90 text-white opacity-0 group-hover:opacity-100 hover:bg-[#CA9C68] hover:text-slate-950"
-                                                                        )}
-                                                                    >
-                                                                        <Star className={cn("w-4 h-4", isFavourite && "fill-current")} />
-                                                                    </button>
-                                                            </Tooltip>
-                                                        </div>
-                                                        {!isVideo && (<div className="absolute top-3 right-3 z-10">
-                                                            <Tooltip text={isVideo ? "Delete Video" : "Delete Image"}>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleDeletePhoto(photo.id);
-                                                                    }}
-                                                                    className="p-2.5 bg-slate-800/90 backdrop-blur-md rounded-xl text-red-500 shadow-lg opacity-0 group-hover:opacity-100 transition-all active:scale-95 hover:bg-red-50"
-                                                                >
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                </button>
-                                                            </Tooltip>
-                                                        </div>)}
                                                         {!isFavouriteFilterActive && activeGalleryItems.length > 1 && (
-                                                            <div className="absolute bottom-3 left-3 z-10 flex overflow-hidden rounded-full border border-slate-700 bg-slate-950/80 text-white shadow-lg backdrop-blur-md">
+                                                            <div className="absolute bottom-2.5 left-2.5 z-10 flex overflow-hidden rounded-lg border border-white/10 bg-slate-950/70 font-sans text-white shadow-lg backdrop-blur-md">
                                                                 <button
                                                                     type="button"
                                                                     onClick={(e) => {
@@ -5506,51 +5558,17 @@ function DashboardContent() {
                                             {/* Loading Skeletons for current fetching */}
                                             {loadingPhotos && activeGalleryItems.length === 0 && (
                                                 Array.from({ length: 4 }).map((_, i) => (
-                                                    <div key={i} className="aspect-square bg-slate-900/50 rounded-[2rem] animate-pulse border border-slate-700" />
+                                                    <div key={i} className="aspect-square bg-slate-900/50 rounded-2xl animate-pulse border border-slate-700" />
                                                 ))
                                             )}
-
-                                            {/* Add Image Button */}
-                                            {!isFavouriteFilterActive && (galleryMediaTab !== "videos" || canPostVideos) && <motion.label
-                                                layout
-                                                className={cn(
-                                                    "relative aspect-square rounded-[2rem] border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all hover:bg-slate-900/50 group",
-                                                    status === "uploading" ? "border-sky-500/50 bg-sky-500/5" : "border-slate-700"
-                                                )}
-                                                title="Click to select photos to upload"
-                                            >
-                                                    <input
-                                                        type="file"
-                                                        multiple
-                                                        accept={galleryMediaTab === "videos" ? "video/*" : "image/*"}
-                                                        onChange={handleFileUpload}
-                                                    className="hidden"
-                                                    disabled={status === "uploading"}
-                                                />
-                                                {status === "uploading" ? (
-                                                    <div className="flex flex-col items-center text-sky-400">
-                                                        <Loader2 className="w-10 h-10 animate-spin mb-3" />
-                                                        <span className="text-xs font-bold uppercase tracking-widest">Adding...</span>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex flex-col items-center text-slate-400 group-hover:text-white transition-colors">
-                                                        <div className="p-4 bg-slate-900/50 rounded-2xl mb-3 group-hover:bg-slate-800 group-hover:shadow-md transition-all">
-                                                            <Plus className="w-8 h-8" />
-                                                        </div>
-                                                        <span className="text-xs font-bold uppercase tracking-widest">
-                                                            {galleryMediaTab === "videos" ? "Add or Drop Videos" : "Add or Drop Photos"}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </motion.label>}
                                         </div>
                                     ) : (
                                         <div className="space-y-4">
                                             {/* Add Image Option as List Item */}
                                             {!isFavouriteFilterActive && (galleryMediaTab !== "videos" || canPostVideos) && <motion.label
                                                 className={cn(
-                                                    "flex items-center p-6 border-2 border-dashed rounded-3xl cursor-pointer transition-all hover:bg-slate-900/50 group",
-                                                    status === "uploading" ? "border-sky-500/50 bg-sky-500/5" : "border-slate-700"
+                                                    "flex items-center p-5 sm:p-6 border-2 border-dashed rounded-2xl cursor-pointer transition-colors group",
+                                                    status === "uploading" ? "border-sky-500/50 bg-sky-500/5" : "border-[#CA9C68]/55 bg-slate-900/50 hover:border-[#CA9C68] hover:bg-slate-900/70"
                                                 )}
                                             >
                                                 <input
@@ -5561,11 +5579,11 @@ function DashboardContent() {
                                                     className="hidden"
                                                     disabled={status === "uploading"}
                                                 />
-                                                <div className="w-16 h-16 bg-slate-900/50 rounded-2xl flex items-center justify-center mr-6 group-hover:bg-slate-800 transition-all">
+                                                <div className="mr-5 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#CA9C68]/70 bg-[#CA9C68]/10 text-[#F1D3A8] shadow-[0_0_24px_rgba(202,156,104,0.3)] transition-all group-hover:bg-[#CA9C68]/20 sm:mr-6">
                                                     {status === "uploading" ? (
                                                         <Loader2 className="w-6 h-6 text-sky-400 animate-spin" />
                                                     ) : (
-                                                        <Plus className="w-6 h-6 text-slate-400 group-hover:text-white" />
+                                                        <Plus className="w-6 h-6" />
                                                     )}
                                                 </div>
                                                 <div>
@@ -5578,7 +5596,7 @@ function DashboardContent() {
                                                 </div>
                                             </motion.label>}
 
-                                            <div className="bg-slate-800 rounded-[2.5rem] border border-slate-700 overflow-hidden shadow-sm">
+                                            <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-sm">
                                                 <div className="overflow-x-auto">
                                                     <table className="w-full text-left border-collapse">
                                                         <thead>
