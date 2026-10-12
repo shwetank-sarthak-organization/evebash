@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 56
+Next test number: 57
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1201,6 +1201,41 @@ How to test:
      same guest list as the host, B under pending. Approve B (leave Admin Access off).
   6. Account B: open the gallery in the app. Expect: the normal guest view; no Permissions tab or admin controls.
   7. Host: pull to refresh on Permissions. Expect: A (with the shield icon) and B under approved, nothing missing.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#56 Joined galleries still show everywhere (guests, guest admins, users with none)
+Status:    TODO
+Priority:  High
+Platform:  Website + App (Android and iOS; the app needs a staging build with the #52 fix)
+Brief:     The lists of galleries you joined now ask the server for your own guests rows only, instead of
+           loading every approved guests row (all hosts) and keeping yours on the device, which was cut off
+           at 1,000 rows (issue #52). The galleries shown must not change.
+Detail:    getUserVisits / getApprovedSharedEventsForUser in apps/mobile/lib/database.ts and src/lib/database.ts.
+           Test data on 2026-10-12: newone@email.com is a guest admin of "event_check_";
+           chauhansarthak497@gmail.com joined "10 oct reject" and "11 october 2026";
+           sarthak.chauhan496@gmail.com joined "11 october 2026" and "Check push".
+How to test:
+  Needs: a guest account that joined at least two galleries of other hosts (approved), a guest admin account
+  (a host turned on Admin Access for it), and an account that joined nothing.
+  1. Guest account, app: Dashboard. Expect: every gallery you joined shows, next to your own galleries.
+  2. Same account, app: Profile (joined count) and Your Events. Expect: the same joined galleries on each.
+     Gallery tab > Shared lists only galleries where you are a guest admin (unchanged): empty for this account.
+  3. Same account, website (staging.evebash.com): Dashboard and Profile. Expect: the same galleries as the app.
+  4. Guest admin account, website: Host page (main view). Expect: the admin gallery is listed with your own
+     galleries. App: Gallery tab > Shared. Expect: the admin gallery shows there. Dashboard, Profile and Your
+     Events (app) and Dashboard (website) show it too.
+  5. As a host, approve a new request from the guest account for another private gallery. Guest: pull to refresh
+     (app) / reload (website). Expect: the new gallery appears.
+  6. Account that joined nothing: Dashboard, Profile and Your Events (app) and Dashboard / Profile (website).
+     Expect: no joined galleries, no error, only the account's own galleries if it has any.
 Done by:
 Device / browser:
 Build / version:

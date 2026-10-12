@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 53
+Next issue number: 57
 
 =====================================================================
 ACTIVE ISSUES
@@ -216,20 +216,65 @@ Found in: Discussing live updates while testing #51 (2026-10-12)
 Issue: Supabase Realtime is off (the supabase_realtime publication has no tables since 2026-09-30, the user's choice). Decision 2026-10-12: keep it off for the v1 launch and turn it on later per table, only where a feature needs it (first candidate: Phase 2 vendor chat, messages and chat_rooms; then maybe comments and likes; guests only if #48 isn't enough). Before turning any table on: (1) #21 must be applied, or Realtime sends row changes to anyone listening; (2) add tables one at a time, not all; (3) review the existing listeners first: the app subscribes to photos, events, profiles, likes, comments, chat, businesses (all dormant now), and the Gallery and Usage tabs create a new randomly named channel each time they open (apps/mobile/app/(tabs)/gallery.tsx, usage.tsx), so check they unsubscribe; (4) check the Supabase plan's limits on live connections and messages.
 How to reproduce: In Supabase, Database > Publications > supabase_realtime: no tables.
 
-#52
+#53
 Listed: 2026-10-12
-Platform: Both
-Priority: High
+Platform: App
+Priority: Medium
 Status: Open
 Owner: Unassigned
 Blocked by: -
-Found in: #46 fix (2026-10-12)
-Issue: The lists of galleries a user has joined load every approved row of the guests table (all hosts, all galleries) and keep the user's own rows on the device: getUserVisits in apps/mobile/lib/database.ts and src/lib/database.ts, called once per identifier (uid, email, phone) by getApprovedSharedEventsForUser. Supabase returns at most 1,000 rows, newest login_at first, so once the table has more than 1,000 approved rows, guests stop seeing older galleries they joined (app: Dashboard, Gallery > Shared, Profile, Your Events; website: Dashboard, Profile) and guest admins lose galleries from the host page / Gallery tab admin list. It also sends other people's guest names and phone numbers to every device while guests RLS is off (#21). After lockdown part 2 most users only get back rows they may read, but platform admins still get the whole table. Fix: filter by the user on the server (user_id, phone, email, and old "<phone or email>_<gallery id>" row ids) instead of on the device.
-How to reproduce: Read getUserVisits in apps/mobile/lib/database.ts; compare the number of approved guests rows with 1,000.
+Found in: #52 scan for whole-table loads (2026-10-12)
+Issue: The host's guest panel loads the whole profiles table (every user's email, phone, plan and push token) to find the profile of an old guests row and matches it on the phone: getGuestProfile -> getUsers() in apps/mobile/lib/database.ts. Only rows without user_id take this path (4 old rows today; new rows look up profile_cards by user_id). The website's getGuestProfile (src/lib/database.ts) asks the server for the one profile instead, but its .or() is unquoted and case-sensitive, while the app matches emails case-insensitively and phones by digits only. While profiles RLS is off (#21) every host's phone downloads all profiles; after lockdown part 2 (profiles_select: own row or platform admin) the lookup finds nothing for other users on both platforms, and platform admins still download the whole table. Fix: look up the one profile on the server (quoted values, same matching on both platforms), or drop the old-row lookup once the old guests have re-requested access.
+How to reproduce: Host, in the app: open a gallery whose guests include an old row without user_id and open that guest's panel; the network log shows a profiles request with no filter.
+
+#54
+Listed: 2026-10-12
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: #52 scan for whole-table loads (2026-10-12)
+Issue: The hidden Social tab (apps/mobile/app/(tabs)/social.tsx, href: null, nothing links to it) loads the whole profiles table (getUsers) and the whole events table, private galleries included (getSocialFeed ignores the following list it is given), and shows every gallery in the feed. Nobody can reach it today, so it does no harm yet; if the tab is brought back it would list every gallery to every user. It also reads the top 100 businesses (Phase 2). Fix: delete the screen and these two functions, or filter on the server by the people followed before showing it again.
+How to reproduce: Read getUsers and getSocialFeed in apps/mobile/lib/database.ts and their use in social.tsx.
+
+#55
+Listed: 2026-10-12
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: #52 scan for whole-table loads (2026-10-12)
+Issue: Unused website functions in src/lib/database.ts still load whole tables and filter on the device: getEvents() (every gallery), and getUserPendingVisits / getPendingSharedEventsForUser (every pending guests row, matched on the device like getUserVisits before #52). Nothing calls them, so nothing is affected now, but reusing them would bring the problem back. Fix: delete them (or, if a "pending requests I sent" list is wanted, filter on the server the way getUserVisits does now).
+How to reproduce: grep src for getEvents( / getUserPendingVisits( / getPendingSharedEventsForUser(: only the definitions.
+
+#56
+Listed: 2026-10-12
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: #52 browser check (2026-10-12)
+Issue: The website sets user.phone to the text "No Phone" when the profile has no phone (src/context/AuthContext.tsx), and Dashboard, Profile, the host page and others pass user.phone as one of the user's identifiers. So "no phone" is matched against guests rows (phone, old id prefix, user_id) by getApprovedSharedEventsForUser, and against events.created_by / photos.user_id by getUserEvents and the storage totals. No row holds "No Phone" today (checked 2026-10-12: 0 guests, 0 events, 0 photos), but if one ever did, every website user without a phone would see that gallery or have its storage counted. The app leaves user.phone empty instead. Fix: keep user.phone empty (show "Not provided" in the UI only), or drop the placeholder from identifier lists.
+How to reproduce: Website, log in with an account without a phone, open the Dashboard: the guests request's or= filter contains "no phone".
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#52
+Listed: 2026-10-12
+Platform: Both
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: #46 fix (2026-10-12)
+Issue: The lists of galleries a user has joined load every approved row of the guests table (all hosts, all galleries) and keep the user's own rows on the device: getUserVisits in apps/mobile/lib/database.ts and src/lib/database.ts, called once per identifier (uid, email, phone) by getApprovedSharedEventsForUser. Supabase returns at most 1,000 rows, newest login_at first, so once the table has more than 1,000 approved rows, guests stop seeing older galleries they joined (app: Dashboard, Gallery > Shared, Profile, Your Events; website: Dashboard, Profile) and guest admins lose galleries from the host page / Gallery tab admin list. It also sends other people's guest names and phone numbers to every device while guests RLS is off (#21). After lockdown part 2 most users only get back rows they may read, but platform admins still get the whole table. Fix: filter by the user on the server (user_id, phone, email, and old "<phone or email>_<gallery id>" row ids) instead of on the device.
+How to reproduce: Read getUserVisits in apps/mobile/lib/database.ts; compare the number of approved guests rows with 1,000.
+Fixed in: 4c510f1 (2026-10-12). getApprovedSharedEventsForUser (and getUserVisits) now run one query for all of the user's identifiers, filtered on the server with the same rules as before: case-insensitive phone, user_id and the old id prefix (guests has no email column; getGuestLogEmail reads the email from that prefix), values quoted for PostgREST and LIKE-escaped. The few returned rows are then split per identifier with the old check, so rows, order and mapping are unchanged and callers didn't change. Website and app copies are identical. Read-only check on live data (2026-10-12): 28 identifier sets (all 7 profiles as uid+email+phone and uid+email, every old phone/email row id, also upper-case and padded, users with nothing, odd characters) gave the same row ids in the same order, 0 mismatches; an independent SQL count agreed (3 of 7 profiles have joined galleries). Website checked in the browser as a guest admin: Dashboard, Profile (1 joined) and Host > Shared show event_check_ as expected. Works with lockdown part 2 (guests_select: own row or can_manage_event; the filter only narrows what RLS allows). The app part needs a new staging build. Device check: test_yourself #56. Found during the fix: #53, #54, #55, #56.
 
 #46
 Listed: 2026-10-12
