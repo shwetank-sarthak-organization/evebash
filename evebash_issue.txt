@@ -172,17 +172,6 @@ Found in: #17 bundle ID work (2026-10-11)
 Issue: The repo root still has an old tracked Android project (android/, 37 files) and a stub app.json, both using the package com.anonymous.weddingapp. The real app is apps/mobile, and EAS builds from there. The leftovers are confusing and show up in ID searches. Confirm nothing uses them, then delete them.
 How to reproduce: git ls-files android app.json
 
-#44
-Listed: 2026-10-12
-Platform: App
-Priority: High
-Status: Open
-Owner: Unassigned
-Blocked by: -
-Found in: #17 bundle ID work, before the first EAS build (2026-10-12)
-Issue: EAS cloud builds would ship without Supabase settings. The project has never had an EAS build (staging apps so far were built locally, reading apps/mobile/.env). EAS has no EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY, and .env isn't uploaded (it is git-ignored). lib/supabase.ts only warns when they're missing, so the app opens but login and galleries don't work. Fix: add both to EAS (development, preview, production) with the same values as .env, then build. Related: #19 (production profile has no EXPO_PUBLIC_API_BASE_URL).
-How to reproduce: eas env:list --environment preview (from apps/mobile): only EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID is set.
-
 #45
 Listed: 2026-10-12
 Platform: App
@@ -241,6 +230,18 @@ How to reproduce: In Supabase, Database > Publications > supabase_realtime: no t
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#44
+Listed: 2026-10-12
+Platform: App
+Priority: High
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: #17 bundle ID work, before the first EAS build (2026-10-12)
+Issue: EAS cloud builds would ship without Supabase settings. The project has never had an EAS build (staging apps so far were built locally, reading apps/mobile/.env). EAS has no EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY, and .env isn't uploaded (it is git-ignored). lib/supabase.ts only warns when they're missing, so the app opens but login and galleries don't work. Fix: add both to EAS (development, preview, production) with the same values as .env, then build. Related: #19 (production profile has no EXPO_PUBLIC_API_BASE_URL).
+How to reproduce: eas env:list --environment preview (from apps/mobile): only EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID is set.
+Fixed in: EAS project settings, no code change (2026-10-12). EXPO_PUBLIC_SUPABASE_URL (plaintext) and EXPO_PUBLIC_SUPABASE_ANON_KEY (sensitive) added to the development, preview and production EAS environments with the values from apps/mobile/.env. Check on the first EAS build that login works. A production EAS build still has no EXPO_PUBLIC_API_BASE_URL (#19).
 
 #17
 Listed: 2026-10-09
