@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 69
+Next test number: 70
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1566,6 +1566,27 @@ How to test:
  12. Open the Primary Gallery. Expect: title ends with "(Primary Gallery)", no Delete Gallery button,
      the "Source gallery" filter works.
  13. On a phone: nothing is cut off, no sideways scrolling, and the buttons are easy to tap.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#69 App: over-the-air updates (expo-updates) install and the app still starts
+Status:    TODO
+Priority:  Medium
+Platform:  App (Android first, then iOS)
+Brief:     The app now has expo-updates (runtimeVersion policy appVersion, EAS channels staging/production).
+           A new native build is needed; after that, JavaScript-only changes can reach the app with eas update
+           instead of a new build. Nothing else changed.
+How to test:
+  1. Install a new EAS staging build (preview profile). Expect: it opens normally, login and galleries work.
+  2. Developer: make a small visible JS change and run eas update --channel staging (from apps/mobile).
+  3. Close the app fully and open it, then close and open it once more. Expect: the change shows.
+  4. A build with a different app version must not receive that update (runtime version = app version).
 Done by:
 Device / browser:
 Build / version:
