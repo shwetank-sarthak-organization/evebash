@@ -20,11 +20,11 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 55
+Next test number: 56
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-10-11
+Last updated: 2026-10-12
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -1172,6 +1172,35 @@ How to test:
   4. Host > create a new event (New Event sheet). Tap Event Name and type. Expect: same as step 1.
   5. Android only, if you have one: a phone or tablet with a Bluetooth keyboard, or the emulator with
      its hardware keyboard on (only Gboard's small toolbar shows). Expect: the sheet doesn't move.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#55 App Permissions screen: hosts see every guest and request, guest admins keep their controls
+Status:    TODO
+Priority:  High
+Platform:  App (Android and iOS; needs a staging build with the #46 fix)
+Brief:     The event's Permissions tab now asks the server for this gallery's guests only, instead of
+           loading the whole guests table (all hosts) and filtering on the phone, which was cut off at
+           1,000 rows (issue #46). The lists and who counts as a guest admin must not change.
+Detail:    apps/mobile/lib/database.ts getEventLogs. Gallery > Requests is unchanged but is checked here too.
+How to test:
+  Needs: a host account with a PRIVATE gallery that already has approved guests, and two other accounts (A, B).
+  1. Accounts A and B: Join Event with the gallery's join code (or open its link) and request access.
+  2. Host, in the app: open the gallery > Permissions. Expect: every guest the website shows for this gallery
+     (staging.evebash.com host page > Permissions), A and B under pending, and the badge on the Permissions
+     tab matches the pending count. Guests of the host's other galleries do NOT show here.
+  3. Host: Gallery tab > Requests. Expect: A's and B's requests show, as before.
+  4. Host: approve A and turn on Admin Access for A. Leave B pending.
+  5. Account A: open the gallery in the app. Expect: the admin view (Galleries and Permissions tabs) with the
+     same guest list as the host, B under pending. Approve B (leave Admin Access off).
+  6. Account B: open the gallery in the app. Expect: the normal guest view; no Permissions tab or admin controls.
+  7. Host: pull to refresh on Permissions. Expect: A (with the shield icon) and B under approved, nothing missing.
 Done by:
 Device / browser:
 Build / version:

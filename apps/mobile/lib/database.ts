@@ -1805,8 +1805,20 @@ export async function getGuestLogs(ownerIds?: string | string[]): Promise<GuestL
 
 export async function getEventLogs(eventId: string): Promise<GuestLog[]> {
     if (!eventId) return [];
-    const logs = await getGuestLogs();
-    return logs.filter(log => log.eventId === eventId || log.parentEventId === eventId);
+    try {
+        // Only this gallery's rows, filtered on the server (a query returns at most 1,000 rows)
+        const { data, error } = await supabase
+            .from('guests')
+            .select('*')
+            .or(`event_id.eq.${eventId},parent_event_id.eq.${eventId}`)
+            .order('login_at', { ascending: false });
+
+        if (error) throw error;
+        return (data || []).map(mapSqlToGuestLog);
+    } catch (error) {
+        console.error("Error fetching event logs:", error);
+        return [];
+    }
 }
 
 export async function updateGuestStatus(logId: string, status: 'pending' | 'approved' | 'rejected') {
