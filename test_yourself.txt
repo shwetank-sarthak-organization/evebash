@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 59
+Next test number: 61
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1290,6 +1290,58 @@ How to test:
   5. Phone browser: the icons are always visible on every photo and are easy to tap.
   6. Check 2-3 gallery designs (e.g. Royal Emerald and two others): icons readable on bright photos.
   7. Logged out on a public gallery: no icons, as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#59 Host's guest details panel shows the same details as before
+Status:    TODO
+Priority:  Medium
+Platform:  Both (website: staging.evebash.com; app: needs a staging build with the #53 fix)
+Brief:     For old guest rows (joined by phone or email before accounts were linked), the guest panel now asks the
+           server for that one profile. The app used to download every user's profile and match on the phone
+           (issue #53); the website now uses the same matching as the app. What the panel shows must not change.
+Detail:    getGuestProfile in apps/mobile/lib/database.ts and src/lib/database.ts (commit af711b8). Only one old
+           row can still be opened: "Shwetank Chauhan Another" in the Wedding gallery (wedding-fdd8). It matches
+           no profile today, so its panel shows the row's own name and phone. Guests who joined with an account
+           still get their name and photo as before (profile_cards).
+How to test:
+  Needs: the Wedding gallery's owner account (or a platform admin), and a gallery of yours where someone joined
+  or asked to join with their account.
+  1. Website, as Wedding's owner: Host -> Wedding -> Permissions -> "View guest details" on
+     "Shwetank Chauhan Another". Expect: the panel shows that name and phone as before, no error.
+     DevTools > Network: the "profiles" request has an or= filter (email.imatch / phone.match) and returns no
+     more than one row. There is no "profiles" request without a filter.
+  2. App, same account: Wedding -> Permissions -> tap the same guest. Expect: the same details as before, no error.
+  3. Website and app: open the details of a guest who joined with an account. Expect: name and photo as before.
+  4. App: Gallery tab -> Requests -> tap a pending request, and Event -> Permissions -> a pending request.
+     Expect: the popup shows the person's name and photo as before.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#60 App tabs work the same after the hidden Social tab was removed
+Status:    TODO
+Priority:  Low
+Platform:  App (Android and iOS; needs a staging build with the #54 change)
+Brief:     The hidden Social screen (no button led to it) and its code were deleted (issue #54). Nothing visible
+           should change.
+How to test:
+  1. Open the app logged out, then log in. Expect: no error or red/yellow warning about a missing "social" route.
+  2. Expect: the bottom tab bar has the same tabs, in the same order, as the previous build.
+  3. Tap every tab and open a gallery. Expect: each opens as before.
 Done by:
 Device / browser:
 Build / version:

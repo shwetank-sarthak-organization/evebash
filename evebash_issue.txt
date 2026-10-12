@@ -216,28 +216,6 @@ Found in: Discussing live updates while testing #51 (2026-10-12)
 Issue: Supabase Realtime is off (the supabase_realtime publication has no tables since 2026-09-30, the user's choice). Decision 2026-10-12: keep it off for the v1 launch and turn it on later per table, only where a feature needs it (first candidate: Phase 2 vendor chat, messages and chat_rooms; then maybe comments and likes; guests only if #48 isn't enough). Before turning any table on: (1) #21 must be applied, or Realtime sends row changes to anyone listening; (2) add tables one at a time, not all; (3) review the existing listeners first: the app subscribes to photos, events, profiles, likes, comments, chat, businesses (all dormant now), and the Gallery and Usage tabs create a new randomly named channel each time they open (apps/mobile/app/(tabs)/gallery.tsx, usage.tsx), so check they unsubscribe; (4) check the Supabase plan's limits on live connections and messages.
 How to reproduce: In Supabase, Database > Publications > supabase_realtime: no tables.
 
-#53
-Listed: 2026-10-12
-Platform: App
-Priority: Medium
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: #52 scan for whole-table loads (2026-10-12)
-Issue: The host's guest panel loads the whole profiles table (every user's email, phone, plan and push token) to find the profile of an old guests row and matches it on the phone: getGuestProfile -> getUsers() in apps/mobile/lib/database.ts. Only rows without user_id take this path (4 old rows today; new rows look up profile_cards by user_id). The website's getGuestProfile (src/lib/database.ts) asks the server for the one profile instead, but its .or() is unquoted and case-sensitive, while the app matches emails case-insensitively and phones by digits only. While profiles RLS is off (#21) every host's phone downloads all profiles; after lockdown part 2 (profiles_select: own row or platform admin) the lookup finds nothing for other users on both platforms, and platform admins still download the whole table. Fix: look up the one profile on the server (quoted values, same matching on both platforms), or drop the old-row lookup once the old guests have re-requested access.
-How to reproduce: Host, in the app: open a gallery whose guests include an old row without user_id and open that guest's panel; the network log shows a profiles request with no filter.
-
-#54
-Listed: 2026-10-12
-Platform: App
-Priority: Low
-Status: In progress
-Owner: Sarthak (with Claude)
-Blocked by: -
-Found in: #52 scan for whole-table loads (2026-10-12)
-Issue: The hidden Social tab (apps/mobile/app/(tabs)/social.tsx, href: null, nothing links to it) loads the whole profiles table (getUsers) and the whole events table, private galleries included (getSocialFeed ignores the following list it is given), and shows every gallery in the feed. Nobody can reach it today, so it does no harm yet; if the tab is brought back it would list every gallery to every user. It also reads the top 100 businesses (Phase 2). Fix: delete the screen and these two functions, or filter on the server by the people followed before showing it again.
-How to reproduce: Read getUsers and getSocialFeed in apps/mobile/lib/database.ts and their use in social.tsx.
-
 #55
 Listed: 2026-10-12
 Platform: Website
@@ -263,6 +241,30 @@ How to reproduce: Website, log in with an account without a phone, open the Dash
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#53
+Listed: 2026-10-12
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: #52 scan for whole-table loads (2026-10-12)
+Issue: The host's guest panel loads the whole profiles table (every user's email, phone, plan and push token) to find the profile of an old guests row and matches it on the phone: getGuestProfile -> getUsers() in apps/mobile/lib/database.ts. Only rows without user_id take this path (4 old rows today; new rows look up profile_cards by user_id). The website's getGuestProfile (src/lib/database.ts) asks the server for the one profile instead, but its .or() is unquoted and case-sensitive, while the app matches emails case-insensitively and phones by digits only. While profiles RLS is off (#21) every host's phone downloads all profiles; after lockdown part 2 (profiles_select: own row or platform admin) the lookup finds nothing for other users on both platforms, and platform admins still download the whole table. Fix: look up the one profile on the server (quoted values, same matching on both platforms), or drop the old-row lookup once the old guests have re-requested access.
+How to reproduce: Host, in the app: open a gallery whose guests include an old row without user_id and open that guest's panel; the network log shows a profiles request with no filter.
+Fixed in: af711b8 (2026-10-12). App and website now ask the server for that one profile, using the app's old rules: the row's email (its phone when it has no email) equal ignoring case and surrounding spaces, or the same phone digits, newest profile first. Values are regex-escaped and quoted for PostgREST (match / imatch, where "*" is not a wildcard), only the panel's columns are read, and the result is checked again on the device. The website no longer matches profiles.id or compares case-sensitively. Rows with user_id still read profile_cards (unchanged). Read-only check on live data (2026-10-12): the 4 old rows get the same profile as the old app code on both platforms (1 found, 3 none; the old website code agreed); 68 more lookups (case, padding, phone formatting, odd characters) and 51 filter probes through PostgREST: 0 mismatches. After lockdown part 2: hosts keep SELECT on profiles but RLS returns only their own row, so the lookup returns nothing (no error) and the panel shows the guest row's own name and phone; platform admins get only the matching profile. profile_cards (id, name, photo) is the right source for rows with user_id, but it has no email or phone, so an old row can't be matched to a profile by a host after part 2 (the lockdown plan has the old guests ask again). 3 of the 4 old rows belong to deleted galleries (event_id null), so hosts won't see them after part 2 anyway. The old-row lookup can be deleted once no such rows are left. Device check: test_yourself #59.
+
+#54
+Listed: 2026-10-12
+Platform: App
+Priority: Low
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: #52 scan for whole-table loads (2026-10-12)
+Issue: The hidden Social tab (apps/mobile/app/(tabs)/social.tsx, href: null, nothing links to it) loads the whole profiles table (getUsers) and the whole events table, private galleries included (getSocialFeed ignores the following list it is given), and shows every gallery in the feed. Nobody can reach it today, so it does no harm yet; if the tab is brought back it would list every gallery to every user. It also reads the top 100 businesses (Phase 2). Fix: delete the screen and these two functions, or filter on the server by the people followed before showing it again.
+How to reproduce: Read getUsers and getSocialFeed in apps/mobile/lib/database.ts and their use in social.tsx.
+Fixed in: af711b8 (2026-10-12). Deleted social.tsx, its hidden tab entry, and the app functions only it used: getUsers (unused after #53), getSocialFeed and the follow / post-like / post-comment stubs. Checked first that nothing else imports them (the website and backend have their own code). The Phase 2 business functions it also used are left as they are (getBusinessActivities is a stub; getTopRatedBusinesses and toggleShortlistBusiness are used by the business screens). Device check: test_yourself #60.
 
 #52
 Listed: 2026-10-12
