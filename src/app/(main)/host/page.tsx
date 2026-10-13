@@ -4,7 +4,7 @@ import { VideoThumbnailPicker, VideoThumbnailActions } from "@/components/VideoT
 import { MoveToGalleryDialog } from "@/components/MoveToGalleryDialog";
 import { FolderPickerDialog } from "@/components/vault/Dialogs";
 import { vaultApi } from "@/lib/vaultApi";
-import { GalleriesIcon } from "@/components/GalleriesIcon";
+import { GalleriesIcon, GalleryChaptersIcon } from "@/components/GalleriesIcon";
 import { PermissionsIcon } from "@/components/PermissionsIcon";
 import { DesignIcon } from "@/components/DesignIcon";
 import { EventDesignPreview } from "@/components/EventDesignPreview";
@@ -4333,137 +4333,111 @@ function DashboardContent() {
                                         isInlineEventDetailGalleryEditor && "hidden"
                                     )}>
                                         {activeEventDetailTab === "galleries" && (
-                                            <div className="space-y-5">
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <div>
-                                                        <h4 className="text-xl font-black text-white">Galleries</h4>
-                                                        <p className="text-sm font-bold text-slate-400">Primary gallery and sub-galleries for this event.</p>
+                                            <div className="space-y-6">
+                                                <div className="flex flex-wrap items-center justify-between gap-4">
+                                                    <div className="flex min-w-0 items-center gap-3">
+                                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#CA9C68]/30 bg-[#CA9C68]/10">
+                                                            <GalleryChaptersIcon className="h-6 w-6 text-[#CA9C68]" aria-hidden="true" />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <h4 className="font-serif text-3xl font-semibold leading-tight text-[#F5EFE6]">Galleries</h4>
+                                                            <p className="text-sm text-slate-400">Your celebration in chapters</p>
+                                                        </div>
                                                     </div>
                                                     <button
                                                         onClick={() => setIsCreateSubGalleryModalOpen(true)}
-                                                        className="flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-950 transition-transform hover:-translate-y-0.5"
+                                                        className="flex items-center gap-2 rounded-xl bg-[#CA9C68] px-4 py-2.5 text-sm font-bold text-slate-950 transition-transform hover:-translate-y-0.5"
                                                     >
                                                         <Plus className="h-4 w-4" />
                                                         <span>Add Sub-Gallery</span>
                                                     </button>
                                                 </div>
 
-                                                <div className="space-y-6">
-                                                    <section className="space-y-3">
-                                                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#CA9C68]">Primary Gallery</p>
-                                                        <div className="flex flex-wrap gap-4">
-                                                            <div
-                                                                className={cn(
-                                                                    "group relative overflow-hidden rounded-[1.5rem] border shadow-lg transition-all cursor-pointer hover:border-[#CA9C68]/50 w-full sm:w-[280px] aspect-square flex-shrink-0",
-                                                                    selectedEventId === selectedMainEvent.id && manageMode === "add-image"
-                                                                        ? "border-[#CA9C68]/70 shadow-[#13191F]/10"
-                                                                        : "border-slate-700 shadow-slate-950/10"
-                                                                )}
-                                                                onClick={() => openUploadForEvent(selectedMainEvent.id, selectedMainEvent.title)}
-                                                            >
+                                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                                    <div
+                                                        className={cn(
+                                                            "group relative min-h-[220px] cursor-pointer overflow-hidden rounded-2xl border bg-neutral-900 shadow-lg transition-all hover:border-[#CA9C68]/70 sm:col-span-2",
+                                                            selectedEventId === selectedMainEvent.id && manageMode === "add-image"
+                                                                ? "border-[#CA9C68]/70"
+                                                                : "border-[#CA9C68]/35"
+                                                        )}
+                                                        onClick={() => openUploadForEvent(selectedMainEvent.id, selectedMainEvent.title)}
+                                                    >
+                                                        <img
+                                                            src={resolveEventCoverImage(selectedMainEvent.coverImage, 'thumbnail')}
+                                                            alt={selectedMainEvent.title}
+                                                            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                                        />
+                                                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
+
+                                                        <div className="absolute inset-0 flex flex-col justify-between p-4 sm:p-5">
+                                                            <div className="flex justify-end">
+                                                                <span className="rounded-full border border-[#CA9C68]/60 bg-black/55 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#E8C9A0] shadow-[0_0_14px_rgba(202,156,104,0.35)] backdrop-blur-sm">Primary Collection</span>
+                                                            </div>
+                                                            <div className="flex items-end justify-between gap-3">
+                                                                <h5 className="min-w-0 flex-1 line-clamp-2 font-serif text-2xl font-semibold leading-tight text-white drop-shadow-md sm:text-3xl">Primary Gallery</h5>
+                                                                <span className="flex shrink-0 items-center gap-1 rounded-lg bg-[#CA9C68] px-3 py-2 text-xs font-bold text-slate-950 transition-colors group-hover:bg-[#d8ad7c]">
+                                                                    <span>Open</span>
+                                                                    <ChevronRight className="h-3.5 w-3.5" />
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {loadingEventDetail ? (
+                                                        <div className="flex min-h-[220px] items-center justify-center rounded-2xl border border-slate-700 p-8 text-slate-400">
+                                                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                                            <span className="text-sm font-bold">Loading sub-galleries...</span>
+                                                        </div>
+                                                    ) : eventDetailGalleries.map((gallery) => (
+                                                        <div
+                                                            key={gallery.id}
+                                                            className={cn(
+                                                                "group flex min-h-[220px] cursor-pointer flex-col overflow-hidden rounded-2xl border bg-neutral-900 p-2.5 shadow-lg transition-all hover:border-[#CA9C68]/70",
+                                                                selectedEventId === gallery.id && manageMode === "add-image"
+                                                                    ? "border-[#CA9C68]/70"
+                                                                    : "border-[#CA9C68]/35"
+                                                            )}
+                                                            onClick={() => openUploadForEvent(gallery.id, gallery.title)}
+                                                        >
+                                                            <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-neutral-800">
                                                                 <img
-                                                                    src={resolveEventCoverImage(selectedMainEvent.coverImage, 'thumbnail')}
-                                                                    alt={selectedMainEvent.title}
+                                                                    src={resolveEventCoverImage(gallery.coverImage || selectedMainEvent.coverImage, 'thumbnail')}
+                                                                    alt={gallery.title}
                                                                     className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                                                                 />
-                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none" />
-
-                                                                <div className="absolute inset-0 p-3 flex flex-col justify-between">
-                                                                    <div className="flex">
-                                                                        <div className="flex items-center gap-1 rounded-lg bg-black/65 border border-white/20 px-2 py-1">
-                                                                            <Home className="h-2.5 w-2.5 text-white/90" />
-                                                                            <span className="text-[9px] font-bold tracking-wider text-white/90">PRIMARY</span>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    <div className="flex items-end justify-between gap-2">
-                                                                        <div className="min-w-0 flex-1">
-                                                                            <h5 className="text-[13px] font-bold text-white drop-shadow-md line-clamp-2 leading-tight">{selectedMainEvent.title || 'Home'}</h5>
-                                                                        </div>
-                                                                        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20 border border-white/30 backdrop-blur-sm transition-colors group-hover:bg-white/30">
-                                                                            <ChevronRight className="h-3 w-3 text-white" />
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
+                                                            </div>
+                                                            <div className="flex flex-1 items-center justify-between gap-2 px-1.5 pt-3 pb-1">
+                                                                <h5 className="min-w-0 flex-1 truncate font-serif text-xl font-semibold text-white" title={gallery.title}>{gallery.title}</h5>
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(gallery.id); }}
+                                                                    aria-label={`Delete ${gallery.title}`}
+                                                                    title="Delete gallery"
+                                                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-rose-400 transition-colors hover:border-rose-400/40 hover:bg-rose-500/15"
+                                                                >
+                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                </button>
                                                             </div>
                                                         </div>
-                                                    </section>
+                                                    ))}
 
-                                                    <section className="space-y-3">
-                                                        <div className="flex items-center justify-between gap-3">
-                                                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#CA9C68]">Sub-Galleries</p>
-                                                        </div>
-
-                                                        {loadingEventDetail ? (
-                                                            <div className="flex items-center justify-center rounded-[1.5rem] border border-slate-700 p-8 text-slate-400">
-                                                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                                                <span className="text-sm font-bold">Loading sub-galleries...</span>
-                                                            </div>
-                                                        ) : eventDetailGalleries.length > 0 ? (
-                                                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                                                                {eventDetailGalleries.map((gallery) => (
-                                                                    <div
-                                                                        key={gallery.id}
-                                                                        className={cn(
-                                                                            "group relative aspect-square overflow-hidden rounded-[1.5rem] border shadow-lg transition-all cursor-pointer hover:border-[#CA9C68]/50",
-                                                                            selectedEventId === gallery.id && manageMode === "add-image"
-                                                                                ? "border-[#CA9C68]/70 shadow-[#13191F]/10"
-                                                                                : "border-slate-700 shadow-slate-950/10"
-                                                                        )}
-                                                                        onClick={() => openUploadForEvent(gallery.id, gallery.title)}
-                                                                    >
-                                                                        <img
-                                                                            src={resolveEventCoverImage(gallery.coverImage || selectedMainEvent.coverImage, 'thumbnail')}
-                                                                            alt={gallery.title}
-                                                                            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                                                        />
-                                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none" />
-
-                                                                        <div className="absolute inset-0 p-3 flex flex-col justify-between">
-                                                                            <div className="flex justify-between items-start">
-                                                                                <div className="flex items-center gap-1 rounded-lg bg-black/65 border border-white/20 px-2 py-1">
-                                                                                    <ImageIcon className="h-2.5 w-2.5 text-white/90" />
-                                                                                    <span className="text-[9px] font-bold tracking-wider text-white/90">SUB-GALLERY</span>
-                                                                                </div>
-                                                                                <div className="flex gap-2 relative z-20">
-                                                                                    <button
-                                                                                        onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(gallery.id); }}
-                                                                                        className="flex h-6 w-6 items-center justify-center rounded-full bg-black/65 border border-white/15 backdrop-blur-sm transition-colors shadow-sm hover:bg-black"
-                                                                                    >
-                                                                                        <Trash2 className="h-3 w-3 text-red-500" />
-                                                                                    </button>
-                                                                                </div>
-                                                                            </div>
-
-                                                                            <div className="flex items-end justify-between gap-2">
-                                                                                <div className="min-w-0 flex-1">
-                                                                                    <h5 className="text-[13px] font-bold text-white drop-shadow-md line-clamp-2 leading-tight">{gallery.title}</h5>
-                                                                                </div>
-                                                                                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20 border border-white/30 backdrop-blur-sm transition-colors group-hover:bg-white/30">
-                                                                                    <ChevronRight className="h-3 w-3 text-white" />
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        ) : (
-                                                            <div className="rounded-[1.5rem] border border-dashed border-slate-700 bg-slate-900/30 p-8 text-center">
-                                                                <ImageIcon className="mx-auto mb-3 h-8 w-8 text-slate-500" />
-                                                                <p className="text-sm font-bold text-slate-400">No sub-galleries created yet.</p>
-                                                            </div>
-                                                        )}
-                                                    </section>
-
-                                                    <div className="pt-6 flex justify-center">
-                                                        <button
-                                                            onClick={() => setShowDeleteConfirm(selectedMainEvent.id)}
-                                                            className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-full border border-rose-400/30 bg-rose-500/10 px-8 py-3 text-sm font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/20 transition-colors"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                            <span>Delete Event</span>
-                                                        </button>
-                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setIsCreateSubGalleryModalOpen(true)}
+                                                        className="flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[#CA9C68]/50 bg-transparent text-[#CA9C68] transition-colors hover:border-[#CA9C68] hover:bg-[#CA9C68]/5"
+                                                    >
+                                                        <Plus className="h-8 w-8" strokeWidth={1.5} />
+                                                        <span className="text-base">Create Sub-Gallery</span>
+                                                    </button>
+                                                </div>
+                                                <div className="pt-6 flex justify-center">
+                                                    <button
+                                                        onClick={() => setShowDeleteConfirm(selectedMainEvent.id)}
+                                                        className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-full border border-rose-400/30 bg-rose-500/10 px-8 py-3 text-sm font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/20 transition-colors"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                        <span>Delete Event</span>
+                                                    </button>
                                                 </div>
                                             </div>
                                         )}
