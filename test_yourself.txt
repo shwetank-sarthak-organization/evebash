@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 86
+Next test number: 87
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2040,4 +2040,25 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#86 Shared galleries show the owner's name (website and app)
+Status:    TODO
+Priority:  Medium
+Platform:  Both (website: staging.evebash.com now; app: needs a staging build with d342b02)
+Brief:     Shared gallery cards now show "Owner: <name>" from the public name card instead of the owner's
+           username or email, so they keep working after RLS lockdown part 2 (issue #75).
+How to test (an account that is a guest admin of someone else's gallery, e.g. chauhansarthak497):
+  1. Website: log in as the guest admin, open the host page > Shared. Expect: each card says "Owner:" and the
+     owner's name (e.g. Sarthak Chauhan). No email address, no "Unknown owner".
+  2. App: Gallery tab > Shared. Expect: "Owner: <name>" on each card.
+  3. Repeat both after RLS part 2 is applied. Expect: the same.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   d342b02 (2026-10-13)
 Feedback:

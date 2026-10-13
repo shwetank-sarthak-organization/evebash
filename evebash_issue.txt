@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 75
+Next issue number: 76
 
 =====================================================================
 ACTIVE ISSUES
@@ -381,6 +381,18 @@ How to reproduce: Open www.evebash.com on a phone (or 375 px wide) and scroll to
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#75
+Listed: 2026-10-13
+Platform: Both
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: #21 pre-apply re-scan (2026-10-13)
+Issue: Shared galleries would show "Unknown owner" after RLS lockdown part 2. The app's Gallery > Shared cards ("Owner username") and the website host page's shared gallery cards ("Owner: <email>" / username) read the owner's full profile with getUserById, and only your own profile is readable once part 2 is on.
+How to reproduce: After part 2, as a guest admin open Gallery > Shared in the app, or the Shared list on the website host page.
+Fixed in: d342b02 (2026-10-13). New getProfileCard (website and app database.ts) reads name and photo from profile_cards; both places now show "Owner: <name>". The owner's email and username are no longer shown to guests (decided by Sarthak). Old galleries whose owner is stored as an email still show that email. App part needs a new app build. Device check: test_yourself #86.
 
 #74
 Listed: 2026-10-13
