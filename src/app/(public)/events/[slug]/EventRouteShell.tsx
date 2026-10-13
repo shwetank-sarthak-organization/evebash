@@ -18,7 +18,8 @@ import { useAuth } from "@/context/AuthContext";
 import { promptLogin } from "@/components/ui/LoginPrompt";
 import { downloadGalleryAsZip } from "@/lib/zipDownload";
 import { getWebTemplateChrome } from "@/lib/webTemplateTheme";
-import { alertDialog } from "@/components/ui/Modal";
+import { alertDialog, choiceDialog } from "@/components/ui/Modal";
+import { fetchEntireEventZipItems, HOME_DOWNLOAD_DIALOG, toZipItem } from "@/lib/galleryDownload";
 
 interface EventRouteShellProps {
     children: React.ReactNode;
@@ -137,10 +138,13 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
     const loadDownloadMedia = useCallback(async (): Promise<Photo[]> => {
         if (!event || !mainEvent) return [];
 
+        // Home shows the host's favourites from every gallery; with none picked it shows the main gallery's own media,
+        // so Download All does the same.
         if (event.id === mainEvent.id) {
             const eventIds = [mainEvent.id, mainEvent.legacyId, ...subEvents.flatMap((gallery) => [gallery.id, gallery.legacyId])]
                 .filter((id): id is string => Boolean(id));
-            return getFavouritePhotosForEvents(Array.from(new Set(eventIds)));
+            const favourites = await getFavouritePhotosForEvents(Array.from(new Set(eventIds)));
+            if (favourites.length > 0) return favourites;
         }
 
         const media: Photo[] = [];
@@ -152,27 +156,29 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
             hasMore = result.hasMore;
             page += 1;
         }
-        return media;
+        // Pages can share an item at their edges
+        const seen = new Set<string>();
+        return media.filter((item) => !seen.has(item.id) && seen.add(item.id));
     }, [event, mainEvent, subEvents]);
 
     const handleDownloadZip = useCallback(async () => {
-        if (!event) return;
+        if (!event || !mainEvent) return;
+        // On Home, ask: just what Home shows, or the whole event (every gallery)
+        const choice = event.id === mainEvent.id ? await choiceDialog(HOME_DOWNLOAD_DIALOG) : "home";
+        if (!choice) return;
         setIsZipping(true);
         setZipProgress(0);
         try {
-            const media = await loadDownloadMedia();
-            if (media.length === 0) {
+            const items = choice === "event"
+                ? await fetchEntireEventZipItems(mainEvent, subEvents)
+                : (await loadDownloadMedia()).map((item) => toZipItem(item));
+            if (items.length === 0) {
                 void alertDialog({ title: "Nothing to download", message: "No photos or videos to download in this gallery." });
                 return;
             }
             const result = await downloadGalleryAsZip(
-                event.title || "Gallery",
-                media.map((item) => ({
-                    id: item.id,
-                    url: item.url,
-                    mediaType: item.mediaType,
-                    resourceType: item.resourceType,
-                })),
+                (choice === "event" ? mainEvent.title : event.title) || "Gallery",
+                items,
                 (percent) => setZipProgress(percent),
             );
             if (result.failed > 0) {
@@ -184,7 +190,7 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
             setIsZipping(false);
             setZipProgress(0);
         }
-    }, [event, loadDownloadMedia]);
+    }, [event, loadDownloadMedia, mainEvent, subEvents]);
 
     const navigation = useMemo(() => {
         if (!event || !mainEvent) return null;

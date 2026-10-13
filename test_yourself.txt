@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 87
+Next test number: 88
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2061,4 +2061,32 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:   d342b02 (2026-10-13)
+Feedback:
+
+--------------------------------------------------------------------------------
+#87 Download on Home asks "Home only" or "Entire event"; Host download follows the filters
+Status:    TODO
+Priority:  High
+Platform:  Website (staging.evebash.com), computer
+Brief:     Download All on Home (Primary Gallery) now asks what to download. The host page's Download follows
+           the Photos / Videos tab, Source gallery, Favourites only and Uploaded by filters.
+How to test:
+  1. Logged in as a member: open an event (Home) -> Download All. Expect "What would you like to download?"
+     with "Home (Primary Gallery) only" and "Entire event". X / Escape / clicking outside cancels.
+  2. Home only: the ZIP has what Home shows (the favourites). On an event with no favourites, you get the main
+     gallery's own photos instead of "Nothing to download".
+  3. Entire event: the ZIP has a folder per gallery (Home, Rec 1, Rec 2...) with every photo and playable .mp4
+     video; no file appears twice.
+  4. A sub-gallery's Download All doesn't ask; it downloads that sub-gallery.
+  5. Host -> event -> Home: Download asks the same question. Home only respects the filters; Entire event
+     ignores them.
+  6. Host -> a sub-gallery, Photos tab: Download gives photos only; Videos tab: videos only. Filter Uploaded by
+     a person (or Favourites only): only those items. Filters that leave nothing say so.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
 Feedback:

@@ -7,6 +7,8 @@ export interface ZipMediaItem {
     filename?: string;
     mediaType?: string;
     resourceType?: string;
+    /** Sub-folder inside the ZIP, e.g. the gallery's name when downloading a whole event */
+    folder?: string;
 }
 
 export type ZipProgressCallback = (percent: number, currentItem: number, totalItems: number) => void;
@@ -81,13 +83,14 @@ export async function downloadGalleryAsZip(
             const baseName = (item.filename || fileNameFromUrl(mediaUrl) || `media_${i + 1}`).replace(/[^a-zA-Z0-9._-]/g, "_");
             const withExt = baseName.includes(".") ? baseName : `${baseName}.${ext}`;
             // Two files with the same name would overwrite each other in the ZIP
+            const folder = item.folder ? `${item.folder.replace(/[\\/:*?"<>|]/g, "_").trim() || "Gallery"}/` : "";
             let finalName = withExt;
-            for (let n = 2; usedNames.has(finalName.toLowerCase()); n++) {
+            for (let n = 2; usedNames.has(`${folder}${finalName}`.toLowerCase()); n++) {
                 const dot = withExt.lastIndexOf(".");
                 finalName = `${withExt.slice(0, dot)}_${n}${withExt.slice(dot)}`;
             }
-            usedNames.add(finalName.toLowerCase());
-            zipFolder.file(finalName, blob);
+            usedNames.add(`${folder}${finalName}`.toLowerCase());
+            zipFolder.file(`${folder}${finalName}`, blob);
             completed++;
         } catch (err) {
             console.warn(`[ZipDownload] Failed to download media item ${item.id}:`, err);

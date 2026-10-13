@@ -120,7 +120,8 @@ import { v4 as uuidv4 } from "uuid";
 
 
 import { Lightbox } from "@/components/ui/Lightbox";
-import { alertDialog, confirmDialog, ModalCloseButton, ModalHeader, modalStyles } from "@/components/ui/Modal";
+import { alertDialog, choiceDialog, confirmDialog, ModalCloseButton, ModalHeader, modalStyles } from "@/components/ui/Modal";
+import { fetchEntireEventZipItems, HOME_DOWNLOAD_DIALOG, toZipItem } from "@/lib/galleryDownload";
 const GridMediaCell = ({
     photo,
     gridSrc,
@@ -858,26 +859,43 @@ function DashboardContent() {
             void alertDialog({ title: "Nothing to download", message: "No photos or videos to download in this gallery." });
             return;
         }
+        // On Home, ask: just what Home shows (with the filters), or the whole event (every gallery, no filters)
+        const choice = isPrimaryGalleryView && selectedMainEvent ? await choiceDialog(HOME_DOWNLOAD_DIALOG) : "home";
+        if (!choice) return;
         setIsHostZipping(true);
         setHostZipProgress(0);
         try {
-            // Everything in the gallery, not just the pages loaded on screen (the primary gallery's favourites view
-            // is already complete). Uploads still in progress and unfinished videos are left out, as on screen.
-            const media = (hasMorePhotos ? await fetchAllEventMedia(selectedEventId) : currentEventPhotos)
-                .filter(p => p.status !== "uploading" && ((p.mediaType !== "video" && p.resourceType !== "video") || p.status === "processed"));
+            if (choice === "event" && selectedMainEvent) {
+                const items = await fetchEntireEventZipItems(selectedMainEvent, eventDetailGalleries);
+                if (items.length === 0) {
+                    void alertDialog({ title: "Nothing to download", message: "No photos or videos in this event yet." });
+                    return;
+                }
+                const result = await downloadGalleryAsZip(selectedMainEvent.title || "Event", items, (percent) => setHostZipProgress(percent));
+                if (result.failed > 0) {
+                    void alertDialog({ title: "Some files were skipped", message: `${result.failed} of ${result.total} files couldn't be downloaded and aren't in the ZIP. Please try again.` });
+                }
+                return;
+            }
+            // What's shown, from the whole gallery rather than just the pages loaded on screen (the primary gallery's
+            // favourites view is already complete): the Photos / Videos tab, then Source gallery, Favourites only and
+            // Uploaded by, the same steps as the grid. Uploads in progress and unfinished videos are left out, as on screen.
+            const all = hasMorePhotos ? await fetchAllEventMedia(selectedEventId) : currentEventPhotos;
+            const isVideo = (p: Photo) => p.mediaType === "video" || p.resourceType === "video";
+            let media = all.filter(p => galleryMediaTab === "videos" ? isVideo(p) && p.status === "processed" : !isVideo(p) && p.status !== "uploading");
+            if (isPrimaryGalleryView && effectiveSourceGalleryFilter !== "all") {
+                const source = sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter);
+                media = media.filter(p => p.eventId === source?.id || (!!source?.legacyId && p.eventId === source.legacyId));
+            }
+            if (isFavouriteFilterActive) media = media.filter(p => eventFavouritePhotoIds.has(p.id));
+            if (isUploaderFilterActive) media = media.filter(p => uploaderOf(p) === effectiveUploaderFilter);
             if (media.length === 0) {
-                void alertDialog({ title: "Nothing to download", message: "No photos or videos to download in this gallery." });
+                void alertDialog({ title: "Nothing to download", message: `No ${galleryMediaTab === "videos" ? "videos" : "photos"} to download with the current filters.` });
                 return;
             }
             const result = await downloadGalleryAsZip(
                 selectedEventName || "Gallery",
-                media.map(p => ({
-                    id: p.id,
-                    url: p.url,
-                    filename: p.storageKey ? p.storageKey.split("/").pop() : undefined,
-                    mediaType: p.mediaType,
-                    resourceType: p.resourceType,
-                })),
+                media.map(p => toZipItem(p)),
                 (percent) => setHostZipProgress(percent)
             );
             if (result.failed > 0) {
@@ -3473,6 +3491,7 @@ function DashboardContent() {
     const activeGalleryItems = isUploaderFilterActive
         ? favouriteFilteredItems.filter(photo => uploaderOf(photo) === effectiveUploaderFilter)
         : favouriteFilteredItems;
+    const isAnyGalleryFilterActive = isUploaderFilterActive || isFavouriteFilterActive || (isPrimaryGalleryView && effectiveSourceGalleryFilter !== "all");
     // Shown once more than one person uploaded here (or more pages could reveal another uploader)
     const showUploaderFilter = new Set(currentEventPhotos.map(uploaderOf)).size > 1 || hasMorePhotos || allMediaLoadedFor === selectedEventId;
     const activeFavouriteCount = selectedMediaItems.filter(photo => eventFavouritePhotoIds.has(photo.id)).length;
@@ -5165,8 +5184,8 @@ function DashboardContent() {
                                                 type="button"
                                                 onClick={handleHostDownloadZip}
                                                 disabled={isHostZipping || currentEventPhotos.length === 0}
-                                                aria-label="Download all (.ZIP)"
-                                                title="Download all (.ZIP)"
+                                                aria-label={`Download ${galleryMediaTab === "videos" ? "videos" : "photos"} shown (.ZIP)`}
+                                                title={`Download ${isAnyGalleryFilterActive ? "the filtered " : "all "}${galleryMediaTab === "videos" ? "videos" : "photos"} in this gallery (.ZIP)`}
                                                 className="flex h-10 min-w-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-[#CA9C68]/60 bg-[#CA9C68]/10 px-2.5 font-sans text-sm font-black text-[#E2B77F] transition-colors hover:bg-[#CA9C68]/20 disabled:opacity-40 sm:h-12 sm:px-3.5"
                                             >
                                                 {isHostZipping ? (

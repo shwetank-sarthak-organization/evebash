@@ -127,3 +127,60 @@ export function confirmDialog(options: Omit<MessageDialogOptions, "cancelLabel">
 export async function alertDialog(options: { title: string; message: string; okLabel?: string }): Promise<void> {
     await openMessageDialog({ title: options.title, message: options.message, confirmLabel: options.okLabel ?? "OK" });
 }
+
+export type DialogChoice<T extends string> = { id: T; label: string; description?: string };
+
+function ChoiceDialog<T extends string>({ title, message, choices, onDone }: {
+    title: string;
+    message?: string;
+    choices: DialogChoice<T>[];
+    onDone: (choice: T | null) => void;
+}) {
+    const firstRef = useRef<HTMLButtonElement>(null);
+    useEffect(() => {
+        firstRef.current?.focus();
+        const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onDone(null); };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [onDone]);
+    return (
+        <div className={cn(modalStyles.overlay, "z-[10050]")} onMouseDown={() => onDone(null)}>
+            <div role="dialog" aria-modal="true" aria-labelledby="choice-dialog-title" className={modalStyles.panel} onMouseDown={(event) => event.stopPropagation()}>
+                <ModalHeader title={title} titleId="choice-dialog-title" onClose={() => onDone(null)} className="mb-3" />
+                {message && <p className={cn(modalStyles.body, "mb-4")}>{message}</p>}
+                <div className="space-y-3">
+                    {choices.map((choice, index) => (
+                        <button
+                            key={choice.id}
+                            ref={index === 0 ? firstRef : undefined}
+                            type="button"
+                            onClick={() => onDone(choice.id)}
+                            className="w-full rounded-2xl border border-[var(--site-border)] bg-[#13191F]/60 px-5 py-4 text-left transition-colors hover:border-[#CA9C68] hover:bg-[#CA9C68]/10 focus-visible:border-[#CA9C68] focus-visible:outline-none"
+                        >
+                            <span className="block text-sm font-black text-[var(--site-text)]">{choice.label}</span>
+                            {choice.description && <span className="mt-1 block text-xs font-semibold leading-5 text-[var(--site-muted)]">{choice.description}</span>}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/** Pick one of a few options (Escape, X or clicking outside resolves null). */
+export function choiceDialog<T extends string>(options: { title: string; message?: string; choices: DialogChoice<T>[] }): Promise<T | null> {
+    if (typeof document === "undefined") return Promise.resolve(null);
+    return new Promise((resolve) => {
+        const host = document.createElement("div");
+        document.body.appendChild(host);
+        const root = createRoot(host);
+        let settled = false;
+        const onDone = (choice: T | null) => {
+            if (settled) return;
+            settled = true;
+            resolve(choice);
+            setTimeout(() => { root.unmount(); host.remove(); }, 0);
+        };
+        root.render(<ChoiceDialog {...options} onDone={onDone} />);
+    });
+}
