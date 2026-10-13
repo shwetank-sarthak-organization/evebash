@@ -11,6 +11,7 @@ import { EventDesignPreview } from "@/components/EventDesignPreview";
 import { PartnersIcon } from "@/components/PartnersIcon";
 import { HostIcon } from "@/components/HostIcon";
 import { HostConsoleIcon } from "@/components/HostConsoleIcon";
+import { DashboardEventCard, SERIF, formatShortEventDate } from "@/components/dashboard/DashboardEvents";
 import { PrivateIcon } from "@/components/PrivateIcon";
 import { PublicIcon } from "@/components/PublicIcon";
 import React, { useState, useEffect, Suspense, useTransition, useRef, useCallback } from "react";
@@ -102,6 +103,8 @@ import {
 	    generateEventJoinId,
 	    openGallery,
 	    movePhotosToGallery,
+	getDashboardEventStats,
+	type DashboardEventStats,
 	} from "@/lib/database";
 import { uploadEventImage, validateVideoFile } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
@@ -817,6 +820,17 @@ function DashboardContent() {
     const [loadingEvents, setLoadingEvents] = useState(false);
     const [activeTab, setActiveTab] = useState<'hosted' | 'shared' | 'request'>('hosted');
     const [sharedEvents, setSharedEvents] = useState<Event[]>([]);
+    const [consoleEventStats, setConsoleEventStats] = useState<Record<string, DashboardEventStats>>({});
+    // Guest counts for the Host / Shared cards; they load after the cards, like on the dashboard
+    const consoleEventIdsKey = [...userEvents, ...sharedEvents].map((event) => event.id).join(",");
+    useEffect(() => {
+        if (!consoleEventIdsKey) return;
+        let cancelled = false;
+        getDashboardEventStats(consoleEventIdsKey.split(","))
+            .then((stats) => { if (!cancelled) setConsoleEventStats(stats); })
+            .catch((err) => console.error("Error fetching host card stats:", err));
+        return () => { cancelled = true; };
+    }, [consoleEventIdsKey]);
     const [currentEventPhotos, setCurrentEventPhotos] = useState<Photo[]>([]);
     const [currentEventMediaCounts, setCurrentEventMediaCounts] = useState({ photos: 0, videos: 0 });
     const [currentEventRetainedMediaIds, setCurrentEventRetainedMediaIds] = useState<Set<string>>(new Set());
@@ -3642,33 +3656,38 @@ function DashboardContent() {
                     navigateWithModifierClick(e, `/host?view=manage&level=photos&mode=add-image&eventId=${evt.id}`, router.push);
                 }
             }}
-            className="group relative bg-slate-800 aspect-[4/5] rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all duration-500 border border-slate-700 cursor-pointer"
+            className="group relative flex cursor-pointer flex-col rounded-2xl border border-[#273034] bg-[#0E141A] p-3 text-left transition-colors hover:border-[#CA9C68]/40"
         >
-            <div className="absolute inset-0 overflow-hidden rounded-[2.5rem]">
+            {/* Same card as the dashboard (src/components/dashboard/DashboardEvents.tsx) */}
+            <div className="relative w-full overflow-hidden rounded-xl bg-[#0E141A]" style={{ aspectRatio: "16 / 10" }}>
+                <img
+                    src={resolveEventCoverImage(evt.coverImage, 'thumbnail')}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover opacity-30 blur-xl"
+                />
                 <img
                     src={resolveEventCoverImage(evt.coverImage, 'thumbnail')}
                     alt={evt.title}
-                    className="absolute inset-0 w-full h-full transition-transform duration-700 group-hover:scale-110"
+                    className="absolute inset-0 h-full w-full transition-transform duration-700 group-hover:scale-105"
                     style={getCoverImageStyle(evt)}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent transition-all" />
                 {evt.category && (
-                    <div className="absolute left-5 top-5 z-10 rounded-lg border border-[#CA9C68]/30 bg-black/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#CA9C68] backdrop-blur-sm">
+                    <div className="absolute left-3 top-3 z-10 rounded-full border border-[#CA9C68]/30 bg-black/65 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#CA9C68] backdrop-blur-sm">
                         {evt.category}
                     </div>
                 )}
             </div>
 
-            <div className="absolute top-6 right-6 z-20">
+            <div className="absolute top-5 right-5 z-20">
                 <Tooltip text="Options">
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
                             setActiveMenu(activeMenu === evt.id ? null : evt.id);
                         }}
-                        className="p-2.5 bg-slate-800/90 backdrop-blur-md shadow-lg hover:bg-slate-800 rounded-2xl text-white transition-all active:scale-95 border border-white/50"
+                        className="rounded-full border border-white/20 bg-black/65 p-2 text-white backdrop-blur-sm transition-all hover:bg-black/80 active:scale-95"
                     >
-                        <MoreHorizontal className="w-5 h-5" />
+                        <MoreHorizontal className="h-4 w-4" />
                     </button>
                 </Tooltip>
 
@@ -3758,41 +3777,27 @@ function DashboardContent() {
                 </AnimatePresence>
             </div>
 
-            <div className="absolute bottom-0 left-0 w-full bg-black p-6 text-left text-white sm:p-8">
+            <div className="px-1 pb-1 pt-4 text-left text-white">
+                <h3 className="truncate text-xl leading-tight text-white" style={SERIF}>{evt.title}</h3>
+                <div className="mt-2 flex items-center gap-1.5 text-sm text-slate-400">
+                    <Calendar className="h-4 w-4 shrink-0 text-[#CA9C68]" aria-hidden="true" />
+                    <span className="truncate">{formatShortEventDate(formatEventDate(evt.date))}</span>
+                </div>
                 {isSharedEvent && (
-                    <div className="mb-3 space-y-1">
-                        <div className="inline-flex max-w-full items-center px-2 py-1 bg-slate-800/20 backdrop-blur-md rounded text-[9px] font-bold uppercase tracking-widest border border-white/20">
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                        <div className="inline-flex max-w-full items-center rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-slate-300">
                             <span className="truncate">Owner: {getEventOwnerEmail(evt)}</span>
                         </div>
-                        <div className="w-fit px-2 py-1 bg-black/30 backdrop-blur-md rounded text-[9px] font-bold uppercase tracking-widest border border-white/10 text-white/90">
+                        <div className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-slate-300">
                             {getSharedAccessLabel(evt)}
                         </div>
                     </div>
                 )}
                 {user?.delegatedBy && workspaceOwner && (
-                    <div className="mb-2 inline-flex items-center px-2 py-0.5 bg-slate-800/20 backdrop-blur-md rounded text-[9px] font-bold uppercase tracking-widest border border-white/20">
-                        Managed for: {workspaceOwner.email}
+                    <div className="mt-3 inline-flex max-w-full items-center rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-slate-300">
+                        <span className="truncate">Managed for: {workspaceOwner.email}</span>
                     </div>
                 )}
-                <h3 className="text-2xl font-bold italic tracking-tight mb-4">{evt.title}</h3>
-                <div className="mb-3 flex items-center text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                    <Calendar className="mr-2 h-3.5 w-3.5 text-[#CA9C68]" />
-                    <span>{formatEventDate(evt.date)}</span>
-                </div>
-                <div className="flex items-center text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-y-3 group-hover:translate-y-0 duration-300">
-                    {manageLevel === "events" ? (
-                        <>
-                            <Settings className="w-4 h-4 mr-2" />
-                            Manage Event
-                        </>
-                    ) : (
-                        <>
-                            <ImageIcon className="w-4 h-4 mr-2" />
-                            Manage Photos
-                        </>
-                    )}
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                </div>
             </div>
         </motion.div>
         );
@@ -3833,7 +3838,7 @@ function DashboardContent() {
                     <p className="text-sm text-slate-400 font-sans">{items.length} {items.length === 1 ? "item" : "items"}</p>
                 </div>
                 {showWorkspaceBanner && renderManagedWorkspaceBanner()}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                     {items.map(renderEventCard)}
                 </div>
             </section>
@@ -4008,49 +4013,20 @@ function DashboardContent() {
                                         )}
                                     </div>
                                 ) : (
-                                    <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
-                                        {(activeTab === 'hosted' ? userEvents : sharedEvents).map((event) => {
-                                            const ownerDetails = getEventOwnerDetails(event);
-                                            return (
-                                                <div
-                                                    key={event.id}
-                                                    onClick={() => {
-                                                        router.push(`/host?view=manage&level=event-details&eventId=${event.id}`);
-                                                    }}
-                                                    className={cn(
-                                                        "group relative cursor-pointer overflow-hidden rounded-2xl border border-[#2B2F2E] bg-[#0D1318]",
-                                                        activeTab === "shared" ? "h-80" : "h-64"
-                                                    )}
-                                                >
-                                                    <div className={cn("relative overflow-hidden", activeTab === "shared" ? "h-64" : "h-full")}>
-                                                        <img
-                                                            src={resolveEventCoverImage(event.coverImage, 'thumbnail')}
-                                                            alt={event.title}
-                                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                                        />
-                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent"></div>
-                                                        {event.category && (
-                                                            <div className="absolute left-4 top-4 rounded-lg border border-[#CA9C68]/30 bg-black/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#CA9C68] backdrop-blur-sm">
-                                                                {event.category}
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="absolute bottom-0 left-0 right-0 border-t border-[#2B2F2E] bg-[#0D1318]/95 p-5 backdrop-blur-sm">
-                                                        <h3 className="text-white font-bold text-lg leading-tight mb-1 truncate">{event.title}</h3>
-                                                        <div className="mt-2 flex items-center text-xs font-bold text-slate-400">
-                                                            <Calendar className="w-3 h-3 mr-1.5 text-[#CA9C68]" />
-                                                            <span>{event.date}</span>
-                                                        </div>
-                                                        {activeTab === "shared" && (
-                                                            <div className="mt-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                                                                <p className="break-words leading-relaxed">Owner username: <span className="normal-case text-white">{ownerDetails.username.toLowerCase()}</span></p>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                    <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                                        {(activeTab === 'hosted' ? userEvents : sharedEvents).map((event) => (
+                                            <DashboardEventCard
+                                                key={event.id}
+                                                event={event}
+                                                guests={consoleEventStats[event.id]?.guests}
+                                                onOpen={() => router.push(`/host?view=manage&level=event-details&eventId=${event.id}`)}
+                                                footer={activeTab === "shared" && (
+                                                    <p className="mt-2 truncate text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                                                        Owner: <span className="normal-case text-white">{getEventOwnerDetails(event).username.toLowerCase()}</span>
+                                                    </p>
+                                                )}
+                                            />
+                                        ))}
 
                                         {(activeTab === 'hosted' ? userEvents : sharedEvents).length === 0 && (
                                             <div className="col-span-full h-64 rounded-[1.5rem] border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-400">

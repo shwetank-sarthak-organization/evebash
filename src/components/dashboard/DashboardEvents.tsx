@@ -5,6 +5,7 @@ import { resolveEventCoverImage } from "@/lib/eventCovers";
 import { Event, getApprovedSharedEventsForUser, getUserEvents } from "@/lib/database";
 import { getCreatedTime } from "@/lib/eventSort";
 import { cn } from "@/lib/utils";
+import { Calendar } from "lucide-react";
 
 // Shared by the dashboard (src/app/(main)/dashboard/page.tsx) and its full events list (dashboard/events/page.tsx).
 
@@ -83,13 +84,35 @@ export function DashboardTabs({ active, onChange }: { active: DashboardTab; onCh
     );
 }
 
-export function DashboardEventCard({ event, guests }: { event: Event; guests?: number | null }) {
+// "6 August 2026" (what formatEventDate gives) -> "6 Aug 26". Anything else, e.g. a host's custom text, is shown as is.
+export function formatShortEventDate(date?: string): string {
+    const match = (date || "").trim().match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})$/);
+    if (!match) return date || "";
+    const [, day, month, year] = match;
+    return `${day} ${month.charAt(0).toUpperCase()}${month.slice(1, 3).toLowerCase()} ${year.slice(2)}`;
+}
+
+function GuestsIcon(props: React.SVGProps<SVGSVGElement>) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="currentColor" {...props}>
+            <path d="M367-527q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Zm80-80h480v-32q0-11-5.5-20T700-306q-54-27-109-40.5T480-360q-56 0-111 13.5T260-306q-9 5-14.5 14t-5.5 20v32Zm296.5-343.5Q560-607 560-640t-23.5-56.5Q513-720 480-720t-56.5 23.5Q400-673 400-640t23.5 56.5Q447-560 480-560t56.5-23.5ZM480-640Zm0 400Z" />
+        </svg>
+    );
+}
+
+// Also used by the host page's Host / Shared grid, which opens the event's manage view (onOpen) and adds a footer
+export function DashboardEventCard({ event, guests, onOpen, footer }: {
+    event: Event;
+    guests?: number | null;
+    onOpen?: () => void;
+    footer?: React.ReactNode;
+}) {
     const coverImage = resolveEventCoverImage(event.coverImage, "thumbnail");
     return (
         <button
             type="button"
-            onClick={() => window.open(`/events/${event.id}?mode=visitor`, "_blank", "noopener,noreferrer")}
-            className="group flex flex-col rounded-2xl border border-[#273034] bg-[#0E141A] p-3 text-left transition-all hover:-translate-y-1 hover:border-[#CA9C68]/40"
+            onClick={onOpen || (() => window.open(`/events/${event.id}?mode=visitor`, "_blank", "noopener,noreferrer"))}
+            className="group flex flex-col rounded-2xl border border-[#273034] bg-[#0E141A] p-3 text-left font-sans transition-all hover:-translate-y-1 hover:border-[#CA9C68]/40"
         >
             <div className="relative w-full overflow-hidden rounded-xl bg-[#0E141A]" style={{ aspectRatio: "16 / 10" }}>
                 <img
@@ -112,11 +135,18 @@ export function DashboardEventCard({ event, guests }: { event: Event; guests?: n
             <div className="px-1 pb-1 pt-4">
                 <h3 className="truncate text-xl leading-tight text-white" style={SERIF}>{event.title}</h3>
                 <div className="mt-2 flex items-center justify-between gap-3 text-sm">
-                    <span className="truncate text-slate-400">{event.date}</span>
+                    <span className="flex min-w-0 items-center gap-1.5 text-slate-400">
+                        <Calendar className="h-4 w-4 shrink-0 text-[#CA9C68]" aria-hidden="true" />
+                        <span className="truncate">{formatShortEventDate(event.date)}</span>
+                    </span>
                     {guests != null && (
-                        <span className="shrink-0 font-medium text-[#CA9C68]">{guests} {guests === 1 ? "Guest" : "Guests"}</span>
+                        <span className="flex shrink-0 items-center gap-1 font-medium text-[#CA9C68]" title={`${guests} ${guests === 1 ? "guest" : "guests"}`}>
+                            <GuestsIcon className="h-4 w-4" aria-hidden="true" />
+                            <span>{guests}</span>
+                        </span>
                     )}
                 </div>
+                {footer}
             </div>
         </button>
     );
