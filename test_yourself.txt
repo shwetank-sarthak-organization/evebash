@@ -20,11 +20,11 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 71
+Next test number: 74
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
-Last updated: 2026-10-12
+Last updated: 2026-10-13
 
 --------------------------------------------------------------------------------
 #1  Find You still works for your own gallery
@@ -1616,6 +1616,98 @@ How to test:
   5. Click "Create Sub-Gallery" tile and "Add Sub-Gallery". Expect: both open the New Sub-Gallery form.
   6. Event with no sub-galleries: only the Primary card and the dashed tile show.
   7. Phone width: cards stack in one column, nothing sticks out sideways; long names are cut with "...".
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#71 Theme pickers hide the 19 themes without a website design; old events keep theirs
+Status:    TODO
+Priority:  Medium
+Platform:  Both (website desktop + phone browser, Android and iOS app)
+Brief:     Choose Style now shows only themes with their own website design. Wedding: Royal Emerald,
+           Classic White, Midnight Hero. Birthday: Playful Scrapbook, Neon Party, Pop Art. Anniversary:
+           the Wedding three. Corporate: Museum Gallery, Brutalist Grid. College: Cyber Tech.
+           Other and Sports: Bohemian Rhapsody, Cinematic Noir, Vintage Polaroid, Editorial Mag.
+           Events already on a hidden theme (e.g. Golden Years, Garden Path, Tech Sleek) must look exactly as before.
+How to test:
+  1. Website: Create Event, tap each event type. Expect: Choose Style lists only the themes above, and the first
+     one is pre-selected (Anniversary pre-selects Royal Emerald). Create one Anniversary event and check it uses Royal Emerald.
+  2. App: create an event of each type. Expect: it opens with the first theme above (Anniversary: Royal Emerald).
+     Open Design > Choose Style. Expect: only the themes above.
+  3. App: Gallery tab > event menu > Choose Template. Expect: 13 themes, none of the hidden ones.
+  4. Find (or ask a developer for) an existing event on a hidden theme, e.g. an Anniversary event on Golden Years
+     or a Sports event on Garden Path. Open its guest page on the website and in the app, and the host view.
+     Expect: same look as before (Sports event keeps its sports header).
+  5. On that event open Choose Style (website Change Template and app Design). Expect: the hidden theme shows
+     FIRST and ticked as the current choice, followed by the visible themes. Pick another theme. Expect: it
+     changes; reopen Choose Style and the hidden theme is gone from the list.
+  6. Change an event's type in the app (Event type). Expect: theme resets to the first visible theme of that type.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#72 Website: "Open in app" bar on event pages (Android phones only, behind a flag)
+Status:    TODO
+Priority:  Medium
+Platform:  Website (Android phone in Chrome; also iPhone Safari and a computer for the "not shown" checks)
+Brief:     Event pages show a small dark bar at the bottom on Android phones: "EveBash app / Continue in the app",
+           an Open button and an X. Open tries the EveBash app; if the app isn't installed nothing happens.
+           Only shows when NEXT_PUBLIC_OPEN_IN_APP_BANNER=true was set for that deploy (issue #67).
+Setup:     Set NEXT_PUBLIC_OPEN_IN_APP_BANNER=true for the staging website and REDEPLOY (the value is read at build).
+How to test:
+  1. Before setting the flag (or on www.evebash.com): open a gallery link on an Android phone. Expect: no bar,
+     the page looks exactly as before.
+  2. With the flag on, Android phone without the EveBash app: open https://staging.evebash.com/events/<id>.
+     Expect: the bar at the bottom; the footer can still be scrolled fully into view above it.
+  3. Tap Open. Expect: nothing happens. You stay on the page, with no error page, popup or store link.
+  4. Open a photo. Expect: the bar is hidden while the photo viewer is open and comes back after closing it.
+  5. Tap X. Expect: the bar goes away. Reload, and open another gallery and its Find You page. Expect: no bar.
+     (Clear the site's data in Chrome to see it again.)
+  6. Homepage, pricing, dashboard, login: no bar. iPhone Safari, Android tablet and a computer: no bar on event pages.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#73 App: event links open the event in the app (Android)
+Status:    TODO
+Priority:  Medium
+Platform:  App (Android) + website on the same Android phone
+Brief:     The app now opens links to an event: evebash://events/<id> (what the website's Open button uses) and
+           website links /events/<id> and /events/<id>/find-you. The event code can be an event id or a join code.
+           Opening the app normally must be unchanged. Website links (https) only open the app by themselves after
+           Android App Links are set up (#67, not done yet), so use the website's Open button from test #72.
+Setup:     An app build or over-the-air update that includes this change, and the staging website with the bar
+           turned on (#72 Setup).
+How to test:
+  1. Open the app from its icon (signed in, then signed out). Expect: it starts as before (dashboard / login),
+     with no flash of another screen.
+  2. Signed in, app fully closed: in Chrome open a gallery link, tap Open. Expect: the app starts straight on that
+     gallery. The back button goes to the dashboard.
+  3. App open in the background on another screen: back in Chrome, tap Open. Expect: the app comes forward on
+     that gallery.
+  4. Open the gallery's Find You page on the website (/events/<id>/find-you) and tap Open. Expect: the app opens
+     that gallery on its Find You tab.
+  5. Use a link with the join code instead of the id (/events/<JOIN CODE>?shared=true) and tap Open. Expect: the
+     same gallery opens.
+  6. Signed out in the app: tap Open on a public gallery. Expect: the gallery shows, with a Log in button. On a
+     private gallery: the "private" screen. Tap Log in and log in. Expect: you land back on that gallery, not
+     the dashboard.
+  7. Gallery that doesn't exist (/events/nope123): tap Open. Expect: the app's "not found" message, no crash.
 Done by:
 Device / browser:
 Build / version:
