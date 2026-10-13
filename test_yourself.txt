@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 80
+Next test number: 81
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1873,6 +1873,31 @@ How to test:
   4. Repeat 1-3 with a Birthday event (balloon photo) and a Sports event (multisport photo).
      A Corporate or College event without a cover: still the old stock photo.
   5. Upload a cover on the Wedding event: your photo replaces the default everywhere.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#80 Profile page matches the site's dark-gold theme; activity cards are compact
+Status:    TODO
+Priority:  Low
+Platform:  Website (desktop + phone browser)
+Brief:     The redesigned /profile page had a navy background and bright yellow accents. It now uses the
+           site's dark background and gold (#CA9C68). The three Activity & Engagement cards (Photos Added,
+           Events Hosted, Events Joined) are now short single-row cards.
+How to test:
+  1. Log in and open /profile. The page background matches the home and host pages (no navy blue tint).
+  2. Icons, @username, the Edit button, "View Plan Matrix & Quotas" and "Extend / Upgrade Plan" are gold,
+     not bright yellow. Hovering the gold buttons makes them lighter gold, not yellow.
+  3. Activity & Engagement: three small cards, each with an icon, the number and the label on one row.
+     On a phone they stack and stay short.
+  4. Open the "Plan & Tiers" tab: the tier text, "Valid until" date and yearly prices are gold, not yellow.
+Expected:  No bright yellow or navy anywhere on the page; amber warning badges (e.g. "Needs Entry") stay.
 Done by:
 Device / browser:
 Build / version:

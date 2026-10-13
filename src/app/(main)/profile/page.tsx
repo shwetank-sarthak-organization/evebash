@@ -119,10 +119,10 @@ function InfoItem({
     badge?: React.ReactNode;
 }) {
     return (
-        <div className="group rounded-2xl border border-slate-800/80 bg-slate-950/70 p-4 transition-all duration-200 hover:border-slate-700 hover:bg-slate-900/40">
+        <div className="group rounded-2xl border border-slate-800 bg-slate-950/70 p-4 transition-all duration-200 hover:border-[#CA9C68]/40 hover:bg-slate-900/50">
             <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
-                    <Icon className="h-3.5 w-3.5 text-yellow-400/80" />
+                    <Icon className="h-3.5 w-3.5 text-[#CA9C68]" />
                     {label}
                 </span>
                 {badge}
@@ -446,7 +446,7 @@ export default function ProfilePage() {
     if (authLoading || !user) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-300">
-                <Loader2 className="h-8 w-8 animate-spin text-yellow-300" />
+                <Loader2 className="h-8 w-8 animate-spin text-[#E2B77F]" />
             </div>
         );
     }
@@ -454,7 +454,7 @@ export default function ProfilePage() {
     const currentRoleKey = user.role ? user.role.toLowerCase() : "free";
 
     return (
-        <div className="min-h-screen bg-[#080C14] text-slate-100 selection:bg-[#CA9C68]/30 selection:text-yellow-200">
+        <div className="min-h-screen bg-[#13191F] text-slate-100 selection:bg-[#CA9C68]/30 selection:text-[#FFF7EB]">
             <Navbar />
 
             <main className="mx-auto max-w-7xl px-4 pb-20 pt-28 sm:px-6 lg:px-8">
@@ -462,16 +462,16 @@ export default function ProfilePage() {
                 {/* ========================================================
                     BENTO HEADER: User Identity & Global Sub-Navigation
                     ======================================================== */}
-                <section className="relative overflow-hidden rounded-[2.5rem] border border-slate-800/80 bg-slate-900/60 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
+                <section className="relative overflow-hidden rounded-[2.5rem] border border-slate-800 bg-slate-900/50 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
                     {/* Background Subtle Gradient Blobs */}
                     <div className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-[#CA9C68]/10 blur-3xl" />
-                    <div className="pointer-events-none absolute -bottom-20 -right-20 h-72 w-72 rounded-full bg-[#7FA38C]/10 blur-3xl" />
+                    <div className="pointer-events-none absolute -bottom-20 -right-20 h-72 w-72 rounded-full bg-[#CA9C68]/5 blur-3xl" />
 
                     <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                         {/* User Identity Info */}
                         <div className="flex flex-col sm:flex-row sm:items-center gap-5">
                             {/* Avatar with gold ring & upload trigger */}
-                            <div className="group relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.75rem] border-2 border-[#CA9C68]/50 bg-slate-950 shadow-xl shadow-amber-950/20 ring-4 ring-slate-900/80">
+                            <div className="group relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.75rem] border-2 border-[#CA9C68]/50 bg-slate-950 shadow-xl shadow-black/30 ring-4 ring-[#13191F]">
                                 {profileImage ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img src={profileImage} alt={user.name || "Profile"} className="h-full w-full object-cover" />
@@ -486,9 +486,9 @@ export default function ProfilePage() {
                                     className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 backdrop-blur-xs transition-opacity duration-200 group-hover:opacity-100 disabled:cursor-not-allowed"
                                 >
                                     {uploading ? (
-                                        <Loader2 className="h-6 w-6 animate-spin text-yellow-300" />
+                                        <Loader2 className="h-6 w-6 animate-spin text-[#E2B77F]" />
                                     ) : (
-                                        <Camera className="h-6 w-6 text-yellow-300" />
+                                        <Camera className="h-6 w-6 text-[#E2B77F]" />
                                     )}
                                 </button>
                             </div>
@@ -509,7 +509,7 @@ export default function ProfilePage() {
                                         {activePlan.name}
                                     </span>
                                 </div>
-                                <p className="mt-0.5 text-sm font-bold text-yellow-400">
+                                <p className="mt-0.5 text-sm font-bold text-[#CA9C68]">
                                     @{user.username || "set_username"}
                                 </p>
                                 
@@ -517,7 +517,7 @@ export default function ProfilePage() {
                                     {getPersonasArray(user.persona).map((persona) => (
                                         <span
                                             key={persona}
-                                            className="rounded-xl border border-slate-700/80 bg-slate-800/60 px-2.5 py-1 text-[11px] font-bold text-slate-300"
+                                            className="rounded-xl border border-slate-700 bg-slate-800/50 px-2.5 py-1 text-[11px] font-bold text-slate-300"
                                         >
                                             {persona}
                                         </span>
@@ -534,14 +534,14 @@ export default function ProfilePage() {
                             <button
                                 type="button"
                                 onClick={() => setIsEditing(true)}
-                                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#CA9C68] px-4 py-2.5 text-xs font-black text-slate-950 transition hover:bg-yellow-300 shadow-lg shadow-amber-500/20"
+                                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#CA9C68] px-4 py-2.5 text-xs font-black text-slate-950 transition hover:bg-[#D7AE7D] shadow-lg shadow-[#CA9C68]/20"
                             >
                                 <Pencil className="h-3.5 w-3.5" />
                                 Edit Profile
                             </button>
                             <Link
                                 href="/settings"
-                                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-700/80 bg-slate-800/80 px-4 py-2.5 text-xs font-black text-slate-200 transition hover:border-[#CA9C68]/60 hover:text-white"
+                                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-800/80 px-4 py-2.5 text-xs font-black text-slate-200 transition hover:border-[#CA9C68]/60 hover:text-white"
                             >
                                 <Settings className="h-3.5 w-3.5" />
                                 Settings
@@ -550,7 +550,7 @@ export default function ProfilePage() {
                     </div>
 
                     {/* Sub-Page Tab Switcher Pills */}
-                    <div className="mt-8 flex items-center justify-between border-t border-slate-800/80 pt-6">
+                    <div className="mt-8 flex items-center justify-between border-t border-slate-800 pt-6">
                         <div className="inline-flex rounded-2xl border border-slate-800 bg-slate-950/80 p-1.5 shadow-inner">
                             <button
                                 type="button"
@@ -558,7 +558,7 @@ export default function ProfilePage() {
                                 className={cn(
                                     "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition-all duration-200",
                                     activeTab === "profile"
-                                        ? "bg-[#CA9C68] text-slate-950 shadow-md shadow-amber-500/20"
+                                        ? "bg-[#CA9C68] text-slate-950 shadow-md shadow-[#CA9C68]/20"
                                         : "text-slate-400 hover:text-slate-200"
                                 )}
                             >
@@ -571,7 +571,7 @@ export default function ProfilePage() {
                                 className={cn(
                                     "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition-all duration-200",
                                     activeTab === "plan"
-                                        ? "bg-[#CA9C68] text-slate-950 shadow-md shadow-amber-500/20"
+                                        ? "bg-[#CA9C68] text-slate-950 shadow-md shadow-[#CA9C68]/20"
                                         : "text-slate-400 hover:text-slate-200"
                                 )}
                             >
@@ -583,7 +583,7 @@ export default function ProfilePage() {
                         {/* Quick Storage Status Indicator */}
                         <div className="hidden sm:flex items-center gap-3 text-xs">
                             <span className="text-slate-400 font-semibold">Active Quota:</span>
-                            <span className="font-bold text-amber-300">
+                            <span className="font-bold text-[#E2B77F]">
                                 {loadingStats ? "..." : formatStorageSize(storageUsage.total)} / {activePlan.storageLabel}
                             </span>
                         </div>
@@ -603,7 +603,7 @@ export default function ProfilePage() {
                                     Activity & Engagement
                                 </h2>
                             </div>
-                            <div className="grid gap-4 sm:grid-cols-3">
+                            <div className="grid gap-3 sm:grid-cols-3">
                                 {[
                                     {
                                         label: "Photos Added",
@@ -626,18 +626,18 @@ export default function ProfilePage() {
                                 ].map((item) => (
                                     <div
                                         key={item.label}
-                                        className="group relative overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-900/40 p-6 transition-all duration-200 hover:border-[#CA9C68]/40 hover:bg-slate-900/70 shadow-lg"
+                                        title={item.subtext}
+                                        className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/50 px-4 py-3 transition-colors duration-200 hover:border-[#CA9C68]/40"
                                     >
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-xs font-black uppercase tracking-wider text-slate-400">
-                                                {item.label}
-                                            </span>
-                                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-yellow-400/10 text-yellow-300 ring-1 ring-yellow-400/20">
-                                                <item.icon className="h-4 w-4" />
-                                            </div>
+                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#CA9C68]/10 text-[#E2B77F] ring-1 ring-[#CA9C68]/20">
+                                            <item.icon className="h-4 w-4" />
                                         </div>
-                                        <p className="mt-4 text-3xl font-black text-white">{item.value}</p>
-                                        <p className="mt-1 text-xs font-semibold text-slate-500">{item.subtext}</p>
+                                        <div className="min-w-0">
+                                            <p className="text-xl font-black leading-tight text-white">{item.value}</p>
+                                            <p className="truncate text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                                                {item.label}
+                                            </p>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -648,7 +648,7 @@ export default function ProfilePage() {
                             
                             {/* Left Bento Column (8 Cols): Personal Credentials Dossier */}
                             <div className="space-y-6 lg:col-span-8">
-                                <section className="rounded-3xl border border-slate-800/80 bg-slate-900/40 p-6 sm:p-8 shadow-xl">
+                                <section className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 sm:p-8 shadow-xl">
                                     <div className="mb-6 flex items-center justify-between">
                                         <div>
                                             <h2 className="text-xs font-black uppercase tracking-[0.2em] text-[#CA9C68]">
@@ -661,7 +661,7 @@ export default function ProfilePage() {
                                         <button
                                             type="button"
                                             onClick={() => setIsEditing(true)}
-                                            className="inline-flex items-center gap-1.5 rounded-full border border-yellow-400/30 bg-yellow-400/10 px-3.5 py-1.5 text-xs font-black text-yellow-300 transition hover:bg-yellow-400/20"
+                                            className="inline-flex items-center gap-1.5 rounded-full border border-[#CA9C68]/30 bg-[#CA9C68]/10 px-3.5 py-1.5 text-xs font-black text-[#E2B77F] transition hover:bg-[#CA9C68]/20"
                                         >
                                             <Pencil className="h-3 w-3" />
                                             Edit
@@ -731,10 +731,10 @@ export default function ProfilePage() {
                             <div className="space-y-6 lg:col-span-4">
                                 
                                 {/* Live Storage Card with direct tab switch */}
-                                <section className="rounded-3xl border border-slate-800/80 bg-slate-900/40 p-6 shadow-xl">
+                                <section className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl">
                                     <div className="mb-4 flex items-center justify-between">
                                         <div className="flex items-center gap-2">
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-yellow-400/10 text-yellow-300">
+                                            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#CA9C68]/10 text-[#E2B77F]">
                                                 <HardDrive className="h-4 w-4" />
                                             </div>
                                             <h3 className="font-black text-white text-sm">Storage Usage</h3>
@@ -754,7 +754,7 @@ export default function ProfilePage() {
                                     <button
                                         type="button"
                                         onClick={() => setActiveTab("plan")}
-                                        className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-slate-700 bg-slate-800/80 px-4 py-2.5 text-xs font-black text-yellow-300 transition hover:border-[#CA9C68]/60 hover:bg-slate-800"
+                                        className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-slate-700 bg-slate-800/80 px-4 py-2.5 text-xs font-black text-[#E2B77F] transition hover:border-[#CA9C68]/60 hover:bg-slate-800"
                                     >
                                         View Plan Matrix & Quotas
                                         <ArrowRight className="h-3.5 w-3.5" />
@@ -783,9 +783,9 @@ export default function ProfilePage() {
                                     <button
                                         type="button"
                                         onClick={() => router.push("/pricing")}
-                                        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-yellow-400/40 bg-yellow-400/10 px-5 py-3.5 text-xs font-black text-yellow-300 transition hover:bg-yellow-400/20 shadow-md shadow-amber-950/20"
+                                        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#CA9C68]/40 bg-[#CA9C68]/10 px-5 py-3.5 text-xs font-black text-[#E2B77F] transition hover:bg-[#CA9C68]/20 shadow-md shadow-black/30"
                                     >
-                                        <Sparkles className="h-4 w-4 text-yellow-400" />
+                                        <Sparkles className="h-4 w-4 text-[#CA9C68]" />
                                         Extend / Upgrade Plan
                                     </button>
 
@@ -818,7 +818,7 @@ export default function ProfilePage() {
                                         <span className="rounded-full bg-[#CA9C68] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-slate-950 shadow-md">
                                             Active Subscription
                                         </span>
-                                        <span className="text-xs font-bold text-amber-300">
+                                        <span className="text-xs font-bold text-[#E2B77F]">
                                             Tier: {activePlan.name}
                                         </span>
                                     </div>
@@ -832,8 +832,8 @@ export default function ProfilePage() {
                                     {/* Plan Validity Date Notice */}
                                     <div className="mt-4 flex flex-wrap items-center gap-4 text-xs font-bold">
                                         <span className="flex items-center gap-1.5 text-slate-300">
-                                            <Clock className="h-4 w-4 text-yellow-400" />
-                                            Valid until: <strong className="text-amber-300">{formatPlanDate(user?.planEndDate)}</strong>
+                                            <Clock className="h-4 w-4 text-[#CA9C68]" />
+                                            Valid until: <strong className="text-[#E2B77F]">{formatPlanDate(user?.planEndDate)}</strong>
                                         </span>
                                         {subscriptionStatus?.message && (
                                             <span className={cn(
@@ -853,7 +853,7 @@ export default function ProfilePage() {
                                     <button
                                         type="button"
                                         onClick={() => router.push("/pricing")}
-                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#CA9C68] px-6 py-3.5 text-xs font-black text-slate-950 transition hover:bg-yellow-300 shadow-xl shadow-amber-500/20 whitespace-nowrap"
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#CA9C68] px-6 py-3.5 text-xs font-black text-slate-950 transition hover:bg-[#D7AE7D] shadow-xl shadow-[#CA9C68]/20 whitespace-nowrap"
                                     >
                                         <Sparkles className="h-4 w-4" />
                                         Extend Plan
@@ -880,7 +880,7 @@ export default function ProfilePage() {
                         </section>
 
                         {/* 2. Real-time Storage Breakdown Telemetry */}
-                        <section className="rounded-3xl border border-slate-800/80 bg-slate-900/40 p-6 sm:p-8 shadow-xl">
+                        <section className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 sm:p-8 shadow-xl">
                             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#CA9C68] mb-4">
                                 Live Storage Meter
                             </h3>
@@ -893,8 +893,8 @@ export default function ProfilePage() {
                         </section>
 
                         {/* 3. Comprehensive Plan Comparison Matrix (Tabular Form) */}
-                        <section className="overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-900/40 shadow-2xl">
-                            <div className="border-b border-slate-800/80 bg-slate-950/80 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <section className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/50 shadow-2xl">
+                            <div className="border-b border-slate-800 bg-slate-950/80 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div>
                                     <h3 className="text-sm font-black uppercase tracking-wider text-white">
                                         All Membership Plans & Quotas (Tabular Comparison)
@@ -906,7 +906,7 @@ export default function ProfilePage() {
                                 <button
                                     type="button"
                                     onClick={() => router.push("/pricing")}
-                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-yellow-400 hover:text-yellow-300 transition"
+                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#CA9C68] hover:text-[#E2B77F] transition"
                                 >
                                     Full Pricing Breakdown
                                     <ArrowRight className="h-3.5 w-3.5" />
@@ -926,7 +926,7 @@ export default function ProfilePage() {
                                             <th className="py-4 px-5 text-right">Status / Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-slate-800/60 font-semibold">
+                                    <tbody className="divide-y divide-[#CA9C68]/10 font-semibold">
                                         {defaultPricingPlans.map((plan) => {
                                             const isActive = plan.id.toLowerCase() === currentRoleKey;
                                             return (
@@ -942,7 +942,7 @@ export default function ProfilePage() {
                                                     {/* Plan Name */}
                                                     <td className="py-4 px-5">
                                                         <div className="flex items-center gap-2">
-                                                            <span className={cn("font-black text-sm", isActive ? "text-amber-300" : "text-white")}>
+                                                            <span className={cn("font-black text-sm", isActive ? "text-[#E2B77F]" : "text-white")}>
                                                                 {plan.name}
                                                             </span>
                                                             {isActive && (
@@ -985,7 +985,7 @@ export default function ProfilePage() {
                                                         {plan.discountedYearlyPrice === 0 ? (
                                                             <span className="text-slate-500">Free</span>
                                                         ) : (
-                                                            <span className="font-bold text-amber-300">
+                                                            <span className="font-bold text-[#E2B77F]">
                                                                 ₹{plan.discountedYearlyPrice.toLocaleString("en-IN")} / yr
                                                             </span>
                                                         )}
@@ -1005,7 +1005,7 @@ export default function ProfilePage() {
                                                                 className={cn(
                                                                     "rounded-xl px-3.5 py-1.5 text-[11px] font-black transition",
                                                                     plan.storageGb > (activePlan.storageBytes / (1024 * 1024 * 1024))
-                                                                        ? "bg-[#CA9C68] text-slate-950 hover:bg-yellow-300 shadow-md shadow-amber-500/10"
+                                                                        ? "bg-[#CA9C68] text-slate-950 hover:bg-[#D7AE7D] shadow-md shadow-[#CA9C68]/10"
                                                                         : "border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
                                                                 )}
                                                             >
