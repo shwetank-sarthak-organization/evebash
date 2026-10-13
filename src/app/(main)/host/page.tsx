@@ -852,16 +852,24 @@ function DashboardContent() {
     const [hostZipProgress, setHostZipProgress] = useState(0);
 
     const handleHostDownloadZip = async () => {
-        if (!currentEventPhotos || currentEventPhotos.length === 0) {
+        if (!selectedEventId || !currentEventPhotos || currentEventPhotos.length === 0) {
             void alertDialog({ title: "Nothing to download", message: "No photos or videos to download in this gallery." });
             return;
         }
         setIsHostZipping(true);
         setHostZipProgress(0);
         try {
-            await downloadGalleryAsZip(
+            // Everything in the gallery, not just the pages loaded on screen (the primary gallery's favourites view
+            // is already complete). Uploads still in progress and unfinished videos are left out, as on screen.
+            const media = (hasMorePhotos ? await fetchAllEventMedia(selectedEventId) : currentEventPhotos)
+                .filter(p => p.status !== "uploading" && ((p.mediaType !== "video" && p.resourceType !== "video") || p.status === "processed"));
+            if (media.length === 0) {
+                void alertDialog({ title: "Nothing to download", message: "No photos or videos to download in this gallery." });
+                return;
+            }
+            const result = await downloadGalleryAsZip(
                 selectedEventName || "Gallery",
-                currentEventPhotos.map(p => ({
+                media.map(p => ({
                     id: p.id,
                     url: p.url,
                     filename: p.storageKey ? p.storageKey.split("/").pop() : undefined,
@@ -870,6 +878,9 @@ function DashboardContent() {
                 })),
                 (percent) => setHostZipProgress(percent)
             );
+            if (result.failed > 0) {
+                void alertDialog({ title: "Some files were skipped", message: `${result.failed} of ${result.total} files couldn't be downloaded and aren't in the ZIP. Please try again.` });
+            }
         } catch (err: any) {
             void alertDialog({ title: "Download failed", message: err.message || "Failed to generate zip file." });
         } finally {
@@ -1600,24 +1611,31 @@ function DashboardContent() {
 
     // The "Uploaded by" filter needs the whole gallery, not just the pages loaded so far. Only the media rows are
     // loaded here; images still load lazily as they scroll into view.
+    /** Every media row of a gallery, page by page (media rows only, no images). */
+    const fetchAllEventMedia = async (eventId: string): Promise<Photo[]> => {
+        let currentEvent = userEvents.find(e => e.id === eventId) || eventDetailGalleries.find(e => e.id === eventId);
+        if (!currentEvent || (!currentEvent.legacyId && eventId.includes("-"))) {
+            currentEvent = (await getEventById(eventId).catch(() => null)) || currentEvent;
+        }
+        const all: Photo[] = [];
+        for (let page = 0, more = true; more; page += 1) {
+            const result = await getEventPhotosPaginated(eventId, currentEvent?.legacyId, page, 200);
+            all.push(...(result.photos as Photo[]));
+            more = result.hasMore;
+        }
+        // Pages can share an item at their edges
+        const seen = new Set<string>();
+        return all.filter(photo => !seen.has(photo.id) && seen.add(photo.id));
+    };
+
     const loadAllEventPhotos = async () => {
         const eventId = selectedEventId;
         if (!eventId || !hasMorePhotos || loadingAllMedia) return;
         setLoadingAllMedia(true);
         try {
-            let currentEvent = userEvents.find(e => e.id === eventId) || eventDetailGalleries.find(e => e.id === eventId);
-            if (!currentEvent || (!currentEvent.legacyId && eventId.includes("-"))) {
-                currentEvent = (await getEventById(eventId).catch(() => null)) || currentEvent;
-            }
-            const all: Photo[] = [];
-            for (let page = 0, more = true; more; page += 1) {
-                const result = await getEventPhotosPaginated(eventId, currentEvent?.legacyId, page, 200);
-                all.push(...(result.photos as Photo[]));
-                more = result.hasMore;
-            }
+            const all = await fetchAllEventMedia(eventId);
             if (selectedEventIdRef.current !== eventId) return;
-            const seen = new Set<string>();
-            setCurrentEventPhotos(all.filter(photo => !seen.has(photo.id) && seen.add(photo.id)));
+            setCurrentEventPhotos(all);
             setHasMorePhotos(false);
             setAllMediaLoadedFor(eventId);
         } catch (error) {

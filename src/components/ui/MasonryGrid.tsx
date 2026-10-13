@@ -10,6 +10,7 @@ import type { LightboxTheme } from "./Lightbox";
 import { getGridThumbnail, getImageUrl } from "@/lib/imageUrl";
 import { PageFlipViewer, type GalleryMediaItem, type PageFlipTheme, type ViewerLayout } from "@/components/page-flip/PageFlipViewer";
 import { getPageFlipThemeForTemplateId } from "@/components/page-flip/pageFlipThemes";
+import { getOriginalMediaUrl } from "@/lib/zipDownload";
 
 interface Photo {
     id: string;
@@ -129,7 +130,8 @@ function PhotoCard({
         if (disableDownload) return;
         setIsDownloading(true);
         try {
-            const downloadUrl = photo.src;
+            // Videos: the uploaded file, not the streaming playlist
+            const downloadUrl = getOriginalMediaUrl(photo.src);
 
             const link = document.createElement('a');
             link.href = downloadUrl;

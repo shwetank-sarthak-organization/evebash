@@ -22,11 +22,36 @@ function getExtensionFromUrl(url: string, defaultExt = "jpg") {
     return defaultExt;
 }
 
+/**
+ * The file to download for a gallery item. Processed videos are stored for streaming: their url is an HLS
+ * playlist at "<host>/hls/<storage key>/master.m3u8", and the uploaded file is kept at "<host>/<storage key>".
+ * Downloads use that uploaded file, not the half-KB playlist. Photos (and anything else) download as they are.
+ */
+export function getOriginalMediaUrl(url: string) {
+    const hls = url.match(/^(https?:\/\/[^/]+)\/hls\/(.+)\/master\.m3u8(\?.*)?$/i);
+    if (hls) return `${hls[1]}/${hls[2]}`;
+    return url.replace(/\/master\.m3u8(\?.*)?$/i, "");
+}
+
+function fileNameFromUrl(url: string) {
+    try {
+        return decodeURIComponent(new URL(url).pathname.split("/").pop() || "");
+    } catch {
+        return "";
+    }
+}
+
+export interface ZipDownloadResult {
+    total: number;
+    included: number;
+    failed: number;
+}
+
 export async function downloadGalleryAsZip(
     galleryTitle: string,
     items: ZipMediaItem[],
     onProgress?: ZipProgressCallback
-): Promise<void> {
+): Promise<ZipDownloadResult> {
     if (!items || items.length === 0) {
         throw new Error("No media items selected to download.");
     }
@@ -34,38 +59,42 @@ export async function downloadGalleryAsZip(
     const zip = new JSZip();
     const folderName = (galleryTitle || "Gallery").replace(/[^a-zA-Z0-9_-]/g, "_");
     const zipFolder = zip.folder(folderName) || zip;
+    const usedNames = new Set<string>();
 
     const total = items.length;
     let completed = 0;
+    let attempted = 0;
 
     for (let i = 0; i < items.length; i++) {
         const item = items[i];
-        const mediaUrl = item.url;
-
-        if (!mediaUrl) continue;
+        if (!item.url) continue;
+        const mediaUrl = getOriginalMediaUrl(item.url);
 
         try {
             const response = await fetch(mediaUrl);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             const blob = await response.blob();
-            const isVideo = item.mediaType === "video" || item.resourceType === "video" || mediaUrl.includes(".mp4") || mediaUrl.includes(".mov");
-            const ext = isVideo ? getExtensionFromUrl(mediaUrl, "mp4") : getExtensionFromUrl(mediaUrl, "jpg");
+            const isVideo = item.mediaType === "video" || item.resourceType === "video";
+            const ext = getExtensionFromUrl(mediaUrl, isVideo ? "mp4" : "jpg");
 
-            const safeFilename = item.filename
-                ? item.filename.replace(/[^a-zA-Z0-9._-]/g, "_")
-                : `media_${i + 1}.${ext}`;
-
-            const finalName = safeFilename.includes(".") ? safeFilename : `${safeFilename}.${ext}`;
-            zipFolder.file(finalName, blob);
-
-            completed++;
-            if (onProgress) {
-                const percent = Math.round((completed / total) * 100);
-                onProgress(percent, completed, total);
+            const baseName = (item.filename || fileNameFromUrl(mediaUrl) || `media_${i + 1}`).replace(/[^a-zA-Z0-9._-]/g, "_");
+            const withExt = baseName.includes(".") ? baseName : `${baseName}.${ext}`;
+            // Two files with the same name would overwrite each other in the ZIP
+            let finalName = withExt;
+            for (let n = 2; usedNames.has(finalName.toLowerCase()); n++) {
+                const dot = withExt.lastIndexOf(".");
+                finalName = `${withExt.slice(0, dot)}_${n}${withExt.slice(dot)}`;
             }
+            usedNames.add(finalName.toLowerCase());
+            zipFolder.file(finalName, blob);
+            completed++;
         } catch (err) {
             console.warn(`[ZipDownload] Failed to download media item ${item.id}:`, err);
+        } finally {
+            attempted++;
+            // Downloading is the slow part (0-90%); building the ZIP is the rest
+            onProgress?.(Math.round((attempted / total) * 90), completed, total);
         }
     }
 
@@ -73,11 +102,9 @@ export async function downloadGalleryAsZip(
         throw new Error("Failed to download media files. Please check network connection.");
     }
 
-    const zipBlob = await (zip as any).generateAsync({ type: "blob" }, (metadata: any) => {
-        if (onProgress) {
-            const overallPercent = Math.round(50 + (metadata.percent / 2));
-            onProgress(overallPercent, completed, total);
-        }
+    // Photos and videos are already compressed, so they're stored as they are (much faster, same size)
+    const zipBlob = await (zip as any).generateAsync({ type: "blob", compression: "STORE" }, (metadata: any) => {
+        onProgress?.(90 + Math.round(metadata.percent / 10), completed, total);
     });
 
     const safeZipName = `${folderName}_Gallery.zip`;
@@ -91,4 +118,6 @@ export async function downloadGalleryAsZip(
     setTimeout(() => {
         URL.revokeObjectURL(link.href);
     }, 10000);
+
+    return { total, included: completed, failed: total - completed };
 }

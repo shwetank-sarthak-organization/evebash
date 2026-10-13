@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 83
+Next test number: 84
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1958,4 +1958,29 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:   580a5c4 (2026-10-13)
+Feedback:
+
+--------------------------------------------------------------------------------
+#83 Download All: real videos in the ZIP, and the host console downloads the whole gallery
+Status:    TODO
+Priority:  High
+Platform:  Website (staging.evebash.com), computer
+Brief:     Videos used to be saved as tiny .m3u8 playlist files; now the original .mp4 is downloaded.
+           The host console's Download All used to include only the 20-odd items loaded on screen.
+How to test:
+  1. Gallery with photos and at least one video (logged in as a member): open a collection -> Download All.
+     Unzip: photos are there, and each video is a playable .mp4 (not a small .m3u8 file).
+  2. Host -> an event -> a gallery with more than 20 items (don't scroll) -> Download All.
+     The ZIP has every photo and video in that gallery (compare with the Photos / Videos counts).
+  3. Two photos with the same file name: both are in the ZIP (the second as name_2.jpg).
+  4. Single download: the download icon on a video card, and the download button in the full-screen
+     viewer, save the .mp4 (not a .m3u8).
+  5. The progress bar only goes up (no jump back from 100% to 50%).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
 Feedback:

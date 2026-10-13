@@ -164,7 +164,7 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
                 void alertDialog({ title: "Nothing to download", message: "No photos or videos to download in this gallery." });
                 return;
             }
-            await downloadGalleryAsZip(
+            const result = await downloadGalleryAsZip(
                 event.title || "Gallery",
                 media.map((item) => ({
                     id: item.id,
@@ -174,6 +174,9 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
                 })),
                 (percent) => setZipProgress(percent),
             );
+            if (result.failed > 0) {
+                void alertDialog({ title: "Some files were skipped", message: `${result.failed} of ${result.total} files couldn't be downloaded and aren't in the ZIP. Please try again.` });
+            }
         } catch (error) {
             void alertDialog({ title: "Download failed", message: error instanceof Error ? error.message : "Failed to generate zip file." });
         } finally {
