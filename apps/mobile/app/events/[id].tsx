@@ -27,7 +27,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import Sortable from 'react-native-sortables';
 import { supabase } from '@/lib/supabase';
 import { getGridThumbnail } from '@/lib/imageUrl';
-import { resolveEventCoverImage } from '@/lib/eventCovers';
+import { getEventCoverSource, resolveEventCoverImage } from '@/lib/eventCovers';
 import { getPlanDetails, getUsagePercent } from '@/lib/planLimits';
 import { getSubscriptionStatus } from '@/lib/subscriptionStatus';
 
@@ -1173,7 +1173,7 @@ export default function EventDetailScreen() {
   const currentActiveEvent = selectedAdminGallery !== undefined
     ? (selectedAdminGallery || event)
     : (activeSubEvent || event);
-  const resolvedActiveCoverImage = resolveEventCoverImage(currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl, 'preview');
+  const activeCoverSource = getEventCoverSource(currentActiveEvent?.coverImage || event?.coverImage || (event as any)?.coverUrl, 'preview', currentActiveEvent?.category || event?.category);
 
   const activeCoverMode = currentActiveEvent ? currentActiveEvent.coverMode : event?.coverMode;
   const activeCoverOffset = currentActiveEvent ? currentActiveEvent.coverOffset : event?.coverOffset;
@@ -2933,7 +2933,7 @@ export default function EventDetailScreen() {
           {isSportsTemplate ? (
             <View style={[styles.sportsHeroStage, { backgroundColor: sportsTheme.background, paddingTop: insets.top }]}>
               <Image
-                source={{ uri: resolvedActiveCoverImage }}
+                source={activeCoverSource}
                 style={styles.sportsHeroImage}
                 resizeMode="cover"
                 blurRadius={0.8}
@@ -2973,7 +2973,7 @@ export default function EventDetailScreen() {
                 style={[styles.sportsPosterFrame, { top: insets.top + 82, backgroundColor: sportsTheme.imageFrame, borderColor: `${sportsTheme.accent}66`, shadowColor: sportsTheme.darkControl }]}
               >
                 <Image
-                  source={{ uri: resolvedActiveCoverImage }}
+                  source={activeCoverSource}
                   style={styles.sportsPosterImage}
                   resizeMode="cover"
                 />
@@ -3182,7 +3182,7 @@ export default function EventDetailScreen() {
                   ]}
                 >
                   <Image
-                    source={{ uri: resolvedActiveCoverImage }}
+                    source={activeCoverSource}
                     style={styles.bohemianSleeveImage}
                   />
                   {/* Decorative double border to look like printed vinyl jacket */}
@@ -3269,7 +3269,7 @@ export default function EventDetailScreen() {
           ) : !showAdminView && event?.templateId === 'classic' ? (
             <View style={styles.classicHeroImageContainer}>
               <Image
-                source={{ uri: resolvedActiveCoverImage }}
+                source={activeCoverSource}
                 style={[
                   styles.classicHeroImage,
                   (activeCoverMode === 'fit') ? {
@@ -3292,7 +3292,7 @@ export default function EventDetailScreen() {
               {/* Full-bleed Photo */}
               <View style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
                 <Image
-                  source={{ uri: resolvedActiveCoverImage }}
+                  source={activeCoverSource}
                   style={{ width: '100%', height: '100%', resizeMode: 'cover', opacity: 0.88 }}
                 />
                 {/* Dark gradient overlay at bottom of image for readability */}
@@ -3354,7 +3354,7 @@ export default function EventDetailScreen() {
                   elevation: 2,
                 }}>
                   <Image
-                    source={{ uri: resolvedActiveCoverImage }}
+                    source={activeCoverSource}
                     style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
                   />
                 </View>
@@ -3420,7 +3420,7 @@ export default function EventDetailScreen() {
           ) : !showAdminView && isExecutiveTemplate ? (
             <View style={[styles.executiveHeroStage, { paddingTop: insets.top }]}>
               <Image
-                source={{ uri: resolvedActiveCoverImage }}
+                source={activeCoverSource}
                 style={styles.executiveBackdrop}
                 resizeMode="cover"
                 blurRadius={1}
@@ -3444,7 +3444,7 @@ export default function EventDetailScreen() {
 
               <Animated.View entering={FadeInUp.delay(80).duration(650)} style={[styles.executivePortraitFrame, { top: insets.top + 84 }]}>
                 <Image
-                  source={{ uri: resolvedActiveCoverImage }}
+                  source={activeCoverSource}
                   style={styles.executivePortraitImage}
                   resizeMode="cover"
                 />
@@ -3487,7 +3487,7 @@ export default function EventDetailScreen() {
           ) : !showAdminView && isTechSleekTemplate ? (
             <View style={[styles.techSleekHeroStage, { paddingTop: insets.top }]}>
               <Image
-                source={{ uri: resolvedActiveCoverImage }}
+                source={activeCoverSource}
                 style={styles.techSleekBackdrop}
                 resizeMode="cover"
                 blurRadius={2}
@@ -3518,7 +3518,7 @@ export default function EventDetailScreen() {
 
               <Animated.View entering={FadeInUp.delay(80).duration(650)} style={[styles.techSleekDeviceFrame, { top: insets.top + 84 }]}>
                 <Image
-                  source={{ uri: resolvedActiveCoverImage }}
+                  source={activeCoverSource}
                   style={styles.techSleekDeviceImage}
                   resizeMode="cover"
                 />
@@ -3560,7 +3560,7 @@ export default function EventDetailScreen() {
           ) : !showAdminView && isMuseumTemplate ? (
             <View style={[styles.museumHeroStage, { paddingTop: insets.top }]}>
               <Image
-                source={{ uri: resolvedActiveCoverImage }}
+                source={activeCoverSource}
                 style={[StyleSheet.absoluteFillObject, { opacity: 0.5 }]}
                 resizeMode="cover"
                 blurRadius={1.2}
@@ -3584,7 +3584,7 @@ export default function EventDetailScreen() {
 
               <Animated.View entering={FadeInUp.delay(80).duration(650)} style={[styles.museumArtworkFrame, { top: insets.top + 82 }]}>
                 <Image
-                  source={{ uri: resolvedActiveCoverImage }}
+                  source={activeCoverSource}
                   style={styles.museumArtworkImage}
                   resizeMode="cover"
                 />
@@ -3631,7 +3631,7 @@ export default function EventDetailScreen() {
           ) : !showAdminView && isBrutalistTemplate ? (
             <View style={[styles.brutalistHeroStage, { paddingTop: insets.top }]}>
               <Image
-                source={{ uri: resolvedActiveCoverImage }}
+                source={activeCoverSource}
                 style={styles.brutalistHeroBackdrop}
                 resizeMode="cover"
                 blurRadius={0.8}
@@ -3654,7 +3654,7 @@ export default function EventDetailScreen() {
 
               <Animated.View entering={FadeInUp.delay(80).duration(650)} style={[styles.brutalistArtworkBlock, { top: insets.top + 104 }]}>
                 <Image
-                  source={{ uri: resolvedActiveCoverImage }}
+                  source={activeCoverSource}
                   style={styles.brutalistArtworkImage}
                   resizeMode="cover"
                 />
@@ -3686,7 +3686,7 @@ export default function EventDetailScreen() {
             </View>
           ) : (
             <Image
-              source={{ uri: resolvedActiveCoverImage }}
+              source={activeCoverSource}
               style={[
                 styles.heroImage,
                 (!showAdminView && event?.templateId === 'pop') ? styles.popPolaroidImage : {},
@@ -4061,7 +4061,7 @@ export default function EventDetailScreen() {
               <View style={[styles.popPolaroidFrame, { marginTop: insets.top + 78 }]}>
                 <View style={styles.popPolaroidInner}>
                   <Image
-                    source={{ uri: resolvedActiveCoverImage }}
+                    source={activeCoverSource}
                     style={styles.popPolaroidImage}
                     resizeMode="contain"
                   />
@@ -4139,7 +4139,7 @@ export default function EventDetailScreen() {
                   <View style={[styles.cyberCorner, styles.cyberCornerBR]} />
 
                   <Image
-                    source={{ uri: resolvedActiveCoverImage }}
+                    source={activeCoverSource}
                     style={styles.cyberPosterImg}
                     resizeMode="cover"
                   />
@@ -4191,7 +4191,7 @@ export default function EventDetailScreen() {
               <View style={styles.retroMiddleFrame}>
                 <View style={styles.retroPosterWrapper}>
                   <Image
-                    source={{ uri: resolvedActiveCoverImage }}
+                    source={activeCoverSource}
                     style={styles.retroPosterImg}
                     resizeMode="cover"
                   />
@@ -4212,7 +4212,7 @@ export default function EventDetailScreen() {
               {/* Cover Image spanning full background, blending top & bottom */}
               <View style={styles.neonCarnivalCoverWrapper}>
                 <Image
-                  source={{ uri: resolvedActiveCoverImage }}
+                  source={activeCoverSource}
                   style={styles.neonCarnivalCoverImg}
                   resizeMode="cover"
                 />
@@ -4327,7 +4327,7 @@ export default function EventDetailScreen() {
               >
                 <View style={styles.goldenCeremonyPhotoCard}>
                   <Image
-                    source={{ uri: resolvedActiveCoverImage }}
+                    source={activeCoverSource}
                     style={styles.goldenCeremonyPhoto}
                     resizeMode="cover"
                   />
@@ -4387,7 +4387,7 @@ export default function EventDetailScreen() {
                   <View style={styles.vintageEditorialTape} />
                   <View style={styles.vintageEditorialClip} />
                   <Image
-                    source={{ uri: resolvedActiveCoverImage }}
+                    source={activeCoverSource}
                     style={styles.vintageEditorialImage}
                     resizeMode="cover"
                   />
@@ -4452,7 +4452,7 @@ export default function EventDetailScreen() {
                 <View style={styles.roseBloomPhotoTape} />
                 <View style={styles.roseBloomPhotoCorner} />
                 <Image
-                  source={{ uri: resolvedActiveCoverImage }}
+                  source={activeCoverSource}
                   style={styles.roseBloomPhoto}
                   resizeMode="cover"
                 />
@@ -4501,7 +4501,7 @@ export default function EventDetailScreen() {
               <View style={styles.minimalEditorialPhotoPanel}>
                 <View style={styles.minimalEditorialTape} />
                 <Image
-                  source={{ uri: resolvedActiveCoverImage }}
+                  source={activeCoverSource}
                   style={styles.minimalEditorialPhoto}
                   resizeMode="cover"
                 />
@@ -4837,7 +4837,7 @@ export default function EventDetailScreen() {
 	                            }}
                             activeOpacity={0.85}
                           >
-                            <ExpoImage source={{ uri: resolveEventCoverImage(event.coverImage, 'thumbnail') }} style={styles.subImageFull} contentFit="cover" cachePolicy="memory-disk" transition={150} />
+                            <ExpoImage source={getEventCoverSource(event.coverImage, 'thumbnail', event.category)} style={styles.subImageFull} contentFit="cover" cachePolicy="memory-disk" transition={150} />
                             <LinearGradient
                               colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0.85)']}
                               style={StyleSheet.absoluteFillObject}
@@ -4913,7 +4913,7 @@ export default function EventDetailScreen() {
 	                                }}
                                 activeOpacity={0.85}
                               >
-                                <ExpoImage source={{ uri: resolveEventCoverImage(sub.coverImage, 'thumbnail') }} style={styles.subImageFull} contentFit="cover" cachePolicy="memory-disk" transition={150} />
+                                <ExpoImage source={getEventCoverSource(sub.coverImage, 'thumbnail', sub.category || event?.category)} style={styles.subImageFull} contentFit="cover" cachePolicy="memory-disk" transition={150} />
                                 <LinearGradient
                                   colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0.85)']}
                                   style={StyleSheet.absoluteFillObject}
@@ -6855,7 +6855,7 @@ export default function EventDetailScreen() {
                             }}
                           >
                             <ExpoImage
-                              source={{ uri: resolveEventCoverImage(sub.coverImage || event?.coverImage, 'thumbnail') }}
+                              source={getEventCoverSource(sub.coverImage || event?.coverImage, 'thumbnail', sub.category || event?.category)}
                               style={{ width: 48, height: 48, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.2)' }}
                               contentFit="cover"
                               transition={200}

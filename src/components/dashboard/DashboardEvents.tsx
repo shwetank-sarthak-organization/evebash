@@ -107,7 +107,7 @@ export function DashboardEventCard({ event, guests, onOpen, footer }: {
     onOpen?: () => void;
     footer?: React.ReactNode;
 }) {
-    const coverImage = resolveEventCoverImage(event.coverImage, "thumbnail");
+    const coverImage = resolveEventCoverImage(event.coverImage, "thumbnail", event.category);
     return (
         <button
             type="button"

@@ -3358,7 +3358,7 @@ function DashboardContent() {
     const activeSubEvent = userEvents.find(e => e.id === selectedEventId)
         || eventDetailGalleries.find(e => e.id === selectedEventId)
         || (selectedMainEvent?.id === selectedEventId ? selectedMainEvent : undefined);
-    const coverUrl = resolveEventCoverImage(activeSubEvent?.coverImage, 'preview');
+    const coverUrl = resolveEventCoverImage(activeSubEvent?.coverImage, 'preview', activeSubEvent?.category || selectedMainEvent?.category);
     const isInlineEventDetailGalleryEditor = manageLevel === "event-details" && activeEventDetailTab === "galleries" && manageMode === "add-image";
     const activeEventDetailEvent = isInlineEventDetailGalleryEditor ? (activeSubEvent || selectedMainEvent) : selectedMainEvent;
     const activeGalleryOriginalMessage = activeEventDetailEvent?.description || "";
@@ -3661,12 +3661,12 @@ function DashboardContent() {
             {/* Same card as the dashboard (src/components/dashboard/DashboardEvents.tsx) */}
             <div className="relative w-full overflow-hidden rounded-xl bg-[#0E141A]" style={{ aspectRatio: "16 / 10" }}>
                 <img
-                    src={resolveEventCoverImage(evt.coverImage, 'thumbnail')}
+                    src={resolveEventCoverImage(evt.coverImage, 'thumbnail', evt.category)}
                     alt=""
                     className="absolute inset-0 h-full w-full object-cover opacity-30 blur-xl"
                 />
                 <img
-                    src={resolveEventCoverImage(evt.coverImage, 'thumbnail')}
+                    src={resolveEventCoverImage(evt.coverImage, 'thumbnail', evt.category)}
                     alt={evt.title}
                     className="absolute inset-0 h-full w-full transition-transform duration-700 group-hover:scale-105"
                     style={getCoverImageStyle(evt)}
@@ -4180,7 +4180,7 @@ function DashboardContent() {
                                             style={activeEventDetailEvent && coverPositionEvent?.id === activeEventDetailEvent.id ? { touchAction: "none" } : undefined}
                                         >
                                             <img
-                                                src={resolveEventCoverImage(activeEventDetailEvent?.coverImage, 'preview')}
+                                                src={resolveEventCoverImage(activeEventDetailEvent?.coverImage, 'preview', activeEventDetailEvent?.category || selectedMainEvent.category)}
                                                 alt={activeEventDetailEvent?.title || selectedMainEvent.title}
                                                 draggable={false}
                                                 className="h-full w-full select-none"
@@ -4363,7 +4363,7 @@ function DashboardContent() {
                                                         onClick={() => openUploadForEvent(selectedMainEvent.id, selectedMainEvent.title)}
                                                     >
                                                         <img
-                                                            src={resolveEventCoverImage(selectedMainEvent.coverImage, 'thumbnail')}
+                                                            src={resolveEventCoverImage(selectedMainEvent.coverImage, 'thumbnail', selectedMainEvent.category)}
                                                             alt={selectedMainEvent.title}
                                                             className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                                                         />
@@ -4401,7 +4401,7 @@ function DashboardContent() {
                                                         >
                                                             <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-neutral-800">
                                                                 <img
-                                                                    src={resolveEventCoverImage(gallery.coverImage || selectedMainEvent.coverImage, 'thumbnail')}
+                                                                    src={resolveEventCoverImage(gallery.coverImage || selectedMainEvent.coverImage, 'thumbnail', gallery.category || selectedMainEvent.category)}
                                                                     alt={gallery.title}
                                                                     className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                                                                 />
@@ -4600,7 +4600,7 @@ function DashboardContent() {
                                                         title={selectedMainEvent.title}
                                                         eventType={selectedMainEvent.category}
                                                         dateLabel={formatEventDate(selectedMainEvent.date)}
-                                                        coverUrl={resolveEventCoverImage(selectedMainEvent.coverImage, 'preview')}
+                                                        coverUrl={resolveEventCoverImage(selectedMainEvent.coverImage, 'preview', selectedMainEvent.category)}
                                                         galleryNames={eventDetailGalleries.filter(gallery => gallery.id !== selectedMainEvent.id).map(gallery => gallery.title || gallery.id)}
                                                         templateId={selectedMainEvent.templateId}
                                                     />

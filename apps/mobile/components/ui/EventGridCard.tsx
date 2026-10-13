@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Fonts, MidnightColors } from '@/constants/theme';
 import { EventGrid, getEventGridCardWidth } from '@/constants/layout';
 import { useAppTheme } from '@/context/ThemeContext';
-import { EVENT_PLACEHOLDER_IMAGES, resolveEventCoverImage } from '@/lib/eventCovers';
+import { getEventCoverSource, isDefaultEventCover } from '@/lib/eventCovers';
 
 type EventGridCardProps = {
   title: string;
@@ -26,11 +26,11 @@ const TALL_IMAGE_HEIGHT = 160;
 
 export const EVENT_PLACEHOLDER_ASSET = require('@/assets/images/event-placeholder.jpg');
 
-/** Empty covers and the stock photos saved on event creation both count as "no cover uploaded". */
-function getCardImageSource(coverImage?: string | null) {
-  const trimmed = coverImage?.trim();
-  if (!trimmed || EVENT_PLACEHOLDER_IMAGES.includes(trimmed)) return EVENT_PLACEHOLDER_ASSET;
-  return { uri: resolveEventCoverImage(trimmed) };
+/** Events without an uploaded cover show their category's default, else the bundled placeholder. */
+function getCardImageSource(coverImage?: string | null, category?: string) {
+  const source = getEventCoverSource(coverImage, 'preview', category);
+  if (typeof source !== 'number' && isDefaultEventCover(coverImage)) return EVENT_PLACEHOLDER_ASSET;
+  return source;
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -58,7 +58,7 @@ export function EventGridCard({ title, date, category, coverImage, onPress, tall
     >
       <View style={[styles.imageWrap, tall && styles.imageWrapTall]}>
         <ExpoImage
-          source={getCardImageSource(coverImage)}
+          source={getCardImageSource(coverImage, category)}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           contentPosition="center"

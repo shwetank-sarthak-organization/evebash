@@ -251,11 +251,11 @@ function EventPageContent() {
     };
 
     const showPublicGallery = async (opened: OpenedGallery) => {
-        const eventData = { ...opened.event!, coverImage: resolveEventCoverImage(opened.event!.coverImage, 'preview') };
+        const eventData = { ...opened.event!, coverImage: resolveEventCoverImage(opened.event!.coverImage, 'preview', opened.event!.category) };
         setEvent(eventData);
         setSubEvents(opened.subEvents.map(sub => ({
             ...sub,
-            coverImage: resolveEventCoverImage(sub.coverImage, 'thumbnail')
+            coverImage: resolveEventCoverImage(sub.coverImage, 'thumbnail', sub.category || eventData.category)
         })));
         setActiveGallery(eventData.parentId ? eventData : null);
         setGalleryMediaTab("photos");
@@ -331,13 +331,16 @@ function EventPageContent() {
             }
 
             // Sub-gallery links inherit the parent event's current visibility.
+            let parentCategory: string | undefined;
             if (eventData.parentId) {
                 const parentEvent = await getEventById(eventData.parentId, true);
                 eventData.isPublic = !!parentEvent?.isPublic;
+                parentCategory = parentEvent?.category;
             }
 
             // Resolve event cover image to preview format
-            eventData.coverImage = resolveEventCoverImage(eventData.coverImage, 'preview');
+            const eventCategory = eventData.category || parentCategory;
+            eventData.coverImage = resolveEventCoverImage(eventData.coverImage, 'preview', eventCategory);
 
             setEvent(eventData);
 
@@ -348,7 +351,7 @@ function EventPageContent() {
                 const data = await getSubEvents(eventData.id, eventData.legacyId);
                 const resolvedSubEvents = data.map(sub => ({
                     ...sub,
-                    coverImage: resolveEventCoverImage(sub.coverImage, 'thumbnail')
+                    coverImage: resolveEventCoverImage(sub.coverImage, 'thumbnail', sub.category || eventCategory)
                 }));
                 setSubEvents(resolvedSubEvents);
                 setActiveGallery(null);
@@ -363,11 +366,11 @@ function EventPageContent() {
                     try {
                         const pEvent = await getEventById(eventData.parentId);
                         if (pEvent) {
-                            pEvent.coverImage = resolveEventCoverImage(pEvent.coverImage, 'preview');
+                            pEvent.coverImage = resolveEventCoverImage(pEvent.coverImage, 'preview', pEvent.category);
                             const siblings = await getSubEvents(pEvent.id, pEvent.legacyId);
                             const resolvedSiblings = siblings.map(sub => ({
                                 ...sub,
-                                coverImage: resolveEventCoverImage(sub.coverImage, 'thumbnail')
+                                coverImage: resolveEventCoverImage(sub.coverImage, 'thumbnail', sub.category || pEvent.category)
                             }));
                             setSubEvents(resolvedSiblings);
                         }
