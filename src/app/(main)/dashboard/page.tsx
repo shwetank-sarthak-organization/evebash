@@ -5,8 +5,10 @@ import { resolveEventCoverImage } from "@/lib/eventCovers";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import {
+    DashboardEventStats,
     Event,
     getApprovedSharedEventsForUser,
+    getDashboardEventStats,
     getUserEvents,
     openGallery,
     requestGalleryAccess,
@@ -14,7 +16,6 @@ import {
 import {
     ArrowLeft,
     ArrowRight,
-    Calendar,
     Play,
     Plus,
     QrCode,
@@ -22,9 +23,20 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { ModalHeader, modalStyles } from "@/components/ui/Modal";
 import { cn } from "@/lib/utils";
+import { CollectionsIcon } from "@/components/CollectionsIcon";
 
 const DEFAULT_EVENT_COVER_IMAGE = "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop";
 const MEMORIES_CARD_IMAGE = "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2071&auto=format&fit=crop";
+
+// font-serif is aliased to Inter in tailwind.config.ts, so headings use the Playfair variable directly.
+const SERIF: React.CSSProperties = { fontFamily: "var(--font-playfair)" };
+
+type DashboardTab = "all" | "attended" | "hosted";
+const DASHBOARD_TABS: { key: DashboardTab; label: string }[] = [
+    { key: "all", label: "All Events" },
+    { key: "attended", label: "Attended Memories" },
+    { key: "hosted", label: "Hosted Galleries" },
+];
 
 function getCreatedTime(event: Event) {
     const createdAt = event.createdAt as any;
@@ -61,6 +73,9 @@ export default function DashboardHub() {
     const router = useRouter();
 
     const [events, setEvents] = useState<Event[]>([]);
+    const [hostedIds, setHostedIds] = useState<Set<string>>(new Set());
+    const [eventStats, setEventStats] = useState<Record<string, DashboardEventStats>>({});
+    const [activeTab, setActiveTab] = useState<DashboardTab>("all");
     const [isLoadingEvents, setIsLoadingEvents] = useState(true);
     const [showAllEvents, setShowAllEvents] = useState(false);
 
@@ -95,6 +110,12 @@ export default function DashboardHub() {
             ).sort((a, b) => getCreatedTime(b) - getCreatedTime(a));
 
             setEvents(visibleEvents);
+            setHostedIds(new Set(hostedEvents.map((event) => event.id)));
+
+            // Counts load after the cards so they never hold the grid back
+            getDashboardEventStats(visibleEvents.map((event) => event.id))
+                .then(setEventStats)
+                .catch((err) => console.error("Error fetching dashboard stats:", err));
         } catch (err) {
             console.error("Error fetching dashboard data:", err);
         } finally {
@@ -156,9 +177,19 @@ export default function DashboardHub() {
         }
     };
 
+    const tabEvents = useMemo(() => {
+        if (activeTab === "hosted") return events.filter((event) => hostedIds.has(event.id));
+        if (activeTab === "attended") return events.filter((event) => !hostedIds.has(event.id));
+        return events;
+    }, [events, hostedIds, activeTab]);
+
+    const attendedCount = events.length - events.filter((event) => hostedIds.has(event.id)).length;
+    const statsLoaded = Object.keys(eventStats).length > 0;
+    const totalPhotos = events.reduce((sum, event) => sum + (eventStats[event.id]?.photos || 0), 0);
+
     const visibleEvents = useMemo(() => (
-        showAllEvents ? events : events.slice(0, 3)
-    ), [events, showAllEvents]);
+        showAllEvents ? tabEvents : tabEvents.slice(0, 3)
+    ), [tabEvents, showAllEvents]);
 
     if (loading) {
         return (
@@ -172,34 +203,59 @@ export default function DashboardHub() {
 
     return (
         <div className="min-h-screen bg-[#0E141A] font-sans text-white">
-            {/* Dashboard Sub-Navbar */}
-            <div className="border-b border-[#273034] bg-[#0E141A]/95 pt-24 pb-4">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-                    {/* Left: Greeting / Workspace */}
-                    <div className="flex items-center gap-3">
-                        <div className="h-2 w-2 rounded-full bg-[#CA9C68]" />
-                        <span className="text-xs font-black tracking-wide text-white uppercase">Collections</span>
-                        <span className="text-[#3A534D]">|</span>
-                        <span className="text-xs font-bold text-slate-400">{user.name || user.email || "My Dashboard"}</span>
+            <main className="relative z-20 mx-auto max-w-7xl space-y-8 px-4 pt-24 pb-24 sm:px-6 lg:px-8">
+                <section className="rounded-[2rem] border border-[#273034] bg-[#121820] p-5 shadow-2xl shadow-black/25 sm:p-8 lg:p-10">
+                    <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[#CA9C68]">
+                                <CollectionsIcon className="h-6 w-6" aria-hidden="true" />
+                            </div>
+                            <div className="min-w-0">
+                                <h1 className="truncate font-brand text-2xl font-normal leading-tight tracking-wide text-[#F5EFE6] sm:text-4xl">
+                                    Collections <span className="text-[#CA9C68]">|</span> {user.name || user.email || "My Dashboard"}
+                                </h1>
+                                <p className="font-sans text-sm text-slate-400">Memories curated for you</p>
+                            </div>
+                        </div>
+                        <div className="-mx-1 flex w-fit max-w-full overflow-x-auto rounded-full border border-[#273034] bg-[#0E141A] p-1">
+                            {DASHBOARD_TABS.map((tab) => (
+                                <button
+                                    key={tab.key}
+                                    type="button"
+                                    onClick={() => setActiveTab(tab.key)}
+                                    className={cn(
+                                        "shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-colors sm:px-5",
+                                        activeTab === tab.key
+                                            ? "bg-[#CA9C68] font-bold uppercase text-[#13191F]"
+                                            : "text-slate-300 hover:text-white"
+                                    )}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
-                </div>
-            </div>
-
-            <main className="relative z-20 mx-auto max-w-7xl space-y-8 px-4 pt-8 pb-24 sm:px-6 lg:px-8">
-                <section className="rounded-[2rem] border border-[#CA9C68]/20 bg-[#151B21] p-5 shadow-2xl shadow-black/25 sm:p-8">
-                    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                        <div>
-                            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[#CA9C68]">Event Gallery</p>
-                            <h2 className="mt-1 text-2xl font-black text-white">Memories curated for you</h2>
+                    <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#273034] bg-[#0E141A] px-6 py-5">
+                            <span className="text-sm font-medium text-slate-400">Total Memories</span>
+                            <span className="text-2xl text-[#CA9C68]" style={SERIF}>
+                                {statsLoaded ? totalPhotos.toLocaleString("en-US") : "—"} {totalPhotos === 1 ? "Photo" : "Photos"} ✨
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#273034] bg-[#0E141A] px-6 py-5">
+                            <span className="text-sm font-medium text-slate-400">Events Joined</span>
+                            <span className="text-2xl text-white" style={SERIF}>
+                                {attendedCount} {attendedCount === 1 ? "Celebration" : "Celebrations"}
+                            </span>
                         </div>
                         <button
                             type="button"
                             onClick={() => setShowJoinModal(true)}
-                            className="inline-flex w-fit items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-sm font-black text-[#13191F] transition-transform active:scale-95"
+                            className="inline-flex min-h-[4.5rem] items-center sm:col-span-2 lg:col-span-1 justify-center gap-2 rounded-2xl bg-[#CA9C68] px-6 py-5 text-sm font-bold uppercase tracking-[0.12em] text-[#13191F] transition-transform hover:bg-[#D6AA78] active:scale-[0.98]"
                         >
                             <Plus className="h-4 w-4" />
-                            <span>Join Event</span>
+                            <span>Join Event with Code</span>
                         </button>
                     </div>
 
@@ -208,17 +264,18 @@ export default function DashboardHub() {
                             <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#2B2F2E] border-t-[#CA9C68]" />
                         </div>
                     ) : (
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                             {visibleEvents.map((event) => {
                                 const coverImage = resolveEventCoverImage(event.coverImage, 'thumbnail');
+                                const guests = eventStats[event.id]?.guests;
                                 return (
                                     <button
                                         key={event.id}
                                         type="button"
                                         onClick={() => window.open(`/events/${event.id}?mode=visitor`, "_blank", "noopener,noreferrer")}
-                                        className="group relative h-64 overflow-hidden rounded-[1.75rem] border border-[#CA9C68]/15 bg-[#10161C] text-left shadow-xl shadow-black/15 transition-transform hover:-translate-y-1"
+                                        className="group flex flex-col rounded-2xl border border-[#273034] bg-[#0E141A] p-3 text-left transition-all hover:-translate-y-1 hover:border-[#CA9C68]/40"
                                     >
-                                        <div className="absolute inset-0 overflow-hidden bg-[#0E141A]">
+                                        <div className="relative w-full overflow-hidden rounded-xl bg-[#0E141A]" style={{ aspectRatio: "16 / 10" }}>
                                             <img
                                                 src={coverImage}
                                                 alt=""
@@ -227,55 +284,56 @@ export default function DashboardHub() {
                                             <img
                                                 src={coverImage}
                                                 alt={event.title}
-                                                className="relative h-full w-full transition-transform duration-700 group-hover:scale-105"
+                                                className="absolute inset-0 h-full w-full transition-transform duration-700 group-hover:scale-105"
                                                 style={getCoverImageStyle(event)}
                                             />
+                                            {event.category && (
+                                                <div className="absolute left-3 top-3 rounded-full border border-[#CA9C68]/30 bg-black/65 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#CA9C68] backdrop-blur-sm">
+                                                    {event.category}
+                                                </div>
+                                            )}
                                         </div>
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
-                                        {event.category && (
-                                            <div className="absolute left-4 top-4 rounded-full border border-[#CA9C68]/30 bg-black/65 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#CA9C68] backdrop-blur-sm">
-                                                {event.category}
-                                            </div>
-                                        )}
-                                        <div className="absolute bottom-0 left-0 right-0 border-t border-[#CA9C68]/10 bg-[#0E141A]/78 p-5 text-white backdrop-blur-md">
-                                            <h3 className="truncate text-lg font-black leading-tight text-white">{event.title}</h3>
-                                            <div className="mt-2 flex items-center gap-2 text-xs font-bold text-slate-400">
-                                                <Calendar className="h-3.5 w-3.5 text-[#CA9C68]" />
-                                                <span>{event.date}</span>
+                                        <div className="px-1 pb-1 pt-4">
+                                            <h3 className="truncate text-xl leading-tight text-white" style={SERIF}>{event.title}</h3>
+                                            <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+                                                <span className="truncate text-slate-400">{event.date}</span>
+                                                {guests != null && (
+                                                    <span className="shrink-0 font-medium text-[#CA9C68]">{guests} {guests === 1 ? "Guest" : "Guests"}</span>
+                                                )}
                                             </div>
                                         </div>
                                     </button>
                                 );
                             })}
 
-                            <button
-                                type="button"
-                                onClick={() => setShowAllEvents(prev => !prev)}
-                                className="group relative h-full min-h-64 overflow-hidden rounded-[1.75rem] border border-[#CA9C68]/20 bg-[#10161C] text-center shadow-xl shadow-black/10"
-                            >
-                                <img
-                                    src={MEMORIES_CARD_IMAGE}
-                                    alt=""
-                                    className="absolute inset-0 h-full w-full object-cover opacity-45 transition-transform duration-700 group-hover:scale-105"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-[#0E141A] via-[#0E141A]/72 to-[#0E141A]/25" />
-                                <div className="relative z-10 flex h-full min-h-64 flex-col items-center justify-center p-6">
-                                    <h3 className="text-xl font-black text-white">Your memories</h3>
-                                    <div className="mt-3 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-black">
-                                        {events.length} Collections
-                                    </div>
-                                    <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-xs font-black uppercase tracking-widest text-[#13191F]">
-                                        <span>{showAllEvents ? "Show Less" : "Explore All"}</span>
-                                        <ArrowRight className="h-4 w-4" />
-                                    </div>
+                            {tabEvents.length === 0 ? (
+                                <div className="col-span-full rounded-2xl border border-dashed border-[#CA9C68]/25 p-10 text-center text-slate-400">
+                                    <p className="text-2xl text-white" style={SERIF}>No events yet</p>
+                                    <p className="mt-2 text-sm font-medium">Join an event or create your first hosted collection.</p>
                                 </div>
-                            </button>
-
-                            {events.length === 0 && (
-                                <div className="col-span-full rounded-[1.5rem] border border-dashed border-[#CA9C68]/20 p-10 text-center text-slate-400">
-                                    <p className="text-lg font-black text-white">No events yet</p>
-                                    <p className="mt-2 text-sm font-semibold">Join an event or create your first hosted collection.</p>
-                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAllEvents(prev => !prev)}
+                                    className="group relative min-h-64 overflow-hidden rounded-2xl border border-dashed border-[#CA9C68]/35 bg-[#0E141A] text-center transition-colors hover:border-[#CA9C68]/60"
+                                >
+                                    <img
+                                        src={MEMORIES_CARD_IMAGE}
+                                        alt=""
+                                        className="absolute inset-0 h-full w-full object-cover opacity-25 transition-transform duration-700 group-hover:scale-105"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-[#0E141A] via-[#0E141A]/75 to-[#0E141A]/40" />
+                                    <div className="relative z-10 flex h-full min-h-64 flex-col items-center justify-center p-6">
+                                        <h3 className="text-2xl text-white" style={SERIF}>Your memories</h3>
+                                        <div className="mt-3 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-bold">
+                                            {tabEvents.length} {tabEvents.length === 1 ? "Collection" : "Collections"}
+                                        </div>
+                                        <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#13191F]">
+                                            <span>{showAllEvents ? "Show Less" : "Explore All"}</span>
+                                            <ArrowRight className="h-4 w-4" />
+                                        </div>
+                                    </div>
+                                </button>
                             )}
                         </div>
                     )}

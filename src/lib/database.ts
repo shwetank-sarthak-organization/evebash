@@ -2433,6 +2433,53 @@ export async function getUserTotalStorage(identifiers: string | string[]): Promi
     return (await getUserStorageBreakdown(identifiers)).total;
 }
 
+export interface DashboardEventStats {
+    photos: number;
+    guests: number | null; // null when the guest list can't be read
+}
+
+/**
+ * Photo and guest counts for the dashboard's event cards, keyed by main event id. Photos are counted across the
+ * event and its sub-galleries (videos left out); guests are the distinct approved guests of the event.
+ */
+export async function getDashboardEventStats(mainEventIds: string[]): Promise<Record<string, DashboardEventStats>> {
+    const ids = Array.from(new Set(mainEventIds.filter(Boolean)));
+    const stats: Record<string, DashboardEventStats> = {};
+    if (ids.length === 0) return stats;
+
+    const subsByParent: Record<string, string[]> = {};
+    const { data: subs } = await supabase.from('events').select('id, parent_id').in('parent_id', ids);
+    (subs || []).forEach((sub: any) => {
+        (subsByParent[sub.parent_id] ||= []).push(sub.id);
+    });
+
+    await Promise.all(ids.map(async (eventId) => {
+        const galleryIds = [eventId, ...(subsByParent[eventId] || [])];
+        const [photosResult, guestsResult] = await Promise.all([
+            supabase
+                .from('photos')
+                .select('id', { count: 'exact', head: true })
+                .in('event_id', galleryIds)
+                .or('media_type.is.null,media_type.neq.video'),
+            supabase
+                .from('guests')
+                .select('user_id, phone')
+                .eq('status', 'approved')
+                .or(`event_id.eq.${quoteFilterValue(eventId)},parent_event_id.eq.${quoteFilterValue(eventId)}`),
+        ]);
+
+        let guests: number | null = null;
+        if (!guestsResult.error) {
+            // A guest can have a row per sub-gallery, so count people, not rows
+            const people = new Set((guestsResult.data || []).map((row: any) => row.user_id || row.phone).filter(Boolean));
+            guests = people.size;
+        }
+        stats[eventId] = { photos: photosResult.error ? 0 : (photosResult.count || 0), guests };
+    }));
+
+    return stats;
+}
+
 export async function getUserPhotosCount(uid: string): Promise<number> {
     if (!uid) return 0;
     try {
