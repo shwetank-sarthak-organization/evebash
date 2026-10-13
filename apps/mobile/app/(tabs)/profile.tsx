@@ -20,7 +20,6 @@ import SettingsIcon from '@/components/ui/SettingsIcon';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { 
-  updateUserPrivacy, 
   isValidUsername,
   isUsernameUnique, 
   updateUserProfile,
@@ -147,8 +146,6 @@ export default function ProfileScreen() {
   const { colors, isDark } = useAppTheme();
   const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const router = useRouter();
-  const [isPrivate, setIsPrivate] = useState(user?.isPrivate || false);
-  const [updatingPrivacy, setUpdatingPrivacy] = useState(false);
 
   // Edit Profile States
   const [isEditing, setIsEditing] = useState(false);
@@ -158,13 +155,11 @@ export default function ProfileScreen() {
   const [editPhone, setEditPhone] = useState('');
   const [editLocation, setEditLocation] = useState('');
   const [editGender, setEditGender] = useState('');
-  const [editRelationshipStatus, setEditRelationshipStatus] = useState('');
   const [editPersona, setEditPersona] = useState<string[]>([]);
   const [editImage, setEditImage] = useState<string | null>(null);
   const [editImageBase64, setEditImageBase64] = useState<string | null>(null);
   const [editImageRemoved, setEditImageRemoved] = useState(false);
   const [editBirthday, setEditBirthday] = useState('');
-  const [editAnniversaryDate, setEditAnniversaryDate] = useState('');
 
   // Gamified activity stats state
   const [activityStats, setActivityStats] = useState({
@@ -251,13 +246,11 @@ export default function ProfileScreen() {
     setEditPhone(user?.phone && user.phone !== 'No Phone' ? user.phone : '');
     setEditLocation(user?.location || '');
     setEditGender(user?.gender || '');
-    setEditRelationshipStatus(user?.relationshipStatus || '');
     setEditPersona(getPersonasArray(user?.persona));
     setEditImage(user?.profileImage || null);
     setEditImageBase64(null);
     setEditImageRemoved(false);
     setEditBirthday(user?.birthday || '');
-    setEditAnniversaryDate(user?.anniversaryDate || '');
     setUsernameStatus('idle');
     setIsUsernameValid(true);
     setIsEditing(true);
@@ -356,10 +349,8 @@ export default function ProfileScreen() {
         phone: editPhone.trim() || '',
         location: editLocation.trim() || '',
         gender: editGender || '',
-        relationshipStatus: editRelationshipStatus || '',
         persona: editPersona || '',
         birthday: editBirthday.trim() || '',
-        anniversaryDate: editAnniversaryDate.trim() || '',
       });
 
       if (success) {
@@ -375,12 +366,6 @@ export default function ProfileScreen() {
       setSaving(false);
     }
   };
-
-  useEffect(() => {
-    if (!user?.uid) return;
-
-    if (user.isPrivate !== undefined) setIsPrivate(user.isPrivate);
-  }, [user?.uid]);
 
   const [storageUsage, setStorageUsage] = useState<StorageBreakdown | null>(null);
 
@@ -415,17 +400,6 @@ export default function ProfileScreen() {
     fetchActivityStats();
   }, [user?.uid]);
 
-  const togglePrivacy = async () => {
-    if (!user?.uid || updatingPrivacy) return;
-    setUpdatingPrivacy(true);
-    const newStatus = !isPrivate;
-    const success = await updateUserPrivacy(user.uid, newStatus);
-    if (success) {
-      setIsPrivate(newStatus);
-    }
-    setUpdatingPrivacy(false);
-  };
-
   const renderVerificationBadge = (verified: boolean, missing: boolean, missingText: string) => (
     <View
       style={[
@@ -456,9 +430,7 @@ export default function ProfileScreen() {
   const optionalProfileFields: { label: string; value?: string; icon: IconSymbolName; short: string }[] = [
     { label: 'Location', value: user.location, icon: 'mappin.and.ellipse', short: 'location' },
     { label: 'Gender', value: user.gender, icon: 'person.fill', short: 'gender' },
-    { label: 'Relationship Status', value: user.relationshipStatus, icon: 'heart.fill', short: 'relationship status' },
     { label: 'Birthday', value: user.birthday, icon: 'gift.fill', short: 'birthday' },
-    { label: 'Anniversary / Milestone Date', value: user.anniversaryDate, icon: 'sparkles', short: 'anniversary' },
   ];
   const missingProfileFields = optionalProfileFields.filter((field) => !field.value).map((field) => field.short);
   const completeProfileHint = missingProfileFields.length > 2
@@ -964,29 +936,6 @@ export default function ProfileScreen() {
                   </View>
                 </View>
 
-                {/* Relationship Status Picker */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Relationship Status</Text>
-                  <View style={styles.pickerContainer}>
-                    {['Single', 'Engaged', 'Married', 'Prefer not to say'].map((item) => (
-                      <TouchableOpacity
-                        key={item}
-                        activeOpacity={0.7}
-                        onPress={() => setEditRelationshipStatus(item)}
-                        style={[
-                          styles.pickerPill,
-                          editRelationshipStatus === item && styles.pickerPillSelected
-                        ]}
-                      >
-                        <Text style={[
-                          styles.pickerPillText,
-                          editRelationshipStatus === item && styles.pickerPillTextSelected
-                        ]}>{item}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
                 {/* Birthday Input */}
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Birthday</Text>
@@ -1002,23 +951,6 @@ export default function ProfileScreen() {
                     />
                   </View>
                   <Text style={styles.inputHint}>Optional — used for premium milestone rewards</Text>
-                </View>
-
-                {/* Anniversary / Milestone Date Input */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Anniversary / Milestone Date</Text>
-                  <View style={styles.inputWrapper}>
-                    <IconSymbol name="sparkles" size={16} color={MidnightColors.gold} style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.textInput}
-                      value={editAnniversaryDate}
-                      onChangeText={setEditAnniversaryDate}
-                      placeholder="e.g. December 18, 2026"
-                      placeholderTextColor={MidnightColors.slate600}
-                      editable={!saving}
-                    />
-                  </View>
-                  <Text style={styles.inputHint}>Optional — used to match vendor services & local milestones</Text>
                 </View>
 
                 {/* Persona Picker */}

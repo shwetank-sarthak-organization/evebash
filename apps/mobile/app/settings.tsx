@@ -16,7 +16,7 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
 import { useRouter } from 'expo-router';
-import { updateUserPrivacy, updateUserProfile, submitFeedback } from '@/lib/database';
+import { updateUserProfile, submitFeedback } from '@/lib/database';
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { APP_VERSION } from '@/lib/appVersion';
@@ -33,9 +33,7 @@ export default function SettingsScreen() {
   const router = useRouter();
 
   // Core Privacy Toggles
-  const [isPrivate, setIsPrivate] = useState(user?.isPrivate || false);
   const [isDiscoverable, setIsDiscoverable] = useState(user?.discoverable ?? true);
-  const [updatingPrivacy, setUpdatingPrivacy] = useState(false);
   const [updatingSearch, setUpdatingSearch] = useState(false);
 
   // Notification Preferences
@@ -87,7 +85,6 @@ export default function SettingsScreen() {
 
   // Update State when User Context changes
   useEffect(() => {
-    if (user?.isPrivate !== undefined) setIsPrivate(user.isPrivate);
     if (user?.discoverable !== undefined) setIsDiscoverable(user.discoverable);
     if (user?.notificationPreferences) {
       setNotifPreferences({
@@ -98,19 +95,6 @@ export default function SettingsScreen() {
       });
     }
   }, [user]);
-
-  // Privacy Toggle
-  const togglePrivacy = async () => {
-    if (!user?.uid || updatingPrivacy) return;
-    setUpdatingPrivacy(true);
-    const newStatus = !isPrivate;
-    const success = await updateUserPrivacy(user.uid, newStatus);
-    if (success) {
-      haptic('select');
-      setIsPrivate(newStatus);
-    }
-    setUpdatingPrivacy(false);
-  };
 
   // Discoverability Toggle
   const toggleDiscoverability = async () => {
@@ -376,27 +360,6 @@ export default function SettingsScreen() {
         {/* Privacy Settings */}
         <Text style={styles.sectionLabel}>Privacy</Text>
         <View style={styles.settingsCard}>
-          <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={togglePrivacy} disabled={updatingPrivacy} accessibilityRole="switch" accessibilityLabel="Private account" accessibilityState={{ checked: isPrivate, disabled: updatingPrivacy }}>
-            <View style={[styles.infoIconBox, { backgroundColor: isPrivate ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)' }]}>
-              <IconSymbol name={isPrivate ? "lock.fill" : "globe"} size={18} color={isPrivate ? MidnightColors.danger : MidnightColors.success} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.actionText}>Private Account</Text>
-              <Text style={styles.actionSubtext}>
-                {isPrivate ? 'Followers must be approved' : 'Anyone can follow you'}
-              </Text>
-            </View>
-            <View style={[styles.toggleBtn, isPrivate && styles.toggleBtnActive]}>
-              {updatingPrivacy ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <View style={[styles.toggleDot, isPrivate && styles.toggleDotActive]} />
-              )}
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.divider} />
-
           <TouchableOpacity style={styles.actionItemRow} activeOpacity={0.7} onPress={toggleDiscoverability} disabled={updatingSearch} accessibilityRole="switch" accessibilityLabel="Discoverable profile" accessibilityState={{ checked: isDiscoverable, disabled: updatingSearch }}>
             <View style={[styles.infoIconBox, { backgroundColor: isDiscoverable ? 'rgba(16, 185, 129, 0.1)' : 'rgba(100, 116, 139, 0.1)' }]}>
               <IconSymbol name="magnifyingglass" size={18} color={isDiscoverable ? MidnightColors.success : MidnightColors.slate600} />
