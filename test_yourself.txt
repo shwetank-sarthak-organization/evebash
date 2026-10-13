@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 76
+Next test number: 77
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1772,6 +1772,31 @@ How to test:
   8. Account with 1-2 events: click Explore All. Expect: the page opens (it used to do nothing).
   9. Phone browser: no sideways scroll; search, sort and type stack neatly; tabs scroll inside their pill.
   10. Logged out, open /dashboard/events. Expect: sent to the login page.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#76 Website: host page event cards use the dashboard card design
+Status:    TODO
+Priority:  Low
+Platform:  Website (computer + phone browser)
+Brief:     Host page event cards (Host Console grid and the Hosted / Shared tabs) now look like the dashboard
+           cards: photo on top, title, short date ("6 Aug 26") with a calendar icon, guest count with a person icon
+           (loads after the cards). Shared cards show "Owner: <username>" underneath. The dashboard cards also get
+           the icons and short date. Design only; clicking a card opens it as before.
+How to test:
+  1. Open /host. Expect: cards in rows of 4 on a computer, with photo, title, short date and guest count.
+  2. Click a card. Expect: the event's manage view opens as before. The "..." menu on a card still works.
+  3. Hosted and Shared tabs: same card look; Shared cards show the owner's username.
+  4. Compare a card's guest count with the event's Permissions tab: approved guests, each counted once.
+  5. An event with a custom date text (not a normal date): the text shows unchanged.
+  6. /dashboard: cards show the short date and the icons too.
+  7. Phone browser: cards stack, nothing sticks out sideways.
 Done by:
 Device / browser:
 Build / version:
