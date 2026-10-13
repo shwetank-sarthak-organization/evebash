@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 64
+Next issue number: 65
 
 =====================================================================
 ACTIVE ISSUES
@@ -271,6 +271,17 @@ Blocked by: -
 Found in: Test #51 push check on the Pixel 8 (2026-10-12)
 Issue: The app's notification switches can't turn off upload pushes. Settings (Profile > gear icon, apps/mobile/app/settings.tsx) has four switches saved in profiles.notification_preferences: likesAndComments, eventInvites, businessMatches, marketing. The backend's "new photos" / "new video uploaded" push to the gallery owner (apps/backend/src/uploadNotifications.ts) instead checks preferences.push and preferences.event_activity, which no screen sets, so hosts can't stop those pushes. (The access-request push checks push and eventInvites, so "Event invites" does work for it.) Fix: decide which switch covers upload activity (a new "Uploads to my galleries" switch, or reuse an existing one), make the backend read that key, and keep the old keys working. Sarthak also hadn't found the switches, so consider showing them more clearly (e.g. a "Notifications" row on Profile).
 How to reproduce: In the app, Settings: turn every notification switch off. Have another account upload a video to your gallery: the "New video uploaded" push still arrives.
+
+#64
+Listed: 2026-10-13
+Platform: Both
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Chat with Sarthak about choosing an event cover (2026-10-13)
+Issue: When a host picks a cover photo, they can't see how it will look on the guest page in their chosen theme, on a phone or on a computer. (1) The Fit/Fill and Position (move/zoom) settings only change the host's own view: the website host page (src/app/(main)/host/page.tsx), the dashboard and the app's host view (apps/mobile/app/events/[id].tsx) use coverMode/coverOffset/coverOffsetX/coverScale. In the app the guest view of the same screen also applies them for the Classic theme and the default hero (other app themes draw their own hero), but no website guest theme reads them (src/components/Template*.tsx, guest page under src/app/(public)/events/[slug]/). Each website theme does its own thing: TemplateCinematic, for example, uses object-contain (fit) on phones and a centred, slowly panning background-cover on computers. (2) Only one setting is saved per cover, but a tall phone frame and a wide computer frame need different crops. (3) The offsets are saved as pixels measured on the host's preview box (host page), while the web dashboard reads them as percentages (50 + offset), so the same values put the image in different places. (4) The website's phone-and-computer theme preview (src/components/EventDesignPreview.tsx) always draws the cover centred with object-cover and ignores the host's settings, so it doesn't match the real guest page either. Fix: decide per theme how the cover is framed; save the position in a size-independent form (a focal point in % plus zoom), possibly one for phone and one for computer; have every theme and preview use it; and show a live phone + computer preview while the host positions the cover.
+How to reproduce: On the website host page, open an event, Change Cover to a tall photo, set Fill and use Position to move it to the top. Open the website guest page on a computer and on a phone: the crop ignores your position (and on a phone with the Cinematic theme the image is fitted, not filled).
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

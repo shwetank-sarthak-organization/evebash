@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 70
+Next test number: 71
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1591,6 +1591,31 @@ How to test:
   2. Developer: make a small visible JS change and run eas update --channel staging (from apps/mobile).
   3. Close the app fully and open it, then close and open it once more. Expect: the change shows.
   4. A build with a different app version must not receive that update (runtime version = app version).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#70 Website: Galleries list inside an event (new layout) still works
+Status:    TODO
+Priority:  Medium
+Platform:  Website (desktop and phone browser)
+Brief:     Host > open an event > Galleries tab has a new look: icon with "Galleries" / "Your celebration in
+           chapters", a wide Primary Gallery card, sub-gallery cards with the photo on top and a delete button,
+           and a dashed "Create Sub-Gallery" tile at the end. Design only; behaviour unchanged.
+How to test:
+  1. Open an event with 2+ sub-galleries. Expect: icon, heading and subheading side by side; Add Sub-Gallery at right.
+  2. Expect: Primary Gallery card is twice as wide, has the "Primary Collection" badge and NO delete button.
+  3. Click the Primary Gallery card (or Open). Expect: the Primary Gallery page opens as before.
+  4. Click a sub-gallery card. Expect: that gallery opens. Click its trash button. Expect: the delete
+     confirmation for that gallery (Cancel keeps it).
+  5. Click "Create Sub-Gallery" tile and "Add Sub-Gallery". Expect: both open the New Sub-Gallery form.
+  6. Event with no sub-galleries: only the Primary card and the dashed tile show.
+  7. Phone width: cards stack in one column, nothing sticks out sideways; long names are cut with "...".
 Done by:
 Device / browser:
 Build / version:
