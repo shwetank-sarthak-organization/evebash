@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 68
+Next issue number: 69
 
 =====================================================================
 ACTIVE ISSUES
@@ -311,7 +311,7 @@ Platform: Both
 Priority: Medium
 Status: Blocked
 Owner: Sarthak (with Claude)
-Blocked by: Sarthak: the SHA-256 of the key that signs installed builds (Android App Links) and a yes/no on iOS Universal Links; the store launch for the rest
+Blocked by: App launch (Sarthak, 2026-10-13: park App Links / Universal Links until the app launches). Use the EAS key's and Google Play app-signing key's SHA-256 then, never the debug key (see #68)
 Found in: Chat with Sarthak about "Open in app" banners (2026-10-13)
 Issue: Phone visitors on the website are never sent to the app. There's no "Open in app" banner, no Android App Links (no public/.well-known/assetlinks.json) and no iOS Universal Links (no apple-app-site-association, no associatedDomains in apps/mobile/app.json). The app only has the custom scheme evebash:// (app.json "scheme"), and nothing in the app routes an incoming link to an event. Event links on the website are /events/<ref>, where ref is an event id, join code or legacy id resolved by the open_gallery RPC; the app already has openGallery(ref) (apps/mobile/lib/database.ts), so a link can pass the ref straight through. Can be done before store launch: the phone-only banner (open evebash://, stay on the website quietly if the app doesn't open), Android App Links, and in-app routing of /events/<ref> and evebash://events/<ref> (and find-you). Must wait for store launch: a "Get the app" fallback to the store pages, the iPhone Smart App Banner (needs the App Store ID), and adding Google Play's app-signing SHA-256 fingerprint to assetlinks.json (Play re-signs the app). Package/bundle id is com.evebash.app; if the store launch checklist changes it, the link files must change too.
 How to reproduce: On an Android phone with the EveBash app installed, open an event link (https://<site>/events/<id>) from WhatsApp: it opens in the browser, with no banner offering the app.
@@ -321,6 +321,17 @@ Update 2026-10-13 (built, not in an app build or deploy yet):
 TODO, Android App Links (waiting for the SHA-256): (1) Add public/.well-known/assetlinks.json: [{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"android_app","package_name":"com.evebash.app","sha256_cert_fingerprints":["<SHA-256 of the EAS keystore: expo.dev > elnino_009/evebash > Credentials > Android, or eas credentials -p android>"]}}]. Never the public React Native debug key (CN=Android Debug), which signs local release builds such as the one on the Pixel 8 emulator. Next serves files in public/.well-known as application/json with a 200 and no redirect (checked on the dev server 2026-10-13). (2) Add apps/mobile/app.json android.intentFilters: action VIEW, autoVerify true, categories BROWSABLE + DEFAULT, data scheme https, hosts www.evebash.com and staging.evebash.com, pathPrefix /events. Leave out evebash.com: it 308-redirects to www, a redirect fails verification, and on Android 11 and older one failed host blocks all of them. (3) The intentFilters are a native change, so they need a NEW APP BUILD (an over-the-air update can't add them). (4) www.evebash.com only serves the file after staging is merged to main. Check with curl -I https://www.evebash.com/.well-known/assetlinks.json (expect 200 + application/json), then adb shell pm get-app-links com.evebash.app (expect verified).
 TODO, iOS Universal Links (no Apple decision yet): this needs the Team ID. Serve /.well-known/apple-app-site-association (application/json, no redirect) with appIDs ["<TeamID>.com.evebash.app"] and components for /events/*. Add app.json ios.associatedDomains ["applinks:www.evebash.com","applinks:staging.evebash.com"]. Turn on Associated Domains for the App ID, then make a new iOS build. Even then the website bar stays Android-only: in Safari a same-site link can't open the app, and evebash:// shows an "address is invalid" error when the app isn't installed. Universal Links cover links tapped in WhatsApp, Messages and Mail.
 Must wait for store launch: a "Get the app" fallback to the store pages (the bar has no store link yet); the iPhone Smart App Banner (apple-itunes-app meta tag, needs the App Store ID); adding Google Play's app-signing SHA-256 to assetlinks.json after the first upload (Play re-signs the app).
+
+#68
+Listed: 2026-10-13
+Platform: App
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Checking signing fingerprints for #67 (2026-10-13)
+Issue: The locally built Android APKs in the repo root (app-release-v1.apk, app-release-v1.2.4.apk) are signed with the Android debug key (apps/mobile/android/app/debug.keystore, "CN=Android Debug", SHA-1 5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25, SHA-256 FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C), even though they are named "release". EAS builds use the EAS Android keystore (SHA-1 29:40:B3:BD:EB:22:B7:1F:A2:E5:E6:8C:B0:92:52:2B:D2:08:30:47; Firebase also lists SHA-256 b5:2b:a8:a5:85:66:3d:5f:1d:d4:10:37:f7:ff:67:02:1d:49:7d:f1:2c:8c:11:8b:ac:09:fd:41:a9:39:1e:13, probably the same key). Impact: testers can't install an EAS build over a local APK (or the other way round) without uninstalling, because the signatures differ; and the debug key is public, so it must never go into the live assetlinks.json (#67). Fix: make store and tester builds only through EAS, and list only the EAS key's and Google Play's app-signing key's SHA-256 in assetlinks.json and Firebase (#18).
+How to reproduce: ~/Library/Android/sdk/build-tools/36.1.0/apksigner verify --print-certs app-release-v1.2.4.apk shows "CN=Android Debug".
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

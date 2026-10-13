@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 74
+Next test number: 75
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1708,6 +1708,35 @@ How to test:
      private gallery: the "private" screen. Tap Log in and log in. Expect: you land back on that gallery, not
      the dashboard.
   7. Gallery that doesn't exist (/events/nope123): tap Open. Expect: the app's "not found" message, no crash.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#74 Website: new dashboard layout (tabs, stats, event cards)
+Status:    TODO
+Priority:  Medium
+Platform:  Website (computer + phone browser)
+Brief:     Design-only change to /dashboard. New header ("Collections | <name>", "Memories Curated for You"), tabs
+           All Events / Attended Memories / Hosted Galleries, two stat boxes (Total Memories = photos across all
+           your events and their sub-galleries, videos not counted; Events Joined), a "Join Event with Code" button,
+           and event cards with the photo on top and title, date and guest count below. The last card in the grid is still "Your memories" (Explore All / Show Less).
+Setup:     An account that hosts at least one event and has joined at least one other event (4+ events in total).
+How to test:
+  1. Open /dashboard on a computer. Expect: layout as above; 3 event cards + the Your memories card in one row.
+  2. Click each tab. Expect: Hosted Galleries shows only events you created, Attended Memories only events you
+     joined, All Events both. The Your memories count matches the tab.
+  3. Click Explore All, then Show Less. Expect: all events of the tab show, then back to 3.
+  3b. Compare the counts with the host page. Expect: each card's guests = approved guests of that event (a guest
+     counted once even with several sub-galleries); Total Memories = sum of the events' photos.
+  4. Click an event card. Expect: the event opens in a new tab as before.
+  5. Click Join Event with Code and join with a code. Expect: same modal and behaviour as before.
+  6. Open /dashboard on a phone. Expect: no sideways scroll; tabs scroll inside their pill; stats and cards stack.
+  7. Account with no events. Expect: "No events yet" message, no Your memories card.
 Done by:
 Device / browser:
 Build / version:
