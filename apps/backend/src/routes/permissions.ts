@@ -3,6 +3,7 @@ import { Router } from "express";
 import { getAdminClient } from "../adminAuth.js";
 import { verifySupabaseUser } from "../auth.js";
 import { galleryFromLegacyGuestId, notifyGuestRequestDenied, openGalleryAccessAsCaller } from "./notifications.js";
+import { checkGalleryManageAccess, describeUploaders, MAX_UPLOADER_IDS } from "./uploaders.js";
 
 /**
  * These routes used to trust a "requester" name sent in the request body, so anyone could claim to be a super
@@ -107,6 +108,7 @@ export function createPermissionsRouter(
   getAdmin = getAdminClient,
   notifyDenied: (supabaseAdmin: ReturnType<typeof getAdminClient>, guest: Parameters<typeof notifyGuestRequestDenied>[1]) => Promise<boolean> =
     (supabaseAdmin, guest) => notifyGuestRequestDenied(supabaseAdmin as never, guest),
+  checkGalleryAccess: (request: Request, eventId: string) => Promise<GuestRouteAccess> = (request, eventId) => checkGalleryManageAccess(request, eventId),
 ) {
   const permissionsRouter = Router();
 
@@ -224,6 +226,35 @@ export function createPermissionsRouter(
       return response.json({ success: true, notified });
     } catch (error: any) {
       console.error("[BackendPermissions] Error in deny-request:", error);
+      return response.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /** Names and roles of a gallery's uploaders, for the host's "Uploaded by" filter. Gallery managers only. */
+  permissionsRouter.post("/uploaders", async (request, response) => {
+    try {
+      const { eventId, userIds } = request.body || {};
+      if (typeof eventId !== "string" || !eventId || !Array.isArray(userIds)) {
+        return response.status(400).json({ success: false, error: "Missing eventId or userIds" });
+      }
+      const ids = Array.from(new Set(userIds.filter((id): id is string => typeof id === "string" && id.length > 0 && id.length <= 200)));
+      if (ids.length > MAX_UPLOADER_IDS) {
+        return response.status(400).json({ success: false, error: "Too many uploaders" });
+      }
+
+      const access = await checkGalleryAccess(request, eventId);
+      if (access !== "allowed") {
+        const { status: code, body } = denied(access);
+        return response.status(code).json(body);
+      }
+
+      const uploaders = await describeUploaders(getAdmin() as never, eventId, ids);
+      if (!uploaders) {
+        return response.status(404).json({ success: false, error: "Gallery not found." });
+      }
+      return response.json({ success: true, uploaders });
+    } catch (error: any) {
+      console.error("[BackendPermissions] Error in uploaders:", error);
       return response.status(500).json({ success: false, error: error.message });
     }
   });

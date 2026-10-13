@@ -109,6 +109,7 @@ import {
 import { uploadEventImage, validateVideoFile } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 import { getApiUrl } from "@/lib/apiBase";
+import { buildUploaderOptions, fetchUploaderDetails, uploaderOf, type UploaderDetails } from "@/lib/uploaders";
 import { Tooltip } from "@/components/Tooltip";
 import { navigateWithModifierClick } from "@/lib/navigation";
 import { formatStorageSize, getPlanDetails, getUsagePercent } from "@/lib/planLimits";
@@ -755,6 +756,12 @@ function DashboardContent() {
     const [mediaToSave, setMediaToSave] = useState<Photo[] | null>(null);
     const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
     const [sourceGalleryFilter, setSourceGalleryFilter] = useState("all");
+    // "Uploaded by" filter: the person's user id, or "all"
+    const [uploaderFilter, setUploaderFilter] = useState("all");
+    // Names and roles per gallery (a person can be an admin of one event and a guest of another)
+    const [uploaderDetails, setUploaderDetails] = useState<Record<string, Record<string, UploaderDetails>>>({});
+    const [loadingAllMedia, setLoadingAllMedia] = useState(false);
+    const [allMediaLoadedFor, setAllMediaLoadedFor] = useState<string | null>(null);
     const [isDraggingPhotos, setIsDraggingPhotos] = useState(false);
     const [galleryMessageText, setGalleryMessageText] = useState("");
     const [isNavigating, setIsNavigating] = useState(false);
@@ -913,6 +920,19 @@ function DashboardContent() {
     const [eventName, setEventName] = useState("");
     const [eventDate, setEventDate] = useState(() => formatCreateEventDate(new Date()));
     const [selectedEventId, setSelectedEventId] = useState("");
+    const selectedEventIdRef = useRef(selectedEventId);
+    useEffect(() => { selectedEventIdRef.current = selectedEventId; }, [selectedEventId]);
+    // Look up names and roles of this gallery's uploaders once more than one person has uploaded
+    const uploaderIdsKey = Array.from(new Set(currentEventPhotos.map(uploaderOf))).sort().join(",");
+    useEffect(() => {
+        const ids = uploaderIdsKey ? uploaderIdsKey.split(",") : [];
+        if (!selectedEventId || ids.length < 2) return;
+        let active = true;
+        void fetchUploaderDetails(selectedEventId, ids)
+            .then(details => { if (active) setUploaderDetails(prev => ({ ...prev, [selectedEventId]: { ...prev[selectedEventId], ...details } })); })
+            .catch(error => console.warn("[Dashboard] Could not load uploader names:", error));
+        return () => { active = false; };
+    }, [selectedEventId, uploaderIdsKey]);
     useEffect(() => {
         setIsSelectingMedia(false);
         setSelectedMediaIds(new Set());
@@ -1186,7 +1206,7 @@ function DashboardContent() {
         }
 
         // 4. Selected Event (for generic ID lookups)
-        if (eventIdParam && userEvents.length > 0) {
+        if (eventIdParam) {
             // Find in loaded events (may need to be robust if events aren't loaded yet)
             // We'll trust fetchUserEvents to handle data loading, this just sets the ID.
             const targetEvent = userEvents.find(e => e.id === eventIdParam);
@@ -1215,20 +1235,25 @@ function DashboardContent() {
                         if (parent) setSelectedMainEvent(parent);
                     }
                 }
-            } else {
-                // If event events aren't loaded yet, we might need to rely on the ID alone
-                // and let the fetch logic handle it, but for now we set the generic IDs
-                if (levelParam === "galleries") {
-                    // We need the object for some UI, but ID is enough for fetching
-                    // We'll optimistically set what we can
+            } else if (levelParam === "event-details" && modeParam === "add-image" && galleryIdParam) {
+                // Not in this list: events shared with you as an admin (only your own events are), or your events
+                // haven't loaded yet. Still open the gallery the link names, not the event's primary gallery.
+                const targetGallery = eventDetailGalleries.find(e => e.id === galleryIdParam)
+                    || (selectedMainEvent?.id === galleryIdParam ? selectedMainEvent : undefined);
+                setSelectedEventId(galleryIdParam);
+                if (targetGallery) {
+                    setSelectedEventName(targetGallery.title || "Gallery");
+                    setGalleryMessageText(targetGallery.description || "");
                 }
+            } else {
+                // Events aren't loaded yet (or it's an event shared with you): the ID alone is enough for fetching
                 setSelectedEventId(eventIdParam);
             }
         } else if (!eventIdParam) {
             setSelectedEventId("");
             setSelectedMainEvent(null);
         }
-    }, [searchParams, userEvents, eventDetailGalleries]);
+    }, [searchParams, userEvents, eventDetailGalleries, selectedMainEvent]);
 
     useEffect(() => {
         const levelParam = searchParams.get("level");
@@ -1570,6 +1595,38 @@ function DashboardContent() {
             console.error("[Dashboard] loadMorePhotos Error:", error);
         } finally {
             setLoadingPhotos(false);
+        }
+    };
+
+    // The "Uploaded by" filter needs the whole gallery, not just the pages loaded so far. Only the media rows are
+    // loaded here; images still load lazily as they scroll into view.
+    const loadAllEventPhotos = async () => {
+        const eventId = selectedEventId;
+        if (!eventId || !hasMorePhotos || loadingAllMedia) return;
+        setLoadingAllMedia(true);
+        try {
+            let currentEvent = userEvents.find(e => e.id === eventId) || eventDetailGalleries.find(e => e.id === eventId);
+            if (!currentEvent || (!currentEvent.legacyId && eventId.includes("-"))) {
+                currentEvent = (await getEventById(eventId).catch(() => null)) || currentEvent;
+            }
+            const all: Photo[] = [];
+            for (let page = 0, more = true; more; page += 1) {
+                const result = await getEventPhotosPaginated(eventId, currentEvent?.legacyId, page, 200);
+                all.push(...(result.photos as Photo[]));
+                more = result.hasMore;
+            }
+            if (selectedEventIdRef.current !== eventId) return;
+            const seen = new Set<string>();
+            setCurrentEventPhotos(all.filter(photo => !seen.has(photo.id) && seen.add(photo.id)));
+            setHasMorePhotos(false);
+            setAllMediaLoadedFor(eventId);
+        } catch (error) {
+            console.error("[Dashboard] loadAllEventPhotos Error:", error);
+            setMessage("Couldn't load the whole gallery for this filter. Please try again.");
+            setStatus("error");
+            setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
+        } finally {
+            setLoadingAllMedia(false);
         }
     };
 
@@ -3386,9 +3443,17 @@ function DashboardContent() {
             return photo.eventId === source?.id || (!!source?.legacyId && photo.eventId === source.legacyId);
         })
         : selectedMediaItems;
-    const activeGalleryItems = isFavouriteFilterActive
+    const favouriteFilteredItems = isFavouriteFilterActive
         ? sourceFilteredMediaItems.filter(photo => eventFavouritePhotoIds.has(photo.id))
         : sourceFilteredMediaItems;
+    const uploaderOptions = buildUploaderOptions(favouriteFilteredItems, uploaderDetails[selectedEventId] || {}, user.uid);
+    const effectiveUploaderFilter = uploaderOptions.some(option => option.userId === uploaderFilter) ? uploaderFilter : "all";
+    const isUploaderFilterActive = effectiveUploaderFilter !== "all";
+    const activeGalleryItems = isUploaderFilterActive
+        ? favouriteFilteredItems.filter(photo => uploaderOf(photo) === effectiveUploaderFilter)
+        : favouriteFilteredItems;
+    // Shown once more than one person uploaded here (or more pages could reveal another uploader)
+    const showUploaderFilter = new Set(currentEventPhotos.map(uploaderOf)).size > 1 || hasMorePhotos || allMediaLoadedFor === selectedEventId;
     const activeFavouriteCount = selectedMediaItems.filter(photo => eventFavouritePhotoIds.has(photo.id)).length;
     const moveTargetGalleries = [selectedMainEvent, ...eventDetailGalleries]
         .filter((gallery): gallery is Event => !!gallery)
@@ -5203,6 +5268,7 @@ function DashboardContent() {
                                     </div>
                                     {/* Filter (top left) and view toggle on one line */}
                                     <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                                        <div className="flex min-w-0 flex-wrap items-center gap-3">
                                         {isPrimaryGalleryView ? (
                                         <label className="flex h-11 min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Filter Primary Gallery media by origin">
                                             <Layers3 className="h-4 w-4 shrink-0 text-[#CA9C68]" />
@@ -5248,6 +5314,30 @@ function DashboardContent() {
                                             </span>
                                         </button>
                                         )}
+
+                                        {/* Uploaded by: owner, admins and guests who uploaded here. Picking someone loads the whole gallery first. */}
+                                        {showUploaderFilter && (
+                                        <label className="flex h-11 min-w-0 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/45 pl-3 pr-1.5" title="Show only what one person uploaded">
+                                            {loadingAllMedia
+                                                ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#CA9C68]" />
+                                                : <Users className="h-4 w-4 shrink-0 text-[#CA9C68]" />}
+                                            <span className="hidden whitespace-nowrap text-sm font-semibold text-slate-100 sm:inline">Uploaded by</span>
+                                            <select
+                                                value={effectiveUploaderFilter}
+                                                onFocus={() => void loadAllEventPhotos()}
+                                                onMouseDown={() => void loadAllEventPhotos()}
+                                                onChange={(event) => setUploaderFilter(event.target.value)}
+                                                className="h-8 min-w-0 max-w-[10rem] rounded-lg border border-slate-600 bg-slate-950 px-2 text-sm font-semibold text-white outline-none focus:border-[#CA9C68] sm:max-w-[14rem]"
+                                                aria-label="Filter by who uploaded"
+                                            >
+                                                <option value="all">{loadingAllMedia ? "Loading everyone…" : `Everyone (${favouriteFilteredItems.length}${hasMorePhotos ? "+" : ""})`}</option>
+                                                {uploaderOptions.map(option => (
+                                                    <option key={option.userId} value={option.userId}>{option.label} · {option.count}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        )}
+                                        </div>
 
                                         {/* View Toggle */}
                                         <div className="flex h-11 items-center rounded-xl border border-slate-700 bg-slate-900/60 p-1">
@@ -5488,7 +5578,7 @@ function DashboardContent() {
                                                                 <MoreHorizontal className="h-4 w-4" />
                                                             </button>
                                                         </div>
-                                                        {!isFavouriteFilterActive && activeGalleryItems.length > 1 && (
+                                                        {!isFavouriteFilterActive && !isUploaderFilterActive && activeGalleryItems.length > 1 && (
                                                             <div className="absolute bottom-2.5 left-2.5 z-10 flex overflow-hidden rounded-lg border border-white/10 bg-slate-950/70 font-sans text-white shadow-lg backdrop-blur-md">
                                                                 <button
                                                                     type="button"
@@ -5682,7 +5772,7 @@ function DashboardContent() {
                                                                         </td>
                                                                         <td className="px-8 py-6 text-right">
                                                                             <div className="flex items-center justify-end space-x-2">
-                                                                                {!isFavouriteFilterActive && activeGalleryItems.length > 1 && (
+                                                                                {!isFavouriteFilterActive && !isUploaderFilterActive && activeGalleryItems.length > 1 && (
                                                                                     <div className="flex overflow-hidden rounded-xl border border-slate-700 bg-slate-800">
                                                                                         <button
                                                                                             type="button"

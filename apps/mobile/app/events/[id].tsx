@@ -12,6 +12,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, GuestProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery } from '@/lib/database';
 import { confirmDenyRequest } from '@/lib/denyRequest';
+import { buildUploaderOptions, fetchUploaderDetails, uploaderOf, type UploaderDetails } from '@/lib/uploaders';
 import { useAuth } from '@/context/AuthContext';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { styles, FunkyFonts } from '../../components/eventStyles';
@@ -1121,18 +1122,56 @@ export default function EventDetailScreen() {
     const source = sourceGalleryOptions.find(option => option.id === effectiveSourceGalleryFilter);
     return selectedMediaItems.filter(item => item.eventId === source?.id || (!!source?.legacyId && item.eventId === source.legacyId));
   }, [effectiveSourceGalleryFilter, isPrimaryGalleryView, selectedMediaItems, sourceGalleryOptions]);
-  const filteredPhotoItems = React.useMemo(
+  const favouriteFilteredPhotoItems = React.useMemo(
     () => galleryMediaTab === 'photos' && isFavouriteFilterActive
       ? sourceFilteredMediaItems.filter(item => eventFavouritePhotoIds.has(item.id))
       : galleryMediaTab === 'photos' ? sourceFilteredMediaItems : photoItems,
     [eventFavouritePhotoIds, galleryMediaTab, isFavouriteFilterActive, photoItems, sourceFilteredMediaItems],
   );
-  const filteredVideoItems = React.useMemo(
+  const favouriteFilteredVideoItems = React.useMemo(
     () => galleryMediaTab === 'videos' && isFavouriteFilterActive
       ? sourceFilteredMediaItems.filter(item => eventFavouritePhotoIds.has(item.id))
       : galleryMediaTab === 'videos' ? sourceFilteredMediaItems : videoItems,
     [eventFavouritePhotoIds, galleryMediaTab, isFavouriteFilterActive, sourceFilteredMediaItems, videoItems],
   );
+  // "Uploaded by" filter (hosts and admins): the person's user id, or 'all'. Roles are looked up per gallery.
+  const [uploaderFilter, setUploaderFilter] = useState('all');
+  const [uploaderMenuVisible, setUploaderMenuVisible] = useState(false);
+  const [uploaderDetails, setUploaderDetails] = useState<Record<string, Record<string, UploaderDetails>>>({});
+  const [loadingAllMedia, setLoadingAllMedia] = useState(false);
+  const [allMediaLoadedFor, setAllMediaLoadedFor] = useState<string | null>(null);
+  const adminGalleryId = selectedAdminGallery ? selectedAdminGallery.id : event?.id;
+  const adminGalleryIdRef = React.useRef(adminGalleryId);
+  useEffect(() => { adminGalleryIdRef.current = adminGalleryId; }, [adminGalleryId]);
+  const uploaderIdsKey = React.useMemo(() => Array.from(new Set(photos.map(uploaderOf))).sort().join(','), [photos]);
+  useEffect(() => {
+    const ids = uploaderIdsKey ? uploaderIdsKey.split(',') : [];
+    if (!showAdminView || !adminGalleryId || ids.length < 2) return;
+    let active = true;
+    void fetchUploaderDetails(adminGalleryId, ids)
+      .then(details => { if (active) setUploaderDetails(prev => ({ ...prev, [adminGalleryId]: { ...prev[adminGalleryId], ...details } })); })
+      .catch(error => console.warn('[EventDetail] Could not load uploader names:', error));
+    return () => { active = false; };
+  }, [adminGalleryId, showAdminView, uploaderIdsKey]);
+  const favouriteFilteredActiveItems = galleryMediaTab === 'photos' ? favouriteFilteredPhotoItems : favouriteFilteredVideoItems;
+  const uploaderOptions = React.useMemo(
+    () => buildUploaderOptions(favouriteFilteredActiveItems, (adminGalleryId && uploaderDetails[adminGalleryId]) || {}, user?.uid),
+    [adminGalleryId, favouriteFilteredActiveItems, uploaderDetails, user?.uid],
+  );
+  const effectiveUploaderFilter = showAdminView && uploaderOptions.some(option => option.userId === uploaderFilter) ? uploaderFilter : 'all';
+  const isUploaderFilterActive = effectiveUploaderFilter !== 'all';
+  const filteredPhotoItems = React.useMemo(
+    () => isUploaderFilterActive ? favouriteFilteredPhotoItems.filter(item => uploaderOf(item) === effectiveUploaderFilter) : favouriteFilteredPhotoItems,
+    [effectiveUploaderFilter, favouriteFilteredPhotoItems, isUploaderFilterActive],
+  );
+  const filteredVideoItems = React.useMemo(
+    () => isUploaderFilterActive ? favouriteFilteredVideoItems.filter(item => uploaderOf(item) === effectiveUploaderFilter) : favouriteFilteredVideoItems,
+    [effectiveUploaderFilter, favouriteFilteredVideoItems, isUploaderFilterActive],
+  );
+  // Shown once more than one person uploaded here (or more pages could reveal another uploader)
+  const showUploaderFilter = showAdminView && (uploaderIdsKey.includes(',') || hasMorePhotos || allMediaLoadedFor === adminGalleryId);
+  // Reordering a filtered subset would move items around hidden ones, so it's off while a subset filter is on
+  const isOrderLocked = isFavouriteFilterActive || isUploaderFilterActive;
   const displayedPhotoCount = mediaTotals.photos || photoItems.length;
   const displayedVideoCount = mediaTotals.videos || videoItems.length;
   const mediaTabs = React.useMemo<{ id: 'photos' | 'videos'; label: string }[]>(() => {
@@ -1525,6 +1564,36 @@ export default function EventDetailScreen() {
     } finally {
       loadingMorePhotosRef.current = false;
       setLoadingMorePhotos(false);
+    }
+  };
+
+  // The "Uploaded by" filter needs the whole gallery, not just the pages loaded so far (media rows only; images
+  // still load as they scroll into view)
+  const loadAllAdminMedia = async () => {
+    if (!event || !showAdminView || !hasMorePhotos || loadingAllMedia || loadingMorePhotosRef.current) return;
+    const galleryId = adminGalleryId;
+    if (!galleryId) return;
+    const legacyId = selectedAdminGallery ? selectedAdminGallery.legacyId : event.legacyId;
+    setLoadingAllMedia(true);
+    loadingMorePhotosRef.current = true;
+    try {
+      const all: any[] = [];
+      for (let page = 0, more = true; more; page += 1) {
+        const result = await getEventPhotosPaginated(galleryId, legacyId, page, 200);
+        all.push(...result.photos);
+        more = result.hasMore;
+      }
+      if (adminGalleryIdRef.current !== galleryId) return;
+      const seen = new Set<string>();
+      setPhotos(all.filter(item => !seen.has(item.id) && seen.add(item.id)));
+      setHasMorePhotos(false);
+      setAllMediaLoadedFor(galleryId);
+    } catch (err) {
+      console.error('[EventDetail] Load all media error:', err);
+      appAlert('Could not load the gallery', 'Please check your connection and try again.');
+    } finally {
+      loadingMorePhotosRef.current = false;
+      setLoadingAllMedia(false);
     }
   };
 
@@ -5157,6 +5226,30 @@ export default function EventDetailScreen() {
                           </View>
                         </TouchableOpacity>
                         )}
+                        {showUploaderFilter && (
+                        <TouchableOpacity
+                          accessibilityRole="button"
+                          accessibilityLabel="Filter by who uploaded"
+                          onPress={() => {
+                            setUploaderMenuVisible(true);
+                            void loadAllAdminMedia();
+                          }}
+                          style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: isUploaderFilterActive ? MidnightColors.gold : 'rgba(255,255,255,0.12)', backgroundColor: isUploaderFilterActive ? 'rgba(204,164,59,0.12)' : 'rgba(27,33,31,0.72)', paddingHorizontal: 12, paddingVertical: 10 }}
+                        >
+                          <View style={{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(204,164,59,0.14)' }}>
+                            <IconSymbol name="person.2.fill" size={16} color={MidnightColors.gold} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ color: '#f8fafc', fontSize: 13, fontFamily: Fonts.inter.bold }}>Uploaded by</Text>
+                            <Text style={{ color: '#94a3b8', fontSize: 11, marginTop: 2 }} numberOfLines={1}>
+                              {isUploaderFilterActive
+                                ? `${uploaderOptions.find(option => option.userId === effectiveUploaderFilter)?.label || 'Someone'} · ${activeGalleryItems.length}`
+                                : 'Everyone'}
+                            </Text>
+                          </View>
+                          <IconSymbol name="chevron.down" size={16} color="#94a3b8" />
+                        </TouchableOpacity>
+                        )}
                       </View>
 
                       {!loadingPhotos && activeGalleryItems.length > 0 && (
@@ -5312,7 +5405,7 @@ export default function EventDetailScreen() {
                               >
                                 <IconSymbol name="ellipsis" size={14} color="#fff" />
                               </TouchableOpacity>
-                              {!isFavouriteFilterActive && filteredVideoItems.length > 1 && (
+                              {!isOrderLocked && filteredVideoItems.length > 1 && (
                                 <View
                                   style={{
                                     position: 'absolute',
@@ -5367,7 +5460,7 @@ export default function EventDetailScreen() {
                         </View>
                       ) : (
                         <View>
-                          {!isFavouriteFilterActive && <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginBottom: 8, letterSpacing: 0.4 }}>
+                          {!isOrderLocked && <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginBottom: 8, letterSpacing: 0.4 }}>
                             ✦ Hold & drag a photo to reorder
                           </Text>}
                           <Sortable.Grid
@@ -5376,7 +5469,7 @@ export default function EventDetailScreen() {
                             columns={3}
                             columnGap={8}
                             rowGap={8}
-                            sortEnabled={!isFavouriteFilterActive && !isSelectingMedia}
+                            sortEnabled={!isOrderLocked && !isSelectingMedia}
                             onDragEnd={({ data: newData }: { data: any[] }) => handleReorderPhotos(newData)}
 	                            renderItem={({ item }: { item: any }) => {
 	                              const shouldBlurPhoto = shouldBlurMediaForPlan(item);
@@ -5490,7 +5583,7 @@ export default function EventDetailScreen() {
 	                                >
 	                                  <IconSymbol name="trash.fill" size={10} color="#fff" />
 	                                </TouchableOpacity>
-                                {!isFavouriteFilterActive && filteredPhotoItems.length > 1 && (
+                                {!isOrderLocked && filteredPhotoItems.length > 1 && (
                                   <View
                                     style={{
                                       position: 'absolute',
@@ -7442,6 +7535,56 @@ export default function EventDetailScreen() {
                 </TouchableOpacity>
               );
             })}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={uploaderMenuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setUploaderMenuVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setUploaderMenuVisible(false)} />
+          <View style={[styles.modalContent, { gap: 8, maxHeight: '70%' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <View>
+                <Text style={styles.modalTitle}>Uploaded by</Text>
+                <Text style={{ color: MidnightColors.slate400, fontSize: 12, marginTop: 4 }}>
+                  {loadingAllMedia ? 'Loading the whole gallery…' : 'Show media uploaded by'}
+                </Text>
+              </View>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setUploaderMenuVisible(false)} style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' }}>
+                <IconSymbol name="xmark" size={17} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            {loadingAllMedia ? (
+              <ActivityIndicator color={MidnightColors.gold} style={{ paddingVertical: 24 }} />
+            ) : (
+              <ScrollView contentContainerStyle={{ gap: 8 }}>
+                {[{ userId: 'all', label: 'Everyone', count: favouriteFilteredActiveItems.length }, ...uploaderOptions].map(option => {
+                  const selected = effectiveUploaderFilter === option.userId;
+                  return (
+                    <TouchableOpacity
+                      key={option.userId}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      onPress={() => {
+                        setUploaderFilter(option.userId);
+                        setUploaderMenuVisible(false);
+                      }}
+                      style={{ minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, borderWidth: 1, borderColor: selected ? MidnightColors.gold : 'rgba(255,255,255,0.08)', backgroundColor: selected ? 'rgba(204,164,59,0.12)' : 'rgba(255,255,255,0.035)', paddingHorizontal: 14, paddingVertical: 10 }}
+                    >
+                      <IconSymbol name={option.userId === 'all' ? 'person.2.fill' : 'person.fill'} size={17} color={selected ? MidnightColors.gold : MidnightColors.slate400} />
+                      <Text style={{ flex: 1, color: selected ? MidnightColors.gold : '#f8fafc', fontSize: 14, fontFamily: Fonts.inter.semiBold }} numberOfLines={1}>{option.label}</Text>
+                      <Text style={{ color: selected ? MidnightColors.gold : MidnightColors.slate400, fontSize: 12 }}>{option.count}</Text>
+                      {selected && <IconSymbol name="checkmark" size={15} color={MidnightColors.gold} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
           </View>
         </View>
       </Modal>
