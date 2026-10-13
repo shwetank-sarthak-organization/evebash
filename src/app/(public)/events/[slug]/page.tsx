@@ -612,7 +612,9 @@ function EventPageContent() {
                     <p className="mt-6 text-center text-xs font-semibold text-stone-500">Open an album to add your photos.</p>
                 ))}
 
-                <div data-royal-control="segments" className="mt-10 inline-flex rounded-2xl border border-stone-200 bg-white p-1 shadow-sm">
+                {/* Photos / Videos on the left; the Source gallery filter (or Favourites only) on the right, below on phones */}
+                <div className="mt-10 flex flex-wrap items-center justify-between gap-4">
+                <div data-royal-control="segments" className="inline-flex rounded-2xl border border-stone-200 bg-white p-1 shadow-sm">
                     {([
                         { id: "photos", label: `Photos (${displayedPhotoCount})` },
                         { id: "videos", label: `Videos (${displayedVideoCount})` },
@@ -633,27 +635,27 @@ function EventPageContent() {
                         </button>
                     ))}
                 </div>
-                <div className="mt-4">
+                <div className="w-full sm:w-auto">
                     {isPrimaryGalleryView ? (
-                    <label data-royal-control="source" className="flex w-full max-w-md items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3 text-left shadow-sm">
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-stone-100 text-stone-700">
-                            <Layers3 className="h-4 w-4" />
+                    <label data-royal-control="source" className="flex h-[50px] w-full items-center gap-2.5 rounded-2xl border border-stone-200 bg-white pl-1.5 pr-1 shadow-sm sm:w-auto">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-stone-100 text-stone-700">
+                            <Layers3 className="h-4 w-4" aria-hidden="true" />
                         </span>
-                        <span className="min-w-0 flex-1">
-                            <span className="block text-sm font-bold text-stone-800">Source gallery</span>
-                            <span className="mt-0.5 block text-xs text-stone-500">Show media selected from</span>
+                        <span className="shrink-0 whitespace-nowrap text-[11px] font-black uppercase tracking-widest text-stone-500">Source</span>
+                        <span className="relative flex min-w-0 flex-1 items-center">
+                            <select
+                                value={effectiveSourceGalleryFilter}
+                                onChange={(event) => setSourceGalleryFilter(event.target.value)}
+                                className="h-10 w-full min-w-0 cursor-pointer appearance-none rounded-xl border-0 bg-transparent pl-2 pr-9 text-sm font-bold text-stone-800 outline-none focus-visible:ring-2 focus-visible:ring-stone-400 sm:min-w-[13rem]"
+                                aria-label="Filter by source gallery"
+                            >
+                                <option value="all">All galleries ({selectedMediaItems.length})</option>
+                                {sourceGalleryOptions.map(option => (
+                                    <option key={option.id} value={option.id}>{option.label} ({option.count})</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-3 h-4 w-4 text-stone-500" aria-hidden="true" />
                         </span>
-                        <select
-                            value={effectiveSourceGalleryFilter}
-                            onChange={(event) => setSourceGalleryFilter(event.target.value)}
-                            className="max-w-[13rem] rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-semibold text-stone-800 outline-none focus:border-slate-700"
-                            aria-label="Filter by source gallery"
-                        >
-                            <option value="all">All galleries ({selectedMediaItems.length})</option>
-                            {sourceGalleryOptions.map(option => (
-                                <option key={option.id} value={option.id}>{option.label} ({option.count})</option>
-                            ))}
-                        </select>
                     </label>
                     ) : isPublicView ? null : (
                     <button
@@ -662,24 +664,30 @@ function EventPageContent() {
                         aria-checked={showOnlyFavourites}
                         onClick={() => setShowOnlyFavourites(current => !current)}
                         className={cn(
-                            "flex w-full max-w-md items-center gap-3 rounded-xl border px-4 py-3 text-left shadow-sm transition-colors",
+                            "flex h-[50px] w-full items-center gap-2.5 rounded-2xl border pl-1.5 pr-3 text-left shadow-sm transition-colors sm:w-auto",
                             showOnlyFavourites
                                 ? "border-slate-900 bg-slate-900"
                                 : "border-stone-200 bg-white hover:border-stone-400"
                         )}
                     >
-                        <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-lg", showOnlyFavourites ? "bg-white text-slate-900" : "bg-stone-100 text-stone-600")}>
-                            <Star className={cn("h-4 w-4", showOnlyFavourites && "fill-current")} />
+                        <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-xl", showOnlyFavourites ? "bg-white text-slate-900" : "bg-stone-100 text-stone-600")}>
+                            <Star className={cn("h-4 w-4", showOnlyFavourites && "fill-current")} aria-hidden="true" />
                         </span>
-                        <span className="min-w-0 flex-1">
-                            <span className={cn("block text-sm font-bold", showOnlyFavourites ? "text-white" : "text-stone-800")}>Favourites only</span>
-                            <span className={cn("mt-0.5 block text-xs", showOnlyFavourites ? "text-slate-300" : "text-stone-500")}>{activeFavouriteCount} in {galleryMediaTab === "videos" ? "Videos" : "Photos"}</span>
+                        <span className={cn("min-w-0 flex-1 whitespace-nowrap text-xs font-black uppercase tracking-widest", showOnlyFavourites ? "text-white" : "text-stone-800")}>
+                            Favourites only
+                        </span>
+                        <span
+                            title={`${activeFavouriteCount} in ${galleryMediaTab === "videos" ? "Videos" : "Photos"}`}
+                            className={cn("min-w-7 rounded-lg px-2 py-0.5 text-center text-xs font-bold", showOnlyFavourites ? "bg-white/20 text-white" : "bg-stone-100 text-stone-600")}
+                        >
+                            {activeFavouriteCount}
                         </span>
                         <span className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", showOnlyFavourites ? "bg-white/35" : "bg-stone-200")}>
                             <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform", showOnlyFavourites ? "translate-x-5" : "translate-x-0.5")} />
                         </span>
                     </button>
                     )}
+                </div>
                 </div>
 
                 {activeGalleryItems.length > 0 ? (
