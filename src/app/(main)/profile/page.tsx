@@ -43,7 +43,7 @@ import {
 } from "@/lib/database";
 import { supabase } from "@/lib/supabase";
 import { getApiUrl } from "@/lib/apiBase";
-import { getPlanDetails, formatStorageSize } from "@/lib/planLimits";
+import { getPlanDetails } from "@/lib/planLimits";
 import { defaultPricingPlans } from "@/lib/pricingPlans";
 import { getSubscriptionStatus } from "@/lib/subscriptionStatus";
 import { cn } from "@/lib/utils";
@@ -569,7 +569,7 @@ export default function ProfilePage() {
                     </div>
 
                     {/* Sub-Page Tab Switcher Pills */}
-                    <div className="mt-8 flex items-center justify-between border-t border-slate-800 pt-6">
+                    <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-6">
                         <div className="inline-flex rounded-2xl border border-slate-800 bg-slate-950/80 p-1.5 shadow-inner">
                             <button
                                 type="button"
@@ -595,17 +595,19 @@ export default function ProfilePage() {
                                 )}
                             >
                                 <Layers className="h-3.5 w-3.5" />
-                                Plan & Tiers (Tabular)
+                                Plans
                             </button>
                         </div>
 
-                        {/* Quick Storage Status Indicator */}
-                        <div className="hidden sm:flex items-center gap-3 text-xs">
-                            <span className="text-slate-400 font-semibold">Active Quota:</span>
-                            <span className="font-bold text-[#E2B77F]">
-                                {loadingStorage ? "..." : formatStorageSize(storageUsage.total)} / {activePlan.storageLabel}
-                            </span>
-                        </div>
+                        {/* EB Vault shortcut */}
+                        <Link
+                            href="/vault"
+                            className="group inline-flex items-center gap-2 rounded-2xl border border-[#7FA38C]/30 bg-[#7FA38C]/10 px-4 py-2.5 text-xs font-black text-white transition hover:border-[#7FA38C]/60 hover:bg-[#7FA38C]/15"
+                        >
+                            <HardDrive className="h-3.5 w-3.5 text-[#7FA38C]" />
+                            EB Vault
+                            <ChevronRight className="h-3.5 w-3.5 text-slate-500 transition group-hover:translate-x-0.5 group-hover:text-white" />
+                        </Link>
                     </div>
                 </section>
 
@@ -775,27 +777,10 @@ export default function ProfilePage() {
                                         onClick={() => setActiveTab("plan")}
                                         className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-slate-700 bg-slate-800/80 px-4 py-2.5 text-xs font-black text-[#E2B77F] transition hover:border-[#CA9C68]/60 hover:bg-slate-800"
                                     >
-                                        View Plan Matrix & Quotas
+                                        View Plans
                                         <ArrowRight className="h-3.5 w-3.5" />
                                     </button>
                                 </section>
-
-                                {/* EB Vault Card */}
-                                <Link
-                                    href="/vault"
-                                    className="group flex w-full items-center gap-3.5 rounded-3xl border border-[#7FA38C]/30 bg-[#7FA38C]/10 p-5 transition-all duration-200 hover:border-[#7FA38C]/60 hover:bg-[#7FA38C]/15 shadow-lg"
-                                >
-                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#7FA38C]/20 text-[#7FA38C] transition group-hover:scale-105">
-                                        <HardDrive className="h-6 w-6" />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <span className="block font-black text-white text-sm">EB Vault</span>
-                                        <span className="block text-xs font-semibold text-slate-400">
-                                            Private client & personal storage locker
-                                        </span>
-                                    </div>
-                                    <ChevronRight className="h-4 w-4 text-slate-500 transition group-hover:translate-x-0.5 group-hover:text-white" />
-                                </Link>
 
                                 {/* Active Plan & Sign Out */}
                                 <div className="space-y-3">
@@ -916,7 +901,7 @@ export default function ProfilePage() {
                             <div className="border-b border-slate-800 bg-slate-950/80 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div>
                                     <h3 className="text-sm font-black uppercase tracking-wider text-white">
-                                        All Membership Plans & Quotas (Tabular Comparison)
+                                        Plans and Quotas
                                     </h3>
                                     <p className="text-xs text-slate-400 mt-1">
                                         Compare storage capacity, event caps, video uploads, and monthly/annual pricing schedules.

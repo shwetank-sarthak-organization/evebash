@@ -1892,13 +1892,16 @@ Brief:     The redesigned /profile page had a navy background and bright yellow 
            Events Hosted, Events Joined) are now short single-row cards.
 How to test:
   1. Log in and open /profile. The page background matches the home and host pages (no navy blue tint).
-  2. Icons, @username, the Edit button, "View Plan Matrix & Quotas" and "Extend / Upgrade Plan" are gold,
+  2. Icons, @username, the Edit button, "View Plans" and "Extend / Upgrade Plan" are gold,
      not bright yellow. Hovering the gold buttons makes them lighter gold, not yellow.
   3. Activity & Engagement: three small cards, each with an icon, the number and the label on one row.
      On a phone they stack and stay short.
-  4. Open the "Plan & Tiers" tab: the tier text, "Valid until" date and yearly prices are gold, not yellow.
+  4. Open the "Plans" tab: the tier text, "Valid until" date and yearly prices are gold, not yellow.
   5. Hard-refresh /profile. The three activity numbers and the storage figure each appear within about
      2 seconds and don't go back to "..." after showing a number.
+  6. Next to the Profile Overview / Plans switcher (right side) there is an "EB Vault" button that opens
+     /vault; the old "Active Quota" text and the EB Vault card in the right column are gone. On the Plans
+     tab the table heading reads "Plans and Quotas".
 Expected:  No bright yellow or navy anywhere on the page; amber warning badges (e.g. "Needs Entry") stay.
 Done by:
 Device / browser:
