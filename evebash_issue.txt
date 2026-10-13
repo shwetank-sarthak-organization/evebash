@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 69
+Next issue number: 70
 
 =====================================================================
 ACTIVE ISSUES
@@ -336,6 +336,19 @@ How to reproduce: ~/Library/Android/sdk/build-tools/36.1.0/apksigner verify --pr
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#69
+Listed: 2026-10-13
+Platform: Website
+Priority: Medium
+Status: Fixed
+Owner: Sarthak (with Claude)
+Blocked by: -
+Found in: Chat with Sarthak about the dashboard "Your memories" card (2026-10-13)
+Issue: On the website dashboard, the "Your memories" / Explore All card in the events grid doesn't open anything. In the app it opens the full events list (apps/mobile/app/(tabs)/your-events.tsx, titled "Gallery"). On the website (src/app/(main)/dashboard/page.tsx) it only toggles between the first 3 events of the current tab and all of them, so with 3 or fewer events nothing changes except the label ("Show Less"), and with more the extra cards appear above the card, easy to miss. The website has no page listing all your events. Fix: add a website page with every event (All / Attended / Hosted tabs, search, sort and type filter like the app) and have the card open it.
+How to reproduce: On the website, log in with an account that has 3 or fewer events, open /dashboard and click Explore All on the "Your memories" card: nothing opens.
+Update 2026-10-13 : new page /dashboard/events (src/app/(main)/dashboard/events/page.tsx) lists every event with the All / Attended / Hosted tabs (kept in ?tab=), search, sort and an event-type filter, using the app's sort rules (src/lib/eventSort.ts, checks: npx tsx src/lib/eventSort.test.ts). The dashboard card is now a link to it, opening on the dashboard's current tab; the dashboard still shows 3 cards per tab and the Show Less toggle is gone. The event card, tabs and event loading moved to src/components/dashboard/DashboardEvents.tsx, shared by both pages, with no change to how the dashboard looks. Device check: test_yourself #75 (#74 step 3 updated).
+Fixed in: 5275fc9 (2026-10-13). Device check: test_yourself #75.
 
 #62
 Listed: 2026-10-12

@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 75
+Next test number: 76
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1717,26 +1717,61 @@ Screenshot / recording:
 Fix ref:
 Feedback:
 
-#74 Website: new dashboard layout (tabs, stats, event cards)
+#74 Website: new dashboard layout (header, stats, event cards)
 Status:    TODO
 Priority:  Medium
 Platform:  Website (computer + phone browser)
-Brief:     Design-only change to /dashboard. New header ("Collections | <name>", "Memories Curated for You"), tabs
-           All Events / Attended Memories / Hosted Galleries, two stat boxes (Total Memories = photos across all
-           your events and their sub-galleries, videos not counted; Events Joined), a "Join Event with Code" button,
-           and event cards with the photo on top and title, date and guest count below. The last card in the grid is still "Your memories" (Explore All / Show Less).
+Brief:     Design-only change to /dashboard. New header (icon, "Collections | <name>", "Memories curated for you",
+           with a "Join Event" button on the right like the host page's Create Event), three stat boxes (Total
+           Memories = photos across all your events and their sub-galleries; Videos = videos across the same;
+           Events Joined), and event cards with the photo on top and title, date and guest count below. The last card in the grid is "Your memories"; since #69 its Explore All opens the full list (test #75).
 Setup:     An account that hosts at least one event and has joined at least one other event (4+ events in total).
 How to test:
   1. Open /dashboard on a computer. Expect: layout as above; 3 event cards + the Your memories card in one row.
-  2. Click each tab. Expect: Hosted Galleries shows only events you created, Attended Memories only events you
-     joined, All Events both. The Your memories count matches the tab.
-  3. Click Explore All, then Show Less. Expect: all events of the tab show, then back to 3.
+  2. Expect: the heading and subheading together are as tall as the icon; no filter tabs.
+  3. (Changed by #69) Click Explore All. Expect: the full events page opens; checked in test #75.
   3b. Compare the counts with the host page. Expect: each card's guests = approved guests of that event (a guest
-     counted once even with several sub-galleries); Total Memories = sum of the events' photos.
+     counted once even with several sub-galleries); Total Memories = sum of the events' photos; Videos = sum of
+     the events' videos.
   4. Click an event card. Expect: the event opens in a new tab as before.
-  5. Click Join Event with Code and join with a code. Expect: same modal and behaviour as before.
-  6. Open /dashboard on a phone. Expect: no sideways scroll; tabs scroll inside their pill; stats and cards stack.
+  5. Click Join Event and join with a code. Expect: same modal and behaviour as before.
+  6. Open /dashboard on a phone. Expect: no sideways scroll; the button reads "Join" next to the heading; stats and
+     cards stack.
   7. Account with no events. Expect: "No events yet" message, no Your memories card.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#75 Website: "Your memories" Explore All opens the full events page
+Status:    TODO
+Priority:  Medium
+Platform:  Website (computer + phone browser)
+Brief:     Issue #69. On /dashboard the "Your memories" card (last card in the events grid) used to only show more
+           cards in place, so with 3 or fewer events it seemed to do nothing. It now opens /dashboard/events, a page
+           with every event you host or joined (like the app's Gallery screen): All Events / Attended Memories /
+           Hosted Galleries tabs, search, sort (Recently added, Event date newest/oldest, Name A to Z) and an event
+           type filter. The dashboard itself still shows 3 event cards per tab.
+Setup:     An account that hosts at least one event and has joined at least one other event (4+ events in total,
+           with at least two event types, e.g. Wedding and Birthday). Also an account with 1-2 events.
+How to test:
+  1. Open /dashboard, stay on All Events and click Explore All. Expect: "Your memories" page opens with every
+     event, count matches the dashboard card. The Dashboard link in the top bar stays highlighted.
+  2. Back on /dashboard, pick Hosted Galleries, click Explore All. Expect: the page opens on Hosted Galleries
+     (address ends ?tab=hosted). Same for Attended Memories.
+  3. Switch tabs on the page. Expect: list and count change; browser Back returns to the dashboard, not the
+     previous tab.
+  4. Search part of an event name. Expect: only matching events; nonsense text shows "No matches" with Clear filters.
+  5. Try each sort and the type filter. Expect: order and list change; Clear resets everything.
+  6. Click an event card. Expect: the event opens in a new tab, same as on the dashboard.
+  7. Click "Dashboard" at the top. Expect: back to /dashboard.
+  8. Account with 1-2 events: click Explore All. Expect: the page opens (it used to do nothing).
+  9. Phone browser: no sideways scroll; search, sort and type stack neatly; tabs scroll inside their pill.
+  10. Logged out, open /dashboard/events. Expect: sent to the login page.
 Done by:
 Device / browser:
 Build / version:
