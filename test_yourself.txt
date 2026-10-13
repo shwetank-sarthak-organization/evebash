@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 81
+Next test number: 83
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1910,4 +1910,52 @@ Date tested:
 Account used:
 Screenshot / recording:
 Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#81 "Uploaded by" filter in the host gallery view (website and app)
+Status:    TODO
+Priority:  Medium
+Platform:  Both (website: staging.evebash.com/host; app: JS-only change, any staging build)
+Brief:     Hosts and admins can show only what one person uploaded (Owner, Admin, Guest, Former guest...).
+How to test:
+  1. As the owner, make account B an admin and account C a guest with Upload on. B and C each upload a
+     few photos to the same gallery.
+  2. Website, owner: Host -> the event -> that gallery. "Uploaded by" appears next to Source gallery /
+     Favourites only. Options: Me (Owner), B (Admin), C (Guest), each with a count.
+  3. Pick C: only C's photos show; pick Everyone: all show. Same on the Videos tab.
+  4. With more than 20 photos: open the filter. Expect a short "Loading everyone…", then complete counts.
+  5. While a person is picked, the reorder arrows are hidden.
+  6. Remove C from the guests: C now shows as "(Former guest)".
+  7. App, owner: open the event -> the gallery. An "Uploaded by" row opens a list with the same people.
+  8. A gallery where only you uploaded (and fewer than 20 items): no "Uploaded by" filter.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#82 Event admin opens the sub-gallery they click on the website host page (issue #74)
+Status:    TODO
+Priority:  High
+Platform:  Website (staging.evebash.com/host)
+Brief:     An admin who doesn't own the event got the primary gallery whichever sub-gallery they opened.
+How to test:
+  1. Log in as an admin of someone else's event (e.g. shwetank.chauhan3 on "Wedding").
+  2. Host -> Shared Events -> the event -> Galleries tab -> open a sub-gallery (e.g. Rec 1).
+     Expect: Rec 1's title, cover and photos, not the primary gallery's.
+  3. Open another sub-gallery and the primary gallery: each shows its own title, cover and photos.
+  4. Reload the page while a sub-gallery is open: the same sub-gallery stays open.
+  5. As the owner, repeat step 2: unchanged, the sub-gallery opens.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:   580a5c4 (2026-10-13)
 Feedback:

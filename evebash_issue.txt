@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 74
+Next issue number: 75
 
 =====================================================================
 ACTIVE ISSUES
@@ -381,6 +381,18 @@ How to reproduce: Open www.evebash.com on a phone (or 375 px wide) and scroll to
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
 =====================================================================
+
+#74
+Listed: 2026-10-13
+Platform: Website
+Priority: High
+Status: Fixed
+Owner: Shwetank (with Claude)
+Blocked by: -
+Found in: Testing an event admin account on the host page (2026-10-13)
+Issue: On the website host page, an event admin who doesn't own the event got the primary gallery (its cover, title and photos) whichever sub-gallery they opened. The page reads the event and gallery from the link (?eventId=&galleryId=) but only used galleryId when the event was in the user's own events (src/app/(main)/host/page.tsx, the URL effect); events shared with you as an admin aren't in that list, so it fell back to the event id. Fix: galleryId is used for shared events too, and the link is also read before your events have loaded.
+How to reproduce: As an admin of someone else's event, Host -> Shared Events -> the event -> Galleries -> open a sub-gallery: the primary gallery's cover and title show.
+Fixed in: 580a5c4 (2026-10-13). Device check: test_yourself #82.
 
 #69
 Listed: 2026-10-13
