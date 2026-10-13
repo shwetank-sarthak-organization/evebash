@@ -34,6 +34,8 @@ interface PageFlipSocialBarProps {
   slideshow?: boolean;
   commentsPanelSuppressed?: boolean;
   onDownload: () => void;
+  /** Logged-out visitors of a public gallery: like, comment and download show and call this (a log-in prompt) */
+  onRequireLogin?: () => void;
   onFullscreen: () => void;
   onFindYou?: () => void;
   onCloseViewer?: () => void;
@@ -83,6 +85,7 @@ export function PageFlipSocialBar({
   slideshow = false,
   commentsPanelSuppressed = false,
   onDownload,
+  onRequireLogin,
   onFullscreen,
   onFindYou,
   onCloseViewer,
@@ -262,14 +265,26 @@ export function PageFlipSocialBar({
               {comments.length}
             </button>
           )}
+          {onRequireLogin && !showLikes && (
+            <button type="button" onClick={onRequireLogin} className={actionClass} aria-label="Like media" title="Like">
+              <Heart className="h-4 w-4" />
+              <span className="hidden sm:inline">Like</span>
+            </button>
+          )}
+          {onRequireLogin && !showComments && (
+            <button type="button" onClick={onRequireLogin} className={actionClass} aria-label="Comments" title="Comments">
+              <MessageCircle className="h-4 w-4" />
+              <span className="hidden sm:inline">Comment</span>
+            </button>
+          )}
           {showShare && (
             <button type="button" onClick={handleShare} className={actionClass} aria-label="Share gallery media" title="Share gallery media">
               {shareCopied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
               <span className="hidden sm:inline">{shareCopied ? "Copied" : "Share"}</span>
             </button>
           )}
-          {showDownload && (
-            <button type="button" onClick={onDownload} className={actionClass} aria-label="Download original media" title="Download original media">
+          {(showDownload || onRequireLogin) && (
+            <button type="button" onClick={showDownload ? onDownload : onRequireLogin} className={actionClass} aria-label="Download original media" title="Download original media">
               <Download className="h-4 w-4" />
               <span className="hidden sm:inline">Download</span>
             </button>

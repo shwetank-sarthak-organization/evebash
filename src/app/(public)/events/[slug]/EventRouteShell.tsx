@@ -15,6 +15,7 @@ import {
     openGallery,
 } from "@/lib/database";
 import { useAuth } from "@/context/AuthContext";
+import { promptLogin } from "@/components/ui/LoginPrompt";
 import { downloadGalleryAsZip } from "@/lib/zipDownload";
 import { getWebTemplateChrome } from "@/lib/webTemplateTheme";
 import { alertDialog } from "@/components/ui/Modal";
@@ -198,7 +199,7 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
                 activePage={activePage}
                 onSelectGallery={(gallery) => router.push(`/events/${gallery?.id || mainEvent.id}${sharedQuery}`)}
                 onFindYou={() => router.push(`/events/${mainEvent.id}/find-you${sharedQuery}`)}
-                onDownloadZip={isPublicView ? undefined : handleDownloadZip}
+                onDownloadZip={!isPublicView ? handleDownloadZip : !user ? promptLogin : undefined}
                 isZipping={isZipping}
                 zipProgress={zipProgress}
                 chromeBackgroundColor={chrome.background}
@@ -207,7 +208,7 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
                 chromeBorderColor={chrome.border}
             />
         );
-    }, [activePage, chrome, event, handleDownloadZip, isPublicView, isShared, isZipping, mainEvent, router, sharedQuery, subEvents, zipProgress]);
+    }, [activePage, chrome, event, handleDownloadZip, isPublicView, isShared, isZipping, mainEvent, router, sharedQuery, subEvents, user, zipProgress]);
 
     return (
         <div

@@ -10,6 +10,7 @@ import LoadingScreen from "@/components/LoadingScreen";
 import { getEvent } from "@/lib/events"; // Static Data
 import { getEventPhotosPaginated, getEventById, getSubEvents, Event, Photo as DatabasePhoto, getFavouritePhotosForEvents, getEventFavouritePhotos, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery } from "@/lib/database"; // Live Data
 import { useAuth } from "@/context/AuthContext";
+import { promptLogin } from "@/components/ui/LoginPrompt";
 import { Loader2, Image as ImageIcon, ChevronLeft, ChevronDown, Share2, Check, Star, Layers3, Lock, Clock, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -490,7 +491,7 @@ function EventPageContent() {
         .filter((gallery): gallery is Event => !!gallery)
         .map(gallery => ({
             id: gallery.id,
-            label: gallery.id === event.id ? "Main event" : gallery.title,
+            label: gallery.id === event.id ? "Home (Primary Gallery)" : gallery.title,
             legacyId: gallery.legacyId,
             count: selectedMediaItems.filter(photo => photo.eventId === gallery.id || (!!gallery.legacyId && photo.eventId === gallery.legacyId)).length,
         }))
@@ -688,6 +689,7 @@ function EventPageContent() {
                             eventSlug={slug}
                             disableDownload={isPublicView || (isShared && !user)}
                             readOnly={isPublicView}
+                            onRequireLogin={isPublicView && !user ? promptLogin : undefined}
                             lightboxTheme={getWebLightboxTheme((activeGallery || event).templateId || event.templateId)}
                             templateId={(activeGallery || event).templateId || event.templateId}
                         />

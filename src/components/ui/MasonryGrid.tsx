@@ -43,6 +43,8 @@ interface MasonryGridProps {
     templateId?: string;
     showPageFlipThumbnails?: boolean;
     onLikeChange?: () => void;
+    /** Read-only visitors who could join by logging in: like, comment and download show and call this instead */
+    onRequireLogin?: () => void;
 }
 
 interface PhotoCardProps {
@@ -54,6 +56,7 @@ interface PhotoCardProps {
     itemClassName?: string;
     onViewPhoto: (photo: Photo) => void;
     onLikeChange?: () => void;
+    onRequireLogin?: () => void;
 }
 
 type PhotoLike = {
@@ -68,7 +71,8 @@ function PhotoCard({
     readOnly = false,
     itemClassName,
     onViewPhoto,
-    onLikeChange
+    onLikeChange,
+    onRequireLogin
 }: PhotoCardProps) {
     const { user } = useAuth();
     const [likes, setLikes] = useState<PhotoLike[]>([]);
@@ -288,6 +292,37 @@ function PhotoCard({
                 </div>
             </>
             )}
+
+            {/* Logged-out visitors of a public gallery: the same buttons, which ask them to log in */}
+            {readOnly && onRequireLogin && (
+                <div className="gallery-card-overlay absolute inset-x-0 bottom-0 flex items-end justify-between bg-gradient-to-t from-black/70 via-black/30 to-transparent px-3 pb-2.5 pt-12 text-white transition-opacity duration-300 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
+                    <div className="flex items-center gap-1">
+                        {([
+                            { label: "Like photo", Icon: Heart },
+                            { label: "Comments", Icon: MessageCircle },
+                        ] as const).map(({ label, Icon }) => (
+                            <button
+                                key={label}
+                                type="button"
+                                onClick={(event) => { event.stopPropagation(); onRequireLogin(); }}
+                                className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-white/15"
+                                aria-label={label}
+                            >
+                                <Icon size={20} className="drop-shadow" />
+                            </button>
+                        ))}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={(event) => { event.stopPropagation(); onRequireLogin(); }}
+                        className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-white/15"
+                        aria-label="Download original"
+                        title="Download Original"
+                    >
+                        <Download size={19} className="drop-shadow" />
+                    </button>
+                </div>
+            )}
         </motion.div>
     );
 }
@@ -306,7 +341,8 @@ export function MasonryGrid({
     commentsMode = "side-panel",
     templateId,
     showPageFlipThumbnails = true,
-    onLikeChange
+    onLikeChange,
+    onRequireLogin
 }: MasonryGridProps) {
     // Track which photo is currently being viewed in the Lightbox
     const [viewingPhoto, setViewingPhoto] = useState<Photo | null>(null);
@@ -345,6 +381,7 @@ export function MasonryGrid({
                         itemClassName={itemClassName}
                         onViewPhoto={setViewingPhoto}
                         onLikeChange={onLikeChange}
+                        onRequireLogin={onRequireLogin}
                     />
                 ))}
             </div>
@@ -359,6 +396,7 @@ export function MasonryGrid({
                         showThumbnails={showPageFlipThumbnails}
                         showDownload={!disableDownload && !readOnly}
                         showLikes={!readOnly}
+                        onRequireLogin={onRequireLogin}
                         showComments={!readOnly}
                         viewerLayout={resolvedViewerLayout}
                         commentsMode={readOnly ? "overlay" : commentsMode}

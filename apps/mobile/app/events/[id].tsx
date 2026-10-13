@@ -1107,7 +1107,7 @@ export default function EventDetailScreen() {
       .filter((gallery): gallery is DatabaseEvent => !!gallery)
       .map(gallery => ({
         id: gallery.id,
-        label: gallery.id === event?.id ? 'Main event' : gallery.title,
+        label: gallery.id === event?.id ? 'Home (Primary Gallery)' : gallery.title,
         legacyId: gallery.legacyId,
         count: selectedMediaItems.filter(item => item.eventId === gallery.id || (!!gallery.legacyId && item.eventId === gallery.legacyId)).length,
       }))
@@ -2031,7 +2031,7 @@ export default function EventDetailScreen() {
       }
       const movedIds = new Set(ids);
       const targetLabel = targetGalleryId === event?.id
-        ? 'Primary Gallery'
+        ? 'Home (Primary Gallery)'
         : subEvents.find(gallery => gallery.id === targetGalleryId)?.title || 'the selected gallery';
       // The Primary Gallery view lists every gallery's media, so items stay and only change source there.
       setPhotos(prev => isPrimaryGalleryView
@@ -4890,7 +4890,7 @@ export default function EventDetailScreen() {
                           marginBottom: 8,
                           marginTop: 4
                         }}>
-                          Primary Gallery
+                          Home (Primary Gallery)
                         </Text>
                         {event && (
                           <TouchableOpacity
@@ -7605,6 +7605,20 @@ export default function EventDetailScreen() {
         onTogglePhotoFavourite={showAdminView ? ((photo) => photo?.id ? handleToggleEventFavourite(photo.id) : undefined) : undefined}
         onRotatePhoto={showAdminView ? ((photo, direction) => photo?.id ? handleRotateGalleryPhoto(photo.id, direction) : undefined) : undefined}
         readOnly={isPublicView}
+        onRequireLogin={isPublicView && !user ? () => appAlert(
+          'Log in to continue',
+          'Log in or create a free account to like, comment on and download photos from this gallery.',
+          [
+            { text: 'Not now', style: 'cancel' },
+            {
+              text: 'Log in',
+              onPress: () => {
+                setViewerVisible(false);
+                router.push({ pathname: '/login', params: { returnTo: `/events/${id}` } });
+              },
+            },
+          ],
+        ) : undefined}
       />
 
       <Modal
@@ -7845,7 +7859,7 @@ export default function EventDetailScreen() {
                       }}
                     >
                       <Text style={{ flex: 1, color: '#fff', fontFamily: Fonts.inter.semiBold, fontSize: 15 }} numberOfLines={1}>
-                        {gallery.id === event?.id ? 'Primary Gallery' : gallery.title}
+                        {gallery.id === event?.id ? 'Home (Primary Gallery)' : gallery.title}
                       </Text>
                       {isCurrent ? (
                         <Text style={{ color: MidnightColors.slate400, fontSize: 12, fontFamily: Fonts.inter.regular }}>Current</Text>

@@ -9,6 +9,7 @@ import { PermissionsIcon } from "@/components/PermissionsIcon";
 import { DesignIcon } from "@/components/DesignIcon";
 import { EventDesignPreview } from "@/components/EventDesignPreview";
 import { PartnersIcon } from "@/components/PartnersIcon";
+import { GalleryTypesInfo } from "@/components/GalleryTypesInfo";
 import { HostIcon } from "@/components/HostIcon";
 import { HostConsoleIcon } from "@/components/HostConsoleIcon";
 import { DashboardEventCard, SERIF, formatShortEventDate } from "@/components/dashboard/DashboardEvents";
@@ -3324,7 +3325,7 @@ function DashboardContent() {
 
         const movedIds = new Set(ids);
         const targetLabel = targetGalleryId === selectedMainEvent?.id
-            ? "Primary Gallery"
+            ? "Home (Primary Gallery)"
             : eventDetailGalleries.find(gallery => gallery.id === targetGalleryId)?.title || "the selected gallery";
         // The Primary Gallery view lists every gallery's media, so items stay and only change source there.
         setCurrentEventPhotos(prev => isPrimaryGalleryView
@@ -3446,7 +3447,7 @@ function DashboardContent() {
         .filter((gallery): gallery is Event => !!gallery)
         .map(gallery => ({
             id: gallery.id,
-            label: gallery.id === selectedMainEvent?.id ? "Main event" : gallery.title,
+            label: gallery.id === selectedMainEvent?.id ? "Home (Primary Gallery)" : gallery.title,
             legacyId: gallery.legacyId,
             count: selectedMediaItems.filter(photo => photo.eventId === gallery.id || (!!gallery.legacyId && photo.eventId === gallery.legacyId)).length,
         }))
@@ -3475,7 +3476,7 @@ function DashboardContent() {
     const activeFavouriteCount = selectedMediaItems.filter(photo => eventFavouritePhotoIds.has(photo.id)).length;
     const moveTargetGalleries = [selectedMainEvent, ...eventDetailGalleries]
         .filter((gallery): gallery is Event => !!gallery)
-        .map(gallery => ({ id: gallery.id, label: gallery.id === selectedMainEvent?.id ? "Primary Gallery" : gallery.title }));
+        .map(gallery => ({ id: gallery.id, label: gallery.id === selectedMainEvent?.id ? "Home (Primary Gallery)" : gallery.title }));
     const canMoveMedia = moveTargetGalleries.length > 1;
     const stripUrlQuery = (value?: string | null) => (value || "").split("?")[0];
     const createdEvents = userEvents.filter(evt => evt.createdBy && ownEventIdentifiers.has(evt.createdBy));
@@ -4422,7 +4423,10 @@ function DashboardContent() {
                                                             <GalleryChaptersIcon className="h-6 w-6 text-[#CA9C68]" aria-hidden="true" />
                                                         </div>
                                                         <div className="min-w-0">
-                                                            <h4 className="font-serif text-3xl font-semibold leading-tight text-[#F5EFE6]">Galleries</h4>
+                                                            <div className="flex items-center gap-2">
+                                                                <h4 className="font-serif text-3xl font-semibold leading-tight text-[#F5EFE6]">Galleries</h4>
+                                                                <GalleryTypesInfo />
+                                                            </div>
                                                             <p className="text-sm text-slate-400">Your celebration in chapters</p>
                                                         </div>
                                                     </div>
@@ -4457,7 +4461,7 @@ function DashboardContent() {
                                                                 <span className="rounded-full border border-[#CA9C68]/60 bg-black/55 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#E8C9A0] shadow-[0_0_14px_rgba(202,156,104,0.35)] backdrop-blur-sm">Primary Collection</span>
                                                             </div>
                                                             <div className="flex items-end justify-between gap-3">
-                                                                <h5 className="min-w-0 flex-1 line-clamp-2 font-serif text-2xl font-semibold leading-tight text-white drop-shadow-md sm:text-3xl">Primary Gallery</h5>
+                                                                <h5 className="min-w-0 flex-1 line-clamp-2 font-serif text-2xl font-semibold leading-tight text-white drop-shadow-md sm:text-3xl">Home (Primary Gallery)</h5>
                                                                 <span className="flex shrink-0 items-center gap-1 rounded-lg bg-[#CA9C68] px-3 py-2 text-xs font-bold text-slate-950 transition-colors group-hover:bg-[#d8ad7c]">
                                                                     <span>Open</span>
                                                                     <ChevronRight className="h-3.5 w-3.5" />
@@ -5168,7 +5172,7 @@ function DashboardContent() {
                                         >
                                             {selectedEventName}
                                             {isInlineEventDetailGalleryEditor && activeEventDetailEvent && (
-                                                <> ({activeEventDetailEvent.id === selectedMainEvent?.id ? "Primary Gallery" : "Sub-Gallery"})</>
+                                                <> · {activeEventDetailEvent.id === selectedMainEvent?.id ? "Home (Primary Gallery)" : "Sub-Gallery"}</>
                                             )}
                                         </h3>
 

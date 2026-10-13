@@ -27,6 +27,8 @@ export interface PageFlipViewerProps {
   transitionMode?: GalleryTransitionMode;
   viewerLayout?: ViewerLayout;
   showDownload?: boolean;
+  /** Logged-out visitors of a public gallery: like, comment and download show and call this (a log-in prompt) */
+  onRequireLogin?: () => void;
   showFullscreen?: boolean;
   showGridButton?: boolean;
   showLikes?: boolean;
@@ -99,6 +101,7 @@ export function PageFlipViewer({
   transitionMode,
   viewerLayout,
   showDownload = true,
+  onRequireLogin,
   showFullscreen = true,
   showGridButton,
   showLikes = true,
@@ -429,7 +432,7 @@ export function PageFlipViewer({
           fullscreen={fullscreen}
           slideshow={slideshow}
           showArrows={showArrows}
-          showDownload={showDownload && !isCoverFlow}
+          showDownload={(showDownload || !!onRequireLogin) && !isCoverFlow}
           showFullscreen={showFullscreen && (!isCoverFlow || fullscreen)}
           showGridButton={shouldShowGridButton && items.length > 1}
           commentsMode={commentsMode}
@@ -437,7 +440,7 @@ export function PageFlipViewer({
           onPrev={goPrev}
           onNext={goNext}
           onClose={() => onClose?.()}
-          onDownload={() => downloadItem(currentItem)}
+          onDownload={showDownload ? () => downloadItem(currentItem) : () => onRequireLogin?.()}
           onOpenGrid={() => setThumbnailDrawerOpen(true)}
           onToggleZoom={() => setZoomed((value) => !value)}
           onToggleFullscreen={toggleFullscreen}
@@ -484,6 +487,7 @@ export function PageFlipViewer({
           slideshow={slideshow}
           commentsPanelSuppressed={fullscreen}
           onDownload={() => downloadItem(currentItem)}
+          onRequireLogin={onRequireLogin}
           onFullscreen={toggleFullscreen}
           onFindYou={onFindYou}
           onCloseViewer={onClose}

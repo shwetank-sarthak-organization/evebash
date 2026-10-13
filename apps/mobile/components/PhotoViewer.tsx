@@ -37,6 +37,11 @@ interface PhotoViewerProps {
   onRotatePhoto?: (photo: any, direction: 'left' | 'right') => Promise<void> | void;
   /** Logged-out public view: no likes, comments, share or download, and no reads of likes/comments */
   readOnly?: boolean;
+  /**
+   * Read-only viewers who could join by logging in (logged out, public gallery): like, comment and download are
+   * shown, and pressing one calls this (a log-in prompt) instead of acting. Likes and comments still aren't read.
+   */
+  onRequireLogin?: () => void;
 }
 
 
@@ -743,7 +748,11 @@ export default function PhotoViewer({
   onTogglePhotoFavourite,
   onRotatePhoto,
   readOnly = false,
+  onRequireLogin,
 }: PhotoViewerProps) {
+  // Logged-out public view: the buttons show, and ask to log in
+  const asksToLogIn = readOnly && !!onRequireLogin;
+  const guarded = (action: () => void) => () => (asksToLogIn ? onRequireLogin?.() : action());
   const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
   const viewerInsets = useSafeAreaInsets();
   // Leave room under the photo so Like / Comment / Share / Download are visible without scrolling
@@ -1652,25 +1661,25 @@ export default function PhotoViewer({
 
               <View style={localStyles.dashboardImageDetails}>
                 <View style={localStyles.dashboardImageActionsFlow}>
-                  {!readOnly && (<>
-                  <TouchableOpacity style={styles.viewerAction} onPress={handleToggleLike} disabled={isLiking} accessibilityRole="button" accessibilityLabel={isLiked ? 'Unlike' : 'Like'} accessibilityState={{ selected: isLiked }}>
+                  {(!readOnly || asksToLogIn) && (<>
+                  <TouchableOpacity style={styles.viewerAction} onPress={guarded(handleToggleLike)} disabled={isLiking} accessibilityRole="button" accessibilityLabel={isLiked ? 'Unlike' : 'Like'} accessibilityState={{ selected: isLiked }}>
                     <LucideHeartIcon
                       size={30}
                       color={isLiked ? "#f43f5e" : viewerTheme.controlText}
                       fill={isLiked ? "#f43f5e" : "none"}
                       strokeWidth={2}
                     />
-                    <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{likes.length}</Text>
+                    <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{asksToLogIn ? 'Like' : likes.length}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.viewerAction} onPress={handleOpenComments} accessibilityRole="button" accessibilityLabel={`Comments, ${comments.length}`}>
+                  <TouchableOpacity style={styles.viewerAction} onPress={guarded(handleOpenComments)} accessibilityRole="button" accessibilityLabel={asksToLogIn ? 'Comments' : `Comments, ${comments.length}`}>
                     <LucideMessageCircleIcon size={30} color={showComments ? viewerTheme.accent : viewerTheme.controlText} strokeWidth={2} />
-                    <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{comments.length}</Text>
+                    <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{asksToLogIn ? 'Comment' : comments.length}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.viewerAction} onPress={handleSharePhoto} accessibilityRole="button" accessibilityLabel="Share">
+                  <TouchableOpacity style={styles.viewerAction} onPress={guarded(handleSharePhoto)} accessibilityRole="button" accessibilityLabel="Share">
                     <LucideShare2Icon size={28} color={viewerTheme.controlText} strokeWidth={2} />
                     <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Share</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.viewerAction} onPress={handleDownloadPhoto} disabled={isDownloading} accessibilityRole="button" accessibilityLabel="Download">
+                  <TouchableOpacity style={styles.viewerAction} onPress={guarded(handleDownloadPhoto)} disabled={isDownloading} accessibilityRole="button" accessibilityLabel="Download">
                     <LucideDownloadIcon size={30} color={viewerTheme.controlText} strokeWidth={2} />
                     <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Download</Text>
                   </TouchableOpacity>
@@ -1734,22 +1743,22 @@ export default function PhotoViewer({
             )}
 
             <View style={[styles.viewerActions, showComments ? styles.viewerActionsRaised : styles.viewerActionsDocked]}>
-              {!readOnly && (<>
-              <TouchableOpacity style={styles.viewerAction} onPress={handleToggleLike} disabled={isLiking} accessibilityRole="button" accessibilityLabel={isLiked ? 'Unlike' : 'Like'} accessibilityState={{ selected: isLiked }}>
+              {(!readOnly || asksToLogIn) && (<>
+              <TouchableOpacity style={styles.viewerAction} onPress={guarded(handleToggleLike)} disabled={isLiking} accessibilityRole="button" accessibilityLabel={isLiked ? 'Unlike' : 'Like'} accessibilityState={{ selected: isLiked }}>
                 <IconSymbol name={isLiked ? "heart.fill" : "heart"} size={30} color={isLiked ? "#f43f5e" : viewerTheme.controlText} />
-                <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{likes.length}</Text>
+                <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{asksToLogIn ? 'Like' : likes.length}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.viewerAction} onPress={handleOpenComments} accessibilityRole="button" accessibilityLabel={`Comments, ${comments.length}`}>
+              <TouchableOpacity style={styles.viewerAction} onPress={guarded(handleOpenComments)} accessibilityRole="button" accessibilityLabel={asksToLogIn ? 'Comments' : `Comments, ${comments.length}`}>
                 <IconSymbol name="bubble.right" size={30} color={showComments ? viewerTheme.accent : viewerTheme.controlText} />
-                <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{comments.length}</Text>
+                <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>{asksToLogIn ? 'Comment' : comments.length}</Text>
               </TouchableOpacity>
               {(isScrapbookTemplate || isNeonTemplate || isPopTemplate) && (
-                <TouchableOpacity style={styles.viewerAction} onPress={handleSharePhoto} accessibilityRole="button" accessibilityLabel="Share">
+                <TouchableOpacity style={styles.viewerAction} onPress={guarded(handleSharePhoto)} accessibilityRole="button" accessibilityLabel="Share">
                   <IconSymbol name="square.and.arrow.up" size={28} color={isNeonTemplate ? '#66e8ff' : (isPopTemplate ? '#231f20' : viewerTheme.controlText)} />
                   <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }, isNeonTemplate && styles.neonViewerActionCount, isPopTemplate && styles.popViewerActionCount]}>Share</Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity style={styles.viewerAction} onPress={handleDownloadPhoto} disabled={isDownloading} accessibilityRole="button" accessibilityLabel="Download">
+              <TouchableOpacity style={styles.viewerAction} onPress={guarded(handleDownloadPhoto)} disabled={isDownloading} accessibilityRole="button" accessibilityLabel="Download">
                 <IconSymbol name="arrow.down.to.line.compact" size={30} color={viewerTheme.controlText} />
                 <Text style={[styles.viewerActionCount, { color: viewerTheme.controlText }]}>Download</Text>
               </TouchableOpacity>

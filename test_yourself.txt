@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 84
+Next test number: 86
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1984,6 +1984,55 @@ How to test:
   4. Single download: the download icon on a video card, and the download button in the full-screen
      viewer, save the .mp4 (not a .m3u8).
   5. The progress bar only goes up (no jump back from 100% to 50%).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#84 Logged-out visitors of a public gallery: like, comment and download ask them to log in
+Status:    TODO
+Priority:  High
+Platform:  Both (website: staging.evebash.com; app: JS-only change, any staging build)
+Brief:     The buttons used to be hidden for logged-out visitors; now they show and open a log-in prompt.
+How to test:
+  1. Website, logged out (private window): open a public gallery's collection. On each photo (hover on a
+     computer, always on a phone) heart, comment and download show. Download All shows in the menu.
+  2. Click each one: "Log in to continue" with Create account / Log in. The photo itself doesn't open.
+     Escape, the X or clicking outside closes it.
+  3. Open a photo full screen: Like, Comment and Download show; each opens the same prompt.
+  4. Click Log in, log in: you're back on the same gallery, joined, and the buttons now work.
+  5. Logged in on a sample gallery (view only): these buttons don't show and nothing asks to log in.
+  6. App, logged out, public gallery: open a photo. Like, Comment, Share and Download show; each asks
+     "Log in to continue" with Not now / Log in. Log in opens the login screen and returns to the gallery.
+  7. A private gallery logged out: still "This gallery is private" (unchanged).
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#85 "Home (Primary Gallery)" name and the Galleries info icon
+Status:    TODO
+Priority:  Low
+Platform:  Both (website host page and gallery page; app host view)
+Brief:     The main gallery is labelled "Home (Primary Gallery)"; an info icon explains it vs sub-galleries.
+How to test:
+  1. Website: Host -> an event -> Galleries. The big card says "Home (Primary Gallery)". Open it: the
+     heading reads "<event> · Home (Primary Gallery)".
+  2. Next to the Galleries heading there's an (i). Hover it (computer) or tap it (phone): it explains Home
+     (Primary Gallery) and Sub-galleries. Tap outside or press Escape to close.
+  3. The Source gallery filter, and the Move to gallery list, say "Home (Primary Gallery)" (not "Main event").
+  4. App, host view of an event: the section above the main card says HOME (PRIMARY GALLERY); the move list
+     and Source gallery list say "Home (Primary Gallery)".
 Done by:
 Device / browser:
 Build / version:
