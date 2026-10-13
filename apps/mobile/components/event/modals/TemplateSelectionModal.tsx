@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MidnightColors, Fonts } from '../../../constants/theme';
-import { getTemplatesForEventCategory } from '../../../constants/templates';
+import { getPickerTemplatesForEventCategory } from '../../../constants/templates';
 
 interface TemplateSelectionModalProps {
   visible: boolean;
@@ -30,7 +30,7 @@ export function TemplateSelectionModal({
   const isDark = colorScheme === 'dark';
 
   const category = event?.category || 'Wedding';
-  const templates = getTemplatesForEventCategory(category);
+  const templates = getPickerTemplatesForEventCategory(category, event?.templateId);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>

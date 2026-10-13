@@ -31,7 +31,7 @@ import { EVENT_PLACEHOLDER_IMAGES } from '@/lib/eventCovers';
 import { supabase } from '@/lib/supabase';
 import { MidnightColors, Fonts } from '../../constants/theme';
 import { EventGrid, getEventGridCardWidth } from '../../constants/layout';
-import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory } from '../../constants/templates';
+import { MOBILE_TEMPLATE_THEMES, getDefaultTemplateForEventCategory, isTemplateHidden } from '../../constants/templates';
 import { TabScreenHeader, HeaderAction } from '@/components/ui/TabScreenHeader';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
@@ -1054,7 +1054,7 @@ export default function PortfolioTabScreen() {
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalTitle}>{templateVisible ? 'Choose Template' : targetEvent?.title}</Text>
-                <Text style={styles.headerGreeting}>{templateVisible ? '10 gallery themes' : 'Event Management'}</Text>
+                <Text style={styles.headerGreeting}>{templateVisible ? 'Gallery themes' : 'Event Management'}</Text>
               </View>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => {
                 setTemplateVisible(false);
@@ -1066,7 +1066,7 @@ export default function PortfolioTabScreen() {
 
             {templateVisible ? (
               <ScrollView showsVerticalScrollIndicator={false} style={styles.templateModalContent}>
-                {MOBILE_TEMPLATE_THEMES.map((template) => {
+                {MOBILE_TEMPLATE_THEMES.filter((template) => !isTemplateHidden(template.id) || template.id === (targetEvent?.templateId || 'hero')).map((template) => {
                   const isActive = (targetEvent?.templateId || 'hero') === template.id;
                   return (
                     <TouchableOpacity

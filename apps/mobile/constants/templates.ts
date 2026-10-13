@@ -529,7 +529,37 @@ export const getTemplatesForEventCategory = (category?: string) => {
   return MOBILE_TEMPLATE_THEMES.filter((theme) => theme.category === templateCategory);
 };
 
+// Hidden from the event theme pickers because they have no website design of their own yet
+// (the website draws them with the generic makeUniversalTemplate layout). They are NOT deleted:
+// events already using one keep showing it everywhere. To unhide a theme, remove it from this
+// list AND from HIDDEN_TEMPLATE_IDS in src/app/(main)/host/page.tsx (keep both lists the same).
+export const HIDDEN_TEMPLATE_IDS = [
+  'ethereal', 'pastel', 'golden_years', 'vintage', 'rose', 'minimal_love', 'diamond', 'blush',
+  'garden', 'midnight_glam', 'modern_lounge', 'elegant_night', 'vibrant', 'zen', 'tech_sleek',
+  'executive', 'retro_arcade', 'academic_editorial', 'neon_carnival',
+];
+
+export const isTemplateHidden = (templateId?: string) => HIDDEN_TEMPLATE_IDS.includes(templateId || '');
+
+// Anniversary has no visible themes of its own, so its picker shows the Wedding themes.
+const getPickerTemplateCategoryForEventCategory = (category?: string) => {
+  if (category === 'Anniversary') return 'Wedding';
+  return getTemplateCategoryForEventCategory(category);
+};
+
+/**
+ * Themes a host can pick for an event of this category (hidden themes left out).
+ * Pass the event's current theme so a hidden one still shows (first) as the current choice.
+ */
+export const getPickerTemplatesForEventCategory = (category?: string, currentTemplateId?: string) => {
+  const templateCategory = getPickerTemplateCategoryForEventCategory(category);
+  const templates = MOBILE_TEMPLATE_THEMES.filter((theme) => theme.category === templateCategory && !isTemplateHidden(theme.id));
+  const current = isTemplateHidden(currentTemplateId) ? MOBILE_TEMPLATE_THEMES.find((theme) => theme.id === currentTemplateId) : undefined;
+  if (current) return [current, ...templates];
+  return templates;
+};
+
 export const getDefaultTemplateForEventCategory = (category?: string) => {
-  const templates = getTemplatesForEventCategory(category);
-  return templates[0] || MOBILE_TEMPLATE_THEMES[0];
+  const templates = getPickerTemplatesForEventCategory(category);
+  return templates[0] || MOBILE_TEMPLATE_THEMES.find((theme) => !isTemplateHidden(theme.id)) || MOBILE_TEMPLATE_THEMES[0];
 };

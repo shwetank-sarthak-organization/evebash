@@ -594,9 +594,32 @@ const getTemplateCategoryForEventCategory = (category?: string) => {
     return category || 'Wedding';
 };
 
-const getTemplatesForEventCategory = (category?: string) => {
-    const templateCategory = getTemplateCategoryForEventCategory(category);
-    return TEMPLATE_THEMES.filter((theme) => theme.category === templateCategory);
+// Hidden from the theme pickers because they have no website design of their own yet
+// (templateRegistry.tsx draws them with the generic makeUniversalTemplate layout). They are NOT
+// deleted: events already using one keep showing it everywhere. To unhide a theme, remove it from
+// this list AND from HIDDEN_TEMPLATE_IDS in apps/mobile/constants/templates.ts (keep both the same).
+const HIDDEN_TEMPLATE_IDS = [
+    "ethereal", "pastel", "golden_years", "vintage", "rose", "minimal_love", "diamond", "blush",
+    "garden", "midnight_glam", "modern_lounge", "elegant_night", "vibrant", "zen", "tech_sleek",
+    "executive", "retro_arcade", "academic_editorial", "neon_carnival",
+];
+
+const isTemplateHidden = (templateId?: string) => HIDDEN_TEMPLATE_IDS.includes(templateId || "");
+
+// Anniversary has no visible themes of its own, so its picker shows the Wedding themes.
+const getPickerTemplateCategoryForEventCategory = (category?: string) => {
+    if (category === 'Anniversary') return 'Wedding';
+    return getTemplateCategoryForEventCategory(category);
+};
+
+// Themes a host can pick for an event of this category (hidden themes left out).
+// Pass the event's current theme so a hidden one still shows (first) as the current choice.
+const getTemplatesForEventCategory = (category?: string, currentTemplateId?: string) => {
+    const templateCategory = getPickerTemplateCategoryForEventCategory(category);
+    const templates = TEMPLATE_THEMES.filter((theme) => theme.category === templateCategory && !isTemplateHidden(theme.id));
+    const current = isTemplateHidden(currentTemplateId) ? TEMPLATE_THEMES.find((theme) => theme.id === currentTemplateId) : undefined;
+    if (current) return [current, ...templates];
+    return templates;
 };
 
 type EventDetailLog = {
@@ -5892,7 +5915,7 @@ function DashboardContent() {
                                 />
 
                                 <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto pr-2 pb-4">
-                                    {getTemplatesForEventCategory(templateTargetEvent.category).map((template) => {
+                                    {getTemplatesForEventCategory(templateTargetEvent.category, templateTargetEvent.templateId).map((template) => {
                                         const isActive = templateTargetEvent.templateId === template.id;
                                         return (
                                             <div
