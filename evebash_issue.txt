@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 73
+Next issue number: 74
 
 =====================================================================
 ACTIVE ISSUES
@@ -365,6 +365,17 @@ Blocked by: -
 Found in: Removing the public/private profile switch (2026-10-13)
 Issue: The public/private profile switch was removed from the website profile and the app Settings (2026-10-13), but profiles.is_private is still read by the public profile view (src/app/(main)/profile/[id]/page.tsx, apps/mobile/app/profile/[id].tsx). Anyone who turned it on before stays "This profile is private." with no way to turn it off. Today that view is only linked from Phase 2 business pages, so nobody sees it at launch. How many profiles have is_private = true wasn't checked (database read blocked). Fix before Phase 2: stop reading is_private in the public view, or set it back to false for everyone.
 How to reproduce: With an account that had Private on before the switch was removed, open its /profile/<id> page: "This profile is private." and no switch on the profile or in Settings.
+
+#73
+Listed: 2026-10-13
+Platform: Website
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Footer review vs Samaro (2026-10-13)
+Issue: The website footer (src/components/Footer.tsx) leaves out key pages and wastes space on phones. (1) No link to Find You or Host / create an event, the product's main features. (2) No page on the site links to /delete-account (only the privacy policy text names it). (3) The YouTube channel listed in the site's structured data (src/app/(main)/layout.tsx, sameAs @EveBashApp) has no footer link. (4) On a 375 px phone the footer is 1110 px tall (taller than the screen) for 12 links, because every column stacks one under another. Samaro fits 36 links in 1257 px with two columns. (5) On phones the copyright line is centred while everything above it is left-aligned. (6) The right side of the bottom bar only says "Designed with ♥".
+How to reproduce: Open www.evebash.com on a phone (or 375 px wide) and scroll to the bottom. Look for Find You, Host, Delete account and YouTube links: none.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)
