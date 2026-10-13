@@ -10,16 +10,13 @@ import {
     Camera,
     CheckCircle2,
     Gift,
-    Heart,
     Loader2,
-    Lock,
     LogOut,
     Mail,
     MapPin,
     Pencil,
     Phone,
-    Sparkles,
-    Trash2,
+    Settings,
     Upload,
     User,
     Users,
@@ -36,7 +33,6 @@ import {
     getUserStorageBreakdown,
     isValidUsername,
     isUsernameUnique,
-    updateUserPrivacy,
     updateUserProfile,
     updateUserProfileImage,
 } from "@/lib/database";
@@ -50,7 +46,6 @@ import { confirmDialog, ModalHeader, modalStyles } from "@/components/ui/Modal";
 
 const personaOptions = ["Guest", "Host / Organizer", "Vendor / Business"];
 const genderOptions = ["Male", "Female", "Other", "Prefer not to say"];
-const relationshipOptions = ["Single", "Engaged", "Married", "Prefer not to say"];
 
 function formatJoinedDate(value: any) {
     if (!value) return "Not available";
@@ -156,12 +151,6 @@ export default function ProfilePage() {
     const [profileImage, setProfileImage] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
     const [removingImage, setRemovingImage] = useState(false);
-    const [isPrivate, setIsPrivate] = useState(false);
-    const [updatingPrivacy, setUpdatingPrivacy] = useState(false);
-    const [showDeleteAccount, setShowDeleteAccount] = useState(false);
-    const [deleteConfirmation, setDeleteConfirmation] = useState("");
-    const [deletingAccount, setDeletingAccount] = useState(false);
-    const [deleteError, setDeleteError] = useState("");
 
     const [isEditing, setIsEditing] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -176,9 +165,7 @@ export default function ProfilePage() {
         phone: "",
         location: "",
         gender: "",
-        relationshipStatus: "",
         birthday: "",
-        anniversaryDate: "",
         persona: ["Guest"],
     });
     const subscriptionStatus = user
@@ -199,7 +186,6 @@ export default function ProfilePage() {
     useEffect(() => {
         if (!user) return;
         setProfileImage(user.profileImage || null);
-        setIsPrivate(Boolean(user.isPrivate));
         setForm({
             name: user.name || "",
             email: user.email || "",
@@ -207,9 +193,7 @@ export default function ProfilePage() {
             phone: user.phone && user.phone !== "No Phone" ? user.phone : "",
             location: user.location || "",
             gender: user.gender || "",
-            relationshipStatus: user.relationshipStatus || "",
             birthday: user.birthday || "",
-            anniversaryDate: user.anniversaryDate || "",
             persona: getPersonasArray(user.persona),
         });
     }, [user]);
@@ -377,34 +361,6 @@ export default function ProfilePage() {
         }
     };
 
-    const handleDeleteAccount = async () => {
-        if (deleteConfirmation !== "DELETE" || deletingAccount) return;
-
-        setDeletingAccount(true);
-        setDeleteError("");
-        try {
-            const { data } = await supabase.auth.getSession();
-            const accessToken = data.session?.access_token;
-            if (!accessToken) throw new Error("Please sign in again before deleting your account.");
-
-            const response = await fetch(getApiUrl("/api/v1/account"), {
-                method: "DELETE",
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ confirmation: deleteConfirmation }),
-            });
-            const result = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(result.error || "Failed to delete your account.");
-
-            await logout();
-        } catch (error) {
-            setDeleteError(error instanceof Error ? error.message : "Failed to delete your account.");
-            setDeletingAccount(false);
-        }
-    };
-
     const handleSave = async (event: FormEvent) => {
         event.preventDefault();
         if (!user) return;
@@ -434,9 +390,7 @@ export default function ProfilePage() {
             phone: form.phone.trim(),
             location: form.location.trim(),
             gender: form.gender,
-            relationshipStatus: form.relationshipStatus,
             birthday: form.birthday.trim(),
-            anniversaryDate: form.anniversaryDate.trim(),
             persona: form.persona,
         });
         setSaving(false);
@@ -454,15 +408,6 @@ export default function ProfilePage() {
         const selected = form.persona.includes(persona);
         if (selected && form.persona.length === 1) return;
         updateForm("persona", selected ? form.persona.filter((item) => item !== persona) : [...form.persona, persona]);
-    };
-
-    const togglePrivacy = async () => {
-        if (!user?.uid || updatingPrivacy) return;
-        const next = !isPrivate;
-        setUpdatingPrivacy(true);
-        const ok = await updateUserPrivacy(user.uid, next);
-        if (ok) setIsPrivate(next);
-        setUpdatingPrivacy(false);
     };
 
     if (authLoading || !user) {
@@ -508,14 +453,23 @@ export default function ProfilePage() {
                                     </div>
                                 </div>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => setIsEditing(true)}
-                                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-yellow-300"
-                            >
-                                <Pencil className="h-4 w-4" />
-                                Edit Profile
-                            </button>
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEditing(true)}
+                                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-yellow-400 whitespace-nowrap px-3 py-3 sm:px-5 text-sm font-black text-slate-950 transition hover:bg-yellow-300 sm:flex-none"
+                                >
+                                    <Pencil className="h-4 w-4" />
+                                    Edit Profile
+                                </button>
+                                <Link
+                                    href="/settings"
+                                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 whitespace-nowrap px-3 py-3 sm:px-5 text-sm font-black text-slate-200 transition hover:border-[#CA9C68]/60 hover:text-white sm:flex-none"
+                                >
+                                    <Settings className="h-4 w-4" />
+                                    Settings
+                                </Link>
+                            </div>
                         </div>
                     </div>
 
@@ -568,9 +522,7 @@ export default function ProfilePage() {
                                 </InfoRow>
                                 <InfoRow icon={MapPin} label="Location">{user.location || "Not set"}</InfoRow>
                                 <InfoRow icon={User} label="Gender">{user.gender || "Not specified"}</InfoRow>
-                                <InfoRow icon={Heart} label="Relationship Status">{user.relationshipStatus || "Not specified"}</InfoRow>
                                 <InfoRow icon={Gift} label="Birthday">{user.birthday || "Not specified"}</InfoRow>
-                                <InfoRow icon={Sparkles} label="Anniversary / Milestone Date">{user.anniversaryDate || "Not specified"}</InfoRow>
                                 <InfoRow icon={Calendar} label="Joined EveBash">{formatJoinedDate(user.createdAt)}</InfoRow>
                             </section>
                         </div>
@@ -630,29 +582,6 @@ export default function ProfilePage() {
                                 </button>
                             </section>
 
-                            <section className="rounded-3xl border border-slate-800 bg-slate-950 p-5">
-                                <div className="flex items-center justify-between gap-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-yellow-400/10 text-yellow-300">
-                                            <Lock className="h-5 w-5" />
-                                        </div>
-                                        <div>
-                                            <h2 className="font-black text-white">Profile Privacy</h2>
-                                            <p className="text-xs font-bold text-slate-500">{isPrivate ? "Private profile" : "Public profile"}</p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={togglePrivacy}
-                                        disabled={updatingPrivacy}
-                                        className={cn("relative h-7 w-12 rounded-full transition", isPrivate ? "bg-yellow-400" : "bg-slate-700")}
-                                        aria-label="Toggle profile privacy"
-                                    >
-                                        <span className={cn("absolute top-1 h-5 w-5 rounded-full bg-white transition", isPrivate ? "left-6" : "left-1")} />
-                                    </button>
-                                </div>
-                            </section>
-
                             <Link href="/vault" className="flex w-full items-center gap-3 rounded-3xl border border-[#7FA38C]/30 bg-[#7FA38C]/10 px-5 py-4 transition-colors hover:bg-[#7FA38C]/15">
                                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#7FA38C]/15 text-[#7FA38C]">
                                     <HardDrive className="h-5 w-5" />
@@ -669,20 +598,6 @@ export default function ProfilePage() {
                                 Sign Out
                             </button>
 
-                            <section className="rounded-3xl border border-rose-500/25 bg-rose-950/20 p-5">
-                                <div className="flex items-start gap-3">
-                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-300">
-                                        <Trash2 className="h-5 w-5" />
-                                    </div>
-                                    <div>
-                                        <h2 className="font-black text-white">Delete Account</h2>
-                                        <p className="mt-1 text-xs font-semibold leading-5 text-slate-400">Permanently removes your profile, hosted events, and uploaded media.</p>
-                                    </div>
-                                </div>
-                                <button type="button" onClick={() => setShowDeleteAccount(true)} className="mt-4 w-full rounded-2xl border border-rose-500/35 px-4 py-3 text-sm font-black text-rose-300 transition hover:bg-rose-500/10">
-                                    Delete Account
-                                </button>
-                            </section>
                         </aside>
                     </div>
                 </section>
@@ -693,33 +608,6 @@ export default function ProfilePage() {
                     </div>
                 )}
             </main>
-
-            {showDeleteAccount && (
-                <div className={modalStyles.overlay} onMouseDown={() => !deletingAccount && setShowDeleteAccount(false)}>
-                    <div className={cn(modalStyles.panel, "border-rose-500/30")} onMouseDown={(event) => event.stopPropagation()}>
-                        <ModalHeader
-                            eyebrow={<span className="text-rose-300">Permanent action</span>}
-                            title="Delete your account?"
-                            onClose={() => setShowDeleteAccount(false)}
-                            closeDisabled={deletingAccount}
-                            className="mb-0"
-                        />
-                        <p className={cn(modalStyles.body, "mt-4")}>This permanently removes your profile, hosted events, uploaded photos and videos, comments, and likes. This cannot be undone.</p>
-                        <label className={cn(modalStyles.label, "mt-5")}>
-                            Type DELETE to confirm
-                            <input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} disabled={deletingAccount} autoComplete="off" className={cn(modalStyles.input, "mt-2 font-black normal-case tracking-normal focus:border-rose-400 focus:ring-rose-400")} />
-                        </label>
-                        {deleteError && <p className="mt-3 text-sm font-bold text-rose-300">{deleteError}</p>}
-                        <div className="mt-6 flex gap-3">
-                            <button type="button" disabled={deletingAccount} onClick={() => setShowDeleteAccount(false)} className={cn(modalStyles.secondary, "flex-1")}>Cancel</button>
-                            <button type="button" disabled={deleteConfirmation !== "DELETE" || deletingAccount} onClick={handleDeleteAccount} className={cn(modalStyles.danger, "flex-1")}>
-                                {deletingAccount && <Loader2 className="h-4 w-4 animate-spin" />}
-                                Delete permanently
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {isEditing && (
                 <div className={modalStyles.overlay} onMouseDown={() => !saving && setIsEditing(false)}>
@@ -771,7 +659,6 @@ export default function ProfilePage() {
                                 { field: "phone", label: "Phone Number", placeholder: "e.g. +91 98765 43210" },
                                 { field: "location", label: "Location", placeholder: "e.g. Mumbai, Maharashtra" },
                                 { field: "birthday", label: "Birthday", placeholder: "e.g. October 24" },
-                                { field: "anniversaryDate", label: "Anniversary / Milestone Date", placeholder: "e.g. December 18, 2026" },
                             ].map(({ field, label, placeholder, required }) => (
                                 <label key={field} className="block">
                                     <span className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
@@ -802,26 +689,14 @@ export default function ProfilePage() {
                             ))}
                         </div>
 
-                        <div className="mt-6 grid gap-6 sm:grid-cols-2">
-                            <div>
-                                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Gender</p>
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                    {genderOptions.map((item) => (
-                                        <button key={item} type="button" onClick={() => updateForm("gender", item)} className={cn("rounded-full border px-3 py-2 text-xs font-black", form.gender === item ? "border-[#CA9C68] bg-[#CA9C68] text-slate-950" : "border-slate-800 bg-slate-900 text-slate-300")}>
-                                            {item}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div>
-                                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Relationship Status</p>
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                    {relationshipOptions.map((item) => (
-                                        <button key={item} type="button" onClick={() => updateForm("relationshipStatus", item)} className={cn("rounded-full border px-3 py-2 text-xs font-black", form.relationshipStatus === item ? "border-[#CA9C68] bg-[#CA9C68] text-slate-950" : "border-slate-800 bg-slate-900 text-slate-300")}>
-                                            {item}
-                                        </button>
-                                    ))}
-                                </div>
+                        <div className="mt-6">
+                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Gender</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                {genderOptions.map((item) => (
+                                    <button key={item} type="button" onClick={() => updateForm("gender", item)} className={cn("rounded-full border px-3 py-2 text-xs font-black", form.gender === item ? "border-[#CA9C68] bg-[#CA9C68] text-slate-950" : "border-slate-800 bg-slate-900 text-slate-300")}>
+                                        {item}
+                                    </button>
+                                ))}
                             </div>
                         </div>
 

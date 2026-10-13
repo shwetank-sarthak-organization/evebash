@@ -14,7 +14,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
             userAgent: "*",
             allow: "/",
             // Event galleries contain guests' photos; keep them out of search results.
-            disallow: ["/api/", "/events/", "/dashboard", "/host", "/profile"],
+            disallow: ["/api/", "/events/", "/dashboard", "/host", "/profile", "/settings"],
         },
         sitemap: "https://www.evebash.com/sitemap.xml",
     };
