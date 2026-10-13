@@ -18,7 +18,7 @@ Field values:
 - Blocked by: what it waits on (a decision, another issue, a person), or "-"
 - Found in:   where it was spotted (an audit, a tester report, a chat)
 
-Next issue number: 70
+Next issue number: 73
 
 =====================================================================
 ACTIVE ISSUES
@@ -235,7 +235,7 @@ Status: Open
 Owner: Unassigned
 Blocked by: -
 Found in: Modal theme fix for #38 (2026-10-12)
-Issue: Some page content (not modals) is still off the dark-gold theme. The profile page uses bright yellow (yellow-300/400) for icons, the @username, the Edit and Upgrade buttons and the privacy switch instead of #CA9C68 (src/app/(main)/profile/page.tsx). On the host page the "Your Events"/"Galleries" subtitle, the "Managing memories for" line and the action-card descriptions use text-slate-700, which is almost invisible on the dark background (src/app/(main)/host/page.tsx).
+Issue: Some page content (not modals) is still off the dark-gold theme. The profile page uses bright yellow (yellow-300/400) for icons, the @username, the Edit and Upgrade buttons instead of #CA9C68 (the privacy switch was removed 2026-10-13) (src/app/(main)/profile/page.tsx). On the host page the "Your Events"/"Galleries" subtitle, the "Managing memories for" line and the action-card descriptions use text-slate-700, which is almost invisible on the dark background (src/app/(main)/host/page.tsx).
 How to reproduce: Open /profile and /host while logged in and look at the yellow accents and the dark-grey subtitle text.
 Update 2026-10-12: the host gallery page redesign (top bar with "< Galleries" and the gallery name) removed the "Managing memories for" line. The other items are still open.
 
@@ -332,6 +332,39 @@ Blocked by: -
 Found in: Checking signing fingerprints for #67 (2026-10-13)
 Issue: The locally built Android APKs in the repo root (app-release-v1.apk, app-release-v1.2.4.apk) are signed with the Android debug key (apps/mobile/android/app/debug.keystore, "CN=Android Debug", SHA-1 5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25, SHA-256 FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C), even though they are named "release". EAS builds use the EAS Android keystore (SHA-1 29:40:B3:BD:EB:22:B7:1F:A2:E5:E6:8C:B0:92:52:2B:D2:08:30:47; Firebase also lists SHA-256 b5:2b:a8:a5:85:66:3d:5f:1d:d4:10:37:f7:ff:67:02:1d:49:7d:f1:2c:8c:11:8b:ac:09:fd:41:a9:39:1e:13, probably the same key). Impact: testers can't install an EAS build over a local APK (or the other way round) without uninstalling, because the signatures differ; and the debug key is public, so it must never go into the live assetlinks.json (#67). Fix: make store and tester builds only through EAS, and list only the EAS key's and Google Play's app-signing key's SHA-256 in assetlinks.json and Firebase (#18).
 How to reproduce: ~/Library/Android/sdk/build-tools/36.1.0/apksigner verify --print-certs app-release-v1.2.4.apk shows "CN=Android Debug".
+
+#70
+Listed: 2026-10-13
+Platform: Website
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Navbar font comparison (2026-10-13)
+Issue: On phones, the signed-in navbar menu cuts off its bottom part, so Logout can't be seen or tapped. src/components/Navbar.tsx caps the open menu at max-h-96 (384px) with overflow-hidden, but the signed-in menu (4 links, profile card, Profile, Logout) is 487px tall (measured at 375x812). Profile is half cut off and Logout is fully hidden. The signed-out menu is shorter and fits. Fix idea: raise the cap (for example max-h-[calc(100vh-5rem)]) and let the menu scroll (overflow-y-auto), keeping the open/close animation.
+How to reproduce: Sign in on the website on a phone (or a 375px-wide window), tap the menu button at the top right: the menu ends at "Profile" and there is no Logout.
+
+#71
+Listed: 2026-10-13
+Platform: App
+Priority: Medium
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Website Settings page work (2026-10-13)
+Issue: Several items in the app's Settings (apps/mobile/app/settings.tsx) look like they work but do nothing. (1) Report a Bug / Send Feedback: submitFeedback (apps/mobile/lib/database.ts) only writes to the phone's console and returns true, so the app says "Feedback Sent" and the message is lost. (2) Upload Quality (Speed / High-Res) is saved on the phone (@high_quality_uploads) but no upload code reads it. (3) Clear Media Cache runs a fake progress bar and always says "cleared 24.2 MB"; nothing is cleared. (4) Discoverable Profile saves profiles.discoverable, which nothing reads (there is no Explore feed). (5) The FAQ answers are out of date: "250 photos per event", "Register Business" (Phase 2), "5-character event code". The notification switches are #58 and #63. These were left out of the new website Settings page. Fix: send app feedback to the backend's /api/v1/contact-messages (what the website's Contact Us uses), and hide or remove the others until they work.
+How to reproduce: In the app, Settings > Report a Bug: send a message, then look for it anywhere the team reads (contact messages, email): it isn't there. Tap Clear Media Cache twice: "24.2 MB" both times.
+
+#72
+Listed: 2026-10-13
+Platform: Both
+Priority: Low
+Status: Open
+Owner: Unassigned
+Blocked by: -
+Found in: Removing the public/private profile switch (2026-10-13)
+Issue: The public/private profile switch was removed from the website profile and the app Settings (2026-10-13), but profiles.is_private is still read by the public profile view (src/app/(main)/profile/[id]/page.tsx, apps/mobile/app/profile/[id].tsx). Anyone who turned it on before stays "This profile is private." with no way to turn it off. Today that view is only linked from Phase 2 business pages, so nobody sees it at launch. How many profiles have is_private = true wasn't checked (database read blocked). Fix before Phase 2: stop reading is_private in the public view, or set it back to false for everyone.
+How to reproduce: With an account that had Private on before the switch was removed, open its /profile/<id> page: "This profile is private." and no switch on the profile or in Settings.
 
 =====================================================================
 RECENTLY FIXED (delete entries older than 7 days)

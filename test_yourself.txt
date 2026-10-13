@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 77
+Next test number: 79
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -1797,6 +1797,57 @@ How to test:
   5. An event with a custom date text (not a normal date): the text shows unchanged.
   6. /dashboard: cards show the short date and the icons too.
   7. Phone browser: cards stack, nothing sticks out sideways.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#77 Website: new Settings page; profile without relationship, anniversary and privacy
+Status:    TODO
+Priority:  Medium
+Platform:  Website (computer + phone browser)
+Brief:     The website now has Settings (/settings), like the app: sign-in method, Change Password, Delete
+           Account, feedback and support, terms and privacy. Open it from the new Settings button next to
+           Edit Profile. Delete Account moved there from the profile page. The profile no longer shows or
+           edits Relationship Status, Anniversary / Milestone Date or the Profile Privacy switch.
+How to test:
+  1. Log in, open /profile. Expect: Edit Profile and Settings buttons side by side (one line on a phone).
+     No Relationship Status, Anniversary, Profile Privacy or Delete Account on the page.
+  2. Edit Profile: no Relationship Status or Anniversary fields. Change the location and save.
+     Expect: saved; the other fields are unchanged.
+  3. Click Settings. Expect: "Signed in via" shows Email, Google or Phone number correctly for your account.
+  4. Change Password (use a test account): set a new password, log out, log in with it. Expect: works.
+     Wrong confirm password or a weak password: the button stays disabled / the error shows.
+  5. Report a Bug / Send Feedback opens Contact Us; Contact Customer Support opens a mail to
+     support@evebash.com; About, Terms and Privacy open their pages. The Profile button goes back.
+  6. Delete Account (THROWAWAY account only): type DELETE, confirm. Expect: account deleted, logged out.
+  7. Phone browser: nothing sticks out sideways, texts wrap.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+#78 App: profile without relationship status, anniversary and Private Account
+Status:    TODO
+Priority:  Medium
+Platform:  App (Android + iOS)
+Brief:     Profile no longer shows or edits Relationship Status and Anniversary / Milestone Date, and Settings
+           no longer has the Private Account switch. Saving the profile no longer sends those two fields,
+           so values saved before stay in the database untouched.
+How to test:
+  1. Open Profile. Expect: no Relationship Status or Anniversary rows. The "Complete your profile" hint
+     only mentions location, gender and birthday.
+  2. Edit: no Relationship Status or Anniversary fields. Change the location and save. Expect: saved.
+  3. Gear icon > Settings: the Privacy section only has Discoverable Profile; it still switches.
+  4. Website and app on the same account: the same profile fields show on both.
 Done by:
 Device / browser:
 Build / version:
