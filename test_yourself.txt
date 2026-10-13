@@ -1090,14 +1090,22 @@ How to test:
   5. Allow notifications. From another account, trigger a push (e.g. upload a video to a shared
      gallery and wait for it to finish). Expect: the push arrives on the new app.
   6. Open an evebash:// link (e.g. a shared gallery QR). Expect: opens in the new app.
-Done by:
-Device / browser:
-Build / version:
-Date tested:
-Account used:
+Done by:   Sarthak
+Device / browser: Pixel 8 (physical), Android app
+Build / version: app 1.2.4 (25) EAS 253acefa, staging c2bdb76
+Date tested: 2026-10-12
+Account used: new Google account; code4sarthak (Google); an existing email/password account; chauhansarthak497 (uploader)
 Screenshot / recording:
 Fix ref:
-Feedback:  2026-10-12 partial, emulator only (Sarthak): local release build com.evebash.app 1.2.4 (debug key) on
+Feedback:  2026-10-12 partial, Pixel 8 (Sarthak): step 1 old app uninstalled; step 2 pass (one EveBash app, 1.2.4).
+           Step 3 pass: Google sign-in works with a brand-new account (no DEVELOPER_ERROR) and with code4sarthak
+           (existing galleries show). Found: after logout, "Continue with Google" signed straight back in to the last
+           Google account with no picker (#62, fixed in 96bc72b, needs the next build; test #66); the new account has
+           no username (#61). Step 4 pass: email/password login to an existing account, its data shows. Step 5 fail but
+           not this build: chauhansarthak497 (guest admin) uploaded a video to code4sarthak's gallery, it processed and
+           plays, no push arrived. Cause is #58 (profiles has no notification_preferences column, so host upload pushes
+           never send). Still to do: step 5 with a push that works today (e.g. approval push, test #37), and step 6.
+           2026-10-12 partial, emulator only (Sarthak): local release build com.evebash.app 1.2.4 (debug key) on
            a Pixel emulator with Google Play; old app uninstalled first. Step 3 Google sign-in works. Step 5: the first
            approval push didn't arrive (EAS held a deleted FCM key); after the new key was assigned, a direct Expo test
            push arrived. Real approval push, step 6 and a real phone still to do, so Status stays TODO.
