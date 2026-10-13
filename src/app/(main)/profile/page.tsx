@@ -830,7 +830,7 @@ export default function ProfilePage() {
                     <div className="mt-8 space-y-8 animate-fade-in-up">
                         
                         {/* 1. Active Plan Hero Banner with EXTEND PLAN button */}
-                        <section className="relative overflow-hidden rounded-[2.5rem] border border-[#CA9C68]/40 bg-gradient-to-r from-[#CA9C68]/15 via-slate-900/90 to-slate-950 p-6 sm:p-8 shadow-2xl">
+                        <section className="relative overflow-hidden rounded-[2.5rem] border border-[#CA9C68]/40 bg-gradient-to-r from-[#CA9C68]/15 via-[#1B211F]/90 to-[#13191F] p-6 sm:p-8 shadow-2xl">
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                                 <div>
                                     <div className="flex items-center gap-2">
