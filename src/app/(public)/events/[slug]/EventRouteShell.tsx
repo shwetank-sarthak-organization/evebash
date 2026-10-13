@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { EventNavbar } from "@/components/EventNavbar";
+import { OpenInAppBanner } from "@/components/OpenInAppBanner";
 import {
     Event,
     OpenedGallery,
@@ -218,6 +219,7 @@ export function EventRouteShell({ children, slug }: EventRouteShellProps) {
         >
             {navigation}
             {children}
+            <OpenInAppBanner />
         </div>
     );
 }

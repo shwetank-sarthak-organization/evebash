@@ -570,7 +570,8 @@ export default function EventDetailScreen() {
     scaleRef.current = tempCoverScale;
   }, [tempCoverScale]);
   const { width } = useWindowDimensions();
-  const { id, shared, guestView, tab, share, mode } = useLocalSearchParams<{ id: string; shared?: string; guestView?: string; tab?: string; share?: string; mode?: 'admin' | 'visitor' }>();
+  // findYou=1: opened from a website Find You link (lib/deepLinks.ts); shows the Find You tab once loaded
+  const { id, shared, guestView, tab, share, mode, findYou } = useLocalSearchParams<{ id: string; shared?: string; guestView?: string; tab?: string; share?: string; mode?: 'admin' | 'visitor'; findYou?: string }>();
   const router = useRouter();
   const { user } = useAuth();
   const subscriptionStatus = React.useMemo(() => getSubscriptionStatus({
@@ -1280,7 +1281,7 @@ export default function EventDetailScreen() {
       if (opened.eventId && opened.eventId !== decodeURIComponent(id)) {
         redirecting = true;
         const params = Object.fromEntries(
-          Object.entries({ shared, guestView, tab, share, mode, id: opened.eventId }).filter(([, value]) => value != null)
+          Object.entries({ shared, guestView, tab, share, mode, findYou, id: opened.eventId }).filter(([, value]) => value != null)
         );
         router.replace({ pathname: '/events/[id]', params } as any);
         return;
@@ -1547,6 +1548,15 @@ export default function EventDetailScreen() {
       loadPrimaryGalleryPhotos();
     }
   };
+
+  // A Find You link opens the Find You tab once, after the gallery has loaded for this viewer
+  const findYouLinkHandledRef = React.useRef(false);
+  useEffect(() => {
+    if (findYou !== '1' || findYouLinkHandledRef.current) return;
+    if (loading || !event || showAdminView || !(isPublicView || hasMemberAccess)) return;
+    findYouLinkHandledRef.current = true;
+    handleSubEventChange({ id: 'find-you', title: 'Find You' } as any);
+  }, [findYou, loading, event, showAdminView, isPublicView, hasMemberAccess]);
 
   const handleEventBack = useCallback(() => {
     if (selectedAdminGallery !== undefined) {
