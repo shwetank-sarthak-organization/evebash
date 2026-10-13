@@ -1786,6 +1786,17 @@ export async function getGuestProfile(log: { userId?: string; email?: string; ph
 /**
  * Fetches a single user document by its UID.
  */
+/**
+ * Another person's public card (name and photo only) from profile_cards, which any logged-in user can read once RLS
+ * is on. Other people's profiles (email, username, phone) aren't readable then, so use this to show who someone is.
+ */
+export async function getProfileCard(uid: string): Promise<{ id: string; name?: string; profileImage?: string } | null> {
+    if (!uid) return null;
+    const { data, error } = await supabase.from('profile_cards').select('id, name, profile_image').eq('id', uid).maybeSingle();
+    if (error || !data) return null;
+    return { id: data.id, name: data.name || undefined, profileImage: data.profile_image || undefined };
+}
+
 export async function getUserById(uid: string): Promise<any | null> {
     if (!uid) return null;
     const decodedUid = decodeURIComponent(uid);

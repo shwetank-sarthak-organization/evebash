@@ -93,6 +93,7 @@ import {
     getSubEvents,
     getEventById,
     getUserById,
+    getProfileCard,
     getApprovedSharedEventsForUser,
     saveCoverUsagePhoto,
     deleteCoverUsagePhoto,
@@ -2104,8 +2105,9 @@ function DashboardContent() {
 
             const ownerEntries = await Promise.all(
                 ownerIds.map(async (ownerId) => {
-                    const owner = await getUserById(ownerId);
-                    return [ownerId, { email: owner?.email, name: owner?.name, username: owner?.username }] as const;
+                    // Name only: other people's email and username aren't readable once RLS is on (profile_cards is)
+                    const owner = await getProfileCard(ownerId);
+                    return [ownerId, { email: undefined as string | undefined, name: owner?.name, username: undefined as string | undefined }] as const;
                 })
             );
 
@@ -3519,28 +3521,10 @@ function DashboardContent() {
         { id: "videos", label: `Videos (${currentEventMediaCounts.videos})`, icon: Video },
     ] as const;
 
-    const getEventOwnerEmail = (evt: Event) => {
+    const getEventOwnerName = (evt: Event) => {
         if (!evt.createdBy) return "Unknown owner";
         if (evt.createdBy.includes("@")) return evt.createdBy;
-        return eventOwners[evt.createdBy]?.email || workspaceOwner?.email || evt.createdBy;
-    };
-
-    const getEventOwnerDetails = (evt: Event) => {
-        const ownerId = evt.createdBy;
-        if (!ownerId) {
-            return { name: "Unknown owner", email: "Unknown", username: "Not set" };
-        }
-
-        if (ownerId.includes("@")) {
-            return { name: "Unknown owner", email: ownerId, username: "Not set" };
-        }
-
-        const owner = eventOwners[ownerId];
-        return {
-            name: owner?.name || "Unknown owner",
-            email: owner?.email || ownerId,
-            username: owner?.username || "Not set",
-        };
+        return eventOwners[evt.createdBy]?.name || "Unknown owner";
     };
 
     const getSharedAccessLabel = (evt: Event) => {
@@ -3870,7 +3854,7 @@ function DashboardContent() {
                 {isSharedEvent && (
                     <div className="mt-3 flex flex-wrap gap-1.5">
                         <div className="inline-flex max-w-full items-center rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-slate-300">
-                            <span className="truncate">Owner: {getEventOwnerEmail(evt)}</span>
+                            <span className="truncate">Owner: {getEventOwnerName(evt)}</span>
                         </div>
                         <div className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-slate-300">
                             {getSharedAccessLabel(evt)}
@@ -4106,7 +4090,7 @@ function DashboardContent() {
                                                 onOpen={() => router.push(`/host?view=manage&level=event-details&eventId=${event.id}`)}
                                                 footer={activeTab === "shared" && (
                                                     <p className="mt-2 truncate text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                                                        Owner: <span className="normal-case text-white">{getEventOwnerDetails(event).username.toLowerCase()}</span>
+                                                        Owner: <span className="normal-case text-white">{getEventOwnerName(event)}</span>
                                                     </p>
                                                 )}
                                             />

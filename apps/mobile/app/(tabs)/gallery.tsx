@@ -50,7 +50,7 @@ import {
   updateEvent,
   deleteEvent,
   getGuestProfile,
-  getUserById,
+  getProfileCard,
   UserProfile
 } from '@/lib/database';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -236,11 +236,12 @@ export default function PortfolioTabScreen() {
       }
 
       const entries = await Promise.all(ownerIds.map(async (ownerId) => {
-        const owner = await getUserById(ownerId);
+        // Name only: other people's email and username aren't readable once RLS is on (profile_cards is)
+        const owner = await getProfileCard(ownerId);
         return [ownerId, {
           name: owner?.name || 'Unknown owner',
-          email: owner?.email || ownerId,
-          username: owner?.username || 'Not set',
+          email: ownerId,
+          username: 'Not set',
         }] as const;
       }));
 
@@ -530,7 +531,7 @@ export default function PortfolioTabScreen() {
         {isSharedCard && (
           <View style={styles.sharedOwnerBlock}>
             <Text style={styles.sharedOwnerLine}>
-              <Text style={styles.sharedOwnerLabel}>Owner username: </Text>{(ownerDetails.username || 'not set').toLowerCase()}
+              <Text style={styles.sharedOwnerLabel}>Owner: </Text>{ownerDetails.name}
             </Text>
           </View>
         )}
