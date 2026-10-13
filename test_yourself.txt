@@ -1897,6 +1897,8 @@ How to test:
   3. Activity & Engagement: three small cards, each with an icon, the number and the label on one row.
      On a phone they stack and stay short.
   4. Open the "Plan & Tiers" tab: the tier text, "Valid until" date and yearly prices are gold, not yellow.
+  5. Hard-refresh /profile. The three activity numbers and the storage figure each appear within about
+     2 seconds and don't go back to "..." after showing a number.
 Expected:  No bright yellow or navy anywhere on the page; amber warning badges (e.g. "Needs Entry") stay.
 Done by:
 Device / browser:

@@ -165,7 +165,11 @@ export default function ProfilePage() {
     const [photosCount, setPhotosCount] = useState(0);
     const [eventCount, setEventCount] = useState(0);
     const [joinedCount, setJoinedCount] = useState(0);
-    const [loadingStats, setLoadingStats] = useState(true);
+    // Each stat shows as soon as its own query returns
+    const [loadingStorage, setLoadingStorage] = useState(true);
+    const [photosCountLoaded, setPhotosCountLoaded] = useState(false);
+    const [eventCountLoaded, setEventCountLoaded] = useState(false);
+    const [joinedCountLoaded, setJoinedCountLoaded] = useState(false);
     const [profileImage, setProfileImage] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
     const [removingImage, setRemovingImage] = useState(false);
@@ -228,48 +232,63 @@ export default function ProfilePage() {
         });
     }, [user]);
 
+    // Keyed on the id/email/phone values, not the user object: the auth context replaces the object when the
+    // full profile arrives, which used to restart every query and leave the stats on "..." twice as long.
+    const userUid = user?.uid;
+    const userEmail = user?.email;
+    const userPhone = user?.phone;
+
     useEffect(() => {
-        if (!user) return;
+        if (!userUid) return;
 
         const loadVerificationStatus = async () => {
             const { data } = await supabase.auth.getUser();
             const authUser = data.user;
             const authUserRecord = authUser as Record<string, unknown> | null;
             const authEmail = authUser?.email?.toLowerCase();
-            const profileEmail = user.email?.toLowerCase();
+            const profileEmail = userEmail?.toLowerCase();
             setVerification({
                 email: Boolean(authUser?.email_confirmed_at && authEmail && authEmail === profileEmail),
-                phone: Boolean(authUserRecord?.phone_confirmed_at && authUserRecord?.phone && authUserRecord.phone === user.phone),
+                phone: Boolean(authUserRecord?.phone_confirmed_at && authUserRecord?.phone && authUserRecord.phone === userPhone),
             });
         };
 
         void loadVerificationStatus();
-    }, [user]);
+    }, [userUid, userEmail, userPhone]);
 
     useEffect(() => {
-        if (!user) return;
+        if (!userUid) return;
+        const identifiers = [userUid, userEmail, userPhone].filter(Boolean) as string[];
+        let cancelled = false;
 
-        const loadStats = async () => {
-            setLoadingStats(true);
-            try {
-                const identifiers = [user.uid, user.email, user.phone].filter(Boolean) as string[];
-                const [storage, photos, hosted, joined] = await Promise.all([
-                    getUserStorageBreakdown(identifiers),
-                    getUserPhotosCount(user.uid),
-                    getUserEventCount(user.uid),
-                    getApprovedSharedEventsForUser(identifiers),
-                ]);
-                setStorageUsage(storage);
-                setPhotosCount(photos);
-                setEventCount(hosted);
-                setJoinedCount(joined.length);
-            } finally {
-                setLoadingStats(false);
-            }
-        };
+        setLoadingStorage(true);
+        setJoinedCountLoaded(false);
+        getUserStorageBreakdown(identifiers)
+            .then((storage) => { if (!cancelled) setStorageUsage(storage); })
+            .catch((error) => console.error("Profile storage load failed:", error))
+            .finally(() => { if (!cancelled) setLoadingStorage(false); });
+        getApprovedSharedEventsForUser(identifiers)
+            .then((joined) => { if (!cancelled) setJoinedCount(joined.length); })
+            .finally(() => { if (!cancelled) setJoinedCountLoaded(true); });
 
-        void loadStats();
-    }, [user]);
+        return () => { cancelled = true; };
+    }, [userUid, userEmail, userPhone]);
+
+    useEffect(() => {
+        if (!userUid) return;
+        let cancelled = false;
+
+        setPhotosCountLoaded(false);
+        setEventCountLoaded(false);
+        getUserPhotosCount(userUid)
+            .then((count) => { if (!cancelled) setPhotosCount(count); })
+            .finally(() => { if (!cancelled) setPhotosCountLoaded(true); });
+        getUserEventCount(userUid)
+            .then((count) => { if (!cancelled) setEventCount(count); })
+            .finally(() => { if (!cancelled) setEventCountLoaded(true); });
+
+        return () => { cancelled = true; };
+    }, [userUid]);
 
     useEffect(() => {
         if (!isEditing || !user) return;
@@ -584,7 +603,7 @@ export default function ProfilePage() {
                         <div className="hidden sm:flex items-center gap-3 text-xs">
                             <span className="text-slate-400 font-semibold">Active Quota:</span>
                             <span className="font-bold text-[#E2B77F]">
-                                {loadingStats ? "..." : formatStorageSize(storageUsage.total)} / {activePlan.storageLabel}
+                                {loadingStorage ? "..." : formatStorageSize(storageUsage.total)} / {activePlan.storageLabel}
                             </span>
                         </div>
                     </div>
@@ -607,19 +626,19 @@ export default function ProfilePage() {
                                 {[
                                     {
                                         label: "Photos Added",
-                                        value: loadingStats ? "..." : photosCount,
+                                        value: photosCountLoaded ? photosCount : "...",
                                         icon: Upload,
                                         subtext: "Preserved securely in cloud",
                                     },
                                     {
                                         label: "Events Hosted",
-                                        value: loadingStats ? "..." : eventCount,
+                                        value: eventCountLoaded ? eventCount : "...",
                                         icon: Camera,
                                         subtext: `${activePlan.eventLimit === Infinity ? "Unlimited" : activePlan.eventLimit} event quota on plan`,
                                     },
                                     {
                                         label: "Events Joined",
-                                        value: loadingStats ? "..." : joinedCount,
+                                        value: joinedCountLoaded ? joinedCount : "...",
                                         icon: Users,
                                         subtext: "Active attendee access",
                                     },
@@ -748,7 +767,7 @@ export default function ProfilePage() {
                                         usage={storageUsage}
                                         planBytes={activePlan.storageBytes}
                                         planLabel={activePlan.storageLabel}
-                                        loading={loadingStats}
+                                        loading={loadingStorage}
                                     />
 
                                     <button
@@ -888,7 +907,7 @@ export default function ProfilePage() {
                                 usage={storageUsage}
                                 planBytes={activePlan.storageBytes}
                                 planLabel={activePlan.storageLabel}
-                                loading={loadingStats}
+                                loading={loadingStorage}
                             />
                         </section>
 
