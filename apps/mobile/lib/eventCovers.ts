@@ -21,6 +21,8 @@ export function resolveEventCoverImage(coverImage?: string | null, mode: 'previe
 // Categories not listed keep the generic event placeholder.
 const CATEGORY_DEFAULT_COVERS: Record<string, number> = {
   wedding: require('@/assets/images/event-covers/wedding.webp'),
+  birthday: require('@/assets/images/event-covers/birthday.jpg'),
+  sports: require('@/assets/images/event-covers/sports.jpg'),
 };
 
 /** Empty covers and the stock photos saved on event creation both count as "no cover uploaded". */

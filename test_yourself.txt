@@ -1857,20 +1857,21 @@ Screenshot / recording:
 Fix ref:
 Feedback:
 
-#79 Wedding events without a cover show the new wedding photo
+#79 Wedding, Birthday and Sports events without a cover show their new default photo
 Status:    TODO
 Priority:  Medium
 Platform:  Both (website + app)
-Brief:     Events with no uploaded cover now show a default photo picked by category. So far only Wedding
-           has one (the mandap at sunset); other categories still show the old stock photo. Covers a host
-           uploaded are unchanged. Nothing new is saved to the database.
+Brief:     Events with no uploaded cover now show a default photo picked by category: Wedding (mandap at
+           sunset), Birthday (balloon arch and cake), Sports (multisport collage). Other categories still
+           show the old stock photo. Covers a host uploaded are unchanged. Nothing new is saved to the database.
 How to test:
   1. Create a Wedding event and don't upload a cover. Expect the mandap photo on the website dashboard
      card, the host page card and header, the guest page (/events/<slug>) and its gallery tiles.
   2. Same event in the app: Dashboard and Your Events grid cards, the event screen header and the
      gallery tiles show the mandap photo.
   3. An older Wedding event that never had a cover: it also shows the mandap photo now.
-  4. A Birthday or Corporate event without a cover: still the old stock photo.
+  4. Repeat 1-3 with a Birthday event (balloon photo) and a Sports event (multisport photo).
+     A Corporate or College event without a cover: still the old stock photo.
   5. Upload a cover on the Wedding event: your photo replaces the default everywhere.
 Done by:
 Device / browser:

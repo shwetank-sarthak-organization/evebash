@@ -14,6 +14,8 @@ export const DEFAULT_EVENT_COVER_IMAGE = EVENT_PLACEHOLDER_IMAGES[0];
 // Categories not listed keep DEFAULT_EVENT_COVER_IMAGE.
 const CATEGORY_DEFAULT_COVERS: Record<string, string> = {
   wedding: "/event-covers/wedding.webp",
+  birthday: "/event-covers/birthday.jpg",
+  sports: "/event-covers/sports.jpg",
 };
 
 /** Empty covers and the stock photos saved on event creation both count as "no cover uploaded". */
