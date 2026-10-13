@@ -22,6 +22,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ModalHeader, modalStyles } from "@/components/ui/Modal";
 import { cn } from "@/lib/utils";
 import { CollectionsIcon } from "@/components/CollectionsIcon";
+import { EventsJoinedStatIcon, PhotosStatIcon, VideosStatIcon } from "@/components/dashboard/StatIcons";
 import {
     DashboardEventCard,
     SERIF,
@@ -153,7 +154,7 @@ export default function DashboardHub() {
 
     return (
         <div className="min-h-screen bg-[#0E141A] font-sans text-white">
-            <main className="relative z-20 mx-auto max-w-7xl space-y-8 px-4 pt-24 pb-24 sm:px-6 lg:px-8">
+            <main className="relative z-20 mx-auto max-w-7xl space-y-8 px-4 pt-12 pb-24 sm:px-6 lg:px-8">
                 <section className="rounded-[2rem] border border-[#273034] bg-[#121820] p-5 shadow-2xl shadow-black/25 sm:p-8 lg:p-10">
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
@@ -181,21 +182,30 @@ export default function DashboardHub() {
 
                     <div className="mt-8 grid gap-4 sm:grid-cols-3">
                         <div className={STAT_BOX} style={STAT_BOX_SIZE}>
-                            <span className="shrink-0 text-sm font-medium text-slate-400">Total Memories</span>
+                            <span className="flex shrink-0 items-center gap-2 text-sm font-medium text-slate-400">
+                                <PhotosStatIcon className="h-5 w-5 text-[#CA9C68]" aria-hidden="true" />
+                                Total Photos
+                            </span>
                             <span className="truncate text-xl text-[#CA9C68] lg:text-2xl" style={SERIF}>
-                                {statsLoaded ? totalPhotos.toLocaleString("en-US") : "—"} {totalPhotos === 1 ? "Photo" : "Photos"} ✨
+                                {statsLoaded ? totalPhotos.toLocaleString("en-US") : "—"} {totalPhotos === 1 ? "Photo" : "Photos"}
                             </span>
                         </div>
                         <div className={STAT_BOX} style={STAT_BOX_SIZE}>
-                            <span className="shrink-0 text-sm font-medium text-slate-400">Videos</span>
+                            <span className="flex shrink-0 items-center gap-2 text-sm font-medium text-slate-400">
+                                <VideosStatIcon className="h-5 w-5 text-[#CA9C68]" aria-hidden="true" />
+                                Total Videos
+                            </span>
                             <span className="truncate text-xl text-[#CA9C68] lg:text-2xl" style={SERIF}>
                                 {statsLoaded ? totalVideos.toLocaleString("en-US") : "—"} {totalVideos === 1 ? "Video" : "Videos"}
                             </span>
                         </div>
                         <div className={STAT_BOX} style={STAT_BOX_SIZE}>
-                            <span className="shrink-0 text-sm font-medium text-slate-400">Events Joined</span>
+                            <span className="flex shrink-0 items-center gap-2 text-sm font-medium text-slate-400">
+                                <EventsJoinedStatIcon className="h-5 w-5 text-[#CA9C68]" aria-hidden="true" />
+                                Events Joined
+                            </span>
                             <span className="truncate text-xl text-white lg:text-2xl" style={SERIF}>
-                                {attendedCount} {attendedCount === 1 ? "Celebration" : "Celebrations"}
+                                {attendedCount}
                             </span>
                         </div>
                     </div>

@@ -1723,7 +1723,7 @@ Priority:  Medium
 Platform:  Website (computer + phone browser)
 Brief:     Design-only change to /dashboard. New header (icon, "Collections | <name>", "Memories curated for you",
            with a "Join Event" button on the right like the host page's Create Event), three stat boxes (Total
-           Memories = photos across all your events and their sub-galleries; Videos = videos across the same;
+           Photos = photos across all your events and their sub-galleries; Total Videos = videos across the same;
            Events Joined), and event cards with the photo on top and title, date and guest count below. The last card in the grid is "Your memories"; since #69 its Explore All opens the full list (test #75).
 Setup:     An account that hosts at least one event and has joined at least one other event (4+ events in total).
 How to test:
@@ -1731,7 +1731,7 @@ How to test:
   2. Expect: the heading and subheading together are as tall as the icon; no filter tabs.
   3. (Changed by #69) Click Explore All. Expect: the full events page opens; checked in test #75.
   3b. Compare the counts with the host page. Expect: each card's guests = approved guests of that event (a guest
-     counted once even with several sub-galleries); Total Memories = sum of the events' photos; Videos = sum of
+     counted once even with several sub-galleries); Total Photos = sum of the events' photos; Total Videos = sum of
      the events' videos.
   4. Click an event card. Expect: the event opens in a new tab as before.
   5. Click Join Event and join with a code. Expect: same modal and behaviour as before.

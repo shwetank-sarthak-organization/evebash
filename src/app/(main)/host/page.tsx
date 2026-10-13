@@ -3899,8 +3899,8 @@ function DashboardContent() {
                                             </button>
                                         </Tooltip>
                                         <div className="min-w-0">
-                                            <h2 className="truncate font-brand text-2xl font-normal leading-tight tracking-wide text-[#F5EFE6] sm:text-4xl">Host Console</h2>
-                                            <p className="font-sans text-sm text-slate-400">Event operations</p>
+                                            <h2 className="truncate font-brand font-normal tracking-wide text-[#F5EFE6]" style={{ fontSize: 28, lineHeight: "30px" }}>Host Console</h2>
+                                            <p className="truncate font-sans text-slate-400" style={{ fontSize: 12, lineHeight: "18px" }}>Event operations</p>
                                         </div>
                                     </div>
 
