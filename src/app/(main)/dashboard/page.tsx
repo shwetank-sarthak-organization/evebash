@@ -1,15 +1,13 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { resolveEventCoverImage } from "@/lib/eventCovers";
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import {
     DashboardEventStats,
     Event,
-    getApprovedSharedEventsForUser,
     getDashboardEventStats,
-    getUserEvents,
     openGallery,
     requestGalleryAccess,
 } from "@/lib/database";
@@ -24,49 +22,19 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ModalHeader, modalStyles } from "@/components/ui/Modal";
 import { cn } from "@/lib/utils";
 import { CollectionsIcon } from "@/components/CollectionsIcon";
+import {
+    DashboardEventCard,
+    SERIF,
+    loadDashboardEvents,
+} from "@/components/dashboard/DashboardEvents";
 
 const DEFAULT_EVENT_COVER_IMAGE = "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop";
+// The two stat boxes and the Join button share one size. The height is inline so it never depends on a newly
+// generated Tailwind class.
+const STAT_BOX = "flex min-w-0 flex-col justify-center rounded-2xl border border-[#273034] bg-[#0E141A] px-5 lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:px-6";
+const STAT_BOX_SIZE: React.CSSProperties = { height: 74 };
+
 const MEMORIES_CARD_IMAGE = "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2071&auto=format&fit=crop";
-
-// font-serif is aliased to Inter in tailwind.config.ts, so headings use the Playfair variable directly.
-const SERIF: React.CSSProperties = { fontFamily: "var(--font-playfair)" };
-
-type DashboardTab = "all" | "attended" | "hosted";
-const DASHBOARD_TABS: { key: DashboardTab; label: string }[] = [
-    { key: "all", label: "All Events" },
-    { key: "attended", label: "Attended Memories" },
-    { key: "hosted", label: "Hosted Galleries" },
-];
-
-function getCreatedTime(event: Event) {
-    const createdAt = event.createdAt as any;
-    if (!createdAt) return 0;
-    if (typeof createdAt === "string" || typeof createdAt === "number") {
-        return new Date(createdAt).getTime() || 0;
-    }
-    if (createdAt.seconds) {
-        return createdAt.seconds * 1000;
-    }
-    if (createdAt.toDate) {
-        return createdAt.toDate().getTime();
-    }
-    return 0;
-}
-
-function getCoverImageStyle(event?: Event): React.CSSProperties {
-    const coverMode = event?.coverMode || "fill";
-    if (coverMode === "fit") {
-        return { objectFit: "contain", backgroundColor: "#050505" };
-    }
-
-    const x = 50 + (event?.coverOffsetX || 0);
-    const y = 50 + (event?.coverOffset || 0);
-    return {
-        objectFit: "cover",
-        objectPosition: `${Math.max(0, Math.min(100, x))}% ${Math.max(0, Math.min(100, y))}%`,
-        transform: `scale(${event?.coverScale || 1})`,
-    };
-}
 
 export default function DashboardHub() {
     const { user, loading } = useAuth();
@@ -75,9 +43,7 @@ export default function DashboardHub() {
     const [events, setEvents] = useState<Event[]>([]);
     const [hostedIds, setHostedIds] = useState<Set<string>>(new Set());
     const [eventStats, setEventStats] = useState<Record<string, DashboardEventStats>>({});
-    const [activeTab, setActiveTab] = useState<DashboardTab>("all");
     const [isLoadingEvents, setIsLoadingEvents] = useState(true);
-    const [showAllEvents, setShowAllEvents] = useState(false);
 
     const [showJoinModal, setShowJoinModal] = useState(false);
     const [joinCode, setJoinCode] = useState("");
@@ -96,21 +62,10 @@ export default function DashboardHub() {
 
         setIsLoadingEvents(true);
         try {
-            const ownIdentifiers = [user.uid];
-            if (user.email) ownIdentifiers.push(user.email);
-            if (user.phone) ownIdentifiers.push(user.phone);
-
-            const [hostedEvents, approvedSharedEvents] = await Promise.all([
-                getUserEvents(ownIdentifiers, "main"),
-                getApprovedSharedEventsForUser(ownIdentifiers),
-            ]);
-
-            const visibleEvents = Array.from(
-                new Map([...hostedEvents, ...approvedSharedEvents].map((event) => [event.id, event])).values()
-            ).sort((a, b) => getCreatedTime(b) - getCreatedTime(a));
+            const { events: visibleEvents, hostedIds: hosted } = await loadDashboardEvents(user);
 
             setEvents(visibleEvents);
-            setHostedIds(new Set(hostedEvents.map((event) => event.id)));
+            setHostedIds(hosted);
 
             // Counts load after the cards so they never hold the grid back
             getDashboardEventStats(visibleEvents.map((event) => event.id))
@@ -177,19 +132,14 @@ export default function DashboardHub() {
         }
     };
 
-    const tabEvents = useMemo(() => {
-        if (activeTab === "hosted") return events.filter((event) => hostedIds.has(event.id));
-        if (activeTab === "attended") return events.filter((event) => !hostedIds.has(event.id));
-        return events;
-    }, [events, hostedIds, activeTab]);
 
     const attendedCount = events.length - events.filter((event) => hostedIds.has(event.id)).length;
     const statsLoaded = Object.keys(eventStats).length > 0;
     const totalPhotos = events.reduce((sum, event) => sum + (eventStats[event.id]?.photos || 0), 0);
+    const totalVideos = events.reduce((sum, event) => sum + (eventStats[event.id]?.videos || 0), 0);
 
-    const visibleEvents = useMemo(() => (
-        showAllEvents ? tabEvents : tabEvents.slice(0, 3)
-    ), [tabEvents, showAllEvents]);
+    // The full list lives on /dashboard/events (the "Your memories" card opens it)
+    const visibleEvents = events.slice(0, 3);
 
     if (loading) {
         return (
@@ -205,58 +155,49 @@ export default function DashboardHub() {
         <div className="min-h-screen bg-[#0E141A] font-sans text-white">
             <main className="relative z-20 mx-auto max-w-7xl space-y-8 px-4 pt-24 pb-24 sm:px-6 lg:px-8">
                 <section className="rounded-[2rem] border border-[#273034] bg-[#121820] p-5 shadow-2xl shadow-black/25 sm:p-8 lg:p-10">
-                    <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex items-center justify-between gap-4">
                         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-[#CA9C68]">
                                 <CollectionsIcon className="h-6 w-6" aria-hidden="true" />
                             </div>
                             <div className="min-w-0">
-                                <h1 className="truncate font-brand text-2xl font-normal leading-tight tracking-wide text-[#F5EFE6] sm:text-4xl">
+                                <h1 className="truncate font-brand font-normal tracking-wide text-[#F5EFE6]" style={{ fontSize: 28, lineHeight: "30px" }}>
                                     Collections <span className="text-[#CA9C68]">|</span> {user.name || user.email || "My Dashboard"}
                                 </h1>
-                                <p className="font-sans text-sm text-slate-400">Memories curated for you</p>
+                                <p className="truncate font-sans text-slate-400" style={{ fontSize: 12, lineHeight: "18px" }}>Memories curated for you</p>
                             </div>
-                        </div>
-                        <div className="-mx-1 flex w-fit max-w-full overflow-x-auto rounded-full border border-[#273034] bg-[#0E141A] p-1">
-                            {DASHBOARD_TABS.map((tab) => (
-                                <button
-                                    key={tab.key}
-                                    type="button"
-                                    onClick={() => setActiveTab(tab.key)}
-                                    className={cn(
-                                        "shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-colors sm:px-5",
-                                        activeTab === tab.key
-                                            ? "bg-[#CA9C68] font-bold uppercase text-[#13191F]"
-                                            : "text-slate-300 hover:text-white"
-                                    )}
-                                >
-                                    {tab.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#273034] bg-[#0E141A] px-6 py-5">
-                            <span className="text-sm font-medium text-slate-400">Total Memories</span>
-                            <span className="text-2xl text-[#CA9C68]" style={SERIF}>
-                                {statsLoaded ? totalPhotos.toLocaleString("en-US") : "—"} {totalPhotos === 1 ? "Photo" : "Photos"} ✨
-                            </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#273034] bg-[#0E141A] px-6 py-5">
-                            <span className="text-sm font-medium text-slate-400">Events Joined</span>
-                            <span className="text-2xl text-white" style={SERIF}>
-                                {attendedCount} {attendedCount === 1 ? "Celebration" : "Celebrations"}
-                            </span>
                         </div>
                         <button
                             type="button"
                             onClick={() => setShowJoinModal(true)}
-                            className="inline-flex min-h-[4.5rem] items-center sm:col-span-2 lg:col-span-1 justify-center gap-2 rounded-2xl bg-[#CA9C68] px-6 py-5 text-sm font-bold uppercase tracking-[0.12em] text-[#13191F] transition-transform hover:bg-[#D6AA78] active:scale-[0.98]"
+                            className="flex h-12 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl bg-[#CA9C68] px-4 font-sans text-sm font-black text-slate-950 transition-colors hover:bg-[#D7AE7D] sm:px-5"
+                            aria-label="Join Event"
                         >
                             <Plus className="h-4 w-4" />
-                            <span>Join Event with Code</span>
+                            <span className="sm:hidden">Join</span>
+                            <span className="hidden sm:inline">Join Event</span>
                         </button>
+                    </div>
+
+                    <div className="mt-8 grid gap-4 sm:grid-cols-3">
+                        <div className={STAT_BOX} style={STAT_BOX_SIZE}>
+                            <span className="shrink-0 text-sm font-medium text-slate-400">Total Memories</span>
+                            <span className="truncate text-xl text-[#CA9C68] lg:text-2xl" style={SERIF}>
+                                {statsLoaded ? totalPhotos.toLocaleString("en-US") : "—"} {totalPhotos === 1 ? "Photo" : "Photos"} ✨
+                            </span>
+                        </div>
+                        <div className={STAT_BOX} style={STAT_BOX_SIZE}>
+                            <span className="shrink-0 text-sm font-medium text-slate-400">Videos</span>
+                            <span className="truncate text-xl text-[#CA9C68] lg:text-2xl" style={SERIF}>
+                                {statsLoaded ? totalVideos.toLocaleString("en-US") : "—"} {totalVideos === 1 ? "Video" : "Videos"}
+                            </span>
+                        </div>
+                        <div className={STAT_BOX} style={STAT_BOX_SIZE}>
+                            <span className="shrink-0 text-sm font-medium text-slate-400">Events Joined</span>
+                            <span className="truncate text-xl text-white lg:text-2xl" style={SERIF}>
+                                {attendedCount} {attendedCount === 1 ? "Celebration" : "Celebrations"}
+                            </span>
+                        </div>
                     </div>
 
                     {isLoadingEvents ? (
@@ -265,57 +206,19 @@ export default function DashboardHub() {
                         </div>
                     ) : (
                         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                            {visibleEvents.map((event) => {
-                                const coverImage = resolveEventCoverImage(event.coverImage, 'thumbnail');
-                                const guests = eventStats[event.id]?.guests;
-                                return (
-                                    <button
-                                        key={event.id}
-                                        type="button"
-                                        onClick={() => window.open(`/events/${event.id}?mode=visitor`, "_blank", "noopener,noreferrer")}
-                                        className="group flex flex-col rounded-2xl border border-[#273034] bg-[#0E141A] p-3 text-left transition-all hover:-translate-y-1 hover:border-[#CA9C68]/40"
-                                    >
-                                        <div className="relative w-full overflow-hidden rounded-xl bg-[#0E141A]" style={{ aspectRatio: "16 / 10" }}>
-                                            <img
-                                                src={coverImage}
-                                                alt=""
-                                                className="absolute inset-0 h-full w-full object-cover opacity-30 blur-xl"
-                                            />
-                                            <img
-                                                src={coverImage}
-                                                alt={event.title}
-                                                className="absolute inset-0 h-full w-full transition-transform duration-700 group-hover:scale-105"
-                                                style={getCoverImageStyle(event)}
-                                            />
-                                            {event.category && (
-                                                <div className="absolute left-3 top-3 rounded-full border border-[#CA9C68]/30 bg-black/65 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#CA9C68] backdrop-blur-sm">
-                                                    {event.category}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="px-1 pb-1 pt-4">
-                                            <h3 className="truncate text-xl leading-tight text-white" style={SERIF}>{event.title}</h3>
-                                            <div className="mt-2 flex items-center justify-between gap-3 text-sm">
-                                                <span className="truncate text-slate-400">{event.date}</span>
-                                                {guests != null && (
-                                                    <span className="shrink-0 font-medium text-[#CA9C68]">{guests} {guests === 1 ? "Guest" : "Guests"}</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </button>
-                                );
-                            })}
+                            {visibleEvents.map((event) => (
+                                <DashboardEventCard key={event.id} event={event} guests={eventStats[event.id]?.guests} />
+                            ))}
 
-                            {tabEvents.length === 0 ? (
+                            {events.length === 0 ? (
                                 <div className="col-span-full rounded-2xl border border-dashed border-[#CA9C68]/25 p-10 text-center text-slate-400">
                                     <p className="text-2xl text-white" style={SERIF}>No events yet</p>
                                     <p className="mt-2 text-sm font-medium">Join an event or create your first hosted collection.</p>
                                 </div>
                             ) : (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAllEvents(prev => !prev)}
-                                    className="group relative min-h-64 overflow-hidden rounded-2xl border border-dashed border-[#CA9C68]/35 bg-[#0E141A] text-center transition-colors hover:border-[#CA9C68]/60"
+                                <Link
+                                    href="/dashboard/events"
+                                    className="group relative block min-h-64 overflow-hidden rounded-2xl border border-dashed border-[#CA9C68]/35 bg-[#0E141A] text-center transition-colors hover:border-[#CA9C68]/60"
                                 >
                                     <img
                                         src={MEMORIES_CARD_IMAGE}
@@ -326,14 +229,14 @@ export default function DashboardHub() {
                                     <div className="relative z-10 flex h-full min-h-64 flex-col items-center justify-center p-6">
                                         <h3 className="text-2xl text-white" style={SERIF}>Your memories</h3>
                                         <div className="mt-3 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-bold">
-                                            {tabEvents.length} {tabEvents.length === 1 ? "Collection" : "Collections"}
+                                            {events.length} {events.length === 1 ? "Collection" : "Collections"}
                                         </div>
                                         <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#CA9C68] px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#13191F]">
-                                            <span>{showAllEvents ? "Show Less" : "Explore All"}</span>
+                                            <span>Explore All</span>
                                             <ArrowRight className="h-4 w-4" />
                                         </div>
                                     </div>
-                                </button>
+                                </Link>
                             )}
                         </div>
                     )}

@@ -2435,12 +2435,13 @@ export async function getUserTotalStorage(identifiers: string | string[]): Promi
 
 export interface DashboardEventStats {
     photos: number;
+    videos: number;
     guests: number | null; // null when the guest list can't be read
 }
 
 /**
  * Photo and guest counts for the dashboard's event cards, keyed by main event id. Photos are counted across the
- * event and its sub-galleries (videos left out); guests are the distinct approved guests of the event.
+ * event and its sub-galleries (photos and videos separately); guests are the distinct approved guests of the event.
  */
 export async function getDashboardEventStats(mainEventIds: string[]): Promise<Record<string, DashboardEventStats>> {
     const ids = Array.from(new Set(mainEventIds.filter(Boolean)));
@@ -2455,12 +2456,17 @@ export async function getDashboardEventStats(mainEventIds: string[]): Promise<Re
 
     await Promise.all(ids.map(async (eventId) => {
         const galleryIds = [eventId, ...(subsByParent[eventId] || [])];
-        const [photosResult, guestsResult] = await Promise.all([
+        const [photosResult, videosResult, guestsResult] = await Promise.all([
             supabase
                 .from('photos')
                 .select('id', { count: 'exact', head: true })
                 .in('event_id', galleryIds)
                 .or('media_type.is.null,media_type.neq.video'),
+            supabase
+                .from('photos')
+                .select('id', { count: 'exact', head: true })
+                .in('event_id', galleryIds)
+                .eq('media_type', 'video'),
             supabase
                 .from('guests')
                 .select('user_id, phone')
@@ -2474,7 +2480,11 @@ export async function getDashboardEventStats(mainEventIds: string[]): Promise<Re
             const people = new Set((guestsResult.data || []).map((row: any) => row.user_id || row.phone).filter(Boolean));
             guests = people.size;
         }
-        stats[eventId] = { photos: photosResult.error ? 0 : (photosResult.count || 0), guests };
+        stats[eventId] = {
+            photos: photosResult.error ? 0 : (photosResult.count || 0),
+            videos: videosResult.error ? 0 : (videosResult.count || 0),
+            guests,
+        };
     }));
 
     return stats;
