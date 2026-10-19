@@ -55,7 +55,9 @@ export default function LoginScreen() {
   const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
   const anyLoading = loading || socialLoading !== null;
   const [showPass, setShowPass] = useState(false);
-  const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('email');
+  // Email only for now; phone comes back in a later version (see the commented-out switch below).
+  // const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('email');
+  const authMethod = 'email' as 'email' | 'phone';
   const isPhoneAuth = authMethod === 'phone';
 
   // Password validation states
@@ -205,6 +207,9 @@ export default function LoginScreen() {
                   : 'Sign in to access your gallery'}
               </Text>
 
+              {/* Phone login and signup are hidden for now: email only. They come back in a later version (no SMS
+                  code yet; the phone becomes <digits>@phone-login.local). To restore, uncomment this switch and the
+                  setAuthMethod line above.
               <View style={styles.segmentedControl}>
                 <TouchableOpacity
                   style={[styles.segmentButton, !isPhoneAuth && styles.segmentButtonActive]}
@@ -225,6 +230,7 @@ export default function LoginScreen() {
                   <Text style={[styles.segmentText, isPhoneAuth && styles.segmentTextActive]}>Phone</Text>
                 </TouchableOpacity>
               </View>
+              */}
 
               {/* Fields */}
               {isSignUp && (

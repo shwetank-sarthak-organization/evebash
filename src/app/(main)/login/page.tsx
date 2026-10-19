@@ -26,7 +26,9 @@ function LoginContent() {
     const searchParams = useSearchParams();
     const [isSignUp, setIsSignUp] = useState(searchParams.get("mode") === "signup");
     const [policiesAccepted, setPoliciesAccepted] = useState(false);
-    const [authMethod, setAuthMethod] = useState<"email" | "phone">("email");
+    // Email only for now; phone comes back in a later version (see the commented-out switch below).
+    // const [authMethod, setAuthMethod] = useState<"email" | "phone">("email");
+    const authMethod = "email" as "email" | "phone";
     const [showPass, setShowPass] = useState(false);
     const [verificationMessage, setVerificationMessage] = useState("");
 
@@ -209,7 +211,9 @@ function LoginContent() {
                     <h2 className="font-sans text-2xl font-bold text-[#1B211F] mb-1">{isSignUp ? 'Create Account' : 'Welcome Back'}</h2>
                     <p className="text-[#64748b] text-sm mb-7">{isSignUp ? 'Sign up to access your gallery' : 'Sign in to access your gallery'}</p>
 
-                    {/* Segmented Control */}
+                    {/* Phone login and signup are hidden for now: email only. They come back in a later version (no SMS
+                        code yet; the phone becomes <digits>@phone-login.local). To restore, uncomment this switch and the
+                        setAuthMethod line above.
                     <div className="flex bg-[#f1f5f9] p-1 rounded-[14px] mb-[22px]">
                         <button
                             type="button"
@@ -228,6 +232,7 @@ function LoginContent() {
                             Phone
                         </button>
                     </div>
+                    */}
 
                     <form onSubmit={handleSubmit} className="space-y-5">
                         {isSignUp && (

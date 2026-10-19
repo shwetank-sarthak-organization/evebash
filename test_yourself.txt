@@ -20,7 +20,7 @@ HOW TO USE
 - New tests go at the bottom with the "Next test number" below, then increase that number by 1.
   Never reuse a number. Pull staging first so two chats don't take the same number.
 
-Next test number: 88
+Next test number: 89
 
 - Test on STAGING (staging.evebash.com / staging app build) unless the test says otherwise.
 
@@ -2082,6 +2082,26 @@ How to test:
      ignores them.
   6. Host -> a sub-gallery, Photos tab: Download gives photos only; Videos tab: videos only. Filter Uploaded by
      a person (or Favourites only): only those items. Filters that leave nothing say so.
+Done by:
+Device / browser:
+Build / version:
+Date tested:
+Account used:
+Screenshot / recording:
+Fix ref:
+Feedback:
+
+--------------------------------------------------------------------------------
+#88 Login and sign-up are email only (phone hidden until a later version)
+Status:    TODO
+Priority:  Medium
+Platform:  Both (website: staging.evebash.com/login; app: JS-only change, any staging build)
+Brief:     The Email | Phone switch is commented out on the login and sign-up screens; only email shows.
+How to test:
+  1. Website /login and /login?mode=signup: no Email | Phone switch, no phone field; email + password only.
+     Continue with Google still works.
+  2. Log in with an existing email account: works. Create a new account with email: works.
+  3. App login screen, both Log in and Sign up: no Email | Phone switch; Google and Apple buttons still show.
 Done by:
 Device / browser:
 Build / version:
