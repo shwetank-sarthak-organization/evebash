@@ -23,6 +23,7 @@ import { downloadGalleryAsZip } from "@/lib/zipDownload";
 import {
     LayoutDashboard,
     Eye,
+    EyeOff,
     Settings,
     ShieldCheck,
     LogOut,
@@ -105,6 +106,9 @@ import {
 	    generateEventJoinId,
 	    openGallery,
 	    movePhotosToGallery,
+	    setGalleryHidden,
+	    setMediaHidden,
+	    mergeHomeMedia,
 	getDashboardEventStats,
 	type DashboardEventStats,
 	} from "@/lib/database";
@@ -866,7 +870,7 @@ function DashboardContent() {
         setHostZipProgress(0);
         try {
             if (choice === "event" && selectedMainEvent) {
-                const items = await fetchEntireEventZipItems(selectedMainEvent, eventDetailGalleries);
+                const items = await fetchEntireEventZipItems(selectedMainEvent, eventDetailGalleries, { includeHidden: true });
                 if (items.length === 0) {
                     void alertDialog({ title: "Nothing to download", message: "No photos or videos in this event yet." });
                     return;
@@ -880,7 +884,8 @@ function DashboardContent() {
             // What's shown, from the whole gallery rather than just the pages loaded on screen (the primary gallery's
             // favourites view is already complete): the Photos / Videos tab, then Source gallery, Favourites only and
             // Uploaded by, the same steps as the grid. Uploads in progress and unfinished videos are left out, as on screen.
-            const all = hasMorePhotos ? await fetchAllEventMedia(selectedEventId) : currentEventPhotos;
+            // Keeps what's loaded (on Home that includes the favourites) and adds the rest of the gallery's own media
+            const all = hasMorePhotos ? mergeHomeMedia(currentEventPhotos, await fetchAllEventMedia(selectedEventId)) : currentEventPhotos;
             const isVideo = (p: Photo) => p.mediaType === "video" || p.resourceType === "video";
             let media = all.filter(p => galleryMediaTab === "videos" ? isVideo(p) && p.status === "processed" : !isVideo(p) && p.status !== "uploading");
             if (isPrimaryGalleryView && effectiveSourceGalleryFilter !== "all") {
@@ -1540,27 +1545,30 @@ function DashboardContent() {
                     currentEvent?.legacyId,
                     ...eventDetailGalleries.flatMap(g => [g.id, g.legacyId]),
                 ].filter(Boolean) as string[]));
-                if (groupEventIds.length > 0) {
-                    const favPhotos = await getFavouritePhotosForEvents(groupEventIds);
-                    if (favPhotos.length > 0) {
-                        const favouriteIds = favPhotos.map(p => p.id).filter(Boolean);
-                        setCurrentEventPhotos(favPhotos as Photo[]);
-                        const photoCount = favPhotos.filter(p => p.mediaType !== "video" && p.resourceType !== "video").length;
-                        const videoCount = favPhotos.filter(p => p.mediaType === "video" || p.resourceType === "video").length;
-                        setCurrentEventMediaCounts({ photos: photoCount, videos: videoCount });
-                        setCurrentEventRetainedMediaIds(new Set(favouriteIds));
-                        setEventFavouritePhotoIds(new Set(favouriteIds));
-                        setEventFavouriteCount(favouriteIds.length);
-                        setEventFavouritePreview((favPhotos[0] || null) as Photo | null);
-                        setPhotoPage(0);
-                        setHasMorePhotos(false);
-                        return;
-                    }
-                }
+                // Home (Primary Gallery): the favourites first, then what was uploaded to Home itself (pages of 20)
+                const favPhotos = groupEventIds.length > 0 ? await getFavouritePhotosForEvents(groupEventIds, { includeHidden: true }) : [];
+                const own = await getEventPhotosPaginated(selectedEventId, currentEvent?.legacyId, 0, 20, { includeHidden: true });
+                const favouriteIds = favPhotos.map(p => p.id).filter(Boolean);
+                const homeIds = new Set([selectedEventId, currentEvent?.legacyId].filter(Boolean) as string[]);
+                // Home uploads that are also favourites are counted once
+                const extraFavourites = favPhotos.filter(p => !homeIds.has(p.eventId));
+                const isVideoItem = (p: Photo) => p.mediaType === "video" || p.resourceType === "video";
+                setCurrentEventPhotos(mergeHomeMedia(favPhotos as Photo[], own.photos as Photo[]));
+                setCurrentEventMediaCounts({
+                    photos: own.totalPhotos + extraFavourites.filter(p => !isVideoItem(p)).length,
+                    videos: own.totalVideos + extraFavourites.filter(isVideoItem).length,
+                });
+                setCurrentEventRetainedMediaIds(new Set([...favouriteIds, ...own.retainedMediaIds]));
+                setEventFavouritePhotoIds(new Set(favouriteIds));
+                setEventFavouriteCount(favouriteIds.length);
+                setEventFavouritePreview((favPhotos[0] || null) as Photo | null);
+                setPhotoPage(0);
+                setHasMorePhotos(own.hasMore);
+                return;
             }
 
             const legacyId = currentEvent?.legacyId;
-            const { photos, hasMore, totalPhotos, totalVideos, retainedMediaIds } = await getEventPhotosPaginated(selectedEventId, legacyId, 0, 20);
+            const { photos, hasMore, totalPhotos, totalVideos, retainedMediaIds } = await getEventPhotosPaginated(selectedEventId, legacyId, 0, 20, { includeHidden: true });
 
             setCurrentEventPhotos(photos as Photo[]);
             setCurrentEventMediaCounts({ photos: totalPhotos, videos: totalVideos });
@@ -1590,7 +1598,7 @@ function DashboardContent() {
             setEventFavouriteCount(favouriteRows.length);
 
             if (favouriteRows.length > 0) {
-                const favouritePhotos = await getFavouritePhotosForEvents([eventId]);
+                const favouritePhotos = await getFavouritePhotosForEvents([eventId], { includeHidden: true });
                 setEventFavouritePreview(favouritePhotos[0] || null);
             } else {
                 setEventFavouritePreview(null);
@@ -1616,8 +1624,9 @@ function DashboardContent() {
             }
             const legacyId = currentEvent?.legacyId;
             const nextPage = photoPage + 1;
-            const { photos, hasMore, totalPhotos, totalVideos, retainedMediaIds } = await getEventPhotosPaginated(selectedEventId, legacyId, nextPage, 20);
-            setCurrentEventPhotos(prev => [...prev, ...photos as Photo[]]);
+            const { photos, hasMore, totalPhotos, totalVideos, retainedMediaIds } = await getEventPhotosPaginated(selectedEventId, legacyId, nextPage, 20, { includeHidden: true });
+            // Each item once (Home lists its favourites first, and pages can share an item at their edges)
+            setCurrentEventPhotos(prev => mergeHomeMedia(prev, photos as Photo[]));
             setCurrentEventMediaCounts({ photos: totalPhotos, videos: totalVideos });
             setCurrentEventRetainedMediaIds(new Set(retainedMediaIds));
             setPhotoPage(nextPage);
@@ -1639,7 +1648,7 @@ function DashboardContent() {
         }
         const all: Photo[] = [];
         for (let page = 0, more = true; more; page += 1) {
-            const result = await getEventPhotosPaginated(eventId, currentEvent?.legacyId, page, 200);
+            const result = await getEventPhotosPaginated(eventId, currentEvent?.legacyId, page, 200, { includeHidden: true });
             all.push(...(result.photos as Photo[]));
             more = result.hasMore;
         }
@@ -1655,7 +1664,8 @@ function DashboardContent() {
         try {
             const all = await fetchAllEventMedia(eventId);
             if (selectedEventIdRef.current !== eventId) return;
-            setCurrentEventPhotos(all);
+            // Keeps what's loaded (on Home that includes the favourites) and adds the rest
+            setCurrentEventPhotos(prev => mergeHomeMedia(prev, all));
             setHasMorePhotos(false);
             setAllMediaLoadedFor(eventId);
         } catch (error) {
@@ -1983,6 +1993,39 @@ function DashboardContent() {
         }
         setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
         return result.success;
+    };
+
+    // Hide photos or videos from guests, or show them again (only the Host section shows hidden media)
+    const handleSetMediaHidden = async (photoIds: string[], hidden: boolean) => {
+        if (photoIds.length === 0) return;
+        const result = await setMediaHidden(photoIds, hidden);
+        if (result.success) {
+            const ids = new Set(photoIds);
+            setCurrentEventPhotos(prev => prev.map(photo => ids.has(photo.id) ? { ...photo, isHidden: hidden } : photo));
+            const what = photoIds.length === 1 ? "1 item" : `${photoIds.length} items`;
+            setMessage(hidden ? `${what} hidden from guests.` : `${what} visible to guests again.`);
+            setStatus("success");
+            if (isSelectingMedia) exitMediaSelection();
+        } else {
+            setMessage(result.error || "Couldn't update the media.");
+            setStatus("error");
+        }
+        setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
+    };
+
+    // Hide a sub-gallery from guests, or show it again (the event's managers always see it)
+    const toggleGalleryHidden = async (gallery: Event) => {
+        const hidden = !gallery.isHidden;
+        const result = await setGalleryHidden(gallery.id, hidden);
+        if (result.success) {
+            setEventDetailGalleries(prev => prev.map(item => item.id === gallery.id ? { ...item, isHidden: hidden } : item));
+            setMessage(hidden ? `"${gallery.title}" is now hidden from guests.` : `"${gallery.title}" is visible to guests again.`);
+            setStatus("success");
+        } else {
+            setMessage(result.error || "Couldn't update the gallery.");
+            setStatus("error");
+        }
+        setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
     };
 
     const handleGuestDeny = async (log: { id: string; name?: string | null }): Promise<boolean> => {
@@ -4493,11 +4536,35 @@ function DashboardContent() {
                                                                 <img
                                                                     src={resolveEventCoverImage(gallery.coverImage || selectedMainEvent.coverImage, 'thumbnail', gallery.category || selectedMainEvent.category)}
                                                                     alt={gallery.title}
-                                                                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                                                    className={cn(
+                                                                        "absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105",
+                                                                        gallery.isHidden && "opacity-50 grayscale"
+                                                                    )}
                                                                 />
+                                                                {gallery.isHidden && (
+                                                                    <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full border border-white/20 bg-black/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white backdrop-blur-sm">
+                                                                        <EyeOff className="h-3 w-3" aria-hidden="true" />
+                                                                        Hidden from guests
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                             <div className="flex flex-1 items-center justify-between gap-2 px-1.5 pt-3 pb-1">
                                                                 <h5 className="min-w-0 flex-1 truncate font-serif text-xl font-semibold text-white" title={gallery.title}>{gallery.title}</h5>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => { e.stopPropagation(); void toggleGalleryHidden(gallery); }}
+                                                                    aria-label={gallery.isHidden ? `Show ${gallery.title} to guests` : `Hide ${gallery.title} from guests`}
+                                                                    aria-pressed={!!gallery.isHidden}
+                                                                    title={gallery.isHidden ? "Hidden from guests: click to show it" : "Hide from guests"}
+                                                                    className={cn(
+                                                                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors",
+                                                                        gallery.isHidden
+                                                                            ? "border-[#CA9C68]/60 bg-[#CA9C68]/15 text-[#E2B77F] hover:bg-[#CA9C68]/25"
+                                                                            : "border-white/15 bg-white/5 text-slate-300 hover:border-[#CA9C68]/50 hover:text-[#E2B77F]"
+                                                                    )}
+                                                                >
+                                                                    {gallery.isHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                                                                </button>
                                                                 <button
                                                                     onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(gallery.id); }}
                                                                     aria-label={`Delete ${gallery.title}`}
@@ -5436,6 +5503,24 @@ function DashboardContent() {
                                                         </button>
                                                         <button
                                                             type="button"
+                                                            disabled={selectedMediaIds.size === 0}
+                                                            onClick={() => void handleSetMediaHidden(Array.from(selectedMediaIds), true)}
+                                                            className="flex items-center gap-2 rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400 disabled:opacity-40"
+                                                        >
+                                                            <EyeOff className="h-4 w-4" />
+                                                            <span>Hide from guests</span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={selectedMediaIds.size === 0}
+                                                            onClick={() => void handleSetMediaHidden(Array.from(selectedMediaIds), false)}
+                                                            className="flex items-center gap-2 rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-400 disabled:opacity-40"
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                            <span>Show to guests</span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
                                                             onClick={exitMediaSelection}
                                                             className="rounded-full px-3 py-2 text-sm font-semibold text-slate-400 hover:text-white"
                                                         >
@@ -5547,6 +5632,15 @@ function DashboardContent() {
                                                                 shouldBlurMediaForPlan={shouldBlurMediaForPlan} onThumbnailLoaded={handleThumbnailLoaded}
                                                             />
                                                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                            {photo.isHidden && (
+                                                                <>
+                                                                    <div className="pointer-events-none absolute inset-0 bg-slate-950/55" />
+                                                                    <span className="pointer-events-none absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-full border border-white/20 bg-black/70 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white backdrop-blur-sm">
+                                                                        <EyeOff className="h-3 w-3" aria-hidden="true" />
+                                                                        Hidden
+                                                                    </span>
+                                                                </>
+                                                            )}
                                                             {shouldBlurMediaForPlan && (
                                                                 <div className="pointer-events-none absolute left-1/2 top-14 z-20 w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-2xl border border-[#CA9C68]/50 bg-slate-950/95 px-3 py-2 text-center text-[10px] font-black uppercase leading-4 tracking-[0.08em] text-[#F5E7D4] shadow-2xl shadow-black/50 backdrop-blur-md">
                                                                     Plan expired<br />
@@ -5590,6 +5684,24 @@ function DashboardContent() {
                                                                 )}
                                                             >
                                                                 <Star className={cn("h-4 w-4", isFavourite && "fill-current")} />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                aria-label={photo.isHidden ? `Show this ${isVideo ? "video" : "photo"} to guests` : `Hide this ${isVideo ? "video" : "photo"} from guests`}
+                                                                title={photo.isHidden ? "Hidden from guests: click to show it" : "Hide from guests"}
+                                                                aria-pressed={!!photo.isHidden}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    void handleSetMediaHidden([photo.id], !photo.isHidden);
+                                                                }}
+                                                                className={cn(
+                                                                    "grid h-9 w-9 place-items-center rounded-lg shadow-lg backdrop-blur-md transition-all active:scale-95",
+                                                                    photo.isHidden
+                                                                        ? "bg-[#CA9C68] text-slate-950"
+                                                                        : "bg-slate-950/70 text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-[#CA9C68] hover:text-slate-950"
+                                                                )}
+                                                            >
+                                                                {photo.isHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                                             </button>
                                                             <button
                                                                 aria-label={isVideo ? "Video actions" : "Photo actions"}

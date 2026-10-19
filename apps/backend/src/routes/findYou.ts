@@ -2,7 +2,7 @@ import { Buffer } from "node:buffer";
 import { Router } from "express";
 import sharp from "sharp";
 import { getBearerToken, getInternalJobSecret, verifySupabaseUser } from "../auth.js";
-import { getSupabaseUserClient } from "../supabase.js";
+import { getSupabaseAdminClient, getSupabaseUserClient } from "../supabase.js";
 
 export const findYouRouter = Router();
 
@@ -19,6 +19,23 @@ export async function checkFindYouAccess(eventIds: string[], openGallery: OpenGa
   const accesses = await Promise.all(unique.map((id) => openGallery(id)));
   const deniedIndex = accesses.findIndex((access) => access !== "manage" && access !== "member");
   return deniedIndex === -1 ? { ok: true as const } : { ok: false as const, eventId: unique[deniedIndex] };
+}
+
+/**
+ * Photos the host hid from guests aren't returned by Find You. Best effort: if the lookup fails (for example the
+ * is_hidden column isn't there yet) nothing is filtered.
+ */
+export async function findHiddenMediaIds(photoIds: string[], getAdmin = getSupabaseAdminClient): Promise<Set<string>> {
+  const ids = [...new Set(photoIds.filter(Boolean))];
+  if (ids.length === 0) return new Set();
+  try {
+    const { data, error } = await getAdmin().from("photos").select("id").in("id", ids).eq("is_hidden", true);
+    if (error) throw error;
+    return new Set((data || []).map((row: { id: string }) => row.id));
+  } catch (error) {
+    console.warn("[BackendFindYou] Could not check hidden media:", error);
+    return new Set();
+  }
 }
 
 function isFindYouAccessRequired() {
@@ -221,7 +238,8 @@ findYouRouter.post("/", async (request, response) => {
       return;
     }
 
-    const matches = (result.matches || []).map((match) => {
+    const hiddenIds = await findHiddenMediaIds((result.matches || []).map((match) => match.imageId || match.id || ""));
+    const matches = (result.matches || []).filter((match) => !hiddenIds.has(match.imageId || match.id || "")).map((match) => {
       const imageId = match.imageId || match.id || "";
       const imageUrl = match.imageUrl || match.url || "";
       return {

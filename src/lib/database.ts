@@ -37,6 +37,8 @@ export interface Event {
     order?: number;
     isSampleGallery?: boolean;
     sampleGalleryOrder?: number;
+    /** Sub-gallery hidden from guests by the host (managers still see it) */
+    isHidden?: boolean;
     createdAt?: any;
 }
 
@@ -60,7 +62,12 @@ export interface Photo {
     status?: 'uploading' | 'processing' | 'processed' | 'failed';
     processingError?: string | null;
     transcodeAttempts?: number;
+    /** Hidden from guests by the host: shown only in the Host section */
+    isHidden?: boolean;
 }
+
+/** Media loading options. Hidden photos and videos are left out unless the Host section asks for them. */
+export type MediaQueryOptions = { includeHidden?: boolean };
 
 export interface Business {
     id: string;
@@ -276,6 +283,7 @@ function mapSqlToEvent(e: any): Event {
         order: e.order,
         isPublic: !!e.is_public,
         isSampleGallery: !!e.is_sample_gallery,
+        isHidden: !!e.is_hidden,
         sampleGalleryOrder: e.sample_gallery_order,
         createdAt: e.created_at
     };
@@ -301,7 +309,8 @@ function mapSqlToPhoto(p: any): Photo {
         order: p.order,
         status: p.status,
         processingError: p.processing_error,
-        transcodeAttempts: p.transcode_attempts
+        transcodeAttempts: p.transcode_attempts,
+        isHidden: !!p.is_hidden
     };
 }
 
@@ -793,8 +802,11 @@ export async function getEventPhotosPaginated(
     eventId: string,
     legacyId?: string,
     page: number = 0,
-    limit: number = 20
+    limit: number = 20,
+    options: MediaQueryOptions = {}
 ): Promise<{ photos: Photo[], hasMore: boolean, totalPhotos: number, totalVideos: number, retainedMediaIds: string[] }> {
+    // Hidden media is filtered here rather than in the query, so this also works before the is_hidden column exists
+    const isShown = (photo: Photo) => options.includeHidden || !photo.isHidden;
     if (!eventId) {
         console.warn("[Supabase] getEventPhotosPaginated: eventId is missing.");
         return { photos: [], hasMore: false, totalPhotos: 0, totalVideos: 0, retainedMediaIds: [] };
@@ -820,7 +832,7 @@ export async function getEventPhotosPaginated(
 
             if (error) throw error;
 
-            const rawPhotos = (data || []).map(mapSqlToPhoto).filter(isMediaVisibleInGallery);
+            const rawPhotos = (data || []).map(mapSqlToPhoto).filter(isMediaVisibleInGallery).filter(isShown);
             const visibleIds = planLimit?.retainedIds ?? new Set<string>();
             const visiblePhotos = rawPhotos.filter(photo => visibleIds.has(photo.id));
             const start = page * limit;
@@ -838,12 +850,12 @@ export async function getEventPhotosPaginated(
 
         const { data: countData, error: countError } = await supabase
             .from('photos')
-            .select('id,event_id,storage_key,url,uploaded_at,tags,media_type,resource_type,status')
+            .select('*')
             .in('event_id', ids);
 
         if (countError) throw countError;
 
-        const countedPhotos = (countData || []).map(mapSqlToPhoto).filter(isMediaVisibleInGallery);
+        const countedPhotos = (countData || []).map(mapSqlToPhoto).filter(isMediaVisibleInGallery).filter(isShown);
         const mediaCounts = getMediaCounts(countedPhotos);
         let retainedMediaIds = countedPhotos.map(photo => photo.id);
 
@@ -862,9 +874,10 @@ export async function getEventPhotosPaginated(
 
         if (error) throw error;
 
-        const rawPhotos = (data || []).map(mapSqlToPhoto).filter(isMediaVisibleInGallery);
-        const hasMore = rawPhotos.length > limit;
-        const photosToReturn = hasMore ? rawPhotos.slice(0, limit) : rawPhotos;
+        const pagePhotos = (data || []).map(mapSqlToPhoto).filter(isMediaVisibleInGallery);
+        // "More" follows the page as stored, before hidden items are taken out of it
+        const hasMore = pagePhotos.length > limit;
+        const photosToReturn = (hasMore ? pagePhotos.slice(0, limit) : pagePhotos).filter(isShown);
 
         return {
             photos: photosToReturn,
@@ -908,7 +921,7 @@ function isEventFavouritePolicyBlocked(error: unknown) {
  * Fetches host-curated favourite photos for an event group.
  * These are event-level favourites, not personal viewer likes.
  */
-export async function getFavouritePhotosForEvents(eventIds: string[]): Promise<Photo[]> {
+export async function getFavouritePhotosForEvents(eventIds: string[], options: MediaQueryOptions = {}): Promise<Photo[]> {
     const cleanEventIds = Array.from(new Set(eventIds.filter(Boolean)));
     if (cleanEventIds.length === 0) return [];
 
@@ -934,7 +947,7 @@ export async function getFavouritePhotosForEvents(eventIds: string[]): Promise<P
         const favouriteOrder = new Map(favouritePhotoIds.map((id, index) => [id, index]));
         return (data || [])
             .map(mapSqlToPhoto)
-            .filter(photo => !isCoverUsagePhoto(photo))
+            .filter(photo => !isCoverUsagePhoto(photo) && (options.includeHidden || !photo.isHidden))
             .sort((a, b) => (favouriteOrder.get(a.id) ?? 0) - (favouriteOrder.get(b.id) ?? 0));
     } catch (error) {
         if (isEventFavouriteTableUnavailable(error)) {
@@ -2253,6 +2266,53 @@ export async function deleteEvent(eventId: string): Promise<boolean> {
 /**
  * Updates an event's data.
  */
+/**
+ * Hides a sub-gallery from guests, or shows it again. Its own call (not updateEvent), so a database without the
+ * is_hidden column (migration 20261019000000 not applied) reports an error instead of silently doing nothing.
+ */
+export async function setGalleryHidden(galleryId: string, hidden: boolean): Promise<{ success: boolean; error?: string }> {
+    const { error } = await supabase.from('events').update({ is_hidden: hidden }).eq('id', galleryId).not('parent_id', 'is', null);
+    if (!error) return { success: true };
+    console.error("Error changing gallery visibility:", error);
+    return {
+        success: false,
+        error: error.code === 'PGRST204'
+            ? "Hiding galleries isn't available yet (database update pending)."
+            : "Couldn't update the gallery. Please try again.",
+    };
+}
+
+/**
+ * Sub-galleries shown on the guest side (the event's gallery pages, menus, Find You), for everyone including the
+ * host: hidden ones appear only in the Host section.
+ */
+export function visibleGalleries<T extends { isHidden?: boolean }>(galleries: T[]): T[] {
+    return galleries.filter(gallery => !gallery.isHidden);
+}
+
+/**
+ * Home (Primary Gallery) shows the host's favourites first, then the media uploaded to Home itself, each item once
+ * (a Home upload that is also a favourite stays in the favourites).
+ */
+export function mergeHomeMedia<T extends { id: string }>(favourites: T[], ownUploads: T[]): T[] {
+    const seen = new Set(favourites.map(item => item.id));
+    return [...favourites, ...ownUploads.filter(item => !seen.has(item.id) && seen.add(item.id))];
+}
+
+/** Hides a photo or video from guests, or shows it again (only the Host section shows hidden media). */
+export async function setMediaHidden(photoIds: string[], hidden: boolean): Promise<{ success: boolean; error?: string }> {
+    if (photoIds.length === 0) return { success: true };
+    const { error } = await supabase.from('photos').update({ is_hidden: hidden }).in('id', photoIds);
+    if (!error) return { success: true };
+    console.error("Error changing media visibility:", error);
+    return {
+        success: false,
+        error: error.code === 'PGRST204'
+            ? "Hiding photos isn't available yet (database update pending)."
+            : "Couldn't update the media. Please try again.",
+    };
+}
+
 export async function updateEvent(eventId: string, data: Partial<Event>): Promise<boolean> {
     try {
         const updateData: any = {};

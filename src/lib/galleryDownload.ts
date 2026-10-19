@@ -1,4 +1,4 @@
-import { getEventPhotosPaginated, type Photo } from "@/lib/database";
+import { getEventPhotosPaginated, type MediaQueryOptions, type Photo } from "@/lib/database";
 import type { DialogChoice } from "@/components/ui/Modal";
 import type { ZipMediaItem } from "@/lib/zipDownload";
 
@@ -12,7 +12,7 @@ export const HOME_DOWNLOAD_DIALOG: { title: string; message: string; choices: Di
         {
             id: "home",
             label: "Home (Primary Gallery) only",
-            description: "The favourite photos and videos shown on Home.",
+            description: "What Home shows: your favourites and the photos and videos uploaded to Home.",
         },
         {
             id: "event",
@@ -23,10 +23,10 @@ export const HOME_DOWNLOAD_DIALOG: { title: string; message: string; choices: Di
 };
 
 /** Every visible media row of one gallery (all pages; media rows only, no files). */
-export async function fetchAllGalleryMedia(galleryId: string, legacyId?: string): Promise<Photo[]> {
+export async function fetchAllGalleryMedia(galleryId: string, legacyId?: string, options: MediaQueryOptions = {}): Promise<Photo[]> {
     const all: Photo[] = [];
     for (let page = 0, more = true; more; page += 1) {
-        const result = await getEventPhotosPaginated(galleryId, legacyId, page, 200);
+        const result = await getEventPhotosPaginated(galleryId, legacyId, page, 200, options);
         all.push(...result.photos);
         more = result.hasMore;
     }
@@ -53,11 +53,12 @@ export function toZipItem(photo: Photo, folder?: string): ZipMediaItem {
 export async function fetchEntireEventZipItems(
     mainGallery: { id: string; legacyId?: string },
     subGalleries: { id: string; legacyId?: string; title?: string }[],
+    options: MediaQueryOptions = {},
 ): Promise<ZipMediaItem[]> {
     const galleries = [
         { ...mainGallery, folder: "Home" },
         ...subGalleries.map((gallery) => ({ ...gallery, folder: gallery.title || "Gallery" })),
     ];
-    const media = await Promise.all(galleries.map((gallery) => fetchAllGalleryMedia(gallery.id, gallery.legacyId)));
+    const media = await Promise.all(galleries.map((gallery) => fetchAllGalleryMedia(gallery.id, gallery.legacyId, options)));
     return galleries.flatMap((gallery, index) => media[index].map((photo) => toZipItem(photo, gallery.folder)));
 }

@@ -10,7 +10,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, GuestProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery } from '@/lib/database';
+import { getEventById, getSubEvents, openGallery, getPublicGalleryMedia, requestGalleryAccess, GalleryAccess, OpenedGallery, Event as DatabaseEvent, updateEvent, createEvent, getEventLogs, updateGuestStatus, updateGuestPermissions, deleteGuest, visibleGalleries, setGalleryHidden, setMediaHidden, mergeHomeMedia, GuestLog, deleteEvent, getBusinessByVendorCode, getBusinessById, Business, updatePhotosOrder, updateSubEventsOrder, getEventPhotos, getEventPhotosPaginated, getRetainedMediaIdsForEventGrace, getGuestProfile, GuestProfile, removeGuestChatPermission, saveCoverUsagePhoto, deleteCoverUsagePhoto, getUserTotalStorage, generateEventJoinId, getFavouritePhotosForEvents, getEventFavouritePhotos, toggleEventFavouritePhoto, rotatePhoto, isPhotoRowVisibleInGallery } from '@/lib/database';
 import { confirmDenyRequest } from '@/lib/denyRequest';
 import { buildUploaderOptions, fetchUploaderDetails, uploaderOf, type UploaderDetails } from '@/lib/uploaders';
 import { useAuth } from '@/context/AuthContext';
@@ -329,6 +329,18 @@ function parseEventDateValue(value?: string) {
   if (!Number.isNaN(parsed.getTime())) return parsed;
 
   return new Date();
+}
+
+/** Host view: marks a photo or video the host hid from guests */
+function HiddenMediaBadge() {
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 10, backgroundColor: 'rgba(2,6,23,0.45)' }}>
+      <View style={{ position: 'absolute', left: 4, bottom: 4, flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.75)' }}>
+        <IconSymbol name="eye.slash.fill" size={10} color="#fff" />
+        <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.8 }}>HIDDEN</Text>
+      </View>
+    </View>
+  );
 }
 
 function ExpiredMediaThumbnailNotice() {
@@ -1055,7 +1067,7 @@ export default function EventDetailScreen() {
   const [photos, setPhotos] = useState<any[]>([]);
   const photosRef = React.useRef<any[]>([]);
   photosRef.current = photos;
-  const [videoActionItem, setVideoActionItem] = useState<ThumbnailVideo | null>(null);
+  const [videoActionItem, setVideoActionItem] = useState<(ThumbnailVideo & { isHidden?: boolean }) | null>(null);
   const [thumbnailVideo, setThumbnailVideo] = useState<ThumbnailVideo | null>(null);
   const [thumbnailSaving, setThumbnailSaving] = useState(false);
   const [mediaTotals, setMediaTotals] = useState({ photos: 0, videos: 0 });
@@ -1098,12 +1110,21 @@ export default function EventDetailScreen() {
   const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
   const [sourceGalleryFilter, setSourceGalleryFilter] = useState('all');
   const [sourceGalleryMenuVisible, setSourceGalleryMenuVisible] = useState(false);
-  const photoItems = React.useMemo(() => photos.filter(item => isPhotoMedia(item) && item?.status !== 'uploading'), [photos]);
-  const videoItems = React.useMemo(() => photos.filter(item => isVideoMedia(item) && item?.status === 'processed'), [photos]);
+  // Sub-galleries hidden from guests appear only in the host view (admin view), for everyone including the host:
+  // the guest view leaves them out of the menus, the gallery list and Find You, and their photos out of Home
+  const guestSubEvents = React.useMemo(() => visibleGalleries(subEvents), [subEvents]);
+  const viewerPhotos = React.useMemo(() => {
+    if (showAdminView) return photos;
+    // Hidden photos and videos, and everything in hidden sub-galleries, stay in the host view
+    const hiddenIds = new Set(subEvents.filter(sub => sub.isHidden).flatMap(sub => [sub.id, sub.legacyId]).filter(Boolean));
+    return photos.filter(item => !item?.isHidden && !hiddenIds.has(item?.eventId));
+  }, [photos, showAdminView, subEvents]);
+  const photoItems = React.useMemo(() => viewerPhotos.filter(item => isPhotoMedia(item) && item?.status !== 'uploading'), [viewerPhotos]);
+  const videoItems = React.useMemo(() => viewerPhotos.filter(item => isVideoMedia(item) && item?.status === 'processed'), [viewerPhotos]);
   const selectedMediaItems = galleryMediaTab === 'photos' ? photoItems : videoItems;
   const isPrimaryGalleryView = showAdminView ? selectedAdminGallery === null : !activeSubEvent;
   const sourceGalleryOptions = React.useMemo(() => {
-    return [event, ...subEvents]
+    return [event, ...(showAdminView ? subEvents : guestSubEvents)]
       .filter((gallery): gallery is DatabaseEvent => !!gallery)
       .map(gallery => ({
         id: gallery.id,
@@ -1112,7 +1133,7 @@ export default function EventDetailScreen() {
         count: selectedMediaItems.filter(item => item.eventId === gallery.id || (!!gallery.legacyId && item.eventId === gallery.legacyId)).length,
       }))
       .filter(option => option.count > 0);
-  }, [event, selectedMediaItems, subEvents]);
+  }, [event, guestSubEvents, selectedMediaItems, showAdminView, subEvents]);
   const effectiveSourceGalleryFilter = sourceGalleryOptions.some(option => option.id === sourceGalleryFilter)
     ? sourceGalleryFilter
     : 'all';
@@ -1376,7 +1397,7 @@ export default function EventDetailScreen() {
           user
             ? getEventLogs(id)
             : Promise.resolve([]),
-          getEventPhotosPaginated(eventData.id, eventData.legacyId, 0, PHOTO_PAGE_SIZE),
+          getEventPhotosPaginated(eventData.id, eventData.legacyId, 0, PHOTO_PAGE_SIZE, { includeHidden: isAdminViewActive }),
           getRetainedMediaIdsForEventGrace(eventData.id, eventData.legacyId),
           getEventFavouritePhotos(eventData.id),
         ]);
@@ -1401,23 +1422,24 @@ export default function EventDetailScreen() {
           }
         });
 
-        const primaryFavouritePhotos = await getFavouritePhotosForEvents(getPrimaryFavouriteEventIds(eventData, normalizedSubs));
+        const primaryFavouritePhotos = await getFavouritePhotosForEvents(getPrimaryFavouriteEventIds(eventData, normalizedSubs), { includeHidden: isAdminViewActive });
         const hasPrimaryFavourites = primaryFavouritePhotos.length > 0;
         const primaryFavouriteIds = primaryFavouritePhotos.map((photo: any) => photo.id).filter(Boolean);
 
         setSubEvents(normalizedSubs);
         setLinkedVendors(vendorsData.filter(v => v !== null) as Business[]);
-        setPhotos(hasPrimaryFavourites ? primaryFavouritePhotos : photoDataResult.photos);
-        setMediaTotals(hasPrimaryFavourites
-          ? {
-              photos: primaryFavouritePhotos.filter(isPhotoMedia).length,
-              videos: primaryFavouritePhotos.filter(isVideoMedia).length,
-            }
-          : { photos: photoDataResult.totalPhotos, videos: photoDataResult.totalVideos }
-        );
+        // Home (Primary Gallery): the favourites first, then what was uploaded to Home itself (Home uploads that
+        // are also favourites are counted once)
+        const homeIds = new Set([eventData.id, eventData.legacyId].filter(Boolean));
+        const extraFavourites = primaryFavouritePhotos.filter((photo: any) => !homeIds.has(photo.eventId));
+        setPhotos(mergeHomeMedia(primaryFavouritePhotos, photoDataResult.photos));
+        setMediaTotals({
+          photos: photoDataResult.totalPhotos + extraFavourites.filter(isPhotoMedia).length,
+          videos: photoDataResult.totalVideos + extraFavourites.filter(isVideoMedia).length,
+        });
         setPhotoPage(0);
-        setHasMorePhotos(hasPrimaryFavourites ? false : photoDataResult.hasMore);
-        setRetainedMediaIds(hasPrimaryFavourites ? new Set(primaryFavouriteIds) : new Set(retainedIds));
+        setHasMorePhotos(photoDataResult.hasMore);
+        setRetainedMediaIds(new Set([...primaryFavouriteIds, ...retainedIds]));
         setEventFavouritePhotoIds(new Set(hasPrimaryFavourites ? primaryFavouriteIds : favouriteRows.map((row: any) => row.photoId)));
 
         if (ownerAccess || hasSharedAdminAccess) {
@@ -1464,7 +1486,7 @@ export default function EventDetailScreen() {
     const perfPhotosStart = Date.now();
     try {
       const [photoDataResult, retainedIds, favouriteRows] = await Promise.all([
-        getEventPhotosPaginated(eventId, legacyId, 0, PHOTO_PAGE_SIZE * pageCount),
+        getEventPhotosPaginated(eventId, legacyId, 0, PHOTO_PAGE_SIZE * pageCount, { includeHidden: isAdminViewActive }),
         getRetainedMediaIdsForEventGrace(eventId, legacyId),
         getEventFavouritePhotos(eventId),
       ]);
@@ -1496,34 +1518,28 @@ export default function EventDetailScreen() {
     }
     if (!silent) setLoadingPhotos(true);
     try {
-      const favouritePhotos = await getFavouritePhotosForEvents(getPrimaryFavouriteEventIds());
-      if (favouritePhotos.length > 0) {
-        const favouriteIds = favouritePhotos.map((photo: any) => photo.id).filter(Boolean);
-        const favouritePhotoCount = favouritePhotos.filter(isPhotoMedia).length;
-        const favouriteVideoCount = favouritePhotos.filter(isVideoMedia).length;
-
-        setPhotos(favouritePhotos);
-        setMediaTotals({ photos: favouritePhotoCount, videos: favouriteVideoCount });
-        setEventFavouritePhotoIds(new Set(favouriteIds));
-        setRetainedMediaIds(new Set(favouriteIds));
-        setPhotoPage(0);
-        setHasMorePhotos(false);
-        return;
-      }
-
+      // Home (Primary Gallery): the favourites first, then what was uploaded to Home itself
       const pageCount = silent ? photoPageRef.current + 1 : 1;
-      const [photoDataResult, retainedIds, favouriteRows] = await Promise.all([
-        getEventPhotosPaginated(event.id, event.legacyId, 0, PHOTO_PAGE_SIZE * pageCount),
+      const [favouritePhotos, photoDataResult, retainedIds, favouriteRows] = await Promise.all([
+        getFavouritePhotosForEvents(getPrimaryFavouriteEventIds(), { includeHidden: isAdminViewActive }),
+        getEventPhotosPaginated(event.id, event.legacyId, 0, PHOTO_PAGE_SIZE * pageCount, { includeHidden: isAdminViewActive }),
         getRetainedMediaIdsForEventGrace(event.id, event.legacyId),
         getEventFavouritePhotos(event.id),
       ]);
+      const favouriteIds = favouritePhotos.map((photo: any) => photo.id).filter(Boolean);
+      // Home uploads that are also favourites are counted once
+      const homeIds = new Set([event.id, event.legacyId].filter(Boolean));
+      const extraFavourites = favouritePhotos.filter((photo: any) => !homeIds.has(photo.eventId));
 
-      setPhotos(photoDataResult.photos);
-      setMediaTotals({ photos: photoDataResult.totalPhotos, videos: photoDataResult.totalVideos });
+      setPhotos(mergeHomeMedia(favouritePhotos, photoDataResult.photos));
+      setMediaTotals({
+        photos: photoDataResult.totalPhotos + extraFavourites.filter(isPhotoMedia).length,
+        videos: photoDataResult.totalVideos + extraFavourites.filter(isVideoMedia).length,
+      });
       if (!silent) setPhotoPage(0);
       setHasMorePhotos(photoDataResult.hasMore);
-      setRetainedMediaIds(new Set(retainedIds));
-      setEventFavouritePhotoIds(new Set(favouriteRows.map((row: any) => row.photoId)));
+      setRetainedMediaIds(new Set([...favouriteIds, ...retainedIds]));
+      setEventFavouritePhotoIds(new Set(favouriteIds.length > 0 ? favouriteIds : favouriteRows.map((row: any) => row.photoId)));
     } catch (err) {
       console.error('[EventDetail] Primary gallery photos load error:', err);
       if (silent) return;
@@ -1554,8 +1570,9 @@ export default function EventDetailScreen() {
         await loadPublicPhotos(activeId, nextPage);
         return;
       }
-      const { photos: nextPhotos, hasMore, totalPhotos, totalVideos } = await getEventPhotosPaginated(activeId, legacyId, nextPage, PHOTO_PAGE_SIZE);
-      setPhotos(prev => [...prev, ...nextPhotos]);
+      const { photos: nextPhotos, hasMore, totalPhotos, totalVideos } = await getEventPhotosPaginated(activeId, legacyId, nextPage, PHOTO_PAGE_SIZE, { includeHidden: isAdminViewActive });
+      // Each item once (Home lists its favourites first, and pages can share an item at their edges)
+      setPhotos(prev => mergeHomeMedia(prev, nextPhotos));
       setMediaTotals({ photos: totalPhotos, videos: totalVideos });
       setPhotoPage(nextPage);
       setHasMorePhotos(hasMore);
@@ -1579,13 +1596,13 @@ export default function EventDetailScreen() {
     try {
       const all: any[] = [];
       for (let page = 0, more = true; more; page += 1) {
-        const result = await getEventPhotosPaginated(galleryId, legacyId, page, 200);
+        const result = await getEventPhotosPaginated(galleryId, legacyId, page, 200, { includeHidden: true });
         all.push(...result.photos);
         more = result.hasMore;
       }
       if (adminGalleryIdRef.current !== galleryId) return;
-      const seen = new Set<string>();
-      setPhotos(all.filter(item => !seen.has(item.id) && seen.add(item.id)));
+      // Keeps what's loaded (on Home that includes the favourites) and adds the rest, each item once
+      setPhotos(prev => mergeHomeMedia(prev, all));
       setHasMorePhotos(false);
       setAllMediaLoadedFor(galleryId);
     } catch (err) {
@@ -2607,6 +2624,31 @@ export default function EventDetailScreen() {
         }
       ]
     );
+  };
+
+  // Hide a photo or video from guests, or show it again (it then shows only in the host view)
+  const handleToggleMediaHidden = async (item: { id: string; isHidden?: boolean }) => {
+    const hidden = !item.isHidden;
+    const result = await setMediaHidden([item.id], hidden);
+    if (!result.success) {
+      appAlert('Could not update', result.error || 'Please try again.');
+      return;
+    }
+    setPhotos(prev => prev.map(photo => photo.id === item.id ? { ...photo, isHidden: hidden } : photo));
+    setPhotoActionItem((prev: any) => prev?.id === item.id ? { ...prev, isHidden: hidden } : prev);
+    showToast(hidden ? 'Hidden from guests.' : 'Visible to guests again.');
+  };
+
+  // Hide a sub-gallery from guests, or show it again (the event's managers always see it)
+  const handleToggleSubGalleryHidden = async (sub: DatabaseEvent) => {
+    const hidden = !sub.isHidden;
+    const result = await setGalleryHidden(sub.id, hidden);
+    if (!result.success) {
+      appAlert('Could not update the gallery', result.error || 'Please try again.');
+      return;
+    }
+    setSubEvents(prev => prev.map(item => item.id === sub.id ? { ...item, isHidden: hidden } : item));
+    showToast(hidden ? `"${sub.title}" is now hidden from guests.` : `"${sub.title}" is visible to guests again.`);
   };
 
   const handleDeleteSubGallery = async (targetGallery?: DatabaseEvent) => {
@@ -3688,7 +3730,7 @@ export default function EventDetailScreen() {
                 <View style={styles.museumHeroMetaRow}>
                   <Text style={styles.museumHeroDate} numberOfLines={1}>{currentActiveEvent?.date || event.date || 'Curated Collection'}</Text>
                   <View style={styles.museumHeroMetaChip}>
-                    <Text style={styles.museumHeroMetaChipText}>Gallery {String(subEvents.length + 1).padStart(2, '0')}</Text>
+                    <Text style={styles.museumHeroMetaChipText}>Gallery {String(guestSubEvents.length + 1).padStart(2, '0')}</Text>
                   </View>
                   <TouchableOpacity style={styles.museumHeroShare} onPress={() => setShowShareModal(true)} activeOpacity={0.86}>
                     <IconSymbol name="square.and.arrow.up" size={14} color="#f8f6ef" />
@@ -4815,7 +4857,7 @@ export default function EventDetailScreen() {
               event={event}
               selectedTemplate={selectedTemplate}
               activeSubEvent={activeSubEvent}
-              subEvents={subEvents}
+              subEvents={guestSubEvents}
               handleSubEventChange={handleSubEventChange}
               styles={styles}
             />
@@ -4982,7 +5024,7 @@ export default function EventDetailScreen() {
 	                                }}
                                 activeOpacity={0.85}
                               >
-                                <ExpoImage source={getEventCoverSource(sub.coverImage, 'thumbnail', sub.category || event?.category)} style={styles.subImageFull} contentFit="cover" cachePolicy="memory-disk" transition={150} />
+                                <ExpoImage source={getEventCoverSource(sub.coverImage, 'thumbnail', sub.category || event?.category)} style={[styles.subImageFull, sub.isHidden && { opacity: 0.45 }]} contentFit="cover" cachePolicy="memory-disk" transition={150} />
                                 <LinearGradient
                                   colors={['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0.85)']}
                                   style={StyleSheet.absoluteFillObject}
@@ -4991,10 +5033,39 @@ export default function EventDetailScreen() {
                                 {/* Sub-gallery Badge */}
                                 <View style={styles.badgeContainer}>
                                   <View style={styles.subBadge}>
-                                    <IconSymbol name="photo.on.rectangle" size={10} color="rgba(255, 255, 255, 0.9)" />
-                                    <Text style={styles.subBadgeTextLabel}>SUB-GALLERY</Text>
+                                    <IconSymbol name={sub.isHidden ? 'eye.slash.fill' : 'photo.on.rectangle'} size={10} color="rgba(255, 255, 255, 0.9)" />
+                                    <Text style={styles.subBadgeTextLabel}>{sub.isHidden ? 'HIDDEN FROM GUESTS' : 'SUB-GALLERY'}</Text>
                                   </View>
                                 </View>
+
+                                {/* Hide from guests / show again */}
+                                <TouchableOpacity
+                                  accessibilityRole="button"
+                                  accessibilityLabel={sub.isHidden ? `Show ${sub.title} to guests` : `Hide ${sub.title} from guests`}
+                                  accessibilityState={{ selected: !!sub.isHidden }}
+                                  style={{
+                                    position: 'absolute',
+                                    top: 10,
+                                    right: 44,
+                                    zIndex: 20,
+                                    width: 28,
+                                    height: 28,
+                                    borderRadius: 14,
+                                    backgroundColor: sub.isHidden ? 'rgba(204, 164, 59, 0.85)' : 'rgba(0, 0, 0, 0.65)',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    borderWidth: 1,
+                                    borderColor: 'rgba(255, 255, 255, 0.15)',
+                                  }}
+                                  onPress={(e) => {
+                                    e.stopPropagation();
+                                    void handleToggleSubGalleryHidden(sub);
+                                  }}
+                                  hitSlop={6}
+                                  activeOpacity={0.7}
+                                >
+                                  <IconSymbol name={sub.isHidden ? 'eye.slash.fill' : 'eye.fill'} size={13} color={sub.isHidden ? '#13191F' : '#ffffff'} />
+                                </TouchableOpacity>
 
                                 {/* Card Delete Option */}
                                 <TouchableOpacity accessibilityRole="button" accessibilityLabel="Delete gallery"
@@ -5346,6 +5417,7 @@ export default function EventDetailScreen() {
                                 blurred={shouldBlurVideo}
                                 onOpen={() => isSelectingMedia ? toggleMediaSelection(video.id) : openViewer(idx)}
                               />
+                              {video.isHidden && <HiddenMediaBadge />}
                               {isSelectingMedia && (
                                 <TouchableOpacity
                                   accessibilityRole="checkbox"
@@ -5505,6 +5577,7 @@ export default function EventDetailScreen() {
                                   />
                                 </TouchableOpacity>
                                 {shouldBlurPhoto && <ExpiredMediaThumbnailNotice />}
+                                {item.isHidden && <HiddenMediaBadge />}
                                 {isSelectingMedia && (
                                 <TouchableOpacity
                                   accessibilityRole="checkbox"
@@ -5753,6 +5826,7 @@ export default function EventDetailScreen() {
                       {videoActionItem?.status !== 'processed' && <Text style={{ color: '#cbd5e1' }}>Available after video processing finishes.</Text>}
                       {subEvents.length > 0 && <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) setMediaToMove([videoActionItem]); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(148,163,184,0.35)' }}><Text style={{ color: '#E2E8F0', fontWeight: '700' }}>Move to another gallery</Text></TouchableOpacity>}
                       <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) setMediaToSave([videoActionItem]); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(127,163,140,0.45)' }}><Text style={{ color: '#A9C9B4', fontWeight: '700' }}>Save to EB Vault</Text></TouchableOpacity>
+                      <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) void handleToggleMediaHidden(videoActionItem); setVideoActionItem(null); }} style={{ padding: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(148,163,184,0.35)' }}><Text style={{ color: '#E2E8F0', fontWeight: '700' }}>{videoActionItem?.isHidden ? 'Hidden from guests: show it' : 'Hide from guests'}</Text></TouchableOpacity>
                       <TouchableOpacity accessibilityRole="button" onPress={() => { if (videoActionItem) handleDeleteGalleryPhoto(videoActionItem.id); setVideoActionItem(null); }} style={{ padding: 16 }}><Text style={{ color: '#fca5a5' }}>Delete video</Text></TouchableOpacity>
                       <TouchableOpacity accessibilityRole="button" onPress={() => setVideoActionItem(null)} style={{ padding: 16 }}><Text style={{ color: '#fff' }}>Cancel</Text></TouchableOpacity>
                     </View>
@@ -6417,7 +6491,7 @@ export default function EventDetailScreen() {
                 )}
 
                 {galleryAccess === 'member' && memberCanUpload && activeSubEvent?.id !== 'event-partners' && activeSubEvent?.id !== 'find-you' && (
-                  activeSubEvent || subEvents.length === 0 ? (
+                  activeSubEvent || guestSubEvents.length === 0 ? (
                     <TouchableOpacity
                       accessibilityRole="button"
                       accessibilityLabel="Add photos"
@@ -6456,7 +6530,7 @@ export default function EventDetailScreen() {
                     eventId={event.id}
                     legacyId={event.legacyId}
                     parentId={event.parentId}
-                    subEvents={subEvents}
+                    subEvents={guestSubEvents}
                     selectedTemplate={selectedTemplate}
                     styles={styles}
                     event={event}
@@ -6642,7 +6716,7 @@ export default function EventDetailScreen() {
                       <View style={styles.museumGalleryKicker}>
                         <Text style={styles.museumGalleryKickerText}>Featured Works</Text>
                         <View style={styles.museumGalleryKickerLine} />
-                        <Text style={styles.museumGalleryKickerCode}>Gallery {String(subEvents.length + 1).padStart(2, '0')}</Text>
+                        <Text style={styles.museumGalleryKickerCode}>Gallery {String(guestSubEvents.length + 1).padStart(2, '0')}</Text>
                       </View>
                     )}
                     {isBrutalistTemplate && (
@@ -6918,7 +6992,7 @@ export default function EventDetailScreen() {
                 ) : (
                   <View style={styles.photoGrid}>
                     {activeGalleryItems.length === 0 && isPrimaryGalleryView && !isFavouriteFilterActive
-                      && subEvents.length > 0 && displayedPhotoCount === 0 && displayedVideoCount === 0 ? (
+                      && guestSubEvents.length > 0 && displayedPhotoCount === 0 && displayedVideoCount === 0 ? (
                       // Home has no highlights yet, but the sub-galleries may: point guests to them
                       <View style={{ width: '100%', paddingVertical: 8 }}>
                         <Text style={{ color: selectedTemplate.text, fontFamily: selectedTemplate.bodyBold || Fonts.inter.bold, fontSize: 16, marginBottom: 4 }}>
@@ -6927,7 +7001,7 @@ export default function EventDetailScreen() {
                         <Text style={{ color: selectedTemplate.muted, fontFamily: Fonts.inter.regular, fontSize: 13, lineHeight: 19, marginBottom: 14 }}>
                           Photos and videos from this event are inside its galleries.
                         </Text>
-                        {subEvents.map((sub) => (
+                        {guestSubEvents.map((sub) => (
                           <TouchableOpacity
                             key={sub.id}
                             activeOpacity={0.8}
@@ -7678,6 +7752,41 @@ export default function EventDetailScreen() {
                 numberOfLines={2}
               >
                 {photoActionItemIsFavourite ? 'Remove from Primary Gallery' : 'Add to Primary Gallery'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Hide from guests: the photo then shows only in the host view */}
+            <TouchableOpacity
+              accessibilityRole="button"
+              style={{
+                width: '100%',
+                minHeight: 56,
+                borderRadius: 18,
+                backgroundColor: photoActionItem?.isHidden ? MidnightColors.gold : 'rgba(255, 255, 255, 0.04)',
+                borderWidth: photoActionItem?.isHidden ? 0 : 1,
+                borderColor: 'rgba(148, 163, 184, 0.35)',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                paddingHorizontal: 18,
+                gap: 12,
+              }}
+              activeOpacity={0.85}
+              disabled={!photoActionItem}
+              onPress={() => {
+                if (photoActionItem) void handleToggleMediaHidden(photoActionItem);
+              }}
+            >
+              <IconSymbol
+                name={photoActionItem?.isHidden ? 'eye.slash.fill' : 'eye.fill'}
+                size={16}
+                color={photoActionItem?.isHidden ? '#13191F' : '#E2E8F0'}
+              />
+              <Text
+                style={{ flex: 1, color: photoActionItem?.isHidden ? '#13191F' : '#E2E8F0', fontFamily: Fonts.outfit.bold, fontSize: 15 }}
+                numberOfLines={2}
+              >
+                {photoActionItem?.isHidden ? 'Hidden from guests: show it' : 'Hide from guests'}
               </Text>
             </TouchableOpacity>
 
